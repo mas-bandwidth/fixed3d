@@ -15,5 +15,7 @@ CMakeUserPresets.json
 Superluminal/
 build-ast/
 build-fixed/
+build-fixed2/
 *.csv
+!benchmark/*/*.csv
 .fetchcontent-cache/

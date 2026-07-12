@@ -1,188 +1,83 @@
-# Box3D
+# Box3D, but it's fixed point now
 
-[![Build Status](https://github.com/erincatto/box3d/actions/workflows/build.yml/badge.svg)](https://github.com/erincatto/box3d/actions)
-[![CLA assistant](https://cla-assistant.io/readme/badge/erincatto/box3d)](https://cla-assistant.io/erincatto/box3d)
+> # ⚠️ DO NOT USE THIS LIBRARY ⚠️
+>
+> **This is a joke.** The entire purpose of this fork is to make Erin mad.
+>
+> It is not supported. It is not maintained. It is not endorsed by Erin Catto,
+> and if he has seen it, he is mad about it, which was the point.
+>
+> Use the real [Box3D](https://github.com/erincatto/box3d).
+>
+> **DO NOT USE THIS LIBRARY.**
 
-![Box3D Logo](https://box2d.org/images/logo.svg)
+## What is this
 
-Box3D is a 3D physics engine for games.
+Box3D with every `float` torn out of the simulation and replaced with **Q48.16
+fixed point** in an `int64_t`. All of it: the solver, GJK, the trig, the ray
+casts, the mass properties, the recording format. The SIMD is gone. In
+exchange, every step is bit-exact on every platform, resolution is a uniform
+1/65536 everywhere in a ±1.4×10¹⁴ meter world, and all 22 unit test suites
+still pass.
 
-[![Introducing Box3D](https://img.youtube.com/vi/jr_Fzl2XwKU/maxresdefault.jpg)](https://www.youtube.com/watch?v=jr_Fzl2XwKU)
-
-## Features
-
-### Collision
-
-- Continuous collision detection
-- Contact events
-- Convex hulls, capsules, spheres, triangle meshes, and height fields
-- Multiple shapes per body
-- Collision filtering
-- Ray casts, shape casts, and overlap queries
-- Sensor system
-- Character mover
-
-### Physics
-
-- Robust _Soft Step_ rigid body solver
-- Continuous physics for fast translations and rotations
-- Island based sleep
-- Revolute, prismatic, distance, motor, weld, and wheel joints
-- Joint limits, motors, springs, and friction
-- Joint and contact forces
-- Body movement events and sleep notification
-
-### System
-
-- Data-oriented design
-- Written in portable C17
-- Extensive multithreading and SIMD
-- Optimized for large piles of bodies
-- Cross platform determinism
-- Recording and replay
-
-### Samples
-
-- Uses sokol to run with D3D11 on Windows, Metal on macOS, and OpenGL 4.5 on Linux.
-- Graphical user interface with imgui.
-- Many samples to demonstrate features and performance.
-
-## Building all platforms
-
-- Install [CMake](https://cmake.org/)
-- Install [git](https://git-scm.com/)
-- Ensure these run from the command line
-
-## Building with CMake presets (recommended)
-
-This uses the presets in `CMakePresets.json`.
-
-- Windows: `cmake --preset windows` then `cmake --build --preset windows-release`
-- Linux: `cmake --preset linux-release` then `cmake --build --preset linux-release`
-- macOS: `cmake --preset macos` then `cmake --build --preset macos-release`
-
-Run the samples app (must be in the Box3D directory).
-
-- Windows: `.\build\bin\Release\samples.exe`
-- Linux: `./build/bin/samples`
-- macOS: `./build/bin/Release/samples`
-
-## Building for Visual Studio
-
-- Install [Visual Studio](https://visualstudio.microsoft.com/)
-- Run `build_vs2026.bat`
-- Open and build `build/box3d.slnx`
-
-## Building for Linux
-
-- Run `build.sh` from a bash shell
-- Results are in the build sub-folder
-
-## Building for Xcode
-
-- mkdir build
-- cd build
-- cmake -G Xcode ..
-- Open `box3d.xcodeproj`
-- Select the samples scheme
-- Build and run the samples
-
-## Building for Web
-
-- [Emscripten SDK](https://emscripten.org/docs/getting_started/downloads.html)
-- `emcmake cmake -B build -DBOX3D_SAMPLES=OFF`
-- `cmake --build build`
-
-Box3D uses SSE2 with WebAssembly. Define `BOX3D_DISABLE_SIMD` to disable SSE2.
-
-## Building and installing
-
-- mkdir build
-- cd build
-- cmake ..
-- cmake --build . --config Release
-- cmake --install . (might need sudo)
-
-## Using Box3D in your project
-
-The core library has no dependencies beyond the C runtime (and `libm` on Unix). Linking it
-gives you the `box3d::box3d` target.
-
-I recommend to use FetchContent:
-
-```cmake
-include(FetchContent)
-FetchContent_Declare(box3d
-  GIT_REPOSITORY https://github.com/erincatto/box3d.git
-  GIT_TAG v0.1.0)
-FetchContent_MakeAvailable(box3d)
-
-target_link_libraries(my_app PRIVATE box3d::box3d)
+```
+45078b4 there i fixed it for you
 ```
 
-For a vendored copy or git submodule, point `add_subdirectory` at it:
+## Profile results: fixed point vs. vanilla single precision
 
-```cmake
-add_subdirectory(extern/box3d)
+`benchmark -t=4 -w=4 -r=2` (4 workers, min of 2 runs, continuous collision on),
+Apple M3 Ultra, macOS 26.5.1, Apple clang 21, RelWithDebInfo, Ninja.
 
-target_link_libraries(my_app PRIVATE box3d::box3d)
-```
+- **float** = vanilla Box3D at `e9f6f1d` (single precision, NEON SIMD)
+- **fixed** = this tree (Q48.16 `int64_t`, SIMD removed, scalar 4-wide constraint blocks)
 
-To use a copy installed with `cmake --install`, find the package:
+| Benchmark     | float (ms) | fixed (ms) | fixed / float |
+|---------------|-----------:|-----------:|--------------:|
+| convex_pile   |   13,733.1 |   27,075.7 |         2.0× |
+| joint_grid    |      275.4 |      808.1 |         2.9× |
+| junkyard      |    4,733.1 |   11,778.5 |         2.5× |
+| large_pyramid |      521.9 |    2,293.7 |         4.4× |
+| large_world   |       13.2 |       90.8 |         6.9× |
+| many_pyramids |      501.7 |    2,246.8 |         4.5× |
+| rain          |      586.1 |    1,956.1 |         3.3× |
+| trees25       |      227.2 |      464.4 |         2.0× |
+| trees50       |      113.6 |      228.0 |         2.0× |
+| trees100      |       80.7 |      170.2 |         2.1× |
+| washer        |    6,630.4 |   20,212.2 |         3.0× |
 
-```cmake
-find_package(box3d 0.1 REQUIRED)
+**Geometric mean: 3.0× slower.** Worst case (large_world): 6.9× slower. The
+unit test suite runs in ~1.9 s vs 0.39 s for the float baseline (~5×).
 
-target_link_libraries(my_app PRIVATE box3d::box3d)
-```
+### Where the time goes
 
-See [`docs/hello.md`](docs/hello.md) for a minimal first program.
+Both builds spend most of their time in the same place —
+`b3QueryEdgeDirections`, the hull–hull edge-edge SAT query inside
+`b3CollideHulls` — so the gap is mostly arithmetic, not algorithm:
 
-## Compatibility
+- `b3FixMul`/`b3FixDiv` go through 128-bit intermediates with saturation
+  checks; `__divti3`/`__udivmodti4` (software 128-bit division) show up
+  directly in the fixed-point sample profiles.
+- Square roots are exact bit-by-bit integer sqrt. Normalization does 128-bit
+  component divides. Correctness first; none of it is vectorized.
+- During this benchmark run the fixed-point build printed **12,858,880
+  "CCD stall" warnings** (the time-of-impact solver making zero progress on
+  quantized geometry). Some of the slowdown above is the physics; some of it
+  is the physics complaining about itself at millions of lines per second.
 
-The Box3D library and samples build and run on Windows, Linux, and Mac.
+### What you get for the 3×
 
-You will need a compiler that supports C17 to build the Box3D library.
+- Cross-platform, cross-compiler, bit-exact determinism by construction —
+  no FP contraction flags, no `-ffloat-store`, no x87 anxiety, no per-platform
+  golden files.
+- Uniform 1.5×10⁻⁵ resolution at the origin and at 100 km from the origin.
+  Large-world mode deleted because every world is a large world now.
 
-You will need a compiler that supports C++20 to build the samples.
+## Should I use this?
 
-Box3D uses SSE2 and Neon SIMD math to improve performance. SIMD can be disabled by defining `BOX3D_DISABLE_SIMD`.
-
-## Documentation
-
-The user manual lives in [`docs/`](docs/) and is built with Doxygen. Enable the `BOX3D_DOCS` CMake option and build the `doc` target.
-
-## Community
-
-- [Discord](https://discord.gg/NKYgCBP)
-
-## Contributing
-
-Pull requests are currently disabled. Instead, please file an issue for bugs or feature requests. For support, please visit the Discord server.
-
-## Giving feedback
-
-Please file an issue or start a chat on discord. You can also use [GitHub Discussions](https://github.com/erincatto/box3d/discussions).
+No. **DO NOT USE THIS LIBRARY.** It exists to make one specific person mad.
 
 ## License
 
-Box3D is developed by Erin Catto and uses the [MIT license](https://en.wikipedia.org/wiki/MIT_License).
-
-## Sponsorship
-
-Support development of Box3D through [Github Sponsors](https://github.com/sponsors/erincatto).
-
-Please consider starring this repository and subscribing to my [YouTube channel](https://www.youtube.com/@erin_catto).
-
-## LLM Usage
-
-LLMs are used in the following areas:
-
-- unit tests
-- samples app
-- migrating code between Box2D and Box3D
-- build configuration
-- code reviews
-- benchmarking
-
-Elsewhere all code is developed and written by me. I take responsibility for every line of code in Box2D/3D.
+MIT, same as the real Box3D, which — once more — you should use instead:
+<https://github.com/erincatto/box3d>

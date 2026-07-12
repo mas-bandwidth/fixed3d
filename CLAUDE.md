@@ -1,13 +1,65 @@
 # Box3D Fixed-Point Conversion — Session Handoff
 
-This working tree contains an **in-progress, uncommitted** conversion of Box3D from
-float to fixed-point math (internal and external API). Baseline float code is at
-`HEAD` (e9f6f1d); everything is a working-tree diff on `main`.
+This working tree contains the conversion of Box3D from float to fixed-point math
+(internal and external API). The conversion itself is committed (45078b4); the
+session-3 performance pass below is a working-tree diff on top. Baseline float
+code is at e9f6f1d.
 
-## Current status (as of 2026-07-11, session 2)
+## Current status (as of 2026-07-11, session 3 — performance pass)
 
-**ALL 22 test suites pass** (`./build-fixed/bin/test` prints "All Box3D tests passed!",
-~1.9 s vs 0.39 s for the float baseline). Single suite: `./build-fixed/bin/test <SuiteName>`.
+**ALL 22 test suites pass** (`./build-fixed2/bin/test`, ~1.2 s). Single suite:
+`./build-fixed2/bin/test <SuiteName>`.
+
+**TWO TREES WARNING**: `/Users/glenn/box3d` is a separate clone. Commit 98b9889
+("optimized to ~3.2x of float") was made there in a parallel session and has been
+**fetched and fast-forwarded into this repo** (main is now 98b9889 + the session-3
+work). `build-fixed/` and `build-ast/` here were copied from box3d and their
+build.ninja files hold ABSOLUTE paths into /Users/glenn/box3d — building them
+compiles the WRONG tree. Use `build-fixed2/` (fresh configure).
+
+Session-3 performance work (all on top of 98b9889's fixed.h fast paths):
+
+- **Raw 128-bit dot layer**: `b3DotRaw` / `b3FixFromDotRaw` in math_functions.h —
+  exact int128 dot, one round-half-up at the end (divide last), overflow checks
+  under `BOX3D_FIXED_SATURATE` like `b3FixMul`.
+- **SAT edge queries** (`b3QueryEdgeDirections`, hull-capsule variant, triangle-hull
+  `b3QueryTriangleAndHullEdges`, and both cached-axis revalidation blocks): Minkowski
+  sign tests are now exact XOR sign tests on raw dots (no fixed products just to
+  test a sign), `adc/bdc` are computed lazily after the `cba/dba` test passes, and
+  `t = cba/(cba-dba)` divides the raw 128-bit dots directly. Cache-validate and
+  full-query admission criteria are kept IDENTICAL — if you touch one, touch both.
+- **Support scans** (`b3FindHullSupportVertex/Face`): argmax over raw int128 dots.
+- **Wide solver reductions** (contact_solver.c): `b3CrossW`, `b3DotW`, `b3MulMVW`,
+  `b3MulSubMVW`, `b3MulAddMVW`, `b3MulMV2W` now use per-lane raw-128 reduction
+  helpers (`b3MulMulSubW`, `b3Dot2W/3W`, `b3Add/SubDot3W`) — one rounding per
+  reduction instead of one per product.
+- Normalize component divides routed through `b3FixDiv` (picks up its 64-bit fast
+  path; identical truncating quotient).
+
+Benchmarks (4 workers, this machine, min of 2 runs; "before" = the CSVs from the
+morning run, "98b9889" = that commit alone):
+
+| benchmark      | before | 98b9889 | now    | float |
+|----------------|--------|---------|--------|-------|
+| convex_pile    | 46779  | 27279   | 21117  | 13645 |
+| joint_grid     | 1555   | 809     | 814    |       |
+| large_pyramid  | 4444   | 2295    | 2078   | 518   |
+| large_world    | 162    | 92      | 84     |       |
+| many_pyramids  | 4263   | 2246    | 2039   |       |
+| rain           | 2637   | 1747    | 1733   |       |
+| trees50        | 419    | 226     | 209    |       |
+| washer         | 28767  | 18976   | 17575  |       |
+
+Geomean ~9% over 98b9889 (convex_pile −23%); ~1.9x over the morning state. Profile
+is now dominated by the contact solver inner iteration (b3SolveContacts_Convex,
+b3RotateVectorW, b3MulSub/AddMVW) — narrow phase is a sliver. Next levers, in
+order: (1) NEON int64 2-lane vectorization of the wide solver (big project),
+(2) `b3RotateVectorW` restructure (two crosses → matrix form per body), (3) the
+remaining `__udivmodti4` calls (~1%).
+
+**Benchmark CLI gotcha**: flags need the equals form (`-b=large_pyramid -w=4 -t=4
+-r=2`). Space-separated flags are silently ignored and the FULL suite runs (looks
+like a hang). It writes `<name>.csv` to the CWD.
 
 Fixes landed in session 2 (beyond the session-1 list):
 
@@ -29,13 +81,16 @@ Fixes landed in session 2 (beyond the session-1 list):
 
 ## Build workflow
 
-- Dev build: `cmake --build build-fixed` (Ninja, RelWithDebInfo, samples OFF,
-  benchmarks ON, tests ON). Configured with default `BOX3D_VALIDATE` (validation
-  compiles only in Debug). A Debug build has NOT been run recently — `B3_ASSERT`/
-  `B3_VALIDATE` conditions were all converted, but expect some asserts to need
-  ULP slack when first run (pattern: see `b3GetTwistAngle` in math_functions.h).
-- `build-ast/` is a Debug configure with `-DBOX3D_DISABLE_SIMD=ON -DBOX3D_VALIDATE=ON`;
-  its `compile_commands.json` drives the AST tools (below).
+- Dev build: `cmake --build build-fixed2` (Ninja, RelWithDebInfo, samples OFF,
+  benchmarks ON, tests ON). **Do NOT use `build-fixed/` or `build-ast/`** — they
+  compile /Users/glenn/box3d (absolute paths in build.ninja); delete or reconfigure
+  them. Validation compiles only in Debug; a Debug build has NOT been run recently —
+  `B3_ASSERT`/`B3_VALIDATE` conditions were all converted, but expect some asserts
+  to need ULP slack when first run (pattern: see `b3GetTwistAngle` in
+  math_functions.h).
+- The AST audit needs a compile_commands.json that points at THIS tree; reconfigure
+  build-ast (Debug, `-DBOX3D_DISABLE_SIMD=ON -DBOX3D_VALIDATE=ON`) before trusting
+  `tools/fixed-point/ast_audit.py` again.
 - Git worktrees were added for tooling and may now dangle (they live in a
   session-specific scratch dir): `git worktree list` / `git worktree prune`.
   One was a pristine copy for the rewriter; one (`floatref`) built the **float
@@ -50,11 +105,14 @@ Fixes landed in session 2 (beyond the session-1 list):
   safe for |v| up to ~1e7 (B3_HUGE stays 1e5). Chosen over Q32.32 for overflow
   headroom (same format as Photon Quantum). `B3_FIXED_FRACTION_BITS` is central
   but not fully parameterized everywhere (Q32.32 trig constants are hardcoded).
-- `+ - < ==` on `b3Fixed` are plain int64 ops. `b3FixMul` (128-bit, round-half-up,
-  **saturating**), `b3FixDiv` (truncating, saturating; div-by-zero returns
-  ±B3_FIXED_MAX with numerator sign, 0/0=0 — the "poor man's infinity").
-  `b3FixSqrt` is an exact integer sqrt. `B3_FIX(1.5f)` converts literals at
-  compile time (constant-foldable, works in static initializers).
+- `+ - < ==` on `b3Fixed` are plain int64 ops. `b3FixMul` (128-bit, round-half-up;
+  overflow checks are **opt-in** via `BOX3D_FIXED_SATURATE` since 98b9889 — default
+  wraps, simulation values are far below range), `b3FixDiv` (truncating, saturating;
+  64-bit fast path for numerators under 2^47; div-by-zero returns ±B3_FIXED_MAX with
+  numerator sign, 0/0=0 — the "poor man's infinity"). `b3FixSqrt` is an exact
+  integer sqrt (double-seeded + integer repair, still exact ⇒ deterministic).
+  `B3_FIX(1.5f)` converts literals at compile time (constant-foldable, works in
+  static initializers).
 - **Integer scaling is idiomatic**: `2 * fixedValue`, `fixedValue / 4`,
   `n * B3_FIXED_EPSILON` are correct native ops. Only fixed×fixed and
   fixed÷fixed need `b3FixMul`/`b3FixDiv`.
@@ -122,10 +180,11 @@ Fixes landed in session 2 (beyond the session-1 list):
   `b3Sin`/`b3Cos` (the deterministic approximations carry ~1e-3 error and were
   never meant as references — see `ExactQuat` in test_manifold.c, the cylinder
   expectations in test_hull.c, and the trig comparisons in test_math.c).
-- Determinism goldens (`test/test_determinism.c`): `EXPECTED_SLEEP_STEP 250`,
-  `EXPECTED_HASH 0x64D338BA` (re-recorded after the direct b3Solve3 rounding change). Any solver-affecting change invalidates these:
-  rerun, take the printed values, confirm they're identical for all worker
-  counts before updating.
+- Determinism goldens (`test/test_determinism.c`): `EXPECTED_SLEEP_STEP 305`,
+  `EXPECTED_HASH 0x1C6FD0EA` (updated in session 3 after the single-rounding
+  reduction changes; verified bit-identical across 1-4 workers). Any
+  solver-affecting change invalidates these: rerun, take the printed values,
+  confirm they're identical for all worker counts before updating.
 - `ATAN_TOL` in test_math.c is `B3_FIX(0.0001f)` (poly error + output quantization).
 
 ## Conversion tooling (copies in `tools/fixed-point/`, originals were in a
@@ -146,22 +205,10 @@ session scratchpad that may be gone)
 
 ## Known leftovers / follow-ups
 
-- Benchmarks (RelWithDebInfo, arm64, -w=4, ms, float baseline from a HEAD
-  worktree) after the optimization pass: convex_pile 13674→27568 (2.0x),
-  joint_grid 277→828 (3.0x), large_pyramid 578→2398 (4.2x), many_pyramids
-  520→2327 (4.5x), trees50 123→244 (2.0x), washer 6852→19356 (2.8x), rain
-  633→1814 (2.9x), large_world 16.3→100 (6.2x). Geomean ~3.2x slower
-  (was 5.4x before optimizing). Optimizations: b3FixDiv 64-bit fast path,
-  double-seeded exact isqrt (still exact floor => deterministic), rollingMass
-  inversion skipped when rollingResistance == 0, direct 3-divide b3Solve3, and
-  b3FixMul overflow saturation now OPT-IN via BOX3D_FIXED_SATURATE (unchecked
-  by default; div-by-zero saturation in b3FixDiv kept). Removing saturation
-  exposed `FixMul(det,det) < 0` in b3LineDistance (a converted det²<tiny guard)
-  whose huge square previously saturated benignly — now `det == 0`. Remaining
-  gap is the wide-solver 64-bit lane multiplies (NEON has no 64x64 multiply)
-  and int64-doubled broad-phase memory traffic.
-- Check `data/dumps/single_box` — if anything replays recorded float-era data,
-  it is format-incompatible (recording major version was bumped for this).
+- Run `./build-fixed/bin/benchmark`; `shared/benchmarks.c` is converted but
+  never executed. Also check `data/dumps/single_box` — if anything replays
+  recorded float-era data, it is format-incompatible (recording major version
+  was bumped for this).
 - Debug-config test run (asserts + B3_VALIDATE active) has not been done;
   expect a few asserts to need ulp slack.
 - Quickhull (`b3HullBuilder_ConnectFaces`) has no iteration guard; a degenerate

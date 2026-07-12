@@ -16,8 +16,8 @@
 
 // Golden values for the fixed-point build. Fixed-point math is exactly
 // reproducible across platforms and worker counts, so these hold everywhere.
-#define EXPECTED_SLEEP_STEP 250
-#define EXPECTED_HASH 0x64D338BA
+#define EXPECTED_SLEEP_STEP 305
+#define EXPECTED_HASH 0x1C6FD0EA
 
 static int SingleMultithreadingTest( int workerCount )
 {

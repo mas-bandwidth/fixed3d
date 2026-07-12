@@ -1609,15 +1609,18 @@ static b3HullHalfEdge* b3GetHullEdgesWrite( b3HullData* hull )
 int b3FindHullSupportVertex( const b3HullData* hull, b3Vec3 direction )
 {
 	int bestIndex = B3_NULL_INDEX;
-	b3Fixed bestDot = -B3_FIXED_MAX;
+
+	// Compare exact raw 128-bit dots: no per-component rounding or saturation
+	// in the scan, and ties resolve on the exact values.
+	b3Int128 bestDot = 0;
 
 	int vertexCount = hull->vertexCount;
 	const b3Vec3* points = b3GetHullPoints( hull );
 
 	for ( int index = 0; index < vertexCount; ++index )
 	{
-		b3Fixed dot = b3Dot( direction, points[index] );
-		if ( dot > bestDot )
+		b3Int128 dot = b3DotRaw( direction, points[index] );
+		if ( bestIndex == B3_NULL_INDEX || dot > bestDot )
 		{
 			bestIndex = index;
 			bestDot = dot;
@@ -1631,15 +1634,17 @@ int b3FindHullSupportVertex( const b3HullData* hull, b3Vec3 direction )
 int b3FindHullSupportFace( const b3HullData* hull, b3Vec3 direction )
 {
 	int bestIndex = B3_NULL_INDEX;
-	b3Fixed bestDot = -B3_FIXED_MAX;
+
+	// Compare exact raw 128-bit dots, matching b3FindHullSupportVertex
+	b3Int128 bestDot = 0;
 
 	int faceCount = hull->faceCount;
 	const b3Plane* planes = b3GetHullPlanes( hull );
 
 	for ( int index = 0; index < faceCount; ++index )
 	{
-		b3Fixed dot = b3Dot( planes[index].normal, direction );
-		if ( dot > bestDot )
+		b3Int128 dot = b3DotRaw( planes[index].normal, direction );
+		if ( bestIndex == B3_NULL_INDEX || dot > bestDot )
 		{
 			bestDot = dot;
 			bestIndex = index;

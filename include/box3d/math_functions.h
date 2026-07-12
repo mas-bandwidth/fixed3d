@@ -210,6 +210,32 @@ B3_INLINE b3Fixed b3Dot( b3Vec3 a, b3Vec3 b )
 	return b3FixMul( a.x , b.x ) + b3FixMul( a.y , b.y ) + b3FixMul( a.z , b.z );
 }
 
+/// Exact dot product accumulated at 128 bits, scaled by 2^(2*B3_FIXED_FRACTION_BITS).
+/// No per-component rounding or saturation, so sign tests and comparisons on the
+/// raw value are exact even for sub-resolution results.
+B3_INLINE b3Int128 b3DotRaw( b3Vec3 a, b3Vec3 b )
+{
+	return (b3Int128)a.x * b.x + (b3Int128)a.y * b.y + (b3Int128)a.z * b.z;
+}
+
+/// Round a raw 128-bit dot product to fixed point with a single round-half-up
+/// step (divide last), matching b3FixMul rounding and overflow policy.
+B3_INLINE b3Fixed b3FixFromDotRaw( b3Int128 raw )
+{
+	b3Int128 r = ( raw + B3_FIXED_HALF ) >> B3_FIXED_FRACTION_BITS;
+#if defined( BOX3D_FIXED_SATURATE )
+	if ( r > (b3Int128)INT64_MAX )
+	{
+		return B3_FIXED_MAX;
+	}
+	if ( r < -(b3Int128)INT64_MAX )
+	{
+		return B3_FIXED_MIN;
+	}
+#endif
+	return (b3Fixed)r;
+}
+
 /// Vector length. Computed from the exact 128-bit sum of squared components, so
 /// it is accurate even for vectors far below unit length.
 B3_INLINE b3Fixed b3Length( b3Vec3 v )
@@ -247,10 +273,12 @@ B3_INLINE b3Vec3 b3Normalize( b3Vec3 a )
 	if ( ls > 0 )
 	{
 		b3Fixed length = (b3Fixed)b3ISqrt128High( (uint64_t)( (unsigned __int128)ls >> 64 ), (uint64_t)ls );
+		// b3FixDiv computes the same truncating 128-bit quotient, with a single
+		// hardware divide when the component fits in 47 bits (the common case)
 		b3Vec3 u = {
-			(b3Fixed)( ( (b3Int128)a.x << 16 ) / length ),
-			(b3Fixed)( ( (b3Int128)a.y << 16 ) / length ),
-			(b3Fixed)( ( (b3Int128)a.z << 16 ) / length ),
+			b3FixDiv( a.x, length ),
+			b3FixDiv( a.y, length ),
+			b3FixDiv( a.z, length ),
 		};
 		return u;
 	}
@@ -269,9 +297,9 @@ B3_INLINE b3Vec3 b3GetLengthAndNormalize( b3Fixed* length, b3Vec3 a )
 	}
 
 	b3Vec3 n = {
-		(b3Fixed)( ( (b3Int128)a.x << 16 ) / *length ),
-		(b3Fixed)( ( (b3Int128)a.y << 16 ) / *length ),
-		(b3Fixed)( ( (b3Int128)a.z << 16 ) / *length ),
+		b3FixDiv( a.x, *length ),
+		b3FixDiv( a.y, *length ),
+		b3FixDiv( a.z, *length ),
 	};
 	return n;
 }

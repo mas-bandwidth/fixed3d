@@ -605,17 +605,24 @@ static b3EdgeQuery b3QueryTriangleAndHullEdges( const b3TriangleData* triangle, 
 		b3Vec3 hullNormal1 = hullPlanes[edge->face].normal;
 		b3Vec3 hullNormal2 = hullPlanes[twin->face].normal;
 
+		// Only depends on the hull edge, not the triangle edge
+		b3Int128 bcdRaw = b3DotRaw( triNormal, hullEdge );
+
 		for ( int j = 0; j < 3; ++j )
 		{
 			b3Vec3 triEdge = triangleEdges[j];
 
-			b3Fixed cab = b3Dot( hullNormal1, triEdge );
-			b3Fixed dab = b3Dot( hullNormal2, triEdge );
-			b3Fixed bcd = b3Dot( triNormal, hullEdge );
-			if ( b3FixMul( cab , dab ) >= B3_FIX( 0.0f ) || b3FixMul( cab , bcd ) <= B3_FIX( 0.0f ) )
+			// Exact sign tests on raw 128-bit dots (see b3QueryEdgeDirections):
+			// reject unless cab * dab < 0 and cab * bcd > 0
+			b3Int128 cabRaw = b3DotRaw( hullNormal1, triEdge );
+			b3Int128 dabRaw = b3DotRaw( hullNormal2, triEdge );
+			if ( cabRaw == 0 || dabRaw == 0 || ( cabRaw ^ dabRaw ) >= 0 || bcdRaw == 0 || ( cabRaw ^ bcdRaw ) < 0 )
 			{
 				continue;
 			}
+
+			b3Fixed cab = b3FixFromDotRaw( cabRaw );
+			b3Fixed dab = b3FixFromDotRaw( dabRaw );
 
 			// Avoid nearly parallel edges that may lead to invalid separation values at the noise floor.
 			if ( b3FixMax( b3FixMul( cab , cab ), b3FixMul( dab , dab ) ) < b3FixMul( squaredTolerance , b3LengthSquared( triEdge ) ) )
@@ -626,11 +633,12 @@ static b3EdgeQuery b3QueryTriangleAndHullEdges( const b3TriangleData* triangle, 
 			// Similar to hull vs hull (b3QueryEdgeDirections)
 			// dot(hullNormal1 + t * (hullNormal2 - hullNormal1), triEdge) = 0
 			// Normal points out of hull by construction.
-			b3Fixed t = b3FixDiv( cab , ( cab - dab ) );
+			// Computed from the raw dots so the quotient keeps full precision (divide last).
+			b3Fixed t = (b3Fixed)( ( cabRaw << B3_FIXED_FRACTION_BITS ) / ( cabRaw - dabRaw ) );
 			b3Vec3 axis = b3Lerp( hullNormal1, hullNormal2, t );
 			B3_VALIDATE( b3LengthSquared( axis ) > 0 );
 			axis = b3Normalize( axis );
-			b3Fixed separation = b3Dot( axis, b3Sub( trianglePoints[j], hullPoint ) );
+			b3Fixed separation = b3FixFromDotRaw( b3DotRaw( axis, b3Sub( trianglePoints[j], hullPoint ) ) );
 
 			// if ( separation > result.separation && ( edgeFlags[j] & triangleFlags ) == 0 )
 			if ( separation > result.separation )
@@ -1110,12 +1118,16 @@ void b3CollideHullAndTriangle( b3LocalManifold* manifold, int capacity, const b3
 			// Confirm the edge pair is still a Minkowski face.
 			// See "Collision Detection of Convex Polyhedra Based on Duality Transformation"
 			// Simplified for triangle versus hull.
-			b3Fixed cab = b3Dot( hullNormal1, triEdge );
-			b3Fixed dab = b3Dot( hullNormal2, triEdge );
-			b3Fixed bcd = b3Dot( trianglePlane.normal, hullEdge );
+			// Exact sign tests on raw 128-bit dots, matching b3QueryTriangleAndHullEdges
+			// so the cached-axis check agrees with a full requery.
+			b3Int128 cabRaw = b3DotRaw( hullNormal1, triEdge );
+			b3Int128 dabRaw = b3DotRaw( hullNormal2, triEdge );
+			b3Int128 bcdRaw = b3DotRaw( trianglePlane.normal, hullEdge );
 
-			if ( b3FixMul( cab , dab ) < B3_FIX( 0.0f ) && b3FixMul( cab , bcd ) > B3_FIX( 0.0f ) )
+			if ( cabRaw != 0 && dabRaw != 0 && ( cabRaw ^ dabRaw ) < 0 && bcdRaw != 0 && ( cabRaw ^ bcdRaw ) >= 0 )
 			{
+				b3Fixed cab = b3FixFromDotRaw( cabRaw );
+				b3Fixed dab = b3FixFromDotRaw( dabRaw );
 				b3Fixed squaredTolerance = b3FixMul( B3_FIX( 0.005f ) , B3_FIX( 0.005f ) );
 
 				// Avoid nearly parallel edges that may lead to invalid separation values at the noise floor.
@@ -1124,11 +1136,12 @@ void b3CollideHullAndTriangle( b3LocalManifold* manifold, int capacity, const b3
 					// Similar to hull vs hull (b3QueryEdgeDirections)
 					// dot(hullNormal1 + t * (hullNormal2 - hullNormal1), triEdge) = 0
 					// Normal points out of hull by construction.
-					b3Fixed t = b3FixDiv( cab , ( cab - dab ) );
+					// Computed from the raw dots so the quotient keeps full precision (divide last).
+					b3Fixed t = (b3Fixed)( ( cabRaw << B3_FIXED_FRACTION_BITS ) / ( cabRaw - dabRaw ) );
 					b3Vec3 axis = b3Lerp( hullNormal1, hullNormal2, t );
 					B3_VALIDATE( b3LengthSquared( axis ) > 0 );
 					axis = b3Normalize( axis );
-					b3Fixed separation = b3Dot( axis, b3Sub( triPoint, hullPoint ) );
+					b3Fixed separation = b3FixFromDotRaw( b3DotRaw( axis, b3Sub( triPoint, hullPoint ) ) );
 					if ( separation > speculativeDistance )
 					{
 						// Cache hit, shapes are separated

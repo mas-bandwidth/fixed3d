@@ -181,11 +181,16 @@ static b3EdgeQuery b3QueryEdgeDirectionHullAndCapsule( const b3HullData* hull, c
 		// An isolated edge (e.g. like in a capsule) defines a circle through the
 		// origin on the Gauss map. So testing for overlap between this circle and
 		// the arc AB simplifies to a plane test.
-		b3Fixed cba = b3Dot( uB, eA );
-		b3Fixed dba = b3Dot( vB, eA );
+		// Exact sign test on raw 128-bit dots: cba * dba < 0 means strictly
+		// opposite signs and both non-zero.
+		b3Int128 cbaRaw = b3DotRaw( uB, eA );
+		b3Int128 dbaRaw = b3DotRaw( vB, eA );
 
-		if ( b3FixMul( cba , dba ) < B3_FIX( 0.0f ) )
+		if ( cbaRaw != 0 && dbaRaw != 0 && ( cbaRaw ^ dbaRaw ) < 0 )
 		{
+			b3Fixed cba = b3FixFromDotRaw( cbaRaw );
+			b3Fixed dba = b3FixFromDotRaw( dbaRaw );
+
 			// Avoid nearly parallel edges that may lead to invalid separation values at the noise floor.
 			if ( b3FixMax( b3FixMul( cba , cba ), b3FixMul( dba , dba ) ) < b3FixMul( squaredTolerance , b3LengthSquared( eA ) ) )
 			{
@@ -199,6 +204,7 @@ static b3EdgeQuery b3QueryEdgeDirectionHullAndCapsule( const b3HullData* hull, c
 			// t = cba / (cba - dba)
 			//
 			// The signs of cba and dba differ (Minkowski test), so the division is safe.
+			// Computed from the raw dots so the quotient keeps full precision (divide last).
 			//
 			// The axis generated points from B to A by construction since it lands between
 			// two face normals on B. This removes the need to orient the separation axis
@@ -207,7 +213,7 @@ static b3EdgeQuery b3QueryEdgeDirectionHullAndCapsule( const b3HullData* hull, c
 			// The axis is perpendicular to both edges so I can use qA and qB as arbitrary
 			// points on edgeA and edgeB to measure the separation.
 
-			b3Fixed t = b3FixDiv( cba , ( cba - dba ) );
+			b3Fixed t = (b3Fixed)( ( cbaRaw << B3_FIXED_FRACTION_BITS ) / ( cbaRaw - dbaRaw ) );
 			b3Vec3 axis = b3Lerp( uB, vB, t );
 			B3_VALIDATE( b3LengthSquared( axis ) > 0 );
 			axis = b3Normalize( axis );
@@ -276,8 +282,6 @@ static b3EdgeQuery b3QueryEdgeDirections( const b3HullData* hullA, const b3HullD
 
 			b3Vec3 qA = pointsA[twinA->origin];
 			b3Vec3 eA = b3Sub( qA, pointsA[edgeA->origin] );
-			b3Vec3 uA = planesA[edgeA->face].normal;
-			b3Vec3 vA = planesA[twinA->face].normal;
 
 			// See "Collision Detection of Convex Polyhedra Based on Duality Transformation"
 			// Two edges build a face on the Minkowski sum if the associated arcs AB and CD intersect on the Gauss map.
@@ -288,13 +292,31 @@ static b3EdgeQuery b3QueryEdgeDirections( const b3HullData* hullA, const b3HullD
 			// eB parallel to cross(vB, uB)
 			// Since only signs are tested, length doesn't matter.
 
-			b3Fixed cba = b3Dot( uB, eA );
-			b3Fixed dba = b3Dot( vB, eA );
-			b3Fixed adc = -b3Dot( uA, eB );
-			b3Fixed bdc = -b3Dot( vA, eB );
-
-			if ( b3FixMul( cba , dba ) < B3_FIX( 0.0f ) && b3FixMul( adc , bdc ) < B3_FIX( 0.0f ) && b3FixMul( cba , bdc ) > B3_FIX( 0.0f ) )
+			// The Minkowski sign tests run on raw 128-bit dots: exact signs with no
+			// rounding, no saturation, and no fixed-point product just to test a sign.
+			// cba * dba < 0 means strictly opposite signs and both non-zero.
+			b3Int128 cbaRaw = b3DotRaw( uB, eA );
+			b3Int128 dbaRaw = b3DotRaw( vB, eA );
+			if ( cbaRaw == 0 || dbaRaw == 0 || ( cbaRaw ^ dbaRaw ) >= 0 )
 			{
+				continue;
+			}
+
+			b3Vec3 uA = planesA[edgeA->face].normal;
+			b3Vec3 vA = planesA[twinA->face].normal;
+			b3Int128 adcRaw = -b3DotRaw( uA, eB );
+			b3Int128 bdcRaw = -b3DotRaw( vA, eB );
+
+			// adc * bdc < 0 and cba * bdc > 0
+			if ( adcRaw == 0 || bdcRaw == 0 || ( adcRaw ^ bdcRaw ) >= 0 || ( cbaRaw ^ bdcRaw ) < 0 )
+			{
+				continue;
+			}
+
+			{
+				b3Fixed cba = b3FixFromDotRaw( cbaRaw );
+				b3Fixed dba = b3FixFromDotRaw( dbaRaw );
+
 				// Avoid nearly parallel edges that may lead to invalid separation values at the noise floor.
 				if ( b3FixMax( b3FixMul( cba , cba ), b3FixMul( dba , dba ) ) < b3FixMul( squaredTolerance , b3LengthSquared( eA ) ) )
 				{
@@ -308,6 +330,7 @@ static b3EdgeQuery b3QueryEdgeDirections( const b3HullData* hullA, const b3HullD
 				// t = cba / (cba - dba)
 				//
 				// The signs of cba and dba differ (Minkowski test), so the division is safe.
+				// Computed from the raw dots so the quotient keeps full precision (divide last).
 				//
 				// The axis generated points from B to A by construction since it lands between
 				// two face normals on B. This removes the need to orient the separation axis
@@ -315,11 +338,11 @@ static b3EdgeQuery b3QueryEdgeDirections( const b3HullData* hullA, const b3HullD
 				//
 				// The axis is perpendicular to both edges so I can use qA and qB as arbitrary
 				// points on edgeA and edgeB to measure the separation.
-				b3Fixed t = b3FixDiv( cba , ( cba - dba ) );
+				b3Fixed t = (b3Fixed)( ( cbaRaw << B3_FIXED_FRACTION_BITS ) / ( cbaRaw - dbaRaw ) );
 				b3Vec3 axis = b3Lerp( uB, vB, t );
 				B3_VALIDATE( b3LengthSquared( axis ) > 0 );
 				axis = b3Normalize( axis );
-				b3Fixed separation = b3Dot( axis, b3Sub( qA, qB ) );
+				b3Fixed separation = b3FixFromDotRaw( b3DotRaw( axis, b3Sub( qA, qB ) ) );
 
 				if ( separation > maxSeparation )
 				{
@@ -1451,23 +1474,29 @@ void b3CollideHulls( b3LocalManifold* manifold, int capacity, const b3HullData* 
 			// cross(v2, u2) == cross(-v2, -u2)
 			// so we still use -e2
 			// but we can also use e1 = cross(u1, v1) and e2 = cross(u2, v2)
-			b3Fixed cba = b3Dot( uB, eA );
-			b3Fixed dba = b3Dot( vB, eA );
-			b3Fixed adc = -b3Dot( uA, eB );
-			b3Fixed bdc = -b3Dot( vA, eB );
+			// Exact sign tests on raw 128-bit dots, matching b3QueryEdgeDirections
+			// so the cached-axis check agrees with a full requery.
+			b3Int128 cbaRaw = b3DotRaw( uB, eA );
+			b3Int128 dbaRaw = b3DotRaw( vB, eA );
+			b3Int128 adcRaw = -b3DotRaw( uA, eB );
+			b3Int128 bdcRaw = -b3DotRaw( vA, eB );
 
-			if ( b3FixMul( cba , dba ) < B3_FIX( 0.0f ) && b3FixMul( adc , bdc ) < B3_FIX( 0.0f ) && b3FixMul( cba , bdc ) > B3_FIX( 0.0f ) )
+			if ( cbaRaw != 0 && dbaRaw != 0 && ( cbaRaw ^ dbaRaw ) < 0 && adcRaw != 0 && bdcRaw != 0 &&
+				 ( adcRaw ^ bdcRaw ) < 0 && ( cbaRaw ^ bdcRaw ) >= 0 )
 			{
+				b3Fixed cba = b3FixFromDotRaw( cbaRaw );
+				b3Fixed dba = b3FixFromDotRaw( dbaRaw );
+
 				// Avoid nearly parallel edges that may lead to invalid separation values at the noise floor.
 				b3Fixed squaredTolerance = b3FixMul( B3_FIX( 0.005f ) , B3_FIX( 0.005f ) );
 				if ( b3FixMax( b3FixMul( cba , cba ), b3FixMul( dba , dba ) ) >= b3FixMul( squaredTolerance , b3LengthSquared( eA ) ) )
 				{
 					// Transform reference center of the first hull into local space of the second hull
-					b3Fixed t = b3FixDiv( cba , ( cba - dba ) );
+					b3Fixed t = (b3Fixed)( ( cbaRaw << B3_FIXED_FRACTION_BITS ) / ( cbaRaw - dbaRaw ) );
 					b3Vec3 axis = b3Lerp( uB, vB, t );
 					B3_VALIDATE( b3LengthSquared( axis ) > 0 );
 					axis = b3Normalize( axis );
-					b3Fixed separation = b3Dot( axis, b3Sub( qA, qB ) );
+					b3Fixed separation = b3FixFromDotRaw( b3DotRaw( axis, b3Sub( qA, qB ) ) );
 
 					if ( separation > speculativeDistance )
 					{

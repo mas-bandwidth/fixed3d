@@ -948,6 +948,65 @@ static inline b3FloatW b3BlendW( b3FloatW a, b3FloatW b, b3FloatW mask )
 }
 
 
+// Per-lane 128-bit product reductions with a single rounding (divide last).
+// Cheaper than chaining b3FixMul (one rounding and saturation check instead of
+// one per product) and sub-resolution products don't quantize to zero.
+
+// a*b - c*d
+static inline b3FloatW b3MulMulSubW( b3FloatW a, b3FloatW b, b3FloatW c, b3FloatW d )
+{
+	return (b3FloatW){
+		b3FixFromDotRaw( (b3Int128)a.x * b.x - (b3Int128)c.x * d.x ),
+		b3FixFromDotRaw( (b3Int128)a.y * b.y - (b3Int128)c.y * d.y ),
+		b3FixFromDotRaw( (b3Int128)a.z * b.z - (b3Int128)c.z * d.z ),
+		b3FixFromDotRaw( (b3Int128)a.w * b.w - (b3Int128)c.w * d.w ),
+	};
+}
+
+// a*b + c*d
+static inline b3FloatW b3Dot2W( b3FloatW a, b3FloatW b, b3FloatW c, b3FloatW d )
+{
+	return (b3FloatW){
+		b3FixFromDotRaw( (b3Int128)a.x * b.x + (b3Int128)c.x * d.x ),
+		b3FixFromDotRaw( (b3Int128)a.y * b.y + (b3Int128)c.y * d.y ),
+		b3FixFromDotRaw( (b3Int128)a.z * b.z + (b3Int128)c.z * d.z ),
+		b3FixFromDotRaw( (b3Int128)a.w * b.w + (b3Int128)c.w * d.w ),
+	};
+}
+
+// a*b + c*d + e*f
+static inline b3FloatW b3Dot3W( b3FloatW a, b3FloatW b, b3FloatW c, b3FloatW d, b3FloatW e, b3FloatW f )
+{
+	return (b3FloatW){
+		b3FixFromDotRaw( (b3Int128)a.x * b.x + (b3Int128)c.x * d.x + (b3Int128)e.x * f.x ),
+		b3FixFromDotRaw( (b3Int128)a.y * b.y + (b3Int128)c.y * d.y + (b3Int128)e.y * f.y ),
+		b3FixFromDotRaw( (b3Int128)a.z * b.z + (b3Int128)c.z * d.z + (b3Int128)e.z * f.z ),
+		b3FixFromDotRaw( (b3Int128)a.w * b.w + (b3Int128)c.w * d.w + (b3Int128)e.w * f.w ),
+	};
+}
+
+// acc + a*b + c*d + e*f
+static inline b3FloatW b3AddDot3W( b3FloatW acc, b3FloatW a, b3FloatW b, b3FloatW c, b3FloatW d, b3FloatW e, b3FloatW f )
+{
+	return (b3FloatW){
+		b3FixFromDotRaw( ( (b3Int128)acc.x << B3_FIXED_FRACTION_BITS ) + (b3Int128)a.x * b.x + (b3Int128)c.x * d.x + (b3Int128)e.x * f.x ),
+		b3FixFromDotRaw( ( (b3Int128)acc.y << B3_FIXED_FRACTION_BITS ) + (b3Int128)a.y * b.y + (b3Int128)c.y * d.y + (b3Int128)e.y * f.y ),
+		b3FixFromDotRaw( ( (b3Int128)acc.z << B3_FIXED_FRACTION_BITS ) + (b3Int128)a.z * b.z + (b3Int128)c.z * d.z + (b3Int128)e.z * f.z ),
+		b3FixFromDotRaw( ( (b3Int128)acc.w << B3_FIXED_FRACTION_BITS ) + (b3Int128)a.w * b.w + (b3Int128)c.w * d.w + (b3Int128)e.w * f.w ),
+	};
+}
+
+// acc - (a*b + c*d + e*f)
+static inline b3FloatW b3SubDot3W( b3FloatW acc, b3FloatW a, b3FloatW b, b3FloatW c, b3FloatW d, b3FloatW e, b3FloatW f )
+{
+	return (b3FloatW){
+		b3FixFromDotRaw( ( (b3Int128)acc.x << B3_FIXED_FRACTION_BITS ) - (b3Int128)a.x * b.x - (b3Int128)c.x * d.x - (b3Int128)e.x * f.x ),
+		b3FixFromDotRaw( ( (b3Int128)acc.y << B3_FIXED_FRACTION_BITS ) - (b3Int128)a.y * b.y - (b3Int128)c.y * d.y - (b3Int128)e.y * f.y ),
+		b3FixFromDotRaw( ( (b3Int128)acc.z << B3_FIXED_FRACTION_BITS ) - (b3Int128)a.z * b.z - (b3Int128)c.z * d.z - (b3Int128)e.z * f.z ),
+		b3FixFromDotRaw( ( (b3Int128)acc.w << B3_FIXED_FRACTION_BITS ) - (b3Int128)a.w * b.w - (b3Int128)c.w * d.w - (b3Int128)e.w * f.w ),
+	};
+}
+
 // s * a
 static inline b3Vec3W b3MulSVW( b3FloatW s, b3Vec3W a )
 {
@@ -999,8 +1058,8 @@ static inline b3Vec3W b3AddVW( b3Vec3W a, b3Vec3W b )
 static inline b3Vec2W b3MulMV2W( b3SymMatrix2W m, b3Vec2W a )
 {
 	b3Vec2W b = {
-		b3AddW( b3MulW( m.cxx, a.x ), b3MulW( m.cxy, a.y ) ),
-		b3AddW( b3MulW( m.cxy, a.x ), b3MulW( m.cyy, a.y ) ),
+		b3Dot2W( m.cxx, a.x, m.cxy, a.y ),
+		b3Dot2W( m.cxy, a.x, m.cyy, a.y ),
 	};
 
 	return b;
@@ -1010,9 +1069,9 @@ static inline b3Vec2W b3MulMV2W( b3SymMatrix2W m, b3Vec2W a )
 static inline b3Vec3W b3MulMVW( b3SymMatrix3W m, b3Vec3W a )
 {
 	b3Vec3W b = {
-		b3AddW( b3MulW( m.cxx, a.X ), b3AddW( b3MulW( m.cxy, a.Y ), b3MulW( m.cxz, a.Z ) ) ),
-		b3AddW( b3MulW( m.cxy, a.X ), b3AddW( b3MulW( m.cyy, a.Y ), b3MulW( m.cyz, a.Z ) ) ),
-		b3AddW( b3MulW( m.cxz, a.X ), b3AddW( b3MulW( m.cyz, a.Y ), b3MulW( m.czz, a.Z ) ) ),
+		b3Dot3W( m.cxx, a.X, m.cxy, a.Y, m.cxz, a.Z ),
+		b3Dot3W( m.cxy, a.X, m.cyy, a.Y, m.cyz, a.Z ),
+		b3Dot3W( m.cxz, a.X, m.cyz, a.Y, m.czz, a.Z ),
 	};
 
 	return b;
@@ -1021,38 +1080,34 @@ static inline b3Vec3W b3MulMVW( b3SymMatrix3W m, b3Vec3W a )
 // a - m * b
 static inline b3Vec3W b3MulSubMVW( b3Vec3W a, b3SymMatrix3W m, b3Vec3W b )
 {
-	b3Vec3W c = {
-		b3AddW( b3MulW( m.cxx, b.X ), b3AddW( b3MulW( m.cxy, b.Y ), b3MulW( m.cxz, b.Z ) ) ),
-		b3AddW( b3MulW( m.cxy, b.X ), b3AddW( b3MulW( m.cyy, b.Y ), b3MulW( m.cyz, b.Z ) ) ),
-		b3AddW( b3MulW( m.cxz, b.X ), b3AddW( b3MulW( m.cyz, b.Y ), b3MulW( m.czz, b.Z ) ) ),
+	return (b3Vec3W){
+		b3SubDot3W( a.X, m.cxx, b.X, m.cxy, b.Y, m.cxz, b.Z ),
+		b3SubDot3W( a.Y, m.cxy, b.X, m.cyy, b.Y, m.cyz, b.Z ),
+		b3SubDot3W( a.Z, m.cxz, b.X, m.cyz, b.Y, m.czz, b.Z ),
 	};
-
-	return (b3Vec3W){ b3SubW( a.X, c.X ), b3SubW( a.Y, c.Y ), b3SubW( a.Z, c.Z ) };
 }
 
 // a + m * b
 static inline b3Vec3W b3MulAddMVW( b3Vec3W a, b3SymMatrix3W m, b3Vec3W b )
 {
-	b3Vec3W c = {
-		b3AddW( b3MulW( m.cxx, b.X ), b3AddW( b3MulW( m.cxy, b.Y ), b3MulW( m.cxz, b.Z ) ) ),
-		b3AddW( b3MulW( m.cxy, b.X ), b3AddW( b3MulW( m.cyy, b.Y ), b3MulW( m.cyz, b.Z ) ) ),
-		b3AddW( b3MulW( m.cxz, b.X ), b3AddW( b3MulW( m.cyz, b.Y ), b3MulW( m.czz, b.Z ) ) ),
+	return (b3Vec3W){
+		b3AddDot3W( a.X, m.cxx, b.X, m.cxy, b.Y, m.cxz, b.Z ),
+		b3AddDot3W( a.Y, m.cxy, b.X, m.cyy, b.Y, m.cyz, b.Z ),
+		b3AddDot3W( a.Z, m.cxz, b.X, m.cyz, b.Y, m.czz, b.Z ),
 	};
-
-	return (b3Vec3W){ b3AddW( a.X, c.X ), b3AddW( a.Y, c.Y ), b3AddW( a.Z, c.Z ) };
 }
 
 static inline b3FloatW b3DotW( b3Vec3W a, b3Vec3W b )
 {
-	return b3AddW( b3AddW( b3MulW( a.X, b.X ), b3MulW( a.Y, b.Y ) ), b3MulW( a.Z, b.Z ) );
+	return b3Dot3W( a.X, b.X, a.Y, b.Y, a.Z, b.Z );
 }
 
 static inline b3Vec3W b3CrossW( b3Vec3W a, b3Vec3W b )
 {
 	b3Vec3W c;
-	c.X = b3SubW( b3MulW( a.Y, b.Z ), b3MulW( a.Z, b.Y ) );
-	c.Y = b3SubW( b3MulW( a.Z, b.X ), b3MulW( a.X, b.Z ) );
-	c.Z = b3SubW( b3MulW( a.X, b.Y ), b3MulW( a.Y, b.X ) );
+	c.X = b3MulMulSubW( a.Y, b.Z, a.Z, b.Y );
+	c.Y = b3MulMulSubW( a.Z, b.X, a.X, b.Z );
+	c.Z = b3MulMulSubW( a.X, b.Y, a.Y, b.X );
 	return c;
 }
 
