@@ -155,6 +155,12 @@ Fixes landed in session 2 (beyond the session-1 list):
    ~-1000 raw — this made the CCD stall threshold (default B3_FIXED_MAX, float
    used `1000 * FLT_MAX = inf`) log on every CCD call until guarded in
    solver.c/shape.c. Audit any new `sentinel ± value` OR `sentinel * value` code.
+   All 63 sentinel sites were audited 2026-07-11: one more hit (dynamic_tree.c
+   SAH scored degenerate planes with wrapped empty-AABB perimeters — float gave
+   them NaN via 0*inf; now skipped like mesh.c already did). Rules of thumb from
+   that audit: `b3FixMul(B3_FIXED_MAX, x)` only wraps for |x| >= 1 (joint force
+   limits * h with h < 1 are fine); `MAX - positiveTol` cannot wrap; sentinel
+   returns (b3CollideHullFace) are safe only behind pointCount short-circuits.
 5. **Degenerate simplexes are common** in fixed point (support points quantize
    to identical values). GJK (`src/distance.c`) flushes cached simplexes with
    duplicate vertices and restarts (instead of restoring an empty backup) when

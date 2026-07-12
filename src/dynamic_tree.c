@@ -1724,10 +1724,19 @@ static int b3PartitionSAH( int* indices, int* binIndices, b3AABB* boxes, int cou
 	int bestPlane = 0;
 	for ( int i = 0; i < planeCount; ++i )
 	{
-		b3Fixed leftArea = b3Perimeter( planes[i].leftAABB );
-		b3Fixed rightArea = b3Perimeter( planes[i].rightAABB );
 		int leftCount = planes[i].leftCount;
 		int rightCount = planes[i].rightCount;
+
+		// Skip degenerate planes: an empty side holds the empty-AABB sentinel whose
+		// perimeter wraps in fixed point. Float scored these NaN (0 * inf) and never
+		// selected them.
+		if ( leftCount == 0 || rightCount == 0 )
+		{
+			continue;
+		}
+
+		b3Fixed leftArea = b3Perimeter( planes[i].leftAABB );
+		b3Fixed rightArea = b3Perimeter( planes[i].rightAABB );
 
 		b3Fixed cost = leftCount * leftArea + rightCount * rightArea;
 		if ( cost < minCost )

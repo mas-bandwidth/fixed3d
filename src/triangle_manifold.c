@@ -832,6 +832,8 @@ static b3Fixed b3CollideTriangleFace( b3LocalManifold* manifold, int pointCapaci
 	if ( pointCount == 0 )
 	{
 		// Triangle face clipped away. Invalidate cache.
+		// Callers must check manifold->pointCount before doing arithmetic on this
+		// sentinel: B3_FIXED_MAX +/- anything wraps (float's FLT_MAX stayed inf).
 		*cache = (b3SATCache){ b3FixFromInt( 0 ) };
 		return B3_FIXED_MAX;
 	}
