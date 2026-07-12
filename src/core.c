@@ -36,28 +36,28 @@
 #include <stdio.h>
 
 // This allows the user to change the length units at runtime
-static float b3_lengthUnitsPerMeter = 1.0f;
+static b3Fixed b3_lengthUnitsPerMeter = B3_FIX( 1.0f );
 
-void b3SetLengthUnitsPerMeter( float lengthUnits )
+void b3SetLengthUnitsPerMeter( b3Fixed lengthUnits )
 {
-	B3_ASSERT( b3IsValidFloat( lengthUnits ) && lengthUnits > 0.0f );
+	B3_ASSERT( b3IsValidFixed( lengthUnits ) && lengthUnits > B3_FIX( 0.0f ) );
 	b3_lengthUnitsPerMeter = lengthUnits;
 }
 
-float b3GetLengthUnitsPerMeter( void )
+b3Fixed b3GetLengthUnitsPerMeter( void )
 {
 	return b3_lengthUnitsPerMeter;
 }
 
-static float b3_stallThreshold = FLT_MAX;
+static b3Fixed b3_stallThreshold = B3_FIXED_MAX;
 
-void b3SetStallThreshold( float seconds )
+void b3SetStallThreshold( b3Fixed seconds )
 {
-	B3_ASSERT( b3IsValidFloat( seconds ) && seconds > 0.0f );
+	B3_ASSERT( b3IsValidFixed( seconds ) && seconds > B3_FIX( 0.0f ) );
 	b3_stallThreshold = seconds;
 }
 
-float b3GetStallThreshold( void )
+b3Fixed b3GetStallThreshold( void )
 {
 	return b3_stallThreshold;
 }

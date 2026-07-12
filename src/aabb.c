@@ -7,46 +7,45 @@
 
 #include "box3d/math_functions.h"
 
-#include <float.h>
 
 // Similar to Real-time Collision Detection, p179.
 // todo try
 // https://www.scratchapixel.com/lessons/3d-basic-rendering/minimal-ray-tracer-rendering-simple-shapes/ray-box-intersection.html
-bool b3RayCastAABB( b3AABB a, b3Vec3 p1, b3Vec3 p2, float* minFraction, float* maxFraction )
+bool b3RayCastAABB( b3AABB a, b3Vec3 p1, b3Vec3 p2, b3Fixed* minFraction, b3Fixed* maxFraction )
 {
 	// Ray direction and length
 	b3Vec3 d = b3Sub( p2, p1 );
-	float rayLength = b3Length( d );
+	b3Fixed rayLength = b3Length( d );
 
 	// Handle degenerate ray
-	if ( rayLength < FLT_EPSILON )
+	if ( rayLength < B3_FIXED_EPSILON )
 	{
 		// Check if point is inside AABB
 		if ( p1.x >= a.lowerBound.x && p1.x <= a.upperBound.x && p1.y >= a.lowerBound.y && p1.y <= a.upperBound.y &&
 			 p1.z >= a.lowerBound.z && p1.z <= a.upperBound.z )
 		{
-			*minFraction = 0.0f;
-			*maxFraction = 0.0f;
+			*minFraction = B3_FIX( 0.0f );
+			*maxFraction = B3_FIX( 0.0f );
 			return true;
 		}
 
 		return false;
 	}
 
-	b3Vec3 rayDir = b3MulSV( 1.0f / rayLength, d );
+	b3Vec3 rayDir = b3MulSV( b3FixDiv( B3_FIX( 1.0f ) , rayLength ), d );
 
 	// Slab method for ray-AABB intersection
-	float tMin = 0.0f;
-	float tMax = rayLength;
+	b3Fixed tMin = B3_FIX( 0.0f );
+	b3Fixed tMax = rayLength;
 
 	// x-axis
 	{
-		float rayComponent = rayDir.x;
-		float rayStart = p1.x;
-		float boxMin = a.lowerBound.x;
-		float boxMax = a.upperBound.x;
+		b3Fixed rayComponent = rayDir.x;
+		b3Fixed rayStart = p1.x;
+		b3Fixed boxMin = a.lowerBound.x;
+		b3Fixed boxMax = a.upperBound.x;
 
-		if ( b3AbsFloat( rayComponent ) < FLT_EPSILON )
+		if ( b3FixAbs( rayComponent ) < B3_FIXED_EPSILON )
 		{
 			// Ray is parallel to slab, check if ray origin is within slab
 			if ( rayStart < boxMin || rayStart > boxMax )
@@ -57,20 +56,20 @@ bool b3RayCastAABB( b3AABB a, b3Vec3 p1, b3Vec3 p2, float* minFraction, float* m
 		else
 		{
 			// Compute intersection distances
-			float t1 = ( boxMin - rayStart ) / rayComponent;
-			float t2 = ( boxMax - rayStart ) / rayComponent;
+			b3Fixed t1 = b3FixDiv( ( boxMin - rayStart ) , rayComponent );
+			b3Fixed t2 = b3FixDiv( ( boxMax - rayStart ) , rayComponent );
 
 			// Ensure t1 <= t2
 			if ( t1 > t2 )
 			{
-				float temp = t1;
+				b3Fixed temp = t1;
 				t1 = t2;
 				t2 = temp;
 			}
 
 			// Update intersection interval
-			tMin = b3MaxFloat( tMin, t1 );
-			tMax = b3MinFloat( tMax, t2 );
+			tMin = b3FixMax( tMin, t1 );
+			tMax = b3FixMin( tMax, t2 );
 
 			// Check for no intersection
 			if ( tMin > tMax )
@@ -82,12 +81,12 @@ bool b3RayCastAABB( b3AABB a, b3Vec3 p1, b3Vec3 p2, float* minFraction, float* m
 	
 	// y-axis
 	{
-		float rayComponent = rayDir.y;
-		float rayStart = p1.y;
-		float boxMin = a.lowerBound.y;
-		float boxMax = a.upperBound.y;
+		b3Fixed rayComponent = rayDir.y;
+		b3Fixed rayStart = p1.y;
+		b3Fixed boxMin = a.lowerBound.y;
+		b3Fixed boxMax = a.upperBound.y;
 
-		if ( b3AbsFloat( rayComponent ) < FLT_EPSILON )
+		if ( b3FixAbs( rayComponent ) < B3_FIXED_EPSILON )
 		{
 			// Ray is parallel to slab, check if ray origin is within slab
 			if ( rayStart < boxMin || rayStart > boxMax )
@@ -98,20 +97,20 @@ bool b3RayCastAABB( b3AABB a, b3Vec3 p1, b3Vec3 p2, float* minFraction, float* m
 		else
 		{
 			// Compute intersection distances
-			float t1 = ( boxMin - rayStart ) / rayComponent;
-			float t2 = ( boxMax - rayStart ) / rayComponent;
+			b3Fixed t1 = b3FixDiv( ( boxMin - rayStart ) , rayComponent );
+			b3Fixed t2 = b3FixDiv( ( boxMax - rayStart ) , rayComponent );
 
 			// Ensure t1 <= t2
 			if ( t1 > t2 )
 			{
-				float temp = t1;
+				b3Fixed temp = t1;
 				t1 = t2;
 				t2 = temp;
 			}
 
 			// Update intersection interval
-			tMin = b3MaxFloat( tMin, t1 );
-			tMax = b3MinFloat( tMax, t2 );
+			tMin = b3FixMax( tMin, t1 );
+			tMax = b3FixMin( tMax, t2 );
 
 			// Check for no intersection
 			if ( tMin > tMax )
@@ -123,12 +122,12 @@ bool b3RayCastAABB( b3AABB a, b3Vec3 p1, b3Vec3 p2, float* minFraction, float* m
 
 	// z-axis
 	{
-		float rayComponent = rayDir.z;
-		float rayStart = p1.z;
-		float boxMin = a.lowerBound.z;
-		float boxMax = a.upperBound.z;
+		b3Fixed rayComponent = rayDir.z;
+		b3Fixed rayStart = p1.z;
+		b3Fixed boxMin = a.lowerBound.z;
+		b3Fixed boxMax = a.upperBound.z;
 
-		if ( b3AbsFloat( rayComponent ) < FLT_EPSILON )
+		if ( b3FixAbs( rayComponent ) < B3_FIXED_EPSILON )
 		{
 			// Ray is parallel to slab, check if ray origin is within slab
 			if ( rayStart < boxMin || rayStart > boxMax )
@@ -139,20 +138,20 @@ bool b3RayCastAABB( b3AABB a, b3Vec3 p1, b3Vec3 p2, float* minFraction, float* m
 		else
 		{
 			// Compute intersection distances
-			float t1 = ( boxMin - rayStart ) / rayComponent;
-			float t2 = ( boxMax - rayStart ) / rayComponent;
+			b3Fixed t1 = b3FixDiv( ( boxMin - rayStart ) , rayComponent );
+			b3Fixed t2 = b3FixDiv( ( boxMax - rayStart ) , rayComponent );
 
 			// Ensure t1 <= t2
 			if ( t1 > t2 )
 			{
-				float temp = t1;
+				b3Fixed temp = t1;
 				t1 = t2;
 				t2 = temp;
 			}
 
 			// Update intersection interval
-			tMin = b3MaxFloat( tMin, t1 );
-			tMax = b3MinFloat( tMax, t2 );
+			tMin = b3FixMax( tMin, t1 );
+			tMax = b3FixMin( tMax, t2 );
 
 			// Check for no intersection
 			if ( tMin > tMax )
@@ -163,14 +162,14 @@ bool b3RayCastAABB( b3AABB a, b3Vec3 p1, b3Vec3 p2, float* minFraction, float* m
 	}
 
 	// Check if intersection is behind ray start
-	if ( tMax < 0.0f )
+	if ( tMax < B3_FIX( 0.0f ) )
 	{
 		return false;
 	}
 
 	// Convert distances to fractions
-	*minFraction = b3ClampFloat( tMin / rayLength, 0.0f, 1.0f );
-	*maxFraction = b3ClampFloat( tMax / rayLength, 0.0f, 1.0f );
+	*minFraction = b3FixClamp( b3FixDiv( tMin , rayLength ), B3_FIX( 0.0f ), B3_FIX( 1.0f ) );
+	*maxFraction = b3FixClamp( b3FixDiv( tMax , rayLength ), B3_FIX( 0.0f ), B3_FIX( 1.0f ) );
 
 	return true;
 }

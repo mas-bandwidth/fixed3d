@@ -18,26 +18,26 @@ static int b3ClipSegment( b3ClipVertex segment[2], b3Plane plane )
 	b3ClipVertex vertex1 = segment[0];
 	b3ClipVertex vertex2 = segment[1];
 
-	float distance1 = b3PlaneSeparation( plane, vertex1.position );
-	float distance2 = b3PlaneSeparation( plane, vertex2.position );
+	b3Fixed distance1 = b3PlaneSeparation( plane, vertex1.position );
+	b3Fixed distance2 = b3PlaneSeparation( plane, vertex2.position );
 
 	// If the points are behind the plane
-	if ( distance1 <= 0.0f )
+	if ( distance1 <= B3_FIX( 0.0f ) )
 	{
 		segment[vertexCount++] = vertex1;
 	}
-	if ( distance2 <= 0.0f )
+	if ( distance2 <= B3_FIX( 0.0f ) )
 	{
 		segment[vertexCount++] = vertex2;
 	}
 
 	// If the points are on different sides of the plane
-	if ( distance1 * distance2 < 0.0f )
+	if ( b3FixMul( distance1 , distance2 ) < B3_FIX( 0.0f ) )
 	{
 		// Find intersection point of edge and plane
-		float t = distance1 / ( distance1 - distance2 );
-		segment[vertexCount].position = b3Add( b3MulSV( 1.0f - t, vertex1.position ), b3MulSV( t, vertex2.position ) );
-		segment[vertexCount].pair = distance1 > 0.0f ? vertex1.pair : vertex2.pair;
+		b3Fixed t = b3FixDiv( distance1 , ( distance1 - distance2 ) );
+		segment[vertexCount].position = b3Add( b3MulSV( B3_FIX( 1.0f ) - t, vertex1.position ), b3MulSV( t, vertex2.position ) );
+		segment[vertexCount].pair = distance1 > B3_FIX( 0.0f ) ? vertex1.pair : vertex2.pair;
 		vertexCount++;
 	}
 
@@ -86,7 +86,7 @@ static b3FaceQuery b3QueryFaceDirectionHullAndCapsule( const b3HullData* hull, c
 {
 	int maxFaceIndex = -1;
 	int maxVertexIndex = -1;
-	float maxFaceSeparation = -FLT_MAX;
+	b3Fixed maxFaceSeparation = -B3_FIXED_MAX;
 	const b3Plane* planes = b3GetHullPlanes( hull );
 
 	b3Vec3 capsulePoints[2] = {
@@ -100,7 +100,7 @@ static b3FaceQuery b3QueryFaceDirectionHullAndCapsule( const b3HullData* hull, c
 
 		int vertexIndex = b3GetPointSupport( capsulePoints, 2, b3Neg( plane.normal ) );
 		b3Vec3 support = capsulePoints[vertexIndex];
-		float separation = b3PlaneSeparation( plane, support );
+		b3Fixed separation = b3PlaneSeparation( plane, support );
 		if ( separation > maxFaceSeparation )
 		{
 			maxVertexIndex = vertexIndex;
@@ -125,7 +125,7 @@ static b3FaceQuery b3QueryFaceDirections( const b3HullData* hullA, const b3HullD
 
 	int maxFaceIndex = -1;
 	int maxVertexIndex = -1;
-	float maxFaceSeparation = -FLT_MAX;
+	b3Fixed maxFaceSeparation = -B3_FIXED_MAX;
 
 	for ( int faceIndex = 0; faceIndex < hullA->faceCount; ++faceIndex )
 	{
@@ -133,7 +133,7 @@ static b3FaceQuery b3QueryFaceDirections( const b3HullData* hullA, const b3HullD
 
 		int vertexIndex = b3FindHullSupportVertex( hullB, b3Neg( plane.normal ) );
 		b3Vec3 support = pointsB[vertexIndex];
-		float separation = b3PlaneSeparation( plane, support );
+		b3Fixed separation = b3PlaneSeparation( plane, support );
 		if ( separation > maxFaceSeparation )
 		{
 			maxFaceIndex = faceIndex;
@@ -154,7 +154,7 @@ static b3EdgeQuery b3QueryEdgeDirectionHullAndCapsule( const b3HullData* hull, c
 {
 	// Find axis of minimum penetration
 	b3Vec3 maxNormal = b3Vec3_zero;
-	float maxSeparation = -FLT_MAX;
+	b3Fixed maxSeparation = -B3_FIXED_MAX;
 	int maxIndexA = B3_NULL_INDEX;
 	int maxIndexB = B3_NULL_INDEX;
 
@@ -166,7 +166,7 @@ static b3EdgeQuery b3QueryEdgeDirectionHullAndCapsule( const b3HullData* hull, c
 	const b3HullHalfEdge* edges = b3GetHullEdges( hull );
 	const b3Vec3* points = b3GetHullPoints( hull );
 	const b3Plane* planes = b3GetHullPlanes( hull );
-	float squaredTolerance = 0.005f * 0.005f;
+	b3Fixed squaredTolerance = b3FixMul( B3_FIX( 0.005f ) , B3_FIX( 0.005f ) );
 
 	for ( int index = 0; index < hull->edgeCount; index += 2 )
 	{
@@ -181,13 +181,13 @@ static b3EdgeQuery b3QueryEdgeDirectionHullAndCapsule( const b3HullData* hull, c
 		// An isolated edge (e.g. like in a capsule) defines a circle through the
 		// origin on the Gauss map. So testing for overlap between this circle and
 		// the arc AB simplifies to a plane test.
-		float cba = b3Dot( uB, eA );
-		float dba = b3Dot( vB, eA );
+		b3Fixed cba = b3Dot( uB, eA );
+		b3Fixed dba = b3Dot( vB, eA );
 
-		if ( cba * dba < 0.0f )
+		if ( b3FixMul( cba , dba ) < B3_FIX( 0.0f ) )
 		{
 			// Avoid nearly parallel edges that may lead to invalid separation values at the noise floor.
-			if ( b3MaxFloat( cba * cba, dba * dba ) < squaredTolerance * b3LengthSquared( eA ) )
+			if ( b3FixMax( b3FixMul( cba , cba ), b3FixMul( dba , dba ) ) < b3FixMul( squaredTolerance , b3LengthSquared( eA ) ) )
 			{
 				continue;
 			}
@@ -207,11 +207,11 @@ static b3EdgeQuery b3QueryEdgeDirectionHullAndCapsule( const b3HullData* hull, c
 			// The axis is perpendicular to both edges so I can use qA and qB as arbitrary
 			// points on edgeA and edgeB to measure the separation.
 
-			float t = cba / ( cba - dba );
+			b3Fixed t = b3FixDiv( cba , ( cba - dba ) );
 			b3Vec3 axis = b3Lerp( uB, vB, t );
-			B3_VALIDATE( b3LengthSquared( axis ) > 1000.0f * FLT_MIN );
+			B3_VALIDATE( b3LengthSquared( axis ) > 0 );
 			axis = b3Normalize( axis );
-			float separation = b3Dot( axis, b3Sub( qA, qB ) );
+			b3Fixed separation = b3Dot( axis, b3Sub( qA, qB ) );
 
 			if ( separation > maxSeparation )
 			{
@@ -238,7 +238,7 @@ static b3EdgeQuery b3QueryEdgeDirections( const b3HullData* hullA, const b3HullD
 {
 	// Find axis of minimum penetration
 	b3Vec3 maxNormal = b3Vec3_zero;
-	float maxSeparation = -FLT_MAX;
+	b3Fixed maxSeparation = -B3_FIXED_MAX;
 	int maxIndexA = B3_NULL_INDEX;
 	int maxIndexB = B3_NULL_INDEX;
 
@@ -252,7 +252,7 @@ static b3EdgeQuery b3QueryEdgeDirections( const b3HullData* hullA, const b3HullD
 	// Work in frame A
 	b3Matrix3 matrix = b3MakeMatrixFromQuat( transformBtoA.q );
 
-	float squaredTolerance = 0.005f * 0.005f;
+	b3Fixed squaredTolerance = b3FixMul( B3_FIX( 0.005f ) , B3_FIX( 0.005f ) );
 
 	// Arranged to minimize transform operations
 	for ( int indexB = 0; indexB < hullB->edgeCount; indexB += 2 )
@@ -288,15 +288,15 @@ static b3EdgeQuery b3QueryEdgeDirections( const b3HullData* hullA, const b3HullD
 			// eB parallel to cross(vB, uB)
 			// Since only signs are tested, length doesn't matter.
 
-			float cba = b3Dot( uB, eA );
-			float dba = b3Dot( vB, eA );
-			float adc = -b3Dot( uA, eB );
-			float bdc = -b3Dot( vA, eB );
+			b3Fixed cba = b3Dot( uB, eA );
+			b3Fixed dba = b3Dot( vB, eA );
+			b3Fixed adc = -b3Dot( uA, eB );
+			b3Fixed bdc = -b3Dot( vA, eB );
 
-			if ( cba * dba < 0.0f && adc * bdc < 0.0f && cba * bdc > 0.0f )
+			if ( b3FixMul( cba , dba ) < B3_FIX( 0.0f ) && b3FixMul( adc , bdc ) < B3_FIX( 0.0f ) && b3FixMul( cba , bdc ) > B3_FIX( 0.0f ) )
 			{
 				// Avoid nearly parallel edges that may lead to invalid separation values at the noise floor.
-				if ( b3MaxFloat( cba * cba, dba * dba ) < squaredTolerance * b3LengthSquared( eA ) )
+				if ( b3FixMax( b3FixMul( cba , cba ), b3FixMul( dba , dba ) ) < b3FixMul( squaredTolerance , b3LengthSquared( eA ) ) )
 				{
 					continue;
 				}
@@ -315,11 +315,11 @@ static b3EdgeQuery b3QueryEdgeDirections( const b3HullData* hullA, const b3HullD
 				//
 				// The axis is perpendicular to both edges so I can use qA and qB as arbitrary
 				// points on edgeA and edgeB to measure the separation.
-				float t = cba / ( cba - dba );
+				b3Fixed t = b3FixDiv( cba , ( cba - dba ) );
 				b3Vec3 axis = b3Lerp( uB, vB, t );
-				B3_VALIDATE( b3LengthSquared( axis ) > 1000.0f * FLT_MIN );
+				B3_VALIDATE( b3LengthSquared( axis ) > 0 );
 				axis = b3Normalize( axis );
-				float separation = b3Dot( axis, b3Sub( qA, qB ) );
+				b3Fixed separation = b3Dot( axis, b3Sub( qA, qB ) );
 
 				if ( separation > maxSeparation )
 				{
@@ -363,17 +363,17 @@ static void b3ReduceManifoldPoints( b3LocalManifold* manifold, int capacity, b3L
 	}
 
 	b3Vec3 normal = manifold->normal;
-	// float linearSlop = B3_LINEAR_SLOP;
-	float speculativeDistance = B3_SPECULATIVE_DISTANCE;
-	float tolSqr = speculativeDistance * speculativeDistance;
+	// b3Fixed linearSlop = B3_LINEAR_SLOP;
+	b3Fixed speculativeDistance = B3_SPECULATIVE_DISTANCE;
+	b3Fixed tolSqr = b3FixMul( speculativeDistance , speculativeDistance );
 
 	// This bias is very important for contact point consistency across time steps.
 	// It creates a pecking order to avoid flickering between candidates with similar scores.
-	float bias = 0.95f;
+	b3Fixed bias = B3_FIX( 0.95f );
 
 	// Step 1: find extreme point that is touching
 	int bestIndex = B3_NULL_INDEX;
-	float bestScore = -FLT_MAX;
+	b3Fixed bestScore = -B3_FIXED_MAX;
 
 	// Arbitrary tangent direction
 	// b3Vec3 perp1 = b3Perp( normal );
@@ -390,8 +390,8 @@ static void b3ReduceManifoldPoints( b3LocalManifold* manifold, int capacity, b3L
 		}
 
 		// The deeper the better
-		float score = -pt->separation + b3Dot( searchDirection, pt->point );
-		if ( bias * score > bestScore )
+		b3Fixed score = -pt->separation + b3Dot( searchDirection, pt->point );
+		if ( b3FixMul( bias , score ) > bestScore )
 		{
 			bestIndex = index;
 			bestScore = score;
@@ -415,20 +415,20 @@ static void b3ReduceManifoldPoints( b3LocalManifold* manifold, int capacity, b3L
 	b3Vec3 a = manifold->points[0].point;
 
 	// Step 2: Find farthest point in 2D
-	bestScore = 0.0f;
+	bestScore = B3_FIX( 0.0f );
 	bestIndex = B3_NULL_INDEX;
-	float maxDistanceSquared = 0.0f;
+	b3Fixed maxDistanceSquared = B3_FIX( 0.0f );
 
 	for ( int index = 0; index < count; ++index )
 	{
 		b3Vec3 p = points[index].point;
 		b3Vec3 d = b3Sub( p, a );
 		b3Vec3 v = b3MulSub( d, b3Dot( d, normal ), normal );
-		float distanceSquared = b3LengthSquared( v );
-		maxDistanceSquared = b3MaxFloat( maxDistanceSquared, distanceSquared );
-		float separation = b3MaxFloat( 0.0f, -points[index].separation );
-		float score = distanceSquared + 4.0f * separation * separation;
-		if ( bias * score > bestScore )
+		b3Fixed distanceSquared = b3LengthSquared( v );
+		maxDistanceSquared = b3FixMax( maxDistanceSquared, distanceSquared );
+		b3Fixed separation = b3FixMax( B3_FIX( 0.0f ), -points[index].separation );
+		b3Fixed score = distanceSquared + b3FixMul( b3FixMul( B3_FIX( 4.0f ) , separation ) , separation );
+		if ( b3FixMul( bias , score ) > bestScore )
 		{
 			bestScore = score;
 			bestIndex = index;
@@ -453,14 +453,14 @@ static void b3ReduceManifoldPoints( b3LocalManifold* manifold, int capacity, b3L
 	// Step 3: Find the point with the maximum triangular area
 	bestScore = tolSqr;
 	bestIndex = B3_NULL_INDEX;
-	float bestSignedArea = 0.0f;
+	b3Fixed bestSignedArea = B3_FIX( 0.0f );
 	b3Vec3 ba = b3Sub( b, a );
 	for ( int index = 0; index < count; ++index )
 	{
 		b3Vec3 p = points[index].point;
-		float signedArea = b3Dot( normal, b3Cross( ba, b3Sub( p, a ) ) );
-		float score = b3AbsFloat( signedArea );
-		if ( bias * score >= bestScore )
+		b3Fixed signedArea = b3Dot( normal, b3Cross( ba, b3Sub( p, a ) ) );
+		b3Fixed score = b3FixAbs( signedArea );
+		if ( b3FixMul( bias , score ) >= bestScore )
 		{
 			bestScore = score;
 			bestIndex = index;
@@ -485,16 +485,16 @@ static void b3ReduceManifoldPoints( b3LocalManifold* manifold, int capacity, b3L
 	// Step 4: get the point that adds the most area outside the current triangle
 	bestScore = tolSqr;
 	bestIndex = B3_NULL_INDEX;
-	float sign = bestSignedArea < 0.0f ? -1.0f : 1.0f;
+	b3Fixed sign = bestSignedArea < B3_FIX( 0.0f ) ? -B3_FIX( 1.0f ) : B3_FIX( 1.0f );
 	for ( int index = 0; index < count; ++index )
 	{
 		b3Vec3 p = points[index].point;
-		float u1 = sign * b3Dot( normal, b3Cross( b3Sub( p, a ), ba ) );
-		float u2 = sign * b3Dot( normal, b3Cross( b3Sub( p, b ), b3Sub( c, b ) ) );
-		float u3 = sign * b3Dot( normal, b3Cross( b3Sub( p, c ), b3Sub( a, c ) ) );
-		float score = b3MaxFloat( u1, b3MaxFloat( u2, u3 ) );
+		b3Fixed u1 = b3FixMul( sign , b3Dot( normal, b3Cross( b3Sub( p, a ), ba ) ) );
+		b3Fixed u2 = b3FixMul( sign , b3Dot( normal, b3Cross( b3Sub( p, b ), b3Sub( c, b ) ) ) );
+		b3Fixed u3 = b3FixMul( sign , b3Dot( normal, b3Cross( b3Sub( p, c ), b3Sub( a, c ) ) ) );
+		b3Fixed score = b3FixMax( u1, b3FixMax( u2, u3 ) );
 
-		if ( bias * score > bestScore )
+		if ( b3FixMul( bias , score ) > bestScore )
 		{
 			bestScore = score;
 			bestIndex = index;
@@ -520,27 +520,27 @@ void b3CollideSpheres( b3LocalManifold* manifold, int capacity, const b3Sphere* 
 	b3Vec3 center1 = sphereA->center;
 	b3Vec3 center2 = b3TransformPoint( transformBtoA, sphereB->center );
 
-	float totalRadius = sphereA->radius + sphereB->radius;
+	b3Fixed totalRadius = sphereA->radius + sphereB->radius;
 	b3Vec3 offset = b3Sub( center2, center1 );
-	float distanceSq = b3LengthSquared( offset );
+	b3Fixed distanceSq = b3LengthSquared( offset );
 
-	if ( distanceSq > totalRadius * totalRadius )
+	if ( distanceSq > b3FixMul( totalRadius , totalRadius ) )
 	{
 		// We found a separating axis
 		return;
 	}
 
-	b3Vec3 normal = { 0.0f, 1.0f, 0.0f };
-	float distance = sqrtf( distanceSq );
-	if ( distance * distance > 1000.0f * FLT_MIN )
+	b3Vec3 normal = { B3_FIX( 0.0f ), B3_FIX( 1.0f ), B3_FIX( 0.0f ) };
+	b3Fixed distance = b3FixSqrt( distanceSq );
+	if ( distance > 0 )
 	{
-		normal = b3MulSV( 1.0f / distance, offset );
+		normal = b3MulSV( b3FixDiv( B3_FIX( 1.0f ) , distance ), offset );
 	}
 
 	// Contact at the midpoint
 	// 0.5 * ( ((c1 + rA*n) + c2) - rB*n )
 	b3Vec3 point =
-		b3MulSV( 0.5f, b3MulSub( b3Add( b3MulAdd( center1, sphereA->radius, normal ), center2 ), sphereB->radius, normal ) );
+		b3MulSV( B3_FIX( 0.5f ), b3MulSub( b3Add( b3MulAdd( center1, sphereA->radius, normal ), center2 ), sphereB->radius, normal ) );
 
 	// Manifold in frame B
 	manifold->normal = normal;
@@ -567,29 +567,29 @@ void b3CollideCapsuleAndSphere( b3LocalManifold* manifold, int capacity, const b
 	b3Vec3 center1 = capsuleA->center1;
 	b3Vec3 center2 = capsuleA->center2;
 
-	float totalRadius = sphereB->radius + capsuleA->radius;
+	b3Fixed totalRadius = sphereB->radius + capsuleA->radius;
 
 	b3Vec3 closestPoint = b3PointToSegmentDistance( center1, center2, center );
 	b3Vec3 offset = b3Sub( center, closestPoint );
-	float distanceSq = b3LengthSquared( offset );
+	b3Fixed distanceSq = b3LengthSquared( offset );
 
-	if ( distanceSq > totalRadius * totalRadius )
+	if ( distanceSq > b3FixMul( totalRadius , totalRadius ) )
 	{
 		// We found a separating axis
 		return;
 	}
 
-	b3Vec3 normal = { 0.0f, 1.0f, 0.0f };
-	float distance = sqrtf( distanceSq );
-	if ( distance * distance > 1000.0f * FLT_MIN )
+	b3Vec3 normal = { B3_FIX( 0.0f ), B3_FIX( 1.0f ), B3_FIX( 0.0f ) };
+	b3Fixed distance = b3FixSqrt( distanceSq );
+	if ( distance > 0 )
 	{
-		normal = b3MulSV( 1.0f / distance, offset );
+		normal = b3MulSV( b3FixDiv( B3_FIX( 1.0f ) , distance ), offset );
 	}
 
 	// Contact at the midpoint
 	// 0.5 * (((center - sB*n) + closestPoint) + cA*n)
 	b3Vec3 point =
-		b3MulSV( 0.5f, b3MulAdd( b3Add( b3MulSub( center, sphereB->radius, normal ), closestPoint ), capsuleA->radius, normal ) );
+		b3MulSV( B3_FIX( 0.5f ), b3MulAdd( b3Add( b3MulSub( center, sphereB->radius, normal ), closestPoint ), capsuleA->radius, normal ) );
 
 	// Manifold in frame B
 	manifold->normal = normal;
@@ -613,30 +613,30 @@ void b3CollideHullAndSphere( b3LocalManifold* manifold, int capacity, const b3Hu
 
 	b3Vec3 center = b3TransformPoint( transformBtoA, sphereB->center );
 
-	const float speculativeDistance = B3_SPECULATIVE_DISTANCE;
+	const b3Fixed speculativeDistance = B3_SPECULATIVE_DISTANCE;
 
 	// Work in shapeA coordinates
 
 	b3DistanceInput distanceInput;
-	distanceInput.proxyA = (b3ShapeProxy){ b3GetHullPoints( hullA ), hullA->vertexCount, 0.0f };
-	distanceInput.proxyB = (b3ShapeProxy){ &center, 1, 0.0f };
+	distanceInput.proxyA = (b3ShapeProxy){ b3GetHullPoints( hullA ), hullA->vertexCount, B3_FIX( 0.0f ) };
+	distanceInput.proxyB = (b3ShapeProxy){ &center, 1, B3_FIX( 0.0f ) };
 	distanceInput.transform = b3Transform_identity;
 	distanceInput.useRadii = false;
 
-	float radiusA = 0.0f;
-	float radiusB = sphereB->radius;
-	float radius = radiusA + radiusB;
+	b3Fixed radiusA = B3_FIX( 0.0f );
+	b3Fixed radiusB = sphereB->radius;
+	b3Fixed radius = radiusA + radiusB;
 
 	b3DistanceOutput distanceOutput = b3ShapeDistance( &distanceInput, cache, NULL, 0 );
 
 	if ( distanceOutput.distance > radius + speculativeDistance )
 	{
 		// We found a separating axis
-		*cache = (b3SimplexCache){ 0 };
+		*cache = (b3SimplexCache){ b3FixFromInt( 0 ) };
 		return;
 	}
 
-	if ( distanceOutput.distance > 100.0f * FLT_EPSILON )
+	if ( distanceOutput.distance > 100 * B3_FIXED_EPSILON )
 	{
 		// Shallow penetration
 		b3Vec3 normal = b3Normalize( b3Sub( distanceOutput.pointB, distanceOutput.pointA ) );
@@ -647,7 +647,7 @@ void b3CollideHullAndSphere( b3LocalManifold* manifold, int capacity, const b3Hu
 		// cB is the deepest point on the sphere with respect to the reference f
 		b3Vec3 cB = b3MulSub( center, radiusB, normal );
 
-		b3Vec3 point = b3Lerp( cA, cB, 0.5f );
+		b3Vec3 point = b3Lerp( cA, cB, B3_FIX( 0.5f ) );
 
 		// Manifold in frame A
 		manifold->normal = normal;
@@ -662,14 +662,14 @@ void b3CollideHullAndSphere( b3LocalManifold* manifold, int capacity, const b3Hu
 	{
 		// Deep penetration
 		int bestIndex = -1;
-		float bestDistance = -FLT_MAX;
+		b3Fixed bestDistance = -B3_FIXED_MAX;
 		const b3Plane* planes = b3GetHullPlanes( hullA );
 
 		for ( int index = 0; index < hullA->faceCount; ++index )
 		{
 			b3Plane plane = planes[index];
 
-			float distance = b3PlaneSeparation( plane, center );
+			b3Fixed distance = b3PlaneSeparation( plane, center );
 			if ( distance > bestDistance )
 			{
 				bestIndex = index;
@@ -686,7 +686,7 @@ void b3CollideHullAndSphere( b3LocalManifold* manifold, int capacity, const b3Hu
 		// cB is the deepest point on the sphere with respect to the reference f
 		b3Vec3 cB = b3MulSub( center, radiusB, normal );
 
-		b3Vec3 point = b3Lerp( cA, cB, 0.5f );
+		b3Vec3 point = b3Lerp( cA, cB, B3_FIX( 0.5f ) );
 
 		// Manifold in frame A
 		manifold->normal = normal;
@@ -715,22 +715,22 @@ void b3CollideCapsules( b3LocalManifold* manifold, int capacity, const b3Capsule
 	b3Vec3 centerB1 = b3TransformPoint( transformBtoA, capsuleB->center1 );
 	b3Vec3 centerB2 = b3TransformPoint( transformBtoA, capsuleB->center2 );
 
-	float radius = capsuleA->radius + capsuleB->radius;
-	float maxDistance = radius + B3_SPECULATIVE_DISTANCE;
+	b3Fixed radius = capsuleA->radius + capsuleB->radius;
+	b3Fixed maxDistance = radius + B3_SPECULATIVE_DISTANCE;
 
 	b3SegmentDistanceResult result = b3SegmentDistance( centerA1, centerA2, centerB1, centerB2 );
 	b3Vec3 offset = b3Sub( result.point2, result.point1 );
-	float distanceSquared = b3LengthSquared( offset );
-	float linearSlop = B3_LINEAR_SLOP;
-	float minDistance = 0.01f * linearSlop;
+	b3Fixed distanceSquared = b3LengthSquared( offset );
+	b3Fixed linearSlop = B3_LINEAR_SLOP;
+	b3Fixed minDistance = b3FixMul( B3_FIX( 0.01f ) , linearSlop );
 
-	if ( distanceSquared > maxDistance * maxDistance || distanceSquared < minDistance * minDistance )
+	if ( distanceSquared > b3FixMul( maxDistance , maxDistance ) || distanceSquared < b3FixMul( minDistance , minDistance ) )
 	{
 		// We found a separating axis
 		return;
 	}
 
-	float lengthA;
+	b3Fixed lengthA;
 	b3Vec3 segmentA = b3Sub( centerA2, centerA1 );
 	b3Vec3 edgeA = b3GetLengthAndNormalize( &lengthA, segmentA );
 	if ( lengthA < B3_MIN_CAPSULE_LENGTH )
@@ -738,7 +738,7 @@ void b3CollideCapsules( b3LocalManifold* manifold, int capacity, const b3Capsule
 		return;
 	}
 
-	float lengthB;
+	b3Fixed lengthB;
 	b3Vec3 segmentB = b3Sub( centerB2, centerB1 );
 	b3Vec3 edgeB = b3GetLengthAndNormalize( &lengthB, segmentB );
 	if ( lengthB < B3_MIN_CAPSULE_LENGTH )
@@ -747,8 +747,8 @@ void b3CollideCapsules( b3LocalManifold* manifold, int capacity, const b3Capsule
 	}
 
 	// Parallel edges: |eA x eB| = sin(alpha)
-	const float alphaTol = 0.05f;
-	const float alphaTolSqr = alphaTol * alphaTol;
+	const b3Fixed alphaTol = B3_FIX( 0.05f );
+	const b3Fixed alphaTolSqr = b3FixMul( alphaTol , alphaTol );
 	b3Vec3 axis = b3Cross( edgeA, edgeB );
 
 	// Try to create two contact points if the capsules are nearly parallel
@@ -766,10 +766,10 @@ void b3CollideCapsules( b3LocalManifold* manifold, int capacity, const b3Capsule
 		// Clip points for B
 		b3ClipVertex verticesB[2];
 		verticesB[0].position = centerB1;
-		verticesB[0].separation = 0.0f;
+		verticesB[0].separation = B3_FIX( 0.0f );
 		verticesB[0].pair = b3MakeFeaturePair( b3_featureShapeA, 0, b3_featureShapeA, 0 );
 		verticesB[1].position = centerB2;
-		verticesB[1].separation = 0.0f;
+		verticesB[1].separation = B3_FIX( 0.0f );
 		verticesB[1].pair = b3MakeFeaturePair( b3_featureShapeA, 1, b3_featureShapeA, 1 );
 
 		int pointCount = b3ClipSegment( verticesB, planesA[0] );
@@ -784,8 +784,8 @@ void b3CollideCapsules( b3LocalManifold* manifold, int capacity, const b3Capsule
 			b3Vec3 closestPoint1 = b3PointToSegmentDistance( centerA1, centerA2, verticesB[0].position );
 			b3Vec3 closestPoint2 = b3PointToSegmentDistance( centerA1, centerA2, verticesB[1].position );
 
-			float distance1 = b3Distance( closestPoint1, verticesB[0].position );
-			float distance2 = b3Distance( closestPoint2, verticesB[1].position );
+			b3Fixed distance1 = b3Distance( closestPoint1, verticesB[0].position );
+			b3Fixed distance2 = b3Distance( closestPoint2, verticesB[1].position );
 			if ( distance1 <= radius && distance2 <= radius )
 			{
 				if ( distance1 < minDistance || distance2 < minDistance )
@@ -794,18 +794,18 @@ void b3CollideCapsules( b3LocalManifold* manifold, int capacity, const b3Capsule
 					return;
 				}
 
-				b3Vec3 normal1 = b3MulSV( 1.0f / distance1, b3Sub( verticesB[0].position, closestPoint1 ) );
-				b3Vec3 normal2 = b3MulSV( 1.0f / distance2, b3Sub( verticesB[1].position, closestPoint2 ) );
+				b3Vec3 normal1 = b3MulSV( b3FixDiv( B3_FIX( 1.0f ) , distance1 ), b3Sub( verticesB[0].position, closestPoint1 ) );
+				b3Vec3 normal2 = b3MulSV( b3FixDiv( B3_FIX( 1.0f ) , distance2 ), b3Sub( verticesB[1].position, closestPoint2 ) );
 				b3Vec3 normal = b3Normalize( b3Add( normal1, normal2 ) );
-				float radiusA = capsuleA->radius;
-				float radiusB = capsuleB->radius;
+				b3Fixed radiusA = capsuleA->radius;
+				b3Fixed radiusB = capsuleB->radius;
 
 				// Contact is at the midpoint: 0.5 * (((vB.pos + rA*nK) + cP) - rB*n)
 				b3Vec3 point1 =
-					b3MulSV( 0.5f, b3MulSub( b3Add( b3MulAdd( verticesB[0].position, radiusA, normal1 ), closestPoint1 ), radiusB,
+					b3MulSV( B3_FIX( 0.5f ), b3MulSub( b3Add( b3MulAdd( verticesB[0].position, radiusA, normal1 ), closestPoint1 ), radiusB,
 											 normal ) );
 				b3Vec3 point2 =
-					b3MulSV( 0.5f, b3MulSub( b3Add( b3MulAdd( verticesB[1].position, radiusA, normal2 ), closestPoint2 ), radiusB,
+					b3MulSV( B3_FIX( 0.5f ), b3MulSub( b3Add( b3MulAdd( verticesB[1].position, radiusA, normal2 ), closestPoint2 ), radiusB,
 											 normal ) );
 
 				// Manifold in frame A
@@ -827,11 +827,11 @@ void b3CollideCapsules( b3LocalManifold* manifold, int capacity, const b3Capsule
 		}
 	}
 
-	float distance;
+	b3Fixed distance;
 	b3Vec3 normal = b3GetLengthAndNormalize( &distance, offset );
 	// Contact at the midpoint 0.5 * (((p1 + rA*n) + p2) - rB*n)
 	b3Vec3 point = b3MulSV(
-		0.5f, b3MulSub( b3Add( b3MulAdd( result.point1, capsuleA->radius, normal ), result.point2 ), capsuleB->radius, normal ) );
+		B3_FIX( 0.5f ), b3MulSub( b3Add( b3MulAdd( result.point1, capsuleA->radius, normal ), result.point2 ), capsuleB->radius, normal ) );
 
 	// Manifold in frame A
 	manifold->normal = normal;
@@ -855,10 +855,10 @@ static bool b3BuildHullFaceAndCapsuleContact( b3LocalManifold* manifold, const b
 
 	b3ClipVertex segmentB[2];
 	segmentB[0].position = b3TransformPoint( transformBtoA, capsuleB->center1 );
-	segmentB[0].separation = 0.0f;
+	segmentB[0].separation = B3_FIX( 0.0f );
 	segmentB[0].pair = b3MakeFeaturePair( b3_featureShapeA, 0, b3_featureShapeA, 0 );
 	segmentB[1].position = b3TransformPoint( transformBtoA, capsuleB->center2 );
-	segmentB[1].separation = 0.0f;
+	segmentB[1].separation = B3_FIX( 0.0f );
 	segmentB[1].pair = b3MakeFeaturePair( b3_featureShapeA, 1, b3_featureShapeA, 1 );
 
 	int pointCount = b3ClipSegmentToHullFace( segmentB, hullA, refFace );
@@ -867,15 +867,15 @@ static bool b3BuildHullFaceAndCapsuleContact( b3LocalManifold* manifold, const b
 		return false;
 	}
 
-	float distance1 = b3PlaneSeparation( refPlane, segmentB[0].position );
-	float distance2 = b3PlaneSeparation( refPlane, segmentB[1].position );
-	const float speculativeDistance = B3_SPECULATIVE_DISTANCE;
+	b3Fixed distance1 = b3PlaneSeparation( refPlane, segmentB[0].position );
+	b3Fixed distance2 = b3PlaneSeparation( refPlane, segmentB[1].position );
+	const b3Fixed speculativeDistance = B3_SPECULATIVE_DISTANCE;
 
 	if ( distance1 <= speculativeDistance || distance2 <= speculativeDistance )
 	{
 		b3Vec3 normal = refPlane.normal;
-		b3Vec3 point1 = b3MulSub( segmentB[0].position, 0.5f * ( distance1 + capsuleB->radius ), normal );
-		b3Vec3 point2 = b3MulSub( segmentB[1].position, 0.5f * ( distance2 + capsuleB->radius ), normal );
+		b3Vec3 point1 = b3MulSub( segmentB[0].position, b3FixMul( B3_FIX( 0.5f ) , ( distance1 + capsuleB->radius ) ), normal );
+		b3Vec3 point2 = b3MulSub( segmentB[1].position, b3FixMul( B3_FIX( 0.5f ) , ( distance2 + capsuleB->radius ) ), normal );
 
 		// Manifold in frame A
 		manifold->normal = normal;
@@ -897,14 +897,14 @@ static bool b3BuildHullFaceAndCapsuleContact( b3LocalManifold* manifold, const b
 	return false;
 }
 
-static inline float b3DeepestPointSeparation( const b3LocalManifold* manifold )
+static inline b3Fixed b3DeepestPointSeparation( const b3LocalManifold* manifold )
 {
 	// Deepest point
-	float minSeparation = FLT_MAX;
+	b3Fixed minSeparation = B3_FIXED_MAX;
 	int pointCount = manifold->pointCount;
 	for ( int i = 0; i < pointCount; ++i )
 	{
-		minSeparation = b3MinFloat( minSeparation, manifold->points[i].separation );
+		minSeparation = b3FixMin( minSeparation, manifold->points[i].separation );
 	}
 
 	return minSeparation;
@@ -943,9 +943,9 @@ static bool b3BuildHullAndCapsuleEdgeContact( b3LocalManifold* manifold, int cap
 		return false;
 	}
 
-	b3Vec3 point = b3MulSV( 0.5f, b3Add( b3MulSub( result.point1, capsuleB->radius, normal ), result.point2 ) );
-	float separation = b3Dot( normal, b3Sub( result.point2, result.point1 ) );
-	B3_VALIDATE( b3AbsFloat( separation - query.separation ) < B3_LINEAR_SLOP );
+	b3Vec3 point = b3MulSV( B3_FIX( 0.5f ), b3Add( b3MulSub( result.point1, capsuleB->radius, normal ), result.point2 ) );
+	b3Fixed separation = b3Dot( normal, b3Sub( result.point2, result.point1 ) );
+	B3_VALIDATE( b3FixAbs( separation - query.separation ) < B3_LINEAR_SLOP );
 
 	// Manifold in frame A
 	manifold->normal = normal;
@@ -970,22 +970,23 @@ void b3CollideHullAndCapsule( b3LocalManifold* manifold, int capacity, const b3H
 
 	// Work in shapeA coordinates
 	b3DistanceInput distanceInput;
-	distanceInput.proxyA = (b3ShapeProxy){ b3GetHullPoints( hullA ), hullA->vertexCount, 0.0f };
-	distanceInput.proxyB = (b3ShapeProxy){ &capsuleB->center1, 2, 0.0f };
+	distanceInput.proxyA = (b3ShapeProxy){ b3GetHullPoints( hullA ), hullA->vertexCount, B3_FIX( 0.0f ) };
+	distanceInput.proxyB = (b3ShapeProxy){ &capsuleB->center1, 2, B3_FIX( 0.0f ) };
 	distanceInput.transform = transformBtoA;
 	distanceInput.useRadii = false;
 
 	b3DistanceOutput distanceOutput = b3ShapeDistance( &distanceInput, cache, NULL, 0 );
-	const float speculativeDistance = B3_SPECULATIVE_DISTANCE;
+	const b3Fixed speculativeDistance = B3_SPECULATIVE_DISTANCE;
 
 	if ( distanceOutput.distance > capsuleB->radius + speculativeDistance )
 	{
 		// We found a separating axis
-		*cache = (b3SimplexCache){ 0 };
+		*cache = (b3SimplexCache){ b3FixFromInt( 0 ) };
 		return;
 	}
 
-	if ( distanceOutput.distance > 100.0f * FLT_EPSILON )
+
+	if ( distanceOutput.distance > 100 * B3_FIXED_EPSILON )
 	{
 		const b3Plane* planes = b3GetHullPlanes( hullA );
 
@@ -996,29 +997,29 @@ void b3CollideHullAndCapsule( b3LocalManifold* manifold, int capacity, const b3H
 
 		// Try to create two contact points if closest
 		// points difference is nearly parallel to face normal
-		const float kTolerance = 0.998f;
-		if ( b3AbsFloat( b3Dot( refPlane.normal, delta ) ) > kTolerance )
+		const b3Fixed kTolerance = B3_FIX( 0.998f );
+		if ( b3FixAbs( b3Dot( refPlane.normal, delta ) ) > kTolerance )
 		{
 			// Clip capsule segment against side planes of reference face
 			b3ClipVertex verticesB[2];
 			verticesB[0].position = b3TransformPoint( transformBtoA, capsuleB->center1 );
-			verticesB[0].separation = 0.0f;
+			verticesB[0].separation = B3_FIX( 0.0f );
 			verticesB[0].pair = b3MakeFeaturePair( b3_featureShapeA, 0, b3_featureShapeA, 0 );
 			verticesB[1].position = b3TransformPoint( transformBtoA, capsuleB->center2 );
-			verticesB[1].separation = 0.0f;
+			verticesB[1].separation = B3_FIX( 0.0f );
 			verticesB[1].pair = b3MakeFeaturePair( b3_featureShapeA, 1, b3_featureShapeA, 1 );
 
 			int pointCount = b3ClipSegmentToHullFace( verticesB, hullA, refFace );
 
 			if ( pointCount == 2 )
 			{
-				float distance1 = b3PlaneSeparation( refPlane, verticesB[0].position );
-				float distance2 = b3PlaneSeparation( refPlane, verticesB[1].position );
+				b3Fixed distance1 = b3PlaneSeparation( refPlane, verticesB[0].position );
+				b3Fixed distance2 = b3PlaneSeparation( refPlane, verticesB[1].position );
 				if ( distance1 <= capsuleB->radius + speculativeDistance || distance2 <= capsuleB->radius + speculativeDistance )
 				{
 					b3Vec3 normal = refPlane.normal;
-					b3Vec3 point1 = b3MulSub( verticesB[0].position, 0.5f * ( capsuleB->radius + distance1 ), normal );
-					b3Vec3 point2 = b3MulSub( verticesB[1].position, 0.5f * ( capsuleB->radius + distance2 ), normal );
+					b3Vec3 point1 = b3MulSub( verticesB[0].position, b3FixMul( B3_FIX( 0.5f ) , ( capsuleB->radius + distance1 ) ), normal );
+					b3Vec3 point2 = b3MulSub( verticesB[1].position, b3FixMul( B3_FIX( 0.5f ) , ( capsuleB->radius + distance2 ) ), normal );
 
 					// Manifold in frame A
 					manifold->normal = normal;
@@ -1041,7 +1042,7 @@ void b3CollideHullAndCapsule( b3LocalManifold* manifold, int capacity, const b3H
 
 		// Create contact from closest points
 		b3Vec3 point =
-			b3MulSV( 0.5f, b3Add( b3MulSub( distanceOutput.pointA, capsuleB->radius, delta ), distanceOutput.pointB ) );
+			b3MulSV( B3_FIX( 0.5f ), b3Add( b3MulSub( distanceOutput.pointA, capsuleB->radius, delta ), distanceOutput.pointB ) );
 
 		// Manifold in frame A
 		manifold->normal = delta;
@@ -1071,7 +1072,7 @@ void b3CollideHullAndCapsule( b3LocalManifold* manifold, int capacity, const b3H
 	}
 
 	// Create face contact
-	float faceSeparation = faceQuery.separation - capsuleB->radius;
+	b3Fixed faceSeparation = faceQuery.separation - capsuleB->radius;
 	b3BuildHullFaceAndCapsuleContact( manifold, hullA, capsuleB, transformBtoA, faceQuery );
 	if ( manifold->pointCount > 1 )
 	{
@@ -1080,14 +1081,18 @@ void b3CollideHullAndCapsule( b3LocalManifold* manifold, int capacity, const b3H
 		// Face contact can be empty if it does not realize the axis of minimum penetration
 		faceSeparation = b3DeepestPointSeparation( manifold );
 	}
-	B3_VALIDATE( faceSeparation <= 0.0f );
+	B3_VALIDATE( faceSeparation <= B3_FIX( 0.0f ) );
 
 	// Face contact can be empty if it does not realize the axis of minimum penetration.
 	// Create edge contact if face contact fails or edge contact is significantly better!
-	const float kRelEdgeTolerance = 0.90f;
-	const float kAbsTolerance = 0.5f * B3_LINEAR_SLOP;
-	float edgeSeparation = edgeQuery.separation - capsuleB->radius;
-	if ( manifold->pointCount == 0 || edgeSeparation > kRelEdgeTolerance * faceSeparation + kAbsTolerance )
+	const b3Fixed kRelEdgeTolerance = B3_FIX( 0.90f );
+	const b3Fixed kAbsTolerance = b3FixMul( B3_FIX( 0.5f ) , B3_LINEAR_SLOP );
+	// The edge query can find no admissible pair (its separation stays at the
+	// -B3_FIXED_MAX sentinel, which would wrap under further arithmetic).
+	bool haveEdge = edgeQuery.indexB != B3_NULL_INDEX;
+	b3Fixed edgeSeparation = haveEdge ? edgeQuery.separation - capsuleB->radius : B3_FIXED_MIN;
+	if ( manifold->pointCount == 0 ? haveEdge
+								   : ( haveEdge && edgeSeparation > b3FixMul( kRelEdgeTolerance , faceSeparation ) + kAbsTolerance ) )
 	{
 		// Edge contact
 		b3BuildHullAndCapsuleEdgeContact( manifold, capacity, hullA, capsuleB, transformBtoA, edgeQuery );
@@ -1178,7 +1183,7 @@ static bool b3BuildFaceAContact( b3LocalManifold* manifold, int capacity, const 
 
 		if ( pointCount < 3 )
 		{
-			*cache = (b3SATCache){ 0 };
+			*cache = (b3SATCache){ b3FixFromInt( 0 ) };
 			return false;
 		}
 
@@ -1189,7 +1194,7 @@ static bool b3BuildFaceAContact( b3LocalManifold* manifold, int capacity, const 
 	pointCount = b3MinInt( pointCount, B3_MAX_CLIP_POINTS );
 
 	b3LocalManifoldPoint points[B3_MAX_CLIP_POINTS];
-	float minSeparation = FLT_MAX;
+	b3Fixed minSeparation = B3_FIXED_MAX;
 
 	manifold->normal = refPlane.normal;
 
@@ -1197,10 +1202,10 @@ static bool b3BuildFaceAContact( b3LocalManifold* manifold, int capacity, const 
 	{
 		b3ClipVertex* clipPoint = input + i;
 		b3LocalManifoldPoint* pt = points + i;
-		*pt = (b3LocalManifoldPoint){ 0 };
+		*pt = (b3LocalManifoldPoint){ b3FixFromInt( 0 ) };
 
 		// Using the half-way point keeps the points in the same position when swapping reference face from A to B.
-		b3Vec3 point = b3MulSub( clipPoint->position, 0.5f * clipPoint->separation, refPlane.normal );
+		b3Vec3 point = b3MulSub( clipPoint->position, b3FixMul( B3_FIX( 0.5f ) , clipPoint->separation ), refPlane.normal );
 
 		// Old way of pushing onto the reference face.
 		// b3Vec3 point = clipPoint->position - clipPoint->separation * refPlane.normal;
@@ -1209,12 +1214,12 @@ static bool b3BuildFaceAContact( b3LocalManifold* manifold, int capacity, const 
 		pt->separation = clipPoint->separation;
 		pt->pair = clipPoint->pair;
 
-		minSeparation = b3MinFloat( minSeparation, clipPoint->separation );
+		minSeparation = b3FixMin( minSeparation, clipPoint->separation );
 	}
 
 	if ( minSeparation >= B3_SPECULATIVE_DISTANCE )
 	{
-		*cache = (b3SATCache){ 0 };
+		*cache = (b3SATCache){ b3FixFromInt( 0 ) };
 		return false;
 	}
 
@@ -1289,13 +1294,13 @@ static bool b3BuildEdgeContact( b3LocalManifold* manifold, const b3HullData* hul
 
 	if ( b3IsWithinSegments( &result ) == false )
 	{
-		*cache = (b3SATCache){ 0 };
+		*cache = (b3SATCache){ b3FixFromInt( 0 ) };
 		return false;
 	}
 
 	// This can slide off the end from caching
-	float separation = b3Dot( normal, b3Sub( result.point2, result.point1 ) );
-	b3Vec3 point = b3MulSV( 0.5f, b3Add( result.point1, result.point2 ) );
+	b3Fixed separation = b3Dot( normal, b3Sub( result.point2, result.point1 ) );
+	b3Vec3 point = b3MulSV( B3_FIX( 0.5f ), b3Add( result.point1, result.point2 ) );
 
 	// Result in frame A
 	manifold->normal = normal;
@@ -1326,9 +1331,9 @@ void b3CollideHulls( b3LocalManifold* manifold, int capacity, const b3HullData* 
 	}
 
 	// Work in shapeA coordinates
-	float speculativeDistance = B3_SPECULATIVE_DISTANCE;
+	b3Fixed speculativeDistance = B3_SPECULATIVE_DISTANCE;
 
-	float linearSlop = B3_LINEAR_SLOP;
+	b3Fixed linearSlop = B3_LINEAR_SLOP;
 	const b3HullHalfEdge* edgesA = b3GetHullEdges( hullA );
 	const b3Plane* planesA = b3GetHullPlanes( hullA );
 	const b3Vec3* pointsA = b3GetHullPoints( hullA );
@@ -1341,7 +1346,7 @@ void b3CollideHulls( b3LocalManifold* manifold, int capacity, const b3HullData* 
 	switch ( cache->type )
 	{
 		case b3_invalidAxis:
-			*cache = (b3SATCache){ 0 };
+			*cache = (b3SATCache){ b3FixFromInt( 0 ) };
 			break;
 
 		case b3_faceAxisA:
@@ -1353,7 +1358,7 @@ void b3CollideHulls( b3LocalManifold* manifold, int capacity, const b3HullData* 
 			b3Vec3 searchDirectionInB = b3Neg( b3InvRotateVector( transformBtoA.q, plane.normal ) );
 			int vertexIndex = b3FindHullSupportVertex( hullB, searchDirectionInB );
 			b3Vec3 support = b3TransformPoint( transformBtoA, pointsB[vertexIndex] );
-			float separation = b3PlaneSeparation( plane, support );
+			b3Fixed separation = b3PlaneSeparation( plane, support );
 
 			if ( separation >= speculativeDistance )
 			{
@@ -1365,13 +1370,13 @@ void b3CollideHulls( b3LocalManifold* manifold, int capacity, const b3HullData* 
 			{
 				// Attempt face contact using cached feature
 				b3FaceQuery faceQuery;
-				faceQuery.separation = 0.0f;
+				faceQuery.separation = B3_FIX( 0.0f );
 				faceQuery.faceIndex = cache->indexA;
 				faceQuery.vertexIndex = vertexIndex;
 
-				b3SATCache localCache = { 0 };
+				b3SATCache localCache = { b3FixFromInt( 0 ) };
 				bool touching = b3BuildFaceAContact( manifold, capacity, hullA, hullB, transformBtoA, faceQuery, &localCache );
-				if ( touching == true && b3AbsFloat( cache->separation - localCache.separation ) < linearSlop )
+				if ( touching == true && b3FixAbs( cache->separation - localCache.separation ) < linearSlop )
 				{
 					// Cache hit, contact points generated
 					return;
@@ -1389,7 +1394,7 @@ void b3CollideHulls( b3LocalManifold* manifold, int capacity, const b3HullData* 
 			b3Vec3 searchDirectionInA = b3Neg( b3RotateVector( transformBtoA.q, plane.normal ) );
 			int vertexIndex = b3FindHullSupportVertex( hullA, searchDirectionInA );
 			b3Vec3 support = b3InvTransformPoint( transformBtoA, pointsA[vertexIndex] );
-			float separation = b3PlaneSeparation( plane, support );
+			b3Fixed separation = b3PlaneSeparation( plane, support );
 
 			if ( separation >= speculativeDistance )
 			{
@@ -1401,13 +1406,13 @@ void b3CollideHulls( b3LocalManifold* manifold, int capacity, const b3HullData* 
 			{
 				// Attempt face contact using cached feature
 				b3FaceQuery faceQuery;
-				faceQuery.separation = 0.0f;
+				faceQuery.separation = B3_FIX( 0.0f );
 				faceQuery.faceIndex = cache->indexB;
 				faceQuery.vertexIndex = vertexIndex;
 
-				b3SATCache localCache = { 0 };
+				b3SATCache localCache = { b3FixFromInt( 0 ) };
 				bool touching = b3BuildFaceBContact( manifold, capacity, hullA, hullB, transformBtoA, faceQuery, &localCache );
-				if ( touching == true && b3AbsFloat( cache->separation - localCache.separation ) < linearSlop )
+				if ( touching == true && b3FixAbs( cache->separation - localCache.separation ) < linearSlop )
 				{
 					// Cache hit, contact points generated
 					return;
@@ -1446,23 +1451,23 @@ void b3CollideHulls( b3LocalManifold* manifold, int capacity, const b3HullData* 
 			// cross(v2, u2) == cross(-v2, -u2)
 			// so we still use -e2
 			// but we can also use e1 = cross(u1, v1) and e2 = cross(u2, v2)
-			float cba = b3Dot( uB, eA );
-			float dba = b3Dot( vB, eA );
-			float adc = -b3Dot( uA, eB );
-			float bdc = -b3Dot( vA, eB );
+			b3Fixed cba = b3Dot( uB, eA );
+			b3Fixed dba = b3Dot( vB, eA );
+			b3Fixed adc = -b3Dot( uA, eB );
+			b3Fixed bdc = -b3Dot( vA, eB );
 
-			if ( cba * dba < 0.0f && adc * bdc < 0.0f && cba * bdc > 0.0f )
+			if ( b3FixMul( cba , dba ) < B3_FIX( 0.0f ) && b3FixMul( adc , bdc ) < B3_FIX( 0.0f ) && b3FixMul( cba , bdc ) > B3_FIX( 0.0f ) )
 			{
 				// Avoid nearly parallel edges that may lead to invalid separation values at the noise floor.
-				float squaredTolerance = 0.005f * 0.005f;
-				if ( b3MaxFloat( cba * cba, dba * dba ) >= squaredTolerance * b3LengthSquared( eA ) )
+				b3Fixed squaredTolerance = b3FixMul( B3_FIX( 0.005f ) , B3_FIX( 0.005f ) );
+				if ( b3FixMax( b3FixMul( cba , cba ), b3FixMul( dba , dba ) ) >= b3FixMul( squaredTolerance , b3LengthSquared( eA ) ) )
 				{
 					// Transform reference center of the first hull into local space of the second hull
-					float t = cba / ( cba - dba );
+					b3Fixed t = b3FixDiv( cba , ( cba - dba ) );
 					b3Vec3 axis = b3Lerp( uB, vB, t );
-					B3_VALIDATE( b3LengthSquared( axis ) > 1000.0f * FLT_MIN );
+					B3_VALIDATE( b3LengthSquared( axis ) > 0 );
 					axis = b3Normalize( axis );
-					float separation = b3Dot( axis, b3Sub( qA, qB ) );
+					b3Fixed separation = b3Dot( axis, b3Sub( qA, qB ) );
 
 					if ( separation > speculativeDistance )
 					{
@@ -1471,15 +1476,15 @@ void b3CollideHulls( b3LocalManifold* manifold, int capacity, const b3HullData* 
 					}
 
 					// Try to rebuild contact from last features
-					b3EdgeQuery edgeQuery = { 0 };
+					b3EdgeQuery edgeQuery = { b3FixFromInt( 0 ) };
 					edgeQuery.normal = b3Neg( axis );
-					edgeQuery.separation = 0.0f;
+					edgeQuery.separation = B3_FIX( 0.0f );
 					edgeQuery.indexA = cache->indexA;
 					edgeQuery.indexB = cache->indexB;
 
-					b3SATCache localCache = { 0 };
+					b3SATCache localCache = { b3FixFromInt( 0 ) };
 					bool touching = b3BuildEdgeContact( manifold, hullA, hullB, transformBtoA, edgeQuery, &localCache );
-					if ( touching && b3AbsFloat( cache->separation - localCache.separation ) < linearSlop )
+					if ( touching && b3FixAbs( cache->separation - localCache.separation ) < linearSlop )
 					{
 						// Cache hit, contact point generated
 						return;
@@ -1522,7 +1527,7 @@ void b3CollideHulls( b3LocalManifold* manifold, int capacity, const b3HullData* 
 	}
 
 	manifold->pointCount = 0;
-	*cache = (b3SATCache){ 0 };
+	*cache = (b3SATCache){ b3FixFromInt( 0 ) };
 
 	// Find axis of minimum penetration
 	b3FaceQuery faceQueryA = b3QueryFaceDirections( hullA, hullB, transformBtoA );
@@ -1565,11 +1570,11 @@ void b3CollideHulls( b3LocalManifold* manifold, int capacity, const b3HullData* 
 	}
 
 	// Always build a face contact (e.g. Jenga problem)
-	float faceSeparationA = faceQueryA.separation;
-	float faceSeparationB = faceQueryB.separation;
+	b3Fixed faceSeparationA = faceQueryA.separation;
+	b3Fixed faceSeparationB = faceQueryB.separation;
 	B3_VALIDATE( faceSeparationA <= speculativeDistance && faceSeparationB <= speculativeDistance );
 
-	if ( faceSeparationB > faceSeparationA + 0.5f * linearSlop )
+	if ( faceSeparationB > faceSeparationA + b3FixMul( B3_FIX( 0.5f ) , linearSlop ) )
 	{
 		// Face contact B
 		b3BuildFaceBContact( manifold, capacity, hullA, hullB, transformBtoA, faceQueryB, cache );
@@ -1586,22 +1591,22 @@ void b3CollideHulls( b3LocalManifold* manifold, int capacity, const b3HullData* 
 		return;
 	}
 
-	float clippedFaceSeparation = cache->separation;
+	b3Fixed clippedFaceSeparation = cache->separation;
 
 	B3_VALIDATE( edgeQuery.separation <= speculativeDistance );
 
 	// todo get rid of relative tolerance
-	const float kRelEdgeTolerance = 0.90f;
-	// const float kRelFaceTolerance = 0.98f;
-	const float kAbsTolerance = 0.5f * linearSlop;
+	const b3Fixed kRelEdgeTolerance = B3_FIX( 0.90f );
+	// const b3Fixed kRelFaceTolerance = 0.98f;
+	const b3Fixed kAbsTolerance = b3FixMul( B3_FIX( 0.5f ) , linearSlop );
 
 	// Face contact can be empty if it does not realize the axis of minimum penetration.
 	// Create edge contact if face contact fails or edge contact is significantly better!
-	if ( manifold->pointCount == 0 || edgeQuery.separation > kRelEdgeTolerance * clippedFaceSeparation + kAbsTolerance )
+	if ( manifold->pointCount == 0 || edgeQuery.separation > b3FixMul( kRelEdgeTolerance , clippedFaceSeparation ) + kAbsTolerance )
 	{
 		// Edge contact
-		b3LocalManifold edgeManifold = { 0 };
-		b3LocalManifoldPoint edgePoint = { 0 };
+		b3LocalManifold edgeManifold = { b3FixFromInt( 0 ) };
+		b3LocalManifoldPoint edgePoint = { b3FixFromInt( 0 ) };
 		edgeManifold.points = &edgePoint;
 
 		b3BuildEdgeContact( &edgeManifold, hullA, hullB, transformBtoA, edgeQuery, cache );

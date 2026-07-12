@@ -18,7 +18,7 @@
 #define B3_SNAP_FNV_INIT 14695981039346656037ull
 #define B3_SNAP_FNV_PRIME 1099511628211ull
 
-// Mix a world position at full width so the determinism gate validates past float precision
+// Mix a world position at full width so the determinism gate validates past b3Fixed precision
 // when the body is far from the origin.
 static inline uint64_t b3FnvMixPosition( uint64_t hash, b3Pos p )
 {
@@ -47,7 +47,7 @@ typedef struct b3World b3World;
 
 // Major recording version is bumped when writers change.
 // Major version 4 added b3ShapeDef::enableSpeculativeContact
-#define B3_REC_VERSION_MAJOR 4
+#define B3_REC_VERSION_MAJOR 5
 
 // Minor tracks op-stream additions that keep the 48 byte header shape.
 // Minor version 3 added name cache.
@@ -64,9 +64,8 @@ typedef struct b3RecHeader
 	uint8_t bigEndian;		   // 0 on all supported targets
 	uint8_t validationEnabled; // 1 if built with BOX3D_VALIDATE, diagnostic only
 	uint8_t reserved;
-	float lengthScale; // b3GetLengthUnitsPerMeter()
-	uint32_t reserved2;
-	uint32_t reserved3;			// explicit pad so the 64-bit fields align with no implicit gap
+	uint32_t reserved2;	 // explicit pad so the 64-bit fields align with no implicit gap
+	b3Fixed lengthScale; // b3GetLengthUnitsPerMeter(), Q48.16
 	uint64_t snapshotSize;		// bytes of snapshot blob after the header (0 in Phase 1)
 	uint64_t registryOffset;	// absolute offset to trailing registry block, backpatched at stop
 	uint64_t registryByteCount; // size of the registry block
@@ -159,7 +158,7 @@ typedef uint8_t b3RecCType_U8;
 typedef uint16_t b3RecCType_U16;
 typedef uint32_t b3RecCType_U32;
 typedef uint64_t b3RecCType_U64;
-typedef float b3RecCType_F32;
+typedef b3Fixed b3RecCType_F32;
 typedef double b3RecCType_F64;
 typedef b3Vec3 b3RecCType_VEC3;
 typedef b3Quat b3RecCType_QUAT;
@@ -226,13 +225,13 @@ void b3RecW_U16( b3RecBuffer* buf, uint16_t v );
 void b3RecW_U32( b3RecBuffer* buf, uint32_t v );
 void b3RecW_U64( b3RecBuffer* buf, uint64_t v );
 void b3RecW_I32( b3RecBuffer* buf, int32_t v );
-void b3RecW_F32( b3RecBuffer* buf, float v );
+void b3RecW_F32( b3RecBuffer* buf, b3Fixed v );
 void b3RecW_F64( b3RecBuffer* buf, double v );
 void b3RecW_BOOL( b3RecBuffer* buf, bool v );
 void b3RecW_VEC3( b3RecBuffer* buf, b3Vec3 v );
 void b3RecW_QUAT( b3RecBuffer* buf, b3Quat v );
 void b3RecW_TRANSFORM( b3RecBuffer* buf, b3Transform v );
-// World position: doubles in large-world mode, floats otherwise (wire-identical to VEC3 in float build)
+// World position: doubles in large-world mode, floats otherwise (wire-identical to VEC3 in b3Fixed build)
 void b3RecW_POSITION( b3RecBuffer* buf, b3Pos v );
 void b3RecW_WORLDXF( b3RecBuffer* buf, b3WorldTransform v );
 void b3RecW_MATRIX3( b3RecBuffer* buf, b3Matrix3 v );
@@ -345,7 +344,7 @@ void b3RecQueryCommit( b3Recording* rec, uint8_t opcode, b3RecQueryWriter* w );
 // Recording trampolines: replace the user fcn so hits are captured before dispatch. The overlap
 // trampoline doubles for the mover filter, which has the same bool(shapeId, ctx) shape.
 bool b3RecOverlapTrampoline( b3ShapeId id, void* ctx );
-float b3RecCastTrampoline( b3ShapeId id, b3Pos point, b3Vec3 normal, float fraction, uint64_t userMaterialId, int triangleIndex,
+b3Fixed b3RecCastTrampoline( b3ShapeId id, b3Pos point, b3Vec3 normal, b3Fixed fraction, uint64_t userMaterialId, int triangleIndex,
 						   int childIndex, void* ctx );
 bool b3RecPlaneTrampoline( b3ShapeId id, const b3PlaneResult* planes, int planeCount, void* ctx );
 

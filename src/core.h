@@ -46,31 +46,11 @@
 	#define B3_CPU_UNKNOWN
 #endif
 
-// Define SIMD
-#if defined( BOX3D_DISABLE_SIMD )
-	#define B3_SIMD_NONE
-	#define B3_SIMD_WIDTH 4
-	//#pragma message("B3_SIMD_NONE")
-#else
-	#if defined( B3_CPU_X86_X64 )
-		#define B3_SIMD_SSE2
-		#define B3_SIMD_WIDTH 4
-		//#pragma message("B3_SIMD_SSE2")
-	#elif defined( B3_CPU_ARM )
-		#define B3_SIMD_NEON
-		#define B3_SIMD_WIDTH 4
-		//#pragma message("B3_SIMD_NEON")
-	#elif defined( B3_CPU_WASM )
-		#define B3_CPU_WASM
-		#define B3_SIMD_SSE2
-		#define B3_SIMD_WIDTH 4
-		//#pragma message("B3_SIMD_SSE2")
-	#else
-		#define B3_SIMD_NONE
-		#define B3_SIMD_WIDTH 4
-		//#pragma message("B3_SIMD_NONE")
-	#endif
-#endif
+// Define SIMD. Fixed-point math uses 64 bit integer lanes with 128 bit
+// intermediates, which do not map onto the old float SSE2/NEON paths, so the
+// scalar implementation is always used.
+#define B3_SIMD_NONE
+#define B3_SIMD_WIDTH 4
 
 // Define compiler
 #if defined( __clang__ )

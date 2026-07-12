@@ -66,7 +66,7 @@ b3CompoundCapsule b3GetCompoundCapsule( const b3CompoundData* compound, int inde
 {
 	B3_ASSERT( 0 <= index && index < compound->capsuleCount && compound->capsuleOffset > 0 );
 
-	b3CompoundCapsule result = { 0 };
+	b3CompoundCapsule result = { b3FixFromInt( 0 ) };
 	if ( compound->capsuleOffset == 0 )
 	{
 		return result;
@@ -122,7 +122,7 @@ b3CompoundSphere b3GetCompoundSphere( const b3CompoundData* compound, int index 
 {
 	B3_ASSERT( 0 <= index && index < compound->sphereCount && compound->sphereOffset > 0 );
 
-	b3CompoundSphere result = { 0 };
+	b3CompoundSphere result = { b3FixFromInt( 0 ) };
 	if ( compound->sphereOffset == 0 )
 	{
 		return result;
@@ -763,7 +763,7 @@ struct b3CompoundCastContext
 	const b3ShapeCastInput* shapeInput;
 };
 
-static float b3CompoundRayCastCallback( const b3RayCastInput* input, int proxyId, uint64_t userData, void* context )
+static b3Fixed b3CompoundRayCastCallback( const b3RayCastInput* input, int proxyId, uint64_t userData, void* context )
 {
 	B3_UNUSED( proxyId );
 
@@ -778,7 +778,7 @@ static float b3CompoundRayCastCallback( const b3RayCastInput* input, int proxyId
 	localInput.origin = b3InvTransformPoint( child.transform, input->origin );
 	localInput.translation = b3InvRotateVector( child.transform.q, input->translation );
 
-	b3CastOutput output = { 0 };
+	b3CastOutput output = { b3FixFromInt( 0 ) };
 
 	switch ( child.type )
 	{
@@ -825,7 +825,7 @@ static float b3CompoundRayCastCallback( const b3RayCastInput* input, int proxyId
 
 b3CastOutput b3RayCastCompound( const b3CompoundData* shape, const b3RayCastInput* input )
 {
-	b3CastOutput result = { 0 };
+	b3CastOutput result = { b3FixFromInt( 0 ) };
 
 	struct b3CompoundCastContext context = {
 		.compound = shape,
@@ -835,7 +835,7 @@ b3CastOutput b3RayCastCompound( const b3CompoundData* shape, const b3RayCastInpu
 	return result;
 }
 
-static float b3CompoundShapeCastCallback( const b3BoxCastInput* input, int proxyId, uint64_t userData, void* context )
+static b3Fixed b3CompoundShapeCastCallback( const b3BoxCastInput* input, int proxyId, uint64_t userData, void* context )
 {
 	B3_UNUSED( proxyId );
 
@@ -865,7 +865,7 @@ static float b3CompoundShapeCastCallback( const b3BoxCastInput* input, int proxy
 	localInput.proxy.points = localPoints;
 	localInput.translation = b3MulMV( R, shapeInput->translation );
 
-	b3CastOutput output = { 0 };
+	b3CastOutput output = { b3FixFromInt( 0 ) };
 
 	switch ( child.type )
 	{
@@ -912,7 +912,7 @@ static float b3CompoundShapeCastCallback( const b3BoxCastInput* input, int proxy
 
 b3CastOutput b3ShapeCastCompound( const b3CompoundData* shape, const b3ShapeCastInput* input )
 {
-	b3CastOutput result = { 0 };
+	b3CastOutput result = { b3FixFromInt( 0 ) };
 
 	if ( input->proxy.count == 0 )
 	{
@@ -969,7 +969,7 @@ struct b3CompoundImpactContext
 
 	// Centroid of shape in body B local space
 	b3Vec3 localCentroidB;
-	float fallbackRadius;
+	b3Fixed fallbackRadius;
 };
 
 static bool b3CompoundTimeOfImpactFcn( const b3CompoundData* compound, int childIndex, void* context )
@@ -1064,7 +1064,7 @@ static bool b3CompoundTimeOfImpactFcn( const b3CompoundData* compound, int child
 }
 
 b3TOIOutput b3CompoundTimeOfImpact(const b3CompoundData* compound, b3Transform transform, const b3ShapeProxy* proxy,
-	const b3Sweep* sweep, float maxFraction)
+	const b3Sweep* sweep, b3Fixed maxFraction)
 {
 	b3CompoundImpactContext context = {0};
 	context.toiInput.proxyB = b3MakeShapeProxy( shapeB );
@@ -1080,7 +1080,7 @@ b3TOIOutput b3CompoundTimeOfImpact(const b3CompoundData* compound, b3Transform t
 	context.localCentroidB = localCentroidB;
 
 	b3ShapeExtent extents = b3ComputeShapeExtent( shapeB, context.localCentroidB );
-	context.fallbackRadius = b3MaxFloat( 0.5f * extents.minExtent, B3_SPECULATIVE_DISTANCE );
+	context.fallbackRadius = b3FixMax( 0.5f * extents.minExtent, B3_SPECULATIVE_DISTANCE );
 
 	// Swept bounds of shapeB
 	b3AABB aabb = b3ComputeSweptShapeAABB( shapeB, sweepB, maxFraction );

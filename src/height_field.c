@@ -139,34 +139,34 @@ b3HeightFieldData* b3CreateHeightField( const b3HeightFieldDef* data )
 	uint8_t* materialIndices = (uint8_t*)( (intptr_t)hf + materialOffset );
 	uint8_t* flags = (uint8_t*)( (intptr_t)hf + flagsOffset );
 
-	const float* heights = data->heights;
+	const b3Fixed* heights = data->heights;
 
 	B3_ASSERT( data->globalMinimumHeight <= data->globalMaximumHeight );
 	hf->minHeight = data->globalMinimumHeight;
 	hf->maxHeight = data->globalMaximumHeight;
 
-	float height = b3MaxFloat( hf->maxHeight - hf->minHeight, B3_LINEAR_SLOP );
-	hf->heightScale = height / UINT16_MAX;
+	b3Fixed height = b3FixMax( hf->maxHeight - hf->minHeight, B3_LINEAR_SLOP );
+	hf->heightScale = b3FixDiv( height, b3FixFromInt( UINT16_MAX ) );
 
-	float lowerHeightBound = hf->maxHeight;
-	float upperHeightBound = hf->minHeight;
+	b3Fixed lowerHeightBound = hf->maxHeight;
+	b3Fixed upperHeightBound = hf->minHeight;
 
-	float invHeightScale = 1.0f / hf->heightScale;
+	b3Fixed invHeightScale = b3FixDiv( B3_FIX( 1.0f ) , hf->heightScale );
 	for ( int i = 0; i < heightCount; ++i )
 	{
-		float clampedHeight = b3ClampFloat( heights[i], hf->minHeight, hf->maxHeight );
-		float scaledHeight = ( clampedHeight - hf->minHeight ) * invHeightScale;
-		compressedHeights[i] = (uint16_t)( b3MinFloat( scaledHeight, (float)UINT16_MAX ) );
+		b3Fixed clampedHeight = b3FixClamp( heights[i], hf->minHeight, hf->maxHeight );
+		b3Fixed scaledHeight = b3FixMul( ( clampedHeight - hf->minHeight ) , invHeightScale );
+		compressedHeights[i] = (uint16_t)b3FixTruncToInt( ( b3FixMin( scaledHeight, b3FixFromInt( UINT16_MAX ) ) ) );
 
-		lowerHeightBound = b3MinFloat( lowerHeightBound, clampedHeight );
-		upperHeightBound = b3MaxFloat( upperHeightBound, clampedHeight );
+		lowerHeightBound = b3FixMin( lowerHeightBound, clampedHeight );
+		upperHeightBound = b3FixMax( upperHeightBound, clampedHeight );
 	}
 
 	// Use decompressed heights for accurate convexity metrics.
-	float* decompressedHeights = (float*)b3Alloc( heightCount * sizeof( float ) );
+	b3Fixed* decompressedHeights = (b3Fixed*)b3Alloc( heightCount * sizeof( b3Fixed ) );
 	for ( int i = 0; i < heightCount; ++i )
 	{
-		decompressedHeights[i] = hf->minHeight + hf->heightScale * compressedHeights[i];
+		decompressedHeights[i] = hf->minHeight + b3FixMul( hf->heightScale , b3FixFromInt( compressedHeights[i] ) );
 	}
 	heights = decompressedHeights;
 
@@ -185,11 +185,11 @@ b3HeightFieldData* b3CreateHeightField( const b3HeightFieldDef* data )
 		}
 	}
 
-	hf->aabb.lowerBound = (b3Vec3){ 0.0f, hf->scale.y * lowerHeightBound, 0.0f };
+	hf->aabb.lowerBound = (b3Vec3){ B3_FIX( 0.0f ), b3FixMul( hf->scale.y , lowerHeightBound ), B3_FIX( 0.0f ) };
 	hf->aabb.upperBound =
-		(b3Vec3){ hf->scale.x * ( hf->columnCount - 1 ), hf->scale.y * upperHeightBound, hf->scale.z * ( hf->rowCount - 1 ) };
+		(b3Vec3){ b3FixMul( hf->scale.x , b3FixFromInt( ( hf->columnCount - 1 ) ) ), b3FixMul( hf->scale.y , upperHeightBound ), b3FixMul( hf->scale.z , b3FixFromInt( ( hf->rowCount - 1 ) ) ) };
 
-	float cos5Deg = 0.9962f;
+	b3Fixed cos5Deg = B3_FIX( 0.9962f );
 	b3Vec3 scale = hf->scale;
 
 	int triangleIndex = 0;
@@ -226,15 +226,15 @@ b3HeightFieldData* b3CreateHeightField( const b3HeightFieldDef* data )
 			int index22 = index21 + 1;
 
 			{
-				float height11 = heights[index11];
-				float height12 = heights[index12];
-				float height21 = heights[index21];
-				float height22 = heights[index22];
+				b3Fixed height11 = heights[index11];
+				b3Fixed height12 = heights[index12];
+				b3Fixed height21 = heights[index21];
+				b3Fixed height22 = heights[index22];
 
-				float x1 = (float)( column );
-				float x2 = (float)( column + 1 );
-				float z1 = (float)( row );
-				float z2 = (float)( row + 1 );
+				b3Fixed x1 = (b3Fixed)b3FixFromInt( ( column ) );
+				b3Fixed x2 = (b3Fixed)b3FixFromInt( ( column + 1 ) );
+				b3Fixed z1 = (b3Fixed)b3FixFromInt( ( row ) );
+				b3Fixed z2 = (b3Fixed)b3FixFromInt( ( row + 1 ) );
 
 				// triangle 0 : 11, 21, 12
 				b3Vec3 vs0[3];
@@ -243,7 +243,7 @@ b3HeightFieldData* b3CreateHeightField( const b3HeightFieldDef* data )
 				vs0[2] = b3Mul( scale, (b3Vec3){ x2, height12, z1 } );
 				plane1 = b3MakePlaneFromPoints( vs0[0], vs0[1], vs0[2] );
 
-				center1 = b3MulSV( 1.0f / 3.0f, b3Add( b3Add( vs0[0], vs0[1] ), vs0[2] ) );
+				center1 = b3MulSV( b3FixDiv( B3_FIX( 1.0f ) , B3_FIX( 3.0f ) ), b3Add( b3Add( vs0[0], vs0[1] ), vs0[2] ) );
 
 				// triangle 1 : 22, 12, 21
 				b3Vec3 vs1[3];
@@ -252,16 +252,16 @@ b3HeightFieldData* b3CreateHeightField( const b3HeightFieldDef* data )
 				vs1[2] = b3Mul( scale, (b3Vec3){ x1, height21, z2 } );
 				plane2 = b3MakePlaneFromPoints( vs1[0], vs1[1], vs1[2] );
 
-				center2 = b3MulSV( 1.0f / 3.0f, b3Add( b3Add( vs1[0], vs1[1] ), vs1[2] ) );
+				center2 = b3MulSV( b3FixDiv( B3_FIX( 1.0f ) , B3_FIX( 3.0f ) ), b3Add( b3Add( vs1[0], vs1[1] ), vs1[2] ) );
 
-				float separation = b3PlaneSeparation( plane1, vs1[0] );
-				float cosAngle = b3Dot( plane1.normal, plane2.normal );
-				if ( separation > 0.0f || cosAngle > cos5Deg )
+				b3Fixed separation = b3PlaneSeparation( plane1, vs1[0] );
+				b3Fixed cosAngle = b3Dot( plane1.normal, plane2.normal );
+				if ( separation > B3_FIX( 0.0f ) || cosAngle > cos5Deg )
 				{
 					flags1 |= b3_concaveEdge2;
 					flags2 |= b3_concaveEdge2;
 				}
-				if ( separation < 0.0f || cosAngle > cos5Deg )
+				if ( separation < B3_FIX( 0.0f ) || cosAngle > cos5Deg )
 				{
 					flags1 |= b3_inverseConcaveEdge2;
 					flags2 |= b3_inverseConcaveEdge2;
@@ -288,15 +288,15 @@ b3HeightFieldData* b3CreateHeightField( const b3HeightFieldDef* data )
 				B3_ASSERT( i21 == index11 );
 				B3_ASSERT( i22 == index12 );
 
-				// float h11 = heights[i11];
-				float h12 = heights[i12];
-				float h21 = heights[i21];
-				float h22 = heights[i22];
+				// b3Fixed h11 = heights[i11];
+				b3Fixed h12 = heights[i12];
+				b3Fixed h21 = heights[i21];
+				b3Fixed h22 = heights[i22];
 
-				float x1 = (float)( c );
-				float x2 = (float)( c + 1 );
-				float z1 = (float)( r );
-				float z2 = (float)( r + 1 );
+				b3Fixed x1 = (b3Fixed)b3FixFromInt( ( c ) );
+				b3Fixed x2 = (b3Fixed)b3FixFromInt( ( c + 1 ) );
+				b3Fixed z1 = (b3Fixed)b3FixFromInt( ( r ) );
+				b3Fixed z2 = (b3Fixed)b3FixFromInt( ( r + 1 ) );
 
 				// triangle 1
 				b3Vec3 vs[3];
@@ -306,13 +306,13 @@ b3HeightFieldData* b3CreateHeightField( const b3HeightFieldDef* data )
 
 				b3Vec3 n = b3Normalize( b3Cross( b3Sub( vs[1], vs[0] ), b3Sub( vs[2], vs[0] ) ) );
 
-				float separation = b3PlaneSeparation( plane1, vs[1] );
-				float cosAngle = b3Dot( plane1.normal, n );
-				if ( separation > 0.0f || cosAngle > cos5Deg )
+				b3Fixed separation = b3PlaneSeparation( plane1, vs[1] );
+				b3Fixed cosAngle = b3Dot( plane1.normal, n );
+				if ( separation > B3_FIX( 0.0f ) || cosAngle > cos5Deg )
 				{
 					flags1 |= b3_concaveEdge3;
 				}
-				if ( separation < 0.0f || cosAngle > cos5Deg )
+				if ( separation < B3_FIX( 0.0f ) || cosAngle > cos5Deg )
 				{
 					flags1 |= b3_inverseConcaveEdge3;
 				}
@@ -334,15 +334,15 @@ b3HeightFieldData* b3CreateHeightField( const b3HeightFieldDef* data )
 				B3_ASSERT( i11 == index21 );
 				B3_ASSERT( i12 == index22 );
 
-				float h11 = heights[i11];
-				float h12 = heights[i12];
-				float h21 = heights[i21];
-				// float h22 = heights[i22];
+				b3Fixed h11 = heights[i11];
+				b3Fixed h12 = heights[i12];
+				b3Fixed h21 = heights[i21];
+				// b3Fixed h22 = heights[i22];
 
-				float x1 = (float)( c );
-				float x2 = (float)( c + 1 );
-				float z1 = (float)( r );
-				float z2 = (float)( r + 1 );
+				b3Fixed x1 = (b3Fixed)b3FixFromInt( ( c ) );
+				b3Fixed x2 = (b3Fixed)b3FixFromInt( ( c + 1 ) );
+				b3Fixed z1 = (b3Fixed)b3FixFromInt( ( r ) );
+				b3Fixed z2 = (b3Fixed)b3FixFromInt( ( r + 1 ) );
 
 				// triangle 0
 				b3Vec3 vs[3];
@@ -352,13 +352,13 @@ b3HeightFieldData* b3CreateHeightField( const b3HeightFieldDef* data )
 
 				b3Vec3 n = b3Normalize( b3Cross( b3Sub( vs[1], vs[0] ), b3Sub( vs[2], vs[0] ) ) );
 
-				float separation = b3PlaneSeparation( plane2, vs[1] );
-				float cosAngle = b3Dot( plane2.normal, n );
-				if ( separation > 0.0f || cosAngle > cos5Deg )
+				b3Fixed separation = b3PlaneSeparation( plane2, vs[1] );
+				b3Fixed cosAngle = b3Dot( plane2.normal, n );
+				if ( separation > B3_FIX( 0.0f ) || cosAngle > cos5Deg )
 				{
 					flags2 |= b3_concaveEdge3;
 				}
-				if ( separation < 0.0f || cosAngle > cos5Deg )
+				if ( separation < B3_FIX( 0.0f ) || cosAngle > cos5Deg )
 				{
 					flags2 |= b3_inverseConcaveEdge3;
 				}
@@ -380,15 +380,15 @@ b3HeightFieldData* b3CreateHeightField( const b3HeightFieldDef* data )
 				B3_ASSERT( i12 == index11 );
 				B3_ASSERT( i22 == index21 );
 
-				// float h11 = heights[i11];
-				float h12 = heights[i12];
-				float h21 = heights[i21];
-				float h22 = heights[i22];
+				// b3Fixed h11 = heights[i11];
+				b3Fixed h12 = heights[i12];
+				b3Fixed h21 = heights[i21];
+				b3Fixed h22 = heights[i22];
 
-				float x1 = (float)( c );
-				float x2 = (float)( c + 1 );
-				float z1 = (float)( r );
-				float z2 = (float)( r + 1 );
+				b3Fixed x1 = (b3Fixed)b3FixFromInt( ( c ) );
+				b3Fixed x2 = (b3Fixed)b3FixFromInt( ( c + 1 ) );
+				b3Fixed z1 = (b3Fixed)b3FixFromInt( ( r ) );
+				b3Fixed z2 = (b3Fixed)b3FixFromInt( ( r + 1 ) );
 
 				// triangle 1
 				b3Vec3 vs[3];
@@ -398,13 +398,13 @@ b3HeightFieldData* b3CreateHeightField( const b3HeightFieldDef* data )
 
 				b3Vec3 n = b3Normalize( b3Cross( b3Sub( vs[1], vs[0] ), b3Sub( vs[2], vs[0] ) ) );
 
-				float separation = b3PlaneSeparation( plane1, vs[2] );
-				float cosAngle = b3Dot( plane1.normal, n );
-				if ( separation > 0.0f || cosAngle > cos5Deg )
+				b3Fixed separation = b3PlaneSeparation( plane1, vs[2] );
+				b3Fixed cosAngle = b3Dot( plane1.normal, n );
+				if ( separation > B3_FIX( 0.0f ) || cosAngle > cos5Deg )
 				{
 					flags1 |= b3_concaveEdge1;
 				}
-				if ( separation < 0.0f || cosAngle > cos5Deg )
+				if ( separation < B3_FIX( 0.0f ) || cosAngle > cos5Deg )
 				{
 					flags1 |= b3_inverseConcaveEdge1;
 				}
@@ -426,15 +426,15 @@ b3HeightFieldData* b3CreateHeightField( const b3HeightFieldDef* data )
 				B3_ASSERT( i11 == index12 );
 				B3_ASSERT( i21 == index22 );
 
-				float h11 = heights[i11];
-				float h12 = heights[i12];
-				float h21 = heights[i21];
-				// float h22 = heights[i22];
+				b3Fixed h11 = heights[i11];
+				b3Fixed h12 = heights[i12];
+				b3Fixed h21 = heights[i21];
+				// b3Fixed h22 = heights[i22];
 
-				float x1 = (float)( c );
-				float x2 = (float)( c + 1 );
-				float z1 = (float)( r );
-				float z2 = (float)( r + 1 );
+				b3Fixed x1 = (b3Fixed)b3FixFromInt( ( c ) );
+				b3Fixed x2 = (b3Fixed)b3FixFromInt( ( c + 1 ) );
+				b3Fixed z1 = (b3Fixed)b3FixFromInt( ( r ) );
+				b3Fixed z2 = (b3Fixed)b3FixFromInt( ( r + 1 ) );
 
 				// triangle 0
 				b3Vec3 vs[3];
@@ -444,13 +444,13 @@ b3HeightFieldData* b3CreateHeightField( const b3HeightFieldDef* data )
 
 				b3Vec3 n = b3Normalize( b3Cross( b3Sub( vs[1], vs[0] ), b3Sub( vs[2], vs[0] ) ) );
 
-				float separation = b3PlaneSeparation( plane2, vs[2] );
-				float cosAngle = b3Dot( plane2.normal, n );
-				if ( separation > 0.0f || cosAngle > cos5Deg )
+				b3Fixed separation = b3PlaneSeparation( plane2, vs[2] );
+				b3Fixed cosAngle = b3Dot( plane2.normal, n );
+				if ( separation > B3_FIX( 0.0f ) || cosAngle > cos5Deg )
 				{
 					flags2 |= b3_concaveEdge1;
 				}
-				if ( separation < 0.0f || cosAngle > cos5Deg )
+				if ( separation < B3_FIX( 0.0f ) || cosAngle > cos5Deg )
 				{
 					flags2 |= b3_inverseConcaveEdge1;
 				}
@@ -466,7 +466,7 @@ b3HeightFieldData* b3CreateHeightField( const b3HeightFieldDef* data )
 
 	B3_ASSERT( triangleIndex == triangleCount );
 
-	b3Free( decompressedHeights, heightCount * sizeof( float ) );
+	b3Free( decompressedHeights, heightCount * sizeof( b3Fixed ) );
 
 	// Content hash over the whole blob with the hash field zeroed, like b3HullData/b3MeshData.
 	hf->hash = 0;
@@ -492,19 +492,19 @@ static inline void b3GetHeightFieldCellCorners( const b3HeightFieldData* hf, int
 	int index21 = ( row + 1 ) * columnCount + column;
 	int index22 = index21 + 1;
 
-	float minHeight = hf->minHeight;
-	float heightScale = hf->heightScale;
+	b3Fixed minHeight = hf->minHeight;
+	b3Fixed heightScale = hf->heightScale;
 	const uint16_t* heights = b3GetHeightFieldCompressedHeights( hf );
 
-	float height11 = minHeight + heightScale * heights[index11];
-	float height12 = minHeight + heightScale * heights[index12];
-	float height21 = minHeight + heightScale * heights[index21];
-	float height22 = minHeight + heightScale * heights[index22];
+	b3Fixed height11 = minHeight + b3FixMul( heightScale , b3FixFromInt( heights[index11] ) );
+	b3Fixed height12 = minHeight + b3FixMul( heightScale , b3FixFromInt( heights[index12] ) );
+	b3Fixed height21 = minHeight + b3FixMul( heightScale , b3FixFromInt( heights[index21] ) );
+	b3Fixed height22 = minHeight + b3FixMul( heightScale , b3FixFromInt( heights[index22] ) );
 
-	float x1 = (float)( column );
-	float x2 = (float)( column + 1 );
-	float z1 = (float)( row );
-	float z2 = (float)( row + 1 );
+	b3Fixed x1 = (b3Fixed)b3FixFromInt( ( column ) );
+	b3Fixed x2 = (b3Fixed)b3FixFromInt( ( column + 1 ) );
+	b3Fixed z1 = (b3Fixed)b3FixFromInt( ( row ) );
+	b3Fixed z2 = (b3Fixed)b3FixFromInt( ( row + 1 ) );
 
 	b3Vec3 scale = hf->scale;
 	corners[0] = b3Mul( scale, (b3Vec3){ x1, height11, z1 } );
@@ -594,7 +594,7 @@ b3AABB b3ComputeHeightFieldAABB( const b3HeightFieldData* shape, b3Transform tra
 b3CastOutput b3RayCastHeightField( const b3HeightFieldData* heightField, const b3RayCastInput* input )
 {
 	b3ShapeCastInput shapeCastInput = { 0 };
-	shapeCastInput.proxy = (b3ShapeProxy){ &input->origin, 1, 0.0f };
+	shapeCastInput.proxy = (b3ShapeProxy){ &input->origin, 1, B3_FIX( 0.0f ) };
 	shapeCastInput.translation = input->translation;
 	shapeCastInput.maxFraction = input->maxFraction;
 
@@ -613,14 +613,14 @@ b3CastOutput b3ShapeCastHeightField( const b3HeightFieldData* heightField, const
 	b3Vec3 shapeDelta = b3MulSV( input->maxFraction, shapeTranslation );
 	b3Vec3 shapeEnd = b3Add( shapeStart, shapeDelta );
 
-	b3CastOutput result = { 0 };
+	b3CastOutput result = { b3FixFromInt( 0 ) };
 
 	b3Vec3 shapeExtents = b3AABB_Extents( shapeBounds );
 	b3Vec3 margin = { B3_MAX_AABB_MARGIN, B3_MAX_AABB_MARGIN, B3_MAX_AABB_MARGIN };
 	b3AABB combinedBounds = { b3Sub( b3Sub( heightField->aabb.lowerBound, shapeExtents ), margin ),
 							  b3Add( b3Add( heightField->aabb.upperBound, shapeExtents ), margin ) };
 
-	float minFraction, maxFraction;
+	b3Fixed minFraction, maxFraction;
 	bool intersects = b3RayCastAABB( combinedBounds, shapeStart, shapeEnd, &minFraction, &maxFraction );
 	if ( intersects == false )
 	{
@@ -640,100 +640,100 @@ b3CastOutput b3ShapeCastHeightField( const b3HeightFieldData* heightField, const
 	b3Vec3 centerEnd = clampedEnd;
 
 	// The grid traversal starts from the leading shape bounds corner
-	float signX, signZ;
-	if ( shapeTranslation.x >= 0.0f )
+	b3Fixed signX, signZ;
+	if ( shapeTranslation.x >= B3_FIX( 0.0f ) )
 	{
 		clampedStart.x += shapeExtents.x;
-		signX = 1.0f;
+		signX = B3_FIX( 1.0f );
 	}
 	else
 	{
 		clampedStart.x -= shapeExtents.x;
-		signX = -1.0f;
+		signX = -B3_FIX( 1.0f );
 	}
 
-	if ( shapeTranslation.z >= 0.0f )
+	if ( shapeTranslation.z >= B3_FIX( 0.0f ) )
 	{
 		clampedStart.z += shapeExtents.z;
-		signZ = 1.0f;
+		signZ = B3_FIX( 1.0f );
 	}
 	else
 	{
 		clampedStart.z -= shapeExtents.z;
-		signZ = -1.0f;
+		signZ = -B3_FIX( 1.0f );
 	}
 
 	// Shift the end as well
 	clampedEnd = b3Add( clampedStart, clampedDelta );
 
 	// Row and column range for the shape cast
-	int columnStart = (int)floorf( clampedStart.x / scale.x );
-	int columnEnd = (int)floorf( clampedEnd.x / scale.x );
-	int rowStart = (int)floorf( clampedStart.z / scale.z );
-	int rowEnd = (int)floorf( clampedEnd.z / scale.z );
+	int columnStart = (int)b3FixTruncToInt( b3FixFloor( b3FixDiv( clampedStart.x , scale.x ) ) );
+	int columnEnd = (int)b3FixTruncToInt( b3FixFloor( b3FixDiv( clampedEnd.x , scale.x ) ) );
+	int rowStart = (int)b3FixTruncToInt( b3FixFloor( b3FixDiv( clampedStart.z , scale.z ) ) );
+	int rowEnd = (int)b3FixTruncToInt( b3FixFloor( b3FixDiv( clampedEnd.z , scale.z ) ) );
 
 	b3Vec3 absClampedDelta = b3Abs( clampedDelta );
 
 	// Precompute increments for row and column traversal.
 	// The ray can be slightly tilted yet remain within a single row or column
 	// once rasterized.
-	float deltaAlphaX;
-	float nextFractionX;
+	b3Fixed deltaAlphaX;
+	b3Fixed nextFractionX;
 	int deltaColumn;
 
 	if ( columnStart < columnEnd )
 	{
-		B3_ASSERT( absClampedDelta.x > 0.0f );
+		B3_ASSERT( absClampedDelta.x > B3_FIX( 0.0f ) );
 
 		// Going forward on x columns
-		deltaAlphaX = scale.x / absClampedDelta.x;
-		nextFractionX = ( scale.x * ( columnStart + 1 ) - clampedStart.x ) / absClampedDelta.x;
+		deltaAlphaX = b3FixDiv( scale.x , absClampedDelta.x );
+		nextFractionX = b3FixDiv( ( b3FixMul( scale.x , b3FixFromInt( ( columnStart + 1 ) ) ) - clampedStart.x ) , absClampedDelta.x );
 		deltaColumn = 1;
 	}
 	else if ( columnEnd < columnStart )
 	{
-		B3_ASSERT( absClampedDelta.x > 0.0f );
+		B3_ASSERT( absClampedDelta.x > B3_FIX( 0.0f ) );
 
 		// Going backwards on x columns
-		deltaAlphaX = scale.x / absClampedDelta.x;
-		nextFractionX = ( clampedStart.x - scale.x * columnStart ) / absClampedDelta.x;
+		deltaAlphaX = b3FixDiv( scale.x , absClampedDelta.x );
+		nextFractionX = b3FixDiv( ( clampedStart.x - b3FixMul( scale.x , b3FixFromInt( columnStart ) ) ) , absClampedDelta.x );
 		deltaColumn = -1;
 	}
 	else
 	{
 		// Cast stays in a single column
-		deltaAlphaX = 0.0f;
-		nextFractionX = FLT_MAX;
+		deltaAlphaX = B3_FIX( 0.0f );
+		nextFractionX = B3_FIXED_MAX;
 		deltaColumn = 0;
 	}
 
-	float deltaAlphaZ;
-	float nextFractionZ;
+	b3Fixed deltaAlphaZ;
+	b3Fixed nextFractionZ;
 	int deltaRow;
 
 	if ( rowStart < rowEnd )
 	{
-		B3_ASSERT( absClampedDelta.z > 0.0f );
+		B3_ASSERT( absClampedDelta.z > B3_FIX( 0.0f ) );
 
 		// Going forward on z rows
-		deltaAlphaZ = scale.z / absClampedDelta.z;
-		nextFractionZ = ( scale.z * ( rowStart + 1 ) - clampedStart.z ) / absClampedDelta.z;
+		deltaAlphaZ = b3FixDiv( scale.z , absClampedDelta.z );
+		nextFractionZ = b3FixDiv( ( b3FixMul( scale.z , b3FixFromInt( ( rowStart + 1 ) ) ) - clampedStart.z ) , absClampedDelta.z );
 		deltaRow = 1;
 	}
 	else if ( rowEnd < rowStart )
 	{
-		B3_ASSERT( absClampedDelta.z > 0.0f );
+		B3_ASSERT( absClampedDelta.z > B3_FIX( 0.0f ) );
 
 		// Going backwards on z rows
-		deltaAlphaZ = scale.z / absClampedDelta.z;
-		nextFractionZ = ( clampedStart.z - scale.z * rowStart ) / absClampedDelta.z;
+		deltaAlphaZ = b3FixDiv( scale.z , absClampedDelta.z );
+		nextFractionZ = b3FixDiv( ( clampedStart.z - b3FixMul( scale.z , b3FixFromInt( rowStart ) ) ) , absClampedDelta.z );
 		deltaRow = -1;
 	}
 	else
 	{
 		// Cast stays in a single row
-		deltaAlphaZ = 0.0f;
-		nextFractionZ = FLT_MAX;
+		deltaAlphaZ = B3_FIX( 0.0f );
+		nextFractionZ = B3_FIXED_MAX;
 		deltaRow = 0;
 	}
 
@@ -741,18 +741,18 @@ b3CastOutput b3ShapeCastHeightField( const b3HeightFieldData* heightField, const
 	int boxColumnHead = columnStart;
 	int boxRowHead = rowStart;
 
-	int boxColumnTail = (int)floorf( ( clampedStart.x - 2.0f * signX * shapeExtents.x ) / scale.x );
-	int boxRowTail = (int)floorf( ( clampedStart.z - 2.0f * signZ * shapeExtents.z ) / scale.z );
+	int boxColumnTail = (int)b3FixTruncToInt( b3FixFloor( b3FixDiv( ( clampedStart.x - b3FixMul( b3FixMul( B3_FIX( 2.0f ) , signX ) , shapeExtents.x ) ) , scale.x ) ) );
+	int boxRowTail = (int)b3FixTruncToInt( b3FixFloor( b3FixDiv( ( clampedStart.z - b3FixMul( b3FixMul( B3_FIX( 2.0f ) , signZ ) , shapeExtents.z ) ) , scale.z ) ) );
 
-	float bestFraction = input->maxFraction;
+	b3Fixed bestFraction = input->maxFraction;
 
 	// nextFractionX / nextFractionZ advance in units of the clamped sweep
 	// [minFraction, maxFraction], but bestFraction is a fraction of the full input
 	// translation. Precompute the affine map from clamped space to input space so
 	// the loop termination test compares like with like — otherwise it can exit
 	// early and miss a closer hit in a later cell.
-	float gridFractionScale = input->maxFraction * ( maxFraction - minFraction );
-	float gridFractionOffset = input->maxFraction * minFraction;
+	b3Fixed gridFractionScale = b3FixMul( input->maxFraction , ( maxFraction - minFraction ) );
+	b3Fixed gridFractionOffset = b3FixMul( input->maxFraction , minFraction );
 
 	int rowCount = heightField->rowCount;
 	int columnCount = heightField->columnCount;
@@ -842,7 +842,7 @@ b3CastOutput b3ShapeCastHeightField( const b3HeightFieldData* heightField, const
 				int triangleIndex1 = 2 * quadIndex;
 				int triangleIndex2 = triangleIndex1 + 1;
 
-				if ( input->proxy.count == 1 && input->proxy.radius == 0.0f )
+				if ( input->proxy.count == 1 && input->proxy.radius == B3_FIX( 0.0f ) )
 				{
 					// Ray cast
 					{
@@ -860,8 +860,8 @@ b3CastOutput b3ShapeCastHeightField( const b3HeightFieldData* heightField, const
 							vertex3 = b3LoadV( &point12.x );
 						}
 
-						float alpha = b3IntersectRayTriangle( rayOrigin, rayTranslation, vertex1, vertex2, vertex3 );
-						B3_ASSERT( 0 <= alpha && alpha <= 1.0f );
+						b3Fixed alpha = b3IntersectRayTriangle( rayOrigin, rayTranslation, vertex1, vertex2, vertex3 );
+						B3_ASSERT( b3FixFromInt( 0 ) <= alpha && alpha <= B3_FIX( 1.0f ) );
 
 						if ( alpha < bestFraction )
 						{
@@ -894,8 +894,8 @@ b3CastOutput b3ShapeCastHeightField( const b3HeightFieldData* heightField, const
 							vertex3 = b3LoadV( &point21.x );
 						}
 
-						float alpha = b3IntersectRayTriangle( rayOrigin, rayTranslation, vertex1, vertex2, vertex3 );
-						B3_ASSERT( 0 <= alpha && alpha <= 1.0f );
+						b3Fixed alpha = b3IntersectRayTriangle( rayOrigin, rayTranslation, vertex1, vertex2, vertex3 );
+						B3_ASSERT( b3FixFromInt( 0 ) <= alpha && alpha <= B3_FIX( 1.0f ) );
 
 						if ( alpha < bestFraction )
 						{
@@ -921,7 +921,7 @@ b3CastOutput b3ShapeCastHeightField( const b3HeightFieldData* heightField, const
 						// Shift origin to first vertex
 						b3Vec3 origin = point11;
 						b3Vec3 triangleVertices[] = { b3Vec3_zero, b3Sub( point21, origin ), b3Sub( point12, origin ) };
-						pairInput.proxyA = (b3ShapeProxy){ triangleVertices, 3, 0.0f };
+						pairInput.proxyA = (b3ShapeProxy){ triangleVertices, 3, B3_FIX( 0.0f ) };
 						pairInput.maxFraction = bestFraction;
 						pairInput.transform.p = b3Neg( origin );
 
@@ -941,7 +941,7 @@ b3CastOutput b3ShapeCastHeightField( const b3HeightFieldData* heightField, const
 						// Shift origin to first vertex
 						b3Vec3 origin = point21;
 						b3Vec3 triangleVertices[] = { b3Vec3_zero, b3Sub( point22, origin ), b3Sub( point12, origin ) };
-						pairInput.proxyA = (b3ShapeProxy){ triangleVertices, 3, 0.0f };
+						pairInput.proxyA = (b3ShapeProxy){ triangleVertices, 3, B3_FIX( 0.0f ) };
 						pairInput.maxFraction = bestFraction;
 						pairInput.transform.p = b3Neg( origin );
 
@@ -963,8 +963,8 @@ b3CastOutput b3ShapeCastHeightField( const b3HeightFieldData* heightField, const
 		// These fractions always increase to guarantee the loop eventually exits.
 		// Map them from clamped-sweep space into input-translation space before
 		// comparing against bestFraction.
-		float inputFractionX = nextFractionX == FLT_MAX ? FLT_MAX : gridFractionOffset + nextFractionX * gridFractionScale;
-		float inputFractionZ = nextFractionZ == FLT_MAX ? FLT_MAX : gridFractionOffset + nextFractionZ * gridFractionScale;
+		b3Fixed inputFractionX = nextFractionX == B3_FIXED_MAX ? B3_FIXED_MAX : gridFractionOffset + b3FixMul( nextFractionX , gridFractionScale );
+		b3Fixed inputFractionZ = nextFractionZ == B3_FIXED_MAX ? B3_FIXED_MAX : gridFractionOffset + b3FixMul( nextFractionZ , gridFractionScale );
 		if ( inputFractionX > bestFraction && inputFractionZ > bestFraction )
 		{
 			break;
@@ -985,7 +985,7 @@ b3CastOutput b3ShapeCastHeightField( const b3HeightFieldData* heightField, const
 			// Build a single column to cast
 			boxColumnTail = boxColumnHead;
 
-			if ( shapeExtents.z == 0.0f )
+			if ( shapeExtents.z == B3_FIX( 0.0f ) )
 			{
 				// Single row
 				boxRowTail = boxRowHead;
@@ -993,8 +993,8 @@ b3CastOutput b3ShapeCastHeightField( const b3HeightFieldData* heightField, const
 			else
 			{
 				// Rasterize shape row
-				float rowIntercept = clampedStart.z + nextFractionX * clampedDelta.z;
-				boxRowTail = (int)floorf( ( rowIntercept - 2.0f * signZ * shapeExtents.z ) / scale.z );
+				b3Fixed rowIntercept = clampedStart.z + b3FixMul( nextFractionX , clampedDelta.z );
+				boxRowTail = (int)b3FixTruncToInt( b3FixFloor( b3FixDiv( ( rowIntercept - b3FixMul( b3FixMul( B3_FIX( 2.0f ) , signZ ) , shapeExtents.z ) ) , scale.z ) ) );
 			}
 
 			nextFractionX += deltaAlphaX;
@@ -1013,7 +1013,7 @@ b3CastOutput b3ShapeCastHeightField( const b3HeightFieldData* heightField, const
 			// Build a single row to cast
 			boxRowTail = boxRowHead;
 
-			if ( shapeExtents.x == 0.0f )
+			if ( shapeExtents.x == B3_FIX( 0.0f ) )
 			{
 				// Single column
 				boxColumnTail = boxColumnHead;
@@ -1021,8 +1021,8 @@ b3CastOutput b3ShapeCastHeightField( const b3HeightFieldData* heightField, const
 			else
 			{
 				// Rasterize shape column
-				float columnIntercept = clampedStart.x + nextFractionZ * clampedDelta.x;
-				boxColumnTail = (int)floorf( ( columnIntercept - 2.0f * signX * shapeExtents.x ) / scale.x );
+				b3Fixed columnIntercept = clampedStart.x + b3FixMul( nextFractionZ , clampedDelta.x );
+				boxColumnTail = (int)b3FixTruncToInt( b3FixFloor( b3FixDiv( ( columnIntercept - b3FixMul( b3FixMul( B3_FIX( 2.0f ) , signX ) , shapeExtents.x ) ) , scale.x ) ) );
 			}
 
 			nextFractionZ += deltaAlphaZ;
@@ -1039,10 +1039,10 @@ bool b3OverlapHeightField( const b3HeightFieldData* shape, b3Transform shapeTran
 	b3AABB aabb = b3ComputeProxyAABB( &localProxy );
 
 	b3Vec3 scale = shape->scale;
-	int minRow = (int)floorf( aabb.lowerBound.z / scale.z );
-	int maxRow = (int)floorf( aabb.upperBound.z / scale.z );
-	int minCol = (int)floorf( aabb.lowerBound.x / scale.x );
-	int maxCol = (int)floorf( aabb.upperBound.x / scale.x );
+	int minRow = (int)b3FixTruncToInt( b3FixFloor( b3FixDiv( aabb.lowerBound.z , scale.z ) ) );
+	int maxRow = (int)b3FixTruncToInt( b3FixFloor( b3FixDiv( aabb.upperBound.z , scale.z ) ) );
+	int minCol = (int)b3FixTruncToInt( b3FixFloor( b3FixDiv( aabb.lowerBound.x , scale.x ) ) );
+	int maxCol = (int)b3FixTruncToInt( b3FixFloor( b3FixDiv( aabb.upperBound.x , scale.x ) ) );
 
 	b3V32 boundsMin = b3LoadV( &aabb.lowerBound.x );
 	b3V32 boundsMax = b3LoadV( &aabb.upperBound.x );
@@ -1054,7 +1054,7 @@ bool b3OverlapHeightField( const b3HeightFieldData* shape, b3Transform shapeTran
 	input.transform = b3Transform_identity;
 	input.useRadii = true;
 
-	b3SimplexCache cache = { 0 };
+	b3SimplexCache cache = { b3FixFromInt( 0 ) };
 
 	// Outer loop on rows and inner loop on columns so that triangle indices
 	// increase monotonically.
@@ -1095,7 +1095,7 @@ bool b3OverlapHeightField( const b3HeightFieldData* shape, b3Transform shapeTran
 			if ( b3TestBoundsTriangleOverlap( boundsCenter, boundsExtent, v11, v21, v12 ) )
 			{
 				b3Vec3 triangleVertices[] = { point11, point21, point12 };
-				input.proxyA = (b3ShapeProxy){ triangleVertices, 3, 0.0f };
+				input.proxyA = (b3ShapeProxy){ triangleVertices, 3, B3_FIX( 0.0f ) };
 
 				// reset the cache
 				cache.count = 0;
@@ -1103,7 +1103,7 @@ bool b3OverlapHeightField( const b3HeightFieldData* shape, b3Transform shapeTran
 				// get distance between triangle and query shape
 				b3DistanceOutput output = b3ShapeDistance( &input, &cache, NULL, 0 );
 
-				float tolerance = 0.1f * B3_LINEAR_SLOP;
+				b3Fixed tolerance = b3FixMul( B3_FIX( 0.1f ) , B3_LINEAR_SLOP );
 				if ( output.distance < tolerance )
 				{
 					// overlap detected
@@ -1114,7 +1114,7 @@ bool b3OverlapHeightField( const b3HeightFieldData* shape, b3Transform shapeTran
 			if ( b3TestBoundsTriangleOverlap( boundsCenter, boundsExtent, v21, v22, v12 ) )
 			{
 				b3Vec3 triangleVertices[] = { point22, point12, point21 };
-				input.proxyA = (b3ShapeProxy){ triangleVertices, 3, 0.0f };
+				input.proxyA = (b3ShapeProxy){ triangleVertices, 3, B3_FIX( 0.0f ) };
 
 				// reset the cache
 				cache.count = 0;
@@ -1122,7 +1122,7 @@ bool b3OverlapHeightField( const b3HeightFieldData* shape, b3Transform shapeTran
 				// get distance between triangle and query shape
 				b3DistanceOutput output = b3ShapeDistance( &input, &cache, NULL, 0 );
 
-				float tolerance = 0.1f * B3_LINEAR_SLOP;
+				b3Fixed tolerance = b3FixMul( B3_FIX( 0.1f ) , B3_LINEAR_SLOP );
 				if ( output.distance < tolerance )
 				{
 					// overlap detected
@@ -1139,10 +1139,10 @@ void b3QueryHeightField( const b3HeightFieldData* heightField, b3AABB bounds, b3
 {
 	b3Vec3 scale = heightField->scale;
 
-	int minRow = (int)floorf( bounds.lowerBound.z / scale.z );
-	int maxRow = (int)floorf( bounds.upperBound.z / scale.z );
-	int minCol = (int)floorf( bounds.lowerBound.x / scale.x );
-	int maxCol = (int)floorf( bounds.upperBound.x / scale.x );
+	int minRow = (int)b3FixTruncToInt( b3FixFloor( b3FixDiv( bounds.lowerBound.z , scale.z ) ) );
+	int maxRow = (int)b3FixTruncToInt( b3FixFloor( b3FixDiv( bounds.upperBound.z , scale.z ) ) );
+	int minCol = (int)b3FixTruncToInt( b3FixFloor( b3FixDiv( bounds.lowerBound.x , scale.x ) ) );
+	int maxCol = (int)b3FixTruncToInt( b3FixFloor( b3FixDiv( bounds.upperBound.x , scale.x ) ) );
 
 	// Outer loop on rows and inner loop on columns so that triangle indices
 	// increase monotonically.
@@ -1204,13 +1204,13 @@ void b3QueryHeightField( const b3HeightFieldData* heightField, b3AABB bounds, b3
 int b3CollideMoverAndHeightField( b3PlaneResult* planes, int capacity, const b3HeightFieldData* shape, const b3Capsule* mover )
 {
 	b3DistanceInput distanceInput = { 0 };
-	distanceInput.proxyB = (b3ShapeProxy){ &mover->center1, 2, 0.0f };
+	distanceInput.proxyB = (b3ShapeProxy){ &mover->center1, 2, B3_FIX( 0.0f ) };
 	distanceInput.transform = b3Transform_identity;
 	distanceInput.useRadii = false;
 
-	b3SimplexCache cache = { 0 };
+	b3SimplexCache cache = { b3FixFromInt( 0 ) };
 
-	float radius = mover->radius;
+	b3Fixed radius = mover->radius;
 	b3V32 center1 = b3LoadV( &mover->center1.x );
 	b3V32 center2 = b3LoadV( &mover->center2.x );
 	b3V32 r = b3SplatV( radius );
@@ -1219,16 +1219,16 @@ int b3CollideMoverAndHeightField( b3PlaneResult* planes, int capacity, const b3H
 	b3V32 boundsCenter = b3MulV( b3_halfV, b3AddV( boundsMin, boundsMax ) );
 	b3V32 boundsExtent = b3SubV( boundsMax, boundsCenter );
 
-	float localMinX = b3GetXV( boundsMin );
-	float localMinZ = b3GetZV( boundsMin );
-	float localMaxX = b3GetXV( boundsMax );
-	float localMaxZ = b3GetZV( boundsMax );
+	b3Fixed localMinX = b3GetXV( boundsMin );
+	b3Fixed localMinZ = b3GetZV( boundsMin );
+	b3Fixed localMaxX = b3GetXV( boundsMax );
+	b3Fixed localMaxZ = b3GetZV( boundsMax );
 
 	b3Vec3 scale = shape->scale;
-	int minRow = (int)floorf( localMinZ / scale.z );
-	int maxRow = (int)floorf( localMaxZ / scale.z );
-	int minCol = (int)floorf( localMinX / scale.x );
-	int maxCol = (int)floorf( localMaxX / scale.x );
+	int minRow = (int)b3FixTruncToInt( b3FixFloor( b3FixDiv( localMinZ , scale.z ) ) );
+	int maxRow = (int)b3FixTruncToInt( b3FixFloor( b3FixDiv( localMaxZ , scale.z ) ) );
+	int minCol = (int)b3FixTruncToInt( b3FixFloor( b3FixDiv( localMinX , scale.x ) ) );
+	int maxCol = (int)b3FixTruncToInt( b3FixFloor( b3FixDiv( localMaxX , scale.x ) ) );
 
 	int planeCount = 0;
 
@@ -1271,7 +1271,7 @@ int b3CollideMoverAndHeightField( b3PlaneResult* planes, int capacity, const b3H
 			if ( b3TestBoundsTriangleOverlap( boundsCenter, boundsExtent, v11, v21, v12 ) )
 			{
 				b3Vec3 triangleVertices[] = { point11, point21, point12 };
-				distanceInput.proxyA = (b3ShapeProxy){ triangleVertices, 3, 0.0f };
+				distanceInput.proxyA = (b3ShapeProxy){ triangleVertices, 3, B3_FIX( 0.0f ) };
 
 				// reset the cache
 				cache.count = 0;
@@ -1279,7 +1279,7 @@ int b3CollideMoverAndHeightField( b3PlaneResult* planes, int capacity, const b3H
 				// get distance between triangle and mover
 				b3DistanceOutput distanceOutput = b3ShapeDistance( &distanceInput, &cache, NULL, 0 );
 
-				if ( distanceOutput.distance == 0.0f )
+				if ( distanceOutput.distance == B3_FIX( 0.0f ) )
 				{
 					// todo SAT
 				}
@@ -1299,7 +1299,7 @@ int b3CollideMoverAndHeightField( b3PlaneResult* planes, int capacity, const b3H
 			if ( b3TestBoundsTriangleOverlap( boundsCenter, boundsExtent, v21, v22, v12 ) )
 			{
 				b3Vec3 triangleVertices[] = { point22, point12, point21 };
-				distanceInput.proxyA = (b3ShapeProxy){ triangleVertices, 3, 0.0f };
+				distanceInput.proxyA = (b3ShapeProxy){ triangleVertices, 3, B3_FIX( 0.0f ) };
 
 				// reset the cache
 				cache.count = 0;
@@ -1307,7 +1307,7 @@ int b3CollideMoverAndHeightField( b3PlaneResult* planes, int capacity, const b3H
 				// get distance between triangle and mover
 				b3DistanceOutput distanceOutput = b3ShapeDistance( &distanceInput, &cache, NULL, 0 );
 
-				if ( distanceOutput.distance == 0.0f )
+				if ( distanceOutput.distance == B3_FIX( 0.0f ) )
 				{
 					// todo SAT
 				}
@@ -1332,14 +1332,14 @@ int b3CollideMoverAndHeightField( b3PlaneResult* planes, int capacity, const b3H
 b3HeightFieldData* b3CreateGrid( int rowCount, int columnCount, b3Vec3 scale, bool makeHoles )
 {
 	int heightCount = rowCount * columnCount;
-	float* heights = (float*)b3Alloc( heightCount * sizeof( float ) );
+	b3Fixed* heights = (b3Fixed*)b3Alloc( heightCount * sizeof( b3Fixed ) );
 
 	for ( int i = 0; i < rowCount; ++i )
 	{
 		for ( int j = 0; j < columnCount; ++j )
 		{
 			int k = i * columnCount + j;
-			heights[k] = 0.0f;
+			heights[k] = B3_FIX( 0.0f );
 		}
 	}
 
@@ -1369,36 +1369,36 @@ b3HeightFieldData* b3CreateGrid( int rowCount, int columnCount, b3Vec3 scale, bo
 	data.scale = scale;
 	data.countX = columnCount;
 	data.countZ = rowCount;
-	data.globalMinimumHeight = -256.0f;
-	data.globalMaximumHeight = 256.0f;
+	data.globalMinimumHeight = -B3_FIX( 256.0f );
+	data.globalMaximumHeight = B3_FIX( 256.0f );
 	data.clockwiseWinding = false;
 
 	b3HeightFieldData* heightField = b3CreateHeightField( &data );
 
-	b3Free( heights, heightCount * sizeof( float ) );
+	b3Free( heights, heightCount * sizeof( b3Fixed ) );
 	b3Free( materialIndices, cellCount * sizeof( uint8_t ) );
 
 	return heightField;
 }
 
-b3HeightFieldData* b3CreateWave( int rowCount, int columnCount, b3Vec3 scale, float rowFrequency, float columnFrequency,
+b3HeightFieldData* b3CreateWave( int rowCount, int columnCount, b3Vec3 scale, b3Fixed rowFrequency, b3Fixed columnFrequency,
 							 bool makeHoles )
 {
 	int heightCount = rowCount * columnCount;
-	float* heights = (float*)b3Alloc( heightCount * sizeof( float ) );
+	b3Fixed* heights = (b3Fixed*)b3Alloc( heightCount * sizeof( b3Fixed ) );
 
-	float omegaZ = 2.0f * B3_PI * rowFrequency;
-	float omegaX = 2.0f * B3_PI * columnFrequency;
+	b3Fixed omegaZ = b3FixMul( b3FixMul( B3_FIX( 2.0f ) , B3_PI ) , rowFrequency );
+	b3Fixed omegaX = b3FixMul( b3FixMul( B3_FIX( 2.0f ) , B3_PI ) , columnFrequency );
 
 	for ( int i = 0; i < rowCount; ++i )
 	{
-		float rowHeight = sinf( omegaZ * i );
+		b3Fixed rowHeight = b3Sin( b3FixMul( omegaZ , b3FixFromInt( i ) ) );
 
 		for ( int j = 0; j < columnCount; ++j )
 		{
 			int k = i * columnCount + j;
-			float columnHeight = sinf( omegaX * j );
-			heights[k] = rowHeight * columnHeight;
+			b3Fixed columnHeight = b3Sin( b3FixMul( omegaX , b3FixFromInt( j ) ) );
+			heights[k] = b3FixMul( rowHeight , columnHeight );
 		}
 	}
 
@@ -1428,13 +1428,13 @@ b3HeightFieldData* b3CreateWave( int rowCount, int columnCount, b3Vec3 scale, fl
 	data.scale = scale;
 	data.countX = columnCount;
 	data.countZ = rowCount;
-	data.globalMinimumHeight = -256.0f;
-	data.globalMaximumHeight = 256.0f;
+	data.globalMinimumHeight = -B3_FIX( 256.0f );
+	data.globalMaximumHeight = B3_FIX( 256.0f );
 	data.clockwiseWinding = false;
 
 	b3HeightFieldData* heightField = b3CreateHeightField( &data );
 
-	b3Free( heights, heightCount * sizeof( float ) );
+	b3Free( heights, heightCount * sizeof( b3Fixed ) );
 	b3Free( materialIndices, cellCount * sizeof( uint8_t ) );
 
 	return heightField;
@@ -1464,14 +1464,14 @@ void b3DumpHeightData( const b3HeightFieldDef* data, const char* fileName )
 #endif
 
 	fprintf( file, "%d %d\n", data->countX, data->countZ );
-	fprintf( file, "%.9f %.9f %.9f\n", data->scale.x, data->scale.y, data->scale.z );
-	fprintf( file, "%.9f %.9f\n", data->globalMinimumHeight, data->globalMaximumHeight );
+	fprintf( file, "%.9f %.9f %.9f\n", b3FixToDouble( data->scale.x ), b3FixToDouble( data->scale.y ), b3FixToDouble( data->scale.z ) );
+	fprintf( file, "%.9f %.9f\n", b3FixToDouble( data->globalMinimumHeight ), b3FixToDouble( data->globalMaximumHeight ) );
 	fprintf( file, "%d\n", data->clockwiseWinding );
 
 	int heightCount = data->countX * data->countZ;
 	for ( int i = 0; i < heightCount; ++i )
 	{
-		fprintf( file, "%.9f\n", data->heights[i] );
+		fprintf( file, "%.9f\n", b3FixToDouble( data->heights[i] ) );
 	}
 
 	int materialCount = ( data->countX - 1 ) * ( data->countZ - 1 );
@@ -1516,19 +1516,25 @@ b3HeightFieldData* b3LoadHeightField( const char* fileName )
 		return NULL;
 	}
 
-	// Read scale
-	if ( B3_FILE_SCAN( file, "%f %f %f", &data.scale.x, &data.scale.y, &data.scale.z ) != 3 )
+	// Read scale. The file stores decimal text; parse into doubles and convert
+	// to fixed point at the boundary.
+	double scaleX, scaleY, scaleZ;
+	if ( B3_FILE_SCAN( file, "%lf %lf %lf", &scaleX, &scaleY, &scaleZ ) != 3 )
 	{
 		fclose( file );
 		return NULL;
 	}
+	data.scale = (b3Vec3){ b3FixFromDouble( scaleX ), b3FixFromDouble( scaleY ), b3FixFromDouble( scaleZ ) };
 
 	// Read global height bounds
-	if ( B3_FILE_SCAN( file, "%f %f", &data.globalMinimumHeight, &data.globalMaximumHeight ) != 2 )
+	double minHeight, maxHeight;
+	if ( B3_FILE_SCAN( file, "%lf %lf", &minHeight, &maxHeight ) != 2 )
 	{
 		fclose( file );
 		return NULL;
 	}
+	data.globalMinimumHeight = b3FixFromDouble( minHeight );
+	data.globalMaximumHeight = b3FixFromDouble( maxHeight );
 
 	// Read clockwise winding
 	int clockwise;
@@ -1541,16 +1547,18 @@ b3HeightFieldData* b3LoadHeightField( const char* fileName )
 
 	// Allocate and read height data
 	int heightCount = data.countX * data.countZ;
-	data.heights = (float*)b3Alloc( heightCount * sizeof( float ) );
+	data.heights = (b3Fixed*)b3Alloc( heightCount * sizeof( b3Fixed ) );
 
 	for ( int i = 0; i < heightCount; ++i )
 	{
-		if ( B3_FILE_SCAN( file, "%f", &data.heights[i] ) != 1 )
+		double height;
+		if ( B3_FILE_SCAN( file, "%lf", &height ) != 1 )
 		{
-			b3Free( data.heights, heightCount * sizeof( float ) );
+			b3Free( data.heights, heightCount * sizeof( b3Fixed ) );
 			fclose( file );
 			return NULL;
 		}
+		( (b3Fixed*)data.heights )[i] = b3FixFromDouble( height );
 	}
 
 	// Allocate and read material indices
@@ -1562,7 +1570,7 @@ b3HeightFieldData* b3LoadHeightField( const char* fileName )
 		int materialIndex;
 		if ( B3_FILE_SCAN( file, "%d", &materialIndex ) != 1 )
 		{
-			b3Free( data.heights, heightCount * sizeof( float ) );
+			b3Free( data.heights, heightCount * sizeof( b3Fixed ) );
 			b3Free( data.materialIndices, materialCount * sizeof( uint8_t ) );
 			fclose( file );
 			return NULL;
@@ -1576,7 +1584,7 @@ b3HeightFieldData* b3LoadHeightField( const char* fileName )
 	b3HeightFieldData* heightField = b3CreateHeightField( &data );
 
 	// Clean up temporary allocations
-	b3Free( data.heights, heightCount * sizeof( float ) );
+	b3Free( data.heights, heightCount * sizeof( b3Fixed ) );
 	b3Free( data.materialIndices, materialCount * sizeof( uint8_t ) );
 
 	return heightField;

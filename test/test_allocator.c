@@ -7,7 +7,7 @@
 typedef struct
 {
 	int value1;
-	float value2;
+	b3Fixed value2;
 } Foo;
 
 _Static_assert( sizeof( Foo ) >= sizeof( void* ), "too small" );

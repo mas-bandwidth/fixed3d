@@ -42,7 +42,7 @@ void CreateWasher( b3WorldId worldId );
 void CreateConvexPile( b3WorldId worldId );
 
 // void CreateSpinner( b3WorldId worldId );
-// float StepSpinner( b3WorldId worldId, int stepCount );
+// b3Fixed StepSpinner( b3WorldId worldId, int stepCount );
 // void CreateSmash( b3WorldId worldId );
 // void CreateTumbler( b3WorldId worldId );
 

@@ -295,7 +295,7 @@ void b3CreateContact( b3World* world, b3Shape* shapeA, b3Shape* shapeB, int chil
 	// they will link islands and be moved into the constraint graph.
 	b3Array_Push( set->contactIndices, contactId );
 
-	float radiusA = 0.0f;
+	b3Fixed radiusA = B3_FIX( 0.0f );
 	if ( typeA == b3_sphereShape )
 	{
 		radiusA = shapeA->sphere.radius;
@@ -305,7 +305,7 @@ void b3CreateContact( b3World* world, b3Shape* shapeA, b3Shape* shapeB, int chil
 		radiusA = shapeA->capsule.radius;
 	}
 
-	float radiusB = 0.0f;
+	b3Fixed radiusB = B3_FIX( 0.0f );
 	if ( typeB == b3_sphereShape )
 	{
 		radiusB = shapeB->sphere.radius;
@@ -315,12 +315,12 @@ void b3CreateContact( b3World* world, b3Shape* shapeA, b3Shape* shapeB, int chil
 		radiusB = shapeB->capsule.radius;
 	}
 
-	float maxRadius = b3MaxFloat( radiusA, radiusB );
+	b3Fixed maxRadius = b3FixMax( radiusA, radiusB );
 
 	// Assuming the rolling resistance doesn't change
 	contact->rollingResistance =
-		b3MaxFloat( b3GetShapeMaterials( shapeA )[0].rollingResistance, b3GetShapeMaterials( shapeB )[0].rollingResistance ) *
-		maxRadius;
+		b3FixMul( b3FixMax( b3GetShapeMaterials( shapeA )[0].rollingResistance, b3GetShapeMaterials( shapeB )[0].rollingResistance ) ,
+		maxRadius );
 
 	if ( ( shapeA->flags & b3_enablePreSolveEvents ) || ( shapeB->flags & b3_enablePreSolveEvents ) )
 	{
@@ -488,7 +488,7 @@ static bool b3ComputeConvexManifold( b3World* world, int workerIndex, b3Contact*
 	int pointCapacity = 32;
 	b3LocalManifoldPoint* pointBuffer = (b3LocalManifoldPoint*)b3Bump( &arena, pointCapacity * sizeof( b3LocalManifoldPoint ) );
 
-	b3LocalManifold geomManifold = { 0 };
+	b3LocalManifold geomManifold = { b3FixFromInt( 0 ) };
 	geomManifold.points = pointBuffer;
 
 	b3Transform transformBtoA = b3InvMulWorldTransforms( xfA, xfB );
@@ -577,14 +577,14 @@ static bool b3ComputeConvexManifold( b3World* world, int workerIndex, b3Contact*
 		target->separation = source->separation;
 		target->featureId = b3MakeFeatureId( source->pair );
 		target->triangleIndex = B3_NULL_INDEX;
-		target->normalVelocity = 0.0f;
+		target->normalVelocity = B3_FIX( 0.0f );
 	}
 
 	// Copy impulses from old points
 	for ( int i = 0; i < geomManifold.pointCount; ++i )
 	{
 		b3ManifoldPoint* pt2 = manifold->points + i;
-		pt2->totalNormalImpulse = 0.0f;
+		pt2->totalNormalImpulse = B3_FIX( 0.0f );
 		pt2->persisted = false;
 
 		for ( int j = 0; j < oldCount; ++j )
@@ -605,7 +605,7 @@ static bool b3ComputeConvexManifold( b3World* world, int workerIndex, b3Contact*
 
 		if ( pt2->persisted == false )
 		{
-			pt2->normalImpulse = 0.0f;
+			pt2->normalImpulse = B3_FIX( 0.0f );
 		}
 	}
 
@@ -648,12 +648,12 @@ static bool b3UpdateConvexContact( b3World* world, int workerIndex, b3Contact* c
 	contact->restitution = world->restitutionCallback( materialA->restitution, materialA->userMaterialId, materialB->restitution,
 													   materialB->userMaterialId );
 
-	if ( materialA->rollingResistance > 0.0f || materialB->rollingResistance > 0.0f )
+	if ( materialA->rollingResistance > B3_FIX( 0.0f ) || materialB->rollingResistance > B3_FIX( 0.0f ) )
 	{
 		b3ShapeType typeA = shapeA->type;
 		b3ShapeType typeB = shapeB->type;
 
-		float radiusA = 0.0f;
+		b3Fixed radiusA = B3_FIX( 0.0f );
 		if ( typeA == b3_sphereShape )
 		{
 			radiusA = shapeA->sphere.radius;
@@ -664,10 +664,10 @@ static bool b3UpdateConvexContact( b3World* world, int workerIndex, b3Contact* c
 		}
 		else if ( typeA == b3_hullShape )
 		{
-			radiusA = 0.25f * shapeA->hull->innerRadius;
+			radiusA = b3FixMul( B3_FIX( 0.25f ) , shapeA->hull->innerRadius );
 		}
 
-		float radiusB = 0.0f;
+		b3Fixed radiusB = B3_FIX( 0.0f );
 		if ( typeB == b3_sphereShape )
 		{
 			radiusB = shapeB->sphere.radius;
@@ -678,15 +678,15 @@ static bool b3UpdateConvexContact( b3World* world, int workerIndex, b3Contact* c
 		}
 		else if ( typeB == b3_hullShape )
 		{
-			radiusB = 0.25f * shapeB->hull->innerRadius;
+			radiusB = b3FixMul( B3_FIX( 0.25f ) , shapeB->hull->innerRadius );
 		}
 
-		float maxRadius = b3MaxFloat( radiusA, radiusB );
-		contact->rollingResistance = b3MaxFloat( materialA->rollingResistance, materialB->rollingResistance ) * maxRadius;
+		b3Fixed maxRadius = b3FixMax( radiusA, radiusB );
+		contact->rollingResistance = b3FixMul( b3FixMax( materialA->rollingResistance, materialB->rollingResistance ) , maxRadius );
 	}
 	else
 	{
-		contact->rollingResistance = 0.0f;
+		contact->rollingResistance = B3_FIX( 0.0f );
 	}
 
 	b3Vec3 tangentVelocityA = b3RotateVector( xfA.q, materialA->tangentVelocity );

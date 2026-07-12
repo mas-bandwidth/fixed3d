@@ -50,7 +50,7 @@ typedef struct b3Joint
 	// B3_NULL_INDEX when not in an island.
 	int islandIndex;
 
-	float drawScale;
+	b3Fixed drawScale;
 
 	b3JointType type;
 
@@ -63,21 +63,21 @@ typedef struct b3Joint
 
 typedef struct b3DistanceJoint
 {
-	float length;
-	float hertz;
-	float dampingRatio;
-	float lowerSpringForce;
-	float upperSpringForce;
-	float minLength;
-	float maxLength;
+	b3Fixed length;
+	b3Fixed hertz;
+	b3Fixed dampingRatio;
+	b3Fixed lowerSpringForce;
+	b3Fixed upperSpringForce;
+	b3Fixed minLength;
+	b3Fixed maxLength;
 
-	float maxMotorForce;
-	float motorSpeed;
+	b3Fixed maxMotorForce;
+	b3Fixed motorSpeed;
 
-	float impulse;
-	float lowerImpulse;
-	float upperImpulse;
-	float motorImpulse;
+	b3Fixed impulse;
+	b3Fixed lowerImpulse;
+	b3Fixed upperImpulse;
+	b3Fixed motorImpulse;
 
 	int indexA;
 	int indexB;
@@ -85,7 +85,7 @@ typedef struct b3DistanceJoint
 	b3Vec3 anchorB;
 	b3Vec3 deltaCenter;
 	b3Softness distanceSoftness;
-	float axialMass;
+	b3Fixed axialMass;
 
 	bool enableSpring;
 	bool enableLimit;
@@ -96,14 +96,14 @@ typedef struct b3MotorJoint
 {
 	b3Vec3 linearVelocity;
 	b3Vec3 angularVelocity;
-	float maxVelocityForce;
-	float maxVelocityTorque;
-	float linearHertz;
-	float linearDampingRatio;
-	float maxSpringForce;
-	float angularHertz;
-	float angularDampingRatio;
-	float maxSpringTorque;
+	b3Fixed maxVelocityForce;
+	b3Fixed maxVelocityTorque;
+	b3Fixed linearHertz;
+	b3Fixed linearDampingRatio;
+	b3Fixed maxSpringForce;
+	b3Fixed angularHertz;
+	b3Fixed angularDampingRatio;
+	b3Fixed maxSpringTorque;
 
 	b3Vec3 linearVelocityImpulse;
 	b3Vec3 angularVelocityImpulse;
@@ -123,9 +123,9 @@ typedef struct b3MotorJoint
 
 typedef struct b3ParallelJoint
 {
-	float hertz;
-	float dampingRatio;
-	float maxTorque;
+	b3Fixed hertz;
+	b3Fixed dampingRatio;
+	b3Fixed maxTorque;
 
 	b3Vec2 perpImpulse;
 	b3Vec3 perpAxisX;
@@ -142,17 +142,17 @@ typedef struct b3PrismaticJoint
 {
 	b3Vec2 perpImpulse;
 	b3Vec3 angularImpulse;
-	float springImpulse;
-	float motorImpulse;
-	float lowerImpulse;
-	float upperImpulse;
-	float hertz;
-	float dampingRatio;
-	float maxMotorForce;
-	float motorSpeed;
-	float targetTranslation;
-	float lowerTranslation;
-	float upperTranslation;
+	b3Fixed springImpulse;
+	b3Fixed motorImpulse;
+	b3Fixed lowerImpulse;
+	b3Fixed upperImpulse;
+	b3Fixed hertz;
+	b3Fixed dampingRatio;
+	b3Fixed maxMotorForce;
+	b3Fixed motorSpeed;
+	b3Fixed targetTranslation;
+	b3Fixed lowerTranslation;
+	b3Fixed upperTranslation;
 
 	int indexA;
 	int indexB;
@@ -162,7 +162,7 @@ typedef struct b3PrismaticJoint
 	b3Vec3 perpAxisY;
 	b3Vec3 perpAxisZ;
 	b3Vec3 deltaCenter;
-	float deltaAngle;
+	b3Fixed deltaAngle;
 	b3Matrix3 rotationMass;
 	b3Softness springSoftness;
 
@@ -175,17 +175,17 @@ typedef struct b3RevoluteJoint
 {
 	b3Vec3 linearImpulse;
 	b3Vec2 perpImpulse;
-	float springImpulse;
-	float motorImpulse;
-	float lowerImpulse;
-	float upperImpulse;
-	float hertz;
-	float dampingRatio;
-	float maxMotorTorque;
-	float motorSpeed;
-	float targetAngle;
-	float lowerAngle;
-	float upperAngle;
+	b3Fixed springImpulse;
+	b3Fixed motorImpulse;
+	b3Fixed lowerImpulse;
+	b3Fixed upperImpulse;
+	b3Fixed hertz;
+	b3Fixed dampingRatio;
+	b3Fixed maxMotorTorque;
+	b3Fixed motorSpeed;
+	b3Fixed targetAngle;
+	b3Fixed lowerAngle;
+	b3Fixed upperAngle;
 
 	int indexA;
 	int indexB;
@@ -195,8 +195,8 @@ typedef struct b3RevoluteJoint
 	b3Vec3 perpAxisX;
 	b3Vec3 perpAxisY;
 	b3Vec3 deltaCenter;
-	float deltaAngle;
-	float axialMass;
+	b3Fixed deltaAngle;
+	b3Fixed axialMass;
 	b3Softness springSoftness;
 
 	bool enableSpring;
@@ -209,16 +209,16 @@ typedef struct b3SphericalJoint
 	b3Vec3 linearImpulse;
 	b3Vec3 springImpulse;
 	b3Vec3 motorImpulse;
-	float lowerTwistImpulse;
-	float upperTwistImpulse;
-	float swingImpulse;
-	float hertz;
-	float dampingRatio;
-	float maxMotorTorque;
+	b3Fixed lowerTwistImpulse;
+	b3Fixed upperTwistImpulse;
+	b3Fixed swingImpulse;
+	b3Fixed hertz;
+	b3Fixed dampingRatio;
+	b3Fixed maxMotorTorque;
 	b3Vec3 motorVelocity;
-	float lowerTwistAngle;
-	float upperTwistAngle;
-	float coneAngle;
+	b3Fixed lowerTwistAngle;
+	b3Fixed upperTwistAngle;
+	b3Fixed coneAngle;
 	b3Quat targetRotation;
 
 	int indexA;
@@ -230,8 +230,8 @@ typedef struct b3SphericalJoint
 	b3Vec3 twistJacobian;
 
 	b3Matrix3 rotationMass;
-	float swingMass;
-	float twistMass;
+	b3Fixed swingMass;
+	b3Fixed twistMass;
 	b3Softness springSoftness;
 
 	bool enableSpring;
@@ -242,10 +242,10 @@ typedef struct b3SphericalJoint
 
 typedef struct b3WeldJoint
 {
-	float linearHertz;
-	float linearDampingRatio;
-	float angularHertz;
-	float angularDampingRatio;
+	b3Fixed linearHertz;
+	b3Fixed linearDampingRatio;
+	b3Fixed angularHertz;
+	b3Fixed angularDampingRatio;
 
 	b3Softness linearSpring;
 	b3Softness angularSpring;
@@ -265,34 +265,34 @@ typedef struct b3WheelJoint
 {
 	b3Vec2 linearImpulse;
 	b3Vec2 angularImpulse;
-	float spinImpulse;
-	float maxSpinTorque;
-	float spinSpeed;
-	float suspensionSpringImpulse;
-	float lowerSuspensionImpulse;
-	float upperSuspensionImpulse;
-	float lowerSuspensionLimit;
-	float upperSuspensionLimit;
-	float suspensionHertz;
-	float suspensionDampingRatio;
-	float steeringSpringImpulse;
-	float lowerSteeringImpulse;
-	float upperSteeringImpulse;
-	float lowerSteeringLimit;
-	float upperSteeringLimit;
-	float targetSteeringAngle;
-	float maxSteeringTorque;
-	float steeringHertz;
-	float steeringDampingRatio;
+	b3Fixed spinImpulse;
+	b3Fixed maxSpinTorque;
+	b3Fixed spinSpeed;
+	b3Fixed suspensionSpringImpulse;
+	b3Fixed lowerSuspensionImpulse;
+	b3Fixed upperSuspensionImpulse;
+	b3Fixed lowerSuspensionLimit;
+	b3Fixed upperSuspensionLimit;
+	b3Fixed suspensionHertz;
+	b3Fixed suspensionDampingRatio;
+	b3Fixed steeringSpringImpulse;
+	b3Fixed lowerSteeringImpulse;
+	b3Fixed upperSteeringImpulse;
+	b3Fixed lowerSteeringLimit;
+	b3Fixed upperSteeringLimit;
+	b3Fixed targetSteeringAngle;
+	b3Fixed maxSteeringTorque;
+	b3Fixed steeringHertz;
+	b3Fixed steeringDampingRatio;
 
 	int indexA;
 	int indexB;
 	b3Transform frameA;
 	b3Transform frameB;
 	b3Vec3 deltaCenter;
-	float spinMass;
-	float suspensionMass;
-	float steeringMass;
+	b3Fixed spinMass;
+	b3Fixed suspensionMass;
+	b3Fixed steeringMass;
 	b3Softness suspensionSoftness;
 	b3Softness steeringSoftness;
 
@@ -319,16 +319,16 @@ typedef struct b3JointSim
 	b3Transform localFrameA;
 	b3Transform localFrameB;
 
-	float invMassA, invMassB;
+	b3Fixed invMassA, invMassB;
 	b3Matrix3 invIA, invIB;
 
-	float constraintHertz;
-	float constraintDampingRatio;
+	b3Fixed constraintHertz;
+	b3Fixed constraintDampingRatio;
 
 	b3Softness constraintSoftness;
 
-	float forceThreshold;
-	float torqueThreshold;
+	b3Fixed forceThreshold;
+	b3Fixed torqueThreshold;
 
 	bool fixedRotation;
 
@@ -359,7 +359,7 @@ void b3PrepareJoints_Overflow( b3StepContext* context );
 void b3WarmStartJoints_Overflow( b3StepContext* context );
 void b3SolveJoints_Overflow( b3StepContext* context, bool useBias );
 
-void b3GetJointReaction( b3World* world, b3JointSim* sim, float invTimeStep, float* force, float* torque );
+void b3GetJointReaction( b3World* world, b3JointSim* sim, b3Fixed invTimeStep, b3Fixed* force, b3Fixed* torque );
 
 void b3DrawJoint( b3DebugDraw* draw, b3World* world, b3Joint* joint );
 
@@ -407,9 +407,9 @@ void b3SolveWeldJoint( b3JointSim* base, b3StepContext* context, bool useBias );
 void b3SolveWheelJoint( b3JointSim* base, b3StepContext* context, bool useBias );
 
 void b3DrawDistanceJoint( b3DebugDraw* draw, b3JointSim* base, b3WorldTransform transformA, b3WorldTransform transformB );
-void b3DrawParallelJoint( b3DebugDraw* draw, b3JointSim* base, b3WorldTransform transformA, b3WorldTransform transformB, float scale );
-void b3DrawPrismaticJoint( b3DebugDraw* draw, b3JointSim* base, b3WorldTransform transformA, b3WorldTransform transformB, float scale );
-void b3DrawRevoluteJoint( b3DebugDraw* draw, b3JointSim* base, b3WorldTransform transformA, b3WorldTransform transformB, float scale );
-void b3DrawSphericalJoint( b3DebugDraw* draw, b3JointSim* base, b3WorldTransform transformA, b3WorldTransform transformB, float scale );
-void b3DrawWeldJoint( b3DebugDraw* draw, b3JointSim* base, b3WorldTransform transformA, b3WorldTransform transformB, float scale );
-void b3DrawWheelJoint( b3DebugDraw* draw, b3JointSim* base, b3WorldTransform transformA, b3WorldTransform transformB, float scale );
+void b3DrawParallelJoint( b3DebugDraw* draw, b3JointSim* base, b3WorldTransform transformA, b3WorldTransform transformB, b3Fixed scale );
+void b3DrawPrismaticJoint( b3DebugDraw* draw, b3JointSim* base, b3WorldTransform transformA, b3WorldTransform transformB, b3Fixed scale );
+void b3DrawRevoluteJoint( b3DebugDraw* draw, b3JointSim* base, b3WorldTransform transformA, b3WorldTransform transformB, b3Fixed scale );
+void b3DrawSphericalJoint( b3DebugDraw* draw, b3JointSim* base, b3WorldTransform transformA, b3WorldTransform transformB, b3Fixed scale );
+void b3DrawWeldJoint( b3DebugDraw* draw, b3JointSim* base, b3WorldTransform transformA, b3WorldTransform transformB, b3Fixed scale );
+void b3DrawWheelJoint( b3DebugDraw* draw, b3JointSim* base, b3WorldTransform transformA, b3WorldTransform transformB, b3Fixed scale );

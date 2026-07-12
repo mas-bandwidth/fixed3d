@@ -11,61 +11,61 @@
 // needed for dll export
 #include "box3d/box3d.h"
 
-void b3WeldJoint_SetLinearHertz( b3JointId jointId, float hertz )
+void b3WeldJoint_SetLinearHertz( b3JointId jointId, b3Fixed hertz )
 {
-	B3_ASSERT( b3IsValidFloat( hertz ) && hertz >= 0.0f );
+	B3_ASSERT( b3IsValidFixed( hertz ) && hertz >= B3_FIX( 0.0f ) );
 	b3World* world = b3GetWorld( jointId.world0 );
 	B3_REC( world, WeldJointSetLinearHertz, jointId, hertz );
 	b3JointSim* base = b3GetJointSimCheckType( jointId, b3_weldJoint );
 	base->weldJoint.linearHertz = hertz;
 }
 
-float b3WeldJoint_GetLinearHertz( b3JointId jointId )
+b3Fixed b3WeldJoint_GetLinearHertz( b3JointId jointId )
 {
 	b3JointSim* base = b3GetJointSimCheckType( jointId, b3_weldJoint );
 	return base->weldJoint.linearHertz;
 }
 
-void b3WeldJoint_SetLinearDampingRatio( b3JointId jointId, float dampingRatio )
+void b3WeldJoint_SetLinearDampingRatio( b3JointId jointId, b3Fixed dampingRatio )
 {
-	B3_ASSERT( b3IsValidFloat( dampingRatio ) && dampingRatio >= 0.0f );
+	B3_ASSERT( b3IsValidFixed( dampingRatio ) && dampingRatio >= B3_FIX( 0.0f ) );
 	b3World* world = b3GetWorld( jointId.world0 );
 	B3_REC( world, WeldJointSetLinearDampingRatio, jointId, dampingRatio );
 	b3JointSim* base = b3GetJointSimCheckType( jointId, b3_weldJoint );
 	base->weldJoint.linearDampingRatio = dampingRatio;
 }
 
-float b3WeldJoint_GetLinearDampingRatio( b3JointId jointId )
+b3Fixed b3WeldJoint_GetLinearDampingRatio( b3JointId jointId )
 {
 	b3JointSim* base = b3GetJointSimCheckType( jointId, b3_weldJoint );
 	return base->weldJoint.linearDampingRatio;
 }
 
-void b3WeldJoint_SetAngularHertz( b3JointId jointId, float hertz )
+void b3WeldJoint_SetAngularHertz( b3JointId jointId, b3Fixed hertz )
 {
-	B3_ASSERT( b3IsValidFloat( hertz ) && hertz >= 0.0f );
+	B3_ASSERT( b3IsValidFixed( hertz ) && hertz >= B3_FIX( 0.0f ) );
 	b3World* world = b3GetWorld( jointId.world0 );
 	B3_REC( world, WeldJointSetAngularHertz, jointId, hertz );
 	b3JointSim* base = b3GetJointSimCheckType( jointId, b3_weldJoint );
 	base->weldJoint.angularHertz = hertz;
 }
 
-float b3WeldJoint_GetAngularHertz( b3JointId jointId )
+b3Fixed b3WeldJoint_GetAngularHertz( b3JointId jointId )
 {
 	b3JointSim* base = b3GetJointSimCheckType( jointId, b3_weldJoint );
 	return base->weldJoint.angularHertz;
 }
 
-void b3WeldJoint_SetAngularDampingRatio( b3JointId jointId, float dampingRatio )
+void b3WeldJoint_SetAngularDampingRatio( b3JointId jointId, b3Fixed dampingRatio )
 {
-	B3_ASSERT( b3IsValidFloat( dampingRatio ) && dampingRatio >= 0.0f );
+	B3_ASSERT( b3IsValidFixed( dampingRatio ) && dampingRatio >= B3_FIX( 0.0f ) );
 	b3World* world = b3GetWorld( jointId.world0 );
 	B3_REC( world, WeldJointSetAngularDampingRatio, jointId, dampingRatio );
 	b3JointSim* base = b3GetJointSimCheckType( jointId, b3_weldJoint );
 	base->weldJoint.angularDampingRatio = dampingRatio;
 }
 
-float b3WeldJoint_GetAngularDampingRatio( b3JointId jointId )
+b3Fixed b3WeldJoint_GetAngularDampingRatio( b3JointId jointId )
 {
 	b3JointSim* base = b3GetJointSimCheckType( jointId, b3_weldJoint );
 	return base->weldJoint.angularDampingRatio;
@@ -107,7 +107,7 @@ void b3PrepareWeldJoint( b3JointSim* base, b3StepContext* context )
 	base->invIB = bodySimB->invInertiaWorld;
 
 	b3Matrix3 invInertiaSum = b3AddMM( base->invIA, base->invIB );
-	base->fixedRotation = b3Det( invInertiaSum ) < 1000.0f * FLT_MIN;
+	base->fixedRotation = invInertiaSum.cx.x + invInertiaSum.cy.y + invInertiaSum.cz.z == 0;
 
 	b3WeldJoint* joint = &base->weldJoint;
 	joint->indexA = bodyA->setIndex == b3_awakeSet ? localIndexA : B3_NULL_INDEX;
@@ -122,7 +122,7 @@ void b3PrepareWeldJoint( b3JointSim* base, b3StepContext* context )
 	joint->deltaCenter = b3SubPos( bodySimB->center, bodySimA->center );
 	joint->angularMass = b3InvertMatrix( invInertiaSum );
 
-	if ( joint->linearHertz == 0.0f )
+	if ( joint->linearHertz == B3_FIX( 0.0f ) )
 	{
 		joint->linearSpring = base->constraintSoftness;
 	}
@@ -131,7 +131,7 @@ void b3PrepareWeldJoint( b3JointSim* base, b3StepContext* context )
 		joint->linearSpring = b3MakeSoft( joint->linearHertz, joint->linearDampingRatio, context->h );
 	}
 
-	if ( joint->angularHertz == 0.0f )
+	if ( joint->angularHertz == B3_FIX( 0.0f ) )
 	{
 		joint->angularSpring = base->constraintSoftness;
 	}
@@ -151,8 +151,8 @@ void b3WarmStartWeldJoint( b3JointSim* base, b3StepContext* context )
 {
 	B3_ASSERT( base->type == b3_weldJoint );
 
-	float mA = base->invMassA;
-	float mB = base->invMassB;
+	b3Fixed mA = base->invMassA;
+	b3Fixed mB = base->invMassB;
 	b3Matrix3 iA = base->invIA;
 	b3Matrix3 iB = base->invIB;
 
@@ -193,8 +193,8 @@ void b3WarmStartWeldJoint( b3JointSim* base, b3StepContext* context )
 
 void b3SolveWeldJoint( b3JointSim* base, b3StepContext* context, bool useBias )
 {
-	float mA = base->invMassA;
-	float mB = base->invMassB;
+	b3Fixed mA = base->invMassA;
+	b3Fixed mB = base->invMassB;
 	b3Matrix3 iA = base->invIA;
 	b3Matrix3 iB = base->invIB;
 
@@ -214,7 +214,7 @@ void b3SolveWeldJoint( b3JointSim* base, b3StepContext* context, bool useBias )
 	b3Quat quatA = b3MulQuat( stateA->deltaRotation, joint->frameA.q );
 	b3Quat quatB = b3MulQuat( stateB->deltaRotation, joint->frameB.q );
 
-	if ( b3DotQuat( quatA, quatB ) < 0.0f )
+	if ( b3DotQuat( quatA, quatB ) < B3_FIX( 0.0f ) )
 	{
 		// this keeps the rotation angle in the range [-pi, pi]
 		quatB = b3NegateQuat( quatB );
@@ -226,9 +226,9 @@ void b3SolveWeldJoint( b3JointSim* base, b3StepContext* context, bool useBias )
 	if ( fixedRotation == false )
 	{
 		b3Vec3 bias = b3Vec3_zero;
-		float massScale = 1.0f;
-		float impulseScale = 0.0f;
-		if ( useBias || joint->angularHertz > 0.0f )
+		b3Fixed massScale = B3_FIX( 1.0f );
+		b3Fixed impulseScale = B3_FIX( 0.0f );
+		if ( useBias || joint->angularHertz > B3_FIX( 0.0f ) )
 		{
 			b3Quat targetQuat = b3Quat_identity;
 			b3Vec3 deltaRotation = b3DeltaQuatToRotation( relQ, targetQuat );
@@ -255,9 +255,9 @@ void b3SolveWeldJoint( b3JointSim* base, b3StepContext* context, bool useBias )
 		b3Vec3 cdot = b3Sub( b3Add( vB, b3Cross( wB, rB ) ), b3Add( vA, b3Cross( wA, rA ) ) );
 
 		b3Vec3 bias = b3Vec3_zero;
-		float massScale = 1.0f;
-		float impulseScale = 0.0f;
-		if ( useBias || joint->linearHertz > 0.0f )
+		b3Fixed massScale = B3_FIX( 1.0f );
+		b3Fixed impulseScale = B3_FIX( 0.0f );
+		if ( useBias || joint->linearHertz > B3_FIX( 0.0f ) )
 		{
 			b3Vec3 dcA = stateA->deltaPosition;
 			b3Vec3 dcB = stateB->deltaPosition;
@@ -303,12 +303,12 @@ void b3SolveWeldJoint( b3JointSim* base, b3StepContext* context, bool useBias )
 	}
 }
 
-void b3DrawWeldJoint( b3DebugDraw* draw, b3JointSim* base, b3WorldTransform transformA, b3WorldTransform transformB, float scale )
+void b3DrawWeldJoint( b3DebugDraw* draw, b3JointSim* base, b3WorldTransform transformA, b3WorldTransform transformB, b3Fixed scale )
 {
 	b3WorldTransform frameA = b3MulWorldTransforms( transformA, base->localFrameA );
 	b3WorldTransform frameB = b3MulWorldTransforms( transformB, base->localFrameB );
 
-	b3Vec3 extents = { 0.1f * scale, 0.05f * scale, 0.025f * scale };
+	b3Vec3 extents = { b3FixMul( B3_FIX( 0.1f ) , scale ), b3FixMul( B3_FIX( 0.05f ) , scale ), b3FixMul( B3_FIX( 0.025f ) , scale ) };
 	draw->DrawBoxFcn( extents, frameA, b3_colorDarkOrange, draw->context );
 	draw->DrawBoxFcn( extents, frameB, b3_colorDarkCyan, draw->context );
 }

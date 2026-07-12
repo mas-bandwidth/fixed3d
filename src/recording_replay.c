@@ -109,11 +109,12 @@ int32_t b3RecR_I32( b3RecReader* rdr )
 	return (int32_t)b3RecR_U32( rdr );
 }
 
-float b3RecR_F32( b3RecReader* rdr )
+b3Fixed b3RecR_F32( b3RecReader* rdr )
 {
-	uint32_t bits = b3RecR_U32( rdr );
-	float v;
-	memcpy( &v, &bits, 4 );
+	// Fixed-point values are 64 bits on the wire
+	uint64_t bits = b3RecR_U64( rdr );
+	b3Fixed v;
+	memcpy( &v, &bits, 8 );
 	return v;
 }
 
@@ -1670,8 +1671,8 @@ void b3RecEnsureHits( b3RecReader* rdr, int n )
 	b3RecReserveScratch( rdr, (void**)&rdr->hits, &rdr->hitCap, n, (int)sizeof( b3RecRecordedHit ) );
 }
 
-// Bitwise float compare so the determinism check is exact, not within a tolerance.
-static bool b3RecF32Differs( float a, float b )
+// Bitwise b3Fixed compare so the determinism check is exact, not within a tolerance.
+static bool b3RecF32Differs( b3Fixed a, b3Fixed b )
 {
 	uint32_t ua, ub;
 	memcpy( &ua, &a, 4 );
@@ -1717,14 +1718,14 @@ static bool b3RecReplayMoverFilterTrampoline( b3ShapeId id, void* ctx )
 	return b3RecReplayOverlapTrampoline( id, ctx );
 }
 
-static float b3RecReplayCastTrampoline( b3ShapeId id, b3Pos point, b3Vec3 normal, float fraction, uint64_t userMaterialId,
+static b3Fixed b3RecReplayCastTrampoline( b3ShapeId id, b3Pos point, b3Vec3 normal, b3Fixed fraction, uint64_t userMaterialId,
 										int triangleIndex, int childIndex, void* ctx )
 {
 	b3RecReplayQueryCtx* rc = ctx;
 	if ( rc->cursor >= rc->count )
 	{
 		rc->rdr->diverged = true;
-		return 0.0f;
+		return B3_FIX( 0.0f );
 	}
 	const b3RecRecordedHit* h = &rc->hits[rc->cursor++];
 	// Positions compared through a full-width delta, truncating both sides would pass vacuously far
@@ -1800,7 +1801,7 @@ static void b3RecComputeQueryBounds( b3RecDrawQuery* q )
 	// through to a single point at the origin.
 	b3Vec3 local[B3_MAX_SHAPE_CAST_POINTS];
 	int count = 0;
-	float radius = 0.0f;
+	b3Fixed radius = B3_FIX( 0.0f );
 	switch ( q->kind )
 	{
 		case B3_RECQ_CAST_MOVER:
@@ -2010,11 +2011,11 @@ static void b3RecDispatch_QueryCastMover( const b3RecArgs_QueryCastMover* a, b3R
 		rdr->hits[i].id = b3RecMakeShapeId( rdr, b3RecR_SHAPEID( rdr ) );
 		rdr->hits[i].userReturnB = b3RecR_BOOL( rdr );
 	}
-	float recFraction = b3RecR_F32( rdr );
+	b3Fixed recFraction = b3RecR_F32( rdr );
 	if ( !rdr->ok )
 		return;
 	b3RecReplayQueryCtx rc = { rdr, rdr->hits, (int)n, 0 };
-	float got = b3World_CastMover( rdr->replayWorldId, a->origin, &a->mover, a->translation, a->filter,
+	b3Fixed got = b3World_CastMover( rdr->replayWorldId, a->origin, &a->mover, a->translation, a->filter,
 								   b3RecReplayMoverFilterTrampoline, &rc );
 	if ( rc.cursor != (int)n || b3RecF32Differs( got, recFraction ) )
 		rdr->diverged = true;
@@ -2509,14 +2510,18 @@ static void b3RecScanFile( b3RecPlayer* player )
 		if ( opcode == b3_recOpStep )
 		{
 			frameCount += 1;
-			if ( !gotStep && payloadSize >= 12 )
+			// Payload: WORLDID (4 bytes), dt (8 byte fixed point), subStepCount (4 bytes)
+			if ( !gotStep && payloadSize >= 16 )
 			{
-				uint32_t dtBits = (uint32_t)data[payloadStart + 4] | ( (uint32_t)data[payloadStart + 5] << 8 ) |
-								  ( (uint32_t)data[payloadStart + 6] << 16 ) | ( (uint32_t)data[payloadStart + 7] << 24 );
-				memcpy( &player->recordedDt, &dtBits, 4 );
+				uint64_t dtBits = 0;
+				for ( int byteIndex = 0; byteIndex < 8; ++byteIndex )
+				{
+					dtBits |= (uint64_t)data[payloadStart + 4 + byteIndex] << ( 8 * byteIndex );
+				}
+				memcpy( &player->recordedDt, &dtBits, 8 );
 				player->recordedSubStepCount =
-					(int)( (uint32_t)data[payloadStart + 8] | ( (uint32_t)data[payloadStart + 9] << 8 ) |
-						   ( (uint32_t)data[payloadStart + 10] << 16 ) | ( (uint32_t)data[payloadStart + 11] << 24 ) );
+					(int)( (uint32_t)data[payloadStart + 12] | ( (uint32_t)data[payloadStart + 13] << 8 ) |
+						   ( (uint32_t)data[payloadStart + 14] << 16 ) | ( (uint32_t)data[payloadStart + 15] << 24 ) );
 				gotStep = true;
 			}
 		}
@@ -2756,7 +2761,7 @@ b3RecPlayer* b3RecPlayer_Create( const void* data, int size, int workerCount )
 	player->previousLengthScale = b3GetLengthUnitsPerMeter();
 	player->frame = 0;
 	player->frameCount = 0;
-	player->recordedDt = 0.0f;
+	player->recordedDt = B3_FIX( 0.0f );
 	player->recordedSubStepCount = 0;
 	player->recordedWorkerCount = workerCount;
 	player->atEnd = false;
@@ -2768,7 +2773,7 @@ b3RecPlayer* b3RecPlayer_Create( const void* data, int size, int workerCount )
 	player->lastKeyframeFrame = 0;
 
 	// Set length scale so replay reproduces the same tuning constants.
-	if ( hdr.lengthScale > 0.0f )
+	if ( hdr.lengthScale > B3_FIX( 0.0f ) )
 	{
 		b3SetLengthUnitsPerMeter( hdr.lengthScale );
 	}
@@ -3315,32 +3320,32 @@ static void b3RecDrawProxy( b3DebugDraw* draw, b3Pos basePos, const b3RecDrawQue
 	if ( q->proxyCount == 1 )
 	{
 		b3Pos p = b3OffsetPos( basePos, q->proxyPoints[0] );
-		if ( q->proxyRadius > 0.0f )
+		if ( q->proxyRadius > B3_FIX( 0.0f ) )
 		{
 			if ( draw->DrawSphereFcn )
 			{
-				draw->DrawSphereFcn( p, q->proxyRadius, color, 0.5f, draw->context );
+				draw->DrawSphereFcn( p, q->proxyRadius, color, B3_FIX( 0.5f ), draw->context );
 			}
 		}
 		else if ( draw->DrawPointFcn )
 		{
-			draw->DrawPointFcn( p, 10.0f, color, draw->context );
+			draw->DrawPointFcn( p, B3_FIX( 10.0f ), color, draw->context );
 		}
 	}
-	else if ( q->proxyCount == 2 && q->proxyRadius > 0.0f )
+	else if ( q->proxyCount == 2 && q->proxyRadius > B3_FIX( 0.0f ) )
 	{
 		if ( draw->DrawCapsuleFcn )
 		{
 			b3Pos p1 = b3OffsetPos( basePos, q->proxyPoints[0] );
 			b3Pos p2 = b3OffsetPos( basePos, q->proxyPoints[1] );
-			draw->DrawCapsuleFcn( p1, p2, q->proxyRadius, color, 0.5f, draw->context );
+			draw->DrawCapsuleFcn( p1, p2, q->proxyRadius, color, B3_FIX( 0.5f ), draw->context );
 		}
 	}
 	else if ( q->proxyCount >= 2 && draw->DrawPointFcn )
 	{
 		for ( int i = 0; i < q->proxyCount; ++i )
 		{
-			draw->DrawPointFcn( b3OffsetPos( basePos, q->proxyPoints[i] ), 6.0f, color, draw->context );
+			draw->DrawPointFcn( b3OffsetPos( basePos, q->proxyPoints[i] ), B3_FIX( 6.0f ), color, draw->context );
 		}
 	}
 }
@@ -3380,11 +3385,11 @@ void b3RecPlayer_DrawFrameQueries( b3RecPlayer* player, b3DebugDraw* draw, int q
 					const b3RecRecordedHit* h = &player->frameHits[hi];
 					if ( draw->DrawPointFcn )
 					{
-						draw->DrawPointFcn( h->point, 4.0f, b3RecQuerySelColor( selected, b3_colorYellow ), draw->context );
+						draw->DrawPointFcn( h->point, B3_FIX( 4.0f ), b3RecQuerySelColor( selected, b3_colorYellow ), draw->context );
 					}
 					if ( draw->DrawSegmentFcn )
 					{
-						draw->DrawSegmentFcn( h->point, b3OffsetPos( h->point, b3MulSV( 0.2f, h->normal ) ),
+						draw->DrawSegmentFcn( h->point, b3OffsetPos( h->point, b3MulSV( B3_FIX( 0.2f ), h->normal ) ),
 											  b3RecQuerySelColor( selected, b3_colorYellowGreen ), draw->context );
 					}
 				}
@@ -3404,11 +3409,11 @@ void b3RecPlayer_DrawFrameQueries( b3RecPlayer* player, b3DebugDraw* draw, int q
 					const b3RecRecordedHit* h = &player->frameHits[hi];
 					if ( draw->DrawPointFcn )
 					{
-						draw->DrawPointFcn( h->point, 4.0f, b3RecQuerySelColor( selected, b3_colorSkyBlue ), draw->context );
+						draw->DrawPointFcn( h->point, B3_FIX( 4.0f ), b3RecQuerySelColor( selected, b3_colorSkyBlue ), draw->context );
 					}
 					if ( draw->DrawSegmentFcn )
 					{
-						draw->DrawSegmentFcn( h->point, b3OffsetPos( h->point, b3MulSV( 0.2f, h->normal ) ),
+						draw->DrawSegmentFcn( h->point, b3OffsetPos( h->point, b3MulSV( B3_FIX( 0.2f ), h->normal ) ),
 											  b3RecQuerySelColor( selected, b3_colorLightSkyBlue ), draw->context );
 					}
 					if ( draw->DrawSphereFcn )
@@ -3426,14 +3431,14 @@ void b3RecPlayer_DrawFrameQueries( b3RecPlayer* player, b3DebugDraw* draw, int q
 				b3HexColor c = b3_colorLightSkyBlue;
 				if ( draw->DrawCapsuleFcn )
 				{
-					draw->DrawCapsuleFcn( c1, c2, q->mover.radius, b3RecQuerySelColor( selected, c ), 0.6f, draw->context );
+					draw->DrawCapsuleFcn( c1, c2, q->mover.radius, b3RecQuerySelColor( selected, c ), B3_FIX( 0.6f ), draw->context );
 
-					if ( q->castFraction > 0.01f )
+					if ( q->castFraction > B3_FIX( 0.01f ) )
 					{
 						b3Vec3 d = b3MulSV( q->castFraction, q->translation );
 						c1 = b3OffsetPos( c1, d );
 						c2 = b3OffsetPos( c2, d );
-						draw->DrawCapsuleFcn( c1, c2, q->mover.radius, c, 0.3f, draw->context );
+						draw->DrawCapsuleFcn( c1, c2, q->mover.radius, c, B3_FIX( 0.3f ), draw->context );
 					}
 				}
 				break;
@@ -3446,7 +3451,7 @@ void b3RecPlayer_DrawFrameQueries( b3RecPlayer* player, b3DebugDraw* draw, int q
 				b3HexColor c = b3_colorTan;
 				if ( draw->DrawCapsuleFcn )
 				{
-					draw->DrawCapsuleFcn( c1, c2, q->mover.radius, b3RecQuerySelColor( selected, c ), 0.6f, draw->context );
+					draw->DrawCapsuleFcn( c1, c2, q->mover.radius, b3RecQuerySelColor( selected, c ), B3_FIX( 0.6f ), draw->context );
 				}
 
 				for ( int hi = q->hitStart; hi < q->hitStart + q->hitCount; ++hi )
@@ -3455,7 +3460,7 @@ void b3RecPlayer_DrawFrameQueries( b3RecPlayer* player, b3DebugDraw* draw, int q
 					b3Pos point = b3OffsetPos( q->origin, h->plane.point );
 					if ( draw->DrawSegmentFcn )
 					{
-						draw->DrawSegmentFcn( point, b3OffsetPos( point, b3MulSV( 0.2f, h->plane.plane.normal ) ),
+						draw->DrawSegmentFcn( point, b3OffsetPos( point, b3MulSV( B3_FIX( 0.2f ), h->plane.plane.normal ) ),
 											  b3RecQuerySelColor( selected, b3_colorOrange ), draw->context );
 					}
 				}
@@ -3522,7 +3527,7 @@ void b3RecPlayer_DrawFrameQueries( b3RecPlayer* player, b3DebugDraw* draw, int q
 				b3Pos c1 = b3OffsetPos( q->origin, q->mover.center1 );
 				b3Pos c2 = b3OffsetPos( q->origin, q->mover.center2 );
 				b3Vec3 dir = b3Normalize( b3SubPos( c2, c1 ) );
-				labelPos = b3OffsetPos( c2, b3MulSV( 1.25f * q->mover.radius, dir ) );
+				labelPos = b3OffsetPos( c2, b3MulSV( b3FixMul( B3_FIX( 1.25f ) , q->mover.radius ), dir ) );
 			}
 			draw->DrawStringFcn( labelPos, label, b3_colorWhite, draw->context );
 		}

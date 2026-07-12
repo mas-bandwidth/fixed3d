@@ -9,12 +9,12 @@
 typedef struct b3ManifoldConstraintPoint
 {
 	b3Vec3 rA, rB;
-	float baseSeparation;
-	float relativeVelocity;
-	float normalImpulse;
-	float totalNormalImpulse;
-	float normalMass;
-	float leverArm;
+	b3Fixed baseSeparation;
+	b3Fixed relativeVelocity;
+	b3Fixed normalImpulse;
+	b3Fixed totalNormalImpulse;
+	b3Fixed normalMass;
+	b3Fixed leverArm;
 } b3ManifoldConstraintPoint;
 
 typedef struct b3ManifoldConstraint
@@ -26,13 +26,13 @@ typedef struct b3ManifoldConstraint
 	b3Vec3 tangent1;
 	b3Vec3 tangent2;
 	b3Vec3 originA, originB;
-	float twistMass;
-	float twistImpulse;
+	b3Fixed twistMass;
+	b3Fixed twistImpulse;
 	b3Matrix2 tangentMass;
 	b3Vec2 frictionImpulse;
 	b3Vec3 rollingImpulse;
-	float tangentVelocity1;
-	float tangentVelocity2;
+	b3Fixed tangentVelocity1;
+	b3Fixed tangentVelocity2;
 } b3ManifoldConstraint;
 
 typedef struct b3ContactConstraint
@@ -41,13 +41,13 @@ typedef struct b3ContactConstraint
 	struct b3Contact* contact;
 	int indexA;
 	int indexB;
-	float invMassA, invMassB;
+	b3Fixed invMassA, invMassB;
 	b3Matrix3 invIA, invIB;
 	b3Softness softness;
 	b3Matrix3 rollingMass;
-	float friction;
-	float restitution;
-	float rollingResistance;
+	b3Fixed friction;
+	b3Fixed restitution;
+	b3Fixed rollingResistance;
 	int manifoldCount;
 } b3ContactConstraint;
 

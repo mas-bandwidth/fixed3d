@@ -9,19 +9,19 @@
 
 b3WorldDef b3DefaultWorldDef( void )
 {
-	float lengthUnits = b3GetLengthUnitsPerMeter();
+	b3Fixed lengthUnits = b3GetLengthUnitsPerMeter();
 
-	b3WorldDef def = { 0 };
-	def.gravity.x = 0.0f;
-	def.gravity.y = -10.0f;
-	def.hitEventThreshold = 1.0f * lengthUnits;
-	def.restitutionThreshold = 1.0f * lengthUnits;
-	def.contactSpeed = 3.0f * lengthUnits;
-	def.contactHertz = 30.0f;
-	def.contactDampingRatio = 10.0f;
+	b3WorldDef def = { b3FixFromInt( 0 ) };
+	def.gravity.x = B3_FIX( 0.0f );
+	def.gravity.y = -B3_FIX( 10.0f );
+	def.hitEventThreshold = b3FixMul( B3_FIX( 1.0f ) , lengthUnits );
+	def.restitutionThreshold = b3FixMul( B3_FIX( 1.0f ) , lengthUnits );
+	def.contactSpeed = b3FixMul( B3_FIX( 3.0f ) , lengthUnits );
+	def.contactHertz = B3_FIX( 30.0f );
+	def.contactDampingRatio = B3_FIX( 10.0f );
 
 	// 400 meters per second, faster than the speed of sound
-	def.maximumLinearSpeed = 400.0f * lengthUnits;
+	def.maximumLinearSpeed = b3FixMul( B3_FIX( 400.0f ) , lengthUnits );
 
 	def.enableSleep = true;
 	def.enableContinuous = true;
@@ -34,8 +34,8 @@ b3BodyDef b3DefaultBodyDef( void )
 	b3BodyDef def = { 0 };
 	def.type = b3_staticBody;
 	def.rotation = b3Quat_identity;
-	def.sleepThreshold = 0.05f * b3GetLengthUnitsPerMeter();
-	def.gravityScale = 1.0f;
+	def.sleepThreshold = b3FixMul( B3_FIX( 0.05f ) , b3GetLengthUnitsPerMeter() );
+	def.gravityScale = B3_FIX( 1.0f );
 	def.enableSleep = true;
 	def.isAwake = true;
 	def.isEnabled = true;
@@ -58,20 +58,20 @@ b3QueryFilter b3DefaultQueryFilter( void )
 
 b3SurfaceMaterial b3DefaultSurfaceMaterial( void )
 {
-	b3SurfaceMaterial surfaceMaterial = { 0 };
-	surfaceMaterial.friction = 0.6f;
+	b3SurfaceMaterial surfaceMaterial = { b3FixFromInt( 0 ) };
+	surfaceMaterial.friction = B3_FIX( 0.6f );
 	return surfaceMaterial;
 }
 
 b3ShapeDef b3DefaultShapeDef( void )
 {
-	float lengthUnits = b3GetLengthUnitsPerMeter();
+	b3Fixed lengthUnits = b3GetLengthUnitsPerMeter();
 
 	b3ShapeDef def = { 0 };
 	def.baseMaterial = b3DefaultSurfaceMaterial();
 	// density of water
-	def.density = 1000.0f / ( lengthUnits * lengthUnits * lengthUnits );
-	def.explosionScale = 1.0f;
+	def.density = b3FixDiv( B3_FIX( 1000.0f ) , ( b3FixMul( b3FixMul( lengthUnits , lengthUnits ) , lengthUnits ) ) );
+	def.explosionScale = B3_FIX( 1.0f );
 	def.filter = b3DefaultFilter();
 	def.updateBodyMass = true;
 	def.invokeContactCreation = true;
@@ -96,17 +96,17 @@ static void b3EmptyDrawTransform( b3WorldTransform transform, void* context )
 	B3_UNUSED( transform, context );
 }
 
-static void b3EmptyDrawPoint( b3Pos p, float size, b3HexColor color, void* context )
+static void b3EmptyDrawPoint( b3Pos p, b3Fixed size, b3HexColor color, void* context )
 {
 	B3_UNUSED( p, size, color, context );
 }
 
-static void b3EmptyDrawSphere( b3Pos p, float radius, b3HexColor color, float alpha, void* context )
+static void b3EmptyDrawSphere( b3Pos p, b3Fixed radius, b3HexColor color, b3Fixed alpha, void* context )
 {
 	B3_UNUSED( p, radius, color, alpha, context );
 }
 
-static void b3EmptyDrawCapsule( b3Pos p1, b3Pos p2, float radius, b3HexColor color, float alpha, void* context )
+static void b3EmptyDrawCapsule( b3Pos p1, b3Pos p2, b3Fixed radius, b3HexColor color, b3Fixed alpha, void* context )
 {
 	B3_UNUSED( p1, p2, radius, color, alpha, context );
 }
@@ -142,14 +142,14 @@ b3DebugDraw b3DefaultDebugDraw( void )
 	draw.DrawStringFcn = b3EmptyDrawString;
 
 	// Not too small, not too big.
-	float h = 100.0f * b3GetLengthUnitsPerMeter();
+	b3Fixed h = b3FixMul( B3_FIX( 100.0f ) , b3GetLengthUnitsPerMeter() );
 	draw.drawingBounds = (b3AABB){
 		.lowerBound = { -h, -h, -h },
 		.upperBound = { h, h, h },
 	};
 
-	draw.jointScale = 1.0f;
-	draw.forceScale = 1.0f;
+	draw.jointScale = B3_FIX( 1.0f );
+	draw.forceScale = B3_FIX( 1.0f );
 
 	return draw;
 }

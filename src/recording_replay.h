@@ -18,13 +18,13 @@ typedef struct b3RecRecordedHit
 	b3ShapeId id;
 	b3Pos point;
 	b3Vec3 normal;
-	float fraction;
+	b3Fixed fraction;
 	uint64_t userMaterialId;
 	int triangleIndex;
 	int childIndex;
 	b3PlaneResult plane; // collide-mover: this plane
 	int planeCount;		 // collide-mover: planes in this hit's shape group (replicated)
-	float userReturnF;	 // cast queries
+	b3Fixed userReturnF;	 // cast queries
 	bool userReturnB;	 // overlap / collide-mover (per shape, replicated)
 } b3RecRecordedHit;
 
@@ -51,11 +51,11 @@ typedef struct b3RecDrawQuery
 	b3AABB aabb;								  // world-space bounds of the query, swept for casts
 	b3Vec3 proxyPoints[B3_MAX_SHAPE_CAST_POINTS]; // overlap/cast shape proxy, origin relative
 	int proxyCount;
-	float proxyRadius;
+	b3Fixed proxyRadius;
 	b3Capsule mover; // cast/collide mover, origin relative
 	b3Pos origin;
 	b3Vec3 translation;
-	float castFraction;	   // cast-mover result fraction
+	b3Fixed castFraction;	   // cast-mover result fraction
 	b3RayResult rayResult; // cast-ray-closest result
 	b3ShapeId shape;
 	int hitStart; // first hit in the player's frameHits store
@@ -144,11 +144,11 @@ typedef struct b3RecPlayer
 	int size;
 	int headerEnd;	 // first byte of op stream (past header + snapshot blob)
 	int registryEnd; // end of op stream = start of registry block (or size)
-	float lengthScale;
-	float previousLengthScale;
+	b3Fixed lengthScale;
+	b3Fixed previousLengthScale;
 	int frame;
 	int frameCount;
-	float recordedDt;
+	b3Fixed recordedDt;
 	int recordedSubStepCount;
 	int recordedWorkerCount; // worker count requested for the replay world
 	b3AABB bounds;			 // accumulated world bounds, decoded from the trailing record
@@ -213,7 +213,7 @@ uint32_t b3RecR_U24( b3RecReader* rdr );
 uint32_t b3RecR_U32( b3RecReader* rdr );
 uint64_t b3RecR_U64( b3RecReader* rdr );
 int32_t b3RecR_I32( b3RecReader* rdr );
-float b3RecR_F32( b3RecReader* rdr );
+b3Fixed b3RecR_F32( b3RecReader* rdr );
 double b3RecR_F64( b3RecReader* rdr );
 bool b3RecR_BOOL( b3RecReader* rdr );
 b3Vec3 b3RecR_VEC3( b3RecReader* rdr );

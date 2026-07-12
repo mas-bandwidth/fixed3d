@@ -12,7 +12,6 @@
 #include "box3d/constants.h"
 #include "box3d/math_functions.h"
 
-#include <float.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -72,10 +71,10 @@ struct b3QHFace
 	b3QHHalfEdge* edge;
 
 	int mark;
-	float area;
+	b3Fixed area;
 	b3Plane plane;
 	b3Vec3 centroid;
-	float maxConflictDistance;
+	b3Fixed maxConflictDistance;
 
 	// Sentinel head for this face's conflict list of b3QHVertex.
 	b3QHVertex conflictListHead;
@@ -101,9 +100,9 @@ typedef struct b3HorizonFrame
 // All working memory for one hull build, carved from a single b3Alloc block.
 typedef struct b3HullBuilder
 {
-	float tolerance;
-	float minRadius;
-	float minOutside;
+	b3Fixed tolerance;
+	b3Fixed minRadius;
+	b3Fixed minOutside;
 
 	b3Vec3 interiorPoint;
 
@@ -252,7 +251,7 @@ static b3QHFace* b3HullBuilder_NewFace( b3HullBuilder* b, b3QHVertex* v1, b3QHVe
 	face->link.prev = NULL;
 	face->link.next = NULL;
 	face->maxConflict = NULL;
-	face->maxConflictDistance = 0.0f;
+	face->maxConflictDistance = B3_FIX( 0.0f );
 	face->finalIndex = B3_NULL_INDEX;
 
 	b3QHHalfEdge* edge1 = b3HullBuilder_NewEdge( b );
@@ -265,18 +264,18 @@ static b3QHFace* b3HullBuilder_NewFace( b3HullBuilder* b, b3QHVertex* v1, b3QHVe
 
 	b3Plane plane;
 	plane.normal = b3Cross( b3Sub( p2, p1 ), b3Sub( p3, p1 ) );
-	float length;
+	b3Fixed length;
 	plane.normal = b3GetLengthAndNormalize( &length, plane.normal );
 	plane.offset = b3Dot( plane.normal, p1 );
 
-	float area = 0.5f * length;
+	b3Fixed area = b3FixMul( B3_FIX( 0.5f ) , length );
 
 	face->edge = edge1;
 	face->mark = B3_MARK_VISIBLE;
 	face->area = area;
-	face->centroid = b3MulSV( 1.0f / 3.0f, b3Add( v1->position, b3Add( v2->position, v3->position ) ) );
+	face->centroid = b3MulSV( b3FixDiv( B3_FIX( 1.0f ) , B3_FIX( 3.0f ) ), b3Add( v1->position, b3Add( v2->position, v3->position ) ) );
 	face->plane = plane;
-	face->flipped = b3PlaneSeparation( plane, b->interiorPoint ) > 0.0f;
+	face->flipped = b3PlaneSeparation( plane, b->interiorPoint ) > B3_FIX( 0.0f );
 	b3QHList_Init( &face->conflictListHead.link );
 
 	edge1->prev = edge3;
@@ -326,7 +325,7 @@ static b3AABB b3BuildBounds( int vertexCount, const b3Vec3* vertices )
 	return bounds;
 }
 
-static void b3FindFarthestPointsAlongCardinalAxes( int* index1Out, int* index2Out, float tolerance, int vertexCount,
+static void b3FindFarthestPointsAlongCardinalAxes( int* index1Out, int* index2Out, b3Fixed tolerance, int vertexCount,
 												   const b3Vec3* vertexBase )
 {
 	*index1Out = B3_NULL_INDEX;
@@ -382,17 +381,17 @@ static void b3FindFarthestPointsAlongCardinalAxes( int* index1Out, int* index2Ou
 	distance.y = maxPt[B3_AXIS_Y].y - minPt[B3_AXIS_Y].y;
 	distance.z = maxPt[B3_AXIS_Z].z - minPt[B3_AXIS_Z].z;
 
-	float distanceArray[3] = { distance.x, distance.y, distance.z };
+	b3Fixed distanceArray[3] = { distance.x, distance.y, distance.z };
 	int maxElement = b3MaxElementIndex( distance );
 
-	if ( distanceArray[maxElement] > 2.0f * tolerance )
+	if ( distanceArray[maxElement] > b3FixMul( B3_FIX( 2.0f ) , tolerance ) )
 	{
 		*index1Out = minIndex[maxElement];
 		*index2Out = maxIndex[maxElement];
 	}
 }
 
-static int b3FindFarthestPointFromLine( int index1, int index2, float tolerance, int vertexCount, const b3Vec3* vertexBase )
+static int b3FindFarthestPointFromLine( int index1, int index2, b3Fixed tolerance, int vertexCount, const b3Vec3* vertexBase )
 {
 	b3Vec3 a = vertexBase[index1];
 	b3Vec3 b = vertexBase[index2];
@@ -400,11 +399,11 @@ static int b3FindFarthestPointFromLine( int index1, int index2, float tolerance,
 	// |ap x ab|^2 / |ab|^2 is the squared perpendicular distance from p to the line.
 	// Compares against (2 * tolerance)^2
 	b3Vec3 ab = b3Sub( b, a );
-	float abLengthSqr = b3Dot( ab, ab );
-	B3_ASSERT( abLengthSqr > 0.0f );
+	b3Fixed abLengthSqr = b3Dot( ab, ab );
+	B3_ASSERT( abLengthSqr > B3_FIX( 0.0f ) );
 
-	float invAbLengthSqr = 1.0f / abLengthSqr;
-	float maxDistanceSqr = 4.0f * tolerance * tolerance;
+	b3Fixed invAbLengthSqr = b3FixDiv( B3_FIX( 1.0f ) , abLengthSqr );
+	b3Fixed maxDistanceSqr = b3FixMul( b3FixMul( B3_FIX( 4.0f ) , tolerance ) , tolerance );
 	int maxIndex = B3_NULL_INDEX;
 
 	for ( int i = 0; i < vertexCount; ++i )
@@ -416,7 +415,7 @@ static int b3FindFarthestPointFromLine( int index1, int index2, float tolerance,
 
 		b3Vec3 ap = b3Sub( vertexBase[i], a );
 		b3Vec3 cross = b3Cross( ap, ab );
-		float distanceSqr = b3Dot( cross, cross ) * invAbLengthSqr;
+		b3Fixed distanceSqr = b3FixMul( b3Dot( cross, cross ) , invAbLengthSqr );
 		if ( distanceSqr > maxDistanceSqr )
 		{
 			maxDistanceSqr = distanceSqr;
@@ -427,7 +426,7 @@ static int b3FindFarthestPointFromLine( int index1, int index2, float tolerance,
 	return maxIndex;
 }
 
-static int b3FindFarthestPointFromPlane( int index1, int index2, int index3, float tolerance, int vertexCount,
+static int b3FindFarthestPointFromPlane( int index1, int index2, int index3, b3Fixed tolerance, int vertexCount,
 										 const b3Vec3* vertexBase )
 {
 	b3Vec3 a = vertexBase[index1];
@@ -436,7 +435,7 @@ static int b3FindFarthestPointFromPlane( int index1, int index2, int index3, flo
 
 	b3Plane plane = b3MakePlaneFromPoints( a, b, c );
 
-	float maxDistance = 2.0f * tolerance;
+	b3Fixed maxDistance = b3FixMul( B3_FIX( 2.0f ) , tolerance );
 	int maxIndex = B3_NULL_INDEX;
 
 	for ( int i = 0; i < vertexCount; ++i )
@@ -446,7 +445,7 @@ static int b3FindFarthestPointFromPlane( int index1, int index2, int index3, flo
 			continue;
 		}
 
-		float distance = b3AbsFloat( b3PlaneSeparation( plane, vertexBase[i] ) );
+		b3Fixed distance = b3FixAbs( b3PlaneSeparation( plane, vertexBase[i] ) );
 		if ( distance > maxDistance )
 		{
 			maxDistance = distance;
@@ -457,15 +456,15 @@ static int b3FindFarthestPointFromPlane( int index1, int index2, int index3, flo
 	return maxIndex;
 }
 
-static bool b3IsEdgeConvex( const b3QHHalfEdge* edge, float tolerance )
+static bool b3IsEdgeConvex( const b3QHHalfEdge* edge, b3Fixed tolerance )
 {
-	float distance = b3PlaneSeparation( edge->face->plane, edge->twin->face->centroid );
+	b3Fixed distance = b3PlaneSeparation( edge->face->plane, edge->twin->face->centroid );
 	return distance < -tolerance;
 }
 
-static bool b3IsEdgeConcave( const b3QHHalfEdge* edge, float tolerance )
+static bool b3IsEdgeConcave( const b3QHHalfEdge* edge, b3Fixed tolerance )
 {
-	float distance = b3PlaneSeparation( edge->face->plane, edge->twin->face->centroid );
+	b3Fixed distance = b3PlaneSeparation( edge->face->plane, edge->twin->face->centroid );
 	return distance > tolerance;
 }
 
@@ -542,25 +541,25 @@ static void b3NewellPlane( b3QHFace* face )
 
 		count++;
 		centroid = b3Add( centroid, v1 );
-		normal.x += ( v1.y - v2.y ) * ( v1.z + v2.z );
-		normal.y += ( v1.z - v2.z ) * ( v1.x + v2.x );
-		normal.z += ( v1.x - v2.x ) * ( v1.y + v2.y );
+		normal.x += b3FixMul( ( v1.y - v2.y ) , ( v1.z + v2.z ) );
+		normal.y += b3FixMul( ( v1.z - v2.z ) , ( v1.x + v2.x ) );
+		normal.z += b3FixMul( ( v1.x - v2.x ) , ( v1.y + v2.y ) );
 
 		edge = edge->next;
 	}
 	while ( edge != face->edge );
 
 	B3_ASSERT( count > 0 );
-	centroid = b3MulSV( 1.0f / (float)count, centroid );
+	centroid = b3MulSV( b3FixDiv( B3_FIX( 1.0f ) , (b3Fixed)b3FixFromInt( count ) ), centroid );
 	centroid = b3Add( centroid, origin );
 
-	float length = b3Length( normal );
-	B3_VALIDATE( length > 0.0f );
-	normal = b3MulSV( 1.0f / length, normal );
+	b3Fixed length = b3Length( normal );
+	B3_VALIDATE( length > B3_FIX( 0.0f ) );
+	normal = b3MulSV( b3FixDiv( B3_FIX( 1.0f ) , length ), normal );
 
 	face->centroid = centroid;
 	face->plane = b3MakePlaneFromNormalAndPoint( normal, centroid );
-	face->area = 0.5f * length;
+	face->area = b3FixMul( B3_FIX( 0.5f ) , length );
 }
 
 #if B3_DEBUG
@@ -628,16 +627,16 @@ static void b3HullBuilder_ComputeTolerance( b3HullBuilder* b, int pointCount, co
 	b3AABB bounds = b3BuildBounds( pointCount, points );
 	b3Vec3 maxAbs = b3Max( b3Abs( bounds.lowerBound ), b3Abs( bounds.upperBound ) );
 
-	float maxSum = maxAbs.x + maxAbs.y + maxAbs.z;
-	float maxCoord = b3MaxFloat( maxAbs.x, b3MaxFloat( maxAbs.y, maxAbs.z ) );
-	float maxDistance = b3MinFloat( B3_SQRT3 * maxCoord, maxSum );
+	b3Fixed maxSum = maxAbs.x + maxAbs.y + maxAbs.z;
+	b3Fixed maxCoord = b3FixMax( maxAbs.x, b3FixMax( maxAbs.y, maxAbs.z ) );
+	b3Fixed maxDistance = b3FixMin( b3FixMul( B3_SQRT3, maxCoord ), maxSum );
 
-	float tolerance = ( 3.0f * maxDistance * 1.01f + maxCoord ) * FLT_EPSILON;
+	b3Fixed tolerance = b3FixMul( b3FixMul( b3FixMul( B3_FIX( 3.0f ), maxDistance ), B3_FIX( 1.01f ) ) + maxCoord, B3_FIXED_EPSILON );
 
 	b->tolerance = tolerance;
-	b->minRadius = 4.0f * b->tolerance;
-	b->minOutside = 2.0f * b->minRadius;
-	B3_ASSERT( b->minRadius < b->minOutside + 3.0f * FLT_EPSILON );
+	b->minRadius = b3FixMul( B3_FIX( 4.0f ) , b->tolerance );
+	b->minOutside = b3FixMul( B3_FIX( 2.0f ) , b->minRadius );
+	B3_ASSERT( b->minRadius < b->minOutside + 3 * B3_FIXED_EPSILON );
 }
 
 static bool b3HullBuilder_BuildInitialHull( b3HullBuilder* b, int pointCount, const b3Vec3* points )
@@ -665,7 +664,7 @@ static bool b3HullBuilder_BuildInitialHull( b3HullBuilder* b, int pointCount, co
 	b3Vec3 v2 = b3Sub( points[index2], points[index4] );
 	b3Vec3 v3 = b3Sub( points[index3], points[index4] );
 
-	if ( b3ScalarTripleProduct( v1, v2, v3 ) < 0.0f )
+	if ( b3ScalarTripleProduct( v1, v2, v3 ) < B3_FIX( 0.0f ) )
 	{
 		int temp = index2;
 		index2 = index3;
@@ -677,7 +676,7 @@ static bool b3HullBuilder_BuildInitialHull( b3HullBuilder* b, int pointCount, co
 	b->interiorPoint = b3Add( b->interiorPoint, points[index2] );
 	b->interiorPoint = b3Add( b->interiorPoint, points[index3] );
 	b->interiorPoint = b3Add( b->interiorPoint, points[index4] );
-	b->interiorPoint = b3MulSV( 0.25f, b->interiorPoint );
+	b->interiorPoint = b3MulSV( B3_FIX( 0.25f ), b->interiorPoint );
 
 	b3QHVertex* vertex1 = b3HullBuilder_NewVertex( b, points[index1] );
 	b3QHList_PushBack( &b->vertexList.link, &vertex1->link );
@@ -721,13 +720,13 @@ static bool b3HullBuilder_BuildInitialHull( b3HullBuilder* b, int pointCount, co
 
 		b3Vec3 point = points[index];
 
-		float maxDistance = b->minOutside;
+		b3Fixed maxDistance = b->minOutside;
 		b3QHFace* maxFace = NULL;
 
 		for ( b3QHListNode* node = b->faceList.link.next; node != &b->faceList.link; node = node->next )
 		{
 			b3QHFace* face = (b3QHFace*)node;
-			float distance = b3PlaneSeparation( face->plane, point );
+			b3Fixed distance = b3PlaneSeparation( face->plane, point );
 			if ( distance > maxDistance )
 			{
 				maxDistance = distance;
@@ -753,15 +752,15 @@ static bool b3HullBuilder_BuildInitialHull( b3HullBuilder* b, int pointCount, co
 
 // Recompute the farthest-conflict cache after a face's plane changes.
 // Walks the existing conflict list once; cost is bounded by that list, not the global pool.
-static void b3HullBuilder_RecacheConflicts( b3QHFace* face, float minOutside )
+static void b3HullBuilder_RecacheConflicts( b3QHFace* face, b3Fixed minOutside )
 {
 	b3QHVertex* maxVertex = NULL;
-	float maxDistance = minOutside;
+	b3Fixed maxDistance = minOutside;
 
 	for ( b3QHListNode* node = face->conflictListHead.link.next; node != &face->conflictListHead.link; node = node->next )
 	{
 		b3QHVertex* vertex = (b3QHVertex*)node;
-		float distance = b3PlaneSeparation( face->plane, vertex->position );
+		b3Fixed distance = b3PlaneSeparation( face->plane, vertex->position );
 		if ( distance > maxDistance )
 		{
 			maxDistance = distance;
@@ -776,7 +775,7 @@ static void b3HullBuilder_RecacheConflicts( b3QHFace* face, float minOutside )
 static b3QHVertex* b3HullBuilder_NextConflictVertex( const b3HullBuilder* b )
 {
 	b3QHVertex* maxVertex = NULL;
-	float maxDistance = b->minOutside;
+	b3Fixed maxDistance = b->minOutside;
 
 	for ( const b3QHListNode* faceNode = b->faceList.link.next; faceNode != &b->faceList.link; faceNode = faceNode->next )
 	{
@@ -858,7 +857,7 @@ static void b3HullBuilder_BuildHorizon( b3HullBuilder* b, b3QHVertex* apex, b3QH
 			continue;
 		}
 
-		float distance = b3PlaneSeparation( twin->face->plane, apex->position );
+		b3Fixed distance = b3PlaneSeparation( twin->face->plane, apex->position );
 		if ( distance > b->minRadius )
 		{
 			B3_ASSERT( top < b->horizonStackCapacity );
@@ -1003,7 +1002,7 @@ static void b3HullBuilder_AbsorbFaces( b3HullBuilder* b, b3QHFace* face )
 
 			b3QHList_Remove( &vertex->link );
 
-			float distance = b3PlaneSeparation( face->plane, vertex->position );
+			b3Fixed distance = b3PlaneSeparation( face->plane, vertex->position );
 			if ( distance > b->minOutside )
 			{
 				b3QHList_PushBack( &face->conflictListHead.link, &vertex->link );
@@ -1141,14 +1140,14 @@ static void b3HullBuilder_MergeFaces( b3HullBuilder* b )
 		{
 			face->flipped = false;
 
-			float bestArea = 0;
+			b3Fixed bestArea = b3FixFromInt( 0 );
 			b3QHHalfEdge* bestEdge = NULL;
 
 			b3QHHalfEdge* edge = face->edge;
 			do
 			{
 				b3QHHalfEdge* twin = edge->twin;
-				float area = twin->face->area;
+				b3Fixed area = twin->face->area;
 				if ( area > bestArea )
 				{
 					bestArea = area;
@@ -1196,14 +1195,14 @@ static void b3HullBuilder_ResolveVertices( b3HullBuilder* b )
 		node = node->next;
 		b3QHList_Remove( &vertex->link );
 
-		float maxDistance = b->minOutside;
+		b3Fixed maxDistance = b->minOutside;
 		b3QHFace* maxFace = NULL;
 
 		for ( int i = 0; i < b->coneCount; ++i )
 		{
 			if ( b->cone[i]->mark == B3_MARK_VISIBLE )
 			{
-				float distance = b3PlaneSeparation( b->cone[i]->plane, vertex->position );
+				b3Fixed distance = b3PlaneSeparation( b->cone[i]->plane, vertex->position );
 				if ( distance > maxDistance )
 				{
 					maxDistance = distance;
@@ -1350,7 +1349,7 @@ static bool b3HullBuilder_IsConsistent( const b3HullBuilder* b )
 			return false;
 		}
 
-		if ( b3PlaneSeparation( face->plane, b->interiorPoint ) > 0 )
+		if ( b3PlaneSeparation( face->plane, b->interiorPoint ) > b3FixFromInt( 0 ) )
 		{
 			return false;
 		}
@@ -1384,7 +1383,7 @@ static bool b3HullBuilder_IsConsistent( const b3HullBuilder* b )
 			{
 				return false;
 			}
-			if ( b3DistanceSquared( edge->origin->position, edge->twin->origin->position ) < 1000.0f * FLT_MIN )
+			if ( b3DistanceSquared( edge->origin->position, edge->twin->origin->position ) < 0 )
 			{
 				return false;
 			}
@@ -1610,14 +1609,14 @@ static b3HullHalfEdge* b3GetHullEdgesWrite( b3HullData* hull )
 int b3FindHullSupportVertex( const b3HullData* hull, b3Vec3 direction )
 {
 	int bestIndex = B3_NULL_INDEX;
-	float bestDot = -FLT_MAX;
+	b3Fixed bestDot = -B3_FIXED_MAX;
 
 	int vertexCount = hull->vertexCount;
 	const b3Vec3* points = b3GetHullPoints( hull );
 
 	for ( int index = 0; index < vertexCount; ++index )
 	{
-		float dot = b3Dot( direction, points[index] );
+		b3Fixed dot = b3Dot( direction, points[index] );
 		if ( dot > bestDot )
 		{
 			bestIndex = index;
@@ -1632,14 +1631,14 @@ int b3FindHullSupportVertex( const b3HullData* hull, b3Vec3 direction )
 int b3FindHullSupportFace( const b3HullData* hull, b3Vec3 direction )
 {
 	int bestIndex = B3_NULL_INDEX;
-	float bestDot = -FLT_MAX;
+	b3Fixed bestDot = -B3_FIXED_MAX;
 
 	int faceCount = hull->faceCount;
 	const b3Plane* planes = b3GetHullPlanes( hull );
 
 	for ( int index = 0; index < faceCount; ++index )
 	{
-		float dot = b3Dot( planes[index].normal, direction );
+		b3Fixed dot = b3Dot( planes[index].normal, direction );
 		if ( dot > bestDot )
 		{
 			bestDot = dot;
@@ -1708,7 +1707,7 @@ bool b3IsValidHull( const b3HullData* hull )
 		const b3HullHalfEdge* edge = edges + baseEdgeIndex;
 
 		b3Plane plane = planes[faceIndex];
-		if ( b3PlaneSeparation( plane, hull->center ) >= 0.0f )
+		if ( b3PlaneSeparation( plane, hull->center ) >= B3_FIX( 0.0f ) )
 		{
 			return false;
 		}
@@ -1740,17 +1739,17 @@ bool b3IsValidHull( const b3HullData* hull )
 		while ( edgeIndex != baseEdgeIndex );
 	}
 
-	if ( hull->volume <= 0.0f )
+	if ( hull->volume <= B3_FIX( 0.0f ) )
 	{
 		return false;
 	}
 
-	if ( hull->surfaceArea <= 0.0f )
+	if ( hull->surfaceArea <= B3_FIX( 0.0f ) )
 	{
 		return false;
 	}
 
-	if ( hull->innerRadius <= 0.0f )
+	if ( hull->innerRadius <= B3_FIX( 0.0f ) )
 	{
 		return false;
 	}
@@ -1768,26 +1767,26 @@ bool b3IsValidHull( const b3HullData* hull )
 
 #endif
 
-b3HullData* b3CreateCylinder( float height, float radius, float yOffset, int sides )
+b3HullData* b3CreateCylinder( b3Fixed height, b3Fixed radius, b3Fixed yOffset, int sides )
 {
-	B3_ASSERT( height > 0.0f );
-	B3_ASSERT( radius > 0.0f );
+	B3_ASSERT( height > B3_FIX( 0.0f ) );
+	B3_ASSERT( radius > B3_FIX( 0.0f ) );
 	B3_ASSERT( 3 <= sides && sides <= 32 );
 
 	int pointCount = 2 * sides;
 	b3Vec3* points = (b3Vec3*)b3Alloc( pointCount * sizeof( b3Vec3 ) );
 	B3_ASSERT( points != NULL );
 
-	float alpha = 0.0f;
-	float deltaAlpha = 2.0f * B3_PI / sides;
+	b3Fixed alpha = B3_FIX( 0.0f );
+	b3Fixed deltaAlpha = b3FixDiv( b3FixMul( B3_FIX( 2.0f ) , B3_PI ) , b3FixFromInt( sides ) );
 
 	for ( int index = 0; index < sides; ++index )
 	{
-		float sinAlpha = b3Sin( alpha );
-		float cosAlpha = b3Cos( alpha );
+		b3Fixed sinAlpha = b3Sin( alpha );
+		b3Fixed cosAlpha = b3Cos( alpha );
 
-		points[2 * index + 0] = (b3Vec3){ radius * cosAlpha, yOffset, radius * sinAlpha };
-		points[2 * index + 1] = (b3Vec3){ radius * cosAlpha, yOffset + height, radius * sinAlpha };
+		points[2 * index + 0] = (b3Vec3){ b3FixMul( radius , cosAlpha ), yOffset, b3FixMul( radius , sinAlpha ) };
+		points[2 * index + 1] = (b3Vec3){ b3FixMul( radius , cosAlpha ), yOffset + height, b3FixMul( radius , sinAlpha ) };
 
 		alpha += deltaAlpha;
 	}
@@ -1802,27 +1801,27 @@ b3HullData* b3CreateCylinder( float height, float radius, float yOffset, int sid
 	return hull;
 }
 
-b3HullData* b3CreateCone( float height, float radius1, float radius2, int slices )
+b3HullData* b3CreateCone( b3Fixed height, b3Fixed radius1, b3Fixed radius2, int slices )
 {
-	B3_ASSERT( height > 0.0f );
-	B3_ASSERT( radius1 > 0.0f );
-	B3_ASSERT( radius2 > 0.0f );
+	B3_ASSERT( height > B3_FIX( 0.0f ) );
+	B3_ASSERT( radius1 > B3_FIX( 0.0f ) );
+	B3_ASSERT( radius2 > B3_FIX( 0.0f ) );
 	B3_ASSERT( 4 <= slices && slices <= 32 );
 
 	int pointCount = 2 * slices;
 	b3Vec3* points = (b3Vec3*)b3Alloc( pointCount * sizeof( b3Vec3 ) );
 	B3_ASSERT( points != NULL );
 
-	float alpha = 0.0f;
-	float deltaAlpha = 2.0f * B3_PI / slices;
+	b3Fixed alpha = B3_FIX( 0.0f );
+	b3Fixed deltaAlpha = b3FixDiv( b3FixMul( B3_FIX( 2.0f ) , B3_PI ) , b3FixFromInt( slices ) );
 
 	for ( int index = 0; index < slices; ++index )
 	{
-		float sinAlpha = b3Sin( alpha );
-		float cosAlpha = b3Cos( alpha );
+		b3Fixed sinAlpha = b3Sin( alpha );
+		b3Fixed cosAlpha = b3Cos( alpha );
 
-		points[2 * index + 0] = (b3Vec3){ radius1 * cosAlpha, 0.0f, radius1 * sinAlpha };
-		points[2 * index + 1] = (b3Vec3){ radius2 * cosAlpha, height, radius2 * sinAlpha };
+		points[2 * index + 0] = (b3Vec3){ b3FixMul( radius1 , cosAlpha ), B3_FIX( 0.0f ), b3FixMul( radius1 , sinAlpha ) };
+		points[2 * index + 1] = (b3Vec3){ b3FixMul( radius2 , cosAlpha ), height, b3FixMul( radius2 , sinAlpha ) };
 
 		alpha += deltaAlpha;
 	}
@@ -1837,36 +1836,36 @@ b3HullData* b3CreateCone( float height, float radius1, float radius2, int slices
 	return hull;
 }
 
-b3HullData* b3CreateRock( float radius )
+b3HullData* b3CreateRock( b3Fixed radius )
 {
 	int pointCount = 10;
 
 	// Golden ratio
-	const float phi = ( 1.0f + sqrtf( 5.0f ) ) / 2.0f;
+	const b3Fixed phi = b3FixDiv( ( B3_FIX( 1.0f ) + b3FixSqrt( B3_FIX( 5.0f ) ) ) , B3_FIX( 2.0f ) );
 
 	// Fibonacci lattice
 	b3Vec3 points[10];
 
 	// Azimuthal angle
-	float theta = 2.0f * B3_PI / phi;
+	b3Fixed theta = b3FixDiv( b3FixMul( B3_FIX( 2.0f ) , B3_PI ) , phi );
 
-	b3CosSin cs = { 1.0f, 0.0 };
+	b3CosSin cs = { B3_FIX( 1.0f ), B3_FIX( 0.0 ) };
 	b3CosSin deltaCS = b3ComputeCosSin( theta );
 
 	for ( int i = 0; i < pointCount; ++i )
 	{
 		// Z coordinate
-		float z = 1.0f - ( 2.0f * i + 1.0f ) / pointCount;
+		b3Fixed z = B3_FIX( 1.0f ) - b3FixDiv( ( b3FixMul( B3_FIX( 2.0f ) , b3FixFromInt( i ) ) + B3_FIX( 1.0f ) ) , b3FixFromInt( pointCount ) );
 		// Radius in xy-plane
-		float radius_XY = sqrtf( 1.0f - z * z );
+		b3Fixed radius_XY = b3FixSqrt( B3_FIX( 1.0f ) - b3FixMul( z , z ) );
 
-		points[i].x = radius * radius_XY * cs.cosine;
-		points[i].y = radius * radius_XY * cs.sine;
-		points[i].z = radius * z;
+		points[i].x = b3FixMul( b3FixMul( radius , radius_XY ) , cs.cosine );
+		points[i].y = b3FixMul( b3FixMul( radius , radius_XY ) , cs.sine );
+		points[i].z = b3FixMul( radius , z );
 
 		b3CosSin cs0 = cs;
-		cs.cosine = deltaCS.cosine * cs0.cosine - deltaCS.sine * cs0.sine;
-		cs.sine = deltaCS.sine * cs0.cosine + deltaCS.cosine * cs0.sine;
+		cs.cosine = b3FixMul( deltaCS.cosine , cs0.cosine ) - b3FixMul( deltaCS.sine , cs0.sine );
+		cs.sine = b3FixMul( deltaCS.sine , cs0.cosine ) + b3FixMul( deltaCS.cosine , cs0.sine );
 	}
 
 	return b3CreateHull( points, pointCount, pointCount );
@@ -1900,19 +1899,19 @@ static bool b3UpdateHullBulkProperties( b3HullData* hull )
 	const b3HullHalfEdge* edges = b3GetHullEdges( hull );
 	const b3Plane* planes = b3GetHullPlanes( hull );
 
-	float area = 0.0f;
-	float volume = 0.0f;
+	b3Fixed area = B3_FIX( 0.0f );
+	b3Fixed volume = B3_FIX( 0.0f );
 	b3Vec3 center = b3Vec3_zero;
 
 	// Use the first vertex to reduce round-off errors.
 	b3Vec3 origin = points[0];
 
-	float xx = 0.0f;
-	float xy = 0.0f;
-	float yy = 0.0f;
-	float xz = 0.0f;
-	float zz = 0.0f;
-	float yz = 0.0f;
+	b3Fixed xx = B3_FIX( 0.0f );
+	b3Fixed xy = B3_FIX( 0.0f );
+	b3Fixed yy = B3_FIX( 0.0f );
+	b3Fixed xz = B3_FIX( 0.0f );
+	b3Fixed zz = B3_FIX( 0.0f );
+	b3Fixed yz = B3_FIX( 0.0f );
 
 	int faceCount = hull->faceCount;
 
@@ -1938,19 +1937,19 @@ static bool b3UpdateHullBulkProperties( b3HullData* hull )
 
 			area += b3Length( b3Cross( b3Sub( v2, v1 ), b3Sub( v3, v1 ) ) );
 
-			float det = b3ScalarTripleProduct( v1, v2, v3 );
+			b3Fixed det = b3ScalarTripleProduct( v1, v2, v3 );
 
 			volume += det;
 
 			b3Vec3 v4 = b3Add( v1, b3Add( v2, v3 ) );
 			center = b3Add( center, b3MulSV( det, v4 ) );
 
-			xx += det * ( v1.x * v1.x + v2.x * v2.x + v3.x * v3.x + v4.x * v4.x );
-			yy += det * ( v1.y * v1.y + v2.y * v2.y + v3.y * v3.y + v4.y * v4.y );
-			zz += det * ( v1.z * v1.z + v2.z * v2.z + v3.z * v3.z + v4.z * v4.z );
-			xy += det * ( v1.x * v1.y + v2.x * v2.y + v3.x * v3.y + v4.x * v4.y );
-			xz += det * ( v1.x * v1.z + v2.x * v2.z + v3.x * v3.z + v4.x * v4.z );
-			yz += det * ( v1.y * v1.z + v2.y * v2.z + v3.y * v3.z + v4.y * v4.z );
+			xx += b3FixMul( det , ( b3FixMul( v1.x , v1.x ) + b3FixMul( v2.x , v2.x ) + b3FixMul( v3.x , v3.x ) + b3FixMul( v4.x , v4.x ) ) );
+			yy += b3FixMul( det , ( b3FixMul( v1.y , v1.y ) + b3FixMul( v2.y , v2.y ) + b3FixMul( v3.y , v3.y ) + b3FixMul( v4.y , v4.y ) ) );
+			zz += b3FixMul( det , ( b3FixMul( v1.z , v1.z ) + b3FixMul( v2.z , v2.z ) + b3FixMul( v3.z , v3.z ) + b3FixMul( v4.z , v4.z ) ) );
+			xy += b3FixMul( det , ( b3FixMul( v1.x , v1.y ) + b3FixMul( v2.x , v2.y ) + b3FixMul( v3.x , v3.y ) + b3FixMul( v4.x , v4.y ) ) );
+			xz += b3FixMul( det , ( b3FixMul( v1.x , v1.z ) + b3FixMul( v2.x , v2.z ) + b3FixMul( v3.x , v3.z ) + b3FixMul( v4.x , v4.z ) ) );
+			yz += b3FixMul( det , ( b3FixMul( v1.y , v1.z ) + b3FixMul( v2.y , v2.z ) + b3FixMul( v3.y , v3.z ) + b3FixMul( v4.y , v4.z ) ) );
 
 			edge2 = edge3;
 			edge3 = edges + edge3->next;
@@ -1958,22 +1957,31 @@ static bool b3UpdateHullBulkProperties( b3HullData* hull )
 		while ( edge1 != edge3 );
 	}
 
-	B3_VALIDATE( volume > 0.0f );
+	B3_VALIDATE( volume > B3_FIX( 0.0f ) );
 
-	b3Vec3 localCenter = volume > 0.0f ? b3MulSV( 0.25f / volume, center ) : b3Vec3_zero;
+	// Divide last: scaling by a quantized reciprocal of a large volume loses
+	// precision that the Steiner subtraction below then amplifies.
+	b3Vec3 localCenter = b3Vec3_zero;
+	if ( volume > B3_FIX( 0.0f ) )
+	{
+		b3Vec3 quarter = b3MulSV( B3_FIX( 0.25f ), center );
+		localCenter.x = b3FixDiv( quarter.x, volume );
+		localCenter.y = b3FixDiv( quarter.y, volume );
+		localCenter.z = b3FixDiv( quarter.z, volume );
+	}
 	center = b3Add( localCenter, origin );
 
-	float radius = FLT_MAX;
+	b3Fixed radius = B3_FIXED_MAX;
 	for ( int faceIndex = 0; faceIndex < faceCount; ++faceIndex )
 	{
 		b3Plane plane = planes[faceIndex];
-		float distance = b3PlaneSeparation( plane, center );
-		B3_VALIDATE( distance < 0.0f );
+		b3Fixed distance = b3PlaneSeparation( plane, center );
+		B3_VALIDATE( distance < B3_FIX( 0.0f ) );
 
-		radius = b3MinFloat( radius, -distance );
+		radius = b3FixMin( radius, -distance );
 	}
 
-	B3_VALIDATE( 0.0f < radius && radius < FLT_MAX );
+	B3_VALIDATE( B3_FIX( 0.0f ) < radius && radius < B3_FIXED_MAX );
 
 	b3Matrix3 inertia;
 	inertia.cx.x = yy + zz;
@@ -1986,33 +1994,37 @@ static bool b3UpdateHullBulkProperties( b3HullData* hull )
 	inertia.cy.z = -yz;
 	inertia.cz.z = xx + yy;
 
-	float mass = volume / 6.0f;
+	b3Fixed mass = b3FixDiv( volume , B3_FIX( 6.0f ) );
 
-	b3Matrix3 centralInertia = b3MulSM( 1.0f / 120.0f, inertia );
+	// Divide last for precision
+	b3Matrix3 centralInertia;
+	centralInertia.cx = (b3Vec3){ b3FixDiv( inertia.cx.x, B3_FIX( 120.0f ) ), b3FixDiv( inertia.cx.y, B3_FIX( 120.0f ) ), b3FixDiv( inertia.cx.z, B3_FIX( 120.0f ) ) };
+	centralInertia.cy = (b3Vec3){ b3FixDiv( inertia.cy.x, B3_FIX( 120.0f ) ), b3FixDiv( inertia.cy.y, B3_FIX( 120.0f ) ), b3FixDiv( inertia.cy.z, B3_FIX( 120.0f ) ) };
+	centralInertia.cz = (b3Vec3){ b3FixDiv( inertia.cz.x, B3_FIX( 120.0f ) ), b3FixDiv( inertia.cz.y, B3_FIX( 120.0f ) ), b3FixDiv( inertia.cz.z, B3_FIX( 120.0f ) ) };
 	centralInertia = b3SubMM( centralInertia, b3Steiner( mass, localCenter ) );
 
 	hull->center = center;
 	hull->centralInertia = centralInertia;
 	hull->volume = mass;
-	hull->surfaceArea = 0.5f * area;
+	hull->surfaceArea = b3FixMul( B3_FIX( 0.5f ) , area );
 	hull->innerRadius = radius;
 
-	if ( mass <= 0.0f )
+	if ( mass <= B3_FIX( 0.0f ) )
 	{
 		return false;
 	}
 
-	if ( volume <= 0.0f )
+	if ( volume <= B3_FIX( 0.0f ) )
 	{
 		return false;
 	}
 
-	if ( area <= 0.0f )
+	if ( area <= B3_FIX( 0.0f ) )
 	{
 		return false;
 	}
 
-	if ( radius <= 0.0f )
+	if ( radius <= B3_FIX( 0.0f ) )
 	{
 		return false;
 	}
@@ -2238,8 +2250,8 @@ bool b3CompareHullData( const b3HullData* hull1, const b3HullData* hull2 )
 
 // Hull identity covers every byte, so the structs carry explicit padding. These lock
 // the layout, re-audit padding if a size changes.
-_Static_assert( sizeof( b3HullData ) == 136, "unexpected hull data size" );
-_Static_assert( sizeof( b3BoxHull ) == 440, "unexpected box hull size" );
+_Static_assert( sizeof( b3HullData ) == 224, "unexpected hull data size" );
+_Static_assert( sizeof( b3BoxHull ) == 720, "unexpected box hull size" );
 
 #define NAME b3HullMap
 #define KEY_TY const b3HullData*
@@ -2279,7 +2291,7 @@ b3HullData* b3CloneAndTransformHull( const b3HullData* original, b3Transform tra
 	int faceCount = hull->faceCount;
 	int vertexCount = hull->vertexCount;
 
-	if ( safeScale.x * safeScale.y * safeScale.z < 0.0f )
+	if ( b3FixMul( b3FixMul( safeScale.x , safeScale.y ) , safeScale.z ) < B3_FIX( 0.0f ) )
 	{
 		// Reflected: reverse edge winding for each face.
 		for ( int i = 0; i < faceCount; ++i )
@@ -2373,21 +2385,21 @@ b3HullData* b3CloneAndTransformHull( const b3HullData* original, b3Transform tra
 
 			count++;
 			centroid = b3Add( centroid, v1 );
-			normal.x += ( v1.y - v2.y ) * ( v1.z + v2.z );
-			normal.y += ( v1.z - v2.z ) * ( v1.x + v2.x );
-			normal.z += ( v1.x - v2.x ) * ( v1.y + v2.y );
+			normal.x += b3FixMul( ( v1.y - v2.y ) , ( v1.z + v2.z ) );
+			normal.y += b3FixMul( ( v1.z - v2.z ) , ( v1.x + v2.x ) );
+			normal.z += b3FixMul( ( v1.x - v2.x ) , ( v1.y + v2.y ) );
 
 			currentEdgeIndex = edge->next;
 		}
 		while ( currentEdgeIndex != startEdgeIndex );
 
 		B3_ASSERT( count > 0 );
-		centroid = b3MulSV( 1.0f / (float)count, centroid );
+		centroid = b3MulSV( b3FixDiv( B3_FIX( 1.0f ) , (b3Fixed)b3FixFromInt( count ) ), centroid );
 		centroid = b3Add( centroid, origin );
 
-		float area = b3Length( normal );
-		B3_ASSERT( area > 0.0f );
-		normal = b3MulSV( 1.0f / area, normal );
+		b3Fixed area = b3Length( normal );
+		B3_ASSERT( area > B3_FIX( 0.0f ) );
+		normal = b3MulSV( b3FixDiv( B3_FIX( 1.0f ) , area ), normal );
 
 		planes[i] = b3MakePlaneFromNormalAndPoint( normal, centroid );
 	}
@@ -2413,10 +2425,10 @@ void b3DestroyHull( b3HullData* hull )
 	b3Free( hull, hull->byteCount );
 }
 
-b3MassData b3ComputeHullMass( const b3HullData* shape, float density )
+b3MassData b3ComputeHullMass( const b3HullData* shape, b3Fixed density )
 {
 	b3MassData out;
-	out.mass = density * shape->volume;
+	out.mass = b3FixMul( density , shape->volume );
 	out.center = shape->center;
 
 	// Inertia about the center of mass
@@ -2441,12 +2453,12 @@ bool b3OverlapHull( const b3HullData* shape, b3Transform shapeTransform, const b
 	const b3Vec3* points = b3GetHullPoints( shape );
 
 	b3DistanceInput input;
-	input.proxyA = (b3ShapeProxy){ points, shape->vertexCount, 0.0f };
+	input.proxyA = (b3ShapeProxy){ points, shape->vertexCount, B3_FIX( 0.0f ) };
 	input.proxyB = *proxy;
 	input.transform = b3InvMulTransforms( shapeTransform, b3Transform_identity );
 	input.useRadii = true;
 
-	b3SimplexCache cache = { 0 };
+	b3SimplexCache cache = { b3FixFromInt( 0 ) };
 	b3DistanceOutput output = b3ShapeDistance( &input, &cache, NULL, 0 );
 	return output.distance < B3_OVERLAP_SLOP;
 }
@@ -2454,10 +2466,10 @@ bool b3OverlapHull( const b3HullData* shape, b3Transform shapeTransform, const b
 b3CastOutput b3RayCastHull( const b3HullData* shape, const b3RayCastInput* input )
 {
 	B3_ASSERT( b3IsValidRay( input ) );
-	b3CastOutput output = { 0 };
+	b3CastOutput output = { b3FixFromInt( 0 ) };
 
-	float lower = 0.0f;
-	float upper = input->maxFraction;
+	b3Fixed lower = B3_FIX( 0.0f );
+	b3Fixed upper = input->maxFraction;
 	int bestFace = B3_NULL_INDEX;
 
 	const b3Plane* planes = b3GetHullPlanes( shape );
@@ -2466,21 +2478,21 @@ b3CastOutput b3RayCastHull( const b3HullData* shape, const b3RayCastInput* input
 	{
 		b3Plane plane = planes[faceIndex];
 
-		float distance = plane.offset - b3Dot( plane.normal, input->origin );
-		float denominator = b3Dot( plane.normal, input->translation );
+		b3Fixed distance = plane.offset - b3Dot( plane.normal, input->origin );
+		b3Fixed denominator = b3Dot( plane.normal, input->translation );
 
-		if ( denominator == 0.0f )
+		if ( denominator == B3_FIX( 0.0f ) )
 		{
-			if ( distance < 0.0f )
+			if ( distance < B3_FIX( 0.0f ) )
 			{
 				return output;
 			}
 		}
 		else
 		{
-			float fraction = distance / denominator;
+			b3Fixed fraction = b3FixDiv( distance , denominator );
 
-			if ( denominator < 0.0f )
+			if ( denominator < B3_FIX( 0.0f ) )
 			{
 				if ( fraction > lower )
 				{
@@ -2524,7 +2536,7 @@ b3CastOutput b3ShapeCastHull( const b3HullData* shape, const b3ShapeCastInput* i
 	const b3Vec3* points = b3GetHullPoints( shape );
 
 	b3ShapeCastPairInput pairInput;
-	pairInput.proxyA = (b3ShapeProxy){ points, shape->vertexCount, 0.0f };
+	pairInput.proxyA = (b3ShapeProxy){ points, shape->vertexCount, B3_FIX( 0.0f ) };
 	pairInput.proxyB = input->proxy;
 	pairInput.transform = b3Transform_identity;
 	pairInput.translationB = input->translation;
@@ -2539,17 +2551,17 @@ int b3CollideMoverAndHull( b3PlaneResult* result, const b3HullData* shape, const
 {
 	const b3Vec3* points = b3GetHullPoints( shape );
 	b3DistanceInput distanceInput;
-	distanceInput.proxyA = (b3ShapeProxy){ points, shape->vertexCount, 0.0f };
+	distanceInput.proxyA = (b3ShapeProxy){ points, shape->vertexCount, B3_FIX( 0.0f ) };
 	distanceInput.proxyB = (b3ShapeProxy){ &mover->center1, 2, mover->radius };
 	distanceInput.transform = b3Transform_identity;
 	distanceInput.useRadii = false;
 
-	float totalRadius = mover->radius;
+	b3Fixed totalRadius = mover->radius;
 
-	b3SimplexCache cache = { 0 };
+	b3SimplexCache cache = { b3FixFromInt( 0 ) };
 	b3DistanceOutput distanceOutput = b3ShapeDistance( &distanceInput, &cache, NULL, 0 );
 
-	if ( distanceOutput.distance == 0.0f )
+	if ( distanceOutput.distance == B3_FIX( 0.0f ) )
 	{
 		// I could handle deep overlap on hulls, but there is no reasonable solution for
 		// deep overlap on meshes. So if someone converted a hull to a mesh there would be
@@ -2584,9 +2596,9 @@ b3ShapeExtent b3ComputeHullExtent( const b3HullData* hull, b3Vec3 origin )
 	return extent;
 }
 
-float b3ComputeHullProjectedArea( const b3HullData* hull, b3Vec3 direction )
+b3Fixed b3ComputeHullProjectedArea( const b3HullData* hull, b3Vec3 direction )
 {
-	float area = 0.0f;
+	b3Fixed area = B3_FIX( 0.0f );
 
 	int faceCount = hull->faceCount;
 	const b3HullFace* hullFaces = b3GetHullFaces( hull );
@@ -2615,8 +2627,8 @@ float b3ComputeHullProjectedArea( const b3HullData* hull, b3Vec3 direction )
 			b3Vec3 e1 = b3Sub( p2, p1 );
 			b3Vec3 e2 = b3Sub( p3, p1 );
 			b3Vec3 n = b3Cross( e1, e2 );
-			float a = b3Dot( n, direction );
-			area += b3MaxFloat( a, 0.0f );
+			b3Fixed a = b3Dot( n, direction );
+			area += b3FixMax( a, B3_FIX( 0.0f ) );
 
 			p2 = p3;
 			edgeIndex = edge->next;
@@ -2624,7 +2636,7 @@ float b3ComputeHullProjectedArea( const b3HullData* hull, b3Vec3 direction )
 		while ( edgeIndex != baseEdge );
 	}
 
-	return 0.5f * area;
+	return b3FixMul( B3_FIX( 0.5f ) , area );
 }
 
 // Constant template box (vertex/edge/face/topology). b3MakeTransformedBoxHull copies and
@@ -2675,17 +2687,17 @@ static const b3BoxHull s_boxHull = {
 		},
 };
 
-b3BoxHull b3MakeTransformedBoxHull( float hx, float hy, float hz, b3Transform transform )
+b3BoxHull b3MakeTransformedBoxHull( b3Fixed hx, b3Fixed hy, b3Fixed hz, b3Transform transform )
 {
 	b3BoxHull boxHull = s_boxHull;
 
-	float minH = 0.2f * B3_LINEAR_SLOP;
+	b3Fixed minH = b3FixMul( B3_FIX( 0.2f ) , B3_LINEAR_SLOP );
 	b3Vec3 h = b3Max( (b3Vec3){ minH, minH, minH }, (b3Vec3){ hx, hy, hz } );
 
 	boxHull.base.aabb = b3AABB_Transform( transform, (b3AABB){ b3Neg( h ), h } );
-	boxHull.base.surfaceArea = 8.0f * ( h.x * h.y + h.x * h.z + h.y * h.z );
-	boxHull.base.volume = 8.0f * h.x * h.y * h.z;
-	boxHull.base.innerRadius = b3MinFloat( h.x, b3MinFloat( h.y, h.z ) );
+	boxHull.base.surfaceArea = b3FixMul( B3_FIX( 8.0f ) , ( b3FixMul( h.x , h.y ) + b3FixMul( h.x , h.z ) + b3FixMul( h.y , h.z ) ) );
+	boxHull.base.volume = b3FixMul( b3FixMul( b3FixMul( B3_FIX( 8.0f ) , h.x ) , h.y ) , h.z );
+	boxHull.base.innerRadius = b3FixMin( h.x, b3FixMin( h.y, h.z ) );
 	boxHull.base.center = transform.p;
 
 	b3Matrix3 boxInertia = b3BoxInertia( boxHull.base.volume, b3Neg( h ), h );
@@ -2716,48 +2728,48 @@ b3BoxHull b3MakeTransformedBoxHull( float hx, float hy, float hz, b3Transform tr
 	return boxHull;
 }
 
-b3BoxHull b3MakeCubeHull( float halfWidth )
+b3BoxHull b3MakeCubeHull( b3Fixed halfWidth )
 {
 	return b3MakeBoxHull( halfWidth, halfWidth, halfWidth );
 }
 
-b3BoxHull b3MakeOffsetBoxHull( float hx, float hy, float hz, b3Vec3 offset )
+b3BoxHull b3MakeOffsetBoxHull( b3Fixed hx, b3Fixed hy, b3Fixed hz, b3Vec3 offset )
 {
 	b3Transform transform = { .p = offset, .q = b3Quat_identity };
 	return b3MakeTransformedBoxHull( hx, hy, hz, transform );
 }
 
-b3BoxHull b3MakeBoxHull( float hx, float hy, float hz )
+b3BoxHull b3MakeBoxHull( b3Fixed hx, b3Fixed hy, b3Fixed hz )
 {
 	return b3MakeTransformedBoxHull( hx, hy, hz, b3Transform_identity );
 }
 
-void b3ScaleBox( b3Vec3* halfWidths, b3Transform* transform, b3Vec3 postScale, float minHalfWidth )
+void b3ScaleBox( b3Vec3* halfWidths, b3Transform* transform, b3Vec3 postScale, b3Fixed minHalfWidth )
 {
-	B3_ASSERT( b3IsValidFloat( minHalfWidth ) && minHalfWidth > 0.0f );
+	B3_ASSERT( b3IsValidFixed( minHalfWidth ) && minHalfWidth > B3_FIX( 0.0f ) );
 
 	b3Quat q = transform->q;
 
-	if ( postScale.x < 0.0f || postScale.y < 0.0f || postScale.z < 0.0f )
+	if ( postScale.x < B3_FIX( 0.0f ) || postScale.y < B3_FIX( 0.0f ) || postScale.z < B3_FIX( 0.0f ) )
 	{
 		// todo this might be unnecessary if rotation is identity
 		// todo compare with polar decomposition (much more expensive)
 		b3Matrix3 m = b3MakeMatrixFromQuat( q );
-		m.cx.x *= postScale.x;
-		m.cy.x *= postScale.x;
-		m.cz.x *= postScale.x;
-		m.cx.y *= postScale.y;
-		m.cy.y *= postScale.y;
-		m.cz.y *= postScale.y;
-		m.cx.z *= postScale.z;
-		m.cy.z *= postScale.z;
-		m.cz.z *= postScale.z;
+		m.cx.x = b3FixMul( m.cx.x, postScale.x );
+		m.cy.x = b3FixMul( m.cy.x, postScale.x );
+		m.cz.x = b3FixMul( m.cz.x, postScale.x );
+		m.cx.y = b3FixMul( m.cx.y, postScale.y );
+		m.cy.y = b3FixMul( m.cy.y, postScale.y );
+		m.cz.y = b3FixMul( m.cz.y, postScale.y );
+		m.cx.z = b3FixMul( m.cx.z, postScale.z );
+		m.cy.z = b3FixMul( m.cy.z, postScale.z );
+		m.cz.z = b3FixMul( m.cz.z, postScale.z );
 		m.cx = b3Normalize( m.cx );
 		m.cy = b3Normalize( m.cy );
 		m.cz = b3Normalize( m.cz );
-		m.cx = postScale.x < 0.0f ? b3Neg( m.cx ) : m.cx;
-		m.cy = postScale.y < 0.0f ? b3Neg( m.cy ) : m.cy;
-		m.cz = postScale.z < 0.0f ? b3Neg( m.cz ) : m.cz;
+		m.cx = postScale.x < B3_FIX( 0.0f ) ? b3Neg( m.cx ) : m.cx;
+		m.cy = postScale.y < B3_FIX( 0.0f ) ? b3Neg( m.cy ) : m.cy;
+		m.cz = postScale.z < B3_FIX( 0.0f ) ? b3Neg( m.cz ) : m.cz;
 		q = b3MakeQuatFromMatrix( &m );
 	}
 
@@ -2773,7 +2785,7 @@ void b3ScaleBox( b3Vec3* halfWidths, b3Transform* transform, b3Vec3 postScale, f
 	b3Vec3 lower = b3Min( localP1, localP2 );
 	b3Vec3 upper = b3Max( localP1, localP2 );
 
-	b3Vec3 scaledHalfWidth = b3MulSV( 0.5f, b3Sub( upper, lower ) );
+	b3Vec3 scaledHalfWidth = b3MulSV( B3_FIX( 0.5f ), b3Sub( upper, lower ) );
 
 	b3Vec3 mLimit = { minHalfWidth, minHalfWidth, minHalfWidth };
 	*halfWidths = b3Max( scaledHalfWidth, mLimit );
@@ -2786,6 +2798,6 @@ b3BoxHull b3MakeScaledBoxHull( b3Vec3 halfWidths, b3Transform transform, b3Vec3 
 {
 	b3Vec3 h = halfWidths;
 	b3Transform xf = transform;
-	b3ScaleBox( &h, &xf, postScale, 4.0f * B3_LINEAR_SLOP );
+	b3ScaleBox( &h, &xf, postScale, b3FixMul( B3_FIX( 4.0f ) , B3_LINEAR_SLOP ) );
 	return b3MakeTransformedBoxHull( h.x, h.y, h.z, xf );
 }

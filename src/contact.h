@@ -142,7 +142,7 @@ typedef struct b3Contact
 	b3Transform cachedRelativePose;
 
 	// Mixed friction and restitution
-	float friction;
+	b3Fixed friction;
 
 	// Usage determined by b3_simMeshContact in simFlags
 	union
@@ -151,8 +151,8 @@ typedef struct b3Contact
 		b3MeshContact meshContact;
 	};
 
-	float restitution;
-	float rollingResistance;
+	b3Fixed restitution;
+	b3Fixed rollingResistance;
 	b3Vec3 tangentVelocity;
 
 	// This is monotonically advanced when a contact is allocated in this slot

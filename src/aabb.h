@@ -6,15 +6,15 @@
 #include "box3d/types.h"
 
 // Ray cast an AABB. This is a custom function used by height fields.
-bool b3RayCastAABB( b3AABB a, b3Vec3 p1, b3Vec3 p2, float* minFraction, float* maxFraction );
+bool b3RayCastAABB( b3AABB a, b3Vec3 p1, b3Vec3 p2, b3Fixed* minFraction, b3Fixed* maxFraction );
 
 // Get the surface area (perimeter)
-static inline float b3Perimeter( b3AABB a )
+static inline b3Fixed b3Perimeter( b3AABB a )
 {
-	float wx = a.upperBound.x - a.lowerBound.x;
-	float wy = a.upperBound.y - a.lowerBound.y;
-	float wz = a.upperBound.z - a.lowerBound.z;
-	return 2.0f * ( wx * wz + wy * wx + wz * wy );
+	b3Fixed wx = a.upperBound.x - a.lowerBound.x;
+	b3Fixed wy = a.upperBound.y - a.lowerBound.y;
+	b3Fixed wz = a.upperBound.z - a.lowerBound.z;
+	return b3FixMul( B3_FIX( 2.0f ) , ( b3FixMul( wx , wz ) + b3FixMul( wy , wx ) + b3FixMul( wz , wy ) ) );
 }
 
 /// Enlarge a to contain b

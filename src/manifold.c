@@ -23,7 +23,7 @@ int b3FindIncidentFace( const b3HullData* hull, b3Vec3 refNormal, int vertexInde
 	const b3Vec3* points = b3GetHullPoints( hull );
 
 	int minEdgeIndex = -1;
-	float minEdgeProjection = FLT_MAX;
+	b3Fixed minEdgeProjection = B3_FIXED_MAX;
 
 	const b3HullVertex* vertex = vertices + vertexIndex;
 	B3_ASSERT( vertex );
@@ -39,7 +39,7 @@ int b3FindIncidentFace( const b3HullData* hull, b3Vec3 refNormal, int vertexInde
 		b3Vec3 twinOrigin = points[twin->origin];
 
 		b3Vec3 axis = b3Normalize( b3Sub( twinOrigin, edgeOrigin ) );
-		float edgeProjection = b3AbsFloat( b3Dot( axis, refNormal ) );
+		b3Fixed edgeProjection = b3FixAbs( b3Dot( axis, refNormal ) );
 		if ( edgeProjection < minEdgeProjection )
 		{
 			minEdgeIndex = edgeIndex;
@@ -131,25 +131,25 @@ int b3ClipPolygon( b3ClipVertex* out, b3ClipVertex* polygon, int count, b3Plane 
 	B3_ASSERT( count >= 3 );
 
 	b3ClipVertex vertex1 = polygon[count - 1];
-	float distance1 = b3PlaneSeparation( clipPlane, vertex1.position );
+	b3Fixed distance1 = b3PlaneSeparation( clipPlane, vertex1.position );
 	int outCount = 0;
 
 	for ( int index = 0; index < count; ++index )
 	{
 		b3ClipVertex vertex2 = polygon[index];
-		float distance2 = b3PlaneSeparation( clipPlane, vertex2.position );
+		b3Fixed distance2 = b3PlaneSeparation( clipPlane, vertex2.position );
 
 		// Clip edge against plane (Sutherland-Hodgman clipping)
-		if ( distance1 <= 0.0f && distance2 <= 0.0f )
+		if ( distance1 <= B3_FIX( 0.0f ) && distance2 <= B3_FIX( 0.0f ) )
 		{
 			// Both vertices are behind the plane - keep vertex2
 			out[outCount] = vertex2;
 			outCount += 1;
 		}
-		else if ( distance1 <= 0.0f && distance2 > 0.0f )
+		else if ( distance1 <= B3_FIX( 0.0f ) && distance2 > B3_FIX( 0.0f ) )
 		{
 			// Vertex1 is behind of the plane, vertex2 is in front -> intersection point
-			float fraction = distance1 / ( distance1 - distance2 );
+			b3Fixed fraction = b3FixDiv( distance1 , ( distance1 - distance2 ) );
 			b3Vec3 position = b3MulAdd( vertex1.position, fraction, b3Sub( vertex2.position, vertex1.position ) );
 
 			// Keep intersection point and adjust outgoing edge
@@ -162,10 +162,10 @@ int b3ClipPolygon( b3ClipVertex* out, b3ClipVertex* polygon, int count, b3Plane 
 			out[outCount] = vertex;
 			outCount += 1;
 		}
-		else if ( distance2 <= 0.0f && distance1 > 0.0f )
+		else if ( distance2 <= B3_FIX( 0.0f ) && distance1 > B3_FIX( 0.0f ) )
 		{
 			// Vertex1 is in front, vertex2 is behind of the plane, -> intersection point
-			float fraction = distance1 / ( distance1 - distance2 );
+			b3Fixed fraction = b3FixDiv( distance1 , ( distance1 - distance2 ) );
 			b3Vec3 position = b3MulAdd( vertex1.position, fraction, b3Sub( vertex2.position, vertex1.position ) );
 
 			// Keep intersection point and adjust incoming edge

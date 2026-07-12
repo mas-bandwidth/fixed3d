@@ -57,7 +57,7 @@ typedef struct b3DebugPoint
 {
 	b3Pos p;
 	int label;
-	float value;
+	b3Fixed value;
 	b3HexColor color;
 } b3DebugPoint;
 
@@ -96,7 +96,7 @@ typedef struct b3TaskContext
 	b3BitSet awakeIslandBitSet;
 
 	// Per worker split island candidate
-	float splitSleepTime;
+	b3Fixed splitSleepTime;
 	int splitIslandId;
 
 	// Profiling
@@ -226,13 +226,13 @@ typedef struct b3World
 	int splitIslandId;
 
 	b3Vec3 gravity;
-	float hitEventThreshold;
-	float restitutionThreshold;
-	float maxLinearSpeed;
-	float contactSpeed;
-	float contactHertz;
-	float contactDampingRatio;
-	float contactRecycleDistance;
+	b3Fixed hitEventThreshold;
+	b3Fixed restitutionThreshold;
+	b3Fixed maxLinearSpeed;
+	b3Fixed contactSpeed;
+	b3Fixed contactHertz;
+	b3Fixed contactDampingRatio;
+	b3Fixed contactRecycleDistance;
 
 	b3FrictionCallback* frictionCallback;
 	b3RestitutionCallback* restitutionCallback;
@@ -267,10 +267,10 @@ typedef struct b3World
 	struct b3Recording* recording;
 
 	// latest inverse sub-step
-	float inv_h;
+	b3Fixed inv_h;
 
 	// latest inverse full-step
-	float inv_dt;
+	b3Fixed inv_dt;
 
 	int activeTaskCount;
 	int taskCount;

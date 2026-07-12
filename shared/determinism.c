@@ -10,7 +10,7 @@
 #include <assert.h>
 #include <stdlib.h>
 
-#define GRID_SIZE 15.0f
+#define GRID_SIZE B3_FIX( 15.0f )
 
 static void CreateGroup( FallingRagdollData* data, b3WorldId worldId, int rowIndex, int columnIndex )
 {
@@ -18,24 +18,24 @@ static void CreateGroup( FallingRagdollData* data, b3WorldId worldId, int rowInd
 
 	int groupIndex = rowIndex * RAGDOLL_GRID_COUNT + columnIndex;
 
-	float span = RAGDOLL_GRID_COUNT * GRID_SIZE;
-	float groupDistance = 1.0f * span / RAGDOLL_GRID_COUNT;
+	b3Fixed span = RAGDOLL_GRID_COUNT * GRID_SIZE;
+	b3Fixed groupDistance = span / RAGDOLL_GRID_COUNT;
 
 	b3Pos position;
-	position.x = -0.5f * span + groupDistance * ( columnIndex + 0.5f );
-	position.y = 15.0f;
-	position.z = -0.5f * span + groupDistance * ( rowIndex + 0.5f );
+	position.x = b3FixMul( -B3_FIX( 0.5f ) , span ) + b3FixMul( groupDistance , ( b3FixFromInt( columnIndex ) + B3_FIX( 0.5f ) ) );
+	position.y = B3_FIX( 15.0f );
+	position.z = b3FixMul( -B3_FIX( 0.5f ) , span ) + b3FixMul( groupDistance , ( b3FixFromInt( rowIndex ) + B3_FIX( 0.5f ) ) );
 
-	float frictionTorque = 5.0f;
-	float hertz = 1.0f;
-	float dampingRatio = 0.7f;
+	b3Fixed frictionTorque = B3_FIX( 5.0f );
+	b3Fixed hertz = B3_FIX( 1.0f );
+	b3Fixed dampingRatio = B3_FIX( 0.7f );
 	bool colorize = false;
 
 	for ( int i = 0; i < RAGDOLL_GROUP_SIZE; ++i )
 	{
 		Human* human = data->groups[groupIndex].humans + i;
 		CreateHuman( human, worldId, position, frictionTorque, hertz, dampingRatio, groupIndex, NULL, colorize );
-		position.x += 0.75f;
+		position.x += B3_FIX( 0.75f );
 	}
 }
 
@@ -44,18 +44,18 @@ FallingRagdollData CreateFallingRagdolls( b3WorldId worldId )
 	FallingRagdollData data = { 0 };
 
 	int halfMeshGridRows = 4;
-	float meshGridCellWidth = GRID_SIZE / ( 2.0f * halfMeshGridRows );
+	b3Fixed meshGridCellWidth = b3FixDiv( GRID_SIZE , ( b3FixMul( B3_FIX( 2.0f ) , b3FixFromInt( halfMeshGridRows ) ) ) );
 	data.gridMesh = b3CreateGridMesh( 2 * halfMeshGridRows, 2 * halfMeshGridRows, meshGridCellWidth, 0, true );
-	data.torusMesh = b3CreateTorusMesh( 16, 16, 0.25f * GRID_SIZE, 1.0f );
+	data.torusMesh = b3CreateTorusMesh( 16, 16, b3FixMul( B3_FIX( 0.25f ) , GRID_SIZE ), B3_FIX( 1.0f ) );
 
-	float span = GRID_SIZE * RAGDOLL_GRID_COUNT;
+	b3Fixed span = GRID_SIZE * RAGDOLL_GRID_COUNT;
 	b3BodyDef bodyDef = b3DefaultBodyDef();
 	b3ShapeDef shapeDef = b3DefaultShapeDef();
 
-	bodyDef.position.x = -0.5f * span + 0.5f * GRID_SIZE;
+	bodyDef.position.x = b3FixMul( -B3_FIX( 0.5f ) , span ) + b3FixMul( B3_FIX( 0.5f ) , GRID_SIZE );
 	for ( int i = 0; i < RAGDOLL_GRID_COUNT; ++i )
 	{
-		bodyDef.position.z = -0.5f * span + 0.5f * GRID_SIZE;
+		bodyDef.position.z = b3FixMul( -B3_FIX( 0.5f ) , span ) + b3FixMul( B3_FIX( 0.5f ) , GRID_SIZE );
 		for ( int j = 0; j < RAGDOLL_GRID_COUNT; ++j )
 		{
 			b3BodyId body = b3CreateBody( worldId, &bodyDef );

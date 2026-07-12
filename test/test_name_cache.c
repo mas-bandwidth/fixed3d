@@ -74,23 +74,23 @@ _Static_assert( ARRAY_COUNT( s_shapeNames ) == ARRAY_COUNT( s_bodyNames ), "name
 
 static void BuildNamedScene( b3WorldId worldId )
 {
-	b3World_SetGravity( worldId, (b3Vec3){ 0.0f, -10.0f, 0.0f } );
+	b3World_SetGravity( worldId, (b3Vec3){ B3_FIX( 0.0f ), -B3_FIX( 10.0f ), B3_FIX( 0.0f ) } );
 
 	b3BodyDef groundDef = b3DefaultBodyDef();
 	groundDef.type = b3_staticBody;
 	b3BodyId groundId = b3CreateBody( worldId, &groundDef );
-	b3BoxHull groundBox = b3MakeBoxHull( 20.0f, 1.0f, 20.0f );
+	b3BoxHull groundBox = b3MakeBoxHull( B3_FIX( 20.0f ), B3_FIX( 1.0f ), B3_FIX( 20.0f ) );
 	b3ShapeDef groundShape = b3DefaultShapeDef();
 	b3CreateHullShape( groundId, &groundShape, &groundBox.base );
 
 	b3ShapeDef boxShape = b3DefaultShapeDef();
-	boxShape.density = 1.0f;
+	boxShape.density = B3_FIX( 1.0f );
 	for ( int i = 0; i < ARRAY_COUNT( s_bodyNames ); ++i )
 	{
-		b3BoxHull box = b3MakeBoxHull( 0.5f, 0.5f, 0.5f );
+		b3BoxHull box = b3MakeBoxHull( B3_FIX( 0.5f ), B3_FIX( 0.5f ), B3_FIX( 0.5f ) );
 		b3BodyDef bodyDef = b3DefaultBodyDef();
 		bodyDef.type = b3_dynamicBody;
-		bodyDef.position = (b3Pos){ 0.0f, 1.0f + 1.1f * (float)i, 0.0f };
+		bodyDef.position = (b3Pos){ B3_FIX( 0.0f ), B3_FIX( 1.0f ) + b3FixMul( B3_FIX( 1.1f ) , (b3Fixed)b3FixFromInt( i ) ), B3_FIX( 0.0f ) };
 		bodyDef.name = s_bodyNames[i];
 		b3BodyId bodyId = b3CreateBody( worldId, &bodyDef );
 		boxShape.name = s_shapeNames[i];
@@ -131,7 +131,7 @@ static int NameRoundTrip( void )
 	b3World_StartRecording( worldId, rec );
 	for ( int i = 0; i < 20; ++i )
 	{
-		b3World_Step( worldId, 1.0f / 60.0f, 4 );
+		b3World_Step( worldId, b3FixDiv( B3_FIX( 1.0f ) , B3_FIX( 60.0f ) ), 4 );
 	}
 	b3World_StopRecording( worldId );
 	b3DestroyWorld( worldId );
@@ -167,13 +167,13 @@ static int RollbackNames( void )
 	// Settle, then record a snapshot-seeded session long enough to span several keyframes.
 	for ( int i = 0; i < 10; ++i )
 	{
-		b3World_Step( worldId, 1.0f / 60.0f, 4 );
+		b3World_Step( worldId, b3FixDiv( B3_FIX( 1.0f ) , B3_FIX( 60.0f ) ), 4 );
 	}
 	b3World_StartRecording( worldId, rec );
 	const int totalFrames = 80;
 	for ( int i = 0; i < totalFrames; ++i )
 	{
-		b3World_Step( worldId, 1.0f / 60.0f, 4 );
+		b3World_Step( worldId, b3FixDiv( B3_FIX( 1.0f ) , B3_FIX( 60.0f ) ), 4 );
 	}
 	b3World_StopRecording( worldId );
 	b3DestroyWorld( worldId );

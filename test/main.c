@@ -123,8 +123,8 @@ int main( int argc, char** argv )
 	printf( "======================================\n" );
 	printf( "All Box3D tests passed!\n" );
 
-	float duration = b3GetMilliseconds( ticks );
-	printf( "Test duration = %.2f s\n", 0.001f * duration );
+	b3Fixed duration = b3GetMilliseconds( ticks );
+	printf( "Test duration = %.2f s\n", b3FixToDouble( b3FixMul( B3_FIX( 0.001f ) , duration ) ) );
 
 #ifdef TRACY_ENABLE
 	___tracy_shutdown_profiler();

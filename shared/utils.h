@@ -38,26 +38,26 @@ B3_INLINE int RandomInt()
 }
 
 // Random integer in range [lo, hi]
-B3_INLINE float RandomIntRange( int lo, int hi )
+B3_INLINE b3Fixed RandomIntRange( int lo, int hi )
 {
-	return lo + RandomInt() % ( hi - lo + 1 );
+	return b3FixFromInt( lo + RandomInt() % ( hi - lo + 1 ) );
 }
 
 // Random number in range [-1,1]
-B3_INLINE float RandomFloat()
+B3_INLINE b3Fixed RandomFloat()
 {
-	float r = (float)( RandomInt() & ( RAND_LIMIT ) );
+	b3Fixed r = (b3Fixed)b3FixFromInt( ( RandomInt() & ( RAND_LIMIT ) ) );
 	r /= RAND_LIMIT;
-	r = 2.0f * r - 1.0f;
+	r = b3FixMul( B3_FIX( 2.0f ) , r ) - B3_FIX( 1.0f );
 	return r;
 }
 
 // Random floating point number in range [lo, hi]
-B3_INLINE float RandomFloatRange( float lo, float hi )
+B3_INLINE b3Fixed RandomFloatRange( b3Fixed lo, b3Fixed hi )
 {
-	float r = (float)( RandomInt() & ( RAND_LIMIT ) );
+	b3Fixed r = (b3Fixed)b3FixFromInt( ( RandomInt() & ( RAND_LIMIT ) ) );
 	r /= RAND_LIMIT;
-	r = ( hi - lo ) * r + lo;
+	r = b3FixMul( ( hi - lo ) , r ) + lo;
 	return r;
 }
 
@@ -81,7 +81,7 @@ B3_INLINE b3Pos RandomPos( b3Vec3 lo, b3Vec3 hi )
 	return v;
 }
 
-B3_INLINE b3Vec3 RandomVec3Uniform( float lo, float hi )
+B3_INLINE b3Vec3 RandomVec3Uniform( b3Fixed lo, b3Fixed hi )
 {
 	b3Vec3 v;
 	v.x = RandomFloatRange( lo, hi );
@@ -95,17 +95,17 @@ B3_INLINE b3Vec3 RandomUnitVector()
 	// Generate uniformly distributed random quaternion using Shoemake's method
 	// Reference: "Uniform Random Rotations", Ken Shoemake, Graphics Gems III, 1992
 
-	float u1 = RandomFloatRange( 0.0f, 1.0f );
-	float u2 = RandomFloatRange( 0.0f, 2.0f * B3_PI );
-	float u3 = RandomFloatRange( 0.0f, 2.0f * B3_PI );
+	b3Fixed u1 = RandomFloatRange( B3_FIX( 0.0f ), B3_FIX( 1.0f ) );
+	b3Fixed u2 = RandomFloatRange( B3_FIX( 0.0f ), b3FixMul( B3_FIX( 2.0f ) , B3_PI ) );
+	b3Fixed u3 = RandomFloatRange( B3_FIX( 0.0f ), b3FixMul( B3_FIX( 2.0f ) , B3_PI ) );
 
-	float sqrt1MinusU1 = sqrtf( 1.0f - u1 );
-	float sqrtU1 = sqrtf( u1 );
+	b3Fixed sqrt1MinusU1 = b3FixSqrt( B3_FIX( 1.0f ) - u1 );
+	b3Fixed sqrtU1 = b3FixSqrt( u1 );
 
 	b3Vec3 v;
-	v.x = sqrt1MinusU1 * sinf( u2 );
-	v.y = sqrt1MinusU1 * cosf( u2 );
-	v.z = sqrtU1 * sinf( u3 );
+	v.x = b3FixMul( sqrt1MinusU1 , b3Sin( u2 ) );
+	v.y = b3FixMul( sqrt1MinusU1 , b3Cos( u2 ) );
+	v.z = b3FixMul( sqrtU1 , b3Sin( u3 ) );
 
 	return v;
 }
@@ -115,18 +115,18 @@ B3_INLINE b3Quat RandomQuat()
 	// Generate uniformly distributed random quaternion using Shoemake's method
 	// Reference: "Uniform Random Rotations", Ken Shoemake, Graphics Gems III, 1992
 
-	float u1 = RandomFloatRange( 0.0f, 1.0f );
-	float u2 = RandomFloatRange( 0.0f, 2.0f * B3_PI );
-	float u3 = RandomFloatRange( 0.0f, 2.0f * B3_PI );
+	b3Fixed u1 = RandomFloatRange( B3_FIX( 0.0f ), B3_FIX( 1.0f ) );
+	b3Fixed u2 = RandomFloatRange( B3_FIX( 0.0f ), b3FixMul( B3_FIX( 2.0f ) , B3_PI ) );
+	b3Fixed u3 = RandomFloatRange( B3_FIX( 0.0f ), b3FixMul( B3_FIX( 2.0f ) , B3_PI ) );
 
-	float sqrt1MinusU1 = sqrtf( 1.0f - u1 );
-	float sqrtU1 = sqrtf( u1 );
+	b3Fixed sqrt1MinusU1 = b3FixSqrt( B3_FIX( 1.0f ) - u1 );
+	b3Fixed sqrtU1 = b3FixSqrt( u1 );
 
 	b3Quat q;
-	q.v.x = sqrt1MinusU1 * sinf( u2 );
-	q.v.y = sqrt1MinusU1 * cosf( u2 );
-	q.v.z = sqrtU1 * sinf( u3 );
-	q.s = sqrtU1 * cosf( u3 );
+	q.v.x = b3FixMul( sqrt1MinusU1 , b3Sin( u2 ) );
+	q.v.y = b3FixMul( sqrt1MinusU1 , b3Cos( u2 ) );
+	q.v.z = b3FixMul( sqrtU1 , b3Sin( u3 ) );
+	q.s = b3FixMul( sqrtU1 , b3Cos( u3 ) );
 
 	return q;
 }

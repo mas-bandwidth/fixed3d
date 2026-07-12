@@ -11,13 +11,13 @@
 struct b3Sweep;
 struct b3Plane;
 
-#define B3_TWO_PI 6.283185307f
-#define B3_PI_OVER_TWO 1.570796327f
-#define B3_PI_OVER_FOUR 0.785398163f
-#define B3_SQRT3 1.732050808f
+#define B3_TWO_PI B3_FIX( 6.283185307f )
+#define B3_PI_OVER_TWO B3_FIX( 1.570796327f )
+#define B3_PI_OVER_FOUR B3_FIX( 0.785398163f )
+#define B3_SQRT3 B3_FIX( 1.732050808f )
 
 // todo eliminate this
-static const b3AABB B3_BOUNDS3_EMPTY = { { FLT_MAX, FLT_MAX, FLT_MAX }, { -FLT_MAX, -FLT_MAX, -FLT_MAX } };
+static const b3AABB B3_BOUNDS3_EMPTY = { { B3_FIXED_MAX, B3_FIXED_MAX, B3_FIXED_MAX }, { -B3_FIXED_MAX, -B3_FIXED_MAX, -B3_FIXED_MAX } };
 
 typedef struct b3Matrix2
 {
@@ -39,23 +39,23 @@ typedef struct b3TrianglePoint
 
 typedef struct b3ShapeExtent
 {
-	float minExtent;
+	b3Fixed minExtent;
 	b3Vec3 maxExtent;
 } b3ShapeExtent;
 
 b3TrianglePoint b3ClosestPointOnTriangle( b3Vec3 a, b3Vec3 b, b3Vec3 c, b3Vec3 q );
 
-float b3IntersectSegmentTriangle( b3Vec3 p, b3Vec3 q, b3Vec3 a, b3Vec3 b, b3Vec3 c );
-float b3IntersectSegmentSphere( b3Vec3 p, b3Vec3 q, b3Vec3 c, float r );
+b3Fixed b3IntersectSegmentTriangle( b3Vec3 p, b3Vec3 q, b3Vec3 a, b3Vec3 b, b3Vec3 c );
+b3Fixed b3IntersectSegmentSphere( b3Vec3 p, b3Vec3 q, b3Vec3 c, b3Fixed r );
 
 b3MassData b3ComputeMassProperties( int triangleCount, const int* triangles, int vertexCount, const b3Vec3* vertices,
-									float density );
+									b3Fixed density );
 
 bool b3IsValidMassData( const b3MassData* massData );
 
-b3Matrix3 b3SphereInertia( float mass, float radius );
-b3Matrix3 b3CylinderInertia( float mass, float radius, float height );
-b3Matrix3 b3BoxInertia( float mass, b3Vec3 min, b3Vec3 max );
+b3Matrix3 b3SphereInertia( b3Fixed mass, b3Fixed radius );
+b3Matrix3 b3CylinderInertia( b3Fixed mass, b3Fixed radius, b3Fixed height );
+b3Matrix3 b3BoxInertia( b3Fixed mass, b3Vec3 min, b3Vec3 max );
 
 // Inertia helper (Io = Ic + Is and Ic = Io - Is)
 int b3GetProxySupport( const b3ShapeProxy* proxy, b3Vec3 axis );
@@ -82,17 +82,17 @@ static inline int b3CeilingPow2( int numerator, int denominator, int exponent )
 
 bool b3IsSweepNormalized( b3Sweep* sweep );
 
-static inline float b3Dot2( b3Vec2 v1, b3Vec2 v2 )
+static inline b3Fixed b3Dot2( b3Vec2 v1, b3Vec2 v2 )
 {
-	return v1.x * v2.x + v1.y * v2.y;
+	return b3FixMul( v1.x , v2.x ) + b3FixMul( v1.y , v2.y );
 }
 
-static inline float b3Length2( b3Vec2 v )
+static inline b3Fixed b3Length2( b3Vec2 v )
 {
-	return sqrtf( b3Dot2( v, v ) );
+	return b3FixSqrt( b3Dot2( v, v ) );
 }
 
-static inline float b3LengthSquared2( b3Vec2 v )
+static inline b3Fixed b3LengthSquared2( b3Vec2 v )
 {
 	return b3Dot2( v, v );
 }
@@ -100,36 +100,36 @@ static inline float b3LengthSquared2( b3Vec2 v )
 static inline b3Vec2 b3MinVec2( b3Vec2 v1, b3Vec2 v2 )
 {
 	b3Vec2 v;
-	v.x = b3MinFloat( v1.x, v2.x );
-	v.y = b3MinFloat( v1.y, v2.y );
+	v.x = b3FixMin( v1.x, v2.x );
+	v.y = b3FixMin( v1.y, v2.y );
 	return v;
 }
 
 static inline b3Vec2 b3MaxVec2( b3Vec2 v1, b3Vec2 v2 )
 {
 	b3Vec2 v;
-	v.x = b3MaxFloat( v1.x, v2.x );
-	v.y = b3MaxFloat( v1.y, v2.y );
+	v.x = b3FixMax( v1.x, v2.x );
+	v.y = b3FixMax( v1.y, v2.y );
 	return v;
 }
 
-static inline void b3Store( float* dst, b3Vec3 src )
+static inline void b3Store( b3Fixed* dst, b3Vec3 src )
 {
 	dst[0] = src.x;
 	dst[1] = src.y;
 	dst[2] = src.z;
 }
 
-static inline b3Vec3 b3ClampLength( b3Vec3 v, float maxLength )
+static inline b3Vec3 b3ClampLength( b3Vec3 v, b3Fixed maxLength )
 {
-	float lengthSq = b3LengthSquared( v );
-	if ( lengthSq <= maxLength * maxLength )
+	b3Fixed lengthSq = b3LengthSquared( v );
+	if ( lengthSq <= b3FixMul( maxLength , maxLength ) )
 	{
 		return v;
 	}
 
-	float length = sqrtf( lengthSq );
-	return b3MulSV( maxLength / length, v );
+	b3Fixed length = b3FixSqrt( lengthSq );
+	return b3MulSV( b3FixDiv( maxLength , length ), v );
 }
 
 // Assume v is a unit vector
@@ -139,41 +139,41 @@ static inline b3Vec3 b3ArbitraryPerp( b3Vec3 v )
 	// Then 3*s*s = 1, s = sqrt(1/3) = 0.57735. This means that at least one component
 	// of a unit vector must be greater or equal to 0.57735.
 	b3Vec3 p;
-	if ( v.x < -0.5f || 0.5f < v.x )
+	if ( v.x < -B3_FIX( 0.5f ) || B3_FIX( 0.5f ) < v.x )
 	{
 		// x is non-zero and it should not go into the x component
 		// dot([ay + bz, cx, dx], [x, y, z]) = ayx + bzx + cxy + dzx
 		// for the dot product to be zero need: c = -a, d = -b
-		float a = 0.67f;
-		float b = -0.42f;
-		p = B3_LITERAL( b3Vec3 ){ a * v.y + b * v.z, -a * v.x, -b * v.x };
+		b3Fixed a = B3_FIX( 0.67f );
+		b3Fixed b = -B3_FIX( 0.42f );
+		p = B3_LITERAL( b3Vec3 ){ b3FixMul( a , v.y ) + b3FixMul( b , v.z ), b3FixMul( -a , v.x ), b3FixMul( -b , v.x ) };
 	}
-	else if ( v.y < -0.5f || 0.5f < v.y )
+	else if ( v.y < -B3_FIX( 0.5f ) || B3_FIX( 0.5f ) < v.y )
 	{
 		// y is non-zero and it should not go into the y component
 		// p = [ay, bx + cz, dy]
 		// axy + bxy + cyz + dyz = 0
 		// b = -a, d = -c
-		float a = 0.67f;
-		float c = -0.42f;
-		p = B3_LITERAL( b3Vec3 ){ a * v.y, -a * v.x + c * v.z, -c * v.y };
+		b3Fixed a = B3_FIX( 0.67f );
+		b3Fixed c = -B3_FIX( 0.42f );
+		p = B3_LITERAL( b3Vec3 ){ b3FixMul( a , v.y ), b3FixMul( -a , v.x ) + b3FixMul( c , v.z ), b3FixMul( -c , v.y ) };
 	}
 	else
 	{
 		// This would trip if the input is not a unit vector
-		B3_VALIDATE( v.z < -0.5f || 0.5f < v.z );
+		B3_VALIDATE( v.z < -B3_FIX( 0.5f ) || B3_FIX( 0.5f ) < v.z );
 
 		// z is non-zero and it should not go into the z component
 		// p = [az, bz, cx + dy]
 		// axz + byz + cxz + dyz = 0
 		// c = -a, d = -b
-		float a = 0.67f;
-		float b = -0.42f;
-		p = B3_LITERAL( b3Vec3 ){ a * v.z, b * v.z, -a * v.x - b * v.y };
+		b3Fixed a = B3_FIX( 0.67f );
+		b3Fixed b = -B3_FIX( 0.42f );
+		p = B3_LITERAL( b3Vec3 ){ b3FixMul( a , v.z ), b3FixMul( b , v.z ), b3FixMul( -a , v.x ) - b3FixMul( b , v.y ) };
 	}
 
-	B3_VALIDATE( b3LengthSquared( p ) > 0.1f );
-	B3_VALIDATE( b3AbsFloat( b3Dot( p, v ) ) < 100.0f * FLT_EPSILON );
+	B3_VALIDATE( b3LengthSquared( p ) > B3_FIX( 0.1f ) );
+	B3_VALIDATE( b3FixAbs( b3Dot( p, v ) ) < 100 * B3_FIXED_EPSILON );
 
 	return b3Normalize( p );
 }
@@ -181,20 +181,20 @@ static inline b3Vec3 b3ArbitraryPerp( b3Vec3 v )
 static inline b3Quat b3QuatFromExponentialMap( b3Vec3 v )
 {
 	// Exponential map (Grassia)
-	float threshold = 0.018581361f;
+	b3Fixed threshold = B3_FIX( 0.018581361f );
 
-	float angle = b3Length( v );
+	b3Fixed angle = b3Length( v );
 	if ( angle < threshold )
 	{
 		// Taylor expansion
 		b3Quat out;
-		out.v = b3MulSV( 0.5f + angle * angle / 48.0f, v );
-		out.s = b3Cos( 0.5f * angle );
+		out.v = b3MulSV( B3_FIX( 0.5f ) + b3FixDiv( b3FixMul( angle , angle ) , B3_FIX( 48.0f ) ), v );
+		out.s = b3Cos( b3FixMul( B3_FIX( 0.5f ) , angle ) );
 
 		return out;
 	}
 
-	return b3MakeQuatFromAxisAngle( b3MulSV( 1.0f / angle, v ), angle );
+	return b3MakeQuatFromAxisAngle( b3MulSV( b3FixDiv( B3_FIX( 1.0f ) , angle ), v ), angle );
 }
 
 /// Integrate rotation from angular velocity
@@ -205,7 +205,7 @@ static inline b3Quat b3IntegrateRotation( b3Quat q1, b3Vec3 deltaRotation )
 {
 #if 1
 	// https://fgiesen.wordpress.com/2012/08/24/quaternion-differentiation/
-	b3Quat qd = { b3MulSV( 0.5f, deltaRotation ), 0.0f };
+	b3Quat qd = { b3MulSV( B3_FIX( 0.5f ), deltaRotation ), B3_FIX( 0.0f ) };
 	qd = b3MulQuat( qd, q1 );
 	b3Quat q2 = { b3Add( q1.v, qd.v ), qd.s + q1.s };
 	q2 = b3NormalizeQuat( q2 );
@@ -220,7 +220,7 @@ static inline b3Quat b3IntegrateRotation( b3Quat q1, b3Vec3 deltaRotation )
 static inline b3Vec3 b3DeltaQuatToRotation( b3Quat q, b3Quat target )
 {
 	b3Quat s = q;
-	if ( b3DotQuat( q, target ) < 0.0f )
+	if ( b3DotQuat( q, target ) < B3_FIX( 0.0f ) )
 	{
 		// Correct polarity
 		s = b3NegateQuat( q );
@@ -228,23 +228,23 @@ static inline b3Vec3 b3DeltaQuatToRotation( b3Quat q, b3Quat target )
 
 	b3Quat diff = { b3Sub( target.v, s.v ), target.s - s.s };
 	b3Quat product = b3MulQuat( diff, b3Conjugate( s ) );
-	return b3MulSV( 2.0f, product.v );
+	return b3MulSV( B3_FIX( 2.0f ), product.v );
 }
 
-static inline float b3ScalarTripleProduct( b3Vec3 a, b3Vec3 b, b3Vec3 c )
+static inline b3Fixed b3ScalarTripleProduct( b3Vec3 a, b3Vec3 b, b3Vec3 c )
 {
 	b3Vec3 d;
-	d.x = b.y * c.z - b.z * c.y;
-	d.y = b.z * c.x - b.x * c.z;
-	d.z = b.x * c.y - b.y * c.x;
-	return a.x * d.x + a.y * d.y + a.z * d.z;
+	d.x = b3FixMul( b.y , c.z ) - b3FixMul( b.z , c.y );
+	d.y = b3FixMul( b.z , c.x ) - b3FixMul( b.x , c.z );
+	d.z = b3FixMul( b.x , c.y ) - b3FixMul( b.y , c.x );
+	return b3FixMul( a.x , d.x ) + b3FixMul( a.y , d.y ) + b3FixMul( a.z , d.z );
 }
 
 // Get a value by index. Avoid undefined behavior of code like (&v.x)[2].
-static inline float b3GetByIndex( b3Vec3 v, int index )
+static inline b3Fixed b3GetByIndex( b3Vec3 v, int index )
 {
 	B3_VALIDATE( 0 <= index && index < 3 );
-	float temp[3] = { v.x, v.y, v.z };
+	b3Fixed temp[3] = { v.x, v.y, v.z };
 	return temp[index];
 }
 
@@ -253,14 +253,14 @@ static inline int b3MajorAxis( b3Vec3 v )
 	return v.x < v.y ? ( v.y < v.z ? 2 : 1 ) : ( v.x < v.z ? 2 : 0 );
 }
 
-static inline float b3MinElement( b3Vec3 v )
+static inline b3Fixed b3MinElement( b3Vec3 v )
 {
-	return b3MinFloat( v.x, b3MinFloat( v.y, v.z ) );
+	return b3FixMin( v.x, b3FixMin( v.y, v.z ) );
 }
 
-static inline float b3MaxElement( b3Vec3 v )
+static inline b3Fixed b3MaxElement( b3Vec3 v )
 {
-	return b3MaxFloat( v.x, b3MaxFloat( v.y, v.z ) );
+	return b3FixMax( v.x, b3FixMax( v.y, v.z ) );
 }
 
 static inline int b3MaxElementIndex( b3Vec3 v )
@@ -286,41 +286,41 @@ static inline b3Vec2 b3Neg2( b3Vec2 v )
 	return c;
 }
 
-static inline b3Vec2 b3MulSV2( float s, b3Vec2 v )
+static inline b3Vec2 b3MulSV2( b3Fixed s, b3Vec2 v )
 {
-	b3Vec2 c = { s * v.x, s * v.y };
+	b3Vec2 c = { b3FixMul( s , v.x ), b3FixMul( s , v.y ) };
 	return c;
 }
 
 // a + s * b
-static inline b3Vec2 b3MulAdd2( b3Vec2 a, float s, b3Vec2 b )
+static inline b3Vec2 b3MulAdd2( b3Vec2 a, b3Fixed s, b3Vec2 b )
 {
-	b3Vec2 c = { a.x + s * b.x, a.y + s * b.y };
+	b3Vec2 c = { a.x + b3FixMul( s , b.x ), a.y + b3FixMul( s , b.y ) };
 	return c;
 }
 
 // a - s * b
-static inline b3Vec2 b3MulSub2( b3Vec2 a, float s, b3Vec2 b )
+static inline b3Vec2 b3MulSub2( b3Vec2 a, b3Fixed s, b3Vec2 b )
 {
-	b3Vec2 c = { a.x - s * b.x, a.y - s * b.y };
+	b3Vec2 c = { a.x - b3FixMul( s , b.x ), a.y - b3FixMul( s , b.y ) };
 	return c;
 }
 
-static inline float b3Cross2( b3Vec2 a, b3Vec2 b )
+static inline b3Fixed b3Cross2( b3Vec2 a, b3Vec2 b )
 {
-	return a.x * b.y - a.y * b.x;
+	return b3FixMul( a.x , b.y ) - b3FixMul( a.y , b.x );
 }
 
-static inline float b3DistanceSquared2( b3Vec2 a, b3Vec2 b )
+static inline b3Fixed b3DistanceSquared2( b3Vec2 a, b3Vec2 b )
 {
-	float dx = b.x - a.x;
-	float dy = b.y - a.y;
-	return dx * dx + dy * dy;
+	b3Fixed dx = b.x - a.x;
+	b3Fixed dy = b.y - a.y;
+	return b3FixMul( dx , dx ) + b3FixMul( dy , dy );
 }
 
 static inline b3Vec2 b3MulMV2( b3Matrix2 m, b3Vec2 a )
 {
-	b3Vec2 b = { m.cx.x * a.x + m.cy.x * a.y, m.cx.y * a.x + m.cy.y * a.y };
+	b3Vec2 b = { b3FixMul( m.cx.x , a.x ) + b3FixMul( m.cy.x , a.y ), b3FixMul( m.cx.y , a.x ) + b3FixMul( m.cy.y , a.y ) };
 	return b;
 }
 
@@ -332,49 +332,52 @@ static inline b3Matrix2 b3MulMM2( b3Matrix2 m1, b3Matrix2 m2 )
 	return out;
 }
 
-static inline float b3Det2( b3Matrix2 m )
+static inline b3Fixed b3Det2( b3Matrix2 m )
 {
-	return m.cx.x * m.cy.y - m.cx.y * m.cy.x;
+	return b3FixMul( m.cx.x , m.cy.y ) - b3FixMul( m.cx.y , m.cy.x );
 }
 
 static inline b3Matrix2 b3Invert2( b3Matrix2 m )
 {
-	float det = b3Det2( m );
-	if ( b3AbsFloat( det ) > 1000.0f * FLT_MIN )
+	// The determinant of a matrix with small entries underflows Q48.16, so
+	// compute it and the division at full 128-bit precision.
+	b3Int128 det = (b3Int128)m.cx.x * m.cy.y - (b3Int128)m.cx.y * m.cy.x; // Q32.32 in 128 bits
+	if ( det != 0 )
 	{
-		float invDet = 1.0f / det;
 		return B3_LITERAL( b3Matrix2 ){
-			{ invDet * m.cy.y, -invDet * m.cx.y },
-			{ -invDet * m.cy.x, invDet * m.cx.x },
+			{ (b3Fixed)( ( (b3Int128)m.cy.y << 32 ) / det ), (b3Fixed)( ( -(b3Int128)m.cx.y << 32 ) / det ) },
+			{ (b3Fixed)( ( -(b3Int128)m.cy.x << 32 ) / det ), (b3Fixed)( ( (b3Int128)m.cx.x << 32 ) / det ) },
 		};
 	}
 
-	return B3_LITERAL( b3Matrix2 ){ { 0.0f, 0.0f }, { 0.0f, 0.0f } };
+	return B3_LITERAL( b3Matrix2 ){ { B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, { B3_FIX( 0.0f ), B3_FIX( 0.0f ) } };
 }
 
 // Assumes positive semi-definite
 static inline b3Vec2 b3Solve2( b3Matrix2 m, b3Vec2 b )
 {
-	float det = b3Det2( m );
-	if ( det > 1000.0f * FLT_MIN )
+	// 128-bit determinant and division, see b3Invert2
+	b3Int128 det = (b3Int128)m.cx.x * m.cy.y - (b3Int128)m.cx.y * m.cy.x; // Q32.32 in 128 bits
+	if ( det > 0 )
 	{
-		float invDet = 1.0f / det;
+		b3Int128 nx = (b3Int128)m.cy.y * b.x - (b3Int128)m.cy.x * b.y; // Q32.32
+		b3Int128 ny = (b3Int128)m.cx.x * b.y - (b3Int128)m.cx.y * b.x;
 		return B3_LITERAL( b3Vec2 ){
-			invDet * m.cy.y * b.x - invDet * m.cy.x * b.y,
-			-invDet * m.cx.y * b.x + invDet * m.cx.x * b.y,
+			(b3Fixed)( ( nx << 16 ) / det ),
+			(b3Fixed)( ( ny << 16 ) / det ),
 		};
 	}
 
-	return B3_LITERAL( b3Vec2 ){ 0.0f, 0.0f };
+	return B3_LITERAL( b3Vec2 ){ B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
 }
 
 // Convenience function: s * a + t * b + u * c
-static inline b3Vec3 b3Blend3( float s, b3Vec3 a, float t, b3Vec3 b, float u, b3Vec3 c )
+static inline b3Vec3 b3Blend3( b3Fixed s, b3Vec3 a, b3Fixed t, b3Vec3 b, b3Fixed u, b3Vec3 c )
 {
 	b3Vec3 d = {
-		s * a.x + t * b.x + u * c.x,
-		s * a.y + t * b.y + u * c.y,
-		s * a.z + t * b.z + u * c.z,
+		b3FixMul( s , a.x ) + b3FixMul( t , b.x ) + b3FixMul( u , c.x ),
+		b3FixMul( s , a.y ) + b3FixMul( t , b.y ) + b3FixMul( u , c.y ),
+		b3FixMul( s , a.z ) + b3FixMul( t , b.z ) + b3FixMul( u , c.z ),
 	};
 	return d;
 }
@@ -382,31 +385,31 @@ static inline b3Vec3 b3Blend3( float s, b3Vec3 a, float t, b3Vec3 b, float u, b3
 static inline b3Vec3 b3ModifiedCross( b3Vec3 a, b3Vec3 b )
 {
 	b3Vec3 c;
-	c.x = a.y * b.z + a.z * b.y;
-	c.y = a.z * b.x + a.x * b.z;
-	c.z = a.x * b.y + a.y * b.x;
+	c.x = b3FixMul( a.y , b.z ) + b3FixMul( a.z , b.y );
+	c.y = b3FixMul( a.z , b.x ) + b3FixMul( a.x , b.z );
+	c.z = b3FixMul( a.x , b.y ) + b3FixMul( a.y , b.x );
 	return c;
 }
 
-static inline b3Matrix3 b3MakeDiagonalMatrix( float a, float b, float c )
+static inline b3Matrix3 b3MakeDiagonalMatrix( b3Fixed a, b3Fixed b, b3Fixed c )
 {
-	return (b3Matrix3){ { a, 0.0f, 0.0f }, { 0.0f, b, 0.0f }, { 0.0f, 0.0f, c } };
+	return (b3Matrix3){ { a, B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, { B3_FIX( 0.0f ), b, B3_FIX( 0.0f ) }, { B3_FIX( 0.0f ), B3_FIX( 0.0f ), c } };
 }
 
 static inline b3Matrix3 b3Skew( b3Vec3 v )
 {
 	b3Matrix3 out;
-	out.cx = (b3Vec3){ 0, v.z, -v.y };
-	out.cy = (b3Vec3){ -v.z, 0, v.x };
-	out.cz = (b3Vec3){ v.y, -v.x, 0 };
+	out.cx = (b3Vec3){ b3FixFromInt( 0 ), v.z, -v.y };
+	out.cy = (b3Vec3){ -v.z, b3FixFromInt( 0 ), v.x };
+	out.cz = (b3Vec3){ v.y, -v.x, b3FixFromInt( 0 ) };
 
 	return out;
 }
 
 static inline b3Plane b3NormalizePlane( b3Plane plane )
 {
-	float invLength = 1.0f / b3Length( plane.normal );
-	return (b3Plane){ b3MulSV( invLength, plane.normal ), invLength * plane.offset };
+	b3Fixed invLength = b3FixDiv( B3_FIX( 1.0f ) , b3Length( plane.normal ) );
+	return (b3Plane){ b3MulSV( invLength, plane.normal ), b3FixMul( invLength , plane.offset ) };
 }
 
 static inline b3Plane b3MakePlaneFromNormalAndPoint( b3Vec3 normal, b3Vec3 point )
@@ -438,13 +441,13 @@ static inline b3Plane b3TransformPlane( b3Transform transform, b3Plane plane )
 }
 
 /// Signed separation of a point from a plane
-static inline float b3PlaneSeparation( b3Plane plane, b3Vec3 point )
+static inline b3Fixed b3PlaneSeparation( b3Plane plane, b3Vec3 point )
 {
 	return b3Dot( plane.normal, point ) - plane.offset;
 }
 
 // Negative if p is below the triangle v1-v2-v3
-static inline float b3SignedVolume( b3Vec3 v1, b3Vec3 v2, b3Vec3 v3, b3Vec3 p )
+static inline b3Fixed b3SignedVolume( b3Vec3 v1, b3Vec3 v2, b3Vec3 v3, b3Vec3 p )
 {
 	b3Vec3 e1 = b3Sub( v2, v1 );
 	b3Vec3 e2 = b3Sub( v3, v1 );
@@ -455,8 +458,8 @@ static inline float b3SignedVolume( b3Vec3 v1, b3Vec3 v2, b3Vec3 v3, b3Vec3 p )
 // todo eliminate this
 static inline bool b3IsWithinSegments( const b3SegmentDistanceResult* result )
 {
-	return ( 0.0f <= result->fraction1 && result->fraction1 <= 1.0f ) &&
-		   ( 0.0f <= result->fraction2 && result->fraction2 <= 1.0f );
+	return ( B3_FIX( 0.0f ) <= result->fraction1 && result->fraction1 <= B3_FIX( 1.0f ) ) &&
+		   ( B3_FIX( 0.0f ) <= result->fraction2 && result->fraction2 <= B3_FIX( 1.0f ) );
 }
 
 static inline b3Matrix3 b3RotateInertia( b3Quat q, b3Matrix3 centralInertia )
@@ -466,7 +469,7 @@ static inline b3Matrix3 b3RotateInertia( b3Quat q, b3Matrix3 centralInertia )
 	return inertia;
 }
 
-static inline b3Matrix3 b3TransformInertia( b3Transform transform, b3Matrix3 centralInertia, float mass )
+static inline b3Matrix3 b3TransformInertia( b3Transform transform, b3Matrix3 centralInertia, b3Fixed mass )
 {
 	b3Matrix3 inertia = b3RotateInertia( transform.q, centralInertia );
 	inertia = b3AddMM( inertia, b3Steiner( mass, transform.p ) );

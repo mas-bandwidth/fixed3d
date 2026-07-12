@@ -43,13 +43,13 @@ typedef struct Benchmark
 
 static void MinProfile( b3Profile* p1, const b3Profile* p2 )
 {
-	p1->step = b3MinFloat( p1->step, p2->step );
-	p1->pairs = b3MinFloat( p1->pairs, p2->pairs );
-	p1->collide = b3MinFloat( p1->collide, p2->collide );
-	p1->constraints = b3MinFloat( p1->constraints, p2->constraints );
-	p1->transforms = b3MinFloat( p1->transforms, p2->transforms );
-	p1->refit = b3MinFloat( p1->refit, p2->refit );
-	p1->sleepIslands = b3MinFloat( p1->sleepIslands, p2->sleepIslands );
+	p1->step = b3FixMin( p1->step, p2->step );
+	p1->pairs = b3FixMin( p1->pairs, p2->pairs );
+	p1->collide = b3FixMin( p1->collide, p2->collide );
+	p1->constraints = b3FixMin( p1->constraints, p2->constraints );
+	p1->transforms = b3FixMin( p1->transforms, p2->transforms );
+	p1->refit = b3FixMin( p1->refit, p2->refit );
+	p1->sleepIslands = b3FixMin( p1->sleepIslands, p2->sleepIslands );
 }
 
 // Match a name=value option in either its short or long spelling. Returns the value or NULL.
@@ -175,26 +175,26 @@ int main( int argc, char** argv )
 	}
 
 	b3Profile maxProfile = {
-		.step = FLT_MAX,
-		.pairs = FLT_MAX,
-		.collide = FLT_MAX,
-		.solve = FLT_MAX,
-		.solverSetup = FLT_MAX,
-		.constraints = FLT_MAX,
-		.prepareConstraints = FLT_MAX,
-		.integrateVelocities = FLT_MAX,
-		.warmStart = FLT_MAX,
-		.solveImpulses = FLT_MAX,
-		.integratePositions = FLT_MAX,
-		.relaxImpulses = FLT_MAX,
-		.applyRestitution = FLT_MAX,
-		.storeImpulses = FLT_MAX,
-		.splitIslands = FLT_MAX,
-		.transforms = FLT_MAX,
-		.hitEvents = FLT_MAX,
-		.refit = FLT_MAX,
-		.bullets = FLT_MAX,
-		.sleepIslands = FLT_MAX,
+		.step = B3_FIXED_MAX,
+		.pairs = B3_FIXED_MAX,
+		.collide = B3_FIXED_MAX,
+		.solve = B3_FIXED_MAX,
+		.solverSetup = B3_FIXED_MAX,
+		.constraints = B3_FIXED_MAX,
+		.prepareConstraints = B3_FIXED_MAX,
+		.integrateVelocities = B3_FIXED_MAX,
+		.warmStart = B3_FIXED_MAX,
+		.solveImpulses = B3_FIXED_MAX,
+		.integratePositions = B3_FIXED_MAX,
+		.relaxImpulses = B3_FIXED_MAX,
+		.applyRestitution = B3_FIXED_MAX,
+		.storeImpulses = B3_FIXED_MAX,
+		.splitIslands = B3_FIXED_MAX,
+		.transforms = B3_FIXED_MAX,
+		.hitEvents = B3_FIXED_MAX,
+		.refit = B3_FIXED_MAX,
+		.bullets = B3_FIXED_MAX,
+		.sleepIslands = B3_FIXED_MAX,
 	};
 
 	b3Profile* profiles = malloc( maxSteps * sizeof( b3Profile ) );
@@ -308,7 +308,7 @@ int main( int argc, char** argv )
 
 		printf( "benchmark: %s, steps = %d\n", benchmarks[benchmarkIndex].name, stepCount );
 
-		float minTime[B3_MAX_WORKERS] = { 0 };
+		b3Fixed minTime[B3_MAX_WORKERS] = { b3FixFromInt( 0 ) };
 
 		for ( int threadCount = 1; threadCount <= maxThreadCount; ++threadCount )
 		{
@@ -334,7 +334,7 @@ int main( int argc, char** argv )
 
 				benchmark->createFcn( worldId );
 
-				float timeStep = 1.0f / 60.0f;
+				b3Fixed timeStep = b3FixDiv( B3_FIX( 1.0f ) , B3_FIX( 60.0f ) );
 				int subStepCount = 4;
 
 				// Initial step can be expensive and skew benchmark
@@ -365,8 +365,8 @@ int main( int argc, char** argv )
 					MinProfile( profiles + stepIndex, &profile );
 				}
 
-				float ms = b3GetMilliseconds( ticks );
-				printf( "run %d : %g (ms)\n", runIndex, ms );
+				b3Fixed ms = b3GetMilliseconds( ticks );
+				printf( "run %d : %g (ms)\n", runIndex, b3FixToDouble( ms ) );
 
 				if ( runIndex == 0 )
 				{
@@ -374,7 +374,7 @@ int main( int argc, char** argv )
 				}
 				else
 				{
-					minTime[threadCount - 1] = b3MinFloat( minTime[threadCount - 1], ms );
+					minTime[threadCount - 1] = b3FixMin( minTime[threadCount - 1], ms );
 				}
 
 				if ( countersAcquired == false )
@@ -404,8 +404,8 @@ int main( int argc, char** argv )
 				for ( int stepIndex = 0; stepIndex < stepCount; ++stepIndex )
 				{
 					b3Profile p = profiles[stepIndex];
-					fprintf( file, "%g %g %g %g %g %g %g\n", p.step, p.pairs, p.collide, p.constraints, p.transforms,
-							 p.refit, p.sleepIslands );
+					fprintf( file, "%g %g %g %g %g %g %g\n", b3FixToDouble( p.step ), b3FixToDouble( p.pairs ), b3FixToDouble( p.collide ), b3FixToDouble( p.constraints ), b3FixToDouble( p.transforms ),
+							 b3FixToDouble( p.refit ), b3FixToDouble( p.sleepIslands ) );
 				}
 
 				fclose( file );
@@ -426,7 +426,7 @@ int main( int argc, char** argv )
 		fprintf( file, "threads,ms\n" );
 		for ( int threadIndex = 1; threadIndex <= maxThreadCount; ++threadIndex )
 		{
-			fprintf( file, "%d,%g\n", threadIndex, minTime[threadIndex - 1] );
+			fprintf( file, "%d,%g\n", threadIndex, b3FixToDouble( minTime[threadIndex - 1] ) );
 		}
 
 		fclose( file );

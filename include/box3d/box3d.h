@@ -23,7 +23,7 @@
  */
 
 #if defined( BOX3D_DOUBLE_PRECISION )
-// Force a link error if the application and library disagree on precision. A float app linking
+// Force a link error if the application and library disagree on precision. A b3Fixed app linking
 // a double precision library, or the reverse, gets one unresolved external on the first call
 // every program makes. CMake consumers inherit the define and cannot mismatch.
 #define b3CreateWorld b3CreateWorldDoublePrecision
@@ -50,7 +50,7 @@ B3_API bool b3World_IsValid( b3WorldId id );
 /// @param worldId The world to simulate
 /// @param timeStep The amount of time to simulate, this should be a fixed number. Usually 1/60.
 /// @param subStepCount The number of sub-steps, increasing the sub-step count can increase accuracy. Usually 4.
-B3_API void b3World_Step( b3WorldId worldId, float timeStep, int subStepCount );
+B3_API void b3World_Step( b3WorldId worldId, b3Fixed timeStep, int subStepCount );
 
 /// Call this to draw shapes and other debug draw data
 B3_API void b3World_Draw( b3WorldId worldId, b3DebugDraw* draw, uint64_t maskBits );
@@ -115,7 +115,7 @@ B3_API b3TreeStats b3World_CastShape( b3WorldId worldId, b3Pos origin, const b3S
 /// @param fcn Optional callback for custom shape filtering
 /// @param context A user context that is passed along to the callback function
 /// @return the translation fraction
-B3_API float b3World_CastMover( b3WorldId worldId, b3Pos origin, const b3Capsule* mover, b3Vec3 translation, b3QueryFilter filter,
+B3_API b3Fixed b3World_CastMover( b3WorldId worldId, b3Pos origin, const b3Capsule* mover, b3Vec3 translation, b3QueryFilter filter,
 								b3MoverFilterFcn* fcn, void* context );
 
 /// Collide a capsule mover with the world, gathering collision planes that can be fed to b3SolvePlanes. Useful for
@@ -143,18 +143,18 @@ B3_API bool b3World_IsContinuousEnabled( b3WorldId worldId );
 /// Adjust the restitution threshold. It is recommended not to make this value very small
 /// because it will prevent bodies from sleeping. Usually in meters per second.
 /// @see b3WorldDef
-B3_API void b3World_SetRestitutionThreshold( b3WorldId worldId, float value );
+B3_API void b3World_SetRestitutionThreshold( b3WorldId worldId, b3Fixed value );
 
 /// Get the restitution speed threshold. Usually in meters per second.
-B3_API float b3World_GetRestitutionThreshold( b3WorldId worldId );
+B3_API b3Fixed b3World_GetRestitutionThreshold( b3WorldId worldId );
 
 /// Adjust the hit event threshold. This controls the collision speed needed to generate a b3ContactHitEvent.
 /// Usually in meters per second.
 /// @see b3WorldDef::hitEventThreshold
-B3_API void b3World_SetHitEventThreshold( b3WorldId worldId, float value );
+B3_API void b3World_SetHitEventThreshold( b3WorldId worldId, b3Fixed value );
 
 /// Get the hit event speed threshold. Usually in meters per second.
-B3_API float b3World_GetHitEventThreshold( b3WorldId worldId );
+B3_API b3Fixed b3World_GetHitEventThreshold( b3WorldId worldId );
 
 /// Register the custom filter callback. This is optional.
 B3_API void b3World_SetCustomFilterCallback( b3WorldId worldId, b3CustomFilterFcn* fcn, void* context );
@@ -181,20 +181,20 @@ B3_API void b3World_Explode( b3WorldId worldId, const b3ExplosionDef* explosionD
 /// @param dampingRatio The contact bounciness with 1 being critical damping (non-dimensional)
 /// @param contactSpeed The maximum contact constraint push out speed (meters per second)
 /// @note Advanced feature
-B3_API void b3World_SetContactTuning( b3WorldId worldId, float hertz, float dampingRatio, float contactSpeed );
+B3_API void b3World_SetContactTuning( b3WorldId worldId, b3Fixed hertz, b3Fixed dampingRatio, b3Fixed contactSpeed );
 
 /// Set the contact point recycling distance. Setting this to zero disables contact point recycling.
 /// Usually in meters.
-B3_API void b3World_SetContactRecycleDistance( b3WorldId worldId, float recycleDistance );
+B3_API void b3World_SetContactRecycleDistance( b3WorldId worldId, b3Fixed recycleDistance );
 
 /// Get the contact point recycling distance. Usually in meters.
-B3_API float b3World_GetContactRecycleDistance( b3WorldId worldId );
+B3_API b3Fixed b3World_GetContactRecycleDistance( b3WorldId worldId );
 
 /// Set the maximum linear speed. Usually in m/s.
-B3_API void b3World_SetMaximumLinearSpeed( b3WorldId worldId, float maximumLinearSpeed );
+B3_API void b3World_SetMaximumLinearSpeed( b3WorldId worldId, b3Fixed maximumLinearSpeed );
 
 /// Get the maximum linear speed. Usually in m/s.
-B3_API float b3World_GetMaximumLinearSpeed( b3WorldId worldId );
+B3_API b3Fixed b3World_GetMaximumLinearSpeed( b3WorldId worldId );
 
 /// Enable/disable constraint warm starting. Advanced feature for testing. Disabling
 /// warm starting greatly reduces stability and provides no performance gain.
@@ -310,9 +310,9 @@ typedef struct b3RecPlayerInfo
 {
 	int frameCount;	   // total recorded steps
 	int workerCount;   // worker count requested for the replay world
-	float timeStep;	   // dt of the recorded steps
+	b3Fixed timeStep;	   // dt of the recorded steps
 	int subStepCount;  // recorded sub-steps
-	float lengthScale; // length units per meter in effect when recorded
+	b3Fixed lengthScale; // length units per meter in effect when recorded
 	b3AABB bounds;	   // accumulated world bounds over the recording, zero-extent if unavailable
 } b3RecPlayerInfo;
 
@@ -455,7 +455,7 @@ typedef struct b3RecQueryHit
 	b3ShapeId shape;
 	b3Pos point;
 	b3Vec3 normal;
-	float fraction;
+	b3Fixed fraction;
 } b3RecQueryHit;
 
 /// @return the number of spatial queries recorded for the most recently replayed frame
@@ -555,7 +555,7 @@ B3_API void b3Body_SetAngularVelocity( b3BodyId bodyId, b3Vec3 angularVelocity )
 /// The result will be close but maybe not exact. This is meant for kinematic bodies.
 /// The target is not applied if the velocity would be below the sleep threshold.
 /// This will optionally wake the body if asleep, but only if the movement is significant.
-B3_API void b3Body_SetTargetTransform( b3BodyId bodyId, b3WorldTransform target, float timeStep, bool wake );
+B3_API void b3Body_SetTargetTransform( b3BodyId bodyId, b3WorldTransform target, b3Fixed timeStep, bool wake );
 
 /// Get the linear velocity of a local point attached to a body. Usually in meters per second.
 B3_API b3Vec3 b3Body_GetLocalPointVelocity( b3BodyId bodyId, b3Vec3 localPoint );
@@ -617,13 +617,13 @@ B3_API void b3Body_ApplyLinearImpulseToCenter( b3BodyId bodyId, b3Vec3 impulse, 
 B3_API void b3Body_ApplyAngularImpulse( b3BodyId bodyId, b3Vec3 impulse, bool wake );
 
 /// Get the mass of the body, usually in kilograms
-B3_API float b3Body_GetMass( b3BodyId bodyId );
+B3_API b3Fixed b3Body_GetMass( b3BodyId bodyId );
 
 /// Get the rotational inertia of the body in local space, usually in kg*m^2
 B3_API b3Matrix3 b3Body_GetLocalRotationalInertia( b3BodyId bodyId );
 
 /// Get the inverse mass of the body, usually in 1/kilograms
-B3_API float b3Body_GetInverseMass( b3BodyId bodyId );
+B3_API b3Fixed b3Body_GetInverseMass( b3BodyId bodyId );
 
 /// Get the inverse rotational inertia of the body in world space, usually in 1/kg*m^2
 B3_API b3Matrix3 b3Body_GetWorldInverseRotationalInertia( b3BodyId bodyId );
@@ -650,23 +650,23 @@ B3_API b3MassData b3Body_GetMassData( b3BodyId bodyId );
 B3_API void b3Body_ApplyMassFromShapes( b3BodyId bodyId );
 
 /// Adjust the linear damping. Normally this is set in b3BodyDef before creation.
-B3_API void b3Body_SetLinearDamping( b3BodyId bodyId, float linearDamping );
+B3_API void b3Body_SetLinearDamping( b3BodyId bodyId, b3Fixed linearDamping );
 
 /// Get the current linear damping.
-B3_API float b3Body_GetLinearDamping( b3BodyId bodyId );
+B3_API b3Fixed b3Body_GetLinearDamping( b3BodyId bodyId );
 
 /// Adjust the angular damping. Normally this is set in b3BodyDef before creation.
-B3_API void b3Body_SetAngularDamping( b3BodyId bodyId, float angularDamping );
+B3_API void b3Body_SetAngularDamping( b3BodyId bodyId, b3Fixed angularDamping );
 
 /// Get the current angular damping.
-B3_API float b3Body_GetAngularDamping( b3BodyId bodyId );
+B3_API b3Fixed b3Body_GetAngularDamping( b3BodyId bodyId );
 
 /// Adjust the gravity scale. Normally this is set in b3BodyDef before creation.
 /// @see b3BodyDef::gravityScale
-B3_API void b3Body_SetGravityScale( b3BodyId bodyId, float gravityScale );
+B3_API void b3Body_SetGravityScale( b3BodyId bodyId, b3Fixed gravityScale );
 
 /// Get the current gravity scale
-B3_API float b3Body_GetGravityScale( b3BodyId bodyId );
+B3_API b3Fixed b3Body_GetGravityScale( b3BodyId bodyId );
 
 /// @return true if this body is awake
 B3_API bool b3Body_IsAwake( b3BodyId bodyId );
@@ -683,10 +683,10 @@ B3_API void b3Body_EnableSleep( b3BodyId bodyId, bool enableSleep );
 B3_API bool b3Body_IsSleepEnabled( b3BodyId bodyId );
 
 /// Set the sleep threshold, usually in meters per second
-B3_API void b3Body_SetSleepThreshold( b3BodyId bodyId, float sleepThreshold );
+B3_API void b3Body_SetSleepThreshold( b3BodyId bodyId, b3Fixed sleepThreshold );
 
 /// Get the sleep threshold, usually in meters per second.
-B3_API float b3Body_GetSleepThreshold( b3BodyId bodyId );
+B3_API b3Fixed b3Body_GetSleepThreshold( b3BodyId bodyId );
 
 /// Returns true if this body is enabled
 B3_API bool b3Body_IsEnabled( b3BodyId bodyId );
@@ -752,15 +752,15 @@ B3_API int b3Body_GetContactData( b3BodyId bodyId, b3ContactData* contactData, i
 B3_API b3AABB b3Body_ComputeAABB( b3BodyId bodyId );
 
 /// Get the closest point on a body to a world target.
-B3_API float b3Body_GetClosestPoint( b3BodyId bodyId, b3Vec3* result, b3Vec3 target );
+B3_API b3Fixed b3Body_GetClosestPoint( b3BodyId bodyId, b3Vec3* result, b3Vec3 target );
 
 /// Cast a ray at a specific body using a specified body transform.
 B3_API b3BodyCastResult b3Body_CastRay( b3BodyId bodyId, b3Pos origin, b3Vec3 translation, b3QueryFilter filter,
-										float maxFraction, b3WorldTransform bodyTransform );
+										b3Fixed maxFraction, b3WorldTransform bodyTransform );
 
 /// Cast a shape at a specific body using a specified body transform.
 B3_API b3BodyCastResult b3Body_CastShape( b3BodyId bodyId, b3Pos origin, const b3ShapeProxy* proxy, b3Vec3 translation,
-										  b3QueryFilter filter, float maxFraction, bool canEncroach,
+										  b3QueryFilter filter, b3Fixed maxFraction, bool canEncroach,
 										  b3WorldTransform bodyTransform );
 
 /// Overlap a shape with a specific body using a specified body transform.
@@ -855,22 +855,22 @@ B3_API void* b3Shape_GetUserData( b3ShapeId shapeId );
 /// Set the mass density of a shape, usually in kg/m^3.
 /// This will optionally update the mass properties on the parent body.
 /// @see b3ShapeDef::density, b3Body_ApplyMassFromShapes
-B3_API void b3Shape_SetDensity( b3ShapeId shapeId, float density, bool updateBodyMass );
+B3_API void b3Shape_SetDensity( b3ShapeId shapeId, b3Fixed density, bool updateBodyMass );
 
 /// Get the density of a shape, usually in kg/m^3
-B3_API float b3Shape_GetDensity( b3ShapeId shapeId );
+B3_API b3Fixed b3Shape_GetDensity( b3ShapeId shapeId );
 
 /// Set the friction on a shape
-B3_API void b3Shape_SetFriction( b3ShapeId shapeId, float friction );
+B3_API void b3Shape_SetFriction( b3ShapeId shapeId, b3Fixed friction );
 
 /// Get the friction of a shape
-B3_API float b3Shape_GetFriction( b3ShapeId shapeId );
+B3_API b3Fixed b3Shape_GetFriction( b3ShapeId shapeId );
 
 /// Set the shape restitution (bounciness)
-B3_API void b3Shape_SetRestitution( b3ShapeId shapeId, float restitution );
+B3_API void b3Shape_SetRestitution( b3ShapeId shapeId, b3Fixed restitution );
 
 /// Get the shape restitution
-B3_API float b3Shape_GetRestitution( b3ShapeId shapeId );
+B3_API b3Fixed b3Shape_GetRestitution( b3ShapeId shapeId );
 
 /// Set the shape base surface material. Does not change per triangle materials.
 B3_API void b3Shape_SetSurfaceMaterial( b3ShapeId shapeId, b3SurfaceMaterial surfaceMaterial );
@@ -1007,7 +1007,7 @@ B3_API b3Vec3 b3Shape_GetClosestPoint( b3ShapeId shapeId, b3Vec3 target );
 /// @param lift the lift coefficient, the force that is perpendicular to the relative velocity
 /// @param maxSpeed the maximum relative speed. Speed cap is necessary for stability. Typically 10m/s or less.
 /// @param wake should this wake the body
-B3_API void b3Shape_ApplyWind( b3ShapeId shapeId, b3Vec3 wind, float drag, float lift, float maxSpeed, bool wake );
+B3_API void b3Shape_ApplyWind( b3ShapeId shapeId, b3Vec3 wind, b3Fixed drag, b3Fixed lift, b3Fixed maxSpeed, bool wake );
 
 /** @} */ // shape
 
@@ -1069,31 +1069,31 @@ B3_API b3Vec3 b3Joint_GetConstraintForce( b3JointId jointId );
 B3_API b3Vec3 b3Joint_GetConstraintTorque( b3JointId jointId );
 
 /// Get the current linear separation error for this joint. Does not consider admissible movement. Usually in meters.
-B3_API float b3Joint_GetLinearSeparation( b3JointId jointId );
+B3_API b3Fixed b3Joint_GetLinearSeparation( b3JointId jointId );
 
 /// Get the current angular separation error for this joint. Does not consider admissible movement. Usually in radians.
-B3_API float b3Joint_GetAngularSeparation( b3JointId jointId );
+B3_API b3Fixed b3Joint_GetAngularSeparation( b3JointId jointId );
 
 /// Set the joint constraint tuning. Advanced feature.
 /// @param jointId the joint
 /// @param hertz the stiffness in Hertz (cycles per second)
 /// @param dampingRatio the non-dimensional damping ratio (one for critical damping)
-B3_API void b3Joint_SetConstraintTuning( b3JointId jointId, float hertz, float dampingRatio );
+B3_API void b3Joint_SetConstraintTuning( b3JointId jointId, b3Fixed hertz, b3Fixed dampingRatio );
 
 /// Get the joint constraint tuning. Advanced feature.
-B3_API void b3Joint_GetConstraintTuning( b3JointId jointId, float* hertz, float* dampingRatio );
+B3_API void b3Joint_GetConstraintTuning( b3JointId jointId, b3Fixed* hertz, b3Fixed* dampingRatio );
 
 /// Set the force threshold for joint events (Newtons)
-B3_API void b3Joint_SetForceThreshold( b3JointId jointId, float threshold );
+B3_API void b3Joint_SetForceThreshold( b3JointId jointId, b3Fixed threshold );
 
 /// Get the force threshold for joint events (Newtons)
-B3_API float b3Joint_GetForceThreshold( b3JointId jointId );
+B3_API b3Fixed b3Joint_GetForceThreshold( b3JointId jointId );
 
 /// Set the torque threshold for joint events (N-m)
-B3_API void b3Joint_SetTorqueThreshold( b3JointId jointId, float threshold );
+B3_API void b3Joint_SetTorqueThreshold( b3JointId jointId, b3Fixed threshold );
 
 /// Get the torque threshold for joint events (N-m)
-B3_API float b3Joint_GetTorqueThreshold( b3JointId jointId );
+B3_API b3Fixed b3Joint_GetTorqueThreshold( b3JointId jointId );
 
 /**
  * @defgroup parallel_joint Parallel Joint
@@ -1106,22 +1106,22 @@ B3_API float b3Joint_GetTorqueThreshold( b3JointId jointId );
 B3_API b3JointId b3CreateParallelJoint( b3WorldId worldId, const b3ParallelJointDef* def );
 
 /// Set the spring stiffness in Hertz
-B3_API void b3ParallelJoint_SetSpringHertz( b3JointId jointId, float hertz );
+B3_API void b3ParallelJoint_SetSpringHertz( b3JointId jointId, b3Fixed hertz );
 
 /// Set the spring damping ratio, non-dimensional
-B3_API void b3ParallelJoint_SetSpringDampingRatio( b3JointId jointId, float dampingRatio );
+B3_API void b3ParallelJoint_SetSpringDampingRatio( b3JointId jointId, b3Fixed dampingRatio );
 
 /// Get the spring Hertz
-B3_API float b3ParallelJoint_GetSpringHertz( b3JointId jointId );
+B3_API b3Fixed b3ParallelJoint_GetSpringHertz( b3JointId jointId );
 
 /// Get the spring damping ratio
-B3_API float b3ParallelJoint_GetSpringDampingRatio( b3JointId jointId );
+B3_API b3Fixed b3ParallelJoint_GetSpringDampingRatio( b3JointId jointId );
 
 /// Set the maximum spring torque, usually in newton-meters
-B3_API void b3ParallelJoint_SetMaxTorque( b3JointId jointId, float force );
+B3_API void b3ParallelJoint_SetMaxTorque( b3JointId jointId, b3Fixed force );
 
 /// Get the maximum spring torque, usually in newton-meters
-B3_API float b3ParallelJoint_GetMaxTorque( b3JointId jointId );
+B3_API b3Fixed b3ParallelJoint_GetMaxTorque( b3JointId jointId );
 
 /** @} */ // parallel_joint
 
@@ -1138,10 +1138,10 @@ B3_API b3JointId b3CreateDistanceJoint( b3WorldId worldId, const b3DistanceJoint
 /// Set the rest length of a distance joint
 /// @param jointId The id for a distance joint
 /// @param length The new distance joint length
-B3_API void b3DistanceJoint_SetLength( b3JointId jointId, float length );
+B3_API void b3DistanceJoint_SetLength( b3JointId jointId, b3Fixed length );
 
 /// Get the rest length of a distance joint
-B3_API float b3DistanceJoint_GetLength( b3JointId jointId );
+B3_API b3Fixed b3DistanceJoint_GetLength( b3JointId jointId );
 
 /// Enable/disable the distance joint spring. When disabled the distance joint is rigid.
 B3_API void b3DistanceJoint_EnableSpring( b3JointId jointId, bool enableSpring );
@@ -1150,22 +1150,22 @@ B3_API void b3DistanceJoint_EnableSpring( b3JointId jointId, bool enableSpring )
 B3_API bool b3DistanceJoint_IsSpringEnabled( b3JointId jointId );
 
 /// Set the force range for the spring.
-B3_API void b3DistanceJoint_SetSpringForceRange( b3JointId jointId, float lowerForce, float upperForce );
+B3_API void b3DistanceJoint_SetSpringForceRange( b3JointId jointId, b3Fixed lowerForce, b3Fixed upperForce );
 
 /// Get the force range for the spring.
-B3_API void b3DistanceJoint_GetSpringForceRange( b3JointId jointId, float* lowerForce, float* upperForce );
+B3_API void b3DistanceJoint_GetSpringForceRange( b3JointId jointId, b3Fixed* lowerForce, b3Fixed* upperForce );
 
 /// Set the spring stiffness in Hertz
-B3_API void b3DistanceJoint_SetSpringHertz( b3JointId jointId, float hertz );
+B3_API void b3DistanceJoint_SetSpringHertz( b3JointId jointId, b3Fixed hertz );
 
 /// Set the spring damping ratio, non-dimensional
-B3_API void b3DistanceJoint_SetSpringDampingRatio( b3JointId jointId, float dampingRatio );
+B3_API void b3DistanceJoint_SetSpringDampingRatio( b3JointId jointId, b3Fixed dampingRatio );
 
 /// Get the spring Hertz
-B3_API float b3DistanceJoint_GetSpringHertz( b3JointId jointId );
+B3_API b3Fixed b3DistanceJoint_GetSpringHertz( b3JointId jointId );
 
 /// Get the spring damping ratio
-B3_API float b3DistanceJoint_GetSpringDampingRatio( b3JointId jointId );
+B3_API b3Fixed b3DistanceJoint_GetSpringDampingRatio( b3JointId jointId );
 
 /// Enable joint limit. The limit only works if the joint spring is enabled. Otherwise the joint is rigid
 /// and the limit has no effect.
@@ -1175,16 +1175,16 @@ B3_API void b3DistanceJoint_EnableLimit( b3JointId jointId, bool enableLimit );
 B3_API bool b3DistanceJoint_IsLimitEnabled( b3JointId jointId );
 
 /// Set the minimum and maximum length parameters of a distance joint
-B3_API void b3DistanceJoint_SetLengthRange( b3JointId jointId, float minLength, float maxLength );
+B3_API void b3DistanceJoint_SetLengthRange( b3JointId jointId, b3Fixed minLength, b3Fixed maxLength );
 
 /// Get the distance joint minimum length
-B3_API float b3DistanceJoint_GetMinLength( b3JointId jointId );
+B3_API b3Fixed b3DistanceJoint_GetMinLength( b3JointId jointId );
 
 /// Get the distance joint maximum length
-B3_API float b3DistanceJoint_GetMaxLength( b3JointId jointId );
+B3_API b3Fixed b3DistanceJoint_GetMaxLength( b3JointId jointId );
 
 /// Get the current length of a distance joint
-B3_API float b3DistanceJoint_GetCurrentLength( b3JointId jointId );
+B3_API b3Fixed b3DistanceJoint_GetCurrentLength( b3JointId jointId );
 
 /// Enable/disable the distance joint motor
 B3_API void b3DistanceJoint_EnableMotor( b3JointId jointId, bool enableMotor );
@@ -1193,19 +1193,19 @@ B3_API void b3DistanceJoint_EnableMotor( b3JointId jointId, bool enableMotor );
 B3_API bool b3DistanceJoint_IsMotorEnabled( b3JointId jointId );
 
 /// Set the distance joint motor speed, usually in meters per second
-B3_API void b3DistanceJoint_SetMotorSpeed( b3JointId jointId, float motorSpeed );
+B3_API void b3DistanceJoint_SetMotorSpeed( b3JointId jointId, b3Fixed motorSpeed );
 
 /// Get the distance joint motor speed, usually in meters per second
-B3_API float b3DistanceJoint_GetMotorSpeed( b3JointId jointId );
+B3_API b3Fixed b3DistanceJoint_GetMotorSpeed( b3JointId jointId );
 
 /// Set the distance joint maximum motor force, usually in newtons
-B3_API void b3DistanceJoint_SetMaxMotorForce( b3JointId jointId, float force );
+B3_API void b3DistanceJoint_SetMaxMotorForce( b3JointId jointId, b3Fixed force );
 
 /// Get the distance joint maximum motor force, usually in newtons
-B3_API float b3DistanceJoint_GetMaxMotorForce( b3JointId jointId );
+B3_API b3Fixed b3DistanceJoint_GetMaxMotorForce( b3JointId jointId );
 
 /// Get the distance joint current motor force, usually in newtons
-B3_API float b3DistanceJoint_GetMotorForce( b3JointId jointId );
+B3_API b3Fixed b3DistanceJoint_GetMotorForce( b3JointId jointId );
 
 /** @} */ // distance_joint
 
@@ -1238,52 +1238,52 @@ B3_API void b3MotorJoint_SetAngularVelocity( b3JointId jointId, b3Vec3 velocity 
 B3_API b3Vec3 b3MotorJoint_GetAngularVelocity( b3JointId jointId );
 
 /// Set the motor joint maximum force, usually in newtons
-B3_API void b3MotorJoint_SetMaxVelocityForce( b3JointId jointId, float maxForce );
+B3_API void b3MotorJoint_SetMaxVelocityForce( b3JointId jointId, b3Fixed maxForce );
 
 /// Get the motor joint maximum force, usually in newtons
-B3_API float b3MotorJoint_GetMaxVelocityForce( b3JointId jointId );
+B3_API b3Fixed b3MotorJoint_GetMaxVelocityForce( b3JointId jointId );
 
 /// Set the motor joint maximum torque, usually in newton-meters
-B3_API void b3MotorJoint_SetMaxVelocityTorque( b3JointId jointId, float maxTorque );
+B3_API void b3MotorJoint_SetMaxVelocityTorque( b3JointId jointId, b3Fixed maxTorque );
 
 /// Get the motor joint maximum torque, usually in newton-meters
-B3_API float b3MotorJoint_GetMaxVelocityTorque( b3JointId jointId );
+B3_API b3Fixed b3MotorJoint_GetMaxVelocityTorque( b3JointId jointId );
 
 /// Set the spring linear hertz stiffness
-B3_API void b3MotorJoint_SetLinearHertz( b3JointId jointId, float hertz );
+B3_API void b3MotorJoint_SetLinearHertz( b3JointId jointId, b3Fixed hertz );
 
 /// Get the spring linear hertz stiffness
-B3_API float b3MotorJoint_GetLinearHertz( b3JointId jointId );
+B3_API b3Fixed b3MotorJoint_GetLinearHertz( b3JointId jointId );
 
 /// Set the spring linear damping ratio. Use 1.0 for critical damping.
-B3_API void b3MotorJoint_SetLinearDampingRatio( b3JointId jointId, float damping );
+B3_API void b3MotorJoint_SetLinearDampingRatio( b3JointId jointId, b3Fixed damping );
 
 /// Get the spring linear damping ratio.
-B3_API float b3MotorJoint_GetLinearDampingRatio( b3JointId jointId );
+B3_API b3Fixed b3MotorJoint_GetLinearDampingRatio( b3JointId jointId );
 
 /// Set the spring angular hertz stiffness
-B3_API void b3MotorJoint_SetAngularHertz( b3JointId jointId, float hertz );
+B3_API void b3MotorJoint_SetAngularHertz( b3JointId jointId, b3Fixed hertz );
 
 /// Get the spring angular hertz stiffness
-B3_API float b3MotorJoint_GetAngularHertz( b3JointId jointId );
+B3_API b3Fixed b3MotorJoint_GetAngularHertz( b3JointId jointId );
 
 /// Set the spring angular damping ratio. Use 1.0 for critical damping.
-B3_API void b3MotorJoint_SetAngularDampingRatio( b3JointId jointId, float damping );
+B3_API void b3MotorJoint_SetAngularDampingRatio( b3JointId jointId, b3Fixed damping );
 
 /// Get the spring angular damping ratio.
-B3_API float b3MotorJoint_GetAngularDampingRatio( b3JointId jointId );
+B3_API b3Fixed b3MotorJoint_GetAngularDampingRatio( b3JointId jointId );
 
 /// Set the maximum spring force in newtons.
-B3_API void b3MotorJoint_SetMaxSpringForce( b3JointId jointId, float maxForce );
+B3_API void b3MotorJoint_SetMaxSpringForce( b3JointId jointId, b3Fixed maxForce );
 
 /// Get the maximum spring force in newtons.
-B3_API float b3MotorJoint_GetMaxSpringForce( b3JointId jointId );
+B3_API b3Fixed b3MotorJoint_GetMaxSpringForce( b3JointId jointId );
 
 /// Set the maximum spring torque in newtons * meters
-B3_API void b3MotorJoint_SetMaxSpringTorque( b3JointId jointId, float maxTorque );
+B3_API void b3MotorJoint_SetMaxSpringTorque( b3JointId jointId, b3Fixed maxTorque );
 
 /// Get the maximum spring torque in newtons * meters
-B3_API float b3MotorJoint_GetMaxSpringTorque( b3JointId jointId );
+B3_API b3Fixed b3MotorJoint_GetMaxSpringTorque( b3JointId jointId );
 
 /**@}*/ // motor_joint
 
@@ -1324,22 +1324,22 @@ B3_API bool b3PrismaticJoint_IsSpringEnabled( b3JointId jointId );
 /// Set the prismatic joint stiffness in Hertz.
 /// This should usually be less than a quarter of the simulation rate. For example, if the simulation
 /// runs at 60Hz then the joint stiffness should be 15Hz or less.
-B3_API void b3PrismaticJoint_SetSpringHertz( b3JointId jointId, float hertz );
+B3_API void b3PrismaticJoint_SetSpringHertz( b3JointId jointId, b3Fixed hertz );
 
 /// Get the prismatic joint stiffness in Hertz
-B3_API float b3PrismaticJoint_GetSpringHertz( b3JointId jointId );
+B3_API b3Fixed b3PrismaticJoint_GetSpringHertz( b3JointId jointId );
 
 /// Set the prismatic joint damping ratio (non-dimensional)
-B3_API void b3PrismaticJoint_SetSpringDampingRatio( b3JointId jointId, float dampingRatio );
+B3_API void b3PrismaticJoint_SetSpringDampingRatio( b3JointId jointId, b3Fixed dampingRatio );
 
 /// Get the prismatic spring damping ratio (non-dimensional)
-B3_API float b3PrismaticJoint_GetSpringDampingRatio( b3JointId jointId );
+B3_API b3Fixed b3PrismaticJoint_GetSpringDampingRatio( b3JointId jointId );
 
 /// Set the prismatic joint target translation. Usually in meters.
-B3_API void b3PrismaticJoint_SetTargetTranslation( b3JointId jointId, float targetTranslation );
+B3_API void b3PrismaticJoint_SetTargetTranslation( b3JointId jointId, b3Fixed targetTranslation );
 
 /// Get the prismatic joint target translation. Usually in meters.
-B3_API float b3PrismaticJoint_GetTargetTranslation( b3JointId jointId );
+B3_API b3Fixed b3PrismaticJoint_GetTargetTranslation( b3JointId jointId );
 
 /// Enable/disable a prismatic joint limit
 B3_API void b3PrismaticJoint_EnableLimit( b3JointId jointId, bool enableLimit );
@@ -1348,13 +1348,13 @@ B3_API void b3PrismaticJoint_EnableLimit( b3JointId jointId, bool enableLimit );
 B3_API bool b3PrismaticJoint_IsLimitEnabled( b3JointId jointId );
 
 /// Get the prismatic joint lower limit
-B3_API float b3PrismaticJoint_GetLowerLimit( b3JointId jointId );
+B3_API b3Fixed b3PrismaticJoint_GetLowerLimit( b3JointId jointId );
 
 /// Get the prismatic joint upper limit
-B3_API float b3PrismaticJoint_GetUpperLimit( b3JointId jointId );
+B3_API b3Fixed b3PrismaticJoint_GetUpperLimit( b3JointId jointId );
 
 /// Set the prismatic joint limits
-B3_API void b3PrismaticJoint_SetLimits( b3JointId jointId, float lower, float upper );
+B3_API void b3PrismaticJoint_SetLimits( b3JointId jointId, b3Fixed lower, b3Fixed upper );
 
 /// Enable/disable a prismatic joint motor
 B3_API void b3PrismaticJoint_EnableMotor( b3JointId jointId, bool enableMotor );
@@ -1363,25 +1363,25 @@ B3_API void b3PrismaticJoint_EnableMotor( b3JointId jointId, bool enableMotor );
 B3_API bool b3PrismaticJoint_IsMotorEnabled( b3JointId jointId );
 
 /// Set the prismatic joint motor speed, usually in meters per second
-B3_API void b3PrismaticJoint_SetMotorSpeed( b3JointId jointId, float motorSpeed );
+B3_API void b3PrismaticJoint_SetMotorSpeed( b3JointId jointId, b3Fixed motorSpeed );
 
 /// Get the prismatic joint motor speed, usually in meters per second
-B3_API float b3PrismaticJoint_GetMotorSpeed( b3JointId jointId );
+B3_API b3Fixed b3PrismaticJoint_GetMotorSpeed( b3JointId jointId );
 
 /// Set the prismatic joint maximum motor force, usually in newtons
-B3_API void b3PrismaticJoint_SetMaxMotorForce( b3JointId jointId, float force );
+B3_API void b3PrismaticJoint_SetMaxMotorForce( b3JointId jointId, b3Fixed force );
 
 /// Get the prismatic joint maximum motor force, usually in newtons
-B3_API float b3PrismaticJoint_GetMaxMotorForce( b3JointId jointId );
+B3_API b3Fixed b3PrismaticJoint_GetMaxMotorForce( b3JointId jointId );
 
 /// Get the prismatic joint current motor force, usually in newtons
-B3_API float b3PrismaticJoint_GetMotorForce( b3JointId jointId );
+B3_API b3Fixed b3PrismaticJoint_GetMotorForce( b3JointId jointId );
 
 /// Get the current joint translation, usually in meters.
-B3_API float b3PrismaticJoint_GetTranslation( b3JointId jointId );
+B3_API b3Fixed b3PrismaticJoint_GetTranslation( b3JointId jointId );
 
 /// Get the current joint translation speed, usually in meters per second.
-B3_API float b3PrismaticJoint_GetSpeed( b3JointId jointId );
+B3_API b3Fixed b3PrismaticJoint_GetSpeed( b3JointId jointId );
 
 /**@}*/ // prismatic_joint
 
@@ -1404,26 +1404,26 @@ B3_API void b3RevoluteJoint_EnableSpring( b3JointId jointId, bool enableSpring )
 B3_API bool b3RevoluteJoint_IsSpringEnabled( b3JointId jointId );
 
 /// Set the revolute joint spring stiffness in Hertz
-B3_API void b3RevoluteJoint_SetSpringHertz( b3JointId jointId, float hertz );
+B3_API void b3RevoluteJoint_SetSpringHertz( b3JointId jointId, b3Fixed hertz );
 
 /// Get the revolute joint spring stiffness in Hertz
-B3_API float b3RevoluteJoint_GetSpringHertz( b3JointId jointId );
+B3_API b3Fixed b3RevoluteJoint_GetSpringHertz( b3JointId jointId );
 
 /// Set the revolute joint spring damping ratio, non-dimensional
-B3_API void b3RevoluteJoint_SetSpringDampingRatio( b3JointId jointId, float dampingRatio );
+B3_API void b3RevoluteJoint_SetSpringDampingRatio( b3JointId jointId, b3Fixed dampingRatio );
 
 /// Get the revolute joint spring damping ratio, non-dimensional
-B3_API float b3RevoluteJoint_GetSpringDampingRatio( b3JointId jointId );
+B3_API b3Fixed b3RevoluteJoint_GetSpringDampingRatio( b3JointId jointId );
 
 /// Set the revolute joint target angle in radians
-B3_API void b3RevoluteJoint_SetTargetAngle( b3JointId jointId, float targetRadians );
+B3_API void b3RevoluteJoint_SetTargetAngle( b3JointId jointId, b3Fixed targetRadians );
 
 /// Get the revolute joint target angle in radians
-B3_API float b3RevoluteJoint_GetTargetAngle( b3JointId jointId );
+B3_API b3Fixed b3RevoluteJoint_GetTargetAngle( b3JointId jointId );
 
 /// Get the revolute joint current angle in radians relative to the reference angle
 /// @see b3RevoluteJointDef::referenceAngle
-B3_API float b3RevoluteJoint_GetAngle( b3JointId jointId );
+B3_API b3Fixed b3RevoluteJoint_GetAngle( b3JointId jointId );
 
 /// Enable/disable the revolute joint limit
 B3_API void b3RevoluteJoint_EnableLimit( b3JointId jointId, bool enableLimit );
@@ -1432,13 +1432,13 @@ B3_API void b3RevoluteJoint_EnableLimit( b3JointId jointId, bool enableLimit );
 B3_API bool b3RevoluteJoint_IsLimitEnabled( b3JointId jointId );
 
 /// Get the revolute joint lower limit in radians
-B3_API float b3RevoluteJoint_GetLowerLimit( b3JointId jointId );
+B3_API b3Fixed b3RevoluteJoint_GetLowerLimit( b3JointId jointId );
 
 /// Get the revolute joint upper limit in radians
-B3_API float b3RevoluteJoint_GetUpperLimit( b3JointId jointId );
+B3_API b3Fixed b3RevoluteJoint_GetUpperLimit( b3JointId jointId );
 
 /// Set the revolute joint limits in radians
-B3_API void b3RevoluteJoint_SetLimits( b3JointId jointId, float lowerLimitRadians, float upperLimitRadians );
+B3_API void b3RevoluteJoint_SetLimits( b3JointId jointId, b3Fixed lowerLimitRadians, b3Fixed upperLimitRadians );
 
 /// Enable/disable a revolute joint motor
 B3_API void b3RevoluteJoint_EnableMotor( b3JointId jointId, bool enableMotor );
@@ -1447,19 +1447,19 @@ B3_API void b3RevoluteJoint_EnableMotor( b3JointId jointId, bool enableMotor );
 B3_API bool b3RevoluteJoint_IsMotorEnabled( b3JointId jointId );
 
 /// Set the revolute joint motor speed in radians per second
-B3_API void b3RevoluteJoint_SetMotorSpeed( b3JointId jointId, float motorSpeed );
+B3_API void b3RevoluteJoint_SetMotorSpeed( b3JointId jointId, b3Fixed motorSpeed );
 
 /// Get the revolute joint motor speed in radians per second
-B3_API float b3RevoluteJoint_GetMotorSpeed( b3JointId jointId );
+B3_API b3Fixed b3RevoluteJoint_GetMotorSpeed( b3JointId jointId );
 
 /// Get the revolute joint current motor torque, usually in newton-meters
-B3_API float b3RevoluteJoint_GetMotorTorque( b3JointId jointId );
+B3_API b3Fixed b3RevoluteJoint_GetMotorTorque( b3JointId jointId );
 
 /// Set the revolute joint maximum motor torque, usually in newton-meters
-B3_API void b3RevoluteJoint_SetMaxMotorTorque( b3JointId jointId, float torque );
+B3_API void b3RevoluteJoint_SetMaxMotorTorque( b3JointId jointId, b3Fixed torque );
 
 /// Get the revolute joint maximum motor torque, usually in newton-meters
-B3_API float b3RevoluteJoint_GetMaxMotorTorque( b3JointId jointId );
+B3_API b3Fixed b3RevoluteJoint_GetMaxMotorTorque( b3JointId jointId );
 
 /**@}*/ // revolute_joint
 
@@ -1482,13 +1482,13 @@ B3_API void b3SphericalJoint_EnableConeLimit( b3JointId jointId, bool enableLimi
 B3_API bool b3SphericalJoint_IsConeLimitEnabled( b3JointId jointId );
 
 /// Get the spherical joint cone limit in radians
-B3_API float b3SphericalJoint_GetConeLimit( b3JointId jointId );
+B3_API b3Fixed b3SphericalJoint_GetConeLimit( b3JointId jointId );
 
 /// Set the spherical joint limits in radians
-B3_API void b3SphericalJoint_SetConeLimit( b3JointId jointId, float angleRadians );
+B3_API void b3SphericalJoint_SetConeLimit( b3JointId jointId, b3Fixed angleRadians );
 
 /// Get the spherical joint current cone angle in radians.
-B3_API float b3SphericalJoint_GetConeAngle( b3JointId jointId );
+B3_API b3Fixed b3SphericalJoint_GetConeAngle( b3JointId jointId );
 
 /// Enable/disable the spherical joint limit
 B3_API void b3SphericalJoint_EnableTwistLimit( b3JointId jointId, bool enableLimit );
@@ -1497,16 +1497,16 @@ B3_API void b3SphericalJoint_EnableTwistLimit( b3JointId jointId, bool enableLim
 B3_API bool b3SphericalJoint_IsTwistLimitEnabled( b3JointId jointId );
 
 /// Get the spherical joint lower limit in radians
-B3_API float b3SphericalJoint_GetLowerTwistLimit( b3JointId jointId );
+B3_API b3Fixed b3SphericalJoint_GetLowerTwistLimit( b3JointId jointId );
 
 /// Get the spherical joint upper limit in radians
-B3_API float b3SphericalJoint_GetUpperTwistLimit( b3JointId jointId );
+B3_API b3Fixed b3SphericalJoint_GetUpperTwistLimit( b3JointId jointId );
 
 /// Set the spherical joint limits in radians
-B3_API void b3SphericalJoint_SetTwistLimits( b3JointId jointId, float lowerLimitRadians, float upperLimitRadians );
+B3_API void b3SphericalJoint_SetTwistLimits( b3JointId jointId, b3Fixed lowerLimitRadians, b3Fixed upperLimitRadians );
 
 /// Get the spherical joint current twist angle in radians.
-B3_API float b3SphericalJoint_GetTwistAngle( b3JointId jointId );
+B3_API b3Fixed b3SphericalJoint_GetTwistAngle( b3JointId jointId );
 
 /// Enable/disable the spherical joint spring
 B3_API void b3SphericalJoint_EnableSpring( b3JointId jointId, bool enableSpring );
@@ -1515,16 +1515,16 @@ B3_API void b3SphericalJoint_EnableSpring( b3JointId jointId, bool enableSpring 
 B3_API bool b3SphericalJoint_IsSpringEnabled( b3JointId jointId );
 
 /// Set the spherical joint spring stiffness in Hertz
-B3_API void b3SphericalJoint_SetSpringHertz( b3JointId jointId, float hertz );
+B3_API void b3SphericalJoint_SetSpringHertz( b3JointId jointId, b3Fixed hertz );
 
 /// Get the spherical joint spring stiffness in Hertz
-B3_API float b3SphericalJoint_GetSpringHertz( b3JointId jointId );
+B3_API b3Fixed b3SphericalJoint_GetSpringHertz( b3JointId jointId );
 
 /// Set the spherical joint spring damping ratio, non-dimensional
-B3_API void b3SphericalJoint_SetSpringDampingRatio( b3JointId jointId, float dampingRatio );
+B3_API void b3SphericalJoint_SetSpringDampingRatio( b3JointId jointId, b3Fixed dampingRatio );
 
 /// Get the spherical joint spring damping ratio, non-dimensional
-B3_API float b3SphericalJoint_GetSpringDampingRatio( b3JointId jointId );
+B3_API b3Fixed b3SphericalJoint_GetSpringDampingRatio( b3JointId jointId );
 
 /// Set the spherical joint spring target rotation
 B3_API void b3SphericalJoint_SetTargetRotation( b3JointId jointId, b3Quat targetRotation );
@@ -1548,10 +1548,10 @@ B3_API b3Vec3 b3SphericalJoint_GetMotorVelocity( b3JointId jointId );
 B3_API b3Vec3 b3SphericalJoint_GetMotorTorque( b3JointId jointId );
 
 /// Set the spherical joint maximum motor torque, usually in newton-meters
-B3_API void b3SphericalJoint_SetMaxMotorTorque( b3JointId jointId, float torque );
+B3_API void b3SphericalJoint_SetMaxMotorTorque( b3JointId jointId, b3Fixed torque );
 
 /// Get the spherical joint maximum motor torque, usually in newton-meters
-B3_API float b3SphericalJoint_GetMaxMotorTorque( b3JointId jointId );
+B3_API b3Fixed b3SphericalJoint_GetMaxMotorTorque( b3JointId jointId );
 
 /**@}*/ // spherical_joint
 
@@ -1571,28 +1571,28 @@ B3_API float b3SphericalJoint_GetMaxMotorTorque( b3JointId jointId );
 B3_API b3JointId b3CreateWeldJoint( b3WorldId worldId, const b3WeldJointDef* def );
 
 /// Set the weld joint linear stiffness in Hertz. 0 is rigid.
-B3_API void b3WeldJoint_SetLinearHertz( b3JointId jointId, float hertz );
+B3_API void b3WeldJoint_SetLinearHertz( b3JointId jointId, b3Fixed hertz );
 
 /// Get the weld joint linear stiffness in Hertz
-B3_API float b3WeldJoint_GetLinearHertz( b3JointId jointId );
+B3_API b3Fixed b3WeldJoint_GetLinearHertz( b3JointId jointId );
 
 /// Set the weld joint linear damping ratio (non-dimensional)
-B3_API void b3WeldJoint_SetLinearDampingRatio( b3JointId jointId, float dampingRatio );
+B3_API void b3WeldJoint_SetLinearDampingRatio( b3JointId jointId, b3Fixed dampingRatio );
 
 /// Get the weld joint linear damping ratio (non-dimensional)
-B3_API float b3WeldJoint_GetLinearDampingRatio( b3JointId jointId );
+B3_API b3Fixed b3WeldJoint_GetLinearDampingRatio( b3JointId jointId );
 
 /// Set the weld joint angular stiffness in Hertz. 0 is rigid.
-B3_API void b3WeldJoint_SetAngularHertz( b3JointId jointId, float hertz );
+B3_API void b3WeldJoint_SetAngularHertz( b3JointId jointId, b3Fixed hertz );
 
 /// Get the weld joint angular stiffness in Hertz
-B3_API float b3WeldJoint_GetAngularHertz( b3JointId jointId );
+B3_API b3Fixed b3WeldJoint_GetAngularHertz( b3JointId jointId );
 
 /// Set weld joint angular damping ratio, non-dimensional
-B3_API void b3WeldJoint_SetAngularDampingRatio( b3JointId jointId, float dampingRatio );
+B3_API void b3WeldJoint_SetAngularDampingRatio( b3JointId jointId, b3Fixed dampingRatio );
 
 /// Get the weld joint angular damping ratio, non-dimensional
-B3_API float b3WeldJoint_GetAngularDampingRatio( b3JointId jointId );
+B3_API b3Fixed b3WeldJoint_GetAngularDampingRatio( b3JointId jointId );
 
 /**@}*/ // weld_joint
 
@@ -1617,16 +1617,16 @@ B3_API void b3WheelJoint_EnableSuspension( b3JointId jointId, bool flag );
 B3_API bool b3WheelJoint_IsSuspensionEnabled( b3JointId jointId );
 
 /// Set the wheel joint stiffness in Hertz.
-B3_API void b3WheelJoint_SetSuspensionHertz( b3JointId jointId, float hertz );
+B3_API void b3WheelJoint_SetSuspensionHertz( b3JointId jointId, b3Fixed hertz );
 
 /// Get the wheel joint stiffness in Hertz.
-B3_API float b3WheelJoint_GetSuspensionHertz( b3JointId jointId );
+B3_API b3Fixed b3WheelJoint_GetSuspensionHertz( b3JointId jointId );
 
 /// Set the wheel joint damping ratio, non-dimensional.
-B3_API void b3WheelJoint_SetSuspensionDampingRatio( b3JointId jointId, float dampingRatio );
+B3_API void b3WheelJoint_SetSuspensionDampingRatio( b3JointId jointId, b3Fixed dampingRatio );
 
 /// Get the wheel joint damping ratio, non-dimensional.
-B3_API float b3WheelJoint_GetSuspensionDampingRatio( b3JointId jointId );
+B3_API b3Fixed b3WheelJoint_GetSuspensionDampingRatio( b3JointId jointId );
 
 /// Enable/disable the wheel joint limit.
 B3_API void b3WheelJoint_EnableSuspensionLimit( b3JointId jointId, bool flag );
@@ -1635,13 +1635,13 @@ B3_API void b3WheelJoint_EnableSuspensionLimit( b3JointId jointId, bool flag );
 B3_API bool b3WheelJoint_IsSuspensionLimitEnabled( b3JointId jointId );
 
 /// Get the wheel joint lower limit.
-B3_API float b3WheelJoint_GetLowerSuspensionLimit( b3JointId jointId );
+B3_API b3Fixed b3WheelJoint_GetLowerSuspensionLimit( b3JointId jointId );
 
 /// Get the wheel joint upper limit.
-B3_API float b3WheelJoint_GetUpperSuspensionLimit( b3JointId jointId );
+B3_API b3Fixed b3WheelJoint_GetUpperSuspensionLimit( b3JointId jointId );
 
 /// Set the wheel joint limits.
-B3_API void b3WheelJoint_SetSuspensionLimits( b3JointId jointId, float lower, float upper );
+B3_API void b3WheelJoint_SetSuspensionLimits( b3JointId jointId, b3Fixed lower, b3Fixed upper );
 
 /// Enable/disable the wheel joint motor.
 B3_API void b3WheelJoint_EnableSpinMotor( b3JointId jointId, bool flag );
@@ -1650,22 +1650,22 @@ B3_API void b3WheelJoint_EnableSpinMotor( b3JointId jointId, bool flag );
 B3_API bool b3WheelJoint_IsSpinMotorEnabled( b3JointId jointId );
 
 /// Set the wheel joint motor speed in radians per second.
-B3_API void b3WheelJoint_SetSpinMotorSpeed( b3JointId jointId, float speed );
+B3_API void b3WheelJoint_SetSpinMotorSpeed( b3JointId jointId, b3Fixed speed );
 
 /// Get the wheel joint motor speed in radians per second.
-B3_API float b3WheelJoint_GetSpinMotorSpeed( b3JointId jointId );
+B3_API b3Fixed b3WheelJoint_GetSpinMotorSpeed( b3JointId jointId );
 
 /// Set the wheel joint maximum motor torque, usually in newton-meters.
-B3_API void b3WheelJoint_SetMaxSpinTorque( b3JointId jointId, float torque );
+B3_API void b3WheelJoint_SetMaxSpinTorque( b3JointId jointId, b3Fixed torque );
 
 /// Get the wheel joint maximum motor torque, usually in newton-meters.
-B3_API float b3WheelJoint_GetMaxSpinTorque( b3JointId jointId );
+B3_API b3Fixed b3WheelJoint_GetMaxSpinTorque( b3JointId jointId );
 
 /// Get the current spin speed in radians per second.
-B3_API float b3WheelJoint_GetSpinSpeed( b3JointId jointId );
+B3_API b3Fixed b3WheelJoint_GetSpinSpeed( b3JointId jointId );
 
 /// Get the wheel joint current motor torque, usually in newton-meters.
-B3_API float b3WheelJoint_GetSpinTorque( b3JointId jointId );
+B3_API b3Fixed b3WheelJoint_GetSpinTorque( b3JointId jointId );
 
 /// Enable/disable wheel steering. Steering allows the wheel to rotate about the suspension axis.
 B3_API void b3WheelJoint_EnableSteering( b3JointId jointId, bool flag );
@@ -1674,22 +1674,22 @@ B3_API void b3WheelJoint_EnableSteering( b3JointId jointId, bool flag );
 B3_API bool b3WheelJoint_IsSteeringEnabled( b3JointId jointId );
 
 /// Set the wheel joint steering stiffness in Hertz.
-B3_API void b3WheelJoint_SetSteeringHertz( b3JointId jointId, float hertz );
+B3_API void b3WheelJoint_SetSteeringHertz( b3JointId jointId, b3Fixed hertz );
 
 /// Get the wheel joint steering stiffness in Hertz.
-B3_API float b3WheelJoint_GetSteeringHertz( b3JointId jointId );
+B3_API b3Fixed b3WheelJoint_GetSteeringHertz( b3JointId jointId );
 
 /// Set the wheel joint steering damping ratio, non-dimensional.
-B3_API void b3WheelJoint_SetSteeringDampingRatio( b3JointId jointId, float dampingRatio );
+B3_API void b3WheelJoint_SetSteeringDampingRatio( b3JointId jointId, b3Fixed dampingRatio );
 
 /// Get the wheel joint steering damping ratio, non-dimensional.
-B3_API float b3WheelJoint_GetSteeringDampingRatio( b3JointId jointId );
+B3_API b3Fixed b3WheelJoint_GetSteeringDampingRatio( b3JointId jointId );
 
 /// Set the wheel joint maximum steering torque in N*m.
-B3_API void b3WheelJoint_SetMaxSteeringTorque( b3JointId jointId, float torque );
+B3_API void b3WheelJoint_SetMaxSteeringTorque( b3JointId jointId, b3Fixed torque );
 
 /// Get the wheel joint maximum steering torque in N*m.
-B3_API float b3WheelJoint_GetMaxSteeringTorque( b3JointId jointId );
+B3_API b3Fixed b3WheelJoint_GetMaxSteeringTorque( b3JointId jointId );
 
 /// Enable/disable the wheel joint steering limit.
 B3_API void b3WheelJoint_EnableSteeringLimit( b3JointId jointId, bool flag );
@@ -1698,25 +1698,25 @@ B3_API void b3WheelJoint_EnableSteeringLimit( b3JointId jointId, bool flag );
 B3_API bool b3WheelJoint_IsSteeringLimitEnabled( b3JointId jointId );
 
 /// Get the wheel joint lower steering limit in radians.
-B3_API float b3WheelJoint_GetLowerSteeringLimit( b3JointId jointId );
+B3_API b3Fixed b3WheelJoint_GetLowerSteeringLimit( b3JointId jointId );
 
 /// Get the wheel joint upper steering limit in radians.
-B3_API float b3WheelJoint_GetUpperSteeringLimit( b3JointId jointId );
+B3_API b3Fixed b3WheelJoint_GetUpperSteeringLimit( b3JointId jointId );
 
 /// Set the wheel joint steering limits in radians.
-B3_API void b3WheelJoint_SetSteeringLimits( b3JointId jointId, float lowerRadians, float upperRadians );
+B3_API void b3WheelJoint_SetSteeringLimits( b3JointId jointId, b3Fixed lowerRadians, b3Fixed upperRadians );
 
 /// Set the wheel joint target steering angle in radians.
-B3_API void b3WheelJoint_SetTargetSteeringAngle( b3JointId jointId, float radians );
+B3_API void b3WheelJoint_SetTargetSteeringAngle( b3JointId jointId, b3Fixed radians );
 
 /// Get the wheel joint target steering angle in radians.
-B3_API float b3WheelJoint_GetTargetSteeringAngle( b3JointId jointId );
+B3_API b3Fixed b3WheelJoint_GetTargetSteeringAngle( b3JointId jointId );
 
 /// Get the current steering angle in radians.
-B3_API float b3WheelJoint_GetSteeringAngle( b3JointId jointId );
+B3_API b3Fixed b3WheelJoint_GetSteeringAngle( b3JointId jointId );
 
 /// Get the current steering torque in N*m.
-B3_API float b3WheelJoint_GetSteeringTorque( b3JointId jointId );
+B3_API b3Fixed b3WheelJoint_GetSteeringTorque( b3JointId jointId );
 
 /**@}*/ // wheel_joint
 

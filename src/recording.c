@@ -97,11 +97,12 @@ void b3RecW_I32( b3RecBuffer* buf, int32_t v )
 	b3RecW_U32( buf, (uint32_t)v );
 }
 
-void b3RecW_F32( b3RecBuffer* buf, float v )
+void b3RecW_F32( b3RecBuffer* buf, b3Fixed v )
 {
-	uint32_t bits;
-	memcpy( &bits, &v, 4 );
-	b3RecW_U32( buf, bits );
+	// Fixed-point values are 64 bits on the wire
+	uint64_t bits;
+	memcpy( &bits, &v, 8 );
+	b3RecW_U64( buf, bits );
 }
 
 void b3RecW_F64( b3RecBuffer* buf, double v )
@@ -138,7 +139,7 @@ void b3RecW_TRANSFORM( b3RecBuffer* buf, b3Transform v )
 }
 
 // World position at full precision so recordings reproduce the simulation far from the origin.
-// In the float build this is three floats, wire-identical to VEC3.
+// In the b3Fixed build this is three floats, wire-identical to VEC3.
 void b3RecW_POSITION( b3RecBuffer* buf, b3Pos v )
 {
 #if defined( BOX3D_DOUBLE_PRECISION )
@@ -315,29 +316,29 @@ static void b3RecW_STR( b3RecBuffer* buf, const char* s )
 // stay field-for-field in sync. Add a field to a def and the size changes, firing the matching assert
 // so the writer and reader both get updated. Only enforced on the 64-bit target; each def lists the
 // single-precision and double-precision sizes (equal for most), so either build configuration passes.
-_Static_assert( sizeof( void* ) != 8 || sizeof( b3ExplosionDef ) == 32 || sizeof( b3ExplosionDef ) == 48,
+_Static_assert( sizeof( void* ) != 8 || sizeof( b3ExplosionDef ) == 56,
 				"b3ExplosionDef changed: update b3RecW_EXPLOSIONDEF and b3RecR_EXPLOSIONDEF together" );
-_Static_assert( sizeof( void* ) != 8 || sizeof( b3BodyDef ) == 104 || sizeof( b3BodyDef ) == 120,
+_Static_assert( sizeof( void* ) != 8 || sizeof( b3BodyDef ) == 176,
 				"b3BodyDef changed: update b3RecW_BODYDEF and b3RecR_BODYDEF together" );
-_Static_assert( sizeof( void* ) != 8 || sizeof( b3ShapeDef ) == 120,
+_Static_assert( sizeof( void* ) != 8 || sizeof( b3ShapeDef ) == 152,
 				"b3ShapeDef changed: update b3RecW_SHAPEDEF and b3RecR_SHAPEDEF together" );
-_Static_assert( sizeof( void* ) != 8 || sizeof( b3ParallelJointDef ) == 128,
+_Static_assert( sizeof( void* ) != 8 || sizeof( b3ParallelJointDef ) == 208,
 				"b3ParallelJointDef changed: update b3RecW_PARALLELJOINTDEF and its reader together" );
-_Static_assert( sizeof( void* ) != 8 || sizeof( b3DistanceJointDef ) == 160,
+_Static_assert( sizeof( void* ) != 8 || sizeof( b3DistanceJointDef ) == 280,
 				"b3DistanceJointDef changed: update b3RecW_DISTANCEJOINTDEF and its reader together" );
-_Static_assert( sizeof( void* ) != 8 || sizeof( b3FilterJointDef ) == 112,
+_Static_assert( sizeof( void* ) != 8 || sizeof( b3FilterJointDef ) == 184,
 				"b3FilterJointDef changed: update b3RecW_FILTERJOINTDEF and its reader together" );
-_Static_assert( sizeof( void* ) != 8 || sizeof( b3MotorJointDef ) == 168,
+_Static_assert( sizeof( void* ) != 8 || sizeof( b3MotorJointDef ) == 296,
 				"b3MotorJointDef changed: update b3RecW_MOTORJOINTDEF and its reader together" );
-_Static_assert( sizeof( void* ) != 8 || sizeof( b3PrismaticJointDef ) == 152,
+_Static_assert( sizeof( void* ) != 8 || sizeof( b3PrismaticJointDef ) == 264,
 				"b3PrismaticJointDef changed: update b3RecW_PRISMATICJOINTDEF and its reader together" );
-_Static_assert( sizeof( void* ) != 8 || sizeof( b3RevoluteJointDef ) == 152,
+_Static_assert( sizeof( void* ) != 8 || sizeof( b3RevoluteJointDef ) == 264,
 				"b3RevoluteJointDef changed: update b3RecW_REVOLUTEJOINTDEF and its reader together" );
-_Static_assert( sizeof( void* ) != 8 || sizeof( b3SphericalJointDef ) == 184,
+_Static_assert( sizeof( void* ) != 8 || sizeof( b3SphericalJointDef ) == 320,
 				"b3SphericalJointDef changed: update b3RecW_SPHERICALJOINTDEF and its reader together" );
-_Static_assert( sizeof( void* ) != 8 || sizeof( b3WeldJointDef ) == 128,
+_Static_assert( sizeof( void* ) != 8 || sizeof( b3WeldJointDef ) == 216,
 				"b3WeldJointDef changed: update b3RecW_WELDJOINTDEF and its reader together" );
-_Static_assert( sizeof( void* ) != 8 || sizeof( b3WheelJointDef ) == 184,
+_Static_assert( sizeof( void* ) != 8 || sizeof( b3WheelJointDef ) == 320,
 				"b3WheelJointDef changed: update b3RecW_WHEELJOINTDEF and its reader together" );
 
 void b3RecW_EXPLOSIONDEF( b3RecBuffer* buf, b3ExplosionDef v )
@@ -628,11 +629,11 @@ bool b3RecOverlapTrampoline( b3ShapeId id, void* ctx )
 	return ret;
 }
 
-float b3RecCastTrampoline( b3ShapeId id, b3Pos point, b3Vec3 normal, float fraction, uint64_t userMaterialId, int triangleIndex,
+b3Fixed b3RecCastTrampoline( b3ShapeId id, b3Pos point, b3Vec3 normal, b3Fixed fraction, uint64_t userMaterialId, int triangleIndex,
 						   int childIndex, void* ctx )
 {
 	b3RecQueryWriter* w = (b3RecQueryWriter*)ctx;
-	float ret = w->userFcn.castFcn( id, point, normal, fraction, userMaterialId, triangleIndex, childIndex, w->userContext );
+	b3Fixed ret = w->userFcn.castFcn( id, point, normal, fraction, userMaterialId, triangleIndex, childIndex, w->userContext );
 	b3RecW_SHAPEID( &w->buf, id );
 	b3RecW_POSITION( &w->buf, point );
 	b3RecW_VEC3( &w->buf, normal );
@@ -1089,7 +1090,7 @@ void b3StopRecordingInternal( b3World* world )
 	world->recording = NULL;
 
 	// Write accumulated bounds so a viewer can frame the whole recorded motion
-	b3RecArgs_RecordingBounds rb = { 0 };
+	b3RecArgs_RecordingBounds rb = { b3FixFromInt( 0 ) };
 	if ( rec->haveBounds )
 	{
 		rb.bounds = rec->accumulatedBounds;
@@ -1249,11 +1250,12 @@ uint64_t b3HashWorldState( b3World* world )
 
 		b3BodySim* sim = b3GetBodySim( world, body );
 
-		uint32_t bits;
+		uint64_t bits;
 
+// Hash the full 64 bits of a fixed-point value
 #define B3_HASH_FLOAT( f )                                                                                                       \
-	memcpy( &bits, &( f ), 4 );                                                                                                  \
-	hash = ( hash ^ (uint64_t)bits ) * prime;
+	memcpy( &bits, &( f ), 8 );                                                                                                  \
+	hash = ( hash ^ bits ) * prime;
 
 		hash = b3FnvMixPosition( hash, sim->transform.p );
 		B3_HASH_FLOAT( sim->transform.q.v.x )

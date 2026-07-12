@@ -13,46 +13,46 @@
 // needed for dll export
 #include "box3d/box3d.h"
 
-void b3ParallelJoint_SetSpringHertz( b3JointId jointId, float hertz )
+void b3ParallelJoint_SetSpringHertz( b3JointId jointId, b3Fixed hertz )
 {
-	B3_ASSERT( b3IsValidFloat( hertz ) && hertz >= 0.0f );
+	B3_ASSERT( b3IsValidFixed( hertz ) && hertz >= B3_FIX( 0.0f ) );
 	b3World* world = b3GetWorld( jointId.world0 );
 	B3_REC( world, ParallelJointSetSpringHertz, jointId, hertz );
 	b3JointSim* base = b3GetJointSimCheckType( jointId, b3_parallelJoint );
 	base->parallelJoint.hertz = hertz;
 }
 
-float b3ParallelJoint_GetSpringHertz( b3JointId jointId )
+b3Fixed b3ParallelJoint_GetSpringHertz( b3JointId jointId )
 {
 	b3JointSim* base = b3GetJointSimCheckType( jointId, b3_parallelJoint );
 	return base->parallelJoint.hertz;
 }
 
-void b3ParallelJoint_SetSpringDampingRatio( b3JointId jointId, float dampingRatio )
+void b3ParallelJoint_SetSpringDampingRatio( b3JointId jointId, b3Fixed dampingRatio )
 {
-	B3_ASSERT( b3IsValidFloat( dampingRatio ) && dampingRatio >= 0.0f );
+	B3_ASSERT( b3IsValidFixed( dampingRatio ) && dampingRatio >= B3_FIX( 0.0f ) );
 	b3World* world = b3GetWorld( jointId.world0 );
 	B3_REC( world, ParallelJointSetSpringDampingRatio, jointId, dampingRatio );
 	b3JointSim* base = b3GetJointSimCheckType( jointId, b3_parallelJoint );
 	base->parallelJoint.dampingRatio = dampingRatio;
 }
 
-float b3ParallelJoint_GetSpringDampingRatio( b3JointId jointId )
+b3Fixed b3ParallelJoint_GetSpringDampingRatio( b3JointId jointId )
 {
 	b3JointSim* base = b3GetJointSimCheckType( jointId, b3_parallelJoint );
 	return base->parallelJoint.dampingRatio;
 }
 
-void b3ParallelJoint_SetMaxTorque( b3JointId jointId, float maxForce )
+void b3ParallelJoint_SetMaxTorque( b3JointId jointId, b3Fixed maxForce )
 {
-	B3_ASSERT( b3IsValidFloat( maxForce ) && maxForce >= 0.0f );
+	B3_ASSERT( b3IsValidFixed( maxForce ) && maxForce >= B3_FIX( 0.0f ) );
 	b3World* world = b3GetWorld( jointId.world0 );
 	B3_REC( world, ParallelJointSetMaxTorque, jointId, maxForce );
 	b3JointSim* base = b3GetJointSimCheckType( jointId, b3_parallelJoint );
 	base->parallelJoint.maxTorque = maxForce;
 }
 
-float b3ParallelJoint_GetMaxTorque( b3JointId jointId )
+b3Fixed b3ParallelJoint_GetMaxTorque( b3JointId jointId )
 {
 	b3JointSim* base = b3GetJointSimCheckType( jointId, b3_parallelJoint );
 	return base->parallelJoint.maxTorque;
@@ -63,8 +63,8 @@ b3Vec3 b3GetParallelJointTorque( b3World* world, b3JointSim* base )
 	b3ParallelJoint* joint = &base->parallelJoint;
 
 	b3Quat relQ = b3InvMulQuat( joint->quatA, joint->quatB );
-	joint->perpAxisX = b3MulSV( 0.5f, b3RotateVector( joint->quatA, b3Add( b3MulSV( relQ.s, b3Vec3_axisX ), b3Cross( relQ.v, b3Vec3_axisX ) ) ) );
-	joint->perpAxisY = b3MulSV( 0.5f, b3RotateVector( joint->quatA, b3Add( b3MulSV( relQ.s, b3Vec3_axisY ), b3Cross( relQ.v, b3Vec3_axisY ) ) ) );
+	joint->perpAxisX = b3MulSV( B3_FIX( 0.5f ), b3RotateVector( joint->quatA, b3Add( b3MulSV( relQ.s, b3Vec3_axisX ), b3Cross( relQ.v, b3Vec3_axisX ) ) ) );
+	joint->perpAxisY = b3MulSV( B3_FIX( 0.5f ), b3RotateVector( joint->quatA, b3Add( b3MulSV( relQ.s, b3Vec3_axisY ), b3Cross( relQ.v, b3Vec3_axisY ) ) ) );
 
 	b3Vec3 angularImpulse = b3Blend2( joint->perpImpulse.x, joint->perpAxisX, joint->perpImpulse.y, joint->perpAxisY );
 	b3Vec3 torque = b3MulSV( world->inv_h, angularImpulse );
@@ -96,7 +96,7 @@ void b3PrepareParallelJoint( b3JointSim* base, b3StepContext* context )
 	base->invIB = bodySimB->invInertiaWorld;
 
 	b3Matrix3 invInertiaSum = b3AddMM( base->invIA, base->invIB );
-	base->fixedRotation = b3Det( invInertiaSum ) < 1000.0f * FLT_MIN;
+	base->fixedRotation = invInertiaSum.cx.x + invInertiaSum.cy.y + invInertiaSum.cz.z == 0;
 
 	b3ParallelJoint* joint = &base->parallelJoint;
 	joint->indexA = bodyA->setIndex == b3_awakeSet ? localIndexA : B3_NULL_INDEX;
@@ -110,15 +110,15 @@ void b3PrepareParallelJoint( b3JointSim* base, b3StepContext* context )
 
 	{
 		// These are needed for warm starting
-		joint->perpAxisX = b3MulSV( 0.5f, b3RotateVector( joint->quatA, b3Add( b3MulSV( relQ.s, b3Vec3_axisX ), b3Cross( relQ.v, b3Vec3_axisX ) ) ) );
-		joint->perpAxisY = b3MulSV( 0.5f, b3RotateVector( joint->quatA, b3Add( b3MulSV( relQ.s, b3Vec3_axisY ), b3Cross( relQ.v, b3Vec3_axisY ) ) ) );
+		joint->perpAxisX = b3MulSV( B3_FIX( 0.5f ), b3RotateVector( joint->quatA, b3Add( b3MulSV( relQ.s, b3Vec3_axisX ), b3Cross( relQ.v, b3Vec3_axisX ) ) ) );
+		joint->perpAxisY = b3MulSV( B3_FIX( 0.5f ), b3RotateVector( joint->quatA, b3Add( b3MulSV( relQ.s, b3Vec3_axisY ), b3Cross( relQ.v, b3Vec3_axisY ) ) ) );
 	}
 
 	joint->softness = b3MakeSoft( joint->hertz, joint->dampingRatio, context->h );
 
 	if ( context->enableWarmStarting == false )
 	{
-		joint->perpImpulse = (b3Vec2){ 0.0f, 0.0f };
+		joint->perpImpulse = (b3Vec2){ B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
 	}
 }
 
@@ -175,7 +175,7 @@ void b3SolveParallelJoint( b3JointSim* base, b3StepContext* context )
 	b3Quat quatA = b3MulQuat( stateA->deltaRotation, joint->quatA );
 	b3Quat quatB = b3MulQuat( stateB->deltaRotation, joint->quatB );
 
-	if ( b3DotQuat( quatA, quatB ) < 0.0f )
+	if ( b3DotQuat( quatA, quatB ) < B3_FIX( 0.0f ) )
 	{
 		// this keeps the rotation angle in the range [-pi, pi]
 		quatB = b3NegateQuat( quatB );
@@ -183,42 +183,42 @@ void b3SolveParallelJoint( b3JointSim* base, b3StepContext* context )
 
 	b3Quat relQ = b3InvMulQuat( quatA, quatB );
 
-	if ( fixedRotation == false && joint->maxTorque > 0.0f )
+	if ( fixedRotation == false && joint->maxTorque > B3_FIX( 0.0f ) )
 	{
 		b3Vec2 c = { relQ.v.x, relQ.v.y };
-		b3Vec2 bias = { joint->softness.biasRate * c.x, joint->softness.biasRate * c.y };
-		float massScale = joint->softness.massScale;
-		float impulseScale = joint->softness.impulseScale;
+		b3Vec2 bias = { b3FixMul( joint->softness.biasRate , c.x ), b3FixMul( joint->softness.biasRate , c.y ) };
+		b3Fixed massScale = joint->softness.massScale;
+		b3Fixed impulseScale = joint->softness.impulseScale;
 
 		// Collinearity constraint as 2-by-2
-		b3Vec3 perpAxisX = b3MulSV( 0.5f, b3RotateVector( quatA, b3Add( b3MulSV( relQ.s, b3Vec3_axisX ), b3Cross( relQ.v, b3Vec3_axisX ) ) ) );
-		b3Vec3 perpAxisY = b3MulSV( 0.5f, b3RotateVector( quatA, b3Add( b3MulSV( relQ.s, b3Vec3_axisY ), b3Cross( relQ.v, b3Vec3_axisY ) ) ) );
+		b3Vec3 perpAxisX = b3MulSV( B3_FIX( 0.5f ), b3RotateVector( quatA, b3Add( b3MulSV( relQ.s, b3Vec3_axisX ), b3Cross( relQ.v, b3Vec3_axisX ) ) ) );
+		b3Vec3 perpAxisY = b3MulSV( B3_FIX( 0.5f ), b3RotateVector( quatA, b3Add( b3MulSV( relQ.s, b3Vec3_axisY ), b3Cross( relQ.v, b3Vec3_axisY ) ) ) );
 		joint->perpAxisX = perpAxisX;
 		joint->perpAxisY = perpAxisY;
 
 		b3Matrix3 invInertiaSum = b3AddMM( iA, iB );
-		float kxx = b3Dot( perpAxisX, b3MulMV( invInertiaSum, perpAxisX ) );
-		float kyy = b3Dot( perpAxisY, b3MulMV( invInertiaSum, perpAxisY ) );
-		float kxy = b3Dot( perpAxisX, b3MulMV( invInertiaSum, perpAxisY ) );
+		b3Fixed kxx = b3Dot( perpAxisX, b3MulMV( invInertiaSum, perpAxisX ) );
+		b3Fixed kyy = b3Dot( perpAxisY, b3MulMV( invInertiaSum, perpAxisY ) );
+		b3Fixed kxy = b3Dot( perpAxisX, b3MulMV( invInertiaSum, perpAxisY ) );
 
 		b3Matrix2 k = { { kxx, kxy }, { kxy, kyy } };
 
 		b3Vec3 wRel = b3Sub( wB, wA );
 		b3Vec2 cdot = { b3Dot( wRel, perpAxisX ), b3Dot( wRel, perpAxisY ) };
 
-		float maxImpulse = context->h * joint->maxTorque;
+		b3Fixed maxImpulse = b3FixMul( context->h , joint->maxTorque );
 		b3Vec2 oldImpulse = joint->perpImpulse;
 		b3Vec2 cdotPlusBias = { cdot.x + bias.x, cdot.y + bias.y };
 		b3Vec2 sol = b3Solve2( k, cdotPlusBias );
 		b3Vec2 deltaImpulse = {
-			-massScale * sol.x - impulseScale * oldImpulse.x,
-			-massScale * sol.y - impulseScale * oldImpulse.y,
+			b3FixMul( -massScale , sol.x ) - b3FixMul( impulseScale , oldImpulse.x ),
+			b3FixMul( -massScale , sol.y ) - b3FixMul( impulseScale , oldImpulse.y ),
 		};
 		joint->perpImpulse = (b3Vec2){ oldImpulse.x + deltaImpulse.x, oldImpulse.y + deltaImpulse.y };
-		if ( b3LengthSquared2( joint->perpImpulse ) > maxImpulse * maxImpulse )
+		if ( b3LengthSquared2( joint->perpImpulse ) > b3FixMul( maxImpulse , maxImpulse ) )
 		{
-			float s = maxImpulse / b3Length2( joint->perpImpulse );
-			joint->perpImpulse = (b3Vec2){ s * joint->perpImpulse.x, s * joint->perpImpulse.y };
+			b3Fixed s = b3FixDiv( maxImpulse , b3Length2( joint->perpImpulse ) );
+			joint->perpImpulse = (b3Vec2){ b3FixMul( s , joint->perpImpulse.x ), b3FixMul( s , joint->perpImpulse.y ) };
 		}
 
 		deltaImpulse = b3Sub2( joint->perpImpulse, oldImpulse );
@@ -239,9 +239,9 @@ void b3SolveParallelJoint( b3JointSim* base, b3StepContext* context )
 	}
 }
 
-void b3DrawParallelJoint( b3DebugDraw* draw, b3JointSim* base, b3WorldTransform transformA, b3WorldTransform transformB, float scale )
+void b3DrawParallelJoint( b3DebugDraw* draw, b3JointSim* base, b3WorldTransform transformA, b3WorldTransform transformB, b3Fixed scale )
 {
-	float length = 0.1f * scale;
+	b3Fixed length = b3FixMul( B3_FIX( 0.1f ) , scale );
 
 	b3WorldTransform frameA = b3MulWorldTransforms( transformA, base->localFrameA );
 	draw->DrawSegmentFcn( frameA.p, b3OffsetPos( frameA.p, b3MulSV( length, b3RotateVector( frameA.q, b3Vec3_axisZ ) ) ), b3_colorGreen, draw->context );

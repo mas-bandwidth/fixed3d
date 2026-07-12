@@ -24,9 +24,9 @@ static b3Shape* b3GetShape( b3World* world, b3ShapeId shapeId )
 	return shape;
 }
 
-static float b3ComputeShapeMargin( b3Shape* shape )
+static b3Fixed b3ComputeShapeMargin( b3Shape* shape )
 {
-	float margin = 0.0f;
+	b3Fixed margin = B3_FIX( 0.0f );
 
 	switch ( shape->type )
 	{
@@ -38,7 +38,7 @@ static float b3ComputeShapeMargin( b3Shape* shape )
 
 		case b3_capsuleShape:
 		{
-			margin = 0.5f * b3Distance( shape->capsule.center2, shape->capsule.center1 ) + shape->capsule.radius;
+			margin = b3FixMul( B3_FIX( 0.5f ) , b3Distance( shape->capsule.center2, shape->capsule.center1 ) ) + shape->capsule.radius;
 		}
 		break;
 
@@ -46,14 +46,14 @@ static float b3ComputeShapeMargin( b3Shape* shape )
 		{
 			const b3HullData* hull = shape->hull;
 			const b3Vec3* points = b3GetHullPoints( hull );
-			float maxExtentSqr = 0.0f;
+			b3Fixed maxExtentSqr = B3_FIX( 0.0f );
 			int count = hull->vertexCount;
 			for ( int i = 0; i < count; ++i )
 			{
-				float distSqr = b3DistanceSquared( points[i], hull->center );
-				maxExtentSqr = b3MaxFloat( maxExtentSqr, distSqr );
+				b3Fixed distSqr = b3DistanceSquared( points[i], hull->center );
+				maxExtentSqr = b3FixMax( maxExtentSqr, distSqr );
 			}
-			margin = sqrtf( maxExtentSqr );
+			margin = b3FixSqrt( maxExtentSqr );
 		}
 		break;
 
@@ -72,20 +72,20 @@ static float b3ComputeShapeMargin( b3Shape* shape )
 			return B3_MAX_AABB_MARGIN;
 	}
 
-	return b3MinFloat( B3_MAX_AABB_MARGIN, B3_AABB_MARGIN_FRACTION * margin );
+	return b3FixMin( B3_MAX_AABB_MARGIN, b3FixMul( B3_AABB_MARGIN_FRACTION , margin ) );
 }
 
 static void b3UpdateShapeAABBs( b3Shape* shape, b3WorldTransform transform, b3BodyType proxyType )
 {
 	// Compute a bounding box with a speculative margin
-	const float speculativeDistance = B3_SPECULATIVE_DISTANCE;
-	const float aabbMargin = shape->aabbMargin;
+	const b3Fixed speculativeDistance = B3_SPECULATIVE_DISTANCE;
+	const b3Fixed aabbMargin = shape->aabbMargin;
 
 	b3AABB aabb = b3ComputeFatShapeAABB( shape, transform, speculativeDistance );
 	shape->aabb = aabb;
 
 	// Smaller margin for static bodies. Cannot be zero due to TOI tolerance.
-	float margin = proxyType == b3_staticBody ? speculativeDistance : aabbMargin;
+	b3Fixed margin = proxyType == b3_staticBody ? speculativeDistance : aabbMargin;
 	b3AABB fatAABB;
 	fatAABB.lowerBound.x = aabb.lowerBound.x - margin;
 	fatAABB.lowerBound.y = aabb.lowerBound.y - margin;
@@ -256,9 +256,9 @@ static b3ShapeId b3CreateShape( b3BodyId bodyId, const b3ShapeDef* def, const vo
 								b3Transform transform, b3Vec3 scale, bool haveTransform )
 {
 	B3_CHECK_DEF( def );
-	B3_ASSERT( b3IsValidFloat( def->density ) && def->density >= 0.0f );
-	B3_ASSERT( b3IsValidFloat( def->baseMaterial.friction ) && def->baseMaterial.friction >= 0.0f );
-	B3_ASSERT( b3IsValidFloat( def->baseMaterial.restitution ) && def->baseMaterial.restitution >= 0.0f );
+	B3_ASSERT( b3IsValidFixed( def->density ) && def->density >= B3_FIX( 0.0f ) );
+	B3_ASSERT( b3IsValidFixed( def->baseMaterial.friction ) && def->baseMaterial.friction >= B3_FIX( 0.0f ) );
+	B3_ASSERT( b3IsValidFixed( def->baseMaterial.restitution ) && def->baseMaterial.restitution >= B3_FIX( 0.0f ) );
 
 	b3World* world = b3GetUnlockedWorld( bodyId.world0 );
 	if ( world == NULL )
@@ -327,11 +327,11 @@ b3ShapeId b3CreateSphereShape( b3BodyId bodyId, const b3ShapeDef* def, const b3S
 
 b3ShapeId b3CreateCapsuleShape( b3BodyId bodyId, const b3ShapeDef* def, const b3Capsule* capsule )
 {
-	float lengthSqr = b3DistanceSquared( capsule->center1, capsule->center2 );
+	b3Fixed lengthSqr = b3DistanceSquared( capsule->center1, capsule->center2 );
 	b3ShapeId shapeId;
-	if ( lengthSqr <= B3_LINEAR_SLOP * B3_LINEAR_SLOP )
+	if ( lengthSqr <= b3FixMul( B3_LINEAR_SLOP , B3_LINEAR_SLOP ) )
 	{
-		b3Sphere sphere = { b3Lerp( capsule->center1, capsule->center2, 0.5f ), capsule->radius };
+		b3Sphere sphere = { b3Lerp( capsule->center1, capsule->center2, B3_FIX( 0.5f ) ), capsule->radius };
 		shapeId = b3CreateShape( bodyId, def, &sphere, b3_sphereShape, b3Transform_identity, b3Vec3_one, false );
 	}
 	else
@@ -592,13 +592,13 @@ b3AABB b3ComputeShapeAABB( const b3Shape* shape, b3Transform transform )
 	}
 }
 
-b3AABB b3ComputeFatShapeAABB( const b3Shape* shape, b3WorldTransform transform, float extra )
+b3AABB b3ComputeFatShapeAABB( const b3Shape* shape, b3WorldTransform transform, b3Fixed extra )
 {
 	b3Vec3 r = { extra, extra, extra };
 #if defined( BOX3D_DOUBLE_PRECISION )
 	// Build the box in the body local frame, inflate, then translate by the double origin and
 	// round outward. Inflating before the single rounding matters far from the origin where the
-	// float margin would otherwise vanish.
+	// b3Fixed margin would otherwise vanish.
 	b3Transform rotation = { b3Vec3_zero, transform.q };
 	b3AABB localBox = b3ComputeShapeAABB( shape, rotation );
 	localBox.lowerBound = b3Sub( localBox.lowerBound, r );
@@ -612,9 +612,9 @@ b3AABB b3ComputeFatShapeAABB( const b3Shape* shape, b3WorldTransform transform, 
 #endif
 }
 
-b3AABB b3ComputeSweptShapeAABB( const b3Shape* shape, const b3Sweep* sweep, float time )
+b3AABB b3ComputeSweptShapeAABB( const b3Shape* shape, const b3Sweep* sweep, b3Fixed time )
 {
-	B3_ASSERT( 0.0f <= time && time <= 1.0f );
+	B3_ASSERT( B3_FIX( 0.0f ) <= time && time <= B3_FIX( 1.0f ) );
 	b3Transform xf1 = { b3Sub( sweep->c1, b3RotateVector( sweep->q1, sweep->localCenter ) ), sweep->q1 };
 	b3Transform xf2 = b3GetSweepTransform( sweep, time );
 
@@ -640,7 +640,7 @@ b3Vec3 b3GetShapeCentroid( const b3Shape* shape )
 	switch ( shape->type )
 	{
 		case b3_capsuleShape:
-			return b3Lerp( shape->capsule.center1, shape->capsule.center2, 0.5f );
+			return b3Lerp( shape->capsule.center1, shape->capsule.center2, B3_FIX( 0.5f ) );
 		case b3_compoundShape:
 		{
 			b3AABB aabb = b3ComputeCompoundAABB( shape->compound, b3Transform_identity );
@@ -665,38 +665,38 @@ b3Vec3 b3GetShapeCentroid( const b3Shape* shape )
 	}
 }
 
-float b3GetShapeArea( const b3Shape* shape )
+b3Fixed b3GetShapeArea( const b3Shape* shape )
 {
 	// todo_erin fix these
 	switch ( shape->type )
 	{
 		case b3_capsuleShape:
-			return 2.0f * b3Length( b3Sub( shape->capsule.center1, shape->capsule.center2 ) ) +
-				   2.0f * B3_PI * shape->capsule.radius;
+			return b3FixMul( B3_FIX( 2.0f ) , b3Length( b3Sub( shape->capsule.center1, shape->capsule.center2 ) ) ) +
+				   b3FixMul( b3FixMul( B3_FIX( 2.0f ) , B3_PI ) , shape->capsule.radius );
 
 		case b3_hullShape:
 			return shape->hull->surfaceArea;
 
 		case b3_sphereShape:
-			return 2.0f * B3_PI * shape->sphere.radius;
+			return b3FixMul( b3FixMul( B3_FIX( 2.0f ) , B3_PI ) , shape->sphere.radius );
 
 		default:
-			return 0.0f;
+			return B3_FIX( 0.0f );
 	}
 }
 
 // This projects the shape surface area onto a plane
-float b3GetShapeProjectedArea( const b3Shape* shape, b3Vec3 planeNormal )
+b3Fixed b3GetShapeProjectedArea( const b3Shape* shape, b3Vec3 planeNormal )
 {
 	switch ( shape->type )
 	{
 		case b3_capsuleShape:
 		{
-			float radius = shape->capsule.radius;
+			b3Fixed radius = shape->capsule.radius;
 			b3Vec3 axis = b3Sub( shape->capsule.center2, shape->capsule.center1 );
-			float projectedLength = b3Length( b3Cross( axis, planeNormal ) );
-			float cylinderArea = 2.0f * radius * projectedLength;
-			float sphereArea = B3_PI * radius * radius;
+			b3Fixed projectedLength = b3Length( b3Cross( axis, planeNormal ) );
+			b3Fixed cylinderArea = b3FixMul( b3FixMul( B3_FIX( 2.0f ) , radius ) , projectedLength );
+			b3Fixed sphereArea = b3FixMul( b3FixMul( B3_PI , radius ) , radius );
 			return sphereArea + cylinderArea;
 		}
 
@@ -704,10 +704,10 @@ float b3GetShapeProjectedArea( const b3Shape* shape, b3Vec3 planeNormal )
 			return b3ComputeHullProjectedArea( shape->hull, planeNormal );
 
 		case b3_sphereShape:
-			return B3_PI * shape->sphere.radius * shape->sphere.radius;
+			return b3FixMul( b3FixMul( B3_PI , shape->sphere.radius ) , shape->sphere.radius );
 
 		default:
-			return 0.0f;
+			return B3_FIX( 0.0f );
 	}
 }
 
@@ -725,19 +725,19 @@ b3MassData b3ComputeShapeMass( const b3Shape* shape )
 			return b3ComputeSphereMass( &shape->sphere, shape->density );
 
 		default:
-			return (b3MassData){ 0 };
+			return (b3MassData){ b3FixFromInt( 0 ) };
 	}
 }
 
 b3ShapeExtent b3ComputeShapeExtent( const b3Shape* shape, b3Vec3 localCenter )
 {
-	b3ShapeExtent extent = { 0 };
+	b3ShapeExtent extent = { b3FixFromInt( 0 ) };
 
 	switch ( shape->type )
 	{
 		case b3_capsuleShape:
 		{
-			float radius = shape->capsule.radius;
+			b3Fixed radius = shape->capsule.radius;
 			extent.minExtent = radius;
 			b3Vec3 c1 = b3Sub( shape->capsule.center1, localCenter );
 			b3Vec3 c2 = b3Sub( shape->capsule.center2, localCenter );
@@ -750,9 +750,9 @@ b3ShapeExtent b3ComputeShapeExtent( const b3Shape* shape, b3Vec3 localCenter )
 		{
 			// This is shouldn't be needed but here for completeness
 			b3AABB aabb = b3ComputeCompoundAABB( shape->compound, b3Transform_identity );
-			float r1 = b3Length( b3Sub( aabb.lowerBound, localCenter ) );
-			float r2 = b3Length( b3Sub( aabb.upperBound, localCenter ) );
-			extent.minExtent = b3MinFloat( r1, r2 );
+			b3Fixed r1 = b3Length( b3Sub( aabb.lowerBound, localCenter ) );
+			b3Fixed r2 = b3Length( b3Sub( aabb.upperBound, localCenter ) );
+			extent.minExtent = b3FixMin( r1, r2 );
 			b3Vec3 p = b3FarthestPointOnAABB( aabb, localCenter );
 			extent.maxExtent = b3Abs( b3Sub( p, localCenter ) );
 		}
@@ -760,7 +760,7 @@ b3ShapeExtent b3ComputeShapeExtent( const b3Shape* shape, b3Vec3 localCenter )
 
 		case b3_sphereShape:
 		{
-			float radius = shape->sphere.radius;
+			b3Fixed radius = shape->sphere.radius;
 			extent.minExtent = radius;
 			b3Vec3 r = { radius, radius, radius };
 			b3Vec3 p = b3Add( b3Sub( shape->sphere.center, localCenter ), r );
@@ -776,9 +776,9 @@ b3ShapeExtent b3ComputeShapeExtent( const b3Shape* shape, b3Vec3 localCenter )
 		{
 			// This is needed for kinematic mesh sleeping
 			b3AABB aabb = b3ComputeMeshAABB( shape->mesh.data, b3Transform_identity, shape->mesh.scale );
-			float r1 = b3Length( b3Sub( aabb.lowerBound, localCenter ) );
-			float r2 = b3Length( b3Sub( aabb.upperBound, localCenter ) );
-			extent.minExtent = b3MinFloat( r1, r2 );
+			b3Fixed r1 = b3Length( b3Sub( aabb.lowerBound, localCenter ) );
+			b3Fixed r2 = b3Length( b3Sub( aabb.upperBound, localCenter ) );
+			extent.minExtent = b3FixMin( r1, r2 );
 			b3Vec3 p = b3FarthestPointOnAABB( aabb, localCenter );
 			extent.maxExtent = b3Abs( p );
 		}
@@ -797,7 +797,7 @@ b3CastOutput b3RayCastShape( const b3Shape* shape, b3Transform transform, const 
 	localInput.origin = b3InvTransformPoint( transform, input->origin );
 	localInput.translation = b3InvRotateVector( transform.q, input->translation );
 
-	b3CastOutput output = { 0 };
+	b3CastOutput output = { b3FixFromInt( 0 ) };
 	switch ( shape->type )
 	{
 		case b3_capsuleShape:
@@ -841,7 +841,7 @@ b3CastOutput b3ShapeCastShape( const b3Shape* shape, b3Transform transform, cons
 	localInput.proxy.points = localPoints;
 	localInput.translation = b3InvRotateVector( transform.q, input->translation );
 
-	b3CastOutput output = { 0 };
+	b3CastOutput output = { b3FixFromInt( 0 ) };
 	switch ( shape->type )
 	{
 		case b3_capsuleShape:
@@ -1056,7 +1056,7 @@ b3ShapeProxy b3MakeShapeProxy( const b3Shape* shape )
 		{
 			const b3HullData* hull = shape->hull;
 			const b3Vec3* points = b3GetHullPoints( hull );
-			return (b3ShapeProxy){ points, hull->vertexCount, 0.0f };
+			return (b3ShapeProxy){ points, hull->vertexCount, B3_FIX( 0.0f ) };
 		}
 
 		default:
@@ -1165,13 +1165,13 @@ b3WorldCastOutput b3Shape_RayCast( b3ShapeId shapeId, b3Pos origin, b3Vec3 trans
 	b3World* world = b3GetWorld( shapeId.world0 );
 	b3Shape* shape = b3GetShape( world, shapeId );
 
-	// Re-center on the origin so the cast runs in float precision far from the world origin
+	// Re-center on the origin so the cast runs in b3Fixed precision far from the world origin
 	b3Transform transform = b3ToRelativeTransform( b3GetBodyTransform( world, shape->bodyId ), origin );
 
 	// The ray starts at the origin, so its origin in the re-centered frame is zero
-	b3RayCastInput input = { b3Vec3_zero, translation, 1.0f };
+	b3RayCastInput input = { b3Vec3_zero, translation, B3_FIX( 1.0f ) };
 
-	// Lift the re-centered float result back to a world position
+	// Lift the re-centered b3Fixed result back to a world position
 	b3CastOutput local = b3RayCastShape( shape, transform, &input );
 	b3WorldCastOutput output;
 	output.normal = local.normal;
@@ -1186,9 +1186,9 @@ b3WorldCastOutput b3Shape_RayCast( b3ShapeId shapeId, b3Pos origin, b3Vec3 trans
 	return output;
 }
 
-void b3Shape_SetDensity( b3ShapeId shapeId, float density, bool updateBodyMass )
+void b3Shape_SetDensity( b3ShapeId shapeId, b3Fixed density, bool updateBodyMass )
 {
-	B3_ASSERT( b3IsValidFloat( density ) && density >= 0.0f );
+	B3_ASSERT( b3IsValidFixed( density ) && density >= B3_FIX( 0.0f ) );
 
 	b3World* world = b3GetUnlockedWorld( shapeId.world0 );
 	if ( world == NULL )
@@ -1214,16 +1214,16 @@ void b3Shape_SetDensity( b3ShapeId shapeId, float density, bool updateBodyMass )
 	}
 }
 
-float b3Shape_GetDensity( b3ShapeId shapeId )
+b3Fixed b3Shape_GetDensity( b3ShapeId shapeId )
 {
 	b3World* world = b3GetWorld( shapeId.world0 );
 	b3Shape* shape = b3GetShape( world, shapeId );
 	return shape->density;
 }
 
-void b3Shape_SetFriction( b3ShapeId shapeId, float friction )
+void b3Shape_SetFriction( b3ShapeId shapeId, b3Fixed friction )
 {
-	B3_ASSERT( b3IsValidFloat( friction ) && friction >= 0.0f );
+	B3_ASSERT( b3IsValidFixed( friction ) && friction >= B3_FIX( 0.0f ) );
 	b3World* world = b3GetWorld( shapeId.world0 );
 	B3_REC( world, ShapeSetFriction, shapeId, friction );
 	b3Shape* shape = b3GetShape( world, shapeId );
@@ -1231,16 +1231,16 @@ void b3Shape_SetFriction( b3ShapeId shapeId, float friction )
 	b3GetShapeMaterials( shape )[0].friction = friction;
 }
 
-float b3Shape_GetFriction( b3ShapeId shapeId )
+b3Fixed b3Shape_GetFriction( b3ShapeId shapeId )
 {
 	b3World* world = b3GetWorld( shapeId.world0 );
 	b3Shape* shape = b3GetShape( world, shapeId );
 	return b3GetShapeMaterials( shape )[0].friction;
 }
 
-void b3Shape_SetRestitution( b3ShapeId shapeId, float restitution )
+void b3Shape_SetRestitution( b3ShapeId shapeId, b3Fixed restitution )
 {
-	B3_ASSERT( b3IsValidFloat( restitution ) && restitution >= 0.0f );
+	B3_ASSERT( b3IsValidFixed( restitution ) && restitution >= B3_FIX( 0.0f ) );
 	b3World* world = b3GetWorld( shapeId.world0 );
 	B3_REC( world, ShapeSetRestitution, shapeId, restitution );
 	b3Shape* shape = b3GetShape( world, shapeId );
@@ -1248,7 +1248,7 @@ void b3Shape_SetRestitution( b3ShapeId shapeId, float restitution )
 	b3GetShapeMaterials( shape )[0].restitution = restitution;
 }
 
-float b3Shape_GetRestitution( b3ShapeId shapeId )
+b3Fixed b3Shape_GetRestitution( b3ShapeId shapeId )
 {
 	b3World* world = b3GetWorld( shapeId.world0 );
 	b3Shape* shape = b3GetShape( world, shapeId );
@@ -1257,9 +1257,9 @@ float b3Shape_GetRestitution( b3ShapeId shapeId )
 
 void b3Shape_SetSurfaceMaterial( b3ShapeId shapeId, b3SurfaceMaterial surfaceMaterial )
 {
-	B3_ASSERT( b3IsValidFloat( surfaceMaterial.friction ) && surfaceMaterial.friction >= 0.0f );
-	B3_ASSERT( b3IsValidFloat( surfaceMaterial.restitution ) && surfaceMaterial.restitution >= 0.0f );
-	B3_ASSERT( b3IsValidFloat( surfaceMaterial.rollingResistance ) && surfaceMaterial.rollingResistance >= 0.0f );
+	B3_ASSERT( b3IsValidFixed( surfaceMaterial.friction ) && surfaceMaterial.friction >= B3_FIX( 0.0f ) );
+	B3_ASSERT( b3IsValidFixed( surfaceMaterial.restitution ) && surfaceMaterial.restitution >= B3_FIX( 0.0f ) );
+	B3_ASSERT( b3IsValidFixed( surfaceMaterial.rollingResistance ) && surfaceMaterial.rollingResistance >= B3_FIX( 0.0f ) );
 	B3_ASSERT( b3IsValidVec3( surfaceMaterial.tangentVelocity ) );
 
 	b3World* world = b3GetWorld( shapeId.world0 );
@@ -1285,9 +1285,9 @@ int b3Shape_GetMeshMaterialCount( b3ShapeId shapeId )
 
 void b3Shape_SetMeshMaterial( b3ShapeId shapeId, b3SurfaceMaterial surfaceMaterial, int index )
 {
-	B3_ASSERT( b3IsValidFloat( surfaceMaterial.friction ) && surfaceMaterial.friction >= 0.0f );
-	B3_ASSERT( b3IsValidFloat( surfaceMaterial.restitution ) && surfaceMaterial.restitution >= 0.0f );
-	B3_ASSERT( b3IsValidFloat( surfaceMaterial.rollingResistance ) && surfaceMaterial.rollingResistance >= 0.0f );
+	B3_ASSERT( b3IsValidFixed( surfaceMaterial.friction ) && surfaceMaterial.friction >= B3_FIX( 0.0f ) );
+	B3_ASSERT( b3IsValidFixed( surfaceMaterial.restitution ) && surfaceMaterial.restitution >= B3_FIX( 0.0f ) );
+	B3_ASSERT( b3IsValidFixed( surfaceMaterial.rollingResistance ) && surfaceMaterial.rollingResistance >= B3_FIX( 0.0f ) );
 	B3_ASSERT( b3IsValidVec3( surfaceMaterial.tangentVelocity ) );
 
 	b3World* world = b3GetWorld( shapeId.world0 );
@@ -1779,7 +1779,7 @@ b3AABB b3Shape_GetAABB( b3ShapeId shapeId )
 	b3World* world = b3GetWorld( shapeId.world0 );
 	if ( world == NULL )
 	{
-		return (b3AABB){ 0 };
+		return (b3AABB){ b3FixFromInt( 0 ) };
 	}
 
 	b3Shape* shape = b3GetShape( world, shapeId );
@@ -1791,7 +1791,7 @@ b3MassData b3Shape_ComputeMassData( b3ShapeId shapeId )
 	b3World* world = b3GetWorld( shapeId.world0 );
 	if ( world == NULL )
 	{
-		return (b3MassData){ 0 };
+		return (b3MassData){ b3FixFromInt( 0 ) };
 	}
 
 	b3Shape* shape = b3GetShape( world, shapeId );
@@ -1808,16 +1808,16 @@ b3Vec3 b3Shape_GetClosestPoint( b3ShapeId shapeId, b3Vec3 target )
 
 	b3Shape* shape = b3GetShape( world, shapeId );
 	b3Body* body = b3Array_Get( world->bodies, shape->bodyId );
-	// Low level closest point query is a documented float carve-out far from the origin
+	// Low level closest point query is a documented b3Fixed carve-out far from the origin
 	b3Transform transform = b3ToRelativeTransform( b3GetBodyTransformQuick( world, body ), b3Pos_zero );
 
 	b3DistanceInput input;
 	input.proxyA = b3MakeShapeProxy( shape );
-	input.proxyB = (b3ShapeProxy){ &target, 1, 0.0f };
+	input.proxyB = (b3ShapeProxy){ &target, 1, B3_FIX( 0.0f ) };
 	input.transform = b3InvMulTransforms( transform, b3Transform_identity );
 	input.useRadii = true;
 
-	b3SimplexCache cache = { 0 };
+	b3SimplexCache cache = { b3FixFromInt( 0 ) };
 	b3DistanceOutput output = b3ShapeDistance( &input, &cache, NULL, 0 );
 
 	// Witness point comes back in frame A, lift it back to the query frame
@@ -1830,7 +1830,7 @@ b3Vec3 b3Shape_GetClosestPoint( b3ShapeId shapeId, b3Vec3 target )
 // https://www.engineeringtoolbox.com/wind-load-d_1775.html
 // force = 0.5 * air_density * velocity^2 * area
 // https://en.wikipedia.org/wiki/Lift_(force)
-void b3Shape_ApplyWind( b3ShapeId shapeId, b3Vec3 wind, float drag, float lift, float maxSpeed, bool wake )
+void b3Shape_ApplyWind( b3ShapeId shapeId, b3Vec3 wind, b3Fixed drag, b3Fixed lift, b3Fixed maxSpeed, bool wake )
 {
 	b3World* world = b3GetWorld( shapeId.world0 );
 	if ( world == NULL )
@@ -1879,28 +1879,28 @@ void b3Shape_ApplyWind( b3ShapeId shapeId, b3Vec3 wind, float drag, float lift, 
 	// Only the rotation is used below, so the demoted world transform is exact
 	b3Transform transform = b3ToRelativeTransform( sim->transform, b3Pos_zero );
 
-	float lengthUnits = b3GetLengthUnitsPerMeter();
-	float volumeUnits = lengthUnits * lengthUnits * lengthUnits;
+	b3Fixed lengthUnits = b3GetLengthUnitsPerMeter();
+	b3Fixed volumeUnits = b3FixMul( b3FixMul( lengthUnits , lengthUnits ) , lengthUnits );
 
-	float airDensity = 1.2250f / ( volumeUnits );
+	b3Fixed airDensity = b3FixDiv( B3_FIX( 1.2250f ) , ( volumeUnits ) );
 
-	b3Vec3 force = { 0 };
-	b3Vec3 torque = { 0 };
+	b3Vec3 force = { b3FixFromInt( 0 ) };
+	b3Vec3 torque = { b3FixFromInt( 0 ) };
 
 	switch ( shape->type )
 	{
 		case b3_sphereShape:
 		{
-			float radius = shape->sphere.radius;
+			b3Fixed radius = shape->sphere.radius;
 			b3Vec3 centroid = shape->localCentroid;
 			b3Vec3 lever = b3RotateVector( transform.q, b3Sub( centroid, sim->localCenter ) );
 			b3Vec3 shapeVelocity = b3Add( state->linearVelocity, b3Cross( state->angularVelocity, lever ) );
 			b3Vec3 relativeVelocity = b3MulSub( wind, drag, shapeVelocity );
-			float speed;
+			b3Fixed speed;
 			b3Vec3 direction = b3GetLengthAndNormalize( &speed, relativeVelocity );
-			speed = b3MinFloat( speed, maxSpeed );
-			float projectedArea = B3_PI * radius * radius;
-			force = b3MulSV( 0.5f * airDensity * projectedArea * speed * speed, direction );
+			speed = b3FixMin( speed, maxSpeed );
+			b3Fixed projectedArea = b3FixMul( b3FixMul( B3_PI , radius ) , radius );
+			force = b3MulSV( b3FixMul( b3FixMul( b3FixMul( b3FixMul( B3_FIX( 0.5f ) , airDensity ) , projectedArea ) , speed ) , speed ), direction );
 			torque = b3Cross( lever, force );
 		}
 		break;
@@ -1911,15 +1911,15 @@ void b3Shape_ApplyWind( b3ShapeId shapeId, b3Vec3 wind, float drag, float lift, 
 			b3Vec3 lever = b3RotateVector( transform.q, b3Sub( centroid, sim->localCenter ) );
 			b3Vec3 shapeVelocity = b3Add( state->linearVelocity, b3Cross( state->angularVelocity, lever ) );
 			b3Vec3 relativeVelocity = b3MulSub( wind, drag, shapeVelocity );
-			float speed;
+			b3Fixed speed;
 			b3Vec3 direction = b3GetLengthAndNormalize( &speed, relativeVelocity );
-			speed = b3MinFloat( speed, maxSpeed );
+			speed = b3FixMin( speed, maxSpeed );
 
 			b3Vec3 d = b3Sub( shape->capsule.center2, shape->capsule.center1 );
 			d = b3RotateVector( transform.q, d );
 
-			float radius = shape->capsule.radius;
-			float projectedArea = B3_PI * radius * radius + 2.0f * radius * b3Length( b3Cross( d, direction ) );
+			b3Fixed radius = shape->capsule.radius;
+			b3Fixed projectedArea = b3FixMul( b3FixMul( B3_PI , radius ) , radius ) + b3FixMul( b3FixMul( B3_FIX( 2.0f ) , radius ) , b3Length( b3Cross( d, direction ) ) );
 
 			// Normal that opposes the wind
 			b3Vec3 e = b3Normalize( d );
@@ -1928,7 +1928,7 @@ void b3Shape_ApplyWind( b3ShapeId shapeId, b3Vec3 wind, float drag, float lift, 
 			// portion of wind that is perpendicular to surface
 			b3Vec3 liftDirection = b3Cross( b3Cross( normal, direction ), direction );
 
-			float forceMagnitude = 0.5f * airDensity * projectedArea * speed * speed;
+			b3Fixed forceMagnitude = b3FixMul( b3FixMul( b3FixMul( b3FixMul( B3_FIX( 0.5f ) , airDensity ) , projectedArea ) , speed ) , speed );
 			force = b3MulSV( forceMagnitude, b3MulAdd( direction, lift, liftDirection ) );
 
 			b3Vec3 edgeLever = b3MulAdd( lever, radius, normal );
@@ -1974,7 +1974,7 @@ void b3Shape_ApplyWind( b3ShapeId shapeId, b3Vec3 wind, float drag, float lift, 
 					b3Vec3 v3 = b3MulMV( matrix, localPoint3 );
 
 					// Triangle center
-					b3Vec3 localCenter = b3MulSV( 0.333333f, b3Add( localPoint1, b3Add( localPoint2, localPoint3 ) ) );
+					b3Vec3 localCenter = b3MulSV( B3_FIX( 0.333333f ), b3Add( localPoint1, b3Add( localPoint2, localPoint3 ) ) );
 
 					// Lever arm from center of mass to triangle center in world space
 					b3Vec3 lever = b3MulMV( matrix, b3Sub( localCenter, localCenterOfMass ) );
@@ -1983,20 +1983,20 @@ void b3Shape_ApplyWind( b3ShapeId shapeId, b3Vec3 wind, float drag, float lift, 
 					b3Vec3 centerVelocity = b3Add( linearVelocity, b3Cross( angularVelocity, lever ) );
 
 					b3Vec3 relativeVelocity = b3MulSub( wind, drag, centerVelocity );
-					float speed;
+					b3Fixed speed;
 					b3Vec3 direction = b3GetLengthAndNormalize( &speed, relativeVelocity );
 
 					// Check for back-side
-					if ( b3Dot( normal, direction ) < -FLT_EPSILON )
+					if ( b3Dot( normal, direction ) < -B3_FIXED_EPSILON )
 					{
-						float projectedArea = -0.5f * b3Dot( b3Cross( b3Sub( v2, v1 ), b3Sub( v3, v1 ) ), direction );
-						B3_VALIDATE( projectedArea >= -FLT_EPSILON );
+						b3Fixed projectedArea = b3FixMul( -B3_FIX( 0.5f ) , b3Dot( b3Cross( b3Sub( v2, v1 ), b3Sub( v3, v1 ) ), direction ) );
+						B3_VALIDATE( projectedArea >= -B3_FIXED_EPSILON );
 
 						b3Vec3 liftDirection = b3Cross( b3Cross( normal, direction ), direction );
 
-						speed = b3MinFloat( speed, maxSpeed );
+						speed = b3FixMin( speed, maxSpeed );
 
-						float forceMagnitude = 0.5f * airDensity * projectedArea * speed * speed;
+						b3Fixed forceMagnitude = b3FixMul( b3FixMul( b3FixMul( b3FixMul( B3_FIX( 0.5f ) , airDensity ) , projectedArea ) , speed ) , speed );
 						b3Vec3 deltaForce = b3MulSV( forceMagnitude, b3MulAdd( direction, lift, liftDirection ) );
 						b3Vec3 deltaTorque = b3Cross( lever, deltaForce );
 
@@ -2043,7 +2043,7 @@ typedef struct b3MeshImpactContext
 	b3Vec3 localCentroidB;
 	// Centroid of shape at beginning and end of sweep in mesh local space. Used for early out.
 	b3Vec3 meshLocalCentroidB1, meshLocalCentroidB2;
-	float fallbackRadius;
+	b3Fixed fallbackRadius;
 	bool isSensor;
 
 	int visitCount;
@@ -2062,10 +2062,10 @@ static bool b3MeshTimeOfImpactFcn( b3Vec3 a, b3Vec3 b, b3Vec3 c, int triangleInd
 	b3Vec3 c2 = toiContext->meshLocalCentroidB2;
 
 	b3Vec3 n = b3Normalize( b3Cross( b3Sub( b, a ), b3Sub( c, a ) ) );
-	float offset1 = b3Dot( n, b3Sub( c1, a ) );
-	float offset2 = b3Dot( n, b3Sub( c2, a ) );
+	b3Fixed offset1 = b3Dot( n, b3Sub( c1, a ) );
+	b3Fixed offset2 = b3Dot( n, b3Sub( c2, a ) );
 
-	if ( offset1 < 0.0f )
+	if ( offset1 < B3_FIX( 0.0f ) )
 	{
 		// Started behind or finished in front
 		return true;
@@ -2085,19 +2085,19 @@ static bool b3MeshTimeOfImpactFcn( b3Vec3 a, b3Vec3 b, b3Vec3 c, int triangleInd
 
 	// It is possible for a hit at fraction == 0
 
-	if ( 0.0f < output.fraction && output.fraction < toiContext->toiInput.maxFraction )
+	if ( B3_FIX( 0.0f ) < output.fraction && output.fraction < toiContext->toiInput.maxFraction )
 	{
 		toiContext->toiOutput = output;
 		toiContext->toiInput.maxFraction = output.fraction;
 	}
-	else if ( 0.0f == output.fraction )
+	else if ( B3_FIX( 0.0f ) == output.fraction )
 	{
 		// fallback to TOI of a small circle around the fast shape centroid
 		b3TOIInput fallbackInput = toiContext->toiInput;
 		fallbackInput.proxyB = (b3ShapeProxy){ &toiContext->localCentroidB, 1, toiContext->fallbackRadius + B3_LINEAR_SLOP };
 		output = b3TimeOfImpact( &fallbackInput );
 
-		if ( 0.0f < output.fraction && output.fraction < toiContext->toiInput.maxFraction )
+		if ( B3_FIX( 0.0f ) < output.fraction && output.fraction < toiContext->toiInput.maxFraction )
 		{
 			toiContext->toiOutput = output;
 			toiContext->toiInput.maxFraction = output.fraction;
@@ -2120,7 +2120,7 @@ typedef struct b3CompoundImpactContext
 
 	// Centroid of shape in body B local space
 	b3Vec3 localCentroidB;
-	float fallbackRadius;
+	b3Fixed fallbackRadius;
 } b3CompoundImpactContext;
 
 // Implements b3CompoundQueryFcn
@@ -2148,7 +2148,7 @@ static bool b3CompoundTimeOfImpactFcn( const b3CompoundData* compound, int child
 		{
 			toiContext->toiInput.proxyA.points = b3GetHullPoints( child.hull );
 			toiContext->toiInput.proxyA.count = child.hull->vertexCount;
-			toiContext->toiInput.proxyA.radius = 0.0f;
+			toiContext->toiInput.proxyA.radius = B3_FIX( 0.0f );
 			output = b3TimeOfImpact( &toiContext->toiInput );
 		}
 		break;
@@ -2202,7 +2202,7 @@ static bool b3CompoundTimeOfImpactFcn( const b3CompoundData* compound, int child
 			break;
 	}
 
-	if ( 0.0f < output.fraction && output.fraction < toiContext->toiInput.maxFraction )
+	if ( B3_FIX( 0.0f ) < output.fraction && output.fraction < toiContext->toiInput.maxFraction )
 	{
 		toiContext->toiOutput = output;
 		toiContext->toiInput.maxFraction = output.fraction;
@@ -2215,7 +2215,7 @@ static bool b3CompoundTimeOfImpactFcn( const b3CompoundData* compound, int child
 	return true;
 }
 
-b3TOIOutput b3ShapeTimeOfImpact( b3Shape* shapeA, b3Shape* shapeB, b3Sweep* sweepA, b3Sweep* sweepB, float maxFraction )
+b3TOIOutput b3ShapeTimeOfImpact( b3Shape* shapeA, b3Shape* shapeB, b3Sweep* sweepA, b3Sweep* sweepB, b3Fixed maxFraction )
 {
 	bool isSensor = shapeA->sensorIndex != B3_NULL_INDEX;
 
@@ -2237,7 +2237,7 @@ b3TOIOutput b3ShapeTimeOfImpact( b3Shape* shapeA, b3Shape* shapeB, b3Sweep* swee
 		context.localCentroidB = localCentroidB;
 
 		b3ShapeExtent extents = b3ComputeShapeExtent( shapeB, context.localCentroidB );
-		context.fallbackRadius = b3MaxFloat( 0.75f * extents.minExtent, B3_SPECULATIVE_DISTANCE );
+		context.fallbackRadius = b3FixMax( b3FixMul( B3_FIX( 0.75f ) , extents.minExtent ), B3_SPECULATIVE_DISTANCE );
 
 		// Swept bounds of shapeB
 		b3AABB bounds = b3ComputeSweptShapeAABB( shapeB, sweepB, maxFraction );
@@ -2289,7 +2289,7 @@ b3TOIOutput b3ShapeTimeOfImpact( b3Shape* shapeA, b3Shape* shapeB, b3Sweep* swee
 		context.meshLocalCentroidB2 = b3InvTransformPoint( xfA, b3TransformPoint( xfB2, localCentroidB ) );
 
 		b3ShapeExtent extents = b3ComputeShapeExtent( shapeB, context.localCentroidB );
-		context.fallbackRadius = b3MaxFloat( 0.5f * extents.minExtent, B3_LINEAR_SLOP );
+		context.fallbackRadius = b3FixMax( b3FixMul( B3_FIX( 0.5f ) , extents.minExtent ), B3_LINEAR_SLOP );
 
 		// Swept bounds of shapeB
 		// todo pass in xfA to get local bounds directly
@@ -2307,8 +2307,8 @@ b3TOIOutput b3ShapeTimeOfImpact( b3Shape* shapeA, b3Shape* shapeB, b3Sweep* swee
 			b3QueryHeightField( shapeA->heightField, localBounds, b3MeshTimeOfImpactFcn, &context );
 		}
 
-		float ms = b3GetMilliseconds( ticks );
-		if ( ms > 1000.0f * b3GetStallThreshold() )
+		b3Fixed ms = b3GetMilliseconds( ticks );
+		if ( ms > b3FixMul( B3_FIX( 1000.0f ) , b3GetStallThreshold() ) )
 		{
 			b3Log( "CCD stall: visited %d triangles", context.visitCount );
 		}

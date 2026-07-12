@@ -4,11 +4,8 @@
 #pragma once
 
 #include "base.h"
+#include "fixed.h"
 
-#include <float.h>
-
-// for sqrtf and remainderf
-#include <math.h>
 #include <stdbool.h>
 
 /**
@@ -18,30 +15,30 @@
  */
 
 /// https://en.wikipedia.org/wiki/Pi
-#define B3_PI 3.14159265359f
+#define B3_PI B3_FIX( 3.14159265359f )
 
 /// Convenience macro to convert from degrees to radians.
-#define B3_DEG_TO_RAD 0.01745329251f
+#define B3_DEG_TO_RAD B3_FIX( 0.01745329251f )
 
 /// Convenience macro to convert from radians to degrees.
-#define B3_RAD_TO_DEG 57.2957795131f
+#define B3_RAD_TO_DEG B3_FIX( 57.2957795131f )
 
 /// Minimum scale used for scaling collision meshes, etc.
-#define B3_MIN_SCALE 0.01f
+#define B3_MIN_SCALE B3_FIX( 0.01f )
 
 /// A 2D vector.
 typedef struct b3Vec2
 {
-	float x;
-	float y;
+	b3Fixed x;
+	b3Fixed y;
 } b3Vec2;
 
 /// A 3D vector.
 typedef struct b3Vec3
 {
-	float x;
-	float y;
-	float z;
+	b3Fixed x;
+	b3Fixed y;
+	b3Fixed z;
 } b3Vec3;
 
 /// Cosine and sine pair.
@@ -49,15 +46,15 @@ typedef struct b3Vec3
 typedef struct b3CosSin
 {
 	/// cosine and sine
-	float cosine;
-	float sine;
+	b3Fixed cosine;
+	b3Fixed sine;
 } b3CosSin;
 
 /// A quaternion.
 typedef struct b3Quat
 {
 	b3Vec3 v;
-	float s;
+	b3Fixed s;
 } b3Quat;
 
 /// A rigid transform.
@@ -68,31 +65,17 @@ typedef struct b3Transform
 } b3Transform;
 
 #if defined( BOX3D_DOUBLE_PRECISION )
+// Fixed point has uniform absolute precision across the whole world, so the
+// double precision large-world mode is unnecessary and no longer supported.
+#error "BOX3D_DOUBLE_PRECISION is not supported with fixed-point math"
+#endif
 
-/// A world position. Double precision in large world mode so coordinates stay accurate far
-/// from the origin.
-typedef struct b3Pos
-{
-	double x, y, z;
-} b3Pos;
-
-/// A world transform with double precision translation and float quaternion rotation. Rotation
-/// is frame local and never needs the extra range, the same split as Jolt's DMat44.
-typedef struct b3WorldTransform
-{
-	b3Pos p;
-	b3Quat q;
-} b3WorldTransform;
-
-#else
-
-/// In single precision mode these types are the same.
+/// A world position. Fixed point has uniform precision everywhere, so world
+/// positions use the same representation as local vectors.
 typedef b3Vec3 b3Pos;
 
-/// In single precision mode these types are the same.
+/// A world transform. Same representation as a local transform in fixed point.
 typedef b3Transform b3WorldTransform;
-
-#endif
 
 /// A 3x3 matrix.
 typedef struct b3Matrix3
@@ -112,30 +95,30 @@ typedef struct b3AABB
 typedef struct b3Plane
 {
 	b3Vec3 normal;
-	float offset;
+	b3Fixed offset;
 } b3Plane;
 
-static const b3Vec3 b3Vec3_zero = { 0.0f, 0.0f, 0.0f };
-static const b3Vec3 b3Vec3_one = { 1.0f, 1.0f, 1.0f };
-static const b3Vec3 b3Vec3_axisX = { 1.0f, 0.0f, 0.0f };
-static const b3Vec3 b3Vec3_axisY = { 0.0f, 1.0f, 0.0f };
-static const b3Vec3 b3Vec3_axisZ = { 0.0f, 0.0f, 1.0f };
-static const b3Quat b3Quat_identity = { { 0.0f, 0.0f, 0.0f }, 1.0f };
-static const b3Transform b3Transform_identity = { { 0.0f, 0.0f, 0.0f }, { { 0.0f, 0.0f, 0.0f }, 1.0f } };
+static const b3Vec3 b3Vec3_zero = { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
+static const b3Vec3 b3Vec3_one = { B3_FIX( 1.0f ), B3_FIX( 1.0f ), B3_FIX( 1.0f ) };
+static const b3Vec3 b3Vec3_axisX = { B3_FIX( 1.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
+static const b3Vec3 b3Vec3_axisY = { B3_FIX( 0.0f ), B3_FIX( 1.0f ), B3_FIX( 0.0f ) };
+static const b3Vec3 b3Vec3_axisZ = { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 1.0f ) };
+static const b3Quat b3Quat_identity = { { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, B3_FIX( 1.0f ) };
+static const b3Transform b3Transform_identity = { { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, { { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, B3_FIX( 1.0f ) } };
 static const b3Matrix3 b3Mat3_zero = {
-	{ 0.0f, 0.0f, 0.0f },
-	{ 0.0f, 0.0f, 0.0f },
-	{ 0.0f, 0.0f, 0.0f },
+	{ B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) },
+	{ B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) },
+	{ B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) },
 };
 static const b3Matrix3 b3Mat3_identity = {
-	{ 1.0f, 0.0f, 0.0f },
-	{ 0.0f, 1.0f, 0.0f },
-	{ 0.0f, 0.0f, 1.0f },
+	{ B3_FIX( 1.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) },
+	{ B3_FIX( 0.0f ), B3_FIX( 1.0f ), B3_FIX( 0.0f ) },
+	{ B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 1.0f ) },
 };
 
-// Valid in both modes: 0.0f promotes to double, the identity rotation stays float
-static const b3Pos b3Pos_zero = { 0.0f, 0.0f, 0.0f };
-static const b3WorldTransform b3WorldTransform_identity = { { 0.0f, 0.0f, 0.0f }, { { 0.0f, 0.0f, 0.0f }, 1.0f } };
+// Valid in both modes: 0.0f promotes to double, the identity rotation stays b3Fixed
+static const b3Pos b3Pos_zero = { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
+static const b3WorldTransform b3WorldTransform_identity = { { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, { { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, B3_FIX( 1.0f ) } };
 
 /// @return the minimum of two integers.
 B3_INLINE int b3MinInt( int a, int b )
@@ -155,65 +138,46 @@ B3_INLINE int b3ClampInt( int a, int lower, int upper )
 	return a < lower ? lower : ( upper < a ? upper : a );
 }
 
-/// @return the absolute value of a float.
-B3_INLINE float b3AbsFloat( float a )
-{
-	return a < 0 ? -a : a;
-}
-
-/// @return the minimum of two floats.
-B3_INLINE float b3MinFloat( float a, float b )
-{
-	return a < b ? a : b;
-}
-
-/// @return the maximum of two floats.
-B3_INLINE float b3MaxFloat( float a, float b )
-{
-	return a > b ? a : b;
-}
-
-/// @return a float clamped between a lower and upper bound.
-B3_INLINE float b3ClampFloat( float a, float lower, float upper )
-{
-	return a < lower ? lower : ( upper < a ? upper : a );
-}
+// b3FixAbs, b3FixMin, b3FixMax, and b3FixClamp live in fixed.h
 
 /// Interpolate a scalar.
-B3_INLINE float b3LerpFloat( float a, float b, float alpha )
+B3_INLINE b3Fixed b3FixLerp( b3Fixed a, b3Fixed b, b3Fixed alpha )
 {
-	return ( 1.0f - alpha ) * a + alpha * b;
+	return b3FixMul( ( B3_FIX( 1.0f ) - alpha ) , a ) + b3FixMul( alpha , b );
 }
 
 /// Compute an approximate arctangent in the range [-pi, pi]
 /// This is hand coded for cross-platform determinism. The atan2f
 /// function in the standard library is not cross-platform deterministic.
 ///	Accurate to around 0.0023 degrees.
-B3_API float b3Atan2( float y, float x );
+B3_API b3Fixed b3Atan2( b3Fixed y, b3Fixed x );
 
 /// Compute the cosine and sine of an angle in radians. Implemented
 /// for cross-platform determinism.
-B3_API b3CosSin b3ComputeCosSin( float radians );
+B3_API b3CosSin b3ComputeCosSin( b3Fixed radians );
 
 /// @deprecated 
-B3_INLINE float b3Sin( float radians )
+B3_INLINE b3Fixed b3Sin( b3Fixed radians )
 {
 	b3CosSin cs = b3ComputeCosSin( radians );
 	return cs.sine;
 }
 
 /// @deprecated 
-B3_INLINE float b3Cos( float radians )
+B3_INLINE b3Fixed b3Cos( b3Fixed radians )
 {
 	b3CosSin cs = b3ComputeCosSin( radians );
 	return cs.cosine;
 }
 
 /// Convert any angle into the range [-pi, pi].
-B3_INLINE float b3UnwindAngle( float radians )
+B3_INLINE b3Fixed b3UnwindAngle( b3Fixed radians )
 {
-	// Assuming this is deterministic
-	return remainderf( radians, 2.0f * B3_PI );
+	// remainder( radians, 2 * pi ) with a round-to-nearest quotient,
+	// matching the semantics of remainderf
+	const b3Fixed twoPi = B3_FIX( 6.28318530718 );
+	int64_t n = b3FixRoundToInt( b3FixDiv( radians, twoPi ) );
+	return radians - n * twoPi;
 }
 
 /// Vector addition.
@@ -231,7 +195,7 @@ B3_INLINE b3Vec3 b3Sub( b3Vec3 a, b3Vec3 b )
 /// Vector component-wise multiplication.
 B3_INLINE b3Vec3 b3Mul( b3Vec3 a, b3Vec3 b )
 {
-	return B3_LITERAL( b3Vec3 ){ a.x * b.x, a.y * b.y, a.z * b.z };
+	return B3_LITERAL( b3Vec3 ){ b3FixMul( a.x , b.x ), b3FixMul( a.y , b.y ), b3FixMul( a.z , b.z ) };
 }
 
 /// Vector negation.
@@ -241,64 +205,74 @@ B3_INLINE b3Vec3 b3Neg( b3Vec3 a )
 }
 
 /// Vector dot product.
-B3_INLINE float b3Dot( b3Vec3 a, b3Vec3 b )
+B3_INLINE b3Fixed b3Dot( b3Vec3 a, b3Vec3 b )
 {
-	return a.x * b.x + a.y * b.y + a.z * b.z;
+	return b3FixMul( a.x , b.x ) + b3FixMul( a.y , b.y ) + b3FixMul( a.z , b.z );
 }
 
-/// Vector length.
-B3_INLINE float b3Length( b3Vec3 v )
+/// Vector length. Computed from the exact 128-bit sum of squared components, so
+/// it is accurate even for vectors far below unit length.
+B3_INLINE b3Fixed b3Length( b3Vec3 v )
 {
-	return sqrtf( b3Dot( v, v ) );
+	b3Int128 ls = (b3Int128)v.x * v.x + (b3Int128)v.y * v.y + (b3Int128)v.z * v.z; // Q32.32 in 128 bits
+	return (b3Fixed)b3ISqrt128High( (uint64_t)( (unsigned __int128)ls >> 64 ), (uint64_t)ls );
 }
 
 /// Vector length squared.
-B3_INLINE float b3LengthSquared( b3Vec3 a )
+B3_INLINE b3Fixed b3LengthSquared( b3Vec3 a )
 {
-	return a.x * a.x + a.y * a.y + a.z * a.z;
+	return b3FixMul( a.x , a.x ) + b3FixMul( a.y , a.y ) + b3FixMul( a.z , a.z );
 }
 
 /// Distance between two points.
-B3_INLINE float b3Distance( b3Vec3 a, b3Vec3 b )
+B3_INLINE b3Fixed b3Distance( b3Vec3 a, b3Vec3 b )
 {
 	b3Vec3 dv = { b.x - a.x, b.y - a.y, b.z - a.z };
 	return b3Length( dv );
 }
 
 /// Squared distance between two points.
-B3_INLINE float b3DistanceSquared( b3Vec3 a, b3Vec3 b )
+B3_INLINE b3Fixed b3DistanceSquared( b3Vec3 a, b3Vec3 b )
 {
 	b3Vec3 dv = { b.x - a.x, b.y - a.y, b.z - a.z };
-	return dv.x * dv.x + dv.y * dv.y + dv.z * dv.z;
+	return b3FixMul( dv.x , dv.x ) + b3FixMul( dv.y , dv.y ) + b3FixMul( dv.z , dv.z );
 }
 
-/// Normalize a vector. Returns a zero vector if the input vector is very small.
+/// Normalize a vector. Returns a zero vector if the input vector is zero.
+/// The squared length and the division run at 128-bit precision, so even
+/// vectors far below unit length normalize to within an ulp of unit length.
 B3_INLINE b3Vec3 b3Normalize( b3Vec3 a )
 {
-	float lengthSquared = a.x * a.x + a.y * a.y + a.z * a.z;
-
-	if ( lengthSquared > 1000.0f * FLT_MIN )
+	b3Int128 ls = (b3Int128)a.x * a.x + (b3Int128)a.y * a.y + (b3Int128)a.z * a.z; // Q32.32 in 128 bits
+	if ( ls > 0 )
 	{
-		float s = 1.0f / sqrtf( lengthSquared );
-		b3Vec3 u = { s * a.x, s * a.y, s * a.z };
+		b3Fixed length = (b3Fixed)b3ISqrt128High( (uint64_t)( (unsigned __int128)ls >> 64 ), (uint64_t)ls );
+		b3Vec3 u = {
+			(b3Fixed)( ( (b3Int128)a.x << 16 ) / length ),
+			(b3Fixed)( ( (b3Int128)a.y << 16 ) / length ),
+			(b3Fixed)( ( (b3Int128)a.z << 16 ) / length ),
+		};
 		return u;
 	}
 
-	return B3_LITERAL( b3Vec3 ){ 0.0f, 0.0f, 0.0f };
+	return B3_LITERAL( b3Vec3 ){ B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
 }
 
 /// Normalize a vector and return the length. Returns a zero vector
-/// if the input is very small.
-B3_INLINE b3Vec3 b3GetLengthAndNormalize( float* length, b3Vec3 a )
+/// if the input is zero.
+B3_INLINE b3Vec3 b3GetLengthAndNormalize( b3Fixed* length, b3Vec3 a )
 {
 	*length = b3Length( a );
-	if ( *length < FLT_EPSILON )
+	if ( *length < B3_FIXED_EPSILON )
 	{
 		return b3Vec3_zero;
 	}
 
-	float invLength = 1.0f / *length;
-	b3Vec3 n = { invLength * a.x, invLength * a.y, invLength * a.z };
+	b3Vec3 n = {
+		(b3Fixed)( ( (b3Int128)a.x << 16 ) / *length ),
+		(b3Fixed)( ( (b3Int128)a.y << 16 ) / *length ),
+		(b3Fixed)( ( (b3Int128)a.z << 16 ) / *length ),
+	};
 	return n;
 }
 
@@ -309,13 +283,13 @@ B3_INLINE b3Vec3 b3Perp( b3Vec3 a )
 	// Then 3*s*s = 1, s = sqrt(1/3) = 0.57735. This means that at least one component
 	// of a unit vector must be greater or equal to 0.57735.
 	b3Vec3 p;
-	if ( a.x < -0.5f || 0.5f < a.x )
+	if ( a.x < -B3_FIX( 0.5f ) || B3_FIX( 0.5f ) < a.x )
 	{
-		p = B3_LITERAL( b3Vec3 ){ a.y, -a.x, 0.0f };
+		p = B3_LITERAL( b3Vec3 ){ a.y, -a.x, B3_FIX( 0.0f ) };
 	}
 	else
 	{
-		p = B3_LITERAL( b3Vec3 ){ 0.0f, a.z, -a.y };
+		p = B3_LITERAL( b3Vec3 ){ B3_FIX( 0.0f ), a.z, -a.y };
 	}
 
 	return b3Normalize( p );
@@ -324,58 +298,58 @@ B3_INLINE b3Vec3 b3Perp( b3Vec3 a )
 /// Is a vector normalized? In other words, does it have unit length?
 B3_INLINE bool b3IsNormalized( b3Vec3 a )
 {
-	float aa = b3Dot( a, a );
-	return b3AbsFloat( 1.0f - aa ) < 100.0f * FLT_EPSILON;
+	b3Fixed aa = b3Dot( a, a );
+	return b3FixAbs( B3_FIX( 1.0f ) - aa ) < 100 * B3_FIXED_EPSILON;
 }
 
 /// a + s * b
-B3_INLINE b3Vec3 b3MulAdd( b3Vec3 a, float s, b3Vec3 b )
+B3_INLINE b3Vec3 b3MulAdd( b3Vec3 a, b3Fixed s, b3Vec3 b )
 {
-	return B3_LITERAL( b3Vec3 ){ a.x + s * b.x, a.y + s * b.y, a.z + s * b.z };
+	return B3_LITERAL( b3Vec3 ){ a.x + b3FixMul( s , b.x ), a.y + b3FixMul( s , b.y ), a.z + b3FixMul( s , b.z ) };
 }
 
 /// a - s * b
-B3_INLINE b3Vec3 b3MulSub( b3Vec3 a, float s, b3Vec3 b )
+B3_INLINE b3Vec3 b3MulSub( b3Vec3 a, b3Fixed s, b3Vec3 b )
 {
-	return B3_LITERAL( b3Vec3 ){ a.x - s * b.x, a.y - s * b.y, a.z - s * b.z };
+	return B3_LITERAL( b3Vec3 ){ a.x - b3FixMul( s , b.x ), a.y - b3FixMul( s , b.y ), a.z - b3FixMul( s , b.z ) };
 }
 
 /// s * a
-B3_INLINE b3Vec3 b3MulSV( float s, b3Vec3 a )
+B3_INLINE b3Vec3 b3MulSV( b3Fixed s, b3Vec3 a )
 {
-	return B3_LITERAL( b3Vec3 ){ s * a.x, s * a.y, s * a.z };
+	return B3_LITERAL( b3Vec3 ){ b3FixMul( s , a.x ), b3FixMul( s , a.y ), b3FixMul( s , a.z ) };
 }
 
 /// https://en.wikipedia.org/wiki/Cross_product
 B3_INLINE b3Vec3 b3Cross( b3Vec3 a, b3Vec3 b )
 {
 	b3Vec3 c;
-	c.x = a.y * b.z - a.z * b.y;
-	c.y = a.z * b.x - a.x * b.z;
-	c.z = a.x * b.y - a.y * b.x;
+	c.x = b3FixMul( a.y , b.z ) - b3FixMul( a.z , b.y );
+	c.y = b3FixMul( a.z , b.x ) - b3FixMul( a.x , b.z );
+	c.z = b3FixMul( a.x , b.y ) - b3FixMul( a.y , b.x );
 	return c;
 }
 
 /// Linearly interpolate between two vectors.
-B3_INLINE b3Vec3 b3Lerp( b3Vec3 a, b3Vec3 b, float alpha )
+B3_INLINE b3Vec3 b3Lerp( b3Vec3 a, b3Vec3 b, b3Fixed alpha )
 {
-	B3_ASSERT( 0.0f <= alpha && alpha <= 1.0f );
+	B3_ASSERT( B3_FIX( 0.0f ) <= alpha && alpha <= B3_FIX( 1.0f ) );
 
 	b3Vec3 c = {
-		( 1.0f - alpha ) * a.x + alpha * b.x,
-		( 1.0f - alpha ) * a.y + alpha * b.y,
-		( 1.0f - alpha ) * a.z + alpha * b.z,
+		b3FixMul( ( B3_FIX( 1.0f ) - alpha ) , a.x ) + b3FixMul( alpha , b.x ),
+		b3FixMul( ( B3_FIX( 1.0f ) - alpha ) , a.y ) + b3FixMul( alpha , b.y ),
+		b3FixMul( ( B3_FIX( 1.0f ) - alpha ) , a.z ) + b3FixMul( alpha , b.z ),
 	};
 	return c;
 }
 
 /// Blend two vectors: s * a + t * b
-B3_INLINE b3Vec3 b3Blend2( float s, b3Vec3 a, float t, b3Vec3 b )
+B3_INLINE b3Vec3 b3Blend2( b3Fixed s, b3Vec3 a, b3Fixed t, b3Vec3 b )
 {
 	b3Vec3 d = {
-		s * a.x + t * b.x,
-		s * a.y + t * b.y,
-		s * a.z + t * b.z,
+		b3FixMul( s , a.x ) + b3FixMul( t , b.x ),
+		b3FixMul( s , a.y ) + b3FixMul( t , b.y ),
+		b3FixMul( s , a.z ) + b3FixMul( t , b.z ),
 	};
 	return d;
 }
@@ -384,9 +358,9 @@ B3_INLINE b3Vec3 b3Blend2( float s, b3Vec3 a, float t, b3Vec3 b )
 B3_INLINE b3Vec3 b3Abs( b3Vec3 a )
 {
 	return B3_LITERAL( b3Vec3 ){
-		b3AbsFloat( a.x ),
-		b3AbsFloat( a.y ),
-		b3AbsFloat( a.z ),
+		b3FixAbs( a.x ),
+		b3FixAbs( a.y ),
+		b3FixAbs( a.z ),
 	};
 }
 
@@ -394,9 +368,9 @@ B3_INLINE b3Vec3 b3Abs( b3Vec3 a )
 B3_INLINE b3Vec3 b3Sign( b3Vec3 a )
 {
 	return B3_LITERAL( b3Vec3 ){
-		a.x >= 0.0f ? 1.0f : -1.0f,
-		a.y >= 0.0f ? 1.0f : -1.0f,
-		a.z >= 0.0f ? 1.0f : -1.0f,
+		a.x >= B3_FIX( 0.0f ) ? B3_FIX( 1.0f ) : -B3_FIX( 1.0f ),
+		a.y >= B3_FIX( 0.0f ) ? B3_FIX( 1.0f ) : -B3_FIX( 1.0f ),
+		a.z >= B3_FIX( 0.0f ) ? B3_FIX( 1.0f ) : -B3_FIX( 1.0f ),
 	};
 }
 
@@ -404,9 +378,9 @@ B3_INLINE b3Vec3 b3Sign( b3Vec3 a )
 B3_INLINE b3Vec3 b3Min( b3Vec3 a, b3Vec3 b )
 {
 	return B3_LITERAL( b3Vec3 ){
-		b3MinFloat( a.x, b.x ),
-		b3MinFloat( a.y, b.y ),
-		b3MinFloat( a.z, b.z ),
+		b3FixMin( a.x, b.x ),
+		b3FixMin( a.y, b.y ),
+		b3FixMin( a.z, b.z ),
 	};
 }
 
@@ -414,9 +388,9 @@ B3_INLINE b3Vec3 b3Min( b3Vec3 a, b3Vec3 b )
 B3_INLINE b3Vec3 b3Max( b3Vec3 a, b3Vec3 b )
 {
 	return B3_LITERAL( b3Vec3 ){
-		b3MaxFloat( a.x, b.x ),
-		b3MaxFloat( a.y, b.y ),
-		b3MaxFloat( a.z, b.z ),
+		b3FixMax( a.x, b.x ),
+		b3FixMax( a.y, b.y ),
+		b3FixMax( a.z, b.z ),
 	};
 }
 
@@ -424,9 +398,9 @@ B3_INLINE b3Vec3 b3Max( b3Vec3 a, b3Vec3 b )
 B3_INLINE b3Vec3 b3Clamp( b3Vec3 a, b3Vec3 lower, b3Vec3 upper )
 {
 	b3Vec3 b;
-	b.x = b3ClampFloat( a.x, lower.x, upper.x );
-	b.y = b3ClampFloat( a.y, lower.y, upper.y );
-	b.z = b3ClampFloat( a.z, lower.z, upper.z );
+	b.x = b3FixClamp( a.x, lower.x, upper.x );
+	b.y = b3FixClamp( a.y, lower.y, upper.y );
+	b.z = b3FixClamp( a.z, lower.z, upper.z );
 	return b;
 }
 
@@ -443,8 +417,8 @@ B3_INLINE b3Vec3 b3SafeScale( b3Vec3 a )
 /// Does the supplied quaternion have unit length?
 B3_INLINE bool b3IsNormalizedQuat( b3Quat q )
 {
-	float qq = q.v.x * q.v.x + q.v.y * q.v.y + q.v.z * q.v.z + q.s * q.s;
-	return 1.0f - 20.0f * FLT_EPSILON < qq && qq < 1.0f + 20.0f * FLT_EPSILON;
+	b3Fixed qq = b3FixMul( q.v.x , q.v.x ) + b3FixMul( q.v.y , q.v.y ) + b3FixMul( q.v.z , q.v.z ) + b3FixMul( q.s , q.s );
+	return B3_FIX( 1.0f ) - 100 * B3_FIXED_EPSILON < qq && qq < B3_FIX( 1.0f ) + 100 * B3_FIXED_EPSILON;
 }
 
 /// Rotate a vector.
@@ -455,7 +429,7 @@ B3_INLINE b3Vec3 b3RotateVector( b3Quat q, b3Vec3 v )
 	b3Vec3 t1 = b3Cross( q.v, v );
 	b3Vec3 t2 = b3MulAdd( t1, q.s, v );
 	b3Vec3 t3 = b3Cross( q.v, t2 );
-	return b3MulAdd( v, 2.0f, t3 );
+	return b3MulAdd( v, B3_FIX( 2.0f ), t3 );
 }
 
 /// Inverse rotate a vector.
@@ -466,13 +440,13 @@ B3_INLINE b3Vec3 b3InvRotateVector( b3Quat q, b3Vec3 v )
 	b3Vec3 t1 = b3Cross( q.v, v );
 	b3Vec3 t2 = b3MulSub( t1, q.s, v );
 	b3Vec3 t3 = b3Cross( q.v, t2 );
-	return b3MulAdd( v, 2.0f, t3 );
+	return b3MulAdd( v, B3_FIX( 2.0f ), t3 );
 }
 
 /// Compute dot product of two quaternions. Useful for polarity tests.
-B3_INLINE float b3DotQuat( b3Quat a, b3Quat b )
+B3_INLINE b3Fixed b3DotQuat( b3Quat a, b3Quat b )
 {
-	return a.v.x * b.v.x + a.v.y * b.v.y + a.v.z * b.v.z + a.s * b.s;
+	return b3FixMul( a.v.x , b.v.x ) + b3FixMul( a.v.y , b.v.y ) + b3FixMul( a.v.z , b.v.z ) + b3FixMul( a.s , b.s );
 }
 
 /// Multiply two quaternions.
@@ -481,7 +455,7 @@ B3_INLINE b3Quat b3MulQuat( b3Quat q1, b3Quat q2 )
 	b3Vec3 t1 = b3Cross( q1.v, q2.v );
 	b3Vec3 t2 = b3MulAdd( t1, q1.s, q2.v );
 	b3Vec3 t3 = b3MulAdd( t2, q2.s, q1.v );
-	b3Quat q = { t3, q1.s * q2.s - b3Dot( q1.v, q2.v ) };
+	b3Quat q = { t3, b3FixMul( q1.s , q2.s ) - b3Dot( q1.v, q2.v ) };
 	return q;
 }
 
@@ -492,7 +466,7 @@ B3_INLINE b3Quat b3InvMulQuat( b3Quat q1, b3Quat q2 )
 	b3Vec3 t1 = b3Cross( q2.v, q1.v );
 	b3Vec3 t2 = b3MulAdd( t1, q1.s, q2.v );
 	b3Vec3 t3 = b3MulSub( t2, q2.s, q1.v );
-	b3Quat q = { t3, q1.s * q2.s + b3Dot( q1.v, q2.v ) };
+	b3Quat q = { t3, b3FixMul( q1.s , q2.s ) + b3Dot( q1.v, q2.v ) };
 	return q;
 }
 
@@ -508,14 +482,21 @@ B3_INLINE b3Quat b3NegateQuat( b3Quat q )
 	return B3_LITERAL( b3Quat ){ { -q.v.x, -q.v.y, -q.v.z }, -q.s };
 }
 
-/// Normalize a quaternion.
+/// Normalize a quaternion at 128-bit precision, see b3Normalize.
 B3_INLINE b3Quat b3NormalizeQuat( b3Quat q )
 {
-	float lengthSq = b3DotQuat( q, q );
-	if ( lengthSq > 1000.0f * FLT_MIN )
+	b3Int128 ls = (b3Int128)q.v.x * q.v.x + (b3Int128)q.v.y * q.v.y + (b3Int128)q.v.z * q.v.z + (b3Int128)q.s * q.s;
+	if ( ls > 0 )
 	{
-		float s = 1.0f / sqrtf( lengthSq );
-		b3Quat qn = { { s * q.v.x, s * q.v.y, s * q.v.z }, s * q.s };
+		b3Fixed length = (b3Fixed)b3ISqrt128High( (uint64_t)( (unsigned __int128)ls >> 64 ), (uint64_t)ls );
+		b3Quat qn = {
+			{
+				(b3Fixed)( ( (b3Int128)q.v.x << 16 ) / length ),
+				(b3Fixed)( ( (b3Int128)q.v.y << 16 ) / length ),
+				(b3Fixed)( ( (b3Int128)q.v.z << 16 ) / length ),
+			},
+			(b3Fixed)( ( (b3Int128)q.s << 16 ) / length ),
+		};
 		return qn;
 	}
 
@@ -523,23 +504,23 @@ B3_INLINE b3Quat b3NormalizeQuat( b3Quat q )
 }
 
 /// Make a quaternion that is equivalent to rotating around an axis by a specified angle.
-B3_INLINE b3Quat b3MakeQuatFromAxisAngle( b3Vec3 axis, float radians )
+B3_INLINE b3Quat b3MakeQuatFromAxisAngle( b3Vec3 axis, b3Fixed radians )
 {
 	B3_ASSERT( b3IsNormalized( axis ) );
-	b3CosSin cs = b3ComputeCosSin( 0.5f * radians );
-	b3Quat q = { { cs.sine * axis.x, cs.sine * axis.y, cs.sine * axis.z }, cs.cosine };
+	b3CosSin cs = b3ComputeCosSin( b3FixMul( B3_FIX( 0.5f ) , radians ) );
+	b3Quat q = { { b3FixMul( cs.sine , axis.x ), b3FixMul( cs.sine , axis.y ), b3FixMul( cs.sine , axis.z ) }, cs.cosine };
 	return q;
 }
 
 /// Get the axis and angle from a quaternion. Assumes the quaternion is normalized.
-B3_INLINE b3Vec3 b3GetAxisAngle( float* radians, b3Quat q )
+B3_INLINE b3Vec3 b3GetAxisAngle( b3Fixed* radians, b3Quat q )
 {
-	float length = sqrtf( q.v.x * q.v.x + q.v.y * q.v.y + q.v.z * q.v.z );
-	*radians = 2.0f * b3Atan2( length, q.s );
-	if ( length > 0.0f )
+	b3Fixed length = b3FixSqrt( b3FixMul( q.v.x , q.v.x ) + b3FixMul( q.v.y , q.v.y ) + b3FixMul( q.v.z , q.v.z ) );
+	*radians = b3FixMul( B3_FIX( 2.0f ) , b3Atan2( length, q.s ) );
+	if ( length > B3_FIX( 0.0f ) )
 	{
-		float invLength = 1.0f / length;
-		b3Vec3 axis = { invLength * q.v.x, invLength * q.v.y, invLength * q.v.z };
+		b3Fixed invLength = b3FixDiv( B3_FIX( 1.0f ) , length );
+		b3Vec3 axis = { b3FixMul( invLength , q.v.x ), b3FixMul( invLength , q.v.y ), b3FixMul( invLength , q.v.z ) };
 		return axis;
 	}
 
@@ -547,10 +528,10 @@ B3_INLINE b3Vec3 b3GetAxisAngle( float* radians, b3Quat q )
 }
 
 /// Get the angle for a quaternion in radians
-B3_INLINE float b3GetQuatAngle( b3Quat q )
+B3_INLINE b3Fixed b3GetQuatAngle( b3Quat q )
 {
-	float length = sqrtf( q.v.x * q.v.x + q.v.y * q.v.y + q.v.z * q.v.z );
-	return 2.0f * b3Atan2( length, q.s );
+	b3Fixed length = b3FixSqrt( b3FixMul( q.v.x , q.v.x ) + b3FixMul( q.v.y , q.v.y ) + b3FixMul( q.v.z , q.v.z ) );
+	return b3FixMul( B3_FIX( 2.0f ) , b3Atan2( length, q.s ) );
 }
 
 /// Extract a quaternion from a rotation matrix.
@@ -560,39 +541,39 @@ B3_API b3Quat b3MakeQuatFromMatrix( const b3Matrix3* m );
 B3_API b3Quat b3ComputeQuatBetweenUnitVectors( b3Vec3 v1, b3Vec3 v2 );
 
 /// Twist angle around the z-axis, used for twist limit and revolute angle limit
-B3_INLINE float b3GetTwistAngle( b3Quat q )
+B3_INLINE b3Fixed b3GetTwistAngle( b3Quat q )
 {
 	// Account for polarity to keep the twist angle in range.
 	// This is simpler than asking the user to check polarity or unwinding.
-	float twist = q.s < 0.0f ? b3Atan2( -q.v.z, -q.s ) : b3Atan2( q.v.z, q.s );
-	twist *= 2.0f;
-	B3_ASSERT( -B3_PI <= twist && twist <= B3_PI );
+	b3Fixed twist = q.s < B3_FIX( 0.0f ) ? b3Atan2( -q.v.z, -q.s ) : b3Atan2( q.v.z, q.s );
+	twist = b3FixMul( twist, B3_FIX( 2.0f ) );
+	B3_ASSERT( -B3_PI - 2 * B3_FIXED_EPSILON <= twist && twist <= B3_PI + 2 * B3_FIXED_EPSILON );
 	return twist;
 }
 
 /// Swing angle used for cone limit
-B3_INLINE float b3GetSwingAngle( b3Quat q )
+B3_INLINE b3Fixed b3GetSwingAngle( b3Quat q )
 {
 	// Polarity should not matter because all terms are squared.
-	float x = sqrtf( q.v.z * q.v.z + q.s * q.s );
-	float y = sqrtf( q.v.x * q.v.x + q.v.y * q.v.y );
-	float swing = 2.0f * b3Atan2( y, x );
-	B3_ASSERT( 0.0f <= swing && swing <= B3_PI );
+	b3Fixed x = b3FixSqrt( b3FixMul( q.v.z , q.v.z ) + b3FixMul( q.s , q.s ) );
+	b3Fixed y = b3FixSqrt( b3FixMul( q.v.x , q.v.x ) + b3FixMul( q.v.y , q.v.y ) );
+	b3Fixed swing = b3FixMul( B3_FIX( 2.0f ) , b3Atan2( y, x ) );
+	B3_ASSERT( B3_FIX( 0.0f ) <= swing && swing <= B3_PI + 2 * B3_FIXED_EPSILON );
 	return swing;
 }
 
 /// Linearly interpolate and normalize between two quaternions
-B3_INLINE b3Quat b3NLerp( b3Quat q1, b3Quat q2, float alpha )
+B3_INLINE b3Quat b3NLerp( b3Quat q1, b3Quat q2, b3Fixed alpha )
 {
-	B3_VALIDATE( 0.0f <= alpha && alpha <= 1.0f );
-	if ( b3DotQuat( q1, q2 ) < 0.0f )
+	B3_VALIDATE( B3_FIX( 0.0f ) <= alpha && alpha <= B3_FIX( 1.0f ) );
+	if ( b3DotQuat( q1, q2 ) < B3_FIX( 0.0f ) )
 	{
 		q1 = B3_LITERAL( b3Quat ){ { -q1.v.x, -q1.v.y, -q1.v.z }, -q1.s };
 	}
 
 	b3Quat q;
 	q.v = b3Lerp( q1.v, q2.v, alpha );
-	q.s = ( 1.0f - alpha ) * q1.s + alpha * q2.s;
+	q.s = b3FixMul( ( B3_FIX( 1.0f ) - alpha ) , q1.s ) + b3FixMul( alpha , q2.s );
 
 	return b3NormalizeQuat( q );
 }
@@ -642,8 +623,8 @@ B3_INLINE b3Vec3 b3InvTransformPoint( b3Transform t, b3Vec3 v )
 }
 
 // World position boundary. These cross between the double precision world space at the public
-// boundary and the float interior. One set of bodies serves both modes: the typedefs collapse
-// the types in float mode and the explicit float casts become no-ops.
+// boundary and the b3Fixed interior. One set of bodies serves both modes: the typedefs collapse
+// the types in b3Fixed mode and the explicit b3Fixed casts become no-ops.
 
 /// Convert a vector to a world position.
 B3_INLINE b3Pos b3ToPos( b3Vec3 v )
@@ -651,41 +632,30 @@ B3_INLINE b3Pos b3ToPos( b3Vec3 v )
 	return B3_LITERAL( b3Pos ){ v.x, v.y, v.z };
 }
 
-/// Lossy conversion of a world position to a float vector.
+/// Lossy conversion of a world position to a b3Fixed vector.
 B3_INLINE b3Vec3 b3ToVec3( b3Pos p )
 {
-	return B3_LITERAL( b3Vec3 ){ (float)p.x, (float)p.y, (float)p.z };
+	return B3_LITERAL( b3Vec3 ){ (b3Fixed)p.x, (b3Fixed)p.y, (b3Fixed)p.z };
 }
 
-/// Narrow a world coordinate to float, rounding toward negative infinity. Use with
-/// b3RoundUpFloat to build a conservative float box that always contains the double bounds,
-/// where plain rounding far from the origin could clip. nextafterf is an exact IEEE operation,
-/// so this is cross-platform deterministic. With large world mode off this is a plain conversion.
-B3_INLINE float b3RoundDownFloat( double x )
+/// Narrow a world coordinate. World coordinates are the same fixed-point type as
+/// local coordinates, so this is the identity. Kept for API compatibility with the
+/// old large-world mode.
+B3_INLINE b3Fixed b3RoundDownFloat( b3Fixed x )
 {
-#if defined( BOX3D_DOUBLE_PRECISION )
-	float f = (float)x;
-	return (double)f > x ? nextafterf( f, -FLT_MAX ) : f;
-#else
-	return (float)x;
-#endif
+	return x;
 }
 
-/// Narrow a world coordinate to float, rounding toward positive infinity.
-B3_INLINE float b3RoundUpFloat( double x )
+/// Narrow a world coordinate. The identity in fixed point.
+B3_INLINE b3Fixed b3RoundUpFloat( b3Fixed x )
 {
-#if defined( BOX3D_DOUBLE_PRECISION )
-	float f = (float)x;
-	return (double)f < x ? nextafterf( f, FLT_MAX ) : f;
-#else
-	return (float)x;
-#endif
+	return x;
 }
 
-/// a - b, demoted to float. The primary precision boundary operation.
+/// a - b, demoted to b3Fixed. The primary precision boundary operation.
 B3_INLINE b3Vec3 b3SubPos( b3Pos a, b3Pos b )
 {
-	return B3_LITERAL( b3Vec3 ){ (float)( a.x - b.x ), (float)( a.y - b.y ), (float)( a.z - b.z ) };
+	return B3_LITERAL( b3Vec3 ){ (b3Fixed)( a.x - b.x ), (b3Fixed)( a.y - b.y ), (b3Fixed)( a.z - b.z ) };
 }
 
 /// p + d
@@ -695,26 +665,26 @@ B3_INLINE b3Pos b3OffsetPos( b3Pos p, b3Vec3 d )
 }
 
 /// World position interpolation for sweeps and sampling.
-B3_INLINE b3Pos b3LerpPosition( b3Pos a, b3Pos b, float t )
+B3_INLINE b3Pos b3LerpPosition( b3Pos a, b3Pos b, b3Fixed t )
 {
 	return B3_LITERAL( b3Pos ){
-		( 1.0f - t ) * a.x + t * b.x,
-		( 1.0f - t ) * a.y + t * b.y,
-		( 1.0f - t ) * a.z + t * b.z,
+		b3FixMul( ( B3_FIX( 1.0f ) - t ) , a.x ) + b3FixMul( t , b.x ),
+		b3FixMul( ( B3_FIX( 1.0f ) - t ) , a.y ) + b3FixMul( t , b.y ),
+		b3FixMul( ( B3_FIX( 1.0f ) - t ) , a.z ) + b3FixMul( t , b.z ),
 	};
 }
 
-/// Transform a local point to a world position. Rotation in float, translation in double.
+/// Transform a local point to a world position. Rotation in b3Fixed, translation in double.
 B3_INLINE b3Pos b3TransformWorldPoint( b3WorldTransform t, b3Vec3 p )
 {
 	b3Vec3 r = b3RotateVector( t.q, p );
 	return B3_LITERAL( b3Pos ){ t.p.x + r.x, t.p.y + r.y, t.p.z + r.z };
 }
 
-/// Transform a world position to a local point. One double subtraction, then float.
+/// Transform a world position to a local point. One double subtraction, then b3Fixed.
 B3_INLINE b3Vec3 b3InvTransformWorldPoint( b3WorldTransform t, b3Pos p )
 {
-	b3Vec3 d = { (float)( p.x - t.p.x ), (float)( p.y - t.p.y ), (float)( p.z - t.p.z ) };
+	b3Vec3 d = { (b3Fixed)( p.x - t.p.x ), (b3Fixed)( p.y - t.p.y ), (b3Fixed)( p.z - t.p.z ) };
 	return b3InvRotateVector( t.q, d );
 }
 
@@ -723,7 +693,7 @@ B3_INLINE b3Transform b3InvMulWorldTransforms( b3WorldTransform A, b3WorldTransf
 {
 	b3Transform C;
 	C.q = b3InvMulQuat( A.q, B.q );
-	b3Vec3 d = { (float)( B.p.x - A.p.x ), (float)( B.p.y - A.p.y ), (float)( B.p.z - A.p.z ) };
+	b3Vec3 d = { (b3Fixed)( B.p.x - A.p.x ), (b3Fixed)( B.p.y - A.p.y ), (b3Fixed)( B.p.z - A.p.z ) };
 	C.p = b3InvRotateVector( A.q, d );
 	return C;
 }
@@ -743,11 +713,11 @@ B3_INLINE b3Transform b3ToRelativeTransform( b3WorldTransform t, b3Pos base )
 {
 	b3Transform r;
 	r.q = t.q;
-	r.p = B3_LITERAL( b3Vec3 ){ (float)( t.p.x - base.x ), (float)( t.p.y - base.y ), (float)( t.p.z - base.z ) };
+	r.p = B3_LITERAL( b3Vec3 ){ (b3Fixed)( t.p.x - base.x ), (b3Fixed)( t.p.y - base.y ), (b3Fixed)( t.p.z - base.z ) };
 	return r;
 }
 
-/// Promote a float transform to a world transform. Lossless.
+/// Promote a b3Fixed transform to a world transform. Lossless.
 B3_INLINE b3WorldTransform b3MakeWorldTransform( b3Transform t )
 {
 	b3WorldTransform w;
@@ -756,34 +726,44 @@ B3_INLINE b3WorldTransform b3MakeWorldTransform( b3Transform t )
 	return w;
 }
 
-/// Translate a local AABB by a world origin, rounding outward so the float box always contains
-/// the double box. Far from the origin a plain conversion could clip a shape out of its own box.
-/// In float mode the origin is float and the rounding is a no-op.
+/// Translate a local AABB by a world origin. Fixed-point addition is exact, so no
+/// outward rounding is needed: the translated box is the translated box.
 B3_INLINE b3AABB b3OffsetAABB( b3AABB localBox, b3Pos origin )
 {
 	b3AABB out;
-	out.lowerBound.x = b3RoundDownFloat( origin.x + localBox.lowerBound.x );
-	out.lowerBound.y = b3RoundDownFloat( origin.y + localBox.lowerBound.y );
-	out.lowerBound.z = b3RoundDownFloat( origin.z + localBox.lowerBound.z );
-	out.upperBound.x = b3RoundUpFloat( origin.x + localBox.upperBound.x );
-	out.upperBound.y = b3RoundUpFloat( origin.y + localBox.upperBound.y );
-	out.upperBound.z = b3RoundUpFloat( origin.z + localBox.upperBound.z );
+	out.lowerBound.x = origin.x + localBox.lowerBound.x;
+	out.lowerBound.y = origin.y + localBox.lowerBound.y;
+	out.lowerBound.z = origin.z + localBox.lowerBound.z;
+	out.upperBound.x = origin.x + localBox.upperBound.x;
+	out.upperBound.y = origin.y + localBox.upperBound.y;
+	out.upperBound.z = origin.z + localBox.upperBound.z;
 	return out;
 }
 
 /// Compute the determinant of a 3-by-3 matrix.
-B3_INLINE float b3Det( b3Matrix3 m )
+B3_INLINE b3Fixed b3Det( b3Matrix3 m )
 {
 	return b3Dot( m.cx, b3Cross( m.cy, m.cz ) );
 }
+
+#if B3_HAS_INT128
+// Internal: 3x3 cofactors at Q32.32 in 128 bits and the determinant at Q16.48.
+// The Q48.16 determinant of a matrix with small entries (like the inertia of a
+// small body) underflows to zero, so the inverse and solve helpers work at
+// full precision internally.
+B3_INLINE b3Int128 b3Cofactor128( b3Fixed a, b3Fixed b, b3Fixed c, b3Fixed d )
+{
+	return (b3Int128)a * b - (b3Int128)c * d; // Q32.32
+}
+#endif
 
 /// Multiply a matrix times a column vector.
 B3_INLINE b3Vec3 b3MulMV( b3Matrix3 m, b3Vec3 a )
 {
 	b3Vec3 b = {
-		m.cx.x * a.x + m.cy.x * a.y + m.cz.x * a.z,
-		m.cx.y * a.x + m.cy.y * a.y + m.cz.y * a.z,
-		m.cx.z * a.x + m.cy.z * a.y + m.cz.z * a.z,
+		b3FixMul( m.cx.x , a.x ) + b3FixMul( m.cy.x , a.y ) + b3FixMul( m.cz.x , a.z ),
+		b3FixMul( m.cx.y , a.x ) + b3FixMul( m.cy.y , a.y ) + b3FixMul( m.cz.y , a.z ),
+		b3FixMul( m.cx.z , a.x ) + b3FixMul( m.cy.z , a.y ) + b3FixMul( m.cz.z , a.z ),
 	};
 	return b;
 }
@@ -821,12 +801,12 @@ B3_INLINE b3Matrix3 b3SubMM( b3Matrix3 a, b3Matrix3 b )
 }
 
 /// Multiply a matrix by a scalar, component-wise.
-B3_INLINE b3Matrix3 b3MulSM( float s, b3Matrix3 a )
+B3_INLINE b3Matrix3 b3MulSM( b3Fixed s, b3Matrix3 a )
 {
 	return B3_LITERAL( b3Matrix3 ){
-		{ s * a.cx.x, s * a.cx.y, s * a.cx.z },
-		{ s * a.cy.x, s * a.cy.y, s * a.cy.z },
-		{ s * a.cz.x, s * a.cz.y, s * a.cz.z },
+		{ b3FixMul( s , a.cx.x ), b3FixMul( s , a.cx.y ), b3FixMul( s , a.cx.z ) },
+		{ b3FixMul( s , a.cy.x ), b3FixMul( s , a.cy.y ), b3FixMul( s , a.cy.z ) },
+		{ b3FixMul( s , a.cz.x ), b3FixMul( s , a.cz.y ), b3FixMul( s , a.cz.z ) },
 	};
 }
 
@@ -855,16 +835,52 @@ B3_INLINE b3Matrix3 b3Transpose( b3Matrix3 m )
 /// General matrix inverse.
 B3_INLINE b3Matrix3 b3InvertMatrix( b3Matrix3 m )
 {
-	float det = b3Det( m );
-	if ( b3AbsFloat( det ) > 1000.0f * FLT_MIN )
-	{
-		float invDet = 1.0f / det;
-		b3Matrix3 out;
-		out.cx = b3MulSV( invDet, b3Cross( m.cy, m.cz ) );
-		out.cy = b3MulSV( invDet, b3Cross( m.cz, m.cx ) );
-		out.cz = b3MulSV( invDet, b3Cross( m.cx, m.cy ) );
+	// Full precision cofactors (Q32.32 in 128 bits) so small matrices like the
+	// inertia of tiny bodies stay invertible: a Q48.16 determinant underflows.
+	b3Int128 c00 = b3Cofactor128( m.cy.y, m.cz.z, m.cy.z, m.cz.y );
+	b3Int128 c01 = b3Cofactor128( m.cy.z, m.cz.x, m.cy.x, m.cz.z );
+	b3Int128 c02 = b3Cofactor128( m.cy.x, m.cz.y, m.cy.y, m.cz.x );
+	b3Int128 c10 = b3Cofactor128( m.cz.y, m.cx.z, m.cz.z, m.cx.y );
+	b3Int128 c11 = b3Cofactor128( m.cz.z, m.cx.x, m.cz.x, m.cx.z );
+	b3Int128 c12 = b3Cofactor128( m.cz.x, m.cx.y, m.cz.y, m.cx.x );
+	b3Int128 c20 = b3Cofactor128( m.cx.y, m.cy.z, m.cx.z, m.cy.y );
+	b3Int128 c21 = b3Cofactor128( m.cx.z, m.cy.x, m.cx.x, m.cy.z );
+	b3Int128 c22 = b3Cofactor128( m.cx.x, m.cy.y, m.cx.y, m.cy.x );
 
-		return b3Transpose( out );
+	b3Int128 limit = (b3Int128)1 << 62;
+	if ( -limit < c00 && c00 < limit && -limit < c10 && c10 < limit && -limit < c20 && c20 < limit )
+	{
+		// Exact path: cofactors fit in 64 bits, determinant at Q16.48
+		b3Int128 det = (b3Int128)m.cx.x * (int64_t)c00 + (b3Int128)m.cy.x * (int64_t)c10 + (b3Int128)m.cz.x * (int64_t)c20;
+		if ( det != 0 )
+		{
+			// inverse_ij = cofactor_ji / det: (Q32.32 << 32) / Q16.48 -> Q48.16
+			b3Matrix3 out;
+			out.cx = B3_LITERAL( b3Vec3 ){ (b3Fixed)( ( c00 << 32 ) / det ), (b3Fixed)( ( c10 << 32 ) / det ),
+										   (b3Fixed)( ( c20 << 32 ) / det ) };
+			out.cy = B3_LITERAL( b3Vec3 ){ (b3Fixed)( ( c01 << 32 ) / det ), (b3Fixed)( ( c11 << 32 ) / det ),
+										   (b3Fixed)( ( c21 << 32 ) / det ) };
+			out.cz = B3_LITERAL( b3Vec3 ){ (b3Fixed)( ( c02 << 32 ) / det ), (b3Fixed)( ( c12 << 32 ) / det ),
+										   (b3Fixed)( ( c22 << 32 ) / det ) };
+			return out;
+		}
+		return b3Mat3_zero;
+	}
+
+	// Huge matrix path: drop 16 fraction bits from the cofactors to keep the
+	// determinant accumulation in range
+	b3Int128 det = (b3Int128)m.cx.x * (int64_t)( c00 >> 16 ) + (b3Int128)m.cy.x * (int64_t)( c10 >> 16 ) +
+				   (b3Int128)m.cz.x * (int64_t)( c20 >> 16 ); // ~Q16.32
+	if ( det != 0 )
+	{
+		b3Matrix3 out;
+		out.cx = B3_LITERAL( b3Vec3 ){ (b3Fixed)( ( c00 << 16 ) / det ), (b3Fixed)( ( c10 << 16 ) / det ),
+									   (b3Fixed)( ( c20 << 16 ) / det ) };
+		out.cy = B3_LITERAL( b3Vec3 ){ (b3Fixed)( ( c01 << 16 ) / det ), (b3Fixed)( ( c11 << 16 ) / det ),
+									   (b3Fixed)( ( c21 << 16 ) / det ) };
+		out.cz = B3_LITERAL( b3Vec3 ){ (b3Fixed)( ( c02 << 16 ) / det ), (b3Fixed)( ( c12 << 16 ) / det ),
+									   (b3Fixed)( ( c22 << 16 ) / det ) };
+		return out;
 	}
 
 	return b3Mat3_zero;
@@ -874,42 +890,16 @@ B3_INLINE b3Matrix3 b3InvertMatrix( b3Matrix3 m )
 /// @return inv(m) * a
 B3_INLINE b3Vec3 b3Solve3( b3Matrix3 m, b3Vec3 a )
 {
-	float det = b3Det( m );
-	if ( b3AbsFloat( det ) > 1000.0f * FLT_MIN )
-	{
-		float invDet = 1.0f / det;
-		b3Matrix3 s;
-		s.cx = b3Cross( m.cy, m.cz );
-		s.cy = b3Cross( m.cz, m.cx );
-		s.cz = b3Cross( m.cx, m.cy );
-
-		b3Vec3 b = {
-			invDet * b3Dot( s.cx, a ),
-			invDet * b3Dot( s.cy, a ),
-			invDet * b3Dot( s.cz, a ),
-		};
-
-		return b;
-	}
-
-	return b3Vec3_zero;
+	b3Matrix3 inv = b3InvertMatrix( m );
+	return b3MulMV( inv, a );
 }
 
-/// Invert a matrix.
+/// Inverse transpose of a matrix. Identical to the inverse for the symmetric
+/// matrices (like inertia tensors) this is used with.
 B3_INLINE b3Matrix3 b3InvertT( b3Matrix3 m )
 {
-	float det = b3Det( m );
-	if ( b3AbsFloat( det ) > 1000.0f * FLT_MIN )
-	{
-		float invDet = 1.0f / det;
-		b3Matrix3 out;
-		out.cx = b3MulSV( invDet, b3Cross( m.cy, m.cz ) );
-		out.cy = b3MulSV( invDet, b3Cross( m.cz, m.cx ) );
-		out.cz = b3MulSV( invDet, b3Cross( m.cx, m.cy ) );
-		return out;
-	}
-
-	return b3Mat3_zero;
+	b3Matrix3 out = b3InvertMatrix( m );
+	return b3Transpose( out );
 }
 
 /// Get the component-wise absolute value of a matrix.
@@ -928,29 +918,29 @@ B3_INLINE b3Matrix3 b3AbsMatrix3( b3Matrix3 m )
 /// The force inline improves the performance of b3ShapeDistance.
 B3_FORCE_INLINE b3Matrix3 b3MakeMatrixFromQuat( b3Quat q )
 {
-	float xx = q.v.x * q.v.x;
-	float yy = q.v.y * q.v.y;
-	float zz = q.v.z * q.v.z;
-	float xy = q.v.x * q.v.y;
-	float xz = q.v.x * q.v.z;
-	float xw = q.v.x * q.s;
-	float yz = q.v.y * q.v.z;
-	float yw = q.v.y * q.s;
-	float zw = q.v.z * q.s;
+	b3Fixed xx = b3FixMul( q.v.x , q.v.x );
+	b3Fixed yy = b3FixMul( q.v.y , q.v.y );
+	b3Fixed zz = b3FixMul( q.v.z , q.v.z );
+	b3Fixed xy = b3FixMul( q.v.x , q.v.y );
+	b3Fixed xz = b3FixMul( q.v.x , q.v.z );
+	b3Fixed xw = b3FixMul( q.v.x , q.s );
+	b3Fixed yz = b3FixMul( q.v.y , q.v.z );
+	b3Fixed yw = b3FixMul( q.v.y , q.s );
+	b3Fixed zw = b3FixMul( q.v.z , q.s );
 
 	return B3_LITERAL( b3Matrix3 ){
-		{ 1.0f - 2.0f * ( yy + zz ), 2.0f * ( xy + zw ), 2.0f * ( xz - yw ) },
-		{ 2.0f * ( xy - zw ), 1.0f - 2.0f * ( xx + zz ), 2.0f * ( yz + xw ) },
-		{ 2.0f * ( xz + yw ), 2.0f * ( yz - xw ), 1.0f - 2.0f * ( xx + yy ) },
+		{ B3_FIX( 1.0f ) - b3FixMul( B3_FIX( 2.0f ) , ( yy + zz ) ), b3FixMul( B3_FIX( 2.0f ) , ( xy + zw ) ), b3FixMul( B3_FIX( 2.0f ) , ( xz - yw ) ) },
+		{ b3FixMul( B3_FIX( 2.0f ) , ( xy - zw ) ), B3_FIX( 1.0f ) - b3FixMul( B3_FIX( 2.0f ) , ( xx + zz ) ), b3FixMul( B3_FIX( 2.0f ) , ( yz + xw ) ) },
+		{ b3FixMul( B3_FIX( 2.0f ) , ( xz + yw ) ), b3FixMul( B3_FIX( 2.0f ) , ( yz - xw ) ), B3_FIX( 1.0f ) - b3FixMul( B3_FIX( 2.0f ) , ( xx + yy ) ) },
 	};
 }
 
 /// Get the inertia tensor of an offset point.
 /// https://en.wikipedia.org/wiki/Parallel_axis_theorem
-B3_API b3Matrix3 b3Steiner( float mass, b3Vec3 origin );
+B3_API b3Matrix3 b3Steiner( b3Fixed mass, b3Vec3 origin );
 
 /// Get the AABB of a point cloud.
-B3_INLINE b3AABB b3MakeAABB( const b3Vec3* points, int count, float radius )
+B3_INLINE b3AABB b3MakeAABB( const b3Vec3* points, int count, b3Fixed radius )
 {
 	B3_ASSERT( count > 0 );
 	b3AABB a = { points[0], points[0] };
@@ -981,22 +971,22 @@ B3_INLINE bool b3AABB_Contains( b3AABB a, b3AABB b )
 }
 
 /// Get the surface area of an axis-aligned bounding box.
-B3_INLINE float b3AABB_Area( b3AABB a )
+B3_INLINE b3Fixed b3AABB_Area( b3AABB a )
 {
 	b3Vec3 delta = b3Sub( a.upperBound, a.lowerBound );
-	return 2.0f * ( delta.x * delta.y + delta.y * delta.z + delta.z * delta.x );
+	return b3FixMul( B3_FIX( 2.0f ) , ( b3FixMul( delta.x , delta.y ) + b3FixMul( delta.y , delta.z ) + b3FixMul( delta.z , delta.x ) ) );
 }
 
 /// Get the center of an axis-aligned bounding box.
 B3_INLINE b3Vec3 b3AABB_Center( b3AABB a )
 {
-	return b3MulSV( 0.5f, b3Add( a.upperBound, a.lowerBound ) );
+	return b3MulSV( B3_FIX( 0.5f ), b3Add( a.upperBound, a.lowerBound ) );
 }
 
 /// Get the extents (half-widths) of an axis-aligned bounding box.
 B3_INLINE b3Vec3 b3AABB_Extents( b3AABB a )
 {
-	return b3MulSV( 0.5f, b3Sub( a.upperBound, a.lowerBound ) );
+	return b3MulSV( B3_FIX( 0.5f ), b3Sub( a.upperBound, a.lowerBound ) );
 }
 
 /// Get the union of two axis-aligned bounding boxes.
@@ -1009,7 +999,7 @@ B3_INLINE b3AABB b3AABB_Union( b3AABB a, b3AABB b )
 }
 
 /// Add uniform padding to an axis-aligned bounding box.
-B3_INLINE b3AABB b3AABB_Inflate( b3AABB a, float extension )
+B3_INLINE b3AABB b3AABB_Inflate( b3AABB a, b3Fixed extension )
 {
 	b3Vec3 radius = { extension, extension, extension };
 
@@ -1056,9 +1046,9 @@ B3_INLINE b3Vec3 b3ClosestPointToAABB( b3Vec3 point, b3AABB a )
 typedef struct b3SegmentDistanceResult
 {
 	b3Vec3 point1;
-	float fraction1;
+	b3Fixed fraction1;
 	b3Vec3 point2;
-	float fraction2;
+	b3Fixed fraction2;
 } b3SegmentDistanceResult;
 
 /// Compute the closest point on the segment a-b to the target q.
@@ -1071,7 +1061,7 @@ B3_API b3SegmentDistanceResult b3LineDistance( b3Vec3 p1, b3Vec3 d1, b3Vec3 p2, 
 B3_API b3SegmentDistanceResult b3SegmentDistance( b3Vec3 p1, b3Vec3 q1, b3Vec3 p2, b3Vec3 q2 );
 
 /// Is this a valid number? Not NaN or infinity.
-B3_API bool b3IsValidFloat( float a );
+B3_API bool b3IsValidFixed( b3Fixed a );
 
 /// Is this a valid vector? Not NaN or infinity.
 B3_API bool b3IsValidVec3( b3Vec3 a );
@@ -1134,11 +1124,11 @@ B3_FORCE_INLINE b3Vec3& operator-=( b3Vec3& a, b3Vec3 b )
 }
 
 /// Vector scaling.
-B3_FORCE_INLINE b3Vec3& operator*=( b3Vec3& a, float s )
+B3_FORCE_INLINE b3Vec3& operator*=( b3Vec3& a, b3Fixed s )
 {
-	a.x *= s;
-	a.y *= s;
-	a.z *= s;
+	a.x = b3FixMul( a.x, s );
+	a.y = b3FixMul( a.y, s );
+	a.z = b3FixMul( a.z, s );
 	return a;
 }
 
@@ -1149,21 +1139,21 @@ B3_FORCE_INLINE b3Vec3 operator-( b3Vec3 a )
 }
 
 /// Vector scaling.
-B3_FORCE_INLINE b3Vec3 operator*( float s, b3Vec3 a )
+B3_FORCE_INLINE b3Vec3 operator*( b3Fixed s, b3Vec3 a )
 {
-	return { s * a.x, s * a.y, s * a.z };
+	return { b3FixMul( s, a.x ), b3FixMul( s, a.y ), b3FixMul( s, a.z ) };
 }
 
 /// Vector scaling.
-B3_FORCE_INLINE b3Vec3 operator*( b3Vec3 a, float s )
+B3_FORCE_INLINE b3Vec3 operator*( b3Vec3 a, b3Fixed s )
 {
-	return { s * a.x, s * a.y, s * a.z };
+	return { b3FixMul( s, a.x ), b3FixMul( s, a.y ), b3FixMul( s, a.z ) };
 }
 
 /// Component-wise vector multiplication.
 B3_FORCE_INLINE b3Vec3 operator*( b3Vec3 a, b3Vec3 b )
 {
-	return { a.x * b.x, a.y * b.y, a.z * b.z };
+	return { b3FixMul( a.x, b.x ), b3FixMul( a.y, b.y ), b3FixMul( a.z, b.z ) };
 }
 
 /// Vector addition.
@@ -1177,28 +1167,6 @@ B3_FORCE_INLINE b3Vec3 operator-( b3Vec3 a, b3Vec3 b )
 {
 	return { a.x - b.x, a.y - b.y, a.z - b.z };
 }
-
-#if defined( BOX3D_DOUBLE_PRECISION )
-
-/// Offset a world position by a vector.
-B3_FORCE_INLINE b3Pos operator+( b3Pos a, b3Vec3 b )
-{
-	return { a.x + b.x, a.y + b.y, a.z + b.z };
-}
-
-/// Offset a world position by a vector.
-B3_FORCE_INLINE b3Pos operator-( b3Pos a, b3Vec3 b )
-{
-	return { a.x - b.x, a.y - b.y, a.z - b.z };
-}
-
-/// Delta between two world positions, demoted to float.
-B3_FORCE_INLINE b3Vec3 operator-( b3Pos a, b3Pos b )
-{
-	return { (float)( a.x - b.x ), (float)( a.y - b.y ), (float)( a.z - b.z ) };
-}
-
-#endif
 
 #endif
 

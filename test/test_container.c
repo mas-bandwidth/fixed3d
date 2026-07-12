@@ -15,7 +15,7 @@ b3DeclareArrayNative( uint8_t );
 typedef struct Foo
 {
 	int a;
-	float b;
+	b3Fixed b;
 } Foo;
 
 b3DeclareArray( Foo );
@@ -66,12 +66,12 @@ static int TestArrayOfStruct( void )
 {
 	b3Array( Foo ) a;
 	b3Array_Create( a );
-	b3Array_Push( a, ( (Foo){ .a = 1, .b = 5.0f } ) );
-	b3Array_Push( a, ( (Foo){ .a = 2, .b = 6.0f } ) );
-	b3Array_Push( a, ( (Foo){ .a = 3, .b = 7.0f } ) );
+	b3Array_Push( a, ( (Foo){ .a = 1, .b = B3_FIX( 5.0f ) } ) );
+	b3Array_Push( a, ( (Foo){ .a = 2, .b = B3_FIX( 6.0f ) } ) );
+	b3Array_Push( a, ( (Foo){ .a = 3, .b = B3_FIX( 7.0f ) } ) );
 
 	int sum1 = 0;
-	float sum2 = 0.0f;
+	b3Fixed sum2 = B3_FIX( 0.0f );
 	for ( int i = 0; i < a.count; ++i )
 	{
 		sum1 += a.data[i].a;
@@ -79,7 +79,7 @@ static int TestArrayOfStruct( void )
 	}
 
 	ENSURE( sum1 == 6 );
-	ENSURE( sum2 == 18.0f );
+	ENSURE( sum2 == B3_FIX( 18.0f ) );
 
 	b3Array_Destroy( a );
 	return 0;

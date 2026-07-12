@@ -140,9 +140,9 @@ typedef struct b3SolverStage
 // Constraint softness
 typedef struct b3Softness
 {
-	float biasRate;
-	float massScale;
-	float impulseScale;
+	b3Fixed biasRate;
+	b3Fixed massScale;
+	b3Fixed impulseScale;
 } b3Softness;
 
 // Prepare/store run as a flat parallel-for over the whole wide-constraint
@@ -175,22 +175,22 @@ typedef struct b3JointPrepareSpan
 typedef struct b3StepContext
 {
 	// time step
-	float dt;
+	b3Fixed dt;
 
 	// inverse time step (0 if dt == 0).
-	float inv_dt;
+	b3Fixed inv_dt;
 
 	// sub-step
-	float h;
-	float inv_h;
+	b3Fixed h;
+	b3Fixed inv_h;
 
 	int subStepCount;
 
 	b3Softness contactSoftness;
 	b3Softness staticSoftness;
 
-	float restitutionThreshold;
-	float maxLinearVelocity;
+	b3Fixed restitutionThreshold;
+	b3Fixed maxLinearVelocity;
 
 	struct b3World* world;
 	struct b3ConstraintGraph* graph;
@@ -261,21 +261,21 @@ typedef struct b3StepContext
 
 void b3Solve( b3World* world, b3StepContext* stepContext );
 
-static inline b3Softness b3MakeSoft( float hertz, float zeta, float h )
+static inline b3Softness b3MakeSoft( b3Fixed hertz, b3Fixed zeta, b3Fixed h )
 {
-	if ( hertz == 0.0f )
+	if ( hertz == B3_FIX( 0.0f ) )
 	{
 		return B3_LITERAL( b3Softness ){
-			.biasRate = 0.0f,
-			.massScale = 0.0f,
-			.impulseScale = 0.0f,
+			.biasRate = B3_FIX( 0.0f ),
+			.massScale = B3_FIX( 0.0f ),
+			.impulseScale = B3_FIX( 0.0f ),
 		};
 	}
 
-	float omega = 2.0f * B3_PI * hertz;
-	float a1 = 2.0f * zeta + h * omega;
-	float a2 = h * omega * a1;
-	float a3 = 1.0f / ( 1.0f + a2 );
+	b3Fixed omega = b3FixMul( b3FixMul( B3_FIX( 2.0f ) , B3_PI ) , hertz );
+	b3Fixed a1 = b3FixMul( B3_FIX( 2.0f ) , zeta ) + b3FixMul( h , omega );
+	b3Fixed a2 = b3FixMul( b3FixMul( h , omega ) , a1 );
+	b3Fixed a3 = b3FixDiv( B3_FIX( 1.0f ) , ( B3_FIX( 1.0f ) + a2 ) );
 
 	// bias = w / (2 * z + hw)
 	// massScale = hw * (2 * z + hw) / (1 + hw * (2 * z + hw))
@@ -299,8 +299,8 @@ static inline b3Softness b3MakeSoft( float hertz, float zeta, float h )
 	// massScale + impulseScale == 1
 
 	return ( b3Softness ){
-		.biasRate = omega / a1,
-		.massScale = a2 * a3,
+		.biasRate = b3FixDiv( omega , a1 ),
+		.massScale = b3FixMul( a2 , a3 ),
 		.impulseScale = a3,
 	};
 }

@@ -10,14 +10,13 @@
 #include "box3d/constants.h"
 #include "box3d/math_functions.h"
 
-#include <float.h>
 #include <stdio.h>
 #include <string.h>
 
 #define B3_TREE_STACK_SIZE 1024
 
 static b3TreeNode b3_defaultTreeNode = {
-	.aabb = { { 0.0f, 0.0f, 0.0f }, { 0.0f, 0.0f, 0.0f } },
+	.aabb = { { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) } },
 	.categoryBits = B3_DEFAULT_CATEGORY_BITS,
 	.children =
 		{
@@ -165,7 +164,7 @@ static void b3FreeNode( b3DynamicTree* tree, int nodeId )
 static int b3FindBestSibling( const b3DynamicTree* tree, b3AABB boxD )
 {
 	b3Vec3 centerD = b3AABB_Center( boxD );
-	float areaD = b3Perimeter( boxD );
+	b3Fixed areaD = b3Perimeter( boxD );
 
 	const b3TreeNode* nodes = tree->nodes;
 	int rootIndex = tree->root;
@@ -173,14 +172,14 @@ static int b3FindBestSibling( const b3DynamicTree* tree, b3AABB boxD )
 	b3AABB rootBox = nodes[rootIndex].aabb;
 
 	// Area of current node
-	float areaBase = b3Perimeter( rootBox );
+	b3Fixed areaBase = b3Perimeter( rootBox );
 
 	// Area of inflated node
-	float directCost = b3Perimeter( b3AABB_Union( rootBox, boxD ) );
-	float inheritedCost = 0.0f;
+	b3Fixed directCost = b3Perimeter( b3AABB_Union( rootBox, boxD ) );
+	b3Fixed inheritedCost = B3_FIX( 0.0f );
 
 	int bestSibling = rootIndex;
-	float bestCost = directCost;
+	b3Fixed bestCost = directCost;
 
 	// Descend the tree from root, following a single greedy path.
 	int index = rootIndex;
@@ -190,7 +189,7 @@ static int b3FindBestSibling( const b3DynamicTree* tree, b3AABB boxD )
 		int child2 = nodes[index].children.child2;
 
 		// Cost of creating a new parent for this node and the new leaf
-		float cost = directCost + inheritedCost;
+		b3Fixed cost = directCost + inheritedCost;
 
 		// Sometimes there are multiple identical costs within tolerance.
 		// This breaks the ties using the centroid distance.
@@ -207,15 +206,15 @@ static int b3FindBestSibling( const b3DynamicTree* tree, b3AABB boxD )
 		bool leaf2 = b3IsLeaf( nodes + child2 );
 
 		// Cost of descending into child 1
-		float lowerCost1 = FLT_MAX;
+		b3Fixed lowerCost1 = B3_FIXED_MAX;
 		b3AABB box1 = nodes[child1].aabb;
-		float directCost1 = b3Perimeter( b3AABB_Union( box1, boxD ) );
-		float area1 = 0.0f;
+		b3Fixed directCost1 = b3Perimeter( b3AABB_Union( box1, boxD ) );
+		b3Fixed area1 = B3_FIX( 0.0f );
 		if ( leaf1 )
 		{
 			// Child 1 is a leaf
 			// Cost of creating new node and increasing area of node P
-			float cost1 = directCost1 + inheritedCost;
+			b3Fixed cost1 = directCost1 + inheritedCost;
 
 			// Need this here due to while condition above
 			if ( cost1 < bestCost )
@@ -230,19 +229,19 @@ static int b3FindBestSibling( const b3DynamicTree* tree, b3AABB boxD )
 			area1 = b3Perimeter( box1 );
 
 			// Lower bound cost of inserting under child 1.
-			lowerCost1 = inheritedCost + directCost1 + b3MinFloat( areaD - area1, 0.0f );
+			lowerCost1 = inheritedCost + directCost1 + b3FixMin( areaD - area1, B3_FIX( 0.0f ) );
 		}
 
 		// Cost of descending into child 2
-		float lowerCost2 = FLT_MAX;
+		b3Fixed lowerCost2 = B3_FIXED_MAX;
 		b3AABB box2 = nodes[child2].aabb;
-		float directCost2 = b3Perimeter( b3AABB_Union( box2, boxD ) );
-		float area2 = 0.0f;
+		b3Fixed directCost2 = b3Perimeter( b3AABB_Union( box2, boxD ) );
+		b3Fixed area2 = B3_FIX( 0.0f );
 		if ( leaf2 )
 		{
 			// Child 2 is a leaf
 			// Cost of creating new node and increasing area of node P
-			float cost2 = directCost2 + inheritedCost;
+			b3Fixed cost2 = directCost2 + inheritedCost;
 
 			// Need this here due to while condition above
 			if ( cost2 < bestCost )
@@ -258,7 +257,7 @@ static int b3FindBestSibling( const b3DynamicTree* tree, b3AABB boxD )
 
 			// Lower bound cost of inserting under child 2. This is not the cost
 			// of child 2, it is the best we can hope for under child 2.
-			lowerCost2 = inheritedCost + directCost2 + b3MinFloat( areaD - area2, 0.0f );
+			lowerCost2 = inheritedCost + directCost2 + b3FixMin( areaD - area2, B3_FIX( 0.0f ) );
 		}
 
 		if ( leaf1 && leaf2 )
@@ -274,8 +273,8 @@ static int b3FindBestSibling( const b3DynamicTree* tree, b3AABB boxD )
 
 		if ( lowerCost1 == lowerCost2 && leaf1 == false )
 		{
-			B3_ASSERT( lowerCost1 < FLT_MAX );
-			B3_ASSERT( lowerCost2 < FLT_MAX );
+			B3_ASSERT( lowerCost1 < B3_FIXED_MAX );
+			B3_ASSERT( lowerCost2 < B3_FIXED_MAX );
 
 			// No clear choice based on lower bound surface area. This can happen when both
 			// children fully contain D. Fall back to node distance.
@@ -349,15 +348,15 @@ static void b3RotateNodes( b3DynamicTree* tree, int iA )
 		B3_ASSERT( 0 <= iG && iG < tree->nodeCapacity );
 
 		// Base cost
-		float costBase = b3Perimeter( C->aabb );
+		b3Fixed costBase = b3Perimeter( C->aabb );
 
 		// Cost of swapping B and F
 		b3AABB aabbBG = b3AABB_Union( B->aabb, G->aabb );
-		float costBF = b3Perimeter( aabbBG );
+		b3Fixed costBF = b3Perimeter( aabbBG );
 
 		// Cost of swapping B and G
 		b3AABB aabbBF = b3AABB_Union( B->aabb, F->aabb );
-		float costBG = b3Perimeter( aabbBF );
+		b3Fixed costBG = b3Perimeter( aabbBF );
 
 		if ( costBase < costBF && costBase < costBG )
 		{
@@ -414,15 +413,15 @@ static void b3RotateNodes( b3DynamicTree* tree, int iA )
 		B3_ASSERT( 0 <= iE && iE < tree->nodeCapacity );
 
 		// Base cost
-		float costBase = b3Perimeter( B->aabb );
+		b3Fixed costBase = b3Perimeter( B->aabb );
 
 		// Cost of swapping C and D
 		b3AABB aabbCE = b3AABB_Union( C->aabb, E->aabb );
-		float costCD = b3Perimeter( aabbCE );
+		b3Fixed costCD = b3Perimeter( aabbCE );
 
 		// Cost of swapping C and E
 		b3AABB aabbCD = b3AABB_Union( C->aabb, D->aabb );
-		float costCE = b3Perimeter( aabbCD );
+		b3Fixed costCE = b3Perimeter( aabbCD );
 
 		if ( costBase < costCD && costBase < costCE )
 		{
@@ -486,15 +485,15 @@ static void b3RotateNodes( b3DynamicTree* tree, int iA )
 		b3TreeNode* G = nodes + iG;
 
 		// Base cost
-		float areaB = b3Perimeter( B->aabb );
-		float areaC = b3Perimeter( C->aabb );
-		float costBase = areaB + areaC;
+		b3Fixed areaB = b3Perimeter( B->aabb );
+		b3Fixed areaC = b3Perimeter( C->aabb );
+		b3Fixed costBase = areaB + areaC;
 		enum b3RotateType bestRotation = b3_rotateNone;
-		float bestCost = costBase;
+		b3Fixed bestCost = costBase;
 
 		// Cost of swapping B and F
 		b3AABB aabbBG = b3AABB_Union( B->aabb, G->aabb );
-		float costBF = areaB + b3Perimeter( aabbBG );
+		b3Fixed costBF = areaB + b3Perimeter( aabbBG );
 		if ( costBF < bestCost )
 		{
 			bestRotation = b3_rotateBF;
@@ -503,7 +502,7 @@ static void b3RotateNodes( b3DynamicTree* tree, int iA )
 
 		// Cost of swapping B and G
 		b3AABB aabbBF = b3AABB_Union( B->aabb, F->aabb );
-		float costBG = areaB + b3Perimeter( aabbBF );
+		b3Fixed costBG = areaB + b3Perimeter( aabbBF );
 		if ( costBG < bestCost )
 		{
 			bestRotation = b3_rotateBG;
@@ -512,7 +511,7 @@ static void b3RotateNodes( b3DynamicTree* tree, int iA )
 
 		// Cost of swapping C and D
 		b3AABB aabbCE = b3AABB_Union( C->aabb, E->aabb );
-		float costCD = areaC + b3Perimeter( aabbCE );
+		b3Fixed costCD = areaC + b3Perimeter( aabbCE );
 		if ( costCD < bestCost )
 		{
 			bestRotation = b3_rotateCD;
@@ -521,7 +520,7 @@ static void b3RotateNodes( b3DynamicTree* tree, int iA )
 
 		// Cost of swapping C and E
 		b3AABB aabbCD = b3AABB_Union( C->aabb, D->aabb );
-		float costCE = areaC + b3Perimeter( aabbCD );
+		b3Fixed costCE = areaC + b3Perimeter( aabbCD );
 		if ( costCE < bestCost )
 		{
 			bestRotation = b3_rotateCE;
@@ -890,17 +889,17 @@ int b3DynamicTree_GetHeight( const b3DynamicTree* tree )
 	return tree->nodes[tree->root].height;
 }
 
-float b3DynamicTree_GetAreaRatio( const b3DynamicTree* tree )
+b3Fixed b3DynamicTree_GetAreaRatio( const b3DynamicTree* tree )
 {
 	if ( tree->root == B3_NULL_INDEX )
 	{
-		return 0.0f;
+		return B3_FIX( 0.0f );
 	}
 
 	const b3TreeNode* root = tree->nodes + tree->root;
-	float rootArea = b3Perimeter( root->aabb );
+	b3Fixed rootArea = b3Perimeter( root->aabb );
 
-	float totalArea = 0.0f;
+	b3Fixed totalArea = B3_FIX( 0.0f );
 	for ( int i = 0; i < tree->nodeCapacity; ++i )
 	{
 		const b3TreeNode* node = tree->nodes + i;
@@ -912,7 +911,7 @@ float b3DynamicTree_GetAreaRatio( const b3DynamicTree* tree )
 		totalArea += b3Perimeter( node->aabb );
 	}
 
-	return totalArea / rootArea;
+	return b3FixDiv( totalArea , rootArea );
 }
 
 b3AABB b3DynamicTree_GetRootBounds( const b3DynamicTree* tree )
@@ -1149,7 +1148,7 @@ b3TreeStats b3DynamicTree_Query( const b3DynamicTree* tree, b3AABB aabb, uint64_
 	return result;
 }
 
-B3_FORCE_INLINE float b3DistanceToNodeSqr( b3Vec3 point, const b3TreeNode* node )
+B3_FORCE_INLINE b3Fixed b3DistanceToNodeSqr( b3Vec3 point, const b3TreeNode* node )
 {
 	b3Vec3 r = b3Sub( point, b3Clamp( point, node->aabb.lowerBound, node->aabb.upperBound ) );
 	return b3Dot( r, r );
@@ -1158,11 +1157,11 @@ B3_FORCE_INLINE float b3DistanceToNodeSqr( b3Vec3 point, const b3TreeNode* node 
 struct b3QueryClosestItem
 {
 	int nodeIndex;
-	float distanceToNodeSqr;
+	b3Fixed distanceToNodeSqr;
 };
 
 b3TreeStats b3DynamicTree_QueryClosest( const b3DynamicTree* tree, b3Vec3 point, uint64_t maskBits, bool requireAllBits,
-										b3TreeQueryClosestCallbackFcn* callback, void* context, float* minDistanceSqr )
+										b3TreeQueryClosestCallbackFcn* callback, void* context, b3Fixed* minDistanceSqr )
 {
 	b3TreeStats result = { 0 };
 
@@ -1171,11 +1170,11 @@ b3TreeStats b3DynamicTree_QueryClosest( const b3DynamicTree* tree, b3Vec3 point,
 		return result;
 	}
 
-	float minSqr = *minDistanceSqr;
+	b3Fixed minSqr = *minDistanceSqr;
 	struct b3QueryClosestItem stack[B3_TREE_STACK_SIZE];
 	int stackCount = 0;
 
-	float rootDistanceSqr = b3DistanceToNodeSqr( point, tree->nodes + tree->root );
+	b3Fixed rootDistanceSqr = b3DistanceToNodeSqr( point, tree->nodes + tree->root );
 	stack[stackCount++] = (struct b3QueryClosestItem){
 		.nodeIndex = tree->root,
 		.distanceToNodeSqr = rootDistanceSqr,
@@ -1196,7 +1195,7 @@ b3TreeStats b3DynamicTree_QueryClosest( const b3DynamicTree* tree, b3Vec3 point,
 				if ( b3IsLeaf( node ) )
 				{
 					// callback to user code with minimum distance squared so far and proxy id
-					float dd = callback( minSqr, item.nodeIndex, node->userData, context );
+					b3Fixed dd = callback( minSqr, item.nodeIndex, node->userData, context );
 
 					if ( dd < minSqr )
 					{
@@ -1262,7 +1261,7 @@ b3TreeStats b3DynamicTree_RayCast( const b3DynamicTree* tree, const b3RayCastInp
 	b3V32 pv1 = b3LoadV( &p1.x );
 	b3V32 dv = b3LoadV( &d.x );
 
-	float maxFraction = input->maxFraction;
+	b3Fixed maxFraction = input->maxFraction;
 
 	b3Vec3 p2 = b3MulAdd( p1, maxFraction, d );
 
@@ -1313,18 +1312,18 @@ b3TreeStats b3DynamicTree_RayCast( const b3DynamicTree* tree, const b3RayCastInp
 		{
 			subInput.maxFraction = maxFraction;
 
-			float value = callback( &subInput, nodeId, node->userData, context );
+			b3Fixed value = callback( &subInput, nodeId, node->userData, context );
 			result.leafVisits += 1;
 
 			// The user may return -1 to indicate this shape should be skipped
 
-			if ( value == 0.0f )
+			if ( value == B3_FIX( 0.0f ) )
 			{
 				// The client has terminated the ray cast.
 				return result;
 			}
 
-			if ( 0.0f < value && value <= maxFraction )
+			if ( B3_FIX( 0.0f ) < value && value <= maxFraction )
 			{
 				// Update segment bounding box.
 				maxFraction = value;
@@ -1379,7 +1378,7 @@ b3TreeStats b3DynamicTree_BoxCast( const b3DynamicTree* tree, const b3BoxCastInp
 	b3V32 dv = b3LoadV( &d.x );
 	b3V32 ev = b3LoadV( &extension.x );
 
-	float maxFraction = input->maxFraction;
+	b3Fixed maxFraction = input->maxFraction;
 
 	// Build total box for the cast
 	b3Vec3 t = b3MulSV( maxFraction, input->translation );
@@ -1427,16 +1426,16 @@ b3TreeStats b3DynamicTree_BoxCast( const b3DynamicTree* tree, const b3BoxCastInp
 		{
 			subInput.maxFraction = maxFraction;
 
-			float value = callback( &subInput, nodeId, node->userData, context );
+			b3Fixed value = callback( &subInput, nodeId, node->userData, context );
 			stats.leafVisits += 1;
 
-			if ( value == 0.0f )
+			if ( value == B3_FIX( 0.0f ) )
 			{
 				// The client has terminated the cast.
 				return stats;
 			}
 
-			if ( 0.0f < value && value < maxFraction )
+			if ( B3_FIX( 0.0f ) < value && value < maxFraction )
 			{
 				maxFraction = value;
 				t = b3MulSV( maxFraction, input->translation );
@@ -1492,7 +1491,7 @@ static int b3PartitionMid( int* indices, b3Vec3* centers, int count )
 	}
 
 	b3Vec3 d = b3Sub( upperBound, lowerBound );
-	b3Vec3 c = b3MulSV( 0.5f, b3Add( lowerBound, upperBound ) );
+	b3Vec3 c = b3MulSV( B3_FIX( 0.5f ), b3Add( lowerBound, upperBound ) );
 
 	// Partition longest axis using the Hoare partition scheme
 	// https://en.wikipedia.org/wiki/Quicksort
@@ -1500,7 +1499,7 @@ static int b3PartitionMid( int* indices, b3Vec3* centers, int count )
 	int i1 = 0, i2 = count;
 	if ( d.x >= d.y && d.x >= d.z )
 	{
-		float pivot = c.x;
+		b3Fixed pivot = c.x;
 
 		while ( i1 < i2 )
 		{
@@ -1537,7 +1536,7 @@ static int b3PartitionMid( int* indices, b3Vec3* centers, int count )
 	}
 	else if ( d.y >= d.z )
 	{
-		float pivot = c.y;
+		b3Fixed pivot = c.y;
 
 		while ( i1 < i2 )
 		{
@@ -1574,7 +1573,7 @@ static int b3PartitionMid( int* indices, b3Vec3* centers, int count )
 	}
 	else
 	{
-		float pivot = c.z;
+		b3Fixed pivot = c.z;
 
 		while ( i1 < i2 )
 		{
@@ -1662,7 +1661,7 @@ static int b3PartitionSAH( int* indices, int* binIndices, b3AABB* boxes, int cou
 
 	// Find longest axis
 	int axisIndex;
-	float invD;
+	b3Fixed invD;
 	if ( d.x > d.y )
 	{
 		axisIndex = 0;
@@ -1679,20 +1678,20 @@ static int b3PartitionSAH( int* indices, int* binIndices, b3AABB* boxes, int cou
 	// Initialize bin bounds and count
 	for ( int i = 0; i < B3_BIN_COUNT; ++i )
 	{
-		bins[i].aabb.lowerBound = (b3Vec3){ FLT_MAX, FLT_MAX };
-		bins[i].aabb.upperBound = (b3Vec3){ -FLT_MAX, -FLT_MAX };
+		bins[i].aabb.lowerBound = (b3Vec3){ B3_FIXED_MAX, B3_FIXED_MAX };
+		bins[i].aabb.upperBound = (b3Vec3){ -B3_FIXED_MAX, -B3_FIXED_MAX };
 		bins[i].count = 0;
 	}
 
 	// Assign boxes to bins and compute bin boxes
 	// TODO_ERIN optimize
-	float binCount = B3_BIN_COUNT;
-	float lowerBoundArray[2] = { centroidAABB.lowerBound.x, centroidAABB.lowerBound.y };
-	float minC = lowerBoundArray[axisIndex];
+	b3Fixed binCount = B3_BIN_COUNT;
+	b3Fixed lowerBoundArray[2] = { centroidAABB.lowerBound.x, centroidAABB.lowerBound.y };
+	b3Fixed minC = lowerBoundArray[axisIndex];
 	for ( int i = 0; i < count; ++i )
 	{
 		b3Vec3 c = b3AABB_Center( boxes[i] );
-		float cArray[2] = { c.x, c.y };
+		b3Fixed cArray[2] = { c.x, c.y };
 		int binIndex = (int)( binCount * ( cArray[axisIndex] - minC ) * invD );
 		binIndex = b3ClampInt( binIndex, 0, B3_BIN_COUNT - 1 );
 		binIndices[i] = binIndex;
@@ -1721,16 +1720,16 @@ static int b3PartitionSAH( int* indices, int* binIndices, b3AABB* boxes, int cou
 	}
 
 	// Find best split to minimize SAH
-	float minCost = FLT_MAX;
+	b3Fixed minCost = B3_FIXED_MAX;
 	int bestPlane = 0;
 	for ( int i = 0; i < planeCount; ++i )
 	{
-		float leftArea = b3Perimeter( planes[i].leftAABB );
-		float rightArea = b3Perimeter( planes[i].rightAABB );
+		b3Fixed leftArea = b3Perimeter( planes[i].leftAABB );
+		b3Fixed rightArea = b3Perimeter( planes[i].rightAABB );
 		int leftCount = planes[i].leftCount;
 		int rightCount = planes[i].rightCount;
 
-		float cost = leftCount * leftArea + rightCount * rightArea;
+		b3Fixed cost = leftCount * leftArea + rightCount * rightArea;
 		if ( cost < minCost )
 		{
 			bestPlane = i;
@@ -2125,7 +2124,7 @@ void b3DynamicTree_Save( const b3DynamicTree* tree, const char* fileName )
 	fclose( file );
 }
 
-b3DynamicTree b3DynamicTree_Load( const char* fileName, float scale )
+b3DynamicTree b3DynamicTree_Load( const char* fileName, b3Fixed scale )
 {
 	b3DynamicTree tree = { 0 };
 

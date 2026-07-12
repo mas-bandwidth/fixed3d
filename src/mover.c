@@ -10,33 +10,33 @@ b3PlaneSolverResult b3SolvePlanes( b3Vec3 targetDelta, b3CollisionPlane* planes,
 {
 	for ( int i = 0; i < count; ++i )
 	{
-		planes[i].push = 0.0f;
+		planes[i].push = B3_FIX( 0.0f );
 	}
 
 	b3Vec3 delta = targetDelta;
-	float tolerance = B3_LINEAR_SLOP;
+	b3Fixed tolerance = B3_LINEAR_SLOP;
 
 	int iteration;
 	for ( iteration = 0; iteration < 20; ++iteration )
 	{
-		float totalPush = 0.0f;
+		b3Fixed totalPush = B3_FIX( 0.0f );
 		for ( int planeIndex = 0; planeIndex < count; ++planeIndex )
 		{
 			b3CollisionPlane* plane = planes + planeIndex;
 
 			// Add slop to prevent jitter
-			float separation = b3PlaneSeparation( plane->plane, delta ) + B3_LINEAR_SLOP;
+			b3Fixed separation = b3PlaneSeparation( plane->plane, delta ) + B3_LINEAR_SLOP;
 
-			float push = -separation;
+			b3Fixed push = -separation;
 
 			// Clamp accumulated push
-			float accumulatedPush = plane->push;
-			plane->push = b3ClampFloat( plane->push + push, 0.0f, plane->pushLimit );
+			b3Fixed accumulatedPush = plane->push;
+			plane->push = b3FixClamp( plane->push + push, B3_FIX( 0.0f ), plane->pushLimit );
 			push = plane->push - accumulatedPush;
 			delta = b3MulAdd( delta, push, plane->plane.normal );
 
 			// Track maximum push for convergence
-			totalPush += b3AbsFloat( push );
+			totalPush += b3FixAbs( push );
 		}
 
 		if ( totalPush < tolerance )
@@ -58,12 +58,12 @@ b3Vec3 b3ClipVector( b3Vec3 vector, const b3CollisionPlane* planes, int count )
 	for ( int planeIndex = 0; planeIndex < count; ++planeIndex )
 	{
 		const b3CollisionPlane* plane = planes + planeIndex;
-		if ( plane->push == 0.0f || plane->clipVelocity == false )
+		if ( plane->push == B3_FIX( 0.0f ) || plane->clipVelocity == false )
 		{
 			continue;
 		}
 
-		v = b3MulSub( v, b3MinFloat( 0.0f, b3Dot( v, plane->plane.normal ) ), plane->plane.normal );
+		v = b3MulSub( v, b3FixMin( B3_FIX( 0.0f ), b3Dot( v, plane->plane.normal ) ), plane->plane.normal );
 	}
 
 	return v;

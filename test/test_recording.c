@@ -30,31 +30,31 @@ static int SphereRoundTrip( void )
 	b3World_StartRecording( worldId, rec );
 
 	// Set a non-default gravity so the setter op appears in the stream.
-	b3World_SetGravity( worldId, (b3Vec3){ 0.0f, -10.0f, 0.0f } );
+	b3World_SetGravity( worldId, (b3Vec3){ B3_FIX( 0.0f ), -B3_FIX( 10.0f ), B3_FIX( 0.0f ) } );
 
 	// Static ground
 	b3BodyDef groundDef = b3DefaultBodyDef();
 	groundDef.type = b3_staticBody;
 	b3BodyId groundId = b3CreateBody( worldId, &groundDef );
 
-	b3BoxHull groundBox = b3MakeBoxHull( 50.0f, 1.0f, 50.0f );
+	b3BoxHull groundBox = b3MakeBoxHull( B3_FIX( 50.0f ), B3_FIX( 1.0f ), B3_FIX( 50.0f ) );
 	b3ShapeDef groundShapeDef = b3DefaultShapeDef();
 	b3CreateHullShape( groundId, &groundShapeDef, &groundBox.base );
 
 	// Dynamic body with a sphere shape
 	b3BodyDef bodyDef = b3DefaultBodyDef();
 	bodyDef.type = b3_dynamicBody;
-	bodyDef.position = (b3Pos){ 0.0f, 5.0f, 0.0f };
+	bodyDef.position = (b3Pos){ B3_FIX( 0.0f ), B3_FIX( 5.0f ), B3_FIX( 0.0f ) };
 	b3BodyId bodyId = b3CreateBody( worldId, &bodyDef );
 
 	b3Sphere sphere;
-	sphere.center = (b3Vec3){ 0.0f, 0.0f, 0.0f };
-	sphere.radius = 0.5f;
+	sphere.center = (b3Vec3){ B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
+	sphere.radius = B3_FIX( 0.5f );
 	b3ShapeDef sphereDef = b3DefaultShapeDef();
-	sphereDef.density = 1.0f;
+	sphereDef.density = B3_FIX( 1.0f );
 	b3CreateSphereShape( bodyId, &sphereDef, &sphere );
 
-	float timeStep = 1.0f / 60.0f;
+	b3Fixed timeStep = b3FixDiv( B3_FIX( 1.0f ) , B3_FIX( 60.0f ) );
 	int subStepCount = 4;
 	for ( int i = 0; i < 30; ++i )
 	{
@@ -75,8 +75,8 @@ static int HullDedup( void )
 {
 	// Build a small convex hull
 	b3Vec3 pts[8] = {
-		{ -1.0f, -1.0f, -1.0f }, { 1.0f, -1.0f, -1.0f }, { 1.0f, 1.0f, -1.0f }, { -1.0f, 1.0f, -1.0f },
-		{ -1.0f, -1.0f, 1.0f },	 { 1.0f, -1.0f, 1.0f },	 { 1.0f, 1.0f, 1.0f },	{ -1.0f, 1.0f, 1.0f },
+		{ -B3_FIX( 1.0f ), -B3_FIX( 1.0f ), -B3_FIX( 1.0f ) }, { B3_FIX( 1.0f ), -B3_FIX( 1.0f ), -B3_FIX( 1.0f ) }, { B3_FIX( 1.0f ), B3_FIX( 1.0f ), -B3_FIX( 1.0f ) }, { -B3_FIX( 1.0f ), B3_FIX( 1.0f ), -B3_FIX( 1.0f ) },
+		{ -B3_FIX( 1.0f ), -B3_FIX( 1.0f ), B3_FIX( 1.0f ) },	 { B3_FIX( 1.0f ), -B3_FIX( 1.0f ), B3_FIX( 1.0f ) },	 { B3_FIX( 1.0f ), B3_FIX( 1.0f ), B3_FIX( 1.0f ) },	{ -B3_FIX( 1.0f ), B3_FIX( 1.0f ), B3_FIX( 1.0f ) },
 	};
 	b3HullData* hull = b3CreateHull( pts, 8, 8 );
 	ENSURE( hull != NULL );
@@ -90,18 +90,18 @@ static int HullDedup( void )
 	b3World_StartRecording( worldId, rec );
 
 	b3ShapeDef shapeDef = b3DefaultShapeDef();
-	shapeDef.density = 1.0f;
+	shapeDef.density = B3_FIX( 1.0f );
 
 	for ( int i = 0; i < 3; ++i )
 	{
 		b3BodyDef bodyDef = b3DefaultBodyDef();
 		bodyDef.type = b3_dynamicBody;
-		bodyDef.position = (b3Pos){ (float)( i * 3 ), 5.0f, 0.0f };
+		bodyDef.position = (b3Pos){ (b3Fixed)b3FixFromInt( ( i * 3 ) ), B3_FIX( 5.0f ), B3_FIX( 0.0f ) };
 		b3BodyId bodyId = b3CreateBody( worldId, &bodyDef );
 		b3CreateHullShape( bodyId, &shapeDef, hull );
 	}
 
-	float timeStep = 1.0f / 60.0f;
+	b3Fixed timeStep = b3FixDiv( B3_FIX( 1.0f ) , B3_FIX( 60.0f ) );
 	for ( int i = 0; i < 5; ++i )
 	{
 		b3World_Step( worldId, timeStep, 4 );
@@ -139,25 +139,25 @@ static int MidStreamNoContacts( void )
 	b3WorldDef worldDef = b3DefaultWorldDef();
 	b3WorldId worldId = b3CreateWorld( &worldDef );
 
-	b3World_SetGravity( worldId, (b3Vec3){ 0.0f, -10.0f, 0.0f } );
+	b3World_SetGravity( worldId, (b3Vec3){ B3_FIX( 0.0f ), -B3_FIX( 10.0f ), B3_FIX( 0.0f ) } );
 
 	b3Sphere sphere;
-	sphere.center = (b3Vec3){ 0.0f, 0.0f, 0.0f };
-	sphere.radius = 0.5f;
+	sphere.center = (b3Vec3){ B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
+	sphere.radius = B3_FIX( 0.5f );
 	b3ShapeDef shapeDef = b3DefaultShapeDef();
-	shapeDef.density = 1.0f;
+	shapeDef.density = B3_FIX( 1.0f );
 
 	// A few dynamic bodies well apart from each other so no contacts form
 	for ( int i = 0; i < 4; ++i )
 	{
 		b3BodyDef bodyDef = b3DefaultBodyDef();
 		bodyDef.type = b3_dynamicBody;
-		bodyDef.position = (b3Pos){ (float)( i * 10 ), 50.0f, 0.0f };
+		bodyDef.position = (b3Pos){ (b3Fixed)b3FixFromInt( ( i * 10 ) ), B3_FIX( 50.0f ), B3_FIX( 0.0f ) };
 		b3BodyId bodyId = b3CreateBody( worldId, &bodyDef );
 		b3CreateSphereShape( bodyId, &shapeDef, &sphere );
 	}
 
-	float timeStep = 1.0f / 60.0f;
+	b3Fixed timeStep = b3FixDiv( B3_FIX( 1.0f ) , B3_FIX( 60.0f ) );
 	int subStepCount = 4;
 	for ( int i = 0; i < 10; ++i )
 	{
@@ -189,7 +189,7 @@ static int MidStreamContacts( void )
 	b3WorldDef worldDef = b3DefaultWorldDef();
 	b3WorldId worldId = b3CreateWorld( &worldDef );
 
-	b3World_SetGravity( worldId, (b3Vec3){ 0.0f, -10.0f, 0.0f } );
+	b3World_SetGravity( worldId, (b3Vec3){ B3_FIX( 0.0f ), -B3_FIX( 10.0f ), B3_FIX( 0.0f ) } );
 
 	// Static ground using a box hull
 	{
@@ -197,27 +197,27 @@ static int MidStreamContacts( void )
 		groundDef.type = b3_staticBody;
 		b3BodyId groundId = b3CreateBody( worldId, &groundDef );
 
-		b3BoxHull groundBox = b3MakeBoxHull( 50.0f, 1.0f, 50.0f );
+		b3BoxHull groundBox = b3MakeBoxHull( B3_FIX( 50.0f ), B3_FIX( 1.0f ), B3_FIX( 50.0f ) );
 		b3ShapeDef groundShape = b3DefaultShapeDef();
 		b3CreateHullShape( groundId, &groundShape, &groundBox.base );
 	}
 
 	b3ShapeDef dynamicShape = b3DefaultShapeDef();
-	dynamicShape.density = 1.0f;
+	dynamicShape.density = B3_FIX( 1.0f );
 
 	// A few dynamic boxes dropped onto the ground
 	for ( int i = 0; i < 3; ++i )
 	{
-		b3BoxHull box = b3MakeBoxHull( 0.5f, 0.5f, 0.5f );
+		b3BoxHull box = b3MakeBoxHull( B3_FIX( 0.5f ), B3_FIX( 0.5f ), B3_FIX( 0.5f ) );
 
 		b3BodyDef bodyDef = b3DefaultBodyDef();
 		bodyDef.type = b3_dynamicBody;
-		bodyDef.position = (b3Pos){ (float)( i * 2 ) - 2.0f, 5.0f, 0.0f };
+		bodyDef.position = (b3Pos){ (b3Fixed)b3FixFromInt( ( i * 2 ) ) - B3_FIX( 2.0f ), B3_FIX( 5.0f ), B3_FIX( 0.0f ) };
 		b3BodyId bodyId = b3CreateBody( worldId, &bodyDef );
 		b3CreateHullShape( bodyId, &dynamicShape, &box.base );
 	}
 
-	float timeStep = 1.0f / 60.0f;
+	b3Fixed timeStep = b3FixDiv( B3_FIX( 1.0f ) , B3_FIX( 60.0f ) );
 	int subStepCount = 4;
 
 	// Let the scene settle: bodies hit ground, build manifolds, islands, graph colors
@@ -256,7 +256,7 @@ static int ScrubBackward( void )
 	b3WorldDef worldDef = b3DefaultWorldDef();
 	b3WorldId worldId = b3CreateWorld( &worldDef );
 
-	b3World_SetGravity( worldId, (b3Vec3){ 0.0f, -10.0f, 0.0f } );
+	b3World_SetGravity( worldId, (b3Vec3){ B3_FIX( 0.0f ), -B3_FIX( 10.0f ), B3_FIX( 0.0f ) } );
 
 	b3World_StartRecording( worldId, rec );
 
@@ -265,25 +265,25 @@ static int ScrubBackward( void )
 		b3BodyDef groundDef = b3DefaultBodyDef();
 		groundDef.type = b3_staticBody;
 		b3BodyId groundId = b3CreateBody( worldId, &groundDef );
-		b3BoxHull groundBox = b3MakeBoxHull( 20.0f, 1.0f, 20.0f );
+		b3BoxHull groundBox = b3MakeBoxHull( B3_FIX( 20.0f ), B3_FIX( 1.0f ), B3_FIX( 20.0f ) );
 		b3ShapeDef groundShape = b3DefaultShapeDef();
 		b3CreateHullShape( groundId, &groundShape, &groundBox.base );
 	}
 
 	// A small stack of dynamic hull boxes
 	b3ShapeDef boxShape = b3DefaultShapeDef();
-	boxShape.density = 1.0f;
+	boxShape.density = B3_FIX( 1.0f );
 	for ( int i = 0; i < 4; ++i )
 	{
-		b3BoxHull box = b3MakeBoxHull( 0.5f, 0.5f, 0.5f );
+		b3BoxHull box = b3MakeBoxHull( B3_FIX( 0.5f ), B3_FIX( 0.5f ), B3_FIX( 0.5f ) );
 		b3BodyDef bodyDef = b3DefaultBodyDef();
 		bodyDef.type = b3_dynamicBody;
-		bodyDef.position = (b3Pos){ 0.0f, 2.0f + (float)i * 1.5f, 0.0f };
+		bodyDef.position = (b3Pos){ B3_FIX( 0.0f ), B3_FIX( 2.0f ) + b3FixMul( (b3Fixed)b3FixFromInt( i ) , B3_FIX( 1.5f ) ), B3_FIX( 0.0f ) };
 		b3BodyId bodyId = b3CreateBody( worldId, &bodyDef );
 		b3CreateHullShape( bodyId, &boxShape, &box.base );
 	}
 
-	float timeStep = 1.0f / 60.0f;
+	b3Fixed timeStep = b3FixDiv( B3_FIX( 1.0f ) , B3_FIX( 60.0f ) );
 	int subStepCount = 4;
 	int totalFrames = 80;
 	for ( int i = 0; i < totalFrames; ++i )
@@ -351,8 +351,8 @@ static int ScrubBackward( void )
 static int SeekWithHull( void )
 {
 	b3Vec3 pts[8] = {
-		{ -1.0f, -1.0f, -1.0f }, { 1.0f, -1.0f, -1.0f }, { 1.0f, 1.0f, -1.0f }, { -1.0f, 1.0f, -1.0f },
-		{ -1.0f, -1.0f, 1.0f },	 { 1.0f, -1.0f, 1.0f },	 { 1.0f, 1.0f, 1.0f },	{ -1.0f, 1.0f, 1.0f },
+		{ -B3_FIX( 1.0f ), -B3_FIX( 1.0f ), -B3_FIX( 1.0f ) }, { B3_FIX( 1.0f ), -B3_FIX( 1.0f ), -B3_FIX( 1.0f ) }, { B3_FIX( 1.0f ), B3_FIX( 1.0f ), -B3_FIX( 1.0f ) }, { -B3_FIX( 1.0f ), B3_FIX( 1.0f ), -B3_FIX( 1.0f ) },
+		{ -B3_FIX( 1.0f ), -B3_FIX( 1.0f ), B3_FIX( 1.0f ) },	 { B3_FIX( 1.0f ), -B3_FIX( 1.0f ), B3_FIX( 1.0f ) },	 { B3_FIX( 1.0f ), B3_FIX( 1.0f ), B3_FIX( 1.0f ) },	{ -B3_FIX( 1.0f ), B3_FIX( 1.0f ), B3_FIX( 1.0f ) },
 	};
 	b3HullData* hull = b3CreateHull( pts, 8, 8 );
 	ENSURE( hull != NULL );
@@ -363,7 +363,7 @@ static int SeekWithHull( void )
 	b3WorldDef worldDef = b3DefaultWorldDef();
 	b3WorldId worldId = b3CreateWorld( &worldDef );
 
-	b3World_SetGravity( worldId, (b3Vec3){ 0.0f, -10.0f, 0.0f } );
+	b3World_SetGravity( worldId, (b3Vec3){ B3_FIX( 0.0f ), -B3_FIX( 10.0f ), B3_FIX( 0.0f ) } );
 	b3World_StartRecording( worldId, rec );
 
 	// Static ground
@@ -371,24 +371,24 @@ static int SeekWithHull( void )
 		b3BodyDef groundDef = b3DefaultBodyDef();
 		groundDef.type = b3_staticBody;
 		b3BodyId groundId = b3CreateBody( worldId, &groundDef );
-		b3BoxHull groundBox = b3MakeBoxHull( 20.0f, 1.0f, 20.0f );
+		b3BoxHull groundBox = b3MakeBoxHull( B3_FIX( 20.0f ), B3_FIX( 1.0f ), B3_FIX( 20.0f ) );
 		b3ShapeDef gs = b3DefaultShapeDef();
 		b3CreateHullShape( groundId, &gs, &groundBox.base );
 	}
 
 	// Dynamic bodies using the custom hull
 	b3ShapeDef sd = b3DefaultShapeDef();
-	sd.density = 1.0f;
+	sd.density = B3_FIX( 1.0f );
 	for ( int i = 0; i < 3; ++i )
 	{
 		b3BodyDef bd = b3DefaultBodyDef();
 		bd.type = b3_dynamicBody;
-		bd.position = (b3Pos){ (float)( i * 4 ) - 4.0f, 5.0f, 0.0f };
+		bd.position = (b3Pos){ (b3Fixed)b3FixFromInt( ( i * 4 ) ) - B3_FIX( 4.0f ), B3_FIX( 5.0f ), B3_FIX( 0.0f ) };
 		b3BodyId bodyId = b3CreateBody( worldId, &bd );
 		b3CreateHullShape( bodyId, &sd, hull );
 	}
 
-	float timeStep = 1.0f / 60.0f;
+	b3Fixed timeStep = b3FixDiv( B3_FIX( 1.0f ) , B3_FIX( 60.0f ) );
 	int totalFrames = 40;
 	for ( int i = 0; i < totalFrames; ++i )
 	{
@@ -464,7 +464,7 @@ static void RecTestDrawWorld( b3WorldId worldId )
 	b3DebugDraw draw = b3DefaultDebugDraw();
 	draw.DrawShapeFcn = RecTestDrawShape;
 	draw.drawShapes = true;
-	float big = 1.0e6f;
+	b3Fixed big = B3_FIX( 1.0e6f );
 	draw.drawingBounds = (b3AABB){ { -big, -big, -big }, { big, big, big } };
 	b3World_Draw( worldId, &draw, B3_DEFAULT_MASK_BITS );
 }
@@ -482,24 +482,24 @@ static int DebugShapeCallbacks( void )
 	b3WorldId worldId = b3CreateWorld( &worldDef );
 
 	b3World_StartRecording( worldId, rec );
-	b3World_SetGravity( worldId, (b3Vec3){ 0.0f, -10.0f, 0.0f } );
+	b3World_SetGravity( worldId, (b3Vec3){ B3_FIX( 0.0f ), -B3_FIX( 10.0f ), B3_FIX( 0.0f ) } );
 
 	b3BodyDef groundDef = b3DefaultBodyDef();
 	groundDef.type = b3_staticBody;
 	b3BodyId groundId = b3CreateBody( worldId, &groundDef );
-	b3BoxHull groundBox = b3MakeBoxHull( 20.0f, 1.0f, 20.0f );
+	b3BoxHull groundBox = b3MakeBoxHull( B3_FIX( 20.0f ), B3_FIX( 1.0f ), B3_FIX( 20.0f ) );
 	b3ShapeDef groundShape = b3DefaultShapeDef();
 	b3CreateHullShape( groundId, &groundShape, &groundBox.base );
 
 	// Four dynamic boxes sharing one hull: ground + 4 boxes = 5 shapes total.
-	b3BoxHull box = b3MakeBoxHull( 0.5f, 0.5f, 0.5f );
+	b3BoxHull box = b3MakeBoxHull( B3_FIX( 0.5f ), B3_FIX( 0.5f ), B3_FIX( 0.5f ) );
 	b3ShapeDef boxShape = b3DefaultShapeDef();
-	boxShape.density = 1.0f;
+	boxShape.density = B3_FIX( 1.0f );
 	for ( int i = 0; i < 4; ++i )
 	{
 		b3BodyDef bodyDef = b3DefaultBodyDef();
 		bodyDef.type = b3_dynamicBody;
-		bodyDef.position = (b3Pos){ 0.0f, 1.0f + 1.1f * (float)i, 0.0f };
+		bodyDef.position = (b3Pos){ B3_FIX( 0.0f ), B3_FIX( 1.0f ) + b3FixMul( B3_FIX( 1.1f ) , (b3Fixed)b3FixFromInt( i ) ), B3_FIX( 0.0f ) };
 		b3BodyId bodyId = b3CreateBody( worldId, &bodyDef );
 		b3CreateHullShape( bodyId, &boxShape, &box.base );
 	}
@@ -507,7 +507,7 @@ static int DebugShapeCallbacks( void )
 	int totalFrames = 30;
 	for ( int i = 0; i < totalFrames; ++i )
 	{
-		b3World_Step( worldId, 1.0f / 60.0f, 4 );
+		b3World_Step( worldId, b3FixDiv( B3_FIX( 1.0f ) , B3_FIX( 60.0f ) ), 4 );
 	}
 	b3World_StopRecording( worldId );
 	b3DestroyWorld( worldId );
@@ -560,31 +560,31 @@ static int PlayerAccessors( void )
 {
 	b3WorldDef worldDef = b3DefaultWorldDef();
 	b3WorldId worldId = b3CreateWorld( &worldDef );
-	b3World_SetGravity( worldId, (b3Vec3){ 0.0f, -10.0f, 0.0f } );
+	b3World_SetGravity( worldId, (b3Vec3){ B3_FIX( 0.0f ), -B3_FIX( 10.0f ), B3_FIX( 0.0f ) } );
 
 	// Static ground (creation ordinal 0)
 	b3BodyDef groundDef = b3DefaultBodyDef();
 	groundDef.type = b3_staticBody;
 	b3BodyId groundId = b3CreateBody( worldId, &groundDef );
-	b3BoxHull groundBox = b3MakeBoxHull( 20.0f, 1.0f, 20.0f );
+	b3BoxHull groundBox = b3MakeBoxHull( B3_FIX( 20.0f ), B3_FIX( 1.0f ), B3_FIX( 20.0f ) );
 	b3ShapeDef groundShape = b3DefaultShapeDef();
 	b3CreateHullShape( groundId, &groundShape, &groundBox.base );
 
 	// Four dynamic boxes (ordinals 1..4)
 	const int dynamicCount = 4;
 	b3ShapeDef boxShape = b3DefaultShapeDef();
-	boxShape.density = 1.0f;
+	boxShape.density = B3_FIX( 1.0f );
 	for ( int i = 0; i < dynamicCount; ++i )
 	{
-		b3BoxHull box = b3MakeBoxHull( 0.5f, 0.5f, 0.5f );
+		b3BoxHull box = b3MakeBoxHull( B3_FIX( 0.5f ), B3_FIX( 0.5f ), B3_FIX( 0.5f ) );
 		b3BodyDef bodyDef = b3DefaultBodyDef();
 		bodyDef.type = b3_dynamicBody;
-		bodyDef.position = (b3Pos){ 0.0f, 2.0f + (float)i * 1.5f, 0.0f };
+		bodyDef.position = (b3Pos){ B3_FIX( 0.0f ), B3_FIX( 2.0f ) + b3FixMul( (b3Fixed)b3FixFromInt( i ) , B3_FIX( 1.5f ) ), B3_FIX( 0.0f ) };
 		b3BodyId bodyId = b3CreateBody( worldId, &bodyDef );
 		b3CreateHullShape( bodyId, &boxShape, &box.base );
 	}
 
-	float timeStep = 1.0f / 60.0f;
+	b3Fixed timeStep = b3FixDiv( B3_FIX( 1.0f ) , B3_FIX( 60.0f ) );
 	int subStepCount = 4;
 
 	// Settle, then record with a snapshot of the populated world.
@@ -612,9 +612,9 @@ static int PlayerAccessors( void )
 	b3RecPlayerInfo info = b3RecPlayer_GetInfo( player );
 	ENSURE( info.frameCount == totalFrames );
 	ENSURE( info.subStepCount == subStepCount );
-	ENSURE( info.timeStep > 0.0f );
+	ENSURE( info.timeStep > B3_FIX( 0.0f ) );
 	b3Vec3 extent = b3Sub( info.bounds.upperBound, info.bounds.lowerBound );
-	ENSURE( extent.x > 0.0f && extent.y > 0.0f && extent.z > 0.0f );
+	ENSURE( extent.x > B3_FIX( 0.0f ) && extent.y > B3_FIX( 0.0f ) && extent.z > B3_FIX( 0.0f ) );
 
 	// Body ordinals: ground + 4 dynamic, seeded from the snapshot and present at frame 0.
 	ENSURE( b3RecPlayer_GetBodyCount( player ) == 1 + dynamicCount );
@@ -662,24 +662,24 @@ static int KeyframeHandleReuse( void )
 {
 	b3WorldDef worldDef = b3DefaultWorldDef();
 	b3WorldId worldId = b3CreateWorld( &worldDef );
-	b3World_SetGravity( worldId, (b3Vec3){ 0.0f, -10.0f, 0.0f } );
+	b3World_SetGravity( worldId, (b3Vec3){ B3_FIX( 0.0f ), -B3_FIX( 10.0f ), B3_FIX( 0.0f ) } );
 
 	b3BodyDef groundDef = b3DefaultBodyDef();
 	groundDef.type = b3_staticBody;
 	b3BodyId groundId = b3CreateBody( worldId, &groundDef );
-	b3BoxHull groundBox = b3MakeBoxHull( 20.0f, 1.0f, 20.0f );
+	b3BoxHull groundBox = b3MakeBoxHull( B3_FIX( 20.0f ), B3_FIX( 1.0f ), B3_FIX( 20.0f ) );
 	b3ShapeDef groundShape = b3DefaultShapeDef();
 	b3CreateHullShape( groundId, &groundShape, &groundBox.base );
 
 	const int dynamicCount = 5;
-	b3BoxHull box = b3MakeBoxHull( 0.5f, 0.5f, 0.5f );
+	b3BoxHull box = b3MakeBoxHull( B3_FIX( 0.5f ), B3_FIX( 0.5f ), B3_FIX( 0.5f ) );
 	b3ShapeDef boxShape = b3DefaultShapeDef();
-	boxShape.density = 1.0f;
+	boxShape.density = B3_FIX( 1.0f );
 	for ( int i = 0; i < dynamicCount; ++i )
 	{
 		b3BodyDef bodyDef = b3DefaultBodyDef();
 		bodyDef.type = b3_dynamicBody;
-		bodyDef.position = (b3Pos){ 0.0f, 1.0f + 1.1f * (float)i, 0.0f };
+		bodyDef.position = (b3Pos){ B3_FIX( 0.0f ), B3_FIX( 1.0f ) + b3FixMul( B3_FIX( 1.1f ) , (b3Fixed)b3FixFromInt( i ) ), B3_FIX( 0.0f ) };
 		b3BodyId bodyId = b3CreateBody( worldId, &bodyDef );
 		b3CreateHullShape( bodyId, &boxShape, &box.base );
 	}
@@ -688,7 +688,7 @@ static int KeyframeHandleReuse( void )
 	// Settle, then record with a snapshot of the populated world so shapes exist at frame 0.
 	for ( int i = 0; i < 10; ++i )
 	{
-		b3World_Step( worldId, 1.0f / 60.0f, 4 );
+		b3World_Step( worldId, b3FixDiv( B3_FIX( 1.0f ) , B3_FIX( 60.0f ) ), 4 );
 	}
 
 	b3Recording* rec = b3CreateRecording( 0 );
@@ -698,7 +698,7 @@ static int KeyframeHandleReuse( void )
 	int totalFrames = 80;
 	for ( int i = 0; i < totalFrames; ++i )
 	{
-		b3World_Step( worldId, 1.0f / 60.0f, 4 );
+		b3World_Step( worldId, b3FixDiv( B3_FIX( 1.0f ) , B3_FIX( 60.0f ) ), 4 );
 	}
 	b3World_StopRecording( worldId );
 	b3DestroyWorld( worldId );
@@ -741,7 +741,7 @@ static bool QueryReplayOverlapFcn( b3ShapeId shapeId, void* context )
 	return true;
 }
 
-static float QueryReplayCastFcn( b3ShapeId shapeId, b3Pos point, b3Vec3 normal, float fraction, uint64_t userMaterialId,
+static b3Fixed QueryReplayCastFcn( b3ShapeId shapeId, b3Pos point, b3Vec3 normal, b3Fixed fraction, uint64_t userMaterialId,
 								 int triangleIndex, int childIndex, void* context )
 {
 	(void)shapeId;
@@ -781,12 +781,12 @@ static int QueryReplay( void )
 
 	b3WorldDef worldDef = b3DefaultWorldDef();
 	b3WorldId worldId = b3CreateWorld( &worldDef );
-	b3World_SetGravity( worldId, (b3Vec3){ 0.0f, -10.0f, 0.0f } );
+	b3World_SetGravity( worldId, (b3Vec3){ B3_FIX( 0.0f ), -B3_FIX( 10.0f ), B3_FIX( 0.0f ) } );
 
 	b3BodyDef groundDef = b3DefaultBodyDef();
 	groundDef.type = b3_staticBody;
 	b3BodyId groundId = b3CreateBody( worldId, &groundDef );
-	b3BoxHull groundBox = b3MakeBoxHull( 20.0f, 1.0f, 20.0f );
+	b3BoxHull groundBox = b3MakeBoxHull( B3_FIX( 20.0f ), B3_FIX( 1.0f ), B3_FIX( 20.0f ) );
 	b3ShapeDef groundShape = b3DefaultShapeDef();
 	b3CreateHullShape( groundId, &groundShape, &groundBox.base );
 
@@ -795,11 +795,11 @@ static int QueryReplay( void )
 	{
 		b3BodyDef bodyDef = b3DefaultBodyDef();
 		bodyDef.type = b3_dynamicBody;
-		bodyDef.position = (b3Pos){ (float)i - 1.5f, 3.0f, 0.0f };
+		bodyDef.position = (b3Pos){ (b3Fixed)b3FixFromInt( i ) - B3_FIX( 1.5f ), B3_FIX( 3.0f ), B3_FIX( 0.0f ) };
 		b3BodyId bodyId = b3CreateBody( worldId, &bodyDef );
-		b3Sphere sphere = { { 0.0f, 0.0f, 0.0f }, 0.5f };
+		b3Sphere sphere = { { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, B3_FIX( 0.5f ) };
 		b3ShapeDef sphereDef = b3DefaultShapeDef();
-		sphereDef.density = 1.0f;
+		sphereDef.density = B3_FIX( 1.0f );
 		b3CreateSphereShape( bodyId, &sphereDef, &sphere );
 	}
 
@@ -810,13 +810,13 @@ static int QueryReplay( void )
 	const int totalFrames = 30;
 	for ( int i = 0; i < totalFrames; ++i )
 	{
-		b3Pos origin = { 0.0f, 6.0f, 0.0f };
-		b3Vec3 translation = { 0.0f, -8.0f, 0.0f };
-		b3AABB aabb = { { -5.0f, -1.0f, -5.0f }, { 5.0f, 6.0f, 5.0f } };
+		b3Pos origin = { B3_FIX( 0.0f ), B3_FIX( 6.0f ), B3_FIX( 0.0f ) };
+		b3Vec3 translation = { B3_FIX( 0.0f ), -B3_FIX( 8.0f ), B3_FIX( 0.0f ) };
+		b3AABB aabb = { { -B3_FIX( 5.0f ), -B3_FIX( 1.0f ), -B3_FIX( 5.0f ) }, { B3_FIX( 5.0f ), B3_FIX( 6.0f ), B3_FIX( 5.0f ) } };
 
-		b3Vec3 proxyPts = { 0.0f, 0.0f, 0.0f };
-		b3ShapeProxy proxy = { &proxyPts, 1, 0.5f };
-		b3Capsule mover = { { 0.0f, 0.0f, 0.0f }, { 0.0f, 1.0f, 0.0f }, 0.3f };
+		b3Vec3 proxyPts = { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
+		b3ShapeProxy proxy = { &proxyPts, 1, B3_FIX( 0.5f ) };
+		b3Capsule mover = { { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, { B3_FIX( 0.0f ), B3_FIX( 1.0f ), B3_FIX( 0.0f ) }, B3_FIX( 0.3f ) };
 
 		b3World_OverlapAABB( worldId, aabb, filter, QueryReplayOverlapFcn, NULL );
 		b3World_OverlapShape( worldId, origin, &proxy, filter, QueryReplayOverlapFcn, NULL );
@@ -826,7 +826,7 @@ static int QueryReplay( void )
 		b3World_CastMover( worldId, origin, &mover, translation, filter, QueryReplayMoverFilterFcn, NULL );
 		b3World_CollideMover( worldId, origin, &mover, filter, QueryReplayPlaneFcn, NULL );
 
-		b3World_Step( worldId, 1.0f / 60.0f, 4 );
+		b3World_Step( worldId, b3FixDiv( B3_FIX( 1.0f ) , B3_FIX( 60.0f ) ), 4 );
 	}
 
 	b3World_StopRecording( worldId );
@@ -879,7 +879,7 @@ static int TaggedQuery( void )
 	b3BodyDef groundDef = b3DefaultBodyDef();
 	groundDef.type = b3_staticBody;
 	b3BodyId groundId = b3CreateBody( worldId, &groundDef );
-	b3BoxHull groundBox = b3MakeBoxHull( 20.0f, 1.0f, 20.0f );
+	b3BoxHull groundBox = b3MakeBoxHull( B3_FIX( 20.0f ), B3_FIX( 1.0f ), B3_FIX( 20.0f ) );
 	b3ShapeDef groundShape = b3DefaultShapeDef();
 	b3CreateHullShape( groundId, &groundShape, &groundBox.base );
 
@@ -903,16 +903,16 @@ static int TaggedQuery( void )
 	const int totalFrames = 10;
 	for ( int i = 0; i < totalFrames; ++i )
 	{
-		b3Pos origin = { 0.0f, 6.0f, 0.0f };
-		b3Vec3 translation = { 0.0f, -8.0f, 0.0f };
-		b3AABB aabb = { { -5.0f, -1.0f, -5.0f }, { 5.0f, 6.0f, 5.0f } };
+		b3Pos origin = { B3_FIX( 0.0f ), B3_FIX( 6.0f ), B3_FIX( 0.0f ) };
+		b3Vec3 translation = { B3_FIX( 0.0f ), -B3_FIX( 8.0f ), B3_FIX( 0.0f ) };
+		b3AABB aabb = { { -B3_FIX( 5.0f ), -B3_FIX( 1.0f ), -B3_FIX( 5.0f ) }, { B3_FIX( 5.0f ), B3_FIX( 6.0f ), B3_FIX( 5.0f ) } };
 
 		// Two tagged rays sharing the label "bullet" plus one untagged overlap, every frame.
 		b3World_CastRay( worldId, origin, translation, bullet53, QueryReplayCastFcn, NULL );
 		b3World_CastRay( worldId, origin, translation, bullet54, QueryReplayCastFcn, NULL );
 		b3World_OverlapAABB( worldId, aabb, untagged, QueryReplayOverlapFcn, NULL );
 
-		b3World_Step( worldId, 1.0f / 60.0f, 4 );
+		b3World_Step( worldId, b3FixDiv( B3_FIX( 1.0f ) , B3_FIX( 60.0f ) ), 4 );
 	}
 
 	b3World_StopRecording( worldId );
@@ -973,11 +973,11 @@ static int EmptyWorldRoundTrip( void )
 	b3WorldId worldId = b3CreateWorld( &worldDef );
 
 	b3World_StartRecording( worldId, rec );
-	b3World_SetGravity( worldId, (b3Vec3){ 0.0f, -10.0f, 0.0f } );
+	b3World_SetGravity( worldId, (b3Vec3){ B3_FIX( 0.0f ), -B3_FIX( 10.0f ), B3_FIX( 0.0f ) } );
 
 	for ( int i = 0; i < 10; ++i )
 	{
-		b3World_Step( worldId, 1.0f / 60.0f, 4 );
+		b3World_Step( worldId, b3FixDiv( B3_FIX( 1.0f ) , B3_FIX( 60.0f ) ), 4 );
 	}
 
 	b3World_StopRecording( worldId );
@@ -1032,7 +1032,7 @@ static int AllOps( void )
 	groundDef.type = b3_staticBody;
 	b3BodyId groundId = b3CreateBody( worldId, &groundDef );
 	ENSURE( b3Body_IsValid( groundId ) );
-	b3BoxHull groundBox = b3MakeBoxHull( 50.0f, 1.0f, 50.0f );
+	b3BoxHull groundBox = b3MakeBoxHull( B3_FIX( 50.0f ), B3_FIX( 1.0f ), B3_FIX( 50.0f ) );
 	b3ShapeDef groundShapeDef = b3DefaultShapeDef();
 	b3ShapeId groundShapeId = b3CreateHullShape( groundId, &groundShapeDef, &groundBox.base );
 	ENSURE( b3Shape_IsValid( groundShapeId ) );
@@ -1040,102 +1040,102 @@ static int AllOps( void )
 	// Dynamic body with a sphere shape.
 	b3BodyDef bodyDef = b3DefaultBodyDef();
 	bodyDef.type = b3_dynamicBody;
-	bodyDef.position = (b3Pos){ 0.0f, 5.0f, 0.0f };
+	bodyDef.position = (b3Pos){ B3_FIX( 0.0f ), B3_FIX( 5.0f ), B3_FIX( 0.0f ) };
 	bodyDef.name = "testBodyWithVeryLongNameThatIsAVeryLongNameLength";
 	b3BodyId bodyId = b3CreateBody( worldId, &bodyDef );
 	ENSURE( b3Body_IsValid( bodyId ) );
 
 	b3ShapeDef sphereShapeDef = b3DefaultShapeDef();
-	sphereShapeDef.density = 1.0f;
+	sphereShapeDef.density = B3_FIX( 1.0f );
 	// Over-length shape name so replay exercises the clamp in the shape def reader, like the body above.
 	sphereShapeDef.name = "sphereNameThatExceedsTheLimit";
-	b3Sphere sphere = { { 0.0f, 0.0f, 0.0f }, 0.5f };
+	b3Sphere sphere = { { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, B3_FIX( 0.5f ) };
 	b3ShapeId sphereShapeId = b3CreateSphereShape( bodyId, &sphereShapeDef, &sphere );
 	ENSURE( b3Shape_IsValid( sphereShapeId ) );
 
 	// Capsule shape on a second dynamic body
 	b3BodyDef capsuleBodyDef = b3DefaultBodyDef();
 	capsuleBodyDef.type = b3_dynamicBody;
-	capsuleBodyDef.position = (b3Pos){ 3.0f, 5.0f, 0.0f };
+	capsuleBodyDef.position = (b3Pos){ B3_FIX( 3.0f ), B3_FIX( 5.0f ), B3_FIX( 0.0f ) };
 	b3BodyId capsuleBodyId = b3CreateBody( worldId, &capsuleBodyDef );
 	ENSURE( b3Body_IsValid( capsuleBodyId ) );
 
 	b3ShapeDef capsuleShapeDef = b3DefaultShapeDef();
-	capsuleShapeDef.density = 1.0f;
-	b3Capsule capsule = { { 0.0f, -0.4f, 0.0f }, { 0.0f, 0.4f, 0.0f }, 0.25f };
+	capsuleShapeDef.density = B3_FIX( 1.0f );
+	b3Capsule capsule = { { B3_FIX( 0.0f ), -B3_FIX( 0.4f ), B3_FIX( 0.0f ) }, { B3_FIX( 0.0f ), B3_FIX( 0.4f ), B3_FIX( 0.0f ) }, B3_FIX( 0.25f ) };
 	b3ShapeId capsuleShapeId = b3CreateCapsuleShape( capsuleBodyId, &capsuleShapeDef, &capsule );
 	ENSURE( b3Shape_IsValid( capsuleShapeId ) );
 
 	// Custom hull shape on a third dynamic body
 	b3Vec3 hullPts[8] = {
-		{ -0.5f, -0.5f, -0.5f }, { 0.5f, -0.5f, -0.5f }, { 0.5f, 0.5f, -0.5f }, { -0.5f, 0.5f, -0.5f },
-		{ -0.5f, -0.5f, 0.5f },	 { 0.5f, -0.5f, 0.5f },	 { 0.5f, 0.5f, 0.5f },	{ -0.5f, 0.5f, 0.5f },
+		{ -B3_FIX( 0.5f ), -B3_FIX( 0.5f ), -B3_FIX( 0.5f ) }, { B3_FIX( 0.5f ), -B3_FIX( 0.5f ), -B3_FIX( 0.5f ) }, { B3_FIX( 0.5f ), B3_FIX( 0.5f ), -B3_FIX( 0.5f ) }, { -B3_FIX( 0.5f ), B3_FIX( 0.5f ), -B3_FIX( 0.5f ) },
+		{ -B3_FIX( 0.5f ), -B3_FIX( 0.5f ), B3_FIX( 0.5f ) },	 { B3_FIX( 0.5f ), -B3_FIX( 0.5f ), B3_FIX( 0.5f ) },	 { B3_FIX( 0.5f ), B3_FIX( 0.5f ), B3_FIX( 0.5f ) },	{ -B3_FIX( 0.5f ), B3_FIX( 0.5f ), B3_FIX( 0.5f ) },
 	};
 	b3HullData* customHull = b3CreateHull( hullPts, 8, 8 );
 	ENSURE( customHull != NULL );
 
 	b3BodyDef hullBodyDef = b3DefaultBodyDef();
 	hullBodyDef.type = b3_dynamicBody;
-	hullBodyDef.position = (b3Pos){ -3.0f, 5.0f, 0.0f };
+	hullBodyDef.position = (b3Pos){ -B3_FIX( 3.0f ), B3_FIX( 5.0f ), B3_FIX( 0.0f ) };
 	b3BodyId hullBodyId = b3CreateBody( worldId, &hullBodyDef );
 	ENSURE( b3Body_IsValid( hullBodyId ) );
 
 	b3ShapeDef hullShapeDef = b3DefaultShapeDef();
-	hullShapeDef.density = 1.0f;
+	hullShapeDef.density = B3_FIX( 1.0f );
 	b3ShapeId hullShapeId = b3CreateHullShape( hullBodyId, &hullShapeDef, customHull );
 	ENSURE( b3Shape_IsValid( hullShapeId ) );
 
 	// Box hull shape on a fourth dynamic body (b3MakeBoxHull path)
 	b3BodyDef boxBodyDef = b3DefaultBodyDef();
 	boxBodyDef.type = b3_dynamicBody;
-	boxBodyDef.position = (b3Pos){ 6.0f, 5.0f, 0.0f };
+	boxBodyDef.position = (b3Pos){ B3_FIX( 6.0f ), B3_FIX( 5.0f ), B3_FIX( 0.0f ) };
 	b3BodyId boxBodyId = b3CreateBody( worldId, &boxBodyDef );
 	ENSURE( b3Body_IsValid( boxBodyId ) );
 
 	b3ShapeDef boxShapeDef = b3DefaultShapeDef();
-	boxShapeDef.density = 2.0f;
-	b3BoxHull boxHull = b3MakeBoxHull( 0.5f, 0.5f, 0.5f );
+	boxShapeDef.density = B3_FIX( 2.0f );
+	b3BoxHull boxHull = b3MakeBoxHull( B3_FIX( 0.5f ), B3_FIX( 0.5f ), B3_FIX( 0.5f ) );
 	b3ShapeId boxShapeId = b3CreateHullShape( boxBodyId, &boxShapeDef, &boxHull.base );
 	ENSURE( b3Shape_IsValid( boxShapeId ) );
 
 	// Transformed hull shape on a fifth dynamic body (b3CreateTransformedHullShape path)
 	b3BodyDef xformBodyDef = b3DefaultBodyDef();
 	xformBodyDef.type = b3_dynamicBody;
-	xformBodyDef.position = (b3Pos){ 12.0f, 5.0f, 0.0f };
+	xformBodyDef.position = (b3Pos){ B3_FIX( 12.0f ), B3_FIX( 5.0f ), B3_FIX( 0.0f ) };
 	b3BodyId xformBodyId = b3CreateBody( worldId, &xformBodyDef );
 	ENSURE( b3Body_IsValid( xformBodyId ) );
 	b3ShapeDef xformShapeDef = b3DefaultShapeDef();
-	xformShapeDef.density = 1.0f;
-	b3Transform xformXf = { (b3Vec3){ 0.1f, 0.2f, -0.1f }, b3MakeQuatFromAxisAngle( (b3Vec3){ 0.0f, 1.0f, 0.0f }, 0.4f ) };
+	xformShapeDef.density = B3_FIX( 1.0f );
+	b3Transform xformXf = { (b3Vec3){ B3_FIX( 0.1f ), B3_FIX( 0.2f ), -B3_FIX( 0.1f ) }, b3MakeQuatFromAxisAngle( (b3Vec3){ B3_FIX( 0.0f ), B3_FIX( 1.0f ), B3_FIX( 0.0f ) }, B3_FIX( 0.4f ) ) };
 	b3ShapeId xformShapeId =
-		b3CreateTransformedHullShape( xformBodyId, &xformShapeDef, customHull, xformXf, (b3Vec3){ 1.25f, 0.75f, 1.5f } );
+		b3CreateTransformedHullShape( xformBodyId, &xformShapeDef, customHull, xformXf, (b3Vec3){ B3_FIX( 1.25f ), B3_FIX( 0.75f ), B3_FIX( 1.5f ) } );
 	ENSURE( b3Shape_IsValid( xformShapeId ) );
 
 	// Mesh, height field, and compound static shapes (3D-only)
 	b3BodyDef meshBodyDef = b3DefaultBodyDef();
 	meshBodyDef.type = b3_staticBody;
-	meshBodyDef.position = (b3Pos){ 20.0f, 0.0f, 0.0f };
+	meshBodyDef.position = (b3Pos){ B3_FIX( 20.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
 	b3BodyId meshBodyId = b3CreateBody( worldId, &meshBodyDef );
-	b3MeshData* meshData = b3CreateGridMesh( 3, 3, 2.0f, 0, false );
+	b3MeshData* meshData = b3CreateGridMesh( 3, 3, B3_FIX( 2.0f ), 0, false );
 	ENSURE( meshData != NULL );
 	b3ShapeDef meshShapeDef = b3DefaultShapeDef();
-	b3CreateMeshShape( meshBodyId, &meshShapeDef, meshData, (b3Vec3){ 1.0f, 1.0f, 1.0f } );
+	b3CreateMeshShape( meshBodyId, &meshShapeDef, meshData, (b3Vec3){ B3_FIX( 1.0f ), B3_FIX( 1.0f ), B3_FIX( 1.0f ) } );
 
 	b3BodyDef hfBodyDef = b3DefaultBodyDef();
 	hfBodyDef.type = b3_staticBody;
-	hfBodyDef.position = (b3Pos){ -20.0f, 0.0f, 0.0f };
+	hfBodyDef.position = (b3Pos){ -B3_FIX( 20.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
 	b3BodyId hfBodyId = b3CreateBody( worldId, &hfBodyDef );
-	b3HeightFieldData* hf = b3CreateGrid( 4, 4, (b3Vec3){ 2.0f, 1.0f, 2.0f }, false );
+	b3HeightFieldData* hf = b3CreateGrid( 4, 4, (b3Vec3){ B3_FIX( 2.0f ), B3_FIX( 1.0f ), B3_FIX( 2.0f ) }, false );
 	ENSURE( hf != NULL );
 	b3ShapeDef hfShapeDef = b3DefaultShapeDef();
 	b3CreateHeightFieldShape( hfBodyId, &hfShapeDef, hf );
 
 	b3BodyDef compoundBodyDef = b3DefaultBodyDef();
 	compoundBodyDef.type = b3_staticBody;
-	compoundBodyDef.position = (b3Pos){ 30.0f, 0.0f, 0.0f };
+	compoundBodyDef.position = (b3Pos){ B3_FIX( 30.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
 	b3BodyId compoundBodyId = b3CreateBody( worldId, &compoundBodyDef );
 	b3CompoundSphereDef compSphere;
-	compSphere.sphere = (b3Sphere){ { 0.0f, 0.0f, 0.0f }, 1.0f };
+	compSphere.sphere = (b3Sphere){ { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, B3_FIX( 1.0f ) };
 	compSphere.material = b3DefaultSurfaceMaterial();
 	b3CompoundDef compoundDef;
 	memset( &compoundDef, 0, sizeof( compoundDef ) );
@@ -1147,19 +1147,19 @@ static int AllOps( void )
 	b3CreateCompoundShape( compoundBodyId, &compoundShapeDef, compound );
 
 	// Throwaway shape to exercise DestroyShape
-	b3Sphere tmpSphere = { { 0.0f, 0.0f, 0.0f }, 0.1f };
+	b3Sphere tmpSphere = { { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, B3_FIX( 0.1f ) };
 	b3ShapeId tmpShapeId = b3CreateSphereShape( capsuleBodyId, &capsuleShapeDef, &tmpSphere );
 	b3DestroyShape( tmpShapeId, true );
 
 	// Shape mutators: SetFriction, SetRestitution, SetDensity, SetSurfaceMaterial, SetFilter,
 	// EnableSensorEvents, EnableContactEvents, EnableHitEvents, EnablePreSolveEvents, ApplyWind,
 	// SetSphere, SetCapsule, SetName
-	b3Shape_SetFriction( boxShapeId, 0.3f );
-	b3Shape_SetRestitution( capsuleShapeId, 0.5f );
-	b3Shape_SetDensity( boxShapeId, 3.0f, true );
+	b3Shape_SetFriction( boxShapeId, B3_FIX( 0.3f ) );
+	b3Shape_SetRestitution( capsuleShapeId, B3_FIX( 0.5f ) );
+	b3Shape_SetDensity( boxShapeId, B3_FIX( 3.0f ), true );
 	b3SurfaceMaterial surfMat = b3DefaultSurfaceMaterial();
-	surfMat.friction = 0.7f;
-	surfMat.restitution = 0.1f;
+	surfMat.friction = B3_FIX( 0.7f );
+	surfMat.restitution = B3_FIX( 0.1f );
 	b3Shape_SetSurfaceMaterial( capsuleShapeId, surfMat );
 	b3Filter shapeFilter = b3DefaultFilter();
 	shapeFilter.categoryBits = 0x2;
@@ -1168,10 +1168,10 @@ static int AllOps( void )
 	b3Shape_EnableContactEvents( capsuleShapeId, true );
 	b3Shape_EnableHitEvents( boxShapeId, true );
 	b3Shape_EnablePreSolveEvents( boxShapeId, true );
-	b3Shape_ApplyWind( capsuleShapeId, (b3Vec3){ 1.0f, 0.0f, 0.0f }, 0.1f, 0.0f, 10.0f, true );
-	b3Sphere newSphere = { { 0.0f, 0.0f, 0.0f }, 0.45f };
+	b3Shape_ApplyWind( capsuleShapeId, (b3Vec3){ B3_FIX( 1.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, B3_FIX( 0.1f ), B3_FIX( 0.0f ), B3_FIX( 10.0f ), true );
+	b3Sphere newSphere = { { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, B3_FIX( 0.45f ) };
 	b3Shape_SetSphere( sphereShapeId, &newSphere );
-	b3Capsule newCapsule = { { 0.0f, -0.3f, 0.0f }, { 0.0f, 0.3f, 0.0f }, 0.3f };
+	b3Capsule newCapsule = { { B3_FIX( 0.0f ), -B3_FIX( 0.3f ), B3_FIX( 0.0f ) }, { B3_FIX( 0.0f ), B3_FIX( 0.3f ), B3_FIX( 0.0f ) }, B3_FIX( 0.3f ) };
 	b3Shape_SetCapsule( capsuleShapeId, &newCapsule );
 	b3Shape_SetName( boxShapeId, "box" );
 
@@ -1179,22 +1179,22 @@ static int AllOps( void )
 	// damping, gravity scale, sleep threshold, SetAwake, EnableSleep, SetBullet, SetMotionLocks,
 	// SetMassData, ApplyMassFromShapes, SetType, SetTargetTransform, Disable/Enable, EnableContactRecycling,
 	// EnableHitEvents, all force/impulse/torque variants
-	b3Body_SetTransform( bodyId, (b3Pos){ 1.0f, 6.0f, 0.0f }, b3Quat_identity );
-	b3Body_SetLinearVelocity( bodyId, (b3Vec3){ 0.5f, 0.0f, 0.0f } );
-	b3Body_SetAngularVelocity( bodyId, (b3Vec3){ 0.0f, 0.25f, 0.0f } );
+	b3Body_SetTransform( bodyId, (b3Pos){ B3_FIX( 1.0f ), B3_FIX( 6.0f ), B3_FIX( 0.0f ) }, b3Quat_identity );
+	b3Body_SetLinearVelocity( bodyId, (b3Vec3){ B3_FIX( 0.5f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) } );
+	b3Body_SetAngularVelocity( bodyId, (b3Vec3){ B3_FIX( 0.0f ), B3_FIX( 0.25f ), B3_FIX( 0.0f ) } );
 	b3Body_SetName( bodyId, "renamedBody" );
-	b3Body_SetLinearDamping( bodyId, 0.1f );
-	b3Body_SetAngularDamping( bodyId, 0.05f );
-	b3Body_SetGravityScale( bodyId, 0.9f );
-	b3Body_SetSleepThreshold( bodyId, 0.02f );
+	b3Body_SetLinearDamping( bodyId, B3_FIX( 0.1f ) );
+	b3Body_SetAngularDamping( bodyId, B3_FIX( 0.05f ) );
+	b3Body_SetGravityScale( bodyId, B3_FIX( 0.9f ) );
+	b3Body_SetSleepThreshold( bodyId, B3_FIX( 0.02f ) );
 	b3Body_EnableSleep( bodyId, false );
 	b3Body_SetBullet( bodyId, true );
 	b3Body_EnableContactRecycling( bodyId, false );
 	b3Body_EnableHitEvents( bodyId, true );
 	b3Body_SetMotionLocks( bodyId, (b3MotionLocks){ false, false, false, false, false, true } );
 	b3MassData massData;
-	massData.mass = 2.0f;
-	massData.center = (b3Vec3){ 0.0f, 0.0f, 0.0f };
+	massData.mass = B3_FIX( 2.0f );
+	massData.center = (b3Vec3){ B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
 	massData.inertia = b3Mat3_identity;
 	b3Body_SetMassData( bodyId, massData );
 	b3Body_ApplyMassFromShapes( bodyId );
@@ -1205,33 +1205,33 @@ static int AllOps( void )
 	// Kinematic body to exercise SetTargetTransform
 	b3BodyDef kinematicDef = b3DefaultBodyDef();
 	kinematicDef.type = b3_kinematicBody;
-	kinematicDef.position = (b3Pos){ -6.0f, 5.0f, 0.0f };
+	kinematicDef.position = (b3Pos){ -B3_FIX( 6.0f ), B3_FIX( 5.0f ), B3_FIX( 0.0f ) };
 	b3BodyId kinematicId = b3CreateBody( worldId, &kinematicDef );
-	b3BoxHull kinBox = b3MakeBoxHull( 0.4f, 0.4f, 0.4f );
+	b3BoxHull kinBox = b3MakeBoxHull( B3_FIX( 0.4f ), B3_FIX( 0.4f ), B3_FIX( 0.4f ) );
 	b3ShapeDef kinShapeDef = b3DefaultShapeDef();
 	b3CreateHullShape( kinematicId, &kinShapeDef, &kinBox.base );
 	b3WorldTransform kinTarget;
-	kinTarget.p = (b3Pos){ -5.0f, 5.0f, 0.0f };
+	kinTarget.p = (b3Pos){ -B3_FIX( 5.0f ), B3_FIX( 5.0f ), B3_FIX( 0.0f ) };
 	kinTarget.q = b3Quat_identity;
-	b3Body_SetTargetTransform( kinematicId, kinTarget, 1.0f / 60.0f, true );
+	b3Body_SetTargetTransform( kinematicId, kinTarget, b3FixDiv( B3_FIX( 1.0f ) , B3_FIX( 60.0f ) ), true );
 
 	// Body to exercise Disable/Enable
 	b3BodyDef disableDef = b3DefaultBodyDef();
 	disableDef.type = b3_dynamicBody;
-	disableDef.position = (b3Pos){ 9.0f, 5.0f, 0.0f };
+	disableDef.position = (b3Pos){ B3_FIX( 9.0f ), B3_FIX( 5.0f ), B3_FIX( 0.0f ) };
 	b3BodyId disableId = b3CreateBody( worldId, &disableDef );
-	b3Sphere disableSphere = { { 0.0f, 0.0f, 0.0f }, 0.3f };
+	b3Sphere disableSphere = { { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, B3_FIX( 0.3f ) };
 	b3CreateSphereShape( disableId, &sphereShapeDef, &disableSphere );
 	b3Body_Disable( disableId );
 	b3Body_Enable( disableId );
 
 	// Force/impulse/torque (Vec3 args in 3D)
-	b3Body_ApplyForce( bodyId, (b3Vec3){ 0.0f, 50.0f, 0.0f }, (b3Pos){ 1.0f, 6.0f, 0.0f }, true );
-	b3Body_ApplyForceToCenter( bodyId, (b3Vec3){ 5.0f, 0.0f, 0.0f }, true );
-	b3Body_ApplyTorque( bodyId, (b3Vec3){ 0.0f, 1.0f, 0.0f }, true );
-	b3Body_ApplyLinearImpulse( bodyId, (b3Vec3){ 0.1f, 0.0f, 0.0f }, (b3Pos){ 1.0f, 6.0f, 0.0f }, true );
-	b3Body_ApplyLinearImpulseToCenter( bodyId, (b3Vec3){ 0.0f, 0.1f, 0.0f }, true );
-	b3Body_ApplyAngularImpulse( bodyId, (b3Vec3){ 0.0f, 0.05f, 0.0f }, true );
+	b3Body_ApplyForce( bodyId, (b3Vec3){ B3_FIX( 0.0f ), B3_FIX( 50.0f ), B3_FIX( 0.0f ) }, (b3Pos){ B3_FIX( 1.0f ), B3_FIX( 6.0f ), B3_FIX( 0.0f ) }, true );
+	b3Body_ApplyForceToCenter( bodyId, (b3Vec3){ B3_FIX( 5.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, true );
+	b3Body_ApplyTorque( bodyId, (b3Vec3){ B3_FIX( 0.0f ), B3_FIX( 1.0f ), B3_FIX( 0.0f ) }, true );
+	b3Body_ApplyLinearImpulse( bodyId, (b3Vec3){ B3_FIX( 0.1f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, (b3Pos){ B3_FIX( 1.0f ), B3_FIX( 6.0f ), B3_FIX( 0.0f ) }, true );
+	b3Body_ApplyLinearImpulseToCenter( bodyId, (b3Vec3){ B3_FIX( 0.0f ), B3_FIX( 0.1f ), B3_FIX( 0.0f ) }, true );
+	b3Body_ApplyAngularImpulse( bodyId, (b3Vec3){ B3_FIX( 0.0f ), B3_FIX( 0.05f ), B3_FIX( 0.0f ) }, true );
 
 	// Joint bodies: a row of dynamic bodies connected by each joint type
 	b3BodyId jb[9];
@@ -1239,11 +1239,11 @@ static int AllOps( void )
 	{
 		b3BodyDef jbd = b3DefaultBodyDef();
 		jbd.type = b3_dynamicBody;
-		jbd.position = (b3Pos){ -8.0f + (float)i * 2.0f, 10.0f, 0.0f };
+		jbd.position = (b3Pos){ -B3_FIX( 8.0f ) + b3FixMul( (b3Fixed)b3FixFromInt( i ) , B3_FIX( 2.0f ) ), B3_FIX( 10.0f ), B3_FIX( 0.0f ) };
 		jb[i] = b3CreateBody( worldId, &jbd );
-		b3Sphere js = { { 0.0f, 0.0f, 0.0f }, 0.25f };
+		b3Sphere js = { { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, B3_FIX( 0.25f ) };
 		b3ShapeDef jsd = b3DefaultShapeDef();
-		jsd.density = 1.0f;
+		jsd.density = B3_FIX( 1.0f );
 		b3CreateSphereShape( jb[i], &jsd, &js );
 	}
 
@@ -1251,24 +1251,24 @@ static int AllOps( void )
 	b3RevoluteJointDef revDef = b3DefaultRevoluteJointDef();
 	revDef.base.bodyIdA = jb[0];
 	revDef.base.bodyIdB = jb[1];
-	revDef.base.localFrameA.p = (b3Vec3){ 1.0f, 0.0f, 0.0f };
-	revDef.base.localFrameB.p = (b3Vec3){ -1.0f, 0.0f, 0.0f };
+	revDef.base.localFrameA.p = (b3Vec3){ B3_FIX( 1.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
+	revDef.base.localFrameB.p = (b3Vec3){ -B3_FIX( 1.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
 	b3JointId revId = b3CreateRevoluteJoint( worldId, &revDef );
 	ENSURE( b3Joint_IsValid( revId ) );
 	b3RevoluteJoint_EnableLimit( revId, true );
-	b3RevoluteJoint_SetLimits( revId, -1.0f, 1.0f );
+	b3RevoluteJoint_SetLimits( revId, -B3_FIX( 1.0f ), B3_FIX( 1.0f ) );
 	b3RevoluteJoint_EnableMotor( revId, true );
-	b3RevoluteJoint_SetMotorSpeed( revId, 0.5f );
-	b3RevoluteJoint_SetMaxMotorTorque( revId, 10.0f );
+	b3RevoluteJoint_SetMotorSpeed( revId, B3_FIX( 0.5f ) );
+	b3RevoluteJoint_SetMaxMotorTorque( revId, B3_FIX( 10.0f ) );
 	b3RevoluteJoint_EnableSpring( revId, true );
-	b3RevoluteJoint_SetSpringHertz( revId, 2.0f );
-	b3RevoluteJoint_SetSpringDampingRatio( revId, 0.5f );
-	b3RevoluteJoint_SetTargetAngle( revId, 0.25f );
-	b3Joint_SetLocalFrameA( revId, (b3Transform){ (b3Vec3){ 1.0f, 0.0f, 0.0f }, b3Quat_identity } );
-	b3Joint_SetLocalFrameB( revId, (b3Transform){ (b3Vec3){ -1.0f, 0.0f, 0.0f }, b3Quat_identity } );
-	b3Joint_SetConstraintTuning( revId, 60.0f, 2.0f );
-	b3Joint_SetForceThreshold( revId, 100.0f );
-	b3Joint_SetTorqueThreshold( revId, 50.0f );
+	b3RevoluteJoint_SetSpringHertz( revId, B3_FIX( 2.0f ) );
+	b3RevoluteJoint_SetSpringDampingRatio( revId, B3_FIX( 0.5f ) );
+	b3RevoluteJoint_SetTargetAngle( revId, B3_FIX( 0.25f ) );
+	b3Joint_SetLocalFrameA( revId, (b3Transform){ (b3Vec3){ B3_FIX( 1.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, b3Quat_identity } );
+	b3Joint_SetLocalFrameB( revId, (b3Transform){ (b3Vec3){ -B3_FIX( 1.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, b3Quat_identity } );
+	b3Joint_SetConstraintTuning( revId, B3_FIX( 60.0f ), B3_FIX( 2.0f ) );
+	b3Joint_SetForceThreshold( revId, B3_FIX( 100.0f ) );
+	b3Joint_SetTorqueThreshold( revId, B3_FIX( 50.0f ) );
 	b3Joint_SetCollideConnected( revId, false );
 	b3Joint_WakeBodies( revId );
 
@@ -1276,18 +1276,18 @@ static int AllOps( void )
 	b3DistanceJointDef distDef = b3DefaultDistanceJointDef();
 	distDef.base.bodyIdA = jb[1];
 	distDef.base.bodyIdB = jb[2];
-	distDef.length = 2.0f;
+	distDef.length = B3_FIX( 2.0f );
 	b3JointId distId = b3CreateDistanceJoint( worldId, &distDef );
-	b3DistanceJoint_SetLength( distId, 2.2f );
+	b3DistanceJoint_SetLength( distId, B3_FIX( 2.2f ) );
 	b3DistanceJoint_EnableSpring( distId, true );
-	b3DistanceJoint_SetSpringHertz( distId, 3.0f );
-	b3DistanceJoint_SetSpringDampingRatio( distId, 0.4f );
-	b3DistanceJoint_SetSpringForceRange( distId, -50.0f, 50.0f );
+	b3DistanceJoint_SetSpringHertz( distId, B3_FIX( 3.0f ) );
+	b3DistanceJoint_SetSpringDampingRatio( distId, B3_FIX( 0.4f ) );
+	b3DistanceJoint_SetSpringForceRange( distId, -B3_FIX( 50.0f ), B3_FIX( 50.0f ) );
 	b3DistanceJoint_EnableLimit( distId, true );
-	b3DistanceJoint_SetLengthRange( distId, 1.0f, 4.0f );
+	b3DistanceJoint_SetLengthRange( distId, B3_FIX( 1.0f ), B3_FIX( 4.0f ) );
 	b3DistanceJoint_EnableMotor( distId, true );
-	b3DistanceJoint_SetMotorSpeed( distId, 0.3f );
-	b3DistanceJoint_SetMaxMotorForce( distId, 5.0f );
+	b3DistanceJoint_SetMotorSpeed( distId, B3_FIX( 0.3f ) );
+	b3DistanceJoint_SetMaxMotorForce( distId, B3_FIX( 5.0f ) );
 
 	// Filter joint (plus a throwaway to exercise DestroyJoint)
 	b3FilterJointDef filterDef = b3DefaultFilterJointDef();
@@ -1299,7 +1299,7 @@ static int AllOps( void )
 	b3DistanceJointDef tmpJointDef = b3DefaultDistanceJointDef();
 	tmpJointDef.base.bodyIdA = jb[0];
 	tmpJointDef.base.bodyIdB = jb[8];
-	tmpJointDef.length = 5.0f;
+	tmpJointDef.length = B3_FIX( 5.0f );
 	b3JointId tmpJointId = b3CreateDistanceJoint( worldId, &tmpJointDef );
 	b3DestroyJoint( tmpJointId, true );
 
@@ -1308,16 +1308,16 @@ static int AllOps( void )
 	motorDef.base.bodyIdA = jb[3];
 	motorDef.base.bodyIdB = jb[4];
 	b3JointId motorId = b3CreateMotorJoint( worldId, &motorDef );
-	b3MotorJoint_SetLinearVelocity( motorId, (b3Vec3){ 0.1f, 0.0f, 0.0f } );
-	b3MotorJoint_SetAngularVelocity( motorId, (b3Vec3){ 0.0f, 0.2f, 0.0f } );
-	b3MotorJoint_SetMaxVelocityForce( motorId, 10.0f );
-	b3MotorJoint_SetMaxVelocityTorque( motorId, 10.0f );
-	b3MotorJoint_SetLinearHertz( motorId, 2.0f );
-	b3MotorJoint_SetLinearDampingRatio( motorId, 0.5f );
-	b3MotorJoint_SetAngularHertz( motorId, 2.0f );
-	b3MotorJoint_SetAngularDampingRatio( motorId, 0.5f );
-	b3MotorJoint_SetMaxSpringForce( motorId, 20.0f );
-	b3MotorJoint_SetMaxSpringTorque( motorId, 20.0f );
+	b3MotorJoint_SetLinearVelocity( motorId, (b3Vec3){ B3_FIX( 0.1f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) } );
+	b3MotorJoint_SetAngularVelocity( motorId, (b3Vec3){ B3_FIX( 0.0f ), B3_FIX( 0.2f ), B3_FIX( 0.0f ) } );
+	b3MotorJoint_SetMaxVelocityForce( motorId, B3_FIX( 10.0f ) );
+	b3MotorJoint_SetMaxVelocityTorque( motorId, B3_FIX( 10.0f ) );
+	b3MotorJoint_SetLinearHertz( motorId, B3_FIX( 2.0f ) );
+	b3MotorJoint_SetLinearDampingRatio( motorId, B3_FIX( 0.5f ) );
+	b3MotorJoint_SetAngularHertz( motorId, B3_FIX( 2.0f ) );
+	b3MotorJoint_SetAngularDampingRatio( motorId, B3_FIX( 0.5f ) );
+	b3MotorJoint_SetMaxSpringForce( motorId, B3_FIX( 20.0f ) );
+	b3MotorJoint_SetMaxSpringTorque( motorId, B3_FIX( 20.0f ) );
 
 	// Prismatic joint
 	b3PrismaticJointDef prisDef = b3DefaultPrismaticJointDef();
@@ -1325,14 +1325,14 @@ static int AllOps( void )
 	prisDef.base.bodyIdB = jb[5];
 	b3JointId prisId = b3CreatePrismaticJoint( worldId, &prisDef );
 	b3PrismaticJoint_EnableSpring( prisId, true );
-	b3PrismaticJoint_SetSpringHertz( prisId, 2.0f );
-	b3PrismaticJoint_SetSpringDampingRatio( prisId, 0.5f );
-	b3PrismaticJoint_SetTargetTranslation( prisId, 0.1f );
+	b3PrismaticJoint_SetSpringHertz( prisId, B3_FIX( 2.0f ) );
+	b3PrismaticJoint_SetSpringDampingRatio( prisId, B3_FIX( 0.5f ) );
+	b3PrismaticJoint_SetTargetTranslation( prisId, B3_FIX( 0.1f ) );
 	b3PrismaticJoint_EnableLimit( prisId, true );
-	b3PrismaticJoint_SetLimits( prisId, -1.0f, 1.0f );
+	b3PrismaticJoint_SetLimits( prisId, -B3_FIX( 1.0f ), B3_FIX( 1.0f ) );
 	b3PrismaticJoint_EnableMotor( prisId, true );
-	b3PrismaticJoint_SetMotorSpeed( prisId, 0.2f );
-	b3PrismaticJoint_SetMaxMotorForce( prisId, 8.0f );
+	b3PrismaticJoint_SetMotorSpeed( prisId, B3_FIX( 0.2f ) );
+	b3PrismaticJoint_SetMaxMotorForce( prisId, B3_FIX( 8.0f ) );
 
 	// Spherical joint (3D-only)
 	b3SphericalJointDef sphDef = b3DefaultSphericalJointDef();
@@ -1340,26 +1340,26 @@ static int AllOps( void )
 	sphDef.base.bodyIdB = jb[6];
 	b3JointId sphId = b3CreateSphericalJoint( worldId, &sphDef );
 	b3SphericalJoint_EnableConeLimit( sphId, true );
-	b3SphericalJoint_SetConeLimit( sphId, 0.5f );
+	b3SphericalJoint_SetConeLimit( sphId, B3_FIX( 0.5f ) );
 	b3SphericalJoint_EnableTwistLimit( sphId, true );
-	b3SphericalJoint_SetTwistLimits( sphId, -0.3f, 0.3f );
+	b3SphericalJoint_SetTwistLimits( sphId, -B3_FIX( 0.3f ), B3_FIX( 0.3f ) );
 	b3SphericalJoint_EnableSpring( sphId, true );
-	b3SphericalJoint_SetSpringHertz( sphId, 3.0f );
-	b3SphericalJoint_SetSpringDampingRatio( sphId, 0.5f );
+	b3SphericalJoint_SetSpringHertz( sphId, B3_FIX( 3.0f ) );
+	b3SphericalJoint_SetSpringDampingRatio( sphId, B3_FIX( 0.5f ) );
 	b3SphericalJoint_SetTargetRotation( sphId, b3Quat_identity );
 	b3SphericalJoint_EnableMotor( sphId, true );
-	b3SphericalJoint_SetMotorVelocity( sphId, (b3Vec3){ 0.0f, 0.1f, 0.0f } );
-	b3SphericalJoint_SetMaxMotorTorque( sphId, 5.0f );
+	b3SphericalJoint_SetMotorVelocity( sphId, (b3Vec3){ B3_FIX( 0.0f ), B3_FIX( 0.1f ), B3_FIX( 0.0f ) } );
+	b3SphericalJoint_SetMaxMotorTorque( sphId, B3_FIX( 5.0f ) );
 
 	// Weld joint
 	b3WeldJointDef weldDef = b3DefaultWeldJointDef();
 	weldDef.base.bodyIdA = jb[6];
 	weldDef.base.bodyIdB = jb[7];
 	b3JointId weldId = b3CreateWeldJoint( worldId, &weldDef );
-	b3WeldJoint_SetLinearHertz( weldId, 5.0f );
-	b3WeldJoint_SetLinearDampingRatio( weldId, 0.6f );
-	b3WeldJoint_SetAngularHertz( weldId, 5.0f );
-	b3WeldJoint_SetAngularDampingRatio( weldId, 0.6f );
+	b3WeldJoint_SetLinearHertz( weldId, B3_FIX( 5.0f ) );
+	b3WeldJoint_SetLinearDampingRatio( weldId, B3_FIX( 0.6f ) );
+	b3WeldJoint_SetAngularHertz( weldId, B3_FIX( 5.0f ) );
+	b3WeldJoint_SetAngularDampingRatio( weldId, B3_FIX( 0.6f ) );
 
 	// Wheel joint (Box3D uses Suspension/Spin/Steering naming)
 	b3WheelJointDef wheelDef = b3DefaultWheelJointDef();
@@ -1367,75 +1367,75 @@ static int AllOps( void )
 	wheelDef.base.bodyIdB = jb[8];
 	b3JointId wheelId = b3CreateWheelJoint( worldId, &wheelDef );
 	b3WheelJoint_EnableSuspension( wheelId, true );
-	b3WheelJoint_SetSuspensionHertz( wheelId, 4.0f );
-	b3WheelJoint_SetSuspensionDampingRatio( wheelId, 0.7f );
+	b3WheelJoint_SetSuspensionHertz( wheelId, B3_FIX( 4.0f ) );
+	b3WheelJoint_SetSuspensionDampingRatio( wheelId, B3_FIX( 0.7f ) );
 	b3WheelJoint_EnableSuspensionLimit( wheelId, true );
-	b3WheelJoint_SetSuspensionLimits( wheelId, -0.5f, 0.5f );
+	b3WheelJoint_SetSuspensionLimits( wheelId, -B3_FIX( 0.5f ), B3_FIX( 0.5f ) );
 	b3WheelJoint_EnableSpinMotor( wheelId, true );
-	b3WheelJoint_SetSpinMotorSpeed( wheelId, 1.0f );
-	b3WheelJoint_SetMaxSpinTorque( wheelId, 6.0f );
+	b3WheelJoint_SetSpinMotorSpeed( wheelId, B3_FIX( 1.0f ) );
+	b3WheelJoint_SetMaxSpinTorque( wheelId, B3_FIX( 6.0f ) );
 	b3WheelJoint_EnableSteering( wheelId, true );
-	b3WheelJoint_SetSteeringHertz( wheelId, 2.0f );
-	b3WheelJoint_SetSteeringDampingRatio( wheelId, 0.5f );
-	b3WheelJoint_SetMaxSteeringTorque( wheelId, 3.0f );
+	b3WheelJoint_SetSteeringHertz( wheelId, B3_FIX( 2.0f ) );
+	b3WheelJoint_SetSteeringDampingRatio( wheelId, B3_FIX( 0.5f ) );
+	b3WheelJoint_SetMaxSteeringTorque( wheelId, B3_FIX( 3.0f ) );
 	b3WheelJoint_EnableSteeringLimit( wheelId, true );
-	b3WheelJoint_SetSteeringLimits( wheelId, -0.5f, 0.5f );
-	b3WheelJoint_SetTargetSteeringAngle( wheelId, 0.1f );
+	b3WheelJoint_SetSteeringLimits( wheelId, -B3_FIX( 0.5f ), B3_FIX( 0.5f ) );
+	b3WheelJoint_SetTargetSteeringAngle( wheelId, B3_FIX( 0.1f ) );
 
 	// Parallel joint (3D-only)
 	b3ParallelJointDef parallelDef = b3DefaultParallelJointDef();
 	parallelDef.base.bodyIdA = groundId;
 	parallelDef.base.bodyIdB = bodyId;
 	b3JointId parallelId = b3CreateParallelJoint( worldId, &parallelDef );
-	b3ParallelJoint_SetSpringHertz( parallelId, 2.0f );
-	b3ParallelJoint_SetSpringDampingRatio( parallelId, 0.5f );
-	b3ParallelJoint_SetMaxTorque( parallelId, 20.0f );
+	b3ParallelJoint_SetSpringHertz( parallelId, B3_FIX( 2.0f ) );
+	b3ParallelJoint_SetSpringDampingRatio( parallelId, B3_FIX( 0.5f ) );
+	b3ParallelJoint_SetMaxTorque( parallelId, B3_FIX( 20.0f ) );
 
 	// World config mutators
-	b3World_SetGravity( worldId, (b3Vec3){ 0.0f, -9.8f, 0.0f } );
+	b3World_SetGravity( worldId, (b3Vec3){ B3_FIX( 0.0f ), -B3_FIX( 9.8f ), B3_FIX( 0.0f ) } );
 	b3World_EnableSleeping( worldId, true );
 	b3World_EnableContinuous( worldId, false );
 	b3World_EnableWarmStarting( worldId, true );
 	b3World_EnableSpeculative( worldId, true );
-	b3World_SetRestitutionThreshold( worldId, 1.5f );
-	b3World_SetHitEventThreshold( worldId, 2.0f );
-	b3World_SetContactTuning( worldId, 30.0f, 10.0f, 3.0f );
-	b3World_SetContactRecycleDistance( worldId, 0.05f );
-	b3World_SetMaximumLinearSpeed( worldId, 100.0f );
+	b3World_SetRestitutionThreshold( worldId, B3_FIX( 1.5f ) );
+	b3World_SetHitEventThreshold( worldId, B3_FIX( 2.0f ) );
+	b3World_SetContactTuning( worldId, B3_FIX( 30.0f ), B3_FIX( 10.0f ), B3_FIX( 3.0f ) );
+	b3World_SetContactRecycleDistance( worldId, B3_FIX( 0.05f ) );
+	b3World_SetMaximumLinearSpeed( worldId, B3_FIX( 100.0f ) );
 	b3World_RebuildStaticTree( worldId );
 
 	b3ExplosionDef explosion = b3DefaultExplosionDef();
-	explosion.position = (b3Pos){ 0.0f, 5.0f, 0.0f };
-	explosion.radius = 3.0f;
-	explosion.falloff = 1.0f;
-	explosion.impulsePerArea = 2.0f;
+	explosion.position = (b3Pos){ B3_FIX( 0.0f ), B3_FIX( 5.0f ), B3_FIX( 0.0f ) };
+	explosion.radius = B3_FIX( 3.0f );
+	explosion.falloff = B3_FIX( 1.0f );
+	explosion.impulsePerArea = B3_FIX( 2.0f );
 	b3World_Explode( worldId, &explosion );
 
 	// Pre-step queries
 	b3QueryFilter qfilter = b3DefaultQueryFilter();
-	b3AABB qaabb = { { -10.0f, -5.0f, -10.0f }, { 10.0f, 15.0f, 10.0f } };
+	b3AABB qaabb = { { -B3_FIX( 10.0f ), -B3_FIX( 5.0f ), -B3_FIX( 10.0f ) }, { B3_FIX( 10.0f ), B3_FIX( 15.0f ), B3_FIX( 10.0f ) } };
 	b3World_OverlapAABB( worldId, qaabb, qfilter, QueryReplayOverlapFcn, NULL );
-	b3Pos qorigin = { 0.0f, 15.0f, 0.0f };
-	b3Vec3 proxyPts = { 0.0f, 0.0f, 0.0f };
-	b3ShapeProxy proxy = { &proxyPts, 1, 0.5f };
+	b3Pos qorigin = { B3_FIX( 0.0f ), B3_FIX( 15.0f ), B3_FIX( 0.0f ) };
+	b3Vec3 proxyPts = { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
+	b3ShapeProxy proxy = { &proxyPts, 1, B3_FIX( 0.5f ) };
 	b3World_OverlapShape( worldId, qorigin, &proxy, qfilter, QueryReplayOverlapFcn, NULL );
-	b3Vec3 qTranslation = { 0.0f, -20.0f, 0.0f };
+	b3Vec3 qTranslation = { B3_FIX( 0.0f ), -B3_FIX( 20.0f ), B3_FIX( 0.0f ) };
 	b3World_CastRay( worldId, qorigin, qTranslation, qfilter, QueryReplayCastFcn, NULL );
 	b3World_CastRayClosest( worldId, qorigin, qTranslation, qfilter );
 	b3World_CastShape( worldId, qorigin, &proxy, qTranslation, qfilter, QueryReplayCastFcn, NULL );
-	b3Capsule mover = { { 0.0f, 0.0f, 0.0f }, { 0.0f, 1.0f, 0.0f }, 0.3f };
+	b3Capsule mover = { { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, { B3_FIX( 0.0f ), B3_FIX( 1.0f ), B3_FIX( 0.0f ) }, B3_FIX( 0.3f ) };
 	b3World_CastMover( worldId, qorigin, &mover, qTranslation, qfilter, QueryReplayMoverFilterFcn, NULL );
 	b3World_CollideMover( worldId, qorigin, &mover, qfilter, QueryReplayPlaneFcn, NULL );
 
-	float timeStep = 1.0f / 60.0f;
+	b3Fixed timeStep = b3FixDiv( B3_FIX( 1.0f ) , B3_FIX( 60.0f ) );
 	int subStepCount = 4;
 	for ( int i = 0; i < 12; ++i )
 	{
 		// Inject mutators mid-simulation
 		if ( i == 6 )
 		{
-			b3Body_ApplyLinearImpulseToCenter( capsuleBodyId, (b3Vec3){ 2.0f, 0.0f, 0.0f }, true );
-			b3Body_SetGravityScale( bodyId, 1.0f );
+			b3Body_ApplyLinearImpulseToCenter( capsuleBodyId, (b3Vec3){ B3_FIX( 2.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, true );
+			b3Body_SetGravityScale( bodyId, B3_FIX( 1.0f ) );
 		}
 
 		// Issue queries mid-loop to exercise recording across steps
@@ -1480,13 +1480,13 @@ static int AllOps( void )
 
 		b3RecPlayerInfo info = b3RecPlayer_GetInfo( player );
 		b3Vec3 recExtents = b3Sub( info.bounds.upperBound, info.bounds.lowerBound );
-		ENSURE( recExtents.x > 0.0f && recExtents.y > 0.0f );
+		ENSURE( recExtents.x > B3_FIX( 0.0f ) && recExtents.y > B3_FIX( 0.0f ) );
 
 		// Build a no-op b3DebugDraw to exercise the draw path headlessly
 		b3DebugDraw dd = b3DefaultDebugDraw();
 		dd.DrawShapeFcn = RecTestDrawShape;
 		dd.drawShapes = true;
-		dd.drawingBounds = (b3AABB){ { -1.0e6f, -1.0e6f, -1.0e6f }, { 1.0e6f, 1.0e6f, 1.0e6f } };
+		dd.drawingBounds = (b3AABB){ { -B3_FIX( 1.0e6f ), -B3_FIX( 1.0e6f ), -B3_FIX( 1.0e6f ) }, { B3_FIX( 1.0e6f ), B3_FIX( 1.0e6f ), B3_FIX( 1.0e6f ) } };
 
 		int frames = 0;
 		while ( b3RecPlayer_StepFrame( player ) )
@@ -1532,8 +1532,8 @@ static int AllOps( void )
 static int TransformedHullRoundTrip( void )
 {
 	b3Vec3 pts[8] = {
-		{ -1.0f, -1.0f, -1.0f }, { 1.0f, -1.0f, -1.0f }, { 1.0f, 1.0f, -1.0f }, { -1.0f, 1.0f, -1.0f },
-		{ -1.0f, -1.0f, 1.0f },	 { 1.0f, -1.0f, 1.0f },	 { 1.0f, 1.0f, 1.0f },	{ -1.0f, 1.0f, 1.0f },
+		{ -B3_FIX( 1.0f ), -B3_FIX( 1.0f ), -B3_FIX( 1.0f ) }, { B3_FIX( 1.0f ), -B3_FIX( 1.0f ), -B3_FIX( 1.0f ) }, { B3_FIX( 1.0f ), B3_FIX( 1.0f ), -B3_FIX( 1.0f ) }, { -B3_FIX( 1.0f ), B3_FIX( 1.0f ), -B3_FIX( 1.0f ) },
+		{ -B3_FIX( 1.0f ), -B3_FIX( 1.0f ), B3_FIX( 1.0f ) },	 { B3_FIX( 1.0f ), -B3_FIX( 1.0f ), B3_FIX( 1.0f ) },	 { B3_FIX( 1.0f ), B3_FIX( 1.0f ), B3_FIX( 1.0f ) },	{ -B3_FIX( 1.0f ), B3_FIX( 1.0f ), B3_FIX( 1.0f ) },
 	};
 	b3HullData* hull = b3CreateHull( pts, 8, 8 );
 	ENSURE( hull != NULL );
@@ -1547,16 +1547,16 @@ static int TransformedHullRoundTrip( void )
 	b3World_StartRecording( worldId, rec );
 
 	b3ShapeDef shapeDef = b3DefaultShapeDef();
-	shapeDef.density = 1.0f;
+	shapeDef.density = B3_FIX( 1.0f );
 
 	// Baked transform with a rotation and non-uniform scale, the path Unreal uses for instanced hulls.
-	b3Transform xf = { (b3Vec3){ 0.25f, 0.0f, -0.5f }, b3MakeQuatFromAxisAngle( (b3Vec3){ 0.0f, 0.0f, 1.0f }, 0.3f ) };
-	b3Vec3 scl = { 1.5f, 0.5f, 2.0f };
+	b3Transform xf = { (b3Vec3){ B3_FIX( 0.25f ), B3_FIX( 0.0f ), -B3_FIX( 0.5f ) }, b3MakeQuatFromAxisAngle( (b3Vec3){ B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 1.0f ) }, B3_FIX( 0.3f ) ) };
+	b3Vec3 scl = { B3_FIX( 1.5f ), B3_FIX( 0.5f ), B3_FIX( 2.0f ) };
 	for ( int i = 0; i < 3; ++i )
 	{
 		b3BodyDef bodyDef = b3DefaultBodyDef();
 		bodyDef.type = b3_dynamicBody;
-		bodyDef.position = (b3Pos){ (float)( i * 3 ), 5.0f, 0.0f };
+		bodyDef.position = (b3Pos){ (b3Fixed)b3FixFromInt( ( i * 3 ) ), B3_FIX( 5.0f ), B3_FIX( 0.0f ) };
 		b3BodyId bodyId = b3CreateBody( worldId, &bodyDef );
 		b3ShapeId sid = b3CreateTransformedHullShape( bodyId, &shapeDef, hull, xf, scl );
 		ENSURE( b3Shape_IsValid( sid ) );
@@ -1567,7 +1567,7 @@ static int TransformedHullRoundTrip( void )
 	{
 		b3BodyDef bodyDef = b3DefaultBodyDef();
 		bodyDef.type = b3_dynamicBody;
-		bodyDef.position = (b3Pos){ 0.0f, 10.0f, 0.0f };
+		bodyDef.position = (b3Pos){ B3_FIX( 0.0f ), B3_FIX( 10.0f ), B3_FIX( 0.0f ) };
 		b3BodyId bodyId = b3CreateBody( worldId, &bodyDef );
 		b3ShapeId sid = b3CreateHullShape( bodyId, &shapeDef, hull );
 		ENSURE( b3Shape_IsValid( sid ) );
@@ -1577,7 +1577,7 @@ static int TransformedHullRoundTrip( void )
 	// world and interns the baked hull, which must already be in the pre-seeded registry.
 	for ( int i = 0; i < 20; ++i )
 	{
-		b3World_Step( worldId, 1.0f / 60.0f, 4 );
+		b3World_Step( worldId, b3FixDiv( B3_FIX( 1.0f ) , B3_FIX( 60.0f ) ), 4 );
 	}
 
 	b3World_StopRecording( worldId );
@@ -1601,20 +1601,20 @@ static int ReservedHeaderBytes( void )
 	b3WorldDef worldDef = b3DefaultWorldDef();
 	b3WorldId worldId = b3CreateWorld( &worldDef );
 	b3World_StartRecording( worldId, rec );
-	b3World_SetGravity( worldId, (b3Vec3){ 0.0f, -10.0f, 0.0f } );
+	b3World_SetGravity( worldId, (b3Vec3){ B3_FIX( 0.0f ), -B3_FIX( 10.0f ), B3_FIX( 0.0f ) } );
 
 	b3BodyDef bd = b3DefaultBodyDef();
 	bd.type = b3_dynamicBody;
-	bd.position = (b3Pos){ 0.0f, 5.0f, 0.0f };
+	bd.position = (b3Pos){ B3_FIX( 0.0f ), B3_FIX( 5.0f ), B3_FIX( 0.0f ) };
 	b3BodyId bodyId = b3CreateBody( worldId, &bd );
-	b3Sphere s = { { 0.0f, 0.0f, 0.0f }, 0.5f };
+	b3Sphere s = { { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, B3_FIX( 0.5f ) };
 	b3ShapeDef sd = b3DefaultShapeDef();
-	sd.density = 1.0f;
+	sd.density = B3_FIX( 1.0f );
 	b3CreateSphereShape( bodyId, &sd, &s );
 
 	for ( int i = 0; i < 10; ++i )
 	{
-		b3World_Step( worldId, 1.0f / 60.0f, 4 );
+		b3World_Step( worldId, b3FixDiv( B3_FIX( 1.0f ) , B3_FIX( 60.0f ) ), 4 );
 	}
 
 	b3World_StopRecording( worldId );
@@ -1734,11 +1734,11 @@ static int StagedStepCreationPose( void )
 
 	b3WorldDef worldDef = b3DefaultWorldDef();
 	b3WorldId worldId = b3CreateWorld( &worldDef );
-	b3World_SetGravity( worldId, (b3Vec3){ 0.0f, -10.0f, 0.0f } );
+	b3World_SetGravity( worldId, (b3Vec3){ B3_FIX( 0.0f ), -B3_FIX( 10.0f ), B3_FIX( 0.0f ) } );
 
 	b3World_StartRecording( worldId, rec );
 
-	float timeStep = 1.0f / 60.0f;
+	b3Fixed timeStep = b3FixDiv( B3_FIX( 1.0f ) , B3_FIX( 60.0f ) );
 	int subStepCount = 4;
 
 	// A few empty steps so the creation lands inside the stream, not at frame 0.
@@ -1749,20 +1749,20 @@ static int StagedStepCreationPose( void )
 	}
 
 	// The creation transform under test. No ground, so the body is the only create and stays ballistic.
-	// Components are exact in float so the round-trip pose compares tight.
-	const b3Pos spawn = { 1.0, 20.0, -2.0 };
+	// Components are exact in b3Fixed so the round-trip pose compares tight.
+	const b3Pos spawn = { B3_FIX( 1.0 ), B3_FIX( 20.0 ), b3FixFromDouble( -2.0 ) };
 	b3BodyDef bodyDef = b3DefaultBodyDef();
 	bodyDef.type = b3_dynamicBody;
 	bodyDef.position = spawn;
 	b3BodyId bodyId = b3CreateBody( worldId, &bodyDef );
 
-	b3Sphere sphere = { { 0.0f, 0.0f, 0.0f }, 0.5f };
+	b3Sphere sphere = { { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, B3_FIX( 0.5f ) };
 	b3ShapeDef shapeDef = b3DefaultShapeDef();
-	shapeDef.density = 1.0f;
+	shapeDef.density = B3_FIX( 1.0f );
 	b3CreateSphereShape( bodyId, &shapeDef, &sphere );
 
 	// Impulse along +x so the first integrated step moves the body a visible distance off the spawn.
-	b3Body_ApplyLinearImpulseToCenter( bodyId, (b3Vec3){ 5.0f, 0.0f, 0.0f }, true );
+	b3Body_ApplyLinearImpulseToCenter( bodyId, (b3Vec3){ B3_FIX( 5.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, true );
 
 	const int creationFrame = leadFrames + 1;
 	b3World_Step( worldId, timeStep, subStepCount ); // advances to creationFrame
@@ -1783,7 +1783,7 @@ static int StagedStepCreationPose( void )
 	// integrated and displaced along +x. Capture that pose and the final state hash.
 	b3RecPlayer* atomic = b3RecPlayer_Create( data, sz, 1 );
 	ENSURE( atomic != NULL );
-	b3Pos atomicPose = { 0.0, 0.0, 0.0 };
+	b3Pos atomicPose = { B3_FIX( 0.0 ), B3_FIX( 0.0 ), B3_FIX( 0.0 ) };
 	while ( !b3RecPlayer_IsAtEnd( atomic ) )
 	{
 		b3RecPlayer_StepFrame( atomic );
@@ -1796,7 +1796,7 @@ static int StagedStepCreationPose( void )
 	}
 	ENSURE( b3RecPlayer_GetFrame( atomic ) == totalFrames );
 	ENSURE( !b3RecPlayer_HasDiverged( atomic ) );
-	ENSURE( atomicPose.x - spawn.x > 0.01 ); // the impulse moved it before it was ever seen
+	ENSURE( b3FixToDouble( atomicPose.x - spawn.x ) > 0.01 ); // the impulse moved it before it was ever seen
 	uint64_t atomicHash = b3HashWorldState( b3GetWorldFromId( b3RecPlayer_GetWorldId( atomic ) ) );
 	b3RecPlayer_Destroy( atomic );
 
@@ -1860,18 +1860,18 @@ static int ShapeNameReplay( void )
 	b3WorldId worldId = b3CreateWorld( &worldDef );
 	b3World_StartRecording( worldId, rec );
 
-	b3Sphere sphere = { { 0.0f, 0.0f, 0.0f }, 0.5f };
+	b3Sphere sphere = { { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, B3_FIX( 0.5f ) };
 
 	// One shape per body so read-back never depends on per-body shape ordering.
 	for ( int i = 0; i < 3; ++i )
 	{
 		b3BodyDef bd = b3DefaultBodyDef();
 		bd.type = b3_dynamicBody;
-		bd.position = (b3Pos){ 3.0f * (float)i, 5.0f, 0.0f };
+		bd.position = (b3Pos){ b3FixMul( B3_FIX( 3.0f ) , (b3Fixed)b3FixFromInt( i ) ), B3_FIX( 5.0f ), B3_FIX( 0.0f ) };
 		b3BodyId body = b3CreateBody( worldId, &bd );
 
 		b3ShapeDef sd = b3DefaultShapeDef();
-		sd.density = 1.0f;
+		sd.density = B3_FIX( 1.0f );
 		if ( i != 1 )
 		{
 			sd.name = names[i];
@@ -1885,7 +1885,7 @@ static int ShapeNameReplay( void )
 
 	for ( int i = 0; i < 4; ++i )
 	{
-		b3World_Step( worldId, 1.0f / 60.0f, 4 );
+		b3World_Step( worldId, b3FixDiv( B3_FIX( 1.0f ) , B3_FIX( 60.0f ) ), 4 );
 	}
 
 	b3World_StopRecording( worldId );

@@ -58,8 +58,8 @@ void b3PrismaticJoint_EnableLimit( b3JointId jointId, bool enableLimit )
 	b3JointSim* base = b3GetJointSimCheckType( jointId, b3_prismaticJoint );
 	if ( enableLimit != base->prismaticJoint.enableLimit )
 	{
-		base->prismaticJoint.lowerImpulse = 0.0f;
-		base->prismaticJoint.upperImpulse = 0.0f;
+		base->prismaticJoint.lowerImpulse = B3_FIX( 0.0f );
+		base->prismaticJoint.upperImpulse = B3_FIX( 0.0f );
 	}
 	base->prismaticJoint.enableLimit = enableLimit;
 }
@@ -70,32 +70,32 @@ bool b3PrismaticJoint_IsLimitEnabled( b3JointId jointId )
 	return base->prismaticJoint.enableLimit;
 }
 
-float b3PrismaticJoint_GetLowerLimit( b3JointId jointId )
+b3Fixed b3PrismaticJoint_GetLowerLimit( b3JointId jointId )
 {
 	b3JointSim* base = b3GetJointSimCheckType( jointId, b3_prismaticJoint );
 	return base->prismaticJoint.lowerTranslation;
 }
 
-float b3PrismaticJoint_GetUpperLimit( b3JointId jointId )
+b3Fixed b3PrismaticJoint_GetUpperLimit( b3JointId jointId )
 {
 	b3JointSim* base = b3GetJointSimCheckType( jointId, b3_prismaticJoint );
 	return base->prismaticJoint.upperTranslation;
 }
 
-void b3PrismaticJoint_SetLimits( b3JointId jointId, float lower, float upper )
+void b3PrismaticJoint_SetLimits( b3JointId jointId, b3Fixed lower, b3Fixed upper )
 {
-	B3_ASSERT( b3IsValidFloat( lower ) && b3IsValidFloat( upper ) );
+	B3_ASSERT( b3IsValidFixed( lower ) && b3IsValidFixed( upper ) );
 	b3World* world = b3GetWorld( jointId.world0 );
 	B3_REC( world, PrismaticJointSetLimits, jointId, lower, upper );
-	float lowerAngle = b3MinFloat( lower, upper );
-	float upperAngle = b3MaxFloat( lower, upper );
+	b3Fixed lowerAngle = b3FixMin( lower, upper );
+	b3Fixed upperAngle = b3FixMax( lower, upper );
 
 	b3JointSim* base = b3GetJointSimCheckType( jointId, b3_prismaticJoint );
 	base->prismaticJoint.lowerTranslation = lowerAngle;
 	base->prismaticJoint.upperTranslation = upperAngle;
 }
 
-float b3PrismaticJoint_GetTranslation( b3JointId jointId )
+b3Fixed b3PrismaticJoint_GetTranslation( b3JointId jointId )
 {
 	b3World* world = b3GetWorld( jointId.world0 );
 	b3JointSim* base = b3GetJointSimCheckType( jointId, b3_prismaticJoint );
@@ -108,7 +108,7 @@ float b3PrismaticJoint_GetTranslation( b3JointId jointId )
 	b3Vec3 anchorA = b3RotateVector( transformA.q, base->localFrameA.p );
 	b3Vec3 anchorB = b3RotateVector( transformB.q, base->localFrameB.p );
 	b3Vec3 d = b3Add( b3SubPos( transformB.p, transformA.p ), b3Sub( anchorB, anchorA ) );
-	float translation = b3Dot( d, jointAxis );
+	b3Fixed translation = b3Dot( d, jointAxis );
 	return translation;
 }
 
@@ -119,7 +119,7 @@ void b3PrismaticJoint_EnableSpring( b3JointId jointId, bool enableSpring )
 	b3JointSim* base = b3GetJointSimCheckType( jointId, b3_prismaticJoint );
 	if ( enableSpring != base->prismaticJoint.enableSpring )
 	{
-		base->prismaticJoint.springImpulse = 0.0f;
+		base->prismaticJoint.springImpulse = B3_FIX( 0.0f );
 	}
 	base->prismaticJoint.enableSpring = enableSpring;
 }
@@ -130,46 +130,46 @@ bool b3PrismaticJoint_IsSpringEnabled( b3JointId jointId )
 	return base->prismaticJoint.enableSpring;
 }
 
-void b3PrismaticJoint_SetTargetTranslation( b3JointId jointId, float targetTranslation )
+void b3PrismaticJoint_SetTargetTranslation( b3JointId jointId, b3Fixed targetTranslation )
 {
-	B3_ASSERT( b3IsValidFloat( targetTranslation ) );
+	B3_ASSERT( b3IsValidFixed( targetTranslation ) );
 	b3World* world = b3GetWorld( jointId.world0 );
 	B3_REC( world, PrismaticJointSetTargetTranslation, jointId, targetTranslation );
 	b3JointSim* base = b3GetJointSimCheckType( jointId, b3_prismaticJoint );
 	base->prismaticJoint.targetTranslation = targetTranslation;
 }
 
-float b3PrismaticJoint_GetTargetTranslation( b3JointId jointId )
+b3Fixed b3PrismaticJoint_GetTargetTranslation( b3JointId jointId )
 {
 	b3JointSim* base = b3GetJointSimCheckType( jointId, b3_prismaticJoint );
 	return base->prismaticJoint.targetTranslation;
 }
 
-void b3PrismaticJoint_SetSpringHertz( b3JointId jointId, float hertz )
+void b3PrismaticJoint_SetSpringHertz( b3JointId jointId, b3Fixed hertz )
 {
-	B3_ASSERT( b3IsValidFloat( hertz ) && hertz >= 0.0f );
+	B3_ASSERT( b3IsValidFixed( hertz ) && hertz >= B3_FIX( 0.0f ) );
 	b3World* world = b3GetWorld( jointId.world0 );
 	B3_REC( world, PrismaticJointSetSpringHertz, jointId, hertz );
 	b3JointSim* base = b3GetJointSimCheckType( jointId, b3_prismaticJoint );
 	base->prismaticJoint.hertz = hertz;
 }
 
-float b3PrismaticJoint_GetSpringHertz( b3JointId jointId )
+b3Fixed b3PrismaticJoint_GetSpringHertz( b3JointId jointId )
 {
 	b3JointSim* base = b3GetJointSimCheckType( jointId, b3_prismaticJoint );
 	return base->prismaticJoint.hertz;
 }
 
-void b3PrismaticJoint_SetSpringDampingRatio( b3JointId jointId, float dampingRatio )
+void b3PrismaticJoint_SetSpringDampingRatio( b3JointId jointId, b3Fixed dampingRatio )
 {
-	B3_ASSERT( b3IsValidFloat( dampingRatio ) && dampingRatio >= 0.0f );
+	B3_ASSERT( b3IsValidFixed( dampingRatio ) && dampingRatio >= B3_FIX( 0.0f ) );
 	b3World* world = b3GetWorld( jointId.world0 );
 	B3_REC( world, PrismaticJointSetSpringDampingRatio, jointId, dampingRatio );
 	b3JointSim* base = b3GetJointSimCheckType( jointId, b3_prismaticJoint );
 	base->prismaticJoint.dampingRatio = dampingRatio;
 }
 
-float b3PrismaticJoint_GetSpringDampingRatio( b3JointId jointId )
+b3Fixed b3PrismaticJoint_GetSpringDampingRatio( b3JointId jointId )
 {
 	b3JointSim* base = b3GetJointSimCheckType( jointId, b3_prismaticJoint );
 	return base->prismaticJoint.dampingRatio;
@@ -182,7 +182,7 @@ void b3PrismaticJoint_EnableMotor( b3JointId jointId, bool enableMotor )
 	b3JointSim* base = b3GetJointSimCheckType( jointId, b3_prismaticJoint );
 	if ( enableMotor != base->prismaticJoint.enableMotor )
 	{
-		base->prismaticJoint.motorImpulse = 0.0f;
+		base->prismaticJoint.motorImpulse = B3_FIX( 0.0f );
 	}
 	base->prismaticJoint.enableMotor = enableMotor;
 }
@@ -193,44 +193,44 @@ bool b3PrismaticJoint_IsMotorEnabled( b3JointId jointId )
 	return base->prismaticJoint.enableMotor;
 }
 
-void b3PrismaticJoint_SetMotorSpeed( b3JointId jointId, float motorSpeed )
+void b3PrismaticJoint_SetMotorSpeed( b3JointId jointId, b3Fixed motorSpeed )
 {
-	B3_ASSERT( b3IsValidFloat( motorSpeed ) );
+	B3_ASSERT( b3IsValidFixed( motorSpeed ) );
 	b3World* world = b3GetWorld( jointId.world0 );
 	B3_REC( world, PrismaticJointSetMotorSpeed, jointId, motorSpeed );
 	b3JointSim* base = b3GetJointSimCheckType( jointId, b3_prismaticJoint );
 	base->prismaticJoint.motorSpeed = motorSpeed;
 }
 
-float b3PrismaticJoint_GetMotorSpeed( b3JointId jointId )
+b3Fixed b3PrismaticJoint_GetMotorSpeed( b3JointId jointId )
 {
 	b3JointSim* base = b3GetJointSimCheckType( jointId, b3_prismaticJoint );
 	return base->prismaticJoint.motorSpeed;
 }
 
-void b3PrismaticJoint_SetMaxMotorForce( b3JointId jointId, float maxForce )
+void b3PrismaticJoint_SetMaxMotorForce( b3JointId jointId, b3Fixed maxForce )
 {
-	B3_ASSERT( b3IsValidFloat( maxForce ) && maxForce >= 0.0f );
+	B3_ASSERT( b3IsValidFixed( maxForce ) && maxForce >= B3_FIX( 0.0f ) );
 	b3World* world = b3GetWorld( jointId.world0 );
 	B3_REC( world, PrismaticJointSetMaxMotorForce, jointId, maxForce );
 	b3JointSim* base = b3GetJointSimCheckType( jointId, b3_prismaticJoint );
 	base->prismaticJoint.maxMotorForce = maxForce;
 }
 
-float b3PrismaticJoint_GetMaxMotorForce( b3JointId jointId )
+b3Fixed b3PrismaticJoint_GetMaxMotorForce( b3JointId jointId )
 {
 	b3JointSim* base = b3GetJointSimCheckType( jointId, b3_prismaticJoint );
 	return base->prismaticJoint.maxMotorForce;
 }
 
-float b3PrismaticJoint_GetMotorForce( b3JointId jointId )
+b3Fixed b3PrismaticJoint_GetMotorForce( b3JointId jointId )
 {
 	b3World* world = b3GetWorld( jointId.world0 );
 	b3JointSim* base = b3GetJointSimCheckType( jointId, b3_prismaticJoint );
-	return world->inv_h * base->prismaticJoint.motorImpulse;
+	return b3FixMul( world->inv_h , base->prismaticJoint.motorImpulse );
 }
 
-float b3PrismaticJoint_GetSpeed( b3JointId jointId )
+b3Fixed b3PrismaticJoint_GetSpeed( b3JointId jointId )
 {
 	b3World* world = b3GetWorld( jointId.world0 );
 	b3JointSim* base = b3GetJointSimCheckType( jointId, b3_prismaticJoint );
@@ -260,7 +260,7 @@ float b3PrismaticJoint_GetSpeed( b3JointId jointId )
 	b3Vec3 vRel = b3Sub( b3Add( vB, b3Cross( wB, rB ) ), b3Add( vA, b3Cross( wA, rA ) ) );
 
 	// The axis moves with body A, so account for its rotation.
-	float speed = b3Dot( d, b3Cross( wA, axisA ) ) + b3Dot( axisA, vRel );
+	b3Fixed speed = b3Dot( d, b3Cross( wA, axisA ) ) + b3Dot( axisA, vRel );
 	return speed;
 }
 
@@ -323,7 +323,7 @@ void b3PreparePrismaticJoint( b3JointSim* base, b3StepContext* context )
 	base->invIB = bodySimB->invInertiaWorld;
 
 	b3Matrix3 invInertiaSum = b3AddMM( base->invIA, base->invIB );
-	base->fixedRotation = b3Det( invInertiaSum ) < 1000.0f * FLT_MIN;
+	base->fixedRotation = invInertiaSum.cx.x + invInertiaSum.cy.y + invInertiaSum.cz.z == 0;
 
 	b3PrismaticJoint* joint = &base->prismaticJoint;
 	joint->indexA = bodyA->setIndex == b3_awakeSet ? localIndexA : B3_NULL_INDEX;
@@ -348,12 +348,12 @@ void b3PreparePrismaticJoint( b3JointSim* base, b3StepContext* context )
 
 	if ( context->enableWarmStarting == false )
 	{
-		joint->perpImpulse = (b3Vec2){ 0.0f, 0.0f };
-		joint->angularImpulse = (b3Vec3){ 0.0f, 0.0f, 0.0f };
-		joint->motorImpulse = 0.0f;
-		joint->springImpulse = 0.0f;
-		joint->lowerImpulse = 0.0f;
-		joint->upperImpulse = 0.0f;
+		joint->perpImpulse = (b3Vec2){ B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
+		joint->angularImpulse = (b3Vec3){ B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
+		joint->motorImpulse = B3_FIX( 0.0f );
+		joint->springImpulse = B3_FIX( 0.0f );
+		joint->lowerImpulse = B3_FIX( 0.0f );
+		joint->upperImpulse = B3_FIX( 0.0f );
 	}
 }
 
@@ -361,8 +361,8 @@ void b3WarmStartPrismaticJoint( b3JointSim* base, b3StepContext* context )
 {
 	B3_ASSERT( base->type == b3_prismaticJoint );
 
-	float mA = base->invMassA;
-	float mB = base->invMassB;
+	b3Fixed mA = base->invMassA;
+	b3Fixed mB = base->invMassB;
 	b3Matrix3 iA = base->invIA;
 	b3Matrix3 iB = base->invIB;
 
@@ -390,7 +390,7 @@ void b3WarmStartPrismaticJoint( b3JointSim* base, b3StepContext* context )
 	b3Vec3 sAz = b3Cross( b3Add( rA, d ), perpZ );
 	b3Vec3 sBz = b3Cross( rB, perpZ );
 
-	float axialImpulse = joint->springImpulse + joint->motorImpulse + joint->lowerImpulse - joint->upperImpulse;
+	b3Fixed axialImpulse = joint->springImpulse + joint->motorImpulse + joint->lowerImpulse - joint->upperImpulse;
 	b3Vec2 perpImpulse = joint->perpImpulse;
 
 	b3Vec3 P = b3Blend3( axialImpulse, jointAxis, perpImpulse.x, perpY, perpImpulse.y, perpZ );
@@ -421,8 +421,8 @@ void b3WarmStartPrismaticJoint( b3JointSim* base, b3StepContext* context )
 
 void b3SolvePrismaticJoint( b3JointSim* base, b3StepContext* context, bool useBias )
 {
-	float mA = base->invMassA;
-	float mB = base->invMassB;
+	b3Fixed mA = base->invMassA;
+	b3Fixed mB = base->invMassB;
 	b3Matrix3 iA = base->invIA;
 	b3Matrix3 iB = base->invIB;
 
@@ -449,26 +449,26 @@ void b3SolvePrismaticJoint( b3JointSim* base, b3StepContext* context, bool useBi
 	b3Vec3 jointAxis = b3RotateVector( stateA->deltaRotation, joint->jointAxis );
 	b3Vec3 sAx = b3Cross( b3Add( rA, d ), jointAxis );
 	b3Vec3 sBx = b3Cross( rB, jointAxis );
-	float jointTranslation = b3Dot( d, jointAxis );
-	float targetTranslation = joint->targetTranslation;
+	b3Fixed jointTranslation = b3Dot( d, jointAxis );
+	b3Fixed targetTranslation = joint->targetTranslation;
 
 	// The axial effective mass must be fresh to avoid divergence when the joint is stressed
-	float ka = mA + mB + b3Dot( sAx, b3MulMV( iA, sAx ) ) + b3Dot( sBx, b3MulMV( iB, sBx ) );
-	float axialMass = ka > 0.0f ? 1.0f / ka : 0.0f;
+	b3Fixed ka = mA + mB + b3Dot( sAx, b3MulMV( iA, sAx ) ) + b3Dot( sBx, b3MulMV( iB, sBx ) );
+	b3Fixed axialMass = ka > B3_FIX( 0.0f ) ? b3FixDiv( B3_FIX( 1.0f ) , ka ) : B3_FIX( 0.0f );
 
 	// Solve spring
 	if ( joint->enableSpring && fixedRotation == false )
 	{
 		// Get the substep relative rotation
-		float c = jointTranslation - targetTranslation;
+		b3Fixed c = jointTranslation - targetTranslation;
 
-		float bias = joint->springSoftness.biasRate * c;
-		float massScale = joint->springSoftness.massScale;
-		float impulseScale = joint->springSoftness.impulseScale;
+		b3Fixed bias = b3FixMul( joint->springSoftness.biasRate , c );
+		b3Fixed massScale = joint->springSoftness.massScale;
+		b3Fixed impulseScale = joint->springSoftness.impulseScale;
 
 		b3Vec3 vRel = b3Sub( b3Sub( b3Add( vB, b3Cross( wB, rB ) ), vA ), b3Cross( wA, b3Add( rA, d ) ) );
-		float cdot = b3Dot( vRel, jointAxis );
-		float deltaImpulse = -massScale * axialMass * ( cdot + bias ) - impulseScale * joint->springImpulse;
+		b3Fixed cdot = b3Dot( vRel, jointAxis );
+		b3Fixed deltaImpulse = b3FixMul( b3FixMul( -massScale , axialMass ) , ( cdot + bias ) ) - b3FixMul( impulseScale , joint->springImpulse );
 		joint->springImpulse += deltaImpulse;
 
 		b3Vec3 P = b3MulSV( deltaImpulse, jointAxis );
@@ -484,12 +484,12 @@ void b3SolvePrismaticJoint( b3JointSim* base, b3StepContext* context, bool useBi
 	if ( joint->enableMotor && fixedRotation == false )
 	{
 		b3Vec3 vRel = b3Sub( b3Sub( b3Add( vB, b3Cross( wB, rB ) ), vA ), b3Cross( wA, b3Add( rA, d ) ) );
-		float cdot = b3Dot( vRel, jointAxis ) - joint->motorSpeed;
+		b3Fixed cdot = b3Dot( vRel, jointAxis ) - joint->motorSpeed;
 
-		float deltaImpulse = -axialMass * cdot;
-		float newImpulse = joint->motorImpulse + deltaImpulse;
-		float maxImpulse = joint->maxMotorForce * context->h;
-		newImpulse = b3ClampFloat( newImpulse, -maxImpulse, maxImpulse );
+		b3Fixed deltaImpulse = b3FixMul( -axialMass , cdot );
+		b3Fixed newImpulse = joint->motorImpulse + deltaImpulse;
+		b3Fixed maxImpulse = b3FixMul( joint->maxMotorForce , context->h );
+		newImpulse = b3FixClamp( newImpulse, -maxImpulse, maxImpulse );
 		deltaImpulse = newImpulse - joint->motorImpulse;
 		joint->motorImpulse = newImpulse;
 
@@ -505,34 +505,34 @@ void b3SolvePrismaticJoint( b3JointSim* base, b3StepContext* context, bool useBi
 
 	if ( joint->enableLimit && fixedRotation == false )
 	{
-		float speculativeDistance = 0.25f * ( joint->upperTranslation - joint->lowerTranslation );
+		b3Fixed speculativeDistance = b3FixMul( B3_FIX( 0.25f ) , ( joint->upperTranslation - joint->lowerTranslation ) );
 
 		// Lower limit
 		{
-			float C = jointTranslation - joint->lowerTranslation;
+			b3Fixed C = jointTranslation - joint->lowerTranslation;
 
 			if ( C < speculativeDistance )
 			{
-				float bias = 0.0f;
-				float massScale = 1.0f;
-				float impulseScale = 0.0f;
-				if ( C > 0.0f )
+				b3Fixed bias = B3_FIX( 0.0f );
+				b3Fixed massScale = B3_FIX( 1.0f );
+				b3Fixed impulseScale = B3_FIX( 0.0f );
+				if ( C > B3_FIX( 0.0f ) )
 				{
 					// speculation
-					bias = C * context->inv_h;
+					bias = b3FixMul( C , context->inv_h );
 				}
 				else if ( useBias )
 				{
-					bias = base->constraintSoftness.biasRate * C;
+					bias = b3FixMul( base->constraintSoftness.biasRate , C );
 					massScale = base->constraintSoftness.massScale;
 					impulseScale = base->constraintSoftness.impulseScale;
 				}
 
 				b3Vec3 vRel = b3Sub( b3Sub( b3Add( vB, b3Cross( wB, rB ) ), vA ), b3Cross( wA, b3Add( rA, d ) ) );
-				float cdot = b3Dot( vRel, jointAxis );
-				float oldImpulse = joint->lowerImpulse;
-				float deltaImpulse = -massScale * axialMass * ( cdot + bias ) - impulseScale * oldImpulse;
-				joint->lowerImpulse = b3MaxFloat( oldImpulse + deltaImpulse, 0.0f );
+				b3Fixed cdot = b3Dot( vRel, jointAxis );
+				b3Fixed oldImpulse = joint->lowerImpulse;
+				b3Fixed deltaImpulse = b3FixMul( b3FixMul( -massScale , axialMass ) , ( cdot + bias ) ) - b3FixMul( impulseScale , oldImpulse );
+				joint->lowerImpulse = b3FixMax( oldImpulse + deltaImpulse, B3_FIX( 0.0f ) );
 				deltaImpulse = joint->lowerImpulse - oldImpulse;
 
 				b3Vec3 P = b3MulSV( deltaImpulse, jointAxis );
@@ -546,40 +546,40 @@ void b3SolvePrismaticJoint( b3JointSim* base, b3StepContext* context, bool useBi
 			}
 			else
 			{
-				joint->lowerImpulse = 0.0f;
+				joint->lowerImpulse = B3_FIX( 0.0f );
 			}
 		}
 
 		// Upper limit
 		{
-			float C = joint->upperTranslation - jointTranslation;
+			b3Fixed C = joint->upperTranslation - jointTranslation;
 
 			if ( C < speculativeDistance )
 			{
-				float bias = 0.0f;
-				float massScale = 1.0f;
-				float impulseScale = 0.0f;
-				if ( C > 0.0f )
+				b3Fixed bias = B3_FIX( 0.0f );
+				b3Fixed massScale = B3_FIX( 1.0f );
+				b3Fixed impulseScale = B3_FIX( 0.0f );
+				if ( C > B3_FIX( 0.0f ) )
 				{
 					// speculation
-					bias = C * context->inv_h;
+					bias = b3FixMul( C , context->inv_h );
 				}
 				else if ( useBias )
 				{
-					bias = base->constraintSoftness.biasRate * C;
+					bias = b3FixMul( base->constraintSoftness.biasRate , C );
 					massScale = base->constraintSoftness.massScale;
 					impulseScale = base->constraintSoftness.impulseScale;
 				}
 
 				// sign flipped on Cdot
 				b3Vec3 vRel = b3Sub( b3Sub( b3Add( vB, b3Cross( wB, rB ) ), vA ), b3Cross( wA, b3Add( rA, d ) ) );
-				float cdot = -b3Dot( vRel, jointAxis );
-				float oldImpulse = joint->upperImpulse;
-				float deltaImpulse = -massScale * axialMass * ( cdot + bias ) - impulseScale * oldImpulse;
-				joint->upperImpulse = b3MaxFloat( oldImpulse + deltaImpulse, 0.0f );
+				b3Fixed cdot = -b3Dot( vRel, jointAxis );
+				b3Fixed oldImpulse = joint->upperImpulse;
+				b3Fixed deltaImpulse = b3FixMul( b3FixMul( -massScale , axialMass ) , ( cdot + bias ) ) - b3FixMul( impulseScale , oldImpulse );
+				joint->upperImpulse = b3FixMax( oldImpulse + deltaImpulse, B3_FIX( 0.0f ) );
 
 				// sign flipped on applied impulse
-				float negDeltaImpulse = oldImpulse - joint->upperImpulse;
+				b3Fixed negDeltaImpulse = oldImpulse - joint->upperImpulse;
 				b3Vec3 P = b3MulSV( negDeltaImpulse, jointAxis );
 				b3Vec3 LA = b3MulSV( negDeltaImpulse, sAx );
 				b3Vec3 LB = b3MulSV( negDeltaImpulse, sBx );
@@ -591,7 +591,7 @@ void b3SolvePrismaticJoint( b3JointSim* base, b3StepContext* context, bool useBi
 			}
 			else
 			{
-				joint->upperImpulse = 0.0f;
+				joint->upperImpulse = B3_FIX( 0.0f );
 			}
 		}
 	}
@@ -599,9 +599,9 @@ void b3SolvePrismaticJoint( b3JointSim* base, b3StepContext* context, bool useBi
 	// Rotation constraint
 	if ( fixedRotation == false )
 	{
-		b3Vec3 bias = { 0.0f, 0.0f, 0.0f };
-		float massScale = 1.0f;
-		float impulseScale = 0.0f;
+		b3Vec3 bias = { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
+		b3Fixed massScale = B3_FIX( 1.0f );
+		b3Fixed impulseScale = B3_FIX( 0.0f );
 
 		if ( useBias )
 		{
@@ -633,9 +633,9 @@ void b3SolvePrismaticJoint( b3JointSim* base, b3StepContext* context, bool useBi
 		b3Vec3 perpY = b3RotateVector( stateA->deltaRotation, joint->perpAxisY );
 		b3Vec3 perpZ = b3RotateVector( stateA->deltaRotation, joint->perpAxisZ );
 
-		b3Vec2 bias = { 0.0f, 0.0f };
-		float massScale = 1.0f;
-		float impulseScale = 0.0f;
+		b3Vec2 bias = { B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
+		b3Fixed massScale = B3_FIX( 1.0f );
+		b3Fixed impulseScale = B3_FIX( 0.0f );
 		if ( useBias )
 		{
 			b3Vec2 c = { b3Dot( perpY, d ), b3Dot( perpZ, d ) };
@@ -654,9 +654,9 @@ void b3SolvePrismaticJoint( b3JointSim* base, b3StepContext* context, bool useBi
 		b3Vec3 sAz = b3Cross( b3Add( rA, d ), perpZ );
 		b3Vec3 sBz = b3Cross( rB, perpZ );
 
-		float kyy = mA + mB + b3Dot( sAy, b3MulMV( iA, sAy ) ) + b3Dot( sBy, b3MulMV( iB, sBy ) );
-		float kyz = b3Dot( sAy, b3MulMV( iA, sAz ) ) + b3Dot( sBy, b3MulMV( iB, sBz ) );
-		float kzz = mA + mB + b3Dot( sAz, b3MulMV( iA, sAz ) ) + b3Dot( sBz, b3MulMV( iB, sBz ) );
+		b3Fixed kyy = mA + mB + b3Dot( sAy, b3MulMV( iA, sAy ) ) + b3Dot( sBy, b3MulMV( iB, sBy ) );
+		b3Fixed kyz = b3Dot( sAy, b3MulMV( iA, sAz ) ) + b3Dot( sBy, b3MulMV( iB, sBz ) );
+		b3Fixed kzz = mA + mB + b3Dot( sAz, b3MulMV( iA, sAz ) ) + b3Dot( sBz, b3MulMV( iB, sBz ) );
 
 		b3Matrix2 K = { { kyy, kyz }, { kyz, kzz } };
 
@@ -691,7 +691,7 @@ void b3SolvePrismaticJoint( b3JointSim* base, b3StepContext* context, bool useBi
 	}
 }
 
-void b3DrawPrismaticJoint( b3DebugDraw* draw, b3JointSim* base, b3WorldTransform transformA, b3WorldTransform transformB, float scale )
+void b3DrawPrismaticJoint( b3DebugDraw* draw, b3JointSim* base, b3WorldTransform transformA, b3WorldTransform transformB, b3Fixed scale )
 {
 	b3WorldTransform frameA = b3MulWorldTransforms( transformA, base->localFrameA );
 	b3WorldTransform frameB = b3MulWorldTransforms( transformB, base->localFrameB );
@@ -701,7 +701,7 @@ void b3DrawPrismaticJoint( b3DebugDraw* draw, b3JointSim* base, b3WorldTransform
 	b3Vec3 perpY = R.cy;
 	b3Vec3 perpZ = R.cz;
 
-	float s = 0.2f * scale;
+	b3Fixed s = b3FixMul( B3_FIX( 0.2f ) , scale );
 	draw->DrawSegmentFcn( frameA.p, b3OffsetPos( frameA.p, b3MulSV( s, perpY ) ), b3_colorGreen, draw->context );
 	draw->DrawSegmentFcn( frameA.p, b3OffsetPos( frameA.p, b3MulSV( s, perpZ ) ), b3_colorBlue, draw->context );
 
@@ -711,15 +711,15 @@ void b3DrawPrismaticJoint( b3DebugDraw* draw, b3JointSim* base, b3WorldTransform
 		b3Pos p1 = b3OffsetPos( frameA.p, b3MulSV( joint->lowerTranslation, axis ) );
 		b3Pos p2 = b3OffsetPos( frameA.p, b3MulSV( joint->upperTranslation, axis ) );
 		draw->DrawSegmentFcn( p1, p2, b3_colorOrange, draw->context );
-		draw->DrawPointFcn( p1, 10.0f, b3_colorGreen, draw->context );
-		draw->DrawPointFcn( p2, 10.0f, b3_colorRed, draw->context );
+		draw->DrawPointFcn( p1, B3_FIX( 10.0f ), b3_colorGreen, draw->context );
+		draw->DrawPointFcn( p2, B3_FIX( 10.0f ), b3_colorRed, draw->context );
 	}
 	else
 	{
-		b3Pos p1 = b3OffsetPos( frameA.p, b3MulSV( -0.5f * scale, axis ) );
-		b3Pos p2 = b3OffsetPos( frameA.p, b3MulSV( 0.5f * scale, axis ) );
+		b3Pos p1 = b3OffsetPos( frameA.p, b3MulSV( b3FixMul( -B3_FIX( 0.5f ) , scale ), axis ) );
+		b3Pos p2 = b3OffsetPos( frameA.p, b3MulSV( b3FixMul( B3_FIX( 0.5f ) , scale ), axis ) );
 		draw->DrawSegmentFcn( p1, p2, b3_colorOrange, draw->context );
 	}
 
-	draw->DrawPointFcn( frameB.p, 8.0f, b3_colorViolet, draw->context );
+	draw->DrawPointFcn( frameB.p, B3_FIX( 8.0f ), b3_colorViolet, draw->context );
 }

@@ -8,39 +8,39 @@
 #include "box3d/collision.h"
 #include "box3d/constants.h"
 
-b3MassData b3ComputeCapsuleMass( const b3Capsule* shape, float density )
+b3MassData b3ComputeCapsuleMass( const b3Capsule* shape, b3Fixed density )
 {
 	b3Vec3 c1 = shape->center1;
 	b3Vec3 c2 = shape->center2;
-	float r = shape->radius;
+	b3Fixed r = shape->radius;
 
 	// Cylinder
-	float cylinderHeight = b3Distance( c1, c2 );
-	float cylinderVolume = B3_PI * r * r * cylinderHeight;
-	float cylinderMass = cylinderVolume * density;
+	b3Fixed cylinderHeight = b3Distance( c1, c2 );
+	b3Fixed cylinderVolume = b3FixMul( b3FixMul( b3FixMul( B3_PI , r ) , r ) , cylinderHeight );
+	b3Fixed cylinderMass = b3FixMul( cylinderVolume , density );
 
 	// Sphere
-	float sphereVolume = ( 4.0f / 3.0f ) * B3_PI * r * r * r;
-	float sphereMass = sphereVolume * density;
+	b3Fixed sphereVolume = b3FixMul( b3FixMul( b3FixMul( b3FixMul( ( b3FixDiv( B3_FIX( 4.0f ) , B3_FIX( 3.0f ) ) ) , B3_PI ) , r ) , r ) , r );
+	b3Fixed sphereMass = b3FixMul( sphereVolume , density );
 
 	// Local accumulated inertia
 	b3Matrix3 inertia = b3AddMM( b3CylinderInertia( cylinderMass, r, cylinderHeight ), b3SphereInertia( sphereMass, r ) );
 
-	float steiner = 0.125f * sphereMass * ( 3.0f * r + 2.0f * cylinderHeight ) * cylinderHeight;
+	b3Fixed steiner = b3FixMul( b3FixMul( b3FixMul( B3_FIX( 0.125f ) , sphereMass ) , ( b3FixMul( B3_FIX( 3.0f ) , r ) + b3FixMul( B3_FIX( 2.0f ) , cylinderHeight ) ) ) , cylinderHeight );
 	inertia.cx.x += steiner;
 	inertia.cz.z += steiner;
 
 	// Align capsule axis with chosen up-axis
 	b3Matrix3 rotation = b3Mat3_identity;
-	if ( cylinderHeight * cylinderHeight > 1000.0f * FLT_MIN )
+	if ( cylinderHeight > 0 )
 	{
 		b3Vec3 direction = b3Normalize( b3Sub( c2, c1 ) );
 		b3Quat q = b3ComputeQuatBetweenUnitVectors( b3Vec3_axisY, direction );
 		rotation = b3MakeMatrixFromQuat( q );
 	}
 
-	float mass = sphereMass + cylinderMass;
-	b3Vec3 center = b3MulSV( 0.5f, b3Add( c1, c2 ) );
+	b3Fixed mass = sphereMass + cylinderMass;
+	b3Vec3 center = b3MulSV( B3_FIX( 0.5f ), b3Add( c1, c2 ) );
 
 	b3MassData out;
 	out.mass = mass;
@@ -54,7 +54,7 @@ b3MassData b3ComputeCapsuleMass( const b3Capsule* shape, float density )
 
 b3AABB b3ComputeCapsuleAABB( const b3Capsule* shape, b3Transform transform )
 {
-	float r = shape->radius;
+	b3Fixed r = shape->radius;
 
 	b3Vec3 center1 = b3TransformPoint( transform, shape->center1 );
 	b3Vec3 center2 = b3TransformPoint( transform, shape->center2 );
@@ -89,7 +89,7 @@ bool b3OverlapCapsule( const b3Capsule* shape, b3Transform shapeTransform, const
 	input.transform = b3InvMulTransforms( shapeTransform, b3Transform_identity );
 	input.useRadii = true;
 
-	b3SimplexCache cache = { 0 };
+	b3SimplexCache cache = { b3FixFromInt( 0 ) };
 	b3DistanceOutput output = b3ShapeDistance( &input, &cache, NULL, 0 );
 	return output.distance < B3_OVERLAP_SLOP;
 }
@@ -102,32 +102,75 @@ b3CastOutput b3RayCastCapsule( const b3Capsule* shape, const b3RayCastInput* inp
 
 	b3Vec3 c1 = shape->center1;
 	b3Vec3 c2 = shape->center2;
-	float r = shape->radius;
+	b3Fixed r = shape->radius;
 
 	// Initialize result structure
-	b3CastOutput output = { 0 };
+	b3CastOutput output = { b3FixFromInt( 0 ) };
 
 	b3Vec3 d = b3Sub( c2, c1 );
 
 	// Fall back to sphere if the capsule is short
-	float tol = 0.01f * B3_LINEAR_SLOP;
-	float lengthSquared = b3LengthSquared( d );
-	if ( lengthSquared < tol * tol )
+	b3Fixed tol = b3FixMul( B3_FIX( 0.01f ) , B3_LINEAR_SLOP );
+	b3Fixed lengthSquared = b3LengthSquared( d );
+	if ( lengthSquared < b3FixMul( tol , tol ) )
 	{
-		b3Vec3 sphereCenter = b3MulSV( 0.5f, b3Add( shape->center1, shape->center2 ) );
+		b3Vec3 sphereCenter = b3MulSV( B3_FIX( 0.5f ), b3Add( shape->center1, shape->center2 ) );
 		b3Sphere sphere = { sphereCenter, shape->radius };
 		return b3RayCastSphere( &sphere, input );
+	}
+
+	// A far-away origin carries coordinates whose magnitude swamps the precision of
+	// the cylinder quadratic below. Advance the ray to a padded bounding sphere of
+	// the capsule first, then solve from the nearby origin with small local values.
+	{
+		b3Fixed halfLength = b3FixMul( B3_FIX( 0.5f ), b3FixSqrt( lengthSquared ) );
+		b3Vec3 mid = b3MulSV( B3_FIX( 0.5f ), b3Add( c1, c2 ) );
+		b3Fixed boundRadius = halfLength + r + B3_FIX( 1.0f );
+		b3Fixed farThreshold = 8 * boundRadius + B3_FIX( 256.0f );
+
+		if ( b3Length( b3Sub( input->origin, mid ) ) > farThreshold )
+		{
+			b3Sphere bound = { mid, boundRadius };
+			b3CastOutput entry = b3RayCastSphere( &bound, input );
+			if ( entry.hit == false )
+			{
+				// The ray never comes near the capsule
+				return output;
+			}
+
+			b3Fixed t0 = entry.fraction;
+			b3Fixed remaining = B3_FIX( 1.0f ) - t0;
+			if ( input->maxFraction <= t0 || remaining <= 0 )
+			{
+				return output;
+			}
+
+			b3RayCastInput advanced;
+			advanced.origin = b3MulAdd( input->origin, t0, input->translation );
+			advanced.translation = b3MulSV( remaining, input->translation );
+			advanced.maxFraction = b3FixMin( b3FixDiv( input->maxFraction - t0, remaining ), B3_FIX( 1.0f ) );
+
+			// Single level of recursion: the advanced origin sits on the bounding
+			// sphere, inside the far threshold.
+			b3CastOutput nearOut = b3RayCastCapsule( shape, &advanced );
+			if ( nearOut.hit )
+			{
+				nearOut.fraction = b3FixClamp( t0 + b3FixMul( nearOut.fraction, remaining ), B3_FIX( 0.0f ), input->maxFraction );
+			}
+			return nearOut;
+		}
 	}
 
 	// Vector from first center to ray origin.
 	b3Vec3 s = b3Sub( input->origin, c1 );
 
-	// Capsule axis
-	float length = sqrtf( lengthSquared );
-	b3Vec3 axis = b3MulSV( 1.0f / length, d );
+	// Capsule axis. b3Normalize divides at full precision; a reciprocal-multiply
+	// normalization would cost several ulps that near-parallel rays cannot afford.
+	b3Fixed length = b3FixSqrt( lengthSquared );
+	b3Vec3 axis = b3Normalize( d );
 
 	// Project ray origin onto capsule axis.
-	float u = b3Dot( s, axis );
+	b3Fixed u = b3Dot( s, axis );
 
 	// Closest point on infinite capsule axis, relative to c1.
 	b3Vec3 c = b3MulSV( u, axis );
@@ -136,13 +179,13 @@ b3CastOutput b3RayCastCapsule( const b3Capsule* shape, const b3RayCastInput* inp
 	b3Vec3 sc = b3Sub( s, c );
 
 	// Squared distance from ray origin to capsule axis
-	float sc2 = b3LengthSquared( sc );
+	b3Fixed sc2 = b3LengthSquared( sc );
 
 	// Is the ray origin within the infinite cylinder along the capsule axis?
-	if ( sc2 < r * r )
+	if ( sc2 < b3FixMul( r , r ) )
 	{
 		// Clamped barycentric coordinate of ray origin projected onto capsule axis.
-		float uClamped = b3ClampFloat( u, 0.0f, length );
+		b3Fixed uClamped = b3FixClamp( u, B3_FIX( 0.0f ), length );
 
 		// The closest point on the bounded capsule segment, relative to c1.
 		b3Vec3 cp = b3MulSV( uClamped, axis );
@@ -151,10 +194,10 @@ b3CastOutput b3RayCastCapsule( const b3Capsule* shape, const b3RayCastInput* inp
 		b3Vec3 scp = b3Sub( s, cp );
 
 		// Squared distance of ray origin from capsule segment.
-		float scp2 = b3LengthSquared( scp );
+		b3Fixed scp2 = b3LengthSquared( scp );
 
 		// Is the ray origin within the capsule?
-		if ( scp2 < r * r )
+		if ( scp2 < b3FixMul( r , r ) )
 		{
 			output.hit = true;
 			output.point = input->origin;
@@ -173,15 +216,15 @@ b3CastOutput b3RayCastCapsule( const b3Capsule* shape, const b3RayCastInput* inp
 	// Ray axis. A zero length ray reaching here starts outside the capsule, so it misses.
 	// Same zero length convention as b3RayCastSphere.
 	b3Vec3 dr = input->translation;
-	float rayLength;
+	b3Fixed rayLength;
 	b3Vec3 rayAxis = b3GetLengthAndNormalize( &rayLength, dr );
-	if ( rayLength == 0.0f )
+	if ( rayLength == B3_FIX( 0.0f ) )
 	{
 		return output;
 	}
 
 	// Barycentric coordinate of ray end point.
-	float v = u + input->maxFraction * b3Dot( dr, axis );
+	b3Fixed v = u + b3FixMul( input->maxFraction , b3Dot( dr, axis ) );
 
 	// Early out: does the projected ray fall outside the capsule?
 	if ( ( u < -r && v < -r ) || ( length + r < u && length + r < v ) )
@@ -223,86 +266,84 @@ b3CastOutput b3RayCastCapsule( const b3Capsule* shape, const b3RayCastInput* inp
 
 	b3Vec3 a1 = axis;
 	b3Vec3 a2 = rayAxis;
-	float a12 = b3Dot( a1, a2 );
+	b3Fixed a12 = b3Dot( a1, a2 );
 
 	// Ray distance to the near intersection with the infinite cylinder. Length units.
-	float tr;
+	b3Fixed tr;
 
-	float det = 1.0f - a12 * a12;
-	if ( det < FLT_EPSILON )
+	// Intersect the ray with the infinite cylinder by solving the 2D quadratic in
+	// the plane perpendicular to the capsule axis: | sc + t * w |^2 = r^2, where w is
+	// the perpendicular part of the raw (unnormalized) translation. This form is
+	// valid for every ray direction and, evaluated at 128 bits, keeps precision for
+	// near-parallel rays (whose perpendicular drift is below the Q48.16 resolution
+	// once normalized) and for far-away origins alike.
 	{
-		// Solve the 2D problem of ray versus circle starting at the ray origin, where the circle is
-		// the axial view of the infinite capsule cylinder. This works well when the ray origin is
-		// not too far from the capsule axis.
+		// Perpendicular part of the full translation. Length units.
+		b3Fixed drDotAxis = b3Dot( dr, a1 );
+		b3Vec3 w = b3MulSub( dr, drDotAxis, a1 );
 
-		// Instead of a cross product, subtract the parallel part to get a perpendicular vector. Non-dimensional.
-		b3Vec3 perp = b3MulSub( a2, a12, a1 );
-		float perp2 = b3LengthSquared( perp );
+		// Q32.32 raw products at 128 bits
+		b3Int128 perp2 = (b3Int128)w.x * w.x + (b3Int128)w.y * w.y + (b3Int128)w.z * w.z;
+		b3Int128 beta = (b3Int128)sc.x * w.x + (b3Int128)sc.y * w.y + (b3Int128)sc.z * w.z;
+		b3Int128 gamma = ( (b3Int128)( sc2 - b3FixMul( r, r ) ) ) << 16; // Q32.32
 
-		// Project to origin to infinite capsule axis vector onto the perpendicular vector. beta has length units.
-		float beta = b3Dot( sc, perp );
-
-		// Setup quadratic root finder.
-		float gamma = sc2 - r * r;
-
-		// Discriminant
-		float disc = beta * beta - perp2 * gamma;
-
-		// Casting away from the axis, or the perpendicular gap never closes to the radius.
-		if ( beta >= 0.0f || disc < 0.0f )
+		// Casting away from the axis, or no perpendicular motion at all. The ray
+		// origin is outside the infinite cylinder here, so there is no hit.
+		if ( beta >= 0 || perp2 == 0 )
 		{
 			return output;
 		}
 
-		// Quadratic near root. Expressed in an alternate form to avoid the (-beta - sqrt) cancellation as
-		// the ray nears parallel.
-		tr = gamma / ( -beta + sqrtf( disc ) );
-	}
-	else
-	{
-		// Ray and capsules axes are not parallel.
-
-		// Closest points between the infinite ray and the infinite capsule axis.
-		float invDet = 1.0f / det;
-		float sa1 = u;
-		float sa2 = b3Dot( s, a2 );
-
-		float t1 = ( sa1 - a12 * sa2 ) * invDet;
-		float t2 = ( a12 * sa1 - sa2 ) * invDet;
-
-		// Closest points
-		b3Vec3 p1 = b3MulSV( t1, a1 );
-		b3Vec3 p2 = b3MulAdd( s, t2, a2 );
-
-		// Vector from closest point on infinite capsule to infinite ray.
-		b3Vec3 g = b3Sub( p2, p1 );
-
-		float g2 = b3LengthSquared( g );
-		if ( g2 > r * r )
+		// Shift the coefficients into a range where the discriminant fits in 128 bits.
+		// The shift cancels in the final ratio.
+		b3Int128 limit = (b3Int128)1 << 62;
+		while ( perp2 >= limit || -beta >= limit || gamma >= limit )
 		{
-			// Early out: closest point on infinite ray is outside infinite cylinder.
+			perp2 >>= 8;
+			beta >>= 8;
+			gamma >>= 8;
+		}
+
+		if ( perp2 == 0 )
+		{
 			return output;
 		}
 
-		// Intersect the infinite ray with the infinite cylinder. Like ray versus sphere this is done
-		// relative to the closest point to avoid round-off errors. Length units, not a fraction.
-		// https://en.wikipedia.org/wiki/Line-cylinder_intersection
-		float h = sqrtf( ( r * r - g2 ) * invDet );
+		// Discriminant in 128 bits
+		b3Int128 disc = beta * (int64_t)beta - perp2 * (int64_t)gamma;
+		if ( disc < 0 )
+		{
+			// The perpendicular gap never closes to the radius.
+			return output;
+		}
 
-		tr = t2 - h;
+		int64_t sqrtDisc = (int64_t)b3ISqrt128High( (uint64_t)( (unsigned __int128)disc >> 64 ), (uint64_t)disc );
+
+		// Quadratic near root as a fraction of the translation. Expressed in an
+		// alternate form to avoid the (-beta - sqrt) cancellation for near-parallel rays.
+		b3Int128 denom = -beta + sqrtDisc;
+		if ( denom <= 0 )
+		{
+			return output;
+		}
+
+		b3Int128 tFraction = ( gamma << 32 ) / denom; // Q32.32 fraction of dr, shift-independent
+
+		// Convert to length units along the normalized ray for the shared code below
+		tr = (b3Fixed)( ( tFraction * rayLength ) >> 32 );
 	}
 
 	// Outside ray?
-	if ( tr < 0.0f || input->maxFraction * rayLength < tr )
+	if ( tr < B3_FIX( 0.0f ) || b3FixMul( input->maxFraction , rayLength ) < tr )
 	{
 		return output;
 	}
 
 	// The corresponding distance on the capsule axis. Length units.
-	float tc = u + tr * a12;
+	b3Fixed tc = u + b3FixMul( tr , a12 );
 
 	// Outside c1 end?
-	if ( tc < 0.0f )
+	if ( tc < B3_FIX( 0.0f ) )
 	{
 		// Ray cast sphere 1.
 		b3Sphere sphere = {
@@ -334,7 +375,7 @@ b3CastOutput b3RayCastCapsule( const b3Capsule* shape, const b3RayCastInput* inp
 
 	output.point = b3Add( c1, p );
 	output.normal = normal;
-	output.fraction = b3ClampFloat( tr / rayLength, 0.0f, input->maxFraction );
+	output.fraction = b3FixClamp( b3FixDiv( tr , rayLength ), B3_FIX( 0.0f ), input->maxFraction );
 	output.hit = true;
 	return output;
 }
@@ -355,12 +396,12 @@ b3CastOutput b3ShapeCastCapsule( const b3Capsule* capsule, const b3ShapeCastInpu
 
 int b3CollideMoverAndCapsule( b3PlaneResult* result, const b3Capsule* shape, const b3Capsule* mover )
 {
-	float totalRadius = mover->radius + shape->radius;
+	b3Fixed totalRadius = mover->radius + shape->radius;
 
 	b3SegmentDistanceResult approach = b3SegmentDistance( shape->center1, shape->center2, mover->center1, mover->center2 );
 
 	// The normal points from the shape toward the mover.
-	float distance;
+	b3Fixed distance;
 	b3Vec3 normal = b3GetLengthAndNormalize( &distance, b3Sub( approach.point2, approach.point1 ) );
 
 	if ( distance > totalRadius )
@@ -368,15 +409,15 @@ int b3CollideMoverAndCapsule( b3PlaneResult* result, const b3Capsule* shape, con
 		return 0;
 	}
 
-	float linearSlop = B3_LINEAR_SLOP;
+	b3Fixed linearSlop = B3_LINEAR_SLOP;
 	if ( distance < linearSlop )
 	{
 		// Deep overlap: the core segments intersect. Pick an arbitrary direction perpendicular
 		// the to capsule axis.
-		float moverLength;
+		b3Fixed moverLength;
 		b3Vec3 moverAxis = b3GetLengthAndNormalize( &moverLength, b3Sub( mover->center2, mover->center1 ) );
 		normal = moverLength > linearSlop ? b3Perp( moverAxis ) : b3Vec3_axisY;
-		distance = 0.0f;
+		distance = B3_FIX( 0.0f );
 	}
 
 	b3Plane plane = { normal, totalRadius - distance };

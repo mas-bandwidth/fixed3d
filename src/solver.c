@@ -72,7 +72,7 @@ static void b3IntegrateVelocitiesTask( b3SolverBlock block, b3StepContext* conte
 	b3BodySim* sims = context->sims;
 
 	b3Vec3 gravity = context->world->gravity;
-	float h = context->h;
+	b3Fixed h = context->h;
 
 	for ( int i = block.startIndex; i < block.startIndex + block.count; ++i )
 	{
@@ -89,13 +89,13 @@ static void b3IntegrateVelocitiesTask( b3SolverBlock block, b3StepContext* conte
 		// v2 = exp(-c * dt) * v1
 		// Pade approximation:
 		// v2 = v1 * 1 / (1 + c * dt)
-		float linearDamping = 1.0f / ( 1.0f + h * sim->linearDamping );
-		float angularDamping = 1.0f / ( 1.0f + h * sim->angularDamping );
+		b3Fixed linearDamping = b3FixDiv( B3_FIX( 1.0f ) , ( B3_FIX( 1.0f ) + b3FixMul( h , sim->linearDamping ) ) );
+		b3Fixed angularDamping = b3FixDiv( B3_FIX( 1.0f ) , ( B3_FIX( 1.0f ) + b3FixMul( h , sim->angularDamping ) ) );
 
 		// Gravity scale will be zero for kinematic bodies
-		float gravityScale = sim->invMass > 0.0f ? sim->gravityScale : 0.0f;
+		b3Fixed gravityScale = sim->invMass > B3_FIX( 0.0f ) ? sim->gravityScale : B3_FIX( 0.0f );
 
-		b3Vec3 linearVelocityDelta = b3Blend2( h * sim->invMass, sim->force, h * gravityScale, gravity );
+		b3Vec3 linearVelocityDelta = b3Blend2( b3FixMul( h , sim->invMass ), sim->force, b3FixMul( h , gravityScale ), gravity );
 		v = b3MulAdd( linearVelocityDelta, linearDamping, v );
 
 		b3Vec3 angularVelocityDelta = b3MulSV( h, b3MulMV( sim->invInertiaWorld, sim->torque ) );
@@ -118,42 +118,42 @@ static void b3IntegrateVelocitiesTask( b3SolverBlock block, b3StepContext* conte
 			b3Vec3 omega2 = omega1;
 
 			// Symmetric inertia tensor: 6 unique entries (column-major)
-			const float i00 = inertiaLocal.cx.x;
-			const float i01 = inertiaLocal.cy.x;
-			const float i02 = inertiaLocal.cz.x;
-			const float i11 = inertiaLocal.cy.y;
-			const float i12 = inertiaLocal.cz.y;
-			const float i22 = inertiaLocal.cz.z;
+			const b3Fixed i00 = inertiaLocal.cx.x;
+			const b3Fixed i01 = inertiaLocal.cy.x;
+			const b3Fixed i02 = inertiaLocal.cz.x;
+			const b3Fixed i11 = inertiaLocal.cy.y;
+			const b3Fixed i12 = inertiaLocal.cz.y;
+			const b3Fixed i22 = inertiaLocal.cz.z;
 
 			for ( int gyroIteration = 0; gyroIteration < 1; ++gyroIteration )
 			{
-				const float w1 = omega2.x;
-				const float w2 = omega2.y;
-				const float w3 = omega2.z;
+				const b3Fixed w1 = omega2.x;
+				const b3Fixed w2 = omega2.y;
+				const b3Fixed w3 = omega2.z;
 
 				// Iw = I * omega2 (shared between residual and Jacobian)
-				const float Iw1 = i00 * w1 + i01 * w2 + i02 * w3;
-				const float Iw2 = i01 * w1 + i11 * w2 + i12 * w3;
-				const float Iw3 = i02 * w1 + i12 * w2 + i22 * w3;
+				const b3Fixed Iw1 = b3FixMul( i00 , w1 ) + b3FixMul( i01 , w2 ) + b3FixMul( i02 , w3 );
+				const b3Fixed Iw2 = b3FixMul( i01 , w1 ) + b3FixMul( i11 , w2 ) + b3FixMul( i12 , w3 );
+				const b3Fixed Iw3 = b3FixMul( i02 , w1 ) + b3FixMul( i12 , w2 ) + b3FixMul( i22 , w3 );
 
 				// Residual: b = I*(omega2 - omega1) + h * (omega2 × I*omega2)
 				const b3Vec3 dw = b3Sub( omega2, omega1 );
 				b3Vec3 b = {
-					i00 * dw.x + i01 * dw.y + i02 * dw.z + h * ( w2 * Iw3 - w3 * Iw2 ),
-					i01 * dw.x + i11 * dw.y + i12 * dw.z + h * ( w3 * Iw1 - w1 * Iw3 ),
-					i02 * dw.x + i12 * dw.y + i22 * dw.z + h * ( w1 * Iw2 - w2 * Iw1 ),
+					b3FixMul( i00 , dw.x ) + b3FixMul( i01 , dw.y ) + b3FixMul( i02 , dw.z ) + b3FixMul( h , ( b3FixMul( w2 , Iw3 ) - b3FixMul( w3 , Iw2 ) ) ),
+					b3FixMul( i01 , dw.x ) + b3FixMul( i11 , dw.y ) + b3FixMul( i12 , dw.z ) + b3FixMul( h , ( b3FixMul( w3 , Iw1 ) - b3FixMul( w1 , Iw3 ) ) ),
+					b3FixMul( i02 , dw.x ) + b3FixMul( i12 , dw.y ) + b3FixMul( i22 , dw.z ) + b3FixMul( h , ( b3FixMul( w1 , Iw2 ) - b3FixMul( w2 , Iw1 ) ) ),
 				};
 
 				// Jacobian J = I + h * (skew(omega2) * I - skew(I*omega2))
 				// Jacobian derived by Erin Catto, Ph.D. Do not attempt to do this without a Ph.D.
 				// Doubled inertia terms above fold into Iw, e.g. row 2 col 1: i00*w3 - i02*w1 - Iw3.
 				b3Matrix3 J = {
-					{ i00 + h * ( w2 * i02 - w3 * i01 ), i01 + h * ( w3 * i00 - w1 * i02 - Iw3 ),
-					  i02 + h * ( w1 * i01 - w2 * i00 + Iw2 ) },
-					{ i01 + h * ( w2 * i12 - w3 * i11 + Iw3 ), i11 + h * ( w3 * i01 - w1 * i12 ),
-					  i12 + h * ( w1 * i11 - w2 * i01 - Iw1 ) },
-					{ i02 + h * ( w2 * i22 - w3 * i12 - Iw2 ), i12 + h * ( w3 * i02 - w1 * i22 + Iw1 ),
-					  i22 + h * ( w1 * i12 - w2 * i02 ) },
+					{ i00 + b3FixMul( h , ( b3FixMul( w2 , i02 ) - b3FixMul( w3 , i01 ) ) ), i01 + b3FixMul( h , ( b3FixMul( w3 , i00 ) - b3FixMul( w1 , i02 ) - Iw3 ) ),
+					  i02 + b3FixMul( h , ( b3FixMul( w1 , i01 ) - b3FixMul( w2 , i00 ) + Iw2 ) ) },
+					{ i01 + b3FixMul( h , ( b3FixMul( w2 , i12 ) - b3FixMul( w3 , i11 ) + Iw3 ) ), i11 + b3FixMul( h , ( b3FixMul( w3 , i01 ) - b3FixMul( w1 , i12 ) ) ),
+					  i12 + b3FixMul( h , ( b3FixMul( w1 , i11 ) - b3FixMul( w2 , i01 ) - Iw1 ) ) },
+					{ i02 + b3FixMul( h , ( b3FixMul( w2 , i22 ) - b3FixMul( w3 , i12 ) - Iw2 ) ), i12 + b3FixMul( h , ( b3FixMul( w3 , i02 ) - b3FixMul( w1 , i22 ) + Iw1 ) ),
+					  i22 + b3FixMul( h , ( b3FixMul( w1 , i12 ) - b3FixMul( w2 , i02 ) ) ) },
 				};
 
 				omega2 = b3Sub( omega2, b3Solve3( J, b ) );
@@ -176,11 +176,11 @@ static void b3IntegratePositionsTask( b3SolverBlock block, b3StepContext* contex
 	B3_VALIDATE( block.startIndex + block.count <= context->world->solverSets.data[b3_awakeSet].bodyStates.count );
 
 	b3BodyState* states = context->states;
-	float h = context->h;
-	float maxLinearSpeed = context->maxLinearVelocity;
-	float maxAngularSpeed = B3_MAX_ROTATION * context->inv_dt;
-	float maxLinearSpeedSquared = maxLinearSpeed * maxLinearSpeed;
-	float maxAngularSpeedSquared = maxAngularSpeed * maxAngularSpeed;
+	b3Fixed h = context->h;
+	b3Fixed maxLinearSpeed = context->maxLinearVelocity;
+	b3Fixed maxAngularSpeed = b3FixMul( B3_MAX_ROTATION , context->inv_dt );
+	b3Fixed maxLinearSpeedSquared = b3FixMul( maxLinearSpeed , maxLinearSpeed );
+	b3Fixed maxAngularSpeedSquared = b3FixMul( maxAngularSpeed , maxAngularSpeed );
 
 	for ( int i = block.startIndex; i < block.startIndex + block.count; ++i )
 	{
@@ -190,17 +190,17 @@ static void b3IntegratePositionsTask( b3SolverBlock block, b3StepContext* contex
 		b3Vec3 w = state->angularVelocity;
 
 		// Motion locks - these can be viewed as a constraint that come last
-		v.x = ( state->flags & b3_lockLinearX ) ? 0.0f : v.x;
-		v.y = ( state->flags & b3_lockLinearY ) ? 0.0f : v.y;
-		v.z = ( state->flags & b3_lockLinearZ ) ? 0.0f : v.z;
-		w.x = ( state->flags & b3_lockAngularX ) ? 0.0f : w.x;
-		w.y = ( state->flags & b3_lockAngularY ) ? 0.0f : w.y;
-		w.z = ( state->flags & b3_lockAngularZ ) ? 0.0f : w.z;
+		v.x = ( state->flags & b3_lockLinearX ) ? B3_FIX( 0.0f ) : v.x;
+		v.y = ( state->flags & b3_lockLinearY ) ? B3_FIX( 0.0f ) : v.y;
+		v.z = ( state->flags & b3_lockLinearZ ) ? B3_FIX( 0.0f ) : v.z;
+		w.x = ( state->flags & b3_lockAngularX ) ? B3_FIX( 0.0f ) : w.x;
+		w.y = ( state->flags & b3_lockAngularY ) ? B3_FIX( 0.0f ) : w.y;
+		w.z = ( state->flags & b3_lockAngularZ ) ? B3_FIX( 0.0f ) : w.z;
 
 		// Clamp to max linear speed
 		if ( b3Dot( v, v ) > maxLinearSpeedSquared )
 		{
-			float ratio = maxLinearSpeed / b3Length( v );
+			b3Fixed ratio = b3FixDiv( maxLinearSpeed , b3Length( v ) );
 			v = b3MulSV( ratio, v );
 			state->flags |= b3_isSpeedCapped;
 		}
@@ -208,7 +208,7 @@ static void b3IntegratePositionsTask( b3SolverBlock block, b3StepContext* contex
 		// Clamp to max angular speed
 		if ( b3Dot( w, w ) > maxAngularSpeedSquared && ( state->flags & b3_allowFastRotation ) == 0 )
 		{
-			float ratio = maxAngularSpeed / b3Length( w );
+			b3Fixed ratio = b3FixDiv( maxAngularSpeed , b3Length( w ) );
 			w = b3MulSV( ratio, w );
 			state->flags |= b3_isSpeedCapped;
 		}
@@ -292,10 +292,10 @@ static void b3SolveJointsTask( b3SolverBlock block, b3StepContext* context, bool
 		b3JointSim* joint = joints + i;
 		b3SolveJoint( joint, context, useBias );
 
-		if ( useBias && ( joint->forceThreshold < FLT_MAX || joint->torqueThreshold < FLT_MAX ) &&
+		if ( useBias && ( joint->forceThreshold < B3_FIXED_MAX || joint->torqueThreshold < B3_FIXED_MAX ) &&
 			 b3GetBit( jointStateBitSet, joint->jointId ) == false )
 		{
-			float force, torque;
+			b3Fixed force, torque;
 			b3GetJointReaction( context->world, joint, context->inv_h, &force, &torque );
 
 			// Check thresholds. A zero threshold means all awake joints get reported.
@@ -319,11 +319,11 @@ typedef struct b3ContinuousContext
 	b3Shape* fastShape;
 	b3Vec3 centroid1, centroid2;
 	b3Sweep sweep;
-	// World base for re-centering sweeps. Keeps TOI in float precision far from the origin.
+	// World base for re-centering sweeps. Keeps TOI in b3Fixed precision far from the origin.
 	b3Pos base;
-	float fraction;
+	b3Fixed fraction;
 	b3SensorHit sensorHits[B2_MAX_CONTINUOUS_SENSOR_HITS];
-	float sensorFractions[B2_MAX_CONTINUOUS_SENSOR_HITS];
+	b3Fixed sensorFractions[B2_MAX_CONTINUOUS_SENSOR_HITS];
 	int sensorCount;
 
 	int visitCount;
@@ -436,7 +436,7 @@ static bool b3ContinuousQueryCallback( int proxyId, uint64_t userData, void* con
 			continuousContext->sensorCount += 1;
 		}
 	}
-	else if ( 0.0f < output.fraction && output.fraction < continuousContext->fraction )
+	else if ( B3_FIX( 0.0f ) < output.fraction && output.fraction < continuousContext->fraction )
 	{
 		bool didHit = true;
 
@@ -458,12 +458,12 @@ static bool b3ContinuousQueryCallback( int proxyId, uint64_t userData, void* con
 		}
 	}
 
-	float ms = b3GetMilliseconds( ticks );
-	if ( ms > 1000.0f * b3GetStallThreshold() )
+	b3Fixed ms = b3GetMilliseconds( ticks );
+	if ( ms > b3FixMul( B3_FIX( 1000.0f ) , b3GetStallThreshold() ) )
 	{
 		const char* nameFast = b3FindNameWithDefault( &world->names, fastBody->nameId, "NULL" );
 		const char* name = b3FindNameWithDefault( &world->names, body->nameId, "NULL" );
-		b3Log( "CCD stall: duration %.1f ms for %s versus %s", ms, nameFast, name );
+		b3Log( "CCD stall: duration %.1f ms for %s versus %s", b3FixToDouble( ms ), nameFast, name );
 	}
 
 	// Continue query
@@ -481,7 +481,7 @@ static void b3SolveContinuous( b3World* world, int bodySimIndex, b3TaskContext* 
 	b3BodySim* fastBodySim = b3Array_Get( awakeSet->bodySims, bodySimIndex );
 	B3_ASSERT( fastBodySim->flags & b3_isFast );
 
-	// Re-center the sweep on the fast body so the TOI and the swept query stay in float precision
+	// Re-center the sweep on the fast body so the TOI and the swept query stay in b3Fixed precision
 	b3Pos base = fastBodySim->center0;
 
 	b3Sweep sweep = b3MakeRelativeSweep( fastBodySim, base );
@@ -504,7 +504,7 @@ static void b3SolveContinuous( b3World* world, int bodySimIndex, b3TaskContext* 
 	context.sweep = sweep;
 	context.base = base;
 	context.fastBodySim = fastBodySim;
-	context.fraction = 1.0f;
+	context.fraction = B3_FIX( 1.0f );
 
 	bool isBullet = ( fastBodySim->flags & b3_isBullet ) != 0;
 
@@ -547,9 +547,9 @@ static void b3SolveContinuous( b3World* world, int bodySimIndex, b3TaskContext* 
 		}
 	}
 
-	const float speculativeScalar = B3_SPECULATIVE_DISTANCE;
+	const b3Fixed speculativeScalar = B3_SPECULATIVE_DISTANCE;
 
-	if ( context.fraction < 1.0f )
+	if ( context.fraction < B3_FIX( 1.0f ) )
 	{
 		// Handle time of impact event. The sweep is relative to the base, so re-add the base
 		// to return the advanced pose to world space.
@@ -583,7 +583,7 @@ static void b3SolveContinuous( b3World* world, int bodySimIndex, b3TaskContext* 
 
 			if ( b3AABB_Contains( shape->fatAABB, aabb ) == false )
 			{
-				float marginScalar = shape->aabbMargin;
+				b3Fixed marginScalar = shape->aabbMargin;
 				b3Vec3 aabbMargin = { marginScalar, marginScalar, marginScalar };
 				shape->fatAABB = (b3AABB){ b3Sub( aabb.lowerBound, aabbMargin ), b3Add( aabb.upperBound, aabbMargin ) };
 
@@ -612,7 +612,7 @@ static void b3SolveContinuous( b3World* world, int bodySimIndex, b3TaskContext* 
 
 			if ( b3AABB_Contains( shape->fatAABB, shape->aabb ) == false )
 			{
-				float marginScalar = shape->aabbMargin;
+				b3Fixed marginScalar = shape->aabbMargin;
 				b3Vec3 aabbMargin = { marginScalar, marginScalar, marginScalar };
 				shape->fatAABB = (b3AABB){
 					.lowerBound = b3Sub( shape->aabb.lowerBound, aabbMargin ),
@@ -641,15 +641,15 @@ static void b3SolveContinuous( b3World* world, int bodySimIndex, b3TaskContext* 
 	taskContext->pushBackIterations = b3MaxInt( taskContext->pushBackIterations, context.pushBackIterations );
 	taskContext->rootIterations = b3MaxInt( taskContext->rootIterations, context.rootIterations );
 
-	float ms = b3GetMilliseconds( ticks );
-	if ( ms > 1000.0f * b3GetStallThreshold() )
+	b3Fixed ms = b3GetMilliseconds( ticks );
+	if ( ms > b3FixMul( B3_FIX( 1000.0f ) , b3GetStallThreshold() ) )
 	{
 		const char* nameFast = b3FindNameWithDefault( &world->names, fastBody->nameId, "NULL" );
 		b3Vec3 c1 = sweep.c1;
 		b3Vec3 c2 = sweep.c2;
 		int vc = context.visitCount;
-		b3Log( "CCD stall: duration %.1f ms and visit count %d for %s: c1 = (%g, %g, %g), c2 = (%g, %g, %g)", ms, vc, nameFast,
-			   c1.x, c1.y, c1.z, c2.x, c2.y, c2.z );
+		b3Log( "CCD stall: duration %.1f ms and visit count %d for %s: c1 = (%g, %g, %g), c2 = (%g, %g, %g)", b3FixToDouble( ms ), vc, nameFast,
+			   b3FixToDouble( c1.x ), b3FixToDouble( c1.y ), b3FixToDouble( c1.z ), b3FixToDouble( c2.x ), b3FixToDouble( c2.y ), b3FixToDouble( c2.z ) );
 	}
 
 	b3TracyCZoneEnd( ccd );
@@ -670,8 +670,8 @@ static void b3FinalizeBodiesTask( int startIndex, int endIndex, int workerIndex,
 
 	bool enableSleep = world->enableSleep;
 	bool enableContinuous = world->enableContinuous;
-	float timeStep = stepContext->dt;
-	float invTimeStep = stepContext->inv_dt;
+	b3Fixed timeStep = stepContext->dt;
+	b3Fixed invTimeStep = stepContext->inv_dt;
 	uint16_t worldId = world->worldId;
 
 	// The body move event array has should already have the correct size
@@ -681,7 +681,7 @@ static void b3FinalizeBodiesTask( int startIndex, int endIndex, int workerIndex,
 	b3BitSet* enlargedSimBitSet = &taskContext->enlargedSimBitSet;
 	b3BitSet* awakeIslandBitSet = &taskContext->awakeIslandBitSet;
 
-	const float speculativeScalar = B3_SPECULATIVE_DISTANCE;
+	const b3Fixed speculativeScalar = B3_SPECULATIVE_DISTANCE;
 
 	for ( int simIndex = startIndex; simIndex < endIndex; ++simIndex )
 	{
@@ -707,17 +707,17 @@ static void b3FinalizeBodiesTask( int startIndex, int endIndex, int workerIndex,
 
 		// Use the velocity of the farthest point on the body to account for rotation.
 		b3Vec3 velocityArc = b3ModifiedCross( b3Abs( localOmega ), sim->maxExtent );
-		float maxVelocity = b3Length( v ) + b3Length( velocityArc );
+		b3Fixed maxVelocity = b3Length( v ) + b3Length( velocityArc );
 
 		// Sleep needs to observe position correction as well as true velocity.
 		// q = [sin(theta/2) * v, cos(theta/2)]
 		// for small angles abs(theta) ~= 2 * length(sin(theta/2) * v)
 		b3Vec3 rotationArc = b3ModifiedCross( b3Abs( localDeltaRotation ), sim->maxExtent );
-		float maxDeltaPosition = b3Length( state->deltaPosition ) + 2.0f * b3Length( rotationArc );
+		b3Fixed maxDeltaPosition = b3Length( state->deltaPosition ) + b3FixMul( B3_FIX( 2.0f ) , b3Length( rotationArc ) );
 
 		// Position correction is not as important for sleep as true velocity.
-		float positionSleepFactor = 0.5f;
-		float sleepVelocity = b3MaxFloat( maxVelocity, positionSleepFactor * invTimeStep * maxDeltaPosition );
+		b3Fixed positionSleepFactor = B3_FIX( 0.5f );
+		b3Fixed sleepVelocity = b3FixMax( maxVelocity, b3FixMul( b3FixMul( positionSleepFactor , invTimeStep ) , maxDeltaPosition ) );
 
 		// reset state deltas
 		state->deltaPosition = b3Vec3_zero;
@@ -752,11 +752,11 @@ static void b3FinalizeBodiesTask( int startIndex, int endIndex, int workerIndex,
 		if ( enableSleep == false || ( body->flags & b3_enableSleep ) == 0 || sleepVelocity > body->sleepThreshold )
 		{
 			// Body is not sleepy
-			body->sleepTime = 0.0f;
+			body->sleepTime = B3_FIX( 0.0f );
 
-			const float safetyFactor = 0.5f;
-			float maxMotion = b3MaxFloat( maxDeltaPosition, maxVelocity * timeStep );
-			if ( body->type == b3_dynamicBody && enableContinuous && maxMotion > safetyFactor * sim->minExtent )
+			const b3Fixed safetyFactor = B3_FIX( 0.5f );
+			b3Fixed maxMotion = b3FixMax( maxDeltaPosition, b3FixMul( maxVelocity , timeStep ) );
+			if ( body->type == b3_dynamicBody && enableContinuous && maxMotion > b3FixMul( safetyFactor , sim->minExtent ) )
 			{
 				// This flag is only retained for debug draw
 				sim->flags |= b3_isFast;
@@ -840,7 +840,7 @@ static void b3FinalizeBodiesTask( int startIndex, int endIndex, int workerIndex,
 
 				if ( b3AABB_Contains( shape->fatAABB, aabb ) == false )
 				{
-					float marginScalar = shape->aabbMargin;
+					b3Fixed marginScalar = shape->aabbMargin;
 					b3Vec3 aabbMargin = { marginScalar, marginScalar, marginScalar };
 					shape->fatAABB = (b3AABB){ b3Sub( aabb.lowerBound, aabbMargin ), b3Add( aabb.upperBound, aabbMargin ) };
 					shape->flags |= b3_enlargedAABB;
@@ -1877,7 +1877,7 @@ void b3Solve( b3World* world, b3StepContext* stepContext )
 			b3SetBitCountAndClear( &taskContext->enlargedSimBitSet, awakeBodyCount );
 			b3SetBitCountAndClear( &taskContext->awakeIslandBitSet, awakeIslandCount );
 			taskContext->splitIslandId = B3_NULL_INDEX;
-			taskContext->splitSleepTime = 0.0f;
+			taskContext->splitSleepTime = B3_FIX( 0.0f );
 		}
 
 		// Finalize bodies. Must happen after the constraint solver and after island splitting.
@@ -1985,7 +1985,7 @@ void b3Solve( b3World* world, b3StepContext* stepContext )
 				}
 			}
 
-			float threshold = world->hitEventThreshold;
+			b3Fixed threshold = world->hitEventThreshold;
 			b3Contact* contactArray = world->contacts.data;
 			uint16_t worldId = world->worldId;
 
@@ -2008,7 +2008,7 @@ void b3Solve( b3World* world, b3StepContext* stepContext )
 					b3Body* bodyB = b3Array_Get( world->bodies, shapeB->bodyId );
 					b3BodySim* simA = b3GetBodySim( world, bodyA );
 					b3BodySim* simB = b3GetBodySim( world, bodyB );
-					b3Pos midCenter = b3LerpPosition( simA->center, simB->center, 0.5f );
+					b3Pos midCenter = b3LerpPosition( simA->center, simB->center, B3_FIX( 0.5f ) );
 
 					b3ContactHitEvent event = { 0 };
 					event.approachSpeed = threshold;
@@ -2023,13 +2023,13 @@ void b3Solve( b3World* world, b3StepContext* stepContext )
 						for ( int p = 0; p < pointCount; ++p )
 						{
 							b3ManifoldPoint* mp = manifold->points + p;
-							float approachSpeed = -mp->normalVelocity;
+							b3Fixed approachSpeed = -mp->normalVelocity;
 
 							// Need to check total impulse because the point may be speculative and not colliding
-							if ( approachSpeed > event.approachSpeed && mp->totalNormalImpulse > 0.0f )
+							if ( approachSpeed > event.approachSpeed && mp->totalNormalImpulse > B3_FIX( 0.0f ) )
 							{
 								event.approachSpeed = approachSpeed;
-								event.point = b3OffsetPos( midCenter, b3Lerp( mp->anchorA, mp->anchorB, 0.5f ) );
+								event.point = b3OffsetPos( midCenter, b3Lerp( mp->anchorA, mp->anchorB, B3_FIX( 0.5f ) ) );
 								event.normal = manifold->normal;
 								triangleIndex = mp->triangleIndex;
 								found = true;
@@ -2278,13 +2278,13 @@ void b3Solve( b3World* world, b3StepContext* stepContext )
 
 		// Collect split island candidate for the next time step. No need to split if sleeping is disabled.
 		B3_ASSERT( world->splitIslandId == B3_NULL_INDEX );
-		float splitSleepTimer = 0.0f;
+		b3Fixed splitSleepTimer = B3_FIX( 0.0f );
 		for ( int i = 0; i < world->workerCount; ++i )
 		{
 			b3TaskContext* taskContext = world->taskContexts.data + i;
 			if ( taskContext->splitIslandId != B3_NULL_INDEX && taskContext->splitSleepTime >= splitSleepTimer )
 			{
-				B3_ASSERT( taskContext->splitSleepTime > 0.0f );
+				B3_ASSERT( taskContext->splitSleepTime > B3_FIX( 0.0f ) );
 
 				// Tie breaking for determinism. Largest island id wins. Needed due to work stealing.
 				if ( taskContext->splitSleepTime == splitSleepTimer && taskContext->splitIslandId < world->splitIslandId )

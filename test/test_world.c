@@ -22,14 +22,14 @@ int HelloWorld( void )
 {
 	// Construct a world object, which will hold and simulate the rigid bodies.
 	b3WorldDef worldDef = b3DefaultWorldDef();
-	worldDef.gravity = (b3Vec3){ 0.0f, -10.0f, 0.0f };
+	worldDef.gravity = (b3Vec3){ B3_FIX( 0.0f ), -B3_FIX( 10.0f ), B3_FIX( 0.0f ) };
 
 	b3WorldId worldId = b3CreateWorld( &worldDef );
 	ENSURE( b3World_IsValid( worldId ) );
 
 	// Define the ground body.
 	b3BodyDef groundBodyDef = b3DefaultBodyDef();
-	groundBodyDef.position = (b3Pos){ 0.0f, -10.0f, 0.0f };
+	groundBodyDef.position = (b3Pos){ B3_FIX( 0.0f ), -B3_FIX( 10.0f ), B3_FIX( 0.0f ) };
 
 	// Call the body factory which allocates memory for the ground body
 	// from a pool and creates the ground box shape (also from a pool).
@@ -38,7 +38,7 @@ int HelloWorld( void )
 	ENSURE( b3Body_IsValid( groundId ) );
 
 	// Define the ground box shape. The extents are the half-widths of the box.
-	b3BoxHull groundBox = b3MakeBoxHull( 50.0f, 10.0f, 50.0f );
+	b3BoxHull groundBox = b3MakeBoxHull( B3_FIX( 50.0f ), B3_FIX( 10.0f ), B3_FIX( 50.0f ) );
 
 	// Add the box shape to the ground body.
 	b3ShapeDef groundShapeDef = b3DefaultShapeDef();
@@ -47,21 +47,21 @@ int HelloWorld( void )
 	// Define the dynamic body. We set its position and call the body factory.
 	b3BodyDef bodyDef = b3DefaultBodyDef();
 	bodyDef.type = b3_dynamicBody;
-	bodyDef.position = (b3Pos){ 0.0f, 4.0f, 0.0f };
+	bodyDef.position = (b3Pos){ B3_FIX( 0.0f ), B3_FIX( 4.0f ), B3_FIX( 0.0f ) };
 
 	b3BodyId bodyId = b3CreateBody( worldId, &bodyDef );
 
 	// Define another box shape for our dynamic body.
-	b3BoxHull dynamicBox = b3MakeCubeHull( 1.0f );
+	b3BoxHull dynamicBox = b3MakeCubeHull( B3_FIX( 1.0f ) );
 
 	// Define the dynamic body shape
 	b3ShapeDef shapeDef = b3DefaultShapeDef();
 
 	// Set the box density to be non-zero, so it will be dynamic.
-	shapeDef.density = 1.0f;
+	shapeDef.density = B3_FIX( 1.0f );
 
 	// Override the default friction.
-	shapeDef.baseMaterial.friction = 0.3f;
+	shapeDef.baseMaterial.friction = B3_FIX( 0.3f );
 
 	// Add the shape to the body.
 	b3CreateHullShape( bodyId, &shapeDef, &dynamicBox.base );
@@ -69,7 +69,7 @@ int HelloWorld( void )
 	// Prepare for simulation. Typically we use a time step of 1/60 of a
 	// second (60Hz) and 4 sub-steps. This provides a high quality simulation
 	// in most game scenarios.
-	float timeStep = 1.0f / 60.0f;
+	b3Fixed timeStep = b3FixDiv( B3_FIX( 1.0f ) , B3_FIX( 60.0f ) );
 	int subStepCount = 4;
 
 	b3Pos position = b3Body_GetPosition( bodyId );
@@ -93,9 +93,9 @@ int HelloWorld( void )
 	// create orphaned ids, so be careful about your world management.
 	b3DestroyWorld( worldId );
 
-	ENSURE_SMALL( position.y - 1.00f, 0.01f );
-	ENSURE_SMALL( rotation.v.x, 0.01f );
-	ENSURE_SMALL( rotation.v.z, 0.01f );
+	ENSURE_SMALL( position.y - B3_FIX( 1.00f ), B3_FIX( 0.01f ) );
+	ENSURE_SMALL( rotation.v.x, B3_FIX( 0.01f ) );
+	ENSURE_SMALL( rotation.v.z, B3_FIX( 0.01f ) );
 
 	return 0;
 }
@@ -106,7 +106,7 @@ int EmptyWorld( void )
 	b3WorldId worldId = b3CreateWorld( &worldDef );
 	ENSURE( b3World_IsValid( worldId ) == true );
 
-	float timeStep = 1.0f / 60.0f;
+	b3Fixed timeStep = b3FixDiv( B3_FIX( 1.0f ) , B3_FIX( 60.0f ) );
 	int subStepCount = 1;
 
 	for ( int i = 0; i < 60; ++i )
@@ -134,7 +134,7 @@ int DestroyAllBodiesWorld( void )
 	b3BodyId bodyIds[BODY_COUNT];
 	b3BodyDef bodyDef = b3DefaultBodyDef();
 	bodyDef.type = b3_dynamicBody;
-	b3BoxHull cube = b3MakeCubeHull( 0.5f );
+	b3BoxHull cube = b3MakeCubeHull( B3_FIX( 0.5f ) );
 
 	for ( int i = 0; i < 2 * BODY_COUNT + 10; ++i )
 	{
@@ -160,7 +160,7 @@ int DestroyAllBodiesWorld( void )
 			count -= 1;
 		}
 
-		b3World_Step( worldId, 1.0f / 60.0f, 3 );
+		b3World_Step( worldId, b3FixDiv( B3_FIX( 1.0f ) , B3_FIX( 60.0f ) ), 3 );
 	}
 
 	b3Counters counters = b3World_GetCounters( worldId );
@@ -226,7 +226,7 @@ int TestWorldRecycle( void )
 
 		for ( int j = 0; j < WORLD_COUNT; ++j )
 		{
-			float timeStep = 1.0f / 60.0f;
+			b3Fixed timeStep = b3FixDiv( B3_FIX( 1.0f ) , B3_FIX( 60.0f ) );
 			int subStepCount = 1;
 
 			for ( int k = 0; k < 10; ++k )
@@ -282,20 +282,20 @@ int TestWorldCoverage( void )
 	flag = b3World_IsContinuousEnabled( worldId );
 	ENSURE( flag == true );
 
-	b3World_SetRestitutionThreshold( worldId, 0.0f );
-	b3World_SetRestitutionThreshold( worldId, 2.0f );
-	float value = b3World_GetRestitutionThreshold( worldId );
-	ENSURE( value == 2.0f );
+	b3World_SetRestitutionThreshold( worldId, B3_FIX( 0.0f ) );
+	b3World_SetRestitutionThreshold( worldId, B3_FIX( 2.0f ) );
+	b3Fixed value = b3World_GetRestitutionThreshold( worldId );
+	ENSURE( value == B3_FIX( 2.0f ) );
 
-	b3World_SetHitEventThreshold( worldId, 0.0f );
-	b3World_SetHitEventThreshold( worldId, 100.0f );
+	b3World_SetHitEventThreshold( worldId, B3_FIX( 0.0f ) );
+	b3World_SetHitEventThreshold( worldId, B3_FIX( 100.0f ) );
 	value = b3World_GetHitEventThreshold( worldId );
-	ENSURE( value == 100.0f );
+	ENSURE( value == B3_FIX( 100.0f ) );
 
 	b3World_SetCustomFilterCallback( worldId, CustomFilter, NULL );
 	b3World_SetPreSolveCallback( worldId, PreSolveStatic, NULL );
 
-	b3Vec3 g = { 1.0f, 2.0f };
+	b3Vec3 g = { B3_FIX( 1.0f ), B3_FIX( 2.0f ) };
 	b3World_SetGravity( worldId, g );
 	b3Vec3 v = b3World_GetGravity( worldId );
 	ENSURE( v.x == g.x );
@@ -304,11 +304,11 @@ int TestWorldCoverage( void )
 	b3ExplosionDef explosionDef = b3DefaultExplosionDef();
 	b3World_Explode( worldId, &explosionDef );
 
-	b3World_SetContactTuning( worldId, 10.0f, 2.0f, 4.0f );
+	b3World_SetContactTuning( worldId, B3_FIX( 10.0f ), B3_FIX( 2.0f ), B3_FIX( 4.0f ) );
 
-	b3World_SetMaximumLinearSpeed( worldId, 10.0f );
+	b3World_SetMaximumLinearSpeed( worldId, B3_FIX( 10.0f ) );
 	value = b3World_GetMaximumLinearSpeed( worldId );
-	ENSURE( value == 10.0f );
+	ENSURE( value == B3_FIX( 10.0f ) );
 
 	b3World_EnableWarmStarting( worldId, true );
 	flag = b3World_IsWarmStartingEnabled( worldId );
@@ -321,7 +321,7 @@ int TestWorldCoverage( void )
 	void* userData = b3World_GetUserData( worldId );
 	ENSURE( userData == &value );
 
-	b3World_Step( worldId, 1.0f, 1 );
+	b3World_Step( worldId, B3_FIX( 1.0f ), 1 );
 
 	b3DestroyWorld( worldId );
 
@@ -336,9 +336,9 @@ static int TestSensor( void )
 	// Wall from x = 1 to x = 2
 	b3BodyDef bodyDef = b3DefaultBodyDef();
 	bodyDef.type = b3_staticBody;
-	bodyDef.position = (b3Pos){ 1.5f, 11.0f, 0.0f };
+	bodyDef.position = (b3Pos){ B3_FIX( 1.5f ), B3_FIX( 11.0f ), B3_FIX( 0.0f ) };
 	b3BodyId wallId = b3CreateBody( worldId, &bodyDef );
-	b3BoxHull box = b3MakeBoxHull( 0.5f, 10.0f, 1.0f );
+	b3BoxHull box = b3MakeBoxHull( B3_FIX( 0.5f ), B3_FIX( 10.0f ), B3_FIX( 1.0f ) );
 	b3ShapeDef shapeDef = b3DefaultShapeDef();
 	shapeDef.enableSensorEvents = true;
 	b3CreateHullShape( wallId, &shapeDef, &box.base );
@@ -347,14 +347,14 @@ static int TestSensor( void )
 	bodyDef = b3DefaultBodyDef();
 	bodyDef.type = b3_dynamicBody;
 	bodyDef.isBullet = true;
-	bodyDef.gravityScale = 0.0f;
-	bodyDef.position = (b3Pos){ 7.39814f, 4.0f, 0.0f };
-	bodyDef.linearVelocity = (b3Vec3){ -20.0f, 0.0f, 0.0f };
+	bodyDef.gravityScale = B3_FIX( 0.0f );
+	bodyDef.position = (b3Pos){ B3_FIX( 7.39814f ), B3_FIX( 4.0f ), B3_FIX( 0.0f ) };
+	bodyDef.linearVelocity = (b3Vec3){ -B3_FIX( 20.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
 	b3BodyId bulletId = b3CreateBody( worldId, &bodyDef );
 	shapeDef = b3DefaultShapeDef();
 	shapeDef.isSensor = true;
 	shapeDef.enableSensorEvents = true;
-	b3Sphere sphere = { { 0.0f, 0.0f, 0.0f }, 0.1f };
+	b3Sphere sphere = { { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, B3_FIX( 0.1f ) };
 	b3CreateSphereShape( bulletId, &shapeDef, &sphere );
 
 	int beginCount = 0;
@@ -362,7 +362,7 @@ static int TestSensor( void )
 
 	while ( true )
 	{
-		float timeStep = 1.0f / 60.0f;
+		b3Fixed timeStep = b3FixDiv( B3_FIX( 1.0f ) , B3_FIX( 60.0f ) );
 		int subStepCount = 4;
 		b3World_Step( worldId, timeStep, subStepCount );
 
@@ -381,7 +381,7 @@ static int TestSensor( void )
 			endCount += 1;
 		}
 
-		if ( bulletPos.x < -1.0f )
+		if ( bulletPos.x < -B3_FIX( 1.0f ) )
 		{
 			break;
 		}
@@ -403,22 +403,22 @@ static int TestContactEvents( void )
 	// Static ground
 	b3BodyDef bodyDef = b3DefaultBodyDef();
 	bodyDef.type = b3_staticBody;
-	bodyDef.position = (b3Pos){ 0.0f, -0.5f, 0.0f };
+	bodyDef.position = (b3Pos){ B3_FIX( 0.0f ), -B3_FIX( 0.5f ), B3_FIX( 0.0f ) };
 	b3BodyId groundId = b3CreateBody( worldId, &bodyDef );
-	b3BoxHull groundBox = b3MakeBoxHull( 10.0f, 0.5f, 10.0f );
+	b3BoxHull groundBox = b3MakeBoxHull( B3_FIX( 10.0f ), B3_FIX( 0.5f ), B3_FIX( 10.0f ) );
 	b3ShapeDef groundShapeDef = b3DefaultShapeDef();
 	b3ShapeId groundShapeId = b3CreateHullShape( groundId, &groundShapeDef, &groundBox.base );
 
 	// Dynamic sphere dropped onto the ground; restitution causes it to bounce so we get end events
 	bodyDef = b3DefaultBodyDef();
 	bodyDef.type = b3_dynamicBody;
-	bodyDef.position = (b3Pos){ 0.0f, 5.0f, 0.0f };
+	bodyDef.position = (b3Pos){ B3_FIX( 0.0f ), B3_FIX( 5.0f ), B3_FIX( 0.0f ) };
 	b3BodyId sphereBodyId = b3CreateBody( worldId, &bodyDef );
 	b3ShapeDef shapeDef = b3DefaultShapeDef();
-	shapeDef.density = 1.0f;
+	shapeDef.density = B3_FIX( 1.0f );
 	shapeDef.enableContactEvents = true;
-	shapeDef.baseMaterial.restitution = 0.6f;
-	b3Sphere sphere = { { 0.0f, 0.0f, 0.0f }, 0.5f };
+	shapeDef.baseMaterial.restitution = B3_FIX( 0.6f );
+	b3Sphere sphere = { { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, B3_FIX( 0.5f ) };
 	b3ShapeId sphereShapeId = b3CreateSphereShape( sphereBodyId, &shapeDef, &sphere );
 
 	int beginCount = 0;
@@ -427,7 +427,7 @@ static int TestContactEvents( void )
 
 	for ( int i = 0; i < 120; ++i )
 	{
-		b3World_Step( worldId, 1.0f / 60.0f, 4 );
+		b3World_Step( worldId, b3FixDiv( B3_FIX( 1.0f ) , B3_FIX( 60.0f ) ), 4 );
 
 		b3ContactEvents events = b3World_GetContactEvents( worldId );
 
@@ -459,41 +459,41 @@ static int TestContactEvents( void )
 static int TestHitEvents( void )
 {
 	b3WorldDef worldDef = b3DefaultWorldDef();
-	worldDef.hitEventThreshold = 1.0f;
+	worldDef.hitEventThreshold = B3_FIX( 1.0f );
 	b3WorldId worldId = b3CreateWorld( &worldDef );
 
 	// Static ground
 	b3BodyDef bodyDef = b3DefaultBodyDef();
 	bodyDef.type = b3_staticBody;
-	bodyDef.position = (b3Pos){ 0.0f, -0.5f, 0.0f };
+	bodyDef.position = (b3Pos){ B3_FIX( 0.0f ), -B3_FIX( 0.5f ), B3_FIX( 0.0f ) };
 	b3BodyId groundId = b3CreateBody( worldId, &bodyDef );
-	b3BoxHull groundBox = b3MakeBoxHull( 10.0f, 0.5f, 10.0f );
+	b3BoxHull groundBox = b3MakeBoxHull( B3_FIX( 10.0f ), B3_FIX( 0.5f ), B3_FIX( 10.0f ) );
 	b3ShapeDef groundShapeDef = b3DefaultShapeDef();
 	b3CreateHullShape( groundId, &groundShapeDef, &groundBox.base );
 
 	// Sphere driven into the ground fast enough to clear the hit threshold
 	bodyDef = b3DefaultBodyDef();
 	bodyDef.type = b3_dynamicBody;
-	bodyDef.gravityScale = 0.0f;
-	bodyDef.position = (b3Pos){ 0.0f, 2.0f, 0.0f };
-	bodyDef.linearVelocity = (b3Vec3){ 0.0f, -30.0f, 0.0f };
+	bodyDef.gravityScale = B3_FIX( 0.0f );
+	bodyDef.position = (b3Pos){ B3_FIX( 0.0f ), B3_FIX( 2.0f ), B3_FIX( 0.0f ) };
+	bodyDef.linearVelocity = (b3Vec3){ B3_FIX( 0.0f ), -B3_FIX( 30.0f ), B3_FIX( 0.0f ) };
 	b3BodyId sphereBodyId = b3CreateBody( worldId, &bodyDef );
 	b3ShapeDef shapeDef = b3DefaultShapeDef();
-	shapeDef.density = 1.0f;
+	shapeDef.density = B3_FIX( 1.0f );
 	shapeDef.enableHitEvents = true;
 	shapeDef.baseMaterial.userMaterialId = 7;
-	b3Sphere sphere = { { 0.0f, 0.0f, 0.0f }, 0.5f };
+	b3Sphere sphere = { { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, B3_FIX( 0.5f ) };
 	b3CreateSphereShape( sphereBodyId, &shapeDef, &sphere );
 
 	int hitCount = 0;
-	float capturedSpeed = 0.0f;
+	b3Fixed capturedSpeed = B3_FIX( 0.0f );
 	uint64_t capturedMaterialA = 0;
 	uint64_t capturedMaterialB = 0;
-	b3Vec3 capturedNormal = { 0.0f, 0.0f, 0.0f };
+	b3Vec3 capturedNormal = { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
 
 	for ( int i = 0; i < 30; ++i )
 	{
-		b3World_Step( worldId, 1.0f / 60.0f, 4 );
+		b3World_Step( worldId, b3FixDiv( B3_FIX( 1.0f ) , B3_FIX( 60.0f ) ), 4 );
 
 		b3ContactEvents events = b3World_GetContactEvents( worldId );
 		if ( events.hitCount > 0 && hitCount == 0 )
@@ -511,10 +511,10 @@ static int TestHitEvents( void )
 	b3DestroyWorld( worldId );
 
 	ENSURE( hitCount >= 1 );
-	ENSURE( capturedSpeed > 1.0f );
+	ENSURE( capturedSpeed > B3_FIX( 1.0f ) );
 	// Head-on vertical impact: normal lies along Y
-	ENSURE_SMALL( capturedNormal.x, 0.01f );
-	ENSURE_SMALL( capturedNormal.z, 0.01f );
+	ENSURE_SMALL( capturedNormal.x, B3_FIX( 0.01f ) );
+	ENSURE_SMALL( capturedNormal.z, B3_FIX( 0.01f ) );
 	// One side of the contact carries the sphere's user material
 	ENSURE( capturedMaterialA == 7 || capturedMaterialB == 7 );
 
@@ -530,20 +530,20 @@ static int TestCompoundHitEvents( void )
 	const uint64_t kHullMaterialA = 11;
 	const uint64_t kHullMaterialB = 22;
 	const uint64_t kSphereMaterial = 99;
-	const float kHullCenterX = 3.0f;
+	const b3Fixed kHullCenterX = B3_FIX( 3.0f );
 
 	for ( int side = 0; side < 2; ++side )
 	{
 		uint64_t expectedHullMaterial = ( side == 0 ) ? kHullMaterialA : kHullMaterialB;
-		float spawnX = ( side == 0 ) ? -kHullCenterX : kHullCenterX;
+		b3Fixed spawnX = ( side == 0 ) ? -kHullCenterX : kHullCenterX;
 
 		b3WorldDef worldDef = b3DefaultWorldDef();
-		worldDef.hitEventThreshold = 1.0f;
+		worldDef.hitEventThreshold = B3_FIX( 1.0f );
 		b3WorldId worldId = b3CreateWorld( &worldDef );
 
 		// Build a compound with two hulls at opposite x positions, distinct userMaterialIds
-		b3BoxHull boxA = b3MakeBoxHull( 1.0f, 1.0f, 1.0f );
-		b3BoxHull boxB = b3MakeBoxHull( 1.0f, 1.0f, 1.0f );
+		b3BoxHull boxA = b3MakeBoxHull( B3_FIX( 1.0f ), B3_FIX( 1.0f ), B3_FIX( 1.0f ) );
+		b3BoxHull boxB = b3MakeBoxHull( B3_FIX( 1.0f ), B3_FIX( 1.0f ), B3_FIX( 1.0f ) );
 
 		b3SurfaceMaterial matA = b3DefaultSurfaceMaterial();
 		matA.userMaterialId = kHullMaterialA;
@@ -553,10 +553,10 @@ static int TestCompoundHitEvents( void )
 
 		b3CompoundHullDef hulls[2];
 		hulls[0].hull = &boxA.base;
-		hulls[0].transform = (b3Transform){ { -kHullCenterX, 0.0f, 0.0f }, b3Quat_identity };
+		hulls[0].transform = (b3Transform){ { -kHullCenterX, B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, b3Quat_identity };
 		hulls[0].material = matA;
 		hulls[1].hull = &boxB.base;
-		hulls[1].transform = (b3Transform){ { kHullCenterX, 0.0f, 0.0f }, b3Quat_identity };
+		hulls[1].transform = (b3Transform){ { kHullCenterX, B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, b3Quat_identity };
 		hulls[1].material = matB;
 
 		b3CompoundDef compoundDef = { 0 };
@@ -575,15 +575,15 @@ static int TestCompoundHitEvents( void )
 		// Sphere driven straight down onto the chosen child
 		bodyDef = b3DefaultBodyDef();
 		bodyDef.type = b3_dynamicBody;
-		bodyDef.gravityScale = 0.0f;
-		bodyDef.position = (b3Pos){ spawnX, 3.0f, 0.0f };
-		bodyDef.linearVelocity = (b3Vec3){ 0.0f, -30.0f, 0.0f };
+		bodyDef.gravityScale = B3_FIX( 0.0f );
+		bodyDef.position = (b3Pos){ spawnX, B3_FIX( 3.0f ), B3_FIX( 0.0f ) };
+		bodyDef.linearVelocity = (b3Vec3){ B3_FIX( 0.0f ), -B3_FIX( 30.0f ), B3_FIX( 0.0f ) };
 		b3BodyId sphereBodyId = b3CreateBody( worldId, &bodyDef );
 		b3ShapeDef sphereShapeDef = b3DefaultShapeDef();
-		sphereShapeDef.density = 1.0f;
+		sphereShapeDef.density = B3_FIX( 1.0f );
 		sphereShapeDef.enableHitEvents = true;
 		sphereShapeDef.baseMaterial.userMaterialId = kSphereMaterial;
-		b3Sphere sphere = { { 0.0f, 0.0f, 0.0f }, 0.5f };
+		b3Sphere sphere = { { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, B3_FIX( 0.5f ) };
 		b3CreateSphereShape( sphereBodyId, &sphereShapeDef, &sphere );
 
 		int hitCount = 0;
@@ -592,7 +592,7 @@ static int TestCompoundHitEvents( void )
 
 		for ( int i = 0; i < 30; ++i )
 		{
-			b3World_Step( worldId, 1.0f / 60.0f, 4 );
+			b3World_Step( worldId, b3FixDiv( B3_FIX( 1.0f ) , B3_FIX( 60.0f ) ), 4 );
 
 			b3ContactEvents events = b3World_GetContactEvents( worldId );
 			if ( events.hitCount > 0 && hitCount == 0 )
@@ -670,7 +670,7 @@ static int TestMeshDrop( void )
 
 	MeshDropData data = CreateMeshDrop( worldId, b3Pos_zero );
 
-	float timeStep = 1.0f / 60.0f;
+	b3Fixed timeStep = b3FixDiv( B3_FIX( 1.0f ) , B3_FIX( 60.0f ) );
 
 	int stepIndex = 0;
 	int stepLimit = 400;
@@ -715,7 +715,7 @@ static int TestOverflowColorPile( void )
 	OverflowColorPileData data = CreateOverflowColorPile( worldId );
 	(void)data;
 
-	float timeStep = 1.0f / 60.0f;
+	b3Fixed timeStep = b3FixDiv( B3_FIX( 1.0f ) , B3_FIX( 60.0f ) );
 	int subStepCount = 4;
 
 	// One step would be enough to trip the asserts, but several steps also
@@ -761,7 +761,7 @@ static int EnableSleepFlagSyncTest( void )
 	b3Body_EnableSleep( bodyId, true );
 	ENSURE( b3Body_IsSleepEnabled( bodyId ) == true );
 
-	b3World_Step( worldId, 1.0f / 60.0f, 4 );
+	b3World_Step( worldId, b3FixDiv( B3_FIX( 1.0f ) , B3_FIX( 60.0f ) ), 4 );
 
 	b3DestroyWorld( worldId );
 	return 0;
@@ -872,7 +872,7 @@ static int EnableContactRecyclingTest( void )
 	ENSURE( b3Body_IsContactRecyclingEnabled( bodyB ) == false );
 
 	// Stepping after toggling must not trip the flag-sync validator
-	b3World_Step( worldId, 1.0f / 60.0f, 4 );
+	b3World_Step( worldId, b3FixDiv( B3_FIX( 1.0f ) , B3_FIX( 60.0f ) ), 4 );
 
 	b3DestroyWorld( worldId );
 	return 0;
@@ -884,7 +884,7 @@ static int TestHullDatabase( void )
 	b3WorldDef worldDef = b3DefaultWorldDef();
 	b3WorldId worldId = b3CreateWorld( &worldDef );
 
-	b3BoxHull box = b3MakeBoxHull( 0.5f, 0.5f, 0.5f );
+	b3BoxHull box = b3MakeBoxHull( B3_FIX( 0.5f ), B3_FIX( 0.5f ), B3_FIX( 0.5f ) );
 
 	b3BodyDef bodyDef = b3DefaultBodyDef();
 	bodyDef.type = b3_dynamicBody;
@@ -908,14 +908,14 @@ static int TestHullDatabase( void )
 
 	// A box built on an independent stack frame must de-duplicate to the same shared copy.
 	// This holds only if content hashing sees deterministic padding bytes.
-	b3BoxHull box2 = b3MakeBoxHull( 0.5f, 0.5f, 0.5f );
+	b3BoxHull box2 = b3MakeBoxHull( B3_FIX( 0.5f ), B3_FIX( 0.5f ), B3_FIX( 0.5f ) );
 	b3BodyId bodyC = b3CreateBody( worldId, &bodyDef );
 	b3ShapeId shapeC = b3CreateHullShape( bodyC, &shapeDef, &box2.base );
 	ENSURE( b3Shape_GetHull( shapeC ) == gotA );
 	b3DestroyShape( shapeC, true );
 
 	// Setting a shape's hull to its own sole shared copy must not free it mid update.
-	b3BoxHull box3 = b3MakeBoxHull( 0.3f, 0.3f, 0.3f );
+	b3BoxHull box3 = b3MakeBoxHull( B3_FIX( 0.3f ), B3_FIX( 0.3f ), B3_FIX( 0.3f ) );
 	b3BodyId bodyD = b3CreateBody( worldId, &bodyDef );
 	b3ShapeId shapeD = b3CreateHullShape( bodyD, &shapeDef, &box3.base );
 	const b3HullData* gotD = b3Shape_GetHull( shapeD );
@@ -955,16 +955,16 @@ static ExplosionResult RunExplosion( b3Pos base )
 	bodyDef.position = base;
 	b3BodyId bodyId = b3CreateBody( worldId, &bodyDef );
 
-	b3Sphere sphere = { b3Vec3_zero, 1.0f };
+	b3Sphere sphere = { b3Vec3_zero, B3_FIX( 1.0f ) };
 	b3ShapeDef shapeDef = b3DefaultShapeDef();
 	b3CreateSphereShape( bodyId, &shapeDef, &sphere );
 
 	// Blast sits 3 units along +x, so the body is pushed back along -x
 	b3ExplosionDef explosionDef = b3DefaultExplosionDef();
-	explosionDef.position = b3OffsetPos( base, (b3Vec3){ 3.0f, 0.0f, 0.0f } );
-	explosionDef.radius = 5.0f;
-	explosionDef.falloff = 0.0f;
-	explosionDef.impulsePerArea = 10.0f;
+	explosionDef.position = b3OffsetPos( base, (b3Vec3){ B3_FIX( 3.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) } );
+	explosionDef.radius = B3_FIX( 5.0f );
+	explosionDef.falloff = B3_FIX( 0.0f );
+	explosionDef.impulsePerArea = B3_FIX( 10.0f );
 	b3World_Explode( worldId, &explosionDef );
 
 	ExplosionResult result;
@@ -980,17 +980,17 @@ static int TestExplosion( void )
 	ExplosionResult origin = RunExplosion( b3Pos_zero );
 
 	// Pushed away from the blast along -x. A centered sphere has no transverse or angular component.
-	ENSURE( origin.linearVelocity.x < -1.0e-4f );
-	ENSURE_SMALL( origin.linearVelocity.y, 1.0e-6f );
-	ENSURE_SMALL( origin.linearVelocity.z, 1.0e-6f );
-	ENSURE_SMALL( b3Length( origin.angularVelocity ), 1.0e-6f );
+	ENSURE( origin.linearVelocity.x < -B3_FIX( 1.0e-4f ) );
+	ENSURE_SMALL( origin.linearVelocity.y, 8 * B3_FIXED_EPSILON );
+	ENSURE_SMALL( origin.linearVelocity.z, 8 * B3_FIXED_EPSILON );
+	ENSURE_SMALL( b3Length( origin.angularVelocity ), 8 * B3_FIXED_EPSILON );
 
 	// The same blast far from the origin must produce the same impulse. The world position only
-	// reaches float in the relative difference, so the result holds where a naive cast would not.
-	ExplosionResult far = RunExplosion( (b3Pos){ 1.0e7f, 1.0e7f, 1.0e7f } );
-	ENSURE_SMALL( far.linearVelocity.x - origin.linearVelocity.x, 1.0e-5f );
-	ENSURE_SMALL( far.linearVelocity.y - origin.linearVelocity.y, 1.0e-5f );
-	ENSURE_SMALL( far.linearVelocity.z - origin.linearVelocity.z, 1.0e-5f );
+	// reaches b3Fixed in the relative difference, so the result holds where a naive cast would not.
+	ExplosionResult far = RunExplosion( (b3Pos){ B3_FIX( 1.0e7f ), B3_FIX( 1.0e7f ), B3_FIX( 1.0e7f ) } );
+	ENSURE_SMALL( far.linearVelocity.x - origin.linearVelocity.x, 8 * B3_FIXED_EPSILON );
+	ENSURE_SMALL( far.linearVelocity.y - origin.linearVelocity.y, 8 * B3_FIXED_EPSILON );
+	ENSURE_SMALL( far.linearVelocity.z - origin.linearVelocity.z, 8 * B3_FIXED_EPSILON );
 
 	return 0;
 }
@@ -1005,25 +1005,25 @@ static int TestContinuousMoveEvent( void )
 	// Thin static wall, near face at x = 0.1
 	b3BodyDef bodyDef = b3DefaultBodyDef();
 	bodyDef.type = b3_staticBody;
-	bodyDef.position = (b3Pos){ 0.0f, 0.0f, 0.0f };
+	bodyDef.position = (b3Pos){ B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
 	b3BodyId wallId = b3CreateBody( worldId, &bodyDef );
-	b3BoxHull wallBox = b3MakeBoxHull( 0.1f, 5.0f, 5.0f );
+	b3BoxHull wallBox = b3MakeBoxHull( B3_FIX( 0.1f ), B3_FIX( 5.0f ), B3_FIX( 5.0f ) );
 	b3ShapeDef shapeDef = b3DefaultShapeDef();
 	b3CreateHullShape( wallId, &shapeDef, &wallBox.base );
 
 	// Fast dynamic sphere fired at the wall.
 	bodyDef = b3DefaultBodyDef();
 	bodyDef.type = b3_dynamicBody;
-	bodyDef.gravityScale = 0.0f;
-	bodyDef.position = (b3Pos){ 3.0f, 0.0f, 0.0f };
-	bodyDef.linearVelocity = (b3Vec3){ -30.0f, 0.0f, 0.0f };
+	bodyDef.gravityScale = B3_FIX( 0.0f );
+	bodyDef.position = (b3Pos){ B3_FIX( 3.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
+	bodyDef.linearVelocity = (b3Vec3){ -B3_FIX( 30.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
 	b3BodyId ballId = b3CreateBody( worldId, &bodyDef );
 	shapeDef = b3DefaultShapeDef();
-	shapeDef.density = 1.0f;
-	b3Sphere sphere = { { 0.0f, 0.0f, 0.0f }, 0.25f };
+	shapeDef.density = B3_FIX( 1.0f );
+	b3Sphere sphere = { { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, B3_FIX( 0.25f ) };
 	b3CreateSphereShape( ballId, &shapeDef, &sphere );
 
-	float timeStep = 1.0f / 60.0f;
+	b3Fixed timeStep = b3FixDiv( B3_FIX( 1.0f ) , B3_FIX( 60.0f ) );
 	int subStepCount = 4;
 	bool haveMove = false;
 
@@ -1059,7 +1059,7 @@ static int TestContinuousMoveEvent( void )
 
 	// Tunnel check
 	b3Pos finalPos = b3Body_GetPosition( ballId );
-	ENSURE( 0.2f < finalPos.x && finalPos.x < 0.8f );
+	ENSURE( B3_FIX( 0.2f ) < finalPos.x && finalPos.x < B3_FIX( 0.8f ) );
 
 	b3DestroyWorld( worldId );
 

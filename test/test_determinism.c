@@ -14,15 +14,10 @@
 	#define TracyCFrameMark
 #endif
 
-// Double precision accumulates body positions in double, so the settle/sleep step and the
-// state hash differ from the float build. Both modes are internally deterministic.
-#if defined( BOX3D_DOUBLE_PRECISION )
-#define EXPECTED_SLEEP_STEP 301
-#define EXPECTED_HASH 0xE4844A97
-#else
-#define EXPECTED_SLEEP_STEP 269
-#define EXPECTED_HASH 0x50313037
-#endif
+// Golden values for the fixed-point build. Fixed-point math is exactly
+// reproducible across platforms and worker counts, so these hold everywhere.
+#define EXPECTED_SLEEP_STEP 292
+#define EXPECTED_HASH 0x75185B9B
 
 static int SingleMultithreadingTest( int workerCount )
 {
@@ -33,7 +28,7 @@ static int SingleMultithreadingTest( int workerCount )
 
 	FallingRagdollData data = CreateFallingRagdolls( worldId );
 
-	float timeStep = 1.0f / 60.0f;
+	b3Fixed timeStep = b3FixDiv( B3_FIX( 1.0f ) , B3_FIX( 60.0f ) );
 
 	int stepLimit = 500;
 	for ( int i = 0; i < stepLimit; ++i )
@@ -84,7 +79,7 @@ static int CrossPlatformTest( void )
 
 	FallingRagdollData data = CreateFallingRagdolls( worldId );
 
-	float timeStep = 1.0f / 60.0f;
+	b3Fixed timeStep = b3FixDiv( B3_FIX( 1.0f ) , B3_FIX( 60.0f ) );
 
 	bool done = false;
 	while ( done == false )

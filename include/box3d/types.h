@@ -51,13 +51,13 @@ typedef void b3DestroyDebugShapeCallback( void* userShape, void* userContext );
 /// from a worker thread.
 /// @warning This function should not attempt to modify Box3D state or user application state.
 /// @ingroup world
-typedef float b3FrictionCallback( float frictionA, uint64_t userMaterialIdA, float frictionB, uint64_t userMaterialIdB );
+typedef b3Fixed b3FrictionCallback( b3Fixed frictionA, uint64_t userMaterialIdA, b3Fixed frictionB, uint64_t userMaterialIdB );
 
 /// Optional restitution mixing callback. This intentionally provides no context objects because this is called
 /// from a worker thread.
 /// @warning This function should not attempt to modify Box3D state or user application state.
 /// @ingroup world
-typedef float b3RestitutionCallback( float restitutionA, uint64_t userMaterialIdA, float restitutionB, uint64_t userMaterialIdB );
+typedef b3Fixed b3RestitutionCallback( b3Fixed restitutionA, uint64_t userMaterialIdA, b3Fixed restitutionB, uint64_t userMaterialIdB );
 
 /// Prototype for a contact filter callback.
 /// This is called when a contact pair is considered for collision. This allows you to
@@ -96,7 +96,7 @@ typedef bool b3OverlapResultFcn( b3ShapeId shapeId, void* context );
 
 /// Prototype callback for ray casts.
 /// Called for each shape found in the query. You control how the ray cast
-/// proceeds by returning a float:
+/// proceeds by returning a b3Fixed:
 /// return -1: ignore this shape and continue
 /// return 0: terminate the ray cast
 /// return fraction: clip the ray to this point
@@ -112,7 +112,7 @@ typedef bool b3OverlapResultFcn( b3ShapeId shapeId, void* context );
 /// @return -1 to filter, 0 to terminate, fraction to clip the ray for closest hit, 1 to continue
 /// @see b3World_CastRay
 /// @ingroup world
-typedef float b3CastResultFcn( b3ShapeId shapeId, b3Pos point, b3Vec3 normal, float fraction, uint64_t userMaterialId,
+typedef b3Fixed b3CastResultFcn( b3ShapeId shapeId, b3Pos point, b3Vec3 normal, b3Fixed fraction, uint64_t userMaterialId,
 							   int triangleIndex, int childIndex, void* context );
 
 /// Optional world capacities that can be use to avoid run-time allocations
@@ -144,26 +144,26 @@ typedef struct b3WorldDef
 
 	/// Restitution speed threshold, usually in m/s. Collisions above this
 	/// speed have restitution applied (will bounce).
-	float restitutionThreshold;
+	b3Fixed restitutionThreshold;
 
 	/// Hit event speed threshold, usually in m/s. Collisions above this
 	/// speed can generate hit events if the shape also enables hit events.
-	float hitEventThreshold;
+	b3Fixed hitEventThreshold;
 
 	/// Contact stiffness. Cycles per second. Increasing this increases the speed of overlap recovery, but can introduce jitter.
-	float contactHertz;
+	b3Fixed contactHertz;
 
 	/// Contact bounciness. Non-dimensional. You can speed up overlap recovery by decreasing this with
 	/// the trade-off that overlap resolution becomes more energetic.
-	float contactDampingRatio;
+	b3Fixed contactDampingRatio;
 
 	/// This parameter controls how fast overlap is resolved and usually has units of meters per second. This only
 	/// puts a cap on the resolution speed. The resolution speed is increased by increasing the hertz and/or
 	/// decreasing the damping ratio.
-	float contactSpeed;
+	b3Fixed contactSpeed;
 
 	/// Maximum linear speed. Usually meters per second.
-	float maximumLinearSpeed;
+	b3Fixed maximumLinearSpeed;
 
 	/// Optional mixing callback for friction. The default uses sqrt(frictionA * frictionB).
 	b3FrictionCallback* frictionCallback;
@@ -288,19 +288,19 @@ typedef struct b3BodyDef
 	/// time step when the damping parameter is large.
 	/// Generally linear damping is undesirable because it makes objects move slowly
 	/// as if they are floating.
-	float linearDamping;
+	b3Fixed linearDamping;
 
 	/// Angular damping is used to reduce the angular velocity. The damping parameter
 	/// can be larger than 1.0f but the damping effect becomes sensitive to the
 	/// time step when the damping parameter is large.
 	/// Angular damping can be used to slow down rotating bodies.
-	float angularDamping;
+	b3Fixed angularDamping;
 
 	/// Scale the gravity applied to this body. Non-dimensional.
-	float gravityScale;
+	b3Fixed gravityScale;
 
 	/// Sleep speed threshold, default is 0.05 meters per second
-	float sleepThreshold;
+	b3Fixed sleepThreshold;
 
 	/// Optional body name for debugging.
 	const char* name;
@@ -398,14 +398,14 @@ B3_API b3Filter b3DefaultFilter( void );
 typedef struct b3SurfaceMaterial
 {
 	/// The Coulomb (dry) friction coefficient, usually in the range [0,1].
-	float friction;
+	b3Fixed friction;
 
 	/// The coefficient of restitution (bounce) usually in the range [0,1].
 	/// https://en.wikipedia.org/wiki/Coefficient_of_restitution
-	float restitution;
+	b3Fixed restitution;
 
 	/// The rolling resistance usually in the range [0,1]. This is only used for spheres and capsules.
-	float rollingResistance;
+	b3Fixed rollingResistance;
 
 	/// The tangent velocity for conveyor belts. This is local to the shape and will be projected
 	/// onto the contact surface.
@@ -471,10 +471,10 @@ typedef struct b3ShapeDef
 	b3SurfaceMaterial baseMaterial;
 
 	/// The density, usually in kg/m^3.
-	float density;
+	b3Fixed density;
 
 	/// Explosion scale for b3World_Explode. non-dimensional
-	float explosionScale;
+	b3Fixed explosionScale;
 
 	/// Contact filtering data.
 	b3Filter filter;
@@ -530,29 +530,29 @@ B3_API b3ShapeDef b3DefaultShapeDef( void );
 /// @ingroup world
 typedef struct b3Profile
 {
-	float step;
-	float pairs;
-	float collide;
-	float solve;
-	float solverSetup;
-	float constraints;
-	float prepareConstraints;
-	float integrateVelocities;
-	float warmStart;
-	float solveImpulses;
-	float integratePositions;
-	float relaxImpulses;
-	float applyRestitution;
-	float storeImpulses;
-	float splitIslands;
-	float transforms;
-	float sensorHits;
-	float jointEvents;
-	float hitEvents;
-	float refit;
-	float bullets;
-	float sleepIslands;
-	float sensors;
+	b3Fixed step;
+	b3Fixed pairs;
+	b3Fixed collide;
+	b3Fixed solve;
+	b3Fixed solverSetup;
+	b3Fixed constraints;
+	b3Fixed prepareConstraints;
+	b3Fixed integrateVelocities;
+	b3Fixed warmStart;
+	b3Fixed solveImpulses;
+	b3Fixed integratePositions;
+	b3Fixed relaxImpulses;
+	b3Fixed applyRestitution;
+	b3Fixed storeImpulses;
+	b3Fixed splitIslands;
+	b3Fixed transforms;
+	b3Fixed sensorHits;
+	b3Fixed jointEvents;
+	b3Fixed hitEvents;
+	b3Fixed refit;
+	b3Fixed bullets;
+	b3Fixed sleepIslands;
+	b3Fixed sensors;
 } b3Profile;
 
 /// Counters that give details of the simulation size.
@@ -628,19 +628,19 @@ typedef struct b3JointDef
 	b3Transform localFrameB;
 
 	/// Force threshold for joint events
-	float forceThreshold;
+	b3Fixed forceThreshold;
 
 	/// Torque threshold for joint events
-	float torqueThreshold;
+	b3Fixed torqueThreshold;
 
 	/// Constraint hertz (advanced feature)
-	float constraintHertz;
+	b3Fixed constraintHertz;
 
 	/// Constraint damping ratio (advanced feature)
-	float constraintDampingRatio;
+	b3Fixed constraintDampingRatio;
 
 	/// Debug draw scale
-	float drawScale;
+	b3Fixed drawScale;
 
 	/// Set this flag to true if the attached bodies should collide
 	bool collideConnected;
@@ -659,41 +659,41 @@ typedef struct b3DistanceJointDef
 	b3JointDef base;
 
 	/// The rest length of this joint. Clamped to a stable minimum value.
-	float length;
+	b3Fixed length;
 
 	/// Enable the distance constraint to behave like a spring. If false
 	/// then the distance joint will be rigid, overriding the limit and motor.
 	bool enableSpring;
 
 	/// The lower spring force controls how much tension it can sustain
-	float lowerSpringForce;
+	b3Fixed lowerSpringForce;
 
 	/// The upper spring force controls how much compression it can sustain
-	float upperSpringForce;
+	b3Fixed upperSpringForce;
 
 	/// The spring linear stiffness Hertz, cycles per second
-	float hertz;
+	b3Fixed hertz;
 
 	/// The spring linear damping ratio, non-dimensional
-	float dampingRatio;
+	b3Fixed dampingRatio;
 
 	/// Enable/disable the joint limit
 	bool enableLimit;
 
 	/// Minimum length. Clamped to a stable minimum value.
-	float minLength;
+	b3Fixed minLength;
 
 	/// Maximum length. Must be greater than or equal to the minimum length.
-	float maxLength;
+	b3Fixed maxLength;
 
 	/// Enable/disable the joint motor
 	bool enableMotor;
 
 	/// The maximum motor force, usually in newtons
-	float maxMotorForce;
+	b3Fixed maxMotorForce;
 
 	/// The desired motor speed, usually in meters per second
-	float motorSpeed;
+	b3Fixed motorSpeed;
 } b3DistanceJointDef;
 
 /// Use this to initialize your joint definition
@@ -711,31 +711,31 @@ typedef struct b3MotorJointDef
 	b3Vec3 linearVelocity;
 
 	/// The maximum motor force in newtons
-	float maxVelocityForce;
+	b3Fixed maxVelocityForce;
 
 	/// The desired angular velocity
 	b3Vec3 angularVelocity;
 
 	/// The maximum motor torque in newton-meters
-	float maxVelocityTorque;
+	b3Fixed maxVelocityTorque;
 
 	/// Linear spring hertz for position control
-	float linearHertz;
+	b3Fixed linearHertz;
 
 	/// Linear spring damping ratio
-	float linearDampingRatio;
+	b3Fixed linearDampingRatio;
 
 	/// Maximum spring force in newtons
-	float maxSpringForce;
+	b3Fixed maxSpringForce;
 
 	/// Angular spring hertz for position control
-	float angularHertz;
+	b3Fixed angularHertz;
 
 	/// Angular spring damping ratio
-	float angularDampingRatio;
+	b3Fixed angularDampingRatio;
 
 	/// Maximum spring torque in newton-meters
-	float maxSpringTorque;
+	b3Fixed maxSpringTorque;
 } b3MotorJointDef;
 
 /// Use this to initialize your joint definition
@@ -763,13 +763,13 @@ typedef struct b3ParallelJointDef
 	b3JointDef base;
 
 	/// The spring stiffness Hertz, cycles per second
-	float hertz;
+	b3Fixed hertz;
 
 	/// The spring damping ratio, non-dimensional
-	float dampingRatio;
+	b3Fixed dampingRatio;
 
 	/// The maximum spring torque, typically in newton-meters.
-	float maxTorque;
+	b3Fixed maxTorque;
 
 } b3ParallelJointDef;
 
@@ -790,32 +790,32 @@ typedef struct b3PrismaticJointDef
 	bool enableSpring;
 
 	/// The spring stiffness Hertz, cycles per second
-	float hertz;
+	b3Fixed hertz;
 
 	/// The spring damping ratio, non-dimensional
-	float dampingRatio;
+	b3Fixed dampingRatio;
 
 	/// The target translation for the joint in meters. The spring-damper will drive
 	/// to this translation.
-	float targetTranslation;
+	b3Fixed targetTranslation;
 
 	/// Enable/disable the joint limit
 	bool enableLimit;
 
 	/// The lower translation limit
-	float lowerTranslation;
+	b3Fixed lowerTranslation;
 
 	/// The upper translation limit
-	float upperTranslation;
+	b3Fixed upperTranslation;
 
 	/// Enable/disable the joint motor
 	bool enableMotor;
 
 	/// The maximum motor force, typically in newtons
-	float maxMotorForce;
+	b3Fixed maxMotorForce;
 
 	/// The desired motor speed, typically in meters per second
-	float motorSpeed;
+	b3Fixed motorSpeed;
 } b3PrismaticJointDef;
 
 /// Use this to initialize your joint definition
@@ -832,34 +832,34 @@ typedef struct b3RevoluteJointDef
 
 	/// The bodyB angle minus bodyA angle in the reference state (radians).
 	/// This defines the zero angle for the joint limit.
-	float targetAngle;
+	b3Fixed targetAngle;
 
 	/// Enable a rotational spring on the revolute hinge axis.
 	bool enableSpring;
 
 	/// The spring stiffness Hertz, cycles per second.
-	float hertz;
+	b3Fixed hertz;
 
 	/// The spring damping ratio, non-dimensional.
-	float dampingRatio;
+	b3Fixed dampingRatio;
 
 	/// A flag to enable joint limits.
 	bool enableLimit;
 
 	/// The lower angle for the joint limit in radians. Minimum of -0.99*pi radians.
-	float lowerAngle;
+	b3Fixed lowerAngle;
 
 	/// The upper angle for the joint limit in radians. Maximum of 0.99*pi radians.
-	float upperAngle;
+	b3Fixed upperAngle;
 
 	/// A flag to enable the joint motor.
 	bool enableMotor;
 
 	/// The maximum motor torque, typically in newton-meters.
-	float maxMotorTorque;
+	b3Fixed maxMotorTorque;
 
 	/// The desired motor speed in radians per second.
-	float motorSpeed;
+	b3Fixed motorSpeed;
 } b3RevoluteJointDef;
 
 /// Use this to initialize your joint definition.
@@ -879,10 +879,10 @@ typedef struct b3SphericalJointDef
 
 	/// The spring stiffness Hertz, cycles per second. This may be clamped internally
 	/// according to the time step to maintain stability. Non-negative number.
-	float hertz;
+	b3Fixed hertz;
 
 	/// The spring damping ratio, non-dimensional. Non-negative number.
-	float dampingRatio;
+	b3Fixed dampingRatio;
 
 	/// Target spring rotation, joint frame B relative to joint frame A.
 	b3Quat targetRotation;
@@ -891,22 +891,22 @@ typedef struct b3SphericalJointDef
 	bool enableConeLimit;
 
 	/// The angle for the cone limit in radians. Valid range is [0, pi]
-	float coneAngle;
+	b3Fixed coneAngle;
 
 	/// A flag to enable the twist limit. The twist is centered on the frameB z-axis.
 	bool enableTwistLimit;
 
 	/// The angle for the lower twist limit in radians. Minimum of -0.99*pi radians.
-	float lowerTwistAngle;
+	b3Fixed lowerTwistAngle;
 
 	/// The angle for the upper twist limit in radians. Maximum of 0.99*pi radians.
-	float upperTwistAngle;
+	b3Fixed upperTwistAngle;
 
 	/// A flag to enable the joint motor
 	bool enableMotor;
 
 	/// The maximum motor torque, typically in newton-meters. Non-negative number.
-	float maxMotorTorque;
+	b3Fixed maxMotorTorque;
 
 	/// The desired motor angular velocity in radians per second.
 	b3Vec3 motorVelocity;
@@ -927,16 +927,16 @@ typedef struct b3WeldJointDef
 	b3JointDef base;
 
 	/// Linear stiffness expressed as Hertz (cycles per second). Use zero for maximum stiffness.
-	float linearHertz;
+	b3Fixed linearHertz;
 
 	/// Angular stiffness as Hertz (cycles per second). Use zero for maximum stiffness.
-	float angularHertz;
+	b3Fixed angularHertz;
 
 	/// Linear damping ratio, non-dimensional. Use 1 for critical damping.
-	float linearDampingRatio;
+	b3Fixed linearDampingRatio;
 
 	/// Linear damping ratio, non-dimensional. Use 1 for critical damping.
-	float angularDampingRatio;
+	b3Fixed angularDampingRatio;
 } b3WeldJointDef;
 
 /// Use this to initialize your joint definition
@@ -958,52 +958,52 @@ typedef struct b3WheelJointDef
 	bool enableSuspensionSpring;
 
 	/// Spring stiffness in Hertz
-	float suspensionHertz;
+	b3Fixed suspensionHertz;
 
 	/// Spring damping ratio, non-dimensional
-	float suspensionDampingRatio;
+	b3Fixed suspensionDampingRatio;
 
 	/// Enable/disable the joint linear limit
 	bool enableSuspensionLimit;
 
 	/// The lower suspension translation limit
-	float lowerSuspensionLimit;
+	b3Fixed lowerSuspensionLimit;
 
 	/// The upper translation limit
-	float upperSuspensionLimit;
+	b3Fixed upperSuspensionLimit;
 
 	/// Enable/disable the joint rotational motor
 	bool enableSpinMotor;
 
 	/// The maximum motor torque, typically in newton-meters
-	float maxSpinTorque;
+	b3Fixed maxSpinTorque;
 
 	/// The desired motor speed in radians per second
-	float spinSpeed;
+	b3Fixed spinSpeed;
 
 	/// Enable steering, otherwise the steering is fixed forward
 	bool enableSteering;
 
 	/// Steering stiffness in Hertz
-	float steeringHertz;
+	b3Fixed steeringHertz;
 
 	/// Spring damping ratio, non-dimensional
-	float steeringDampingRatio;
+	b3Fixed steeringDampingRatio;
 
 	/// The target steering angle in radians
-	float targetSteeringAngle;
+	b3Fixed targetSteeringAngle;
 
 	/// The maximum steering torque in N*m
-	float maxSteeringTorque;
+	b3Fixed maxSteeringTorque;
 
 	/// Enable/disable the steering angular limit
 	bool enableSteeringLimit;
 
 	/// The lower steering angle in radians
-	float lowerSteeringLimit;
+	b3Fixed lowerSteeringLimit;
 
 	/// The upper steering angle in radians
-	float upperSteeringLimit;
+	b3Fixed upperSteeringLimit;
 } b3WheelJointDef;
 
 /// Use this to initialize your joint definition
@@ -1022,15 +1022,15 @@ typedef struct b3ExplosionDef
 	b3Pos position;
 
 	/// The radius of the explosion
-	float radius;
+	b3Fixed radius;
 
 	/// The falloff distance beyond the radius. Impulse is reduced to zero at this distance.
-	float falloff;
+	b3Fixed falloff;
 
 	/// Impulse per unit area. This applies an impulse according to the shape area that
 	/// is facing the explosion. Explosions only apply to spheres, capsules, and hulls. This
 	/// may be negative for implosions.
-	float impulsePerArea;
+	b3Fixed impulsePerArea;
 } b3ExplosionDef;
 
 /// Use this to initialize your explosion definition
@@ -1159,7 +1159,7 @@ typedef struct b3ContactHitEvent
 	b3Vec3 normal;
 
 	/// The speed the shapes are approaching. Always positive. Typically in meters per second.
-	float approachSpeed;
+	b3Fixed approachSpeed;
 
 	/// User material on shape A
 	uint64_t userMaterialIdA;
@@ -1323,7 +1323,7 @@ typedef struct b3RayCastInput
 	b3Vec3 translation;
 
 	/// The maximum fraction of the translation to consider, typically 1
-	float maxFraction;
+	b3Fixed maxFraction;
 } b3RayCastInput;
 
 /// Result from b3World_RayCastClosest.
@@ -1343,7 +1343,7 @@ typedef struct b3RayResult
 	uint64_t userMaterialId;
 
 	/// The fraction of the input ray.
-	float fraction;
+	b3Fixed fraction;
 
 	/// The triangle index if the shape is a mesh, height-field, or compound with
 	/// child mesh.
@@ -1372,7 +1372,7 @@ typedef struct b3ShapeProxy
 	int count;
 
 	/// The external radius of the point cloud.
-	float radius;
+	b3Fixed radius;
 } b3ShapeProxy;
 
 /// Low level shape cast input in generic form. This allows casting an arbitrary point
@@ -1387,13 +1387,13 @@ typedef struct b3ShapeCastInput
 	b3Vec3 translation;
 
 	/// The maximum fraction of the translation to consider, typically 1.
-	float maxFraction;
+	b3Fixed maxFraction;
 
 	/// Allow shape cast to encroach when initially touching. This only works if the radius is greater than zero.
 	bool canEncroach;
 } b3ShapeCastInput;
 
-/// Input for sweeping an AABB through a dynamic tree. The box is in the tree's world float frame.
+/// Input for sweeping an AABB through a dynamic tree. The box is in the tree's world b3Fixed frame.
 /// The caller folds the cast shape radius and any world origin into the box, so the tree traversal
 /// stays a conservative box sweep and the precise narrow phase happens per shape in the callback.
 typedef struct b3BoxCastInput
@@ -1405,7 +1405,7 @@ typedef struct b3BoxCastInput
 	b3Vec3 translation;
 
 	/// The maximum fraction of the translation to consider, typically 1.
-	float maxFraction;
+	b3Fixed maxFraction;
 } b3BoxCastInput;
 
 /// Low level ray cast or shape-cast output data.
@@ -1418,7 +1418,7 @@ typedef struct b3CastOutput
 	b3Vec3 point;
 
 	/// The fraction of the input translation at collision.
-	float fraction;
+	b3Fixed fraction;
 
 	/// The number of iterations used.
 	int iterations;
@@ -1449,7 +1449,7 @@ typedef struct b3WorldCastOutput
 	b3Pos point;
 
 	/// The fraction of the input translation at collision.
-	float fraction;
+	b3Fixed fraction;
 
 	/// The number of iterations used.
 	int iterations;
@@ -1488,7 +1488,7 @@ typedef struct b3BodyCastResult
 
 	/// The fraction along the ray hit.
 	/// hit point = origin + fraction * translation
-	float fraction;
+	b3Fixed fraction;
 
 	/// The triangle index if the shape is a mesh or height-field.
 	int triangleIndex;
@@ -1511,7 +1511,7 @@ typedef struct b3BodyCastResult
 typedef struct b3SimplexCache
 {
 	/// Value use to compare length, area, volume of two simplexes.
-	float metric;
+	b3Fixed metric;
 
 	// todo use an index of 0xFF as a sentinel and remove the count
 	/// The number of stored simplex points
@@ -1534,7 +1534,7 @@ typedef struct b3ShapeCastPairInput
 	b3ShapeProxy proxyB;   ///< The proxy for shape B
 	b3Transform transform; ///< Transform of shape B in shape A's frame, the relative pose B in A
 	b3Vec3 translationB;   ///< The translation of shape B, in A's frame
-	float maxFraction;	   ///< The fraction of the translation to consider, typically 1
+	b3Fixed maxFraction;	   ///< The fraction of the translation to consider, typically 1
 	bool canEncroach;	   ///< Allows shapes with a radius to move slightly closer if already touching
 } b3ShapeCastPairInput;
 
@@ -1561,7 +1561,7 @@ typedef struct b3DistanceOutput
 	b3Vec3 pointA;	  ///< Closest point on shapeA, in shape A's frame
 	b3Vec3 pointB;	  ///< Closest point on shapeB, in shape A's frame
 	b3Vec3 normal;	  ///< A to B normal in shape A's frame. Invalid if distance is zero.
-	float distance;	  ///< The final distance, zero if overlapped
+	b3Fixed distance;	  ///< The final distance, zero if overlapped
 	int iterations;	  ///< Number of GJK iterations used
 	int simplexCount; ///< The number of simplexes stored in the simplex array
 } b3DistanceOutput;
@@ -1572,7 +1572,7 @@ typedef struct b3SimplexVertex
 	b3Vec3 wA;	///< support point in proxyA
 	b3Vec3 wB;	///< support point in proxyB
 	b3Vec3 w;	///< wB - wA
-	float a;	///< barycentric coordinates
+	b3Fixed a;	///< barycentric coordinates
 	int indexA; ///< wA index
 	int indexB; ///< wB index
 } b3SimplexVertex;
@@ -1603,7 +1603,7 @@ typedef struct b3TOIInput
 	b3ShapeProxy proxyB; ///< The proxy for shape B
 	b3Sweep sweepA;		 ///< The movement of shape A
 	b3Sweep sweepB;		 ///< The movement of shape B
-	float maxFraction;	 ///< Defines the sweep interval [0, tMax]
+	b3Fixed maxFraction;	 ///< Defines the sweep interval [0, tMax]
 } b3TOIInput;
 
 /// Describes the TOI output
@@ -1629,10 +1629,10 @@ typedef struct b3TOIOutput
 	b3Vec3 normal;
 
 	/// The sweep time of the collision
-	float fraction;
+	b3Fixed fraction;
 
 	/// The final distance
-	float distance;
+	b3Fixed distance;
 
 	/// Number of outer iterations
 	int distanceIterations;
@@ -1780,21 +1780,21 @@ typedef bool b3TreeQueryCallbackFcn( int proxyId, uint64_t userData, void* conte
 
 /// This function receives the minimum distance squared so far and proxy to check in the closest query.
 /// @return minimum distance squared to user objects in the proxy
-typedef float b3TreeQueryClosestCallbackFcn( float distanceSqrMin, int proxyId, uint64_t userData, void* context );
+typedef b3Fixed b3TreeQueryClosestCallbackFcn( b3Fixed distanceSqrMin, int proxyId, uint64_t userData, void* context );
 
 /// This function receives clipped AABB cast input for a proxy. The function returns the new cast
 /// fraction.
 /// - return a value of 0 to terminate the cast
 /// - return a value less than input->maxFraction to clip the cast
 /// - return a value of input->maxFraction to continue the cast without clipping
-typedef float b3TreeBoxCastCallbackFcn( const b3BoxCastInput* input, int proxyId, uint64_t userData, void* context );
+typedef b3Fixed b3TreeBoxCastCallbackFcn( const b3BoxCastInput* input, int proxyId, uint64_t userData, void* context );
 
 /// This function receives clipped ray cast input for a proxy. The function
 /// returns the new ray fraction.
 /// - return a value of 0 to terminate the ray cast
 /// - return a value less than input->maxFraction to clip the ray
 /// - return a value of input->maxFraction to continue the ray cast without clipping
-typedef float b3TreeRayCastCallbackFcn( const b3RayCastInput* input, int proxyId, uint64_t userData, void* context );
+typedef b3Fixed b3TreeRayCastCallbackFcn( const b3RayCastInput* input, int proxyId, uint64_t userData, void* context );
 
 /**@}*/ // tree
 
@@ -1822,12 +1822,12 @@ typedef struct b3CollisionPlane
 	/// The collision plane between the mover and some shape.
 	b3Plane plane;
 
-	/// Setting this to FLT_MAX makes the plane as rigid as possible. Lower values can
+	/// Setting this to B3_FIXED_MAX makes the plane as rigid as possible. Lower values can
 	/// make the plane collision soft. Usually in meters.
-	float pushLimit;
+	b3Fixed pushLimit;
 
 	/// The push on the mover determined by b3SolvePlanes. Usually in meters.
-	float push;
+	b3Fixed push;
 
 	/// Indicates if b3ClipVector should clip against this plane. Should be false for soft collision.
 	bool clipVelocity;
@@ -1875,7 +1875,7 @@ typedef bool b3MoverFilterFcn( b3ShapeId shapeId, void* context );
 typedef struct b3MassData
 {
 	/// The shape mass
-	float mass;
+	b3Fixed mass;
 
 	/// The local center of mass position.
 	b3Vec3 center;
@@ -1897,7 +1897,7 @@ typedef struct b3Sphere
 	b3Vec3 center;
 
 	/// The radius
-	float radius;
+	b3Fixed radius;
 } b3Sphere;
 
 /**@}*/ // sphere
@@ -1919,7 +1919,7 @@ typedef struct b3Capsule
 	b3Vec3 center2;
 
 	/// The radius of the hemispheres
-	float radius;
+	b3Fixed radius;
 } b3Capsule;
 
 /**@}*/ // capsule
@@ -1984,13 +1984,13 @@ typedef struct b3HullData
 	b3AABB aabb;
 
 	/// Surface area, typically in squared meters.
-	float surfaceArea;
+	b3Fixed surfaceArea;
 
 	/// Volume, typically in m^3.
-	float volume;
+	b3Fixed volume;
 
 	/// The radius of the largest sphere at the center.
-	float innerRadius;
+	b3Fixed innerRadius;
 
 	/// The local centroid
 	b3Vec3 center;
@@ -2025,6 +2025,10 @@ typedef struct b3HullData
 	/// Explicit padding. Hull identity is a content hash and memcmp over raw bytes,
 	/// so there must be no unnamed padding for struct copies to scramble.
 	int padding;
+
+	/// More explicit padding: with 8 byte fixed-point scalars the struct must
+	/// round up to a multiple of 8 with no unnamed tail padding.
+	int padding2;
 } b3HullData;
 
 /// Efficient box hull
@@ -2063,7 +2067,7 @@ typedef struct b3MeshDef
 	uint8_t* materialIndices;
 
 	/// Tolerance for vertex welding in length units.
-	float weldTolerance;
+	b3Fixed weldTolerance;
 
 	/// The vertex count. Must be 3 or more.
 	int vertexCount;
@@ -2167,7 +2171,7 @@ typedef struct b3MeshData
 	b3AABB bounds;
 
 	/// Combined surface area of all triangles. Single-sided.
-	float surfaceArea;
+	b3Fixed surfaceArea;
 
 	/// The height of the bounding volume hierarchy.
 	int treeHeight;
@@ -2227,7 +2231,7 @@ typedef struct b3HeightFieldDef
 {
 	/// Grid point heights
 	/// count = countX * countZ
-	float* heights;
+	b3Fixed* heights;
 
 	/// Grid cell material
 	/// A value of 0xFF is reserved for holes
@@ -2248,10 +2252,10 @@ typedef struct b3HeightFieldDef
 	/// In that case, both height fields should use the same minimum and maximum heights.
 	/// All height values are clamped to this range.
 	/// These values are in unscaled space.
-	float globalMinimumHeight;
+	b3Fixed globalMinimumHeight;
 
 	/// The maximum.
-	float globalMaximumHeight;
+	b3Fixed globalMaximumHeight;
 
 	/// Use clock-wise winding. This effectively inverts the height-field along the y-axis.
 	bool clockwiseWinding;
@@ -2280,13 +2284,13 @@ typedef struct b3HeightFieldData
 	b3AABB aabb;
 
 	/// The minimum y value.
-	float minHeight;
+	b3Fixed minHeight;
 
 	/// The maximum y value
-	float maxHeight;
+	b3Fixed maxHeight;
 
 	/// The quantization scale.
-	float heightScale;
+	b3Fixed heightScale;
 
 	/// The overall scale.
 	b3Vec3 scale;
@@ -2574,22 +2578,22 @@ typedef struct b3ManifoldPoint
 	b3Vec3 anchorB;
 
 	/// The separation of the contact point, negative if penetrating
-	float separation;
+	b3Fixed separation;
 
 	/// Cached separation used for contact recycling
-	float baseSeparation;
+	b3Fixed baseSeparation;
 
 	/// The impulse along the manifold normal vector. Since Box3D uses sub-stepping, this is
 	/// result from the final sub-step.
-	float normalImpulse;
+	b3Fixed normalImpulse;
 
 	/// The total normal impulse applied during sub-stepping. This is important
 	/// to identify speculative contact points that had an interaction in the time step.
-	float totalNormalImpulse;
+	b3Fixed totalNormalImpulse;
 
 	/// Relative normal velocity pre-solve. Used for hit events. If the normal impulse is
 	/// zero then there was no hit. Negative means shapes are approaching.
-	float normalVelocity;
+	b3Fixed normalVelocity;
 
 	/// Local point for matching
 	/// Uniquely identifies a contact point between two shapes
@@ -2613,7 +2617,7 @@ typedef struct b3Manifold
 	b3Vec3 normal;
 
 	/// Central friction angular impulse (applied about the normal)
-	float twistImpulse;
+	b3Fixed twistImpulse;
 
 	/// Central friction linear impulse
 	b3Vec3 frictionImpulse;
@@ -2663,7 +2667,7 @@ typedef enum
 typedef struct
 {
 	/// The separation when the cache is populated. Negative for overlap.
-	float separation;
+	b3Fixed separation;
 
 	/// b3SeparatingFeature.
 	uint8_t type;
@@ -2703,7 +2707,7 @@ typedef struct b3LocalManifoldPoint
 	b3Vec3 point;
 
 	/// The contact point separation. Negative for overlap.
-	float separation;
+	b3Fixed separation;
 
 	/// The feature pair for this point.
 	b3FeaturePair pair;
@@ -2735,7 +2739,7 @@ typedef struct b3LocalManifold
 	int i3; ///< Vertex 3 index.
 
 	/// The squared distance of a sphere from a triangle. For ghost collision reduction.
-	float squaredDistance;
+	b3Fixed squaredDistance;
 
 	/// The triangle feature involved.
 	b3TriangleFeature feature;
@@ -2967,13 +2971,13 @@ typedef struct b3DebugDraw
 	void ( *DrawTransformFcn )( b3WorldTransform transform, void* context );
 
 	/// Draw a point.
-	void ( *DrawPointFcn )( b3Pos p, float size, b3HexColor color, void* context );
+	void ( *DrawPointFcn )( b3Pos p, b3Fixed size, b3HexColor color, void* context );
 
 	/// Draw a sphere.
-	void ( *DrawSphereFcn )( b3Pos p, float radius, b3HexColor color, float alpha, void* context );
+	void ( *DrawSphereFcn )( b3Pos p, b3Fixed radius, b3HexColor color, b3Fixed alpha, void* context );
 
 	/// Draw a capsule.
-	void ( *DrawCapsuleFcn )( b3Pos p1, b3Pos p2, float radius, b3HexColor color, float alpha, void* context );
+	void ( *DrawCapsuleFcn )( b3Pos p1, b3Pos p2, b3Fixed radius, b3HexColor color, b3Fixed alpha, void* context );
 
 	/// Draw a bounding box.
 	void ( *DrawBoundsFcn )( b3AABB aabb, b3HexColor color, void* context );
@@ -2988,10 +2992,10 @@ typedef struct b3DebugDraw
 	b3AABB drawingBounds;
 
 	/// Scale to use when drawing forces
-	float forceScale;
+	b3Fixed forceScale;
 
 	/// Global scaling for joint drawing
-	float jointScale;
+	b3Fixed jointScale;
 
 	/// Option to draw shapes
 	bool drawShapes;

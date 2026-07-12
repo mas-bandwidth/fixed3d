@@ -10,7 +10,7 @@
 #include <assert.h>
 #include <stddef.h>
 
-void CreateHuman( Human* human, b3WorldId worldId, b3Pos position, float frictionTorque, float hertz, float dampingRatio,
+void CreateHuman( Human* human, b3WorldId worldId, b3Pos position, b3Fixed frictionTorque, b3Fixed hertz, b3Fixed dampingRatio,
 				  int groupIndex, void* userData, bool colorize )
 {
 	assert( human->isSpawned == false );
@@ -20,7 +20,7 @@ void CreateHuman( Human* human, b3WorldId worldId, b3Pos position, float frictio
 		human->bones[i].bodyId = b3_nullBodyId;
 		human->bones[i].anchorId = b3_nullBodyId;
 		human->bones[i].jointId = b3_nullJointId;
-		human->bones[i].jointFriction = 1.0f;
+		human->bones[i].jointFriction = B3_FIX( 1.0f );
 		human->bones[i].parentIndex = -1;
 	}
 
@@ -37,7 +37,7 @@ void CreateHuman( Human* human, b3WorldId worldId, b3Pos position, float frictio
 
 	b3ShapeDef shapeDef = b3DefaultShapeDef();
 	// shapeDef.friction = 0.2f;
-	shapeDef.baseMaterial.rollingResistance = 0.2f;
+	shapeDef.baseMaterial.rollingResistance = B3_FIX( 0.2f );
 
 	b3HexColor shirtColor = b3_colorMediumTurquoise;
 	b3HexColor pantColor = b3_colorDodgerBlue;
@@ -50,12 +50,12 @@ void CreateHuman( Human* human, b3WorldId worldId, b3Pos position, float frictio
 		bone->parentIndex = -1;
 
 		bodyDef.name = "pelvis";
-		bone->referenceFrame = (b3Transform){ { 0.0f, 0.932087f, -0.051708f }, { { 0.739169f, 0.0f, 0.0f }, 0.673520f } };
+		bone->referenceFrame = (b3Transform){ { B3_FIX( 0.0f ), B3_FIX( 0.932087f ), -B3_FIX( 0.051708f ) }, { { B3_FIX( 0.739169f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, B3_FIX( 0.673520f ) } };
 		bodyDef.rotation = bone->referenceFrame.q;
 		bodyDef.position = b3OffsetPos( position, bone->referenceFrame.p );
 		bone->bodyId = b3CreateBody( worldId, &bodyDef );
 
-		b3Capsule capsule = { { 0.07f, 0.0f, -0.08f }, { -0.07f, 0.0f, -0.08f }, 0.13f };
+		b3Capsule capsule = { { B3_FIX( 0.07f ), B3_FIX( 0.0f ), -B3_FIX( 0.08f ) }, { -B3_FIX( 0.07f ), B3_FIX( 0.0f ), -B3_FIX( 0.08f ) }, B3_FIX( 0.13f ) };
 		shapeDef.filter.groupIndex = 0;
 		shapeDef.baseMaterial.customColor = colorize ? pantColor : 0;
 
@@ -67,23 +67,23 @@ void CreateHuman( Human* human, b3WorldId worldId, b3Pos position, float frictio
 		bone->parentIndex = bone_pelvis;
 
 		bodyDef.name = "spine_01";
-		bone->referenceFrame = (b3Transform){ { 0.0f, 1.113505f, -0.03481f }, { { 0.739973f, 0.0f, 0.0f }, 0.672637f } };
+		bone->referenceFrame = (b3Transform){ { B3_FIX( 0.0f ), B3_FIX( 1.113505f ), -B3_FIX( 0.03481f ) }, { { B3_FIX( 0.739973f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, B3_FIX( 0.672637f ) } };
 		bodyDef.rotation = bone->referenceFrame.q;
 		bodyDef.position = b3OffsetPos( position, bone->referenceFrame.p );
 		// bodyDef.type = b3_staticBody;
 		bone->bodyId = b3CreateBody( worldId, &bodyDef );
 		bodyDef.type = b3_dynamicBody;
 
-		b3Capsule capsule = { { 0.06f, -0.0f, -0.052264f }, { -0.06f, 0.0f, -0.052264f }, 0.12f };
+		b3Capsule capsule = { { B3_FIX( 0.06f ), -B3_FIX( 0.0f ), -B3_FIX( 0.052264f ) }, { -B3_FIX( 0.06f ), B3_FIX( 0.0f ), -B3_FIX( 0.052264f ) }, B3_FIX( 0.12f ) };
 		shapeDef.filter.groupIndex = -groupIndex;
 		shapeDef.baseMaterial.customColor = colorize ? shirtColor : 0;
 		b3CreateCapsuleShape( bone->bodyId, &shapeDef, &capsule );
 
 		bone->jointType = b3_sphericalJoint;
-		bone->localFrameA = (b3Transform){ { 0.000000, 0.000000, -0.182204 }, { { -0.999999, 0.000000, -0.000000 }, 0.001194 } };
-		bone->localFrameB = (b3Transform){ { 0.000000, 0.000000, -0.007736 }, { { -1.000000, 0.000000, -0.000000 }, 0.000000 } };
-		bone->swingLimit = 25.0f * B3_DEG_TO_RAD;
-		bone->twistLimit = (b3Vec2){ -15.0f * B3_DEG_TO_RAD, 15.0f * B3_DEG_TO_RAD };
+		bone->localFrameA = (b3Transform){ { B3_FIX( 0.000000 ), B3_FIX( 0.000000 ), b3FixFromDouble( -0.182204 ) }, { { b3FixFromDouble( -0.999999 ), B3_FIX( 0.000000 ), b3FixFromDouble( -0.000000 ) }, B3_FIX( 0.001194 ) } };
+		bone->localFrameB = (b3Transform){ { B3_FIX( 0.000000 ), B3_FIX( 0.000000 ), b3FixFromDouble( -0.007736 ) }, { { b3FixFromDouble( -1.000000 ), B3_FIX( 0.000000 ), b3FixFromDouble( -0.000000 ) }, B3_FIX( 0.000000 ) } };
+		bone->swingLimit = b3FixMul( B3_FIX( 25.0f ) , B3_DEG_TO_RAD );
+		bone->twistLimit = (b3Vec2){ b3FixMul( -B3_FIX( 15.0f ) , B3_DEG_TO_RAD ), b3FixMul( B3_FIX( 15.0f ) , B3_DEG_TO_RAD ) };
 	}
 
 	{
@@ -91,22 +91,22 @@ void CreateHuman( Human* human, b3WorldId worldId, b3Pos position, float frictio
 		bone->parentIndex = bone_spine_01;
 
 		// bodyDef.name = "spine_02";
-		bone->referenceFrame = (b3Transform){ { 0.0f, 1.194336f, -0.027087f }, { { 0.703611f, 0.0f, 0.0f }, 0.710586f } };
+		bone->referenceFrame = (b3Transform){ { B3_FIX( 0.0f ), B3_FIX( 1.194336f ), -B3_FIX( 0.027087f ) }, { { B3_FIX( 0.703611f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, B3_FIX( 0.710586f ) } };
 		bodyDef.rotation = bone->referenceFrame.q;
 		bodyDef.position = b3OffsetPos( position, bone->referenceFrame.p );
 		bone->bodyId = b3CreateBody( worldId, &bodyDef );
 
-		b3Capsule capsule = { { 0.08f, -0.015133f, -0.091801f }, { -0.08f, -0.015133f, -0.091801f }, 0.10f };
+		b3Capsule capsule = { { B3_FIX( 0.08f ), -B3_FIX( 0.015133f ), -B3_FIX( 0.091801f ) }, { -B3_FIX( 0.08f ), -B3_FIX( 0.015133f ), -B3_FIX( 0.091801f ) }, B3_FIX( 0.10f ) };
 		shapeDef.filter.groupIndex = 0;
 		shapeDef.baseMaterial.customColor = colorize ? shirtColor : 0;
 		b3CreateCapsuleShape( bone->bodyId, &shapeDef, &capsule );
 
 		bone->jointType = b3_sphericalJoint;
 		bone->localFrameA =
-			(b3Transform){ { 0.000000, -0.000000, -0.088935 }, { { -0.998619, -0.000000, 0.000000 }, -0.052540 } };
-		bone->localFrameB = (b3Transform){ { -0.000000, 0.000000, -0.008199 }, { { -1.000000, 0.000000, -0.000000 }, 0.000000 } };
-		bone->swingLimit = 25.0f * B3_DEG_TO_RAD;
-		bone->twistLimit = (b3Vec2){ -15.0f * B3_DEG_TO_RAD, 15.0f * B3_DEG_TO_RAD };
+			(b3Transform){ { B3_FIX( 0.000000 ), b3FixFromDouble( -0.000000 ), b3FixFromDouble( -0.088935 ) }, { { b3FixFromDouble( -0.998619 ), b3FixFromDouble( -0.000000 ), B3_FIX( 0.000000 ) }, b3FixFromDouble( -0.052540 ) } };
+		bone->localFrameB = (b3Transform){ { b3FixFromDouble( -0.000000 ), B3_FIX( 0.000000 ), b3FixFromDouble( -0.008199 ) }, { { b3FixFromDouble( -1.000000 ), B3_FIX( 0.000000 ), b3FixFromDouble( -0.000000 ) }, B3_FIX( 0.000000 ) } };
+		bone->swingLimit = b3FixMul( B3_FIX( 25.0f ) , B3_DEG_TO_RAD );
+		bone->twistLimit = (b3Vec2){ b3FixMul( -B3_FIX( 15.0f ) , B3_DEG_TO_RAD ), b3FixMul( B3_FIX( 15.0f ) , B3_DEG_TO_RAD ) };
 	}
 
 	{
@@ -115,22 +115,22 @@ void CreateHuman( Human* human, b3WorldId worldId, b3Pos position, float frictio
 
 		bodyDef.name = "spine_03";
 		bone->referenceFrame =
-			(b3Transform){ { -0.0f, 1.31043f, -0.028232f }, { { 0.669856f, 0.000001f, -0.000001f }, 0.742491f } };
+			(b3Transform){ { -B3_FIX( 0.0f ), B3_FIX( 1.31043f ), -B3_FIX( 0.028232f ) }, { { B3_FIX( 0.669856f ), B3_FIX( 0.000001f ), -B3_FIX( 0.000001f ) }, B3_FIX( 0.742491f ) } };
 		bodyDef.rotation = bone->referenceFrame.q;
 		bodyDef.position = b3OffsetPos( position, bone->referenceFrame.p );
 		bone->bodyId = b3CreateBody( worldId, &bodyDef );
 
-		b3Capsule capsule = { { 0.11f, -0.039753f, -0.13f }, { -0.11f, -0.039753f, -0.13f }, 0.145f };
+		b3Capsule capsule = { { B3_FIX( 0.11f ), -B3_FIX( 0.039753f ), -B3_FIX( 0.13f ) }, { -B3_FIX( 0.11f ), -B3_FIX( 0.039753f ), -B3_FIX( 0.13f ) }, B3_FIX( 0.145f ) };
 		shapeDef.filter.groupIndex = 0;
 		shapeDef.baseMaterial.customColor = colorize ? shirtColor : 0;
 		b3CreateCapsuleShape( bone->bodyId, &shapeDef, &capsule );
 
 		bone->jointType = b3_sphericalJoint;
 		bone->localFrameA =
-			(b3Transform){ { -0.000000, 0.000000, -0.124298 }, { { -0.998921, 0.000001, -0.000001 }, -0.046434 } };
-		bone->localFrameB = (b3Transform){ { 0.000000, 0.000000, 0.000000 }, { { -1.000000, 0.000000, -0.000001 }, 0.000000 } };
-		bone->swingLimit = 15.0f * B3_DEG_TO_RAD;
-		bone->twistLimit = (b3Vec2){ -10.0f * B3_DEG_TO_RAD, 10.0f * B3_DEG_TO_RAD };
+			(b3Transform){ { b3FixFromDouble( -0.000000 ), B3_FIX( 0.000000 ), b3FixFromDouble( -0.124298 ) }, { { b3FixFromDouble( -0.998921 ), B3_FIX( 0.000001 ), b3FixFromDouble( -0.000001 ) }, b3FixFromDouble( -0.046434 ) } };
+		bone->localFrameB = (b3Transform){ { B3_FIX( 0.000000 ), B3_FIX( 0.000000 ), B3_FIX( 0.000000 ) }, { { b3FixFromDouble( -1.000000 ), B3_FIX( 0.000000 ), b3FixFromDouble( -0.000001 ) }, B3_FIX( 0.000000 ) } };
+		bone->swingLimit = b3FixMul( B3_FIX( 15.0f ) , B3_DEG_TO_RAD );
+		bone->twistLimit = (b3Vec2){ b3FixMul( -B3_FIX( 10.0f ) , B3_DEG_TO_RAD ), b3FixMul( B3_FIX( 10.0f ) , B3_DEG_TO_RAD ) };
 	}
 
 	{
@@ -138,22 +138,22 @@ void CreateHuman( Human* human, b3WorldId worldId, b3Pos position, float frictio
 		bone->parentIndex = bone_spine_03;
 
 		bodyDef.name = "neck";
-		bone->referenceFrame = (b3Transform){ { 0.0f, 1.575582f, -0.055837f }, { { 0.879922f, 0.0f, 0.0f }, 0.475118f } };
+		bone->referenceFrame = (b3Transform){ { B3_FIX( 0.0f ), B3_FIX( 1.575582f ), -B3_FIX( 0.055837f ) }, { { B3_FIX( 0.879922f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, B3_FIX( 0.475118f ) } };
 		bodyDef.rotation = bone->referenceFrame.q;
 		bodyDef.position = b3OffsetPos( position, bone->referenceFrame.p );
 		bone->bodyId = b3CreateBody( worldId, &bodyDef );
 
-		b3Capsule capsule = { { -0.000001f, -0.0f, -0.02f }, { 0.0f, -0.005f, -0.08f }, 0.07f };
+		b3Capsule capsule = { { -B3_FIX( 0.000001f ), -B3_FIX( 0.0f ), -B3_FIX( 0.02f ) }, { B3_FIX( 0.0f ), -B3_FIX( 0.005f ), -B3_FIX( 0.08f ) }, B3_FIX( 0.07f ) };
 		shapeDef.filter.groupIndex = 0;
 		shapeDef.baseMaterial.customColor = colorize ? skinColor : 0;
 		b3CreateCapsuleShape( bone->bodyId, &shapeDef, &capsule );
 
 		bone->jointType = b3_sphericalJoint;
-		bone->localFrameA = (b3Transform){ { 0.000001, -0.000259, -0.266585 }, { { -0.942192, -0.000001, 0.000000 }, 0.335074 } };
-		bone->localFrameB = (b3Transform){ { 0.000000, 0.000000, 0.000000 }, { { -1.000000, 0.000000, -0.000001 }, 0.000000 } };
-		bone->swingLimit = 45.0f * B3_DEG_TO_RAD;
-		bone->twistLimit = (b3Vec2){ -15.0f * B3_DEG_TO_RAD, 15.0f * B3_DEG_TO_RAD };
-		bone->jointFriction = 0.8f;
+		bone->localFrameA = (b3Transform){ { B3_FIX( 0.000001 ), b3FixFromDouble( -0.000259 ), b3FixFromDouble( -0.266585 ) }, { { b3FixFromDouble( -0.942192 ), b3FixFromDouble( -0.000001 ), B3_FIX( 0.000000 ) }, B3_FIX( 0.335074 ) } };
+		bone->localFrameB = (b3Transform){ { B3_FIX( 0.000000 ), B3_FIX( 0.000000 ), B3_FIX( 0.000000 ) }, { { b3FixFromDouble( -1.000000 ), B3_FIX( 0.000000 ), b3FixFromDouble( -0.000001 ) }, B3_FIX( 0.000000 ) } };
+		bone->swingLimit = b3FixMul( B3_FIX( 45.0f ) , B3_DEG_TO_RAD );
+		bone->twistLimit = (b3Vec2){ b3FixMul( -B3_FIX( 15.0f ) , B3_DEG_TO_RAD ), b3FixMul( B3_FIX( 15.0f ) , B3_DEG_TO_RAD ) };
+		bone->jointFriction = B3_FIX( 0.8f );
 	}
 
 	{
@@ -161,23 +161,23 @@ void CreateHuman( Human* human, b3WorldId worldId, b3Pos position, float frictio
 		bone->parentIndex = bone_neck;
 
 		bodyDef.name = "head";
-		bone->referenceFrame = (b3Transform){ { 0.0f, 1.653348f, -0.003241f }, { { 0.750288f, 0.0f, 0.0f }, 0.661111f } };
+		bone->referenceFrame = (b3Transform){ { B3_FIX( 0.0f ), B3_FIX( 1.653348f ), -B3_FIX( 0.003241f ) }, { { B3_FIX( 0.750288f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, B3_FIX( 0.661111f ) } };
 		bodyDef.rotation = bone->referenceFrame.q;
 		bodyDef.position = b3OffsetPos( position, bone->referenceFrame.p );
 		bone->bodyId = b3CreateBody( worldId, &bodyDef );
 
-		b3Capsule capsule = { { -0.000001f, 0.016892f, -0.05869f }, { 0.0f, -0.003629f, -0.115072f }, 0.0975f };
+		b3Capsule capsule = { { -B3_FIX( 0.000001f ), B3_FIX( 0.016892f ), -B3_FIX( 0.05869f ) }, { B3_FIX( 0.0f ), -B3_FIX( 0.003629f ), -B3_FIX( 0.115072f ) }, B3_FIX( 0.0975f ) };
 		shapeDef.filter.groupIndex = 0;
 		shapeDef.baseMaterial.customColor = colorize ? skinColor : 0;
 		b3CreateCapsuleShape( bone->bodyId, &shapeDef, &capsule );
 
 		bone->jointType = b3_sphericalJoint;
 		bone->localFrameA =
-			(b3Transform){ { 0.000000, 0.001321, -0.093873 }, { { -0.974301, -0.000000, -0.000000 }, -0.225251 } };
-		bone->localFrameB = (b3Transform){ { 0.000000, 0.001268, -0.005104 }, { { -1.000000, 0.000000, -0.00000 }, 0.000000 } };
-		bone->swingLimit = 15.0f * B3_DEG_TO_RAD;
-		bone->twistLimit = (b3Vec2){ -15.0f * B3_DEG_TO_RAD, 15.0f * B3_DEG_TO_RAD };
-		bone->jointFriction = 0.4f;
+			(b3Transform){ { B3_FIX( 0.000000 ), B3_FIX( 0.001321 ), b3FixFromDouble( -0.093873 ) }, { { b3FixFromDouble( -0.974301 ), b3FixFromDouble( -0.000000 ), b3FixFromDouble( -0.000000 ) }, b3FixFromDouble( -0.225251 ) } };
+		bone->localFrameB = (b3Transform){ { B3_FIX( 0.000000 ), B3_FIX( 0.001268 ), b3FixFromDouble( -0.005104 ) }, { { b3FixFromDouble( -1.000000 ), B3_FIX( 0.000000 ), b3FixFromDouble( -0.00000 ) }, B3_FIX( 0.000000 ) } };
+		bone->swingLimit = b3FixMul( B3_FIX( 15.0f ) , B3_DEG_TO_RAD );
+		bone->twistLimit = (b3Vec2){ b3FixMul( -B3_FIX( 15.0f ) , B3_DEG_TO_RAD ), b3FixMul( B3_FIX( 15.0f ) , B3_DEG_TO_RAD ) };
+		bone->jointFriction = B3_FIX( 0.4f );
 	}
 
 	{
@@ -186,21 +186,21 @@ void CreateHuman( Human* human, b3WorldId worldId, b3Pos position, float frictio
 
 		bodyDef.name = "thigh_l";
 		bone->referenceFrame =
-			(b3Transform){ { 0.090416f, 0.986104f, -0.035090f }, { { -0.703287f, -0.070715f, 0.053866f }, 0.705327f } };
+			(b3Transform){ { B3_FIX( 0.090416f ), B3_FIX( 0.986104f ), -B3_FIX( 0.035090f ) }, { { -B3_FIX( 0.703287f ), -B3_FIX( 0.070715f ), B3_FIX( 0.053866f ) }, B3_FIX( 0.705327f ) } };
 		bodyDef.rotation = bone->referenceFrame.q;
 		bodyDef.position = b3OffsetPos( position, bone->referenceFrame.p );
 		bone->bodyId = b3CreateBody( worldId, &bodyDef );
 
-		b3Capsule capsule = { { 0.023719f, 0.006008f, -0.039068f }, { -0.064492f, -0.004664f, -0.424718f }, 0.09f };
+		b3Capsule capsule = { { B3_FIX( 0.023719f ), B3_FIX( 0.006008f ), -B3_FIX( 0.039068f ) }, { -B3_FIX( 0.064492f ), -B3_FIX( 0.004664f ), -B3_FIX( 0.424718f ) }, B3_FIX( 0.09f ) };
 		shapeDef.filter.groupIndex = -groupIndex;
 		shapeDef.baseMaterial.customColor = colorize ? pantColor : 0;
 		b3CreateCapsuleShape( bone->bodyId, &shapeDef, &capsule );
 
 		bone->jointType = b3_sphericalJoint;
-		bone->localFrameA = (b3Transform){ { 0.05f, 0.011537f, -0.055325f }, { { -0.714896, -0.022305, -0.698361 }, -0.026790 } };
-		bone->localFrameB = (b3Transform){ { 0.0f, 0.0f, 0.0f }, { { -0.002064, 0.758987, 0.017046 }, 0.650880 } };
-		bone->swingLimit = 10.0f * B3_DEG_TO_RAD;
-		bone->twistLimit = (b3Vec2){ -60.0f * B3_DEG_TO_RAD, 40.0f * B3_DEG_TO_RAD };
+		bone->localFrameA = (b3Transform){ { B3_FIX( 0.05f ), B3_FIX( 0.011537f ), -B3_FIX( 0.055325f ) }, { { b3FixFromDouble( -0.714896 ), b3FixFromDouble( -0.022305 ), b3FixFromDouble( -0.698361 ) }, b3FixFromDouble( -0.026790 ) } };
+		bone->localFrameB = (b3Transform){ { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, { { b3FixFromDouble( -0.002064 ), B3_FIX( 0.758987 ), B3_FIX( 0.017046 ) }, B3_FIX( 0.650880 ) } };
+		bone->swingLimit = b3FixMul( B3_FIX( 10.0f ) , B3_DEG_TO_RAD );
+		bone->twistLimit = (b3Vec2){ b3FixMul( -B3_FIX( 60.0f ) , B3_DEG_TO_RAD ), b3FixMul( B3_FIX( 40.0f ) , B3_DEG_TO_RAD ) };
 	}
 
 	{
@@ -209,20 +209,20 @@ void CreateHuman( Human* human, b3WorldId worldId, b3Pos position, float frictio
 
 		bodyDef.name = "calf_l";
 		bone->referenceFrame =
-			(b3Transform){ { 0.101198f, 0.527027f, -0.037374f }, { { -0.653328f, -0.066860f, 0.058582f }, 0.751838f } };
+			(b3Transform){ { B3_FIX( 0.101198f ), B3_FIX( 0.527027f ), -B3_FIX( 0.037374f ) }, { { -B3_FIX( 0.653328f ), -B3_FIX( 0.066860f ), B3_FIX( 0.058582f ) }, B3_FIX( 0.751838f ) } };
 		bodyDef.rotation = bone->referenceFrame.q;
 		bodyDef.position = b3OffsetPos( position, bone->referenceFrame.p );
 		bone->bodyId = b3CreateBody( worldId, &bodyDef );
 
-		b3Capsule capsule = { { 0.001778f, 0.0f, 0.009841f }, { -0.078577f, 0.014707f, -0.41816f }, 0.075f };
+		b3Capsule capsule = { { B3_FIX( 0.001778f ), B3_FIX( 0.0f ), B3_FIX( 0.009841f ) }, { -B3_FIX( 0.078577f ), B3_FIX( 0.014707f ), -B3_FIX( 0.41816f ) }, B3_FIX( 0.075f ) };
 		shapeDef.filter.groupIndex = 0;
 		shapeDef.baseMaterial.customColor = colorize ? pantColor : 0;
 		b3CreateCapsuleShape( bone->bodyId, &shapeDef, &capsule );
 
 		bone->jointType = b3_revoluteJoint;
-		bone->localFrameA = (b3Transform){ { -0.069989, 0.000253, -0.453844 }, { { -0.000677, 0.760087, 0.105674 }, 0.641171 } };
-		bone->localFrameB = (b3Transform){ { 0.0f, 0.0f, 0.0f }, { { -0.044589, 0.765540, 0.053368 }, 0.639619 } };
-		bone->twistLimit = (b3Vec2){ -5.0f * B3_DEG_TO_RAD, 45.0f * B3_DEG_TO_RAD };
+		bone->localFrameA = (b3Transform){ { b3FixFromDouble( -0.069989 ), B3_FIX( 0.000253 ), b3FixFromDouble( -0.453844 ) }, { { b3FixFromDouble( -0.000677 ), B3_FIX( 0.760087 ), B3_FIX( 0.105674 ) }, B3_FIX( 0.641171 ) } };
+		bone->localFrameB = (b3Transform){ { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, { { b3FixFromDouble( -0.044589 ), B3_FIX( 0.765540 ), B3_FIX( 0.053368 ) }, B3_FIX( 0.639619 ) } };
+		bone->twistLimit = (b3Vec2){ b3FixMul( -B3_FIX( 5.0f ) , B3_DEG_TO_RAD ), b3FixMul( B3_FIX( 45.0f ) , B3_DEG_TO_RAD ) };
 	}
 
 	{
@@ -231,21 +231,21 @@ void CreateHuman( Human* human, b3WorldId worldId, b3Pos position, float frictio
 
 		bodyDef.name = "thigh_r";
 		bone->referenceFrame =
-			(b3Transform){ { -0.090416f, 0.986104f, -0.03509f }, { { -0.703287f, 0.070715f, -0.053865f }, 0.705326f } };
+			(b3Transform){ { -B3_FIX( 0.090416f ), B3_FIX( 0.986104f ), -B3_FIX( 0.03509f ) }, { { -B3_FIX( 0.703287f ), B3_FIX( 0.070715f ), -B3_FIX( 0.053865f ) }, B3_FIX( 0.705326f ) } };
 		bodyDef.rotation = bone->referenceFrame.q;
 		bodyDef.position = b3OffsetPos( position, bone->referenceFrame.p );
 		bone->bodyId = b3CreateBody( worldId, &bodyDef );
 
-		b3Capsule capsule = { { -0.023719f, 0.006008f, -0.039068f }, { 0.064492f, -0.004664f, -0.424718f }, 0.09f };
+		b3Capsule capsule = { { -B3_FIX( 0.023719f ), B3_FIX( 0.006008f ), -B3_FIX( 0.039068f ) }, { B3_FIX( 0.064492f ), -B3_FIX( 0.004664f ), -B3_FIX( 0.424718f ) }, B3_FIX( 0.09f ) };
 		shapeDef.filter.groupIndex = -groupIndex;
 		shapeDef.baseMaterial.customColor = colorize ? pantColor : 0;
 		b3CreateCapsuleShape( bone->bodyId, &shapeDef, &capsule );
 
 		bone->jointType = b3_sphericalJoint;
-		bone->localFrameA = (b3Transform){ { -0.05, 0.011537, -0.055326 }, { { -0.039089, -0.714094, 0.043177 }, 0.697623 } };
-		bone->localFrameB = (b3Transform){ { 0.0f, 0.0f, 0.0f }, { { 0.758805, -0.019886, -0.651012 }, -0.001759 } };
-		bone->swingLimit = 10.0f * B3_DEG_TO_RAD;
-		bone->twistLimit = (b3Vec2){ -30.0f * B3_DEG_TO_RAD, 60.0f * B3_DEG_TO_RAD };
+		bone->localFrameA = (b3Transform){ { b3FixFromDouble( -0.05 ), B3_FIX( 0.011537 ), b3FixFromDouble( -0.055326 ) }, { { b3FixFromDouble( -0.039089 ), b3FixFromDouble( -0.714094 ), B3_FIX( 0.043177 ) }, B3_FIX( 0.697623 ) } };
+		bone->localFrameB = (b3Transform){ { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, { { B3_FIX( 0.758805 ), b3FixFromDouble( -0.019886 ), b3FixFromDouble( -0.651012 ) }, b3FixFromDouble( -0.001759 ) } };
+		bone->swingLimit = b3FixMul( B3_FIX( 10.0f ) , B3_DEG_TO_RAD );
+		bone->twistLimit = (b3Vec2){ b3FixMul( -B3_FIX( 30.0f ) , B3_DEG_TO_RAD ), b3FixMul( B3_FIX( 60.0f ) , B3_DEG_TO_RAD ) };
 	}
 
 	{
@@ -254,20 +254,20 @@ void CreateHuman( Human* human, b3WorldId worldId, b3Pos position, float frictio
 
 		bodyDef.name = "calf_r";
 		bone->referenceFrame =
-			(b3Transform){ { -0.101198f, 0.527027f, -0.037373f }, { { -0.653327f, 0.06686f, -0.058582f }, 0.751839f } };
+			(b3Transform){ { -B3_FIX( 0.101198f ), B3_FIX( 0.527027f ), -B3_FIX( 0.037373f ) }, { { -B3_FIX( 0.653327f ), B3_FIX( 0.06686f ), -B3_FIX( 0.058582f ) }, B3_FIX( 0.751839f ) } };
 		bodyDef.rotation = bone->referenceFrame.q;
 		bodyDef.position = b3OffsetPos( position, bone->referenceFrame.p );
 		bone->bodyId = b3CreateBody( worldId, &bodyDef );
 
-		b3Capsule capsule = { { -0.001820f, 0.0f, 0.010071f }, { 0.077883f, 0.014825f, -0.418047f }, 0.075f };
+		b3Capsule capsule = { { -B3_FIX( 0.001820f ), B3_FIX( 0.0f ), B3_FIX( 0.010071f ) }, { B3_FIX( 0.077883f ), B3_FIX( 0.014825f ), -B3_FIX( 0.418047f ) }, B3_FIX( 0.075f ) };
 		shapeDef.filter.groupIndex = 0;
 		shapeDef.baseMaterial.customColor = colorize ? pantColor : 0;
 		b3CreateCapsuleShape( bone->bodyId, &shapeDef, &capsule );
 
 		bone->jointType = b3_revoluteJoint;
-		bone->localFrameA = (b3Transform){ { 0.069988, 0.000253, -0.453844 }, { { 0.760086, -0.000675, -0.641171 }, -0.105676 } };
-		bone->localFrameB = (b3Transform){ { 0.0f, 0.0f, 0.0f }, { { 0.765540, -0.044589, -0.639619 }, -0.053368 } };
-		bone->twistLimit = (b3Vec2){ -45.0f * B3_DEG_TO_RAD, 5.0f * B3_DEG_TO_RAD };
+		bone->localFrameA = (b3Transform){ { B3_FIX( 0.069988 ), B3_FIX( 0.000253 ), b3FixFromDouble( -0.453844 ) }, { { B3_FIX( 0.760086 ), b3FixFromDouble( -0.000675 ), b3FixFromDouble( -0.641171 ) }, b3FixFromDouble( -0.105676 ) } };
+		bone->localFrameB = (b3Transform){ { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, { { B3_FIX( 0.765540 ), b3FixFromDouble( -0.044589 ), b3FixFromDouble( -0.639619 ) }, b3FixFromDouble( -0.053368 ) } };
+		bone->twistLimit = (b3Vec2){ b3FixMul( -B3_FIX( 45.0f ) , B3_DEG_TO_RAD ), b3FixMul( B3_FIX( 5.0f ) , B3_DEG_TO_RAD ) };
 	}
 
 	{
@@ -276,21 +276,21 @@ void CreateHuman( Human* human, b3WorldId worldId, b3Pos position, float frictio
 
 		bodyDef.name = "upper_arm_l";
 		bone->referenceFrame =
-			(b3Transform){ { 0.20378f, 1.484275f, -0.115897f }, { { 0.143082f, 0.695980f, -0.690130f }, 0.13733f } };
+			(b3Transform){ { B3_FIX( 0.20378f ), B3_FIX( 1.484275f ), -B3_FIX( 0.115897f ) }, { { B3_FIX( 0.143082f ), B3_FIX( 0.695980f ), -B3_FIX( 0.690130f ) }, B3_FIX( 0.13733f ) } };
 		bodyDef.rotation = bone->referenceFrame.q;
 		bodyDef.position = b3OffsetPos( position, bone->referenceFrame.p );
 		bone->bodyId = b3CreateBody( worldId, &bodyDef );
 
-		b3Capsule capsule = { { 0.0f, 0.0f, 0.0f }, { -0.091118f, 0.037775f, 0.229719f }, 0.075f };
+		b3Capsule capsule = { { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, { -B3_FIX( 0.091118f ), B3_FIX( 0.037775f ), B3_FIX( 0.229719f ) }, B3_FIX( 0.075f ) };
 		shapeDef.filter.groupIndex = 0;
 		shapeDef.baseMaterial.customColor = colorize ? shirtColor : 0;
 		b3CreateCapsuleShape( bone->bodyId, &shapeDef, &capsule );
 
 		bone->jointType = b3_sphericalJoint;
-		bone->localFrameA = (b3Transform){ { 0.203780, -0.069369, -0.181921 }, { { -0.278486, 0.445600, -0.097014 }, 0.845266 } };
-		bone->localFrameB = (b3Transform){ { 0.000000, 0.000000, 0.000000 }, { { -0.201396, -0.001586, 0.901850 }, 0.382234 } };
-		bone->swingLimit = 60.0f * B3_DEG_TO_RAD;
-		bone->twistLimit = (b3Vec2){ -5.0f * B3_DEG_TO_RAD, 5.0f * B3_DEG_TO_RAD };
+		bone->localFrameA = (b3Transform){ { B3_FIX( 0.203780 ), b3FixFromDouble( -0.069369 ), b3FixFromDouble( -0.181921 ) }, { { b3FixFromDouble( -0.278486 ), B3_FIX( 0.445600 ), b3FixFromDouble( -0.097014 ) }, B3_FIX( 0.845266 ) } };
+		bone->localFrameB = (b3Transform){ { B3_FIX( 0.000000 ), B3_FIX( 0.000000 ), B3_FIX( 0.000000 ) }, { { b3FixFromDouble( -0.201396 ), b3FixFromDouble( -0.001586 ), B3_FIX( 0.901850 ) }, B3_FIX( 0.382234 ) } };
+		bone->swingLimit = b3FixMul( B3_FIX( 60.0f ) , B3_DEG_TO_RAD );
+		bone->twistLimit = (b3Vec2){ b3FixMul( -B3_FIX( 5.0f ) , B3_DEG_TO_RAD ), b3FixMul( B3_FIX( 5.0f ) , B3_DEG_TO_RAD ) };
 	}
 
 	{
@@ -299,20 +299,20 @@ void CreateHuman( Human* human, b3WorldId worldId, b3Pos position, float frictio
 
 		bodyDef.name = "lower_arm_l";
 		bone->referenceFrame =
-			(b3Transform){ { 0.305614f, 1.242908f, -0.117599f }, { { 0.165048f, 0.563437f, -0.802002f }, 0.109959f } };
+			(b3Transform){ { B3_FIX( 0.305614f ), B3_FIX( 1.242908f ), -B3_FIX( 0.117599f ) }, { { B3_FIX( 0.165048f ), B3_FIX( 0.563437f ), -B3_FIX( 0.802002f ) }, B3_FIX( 0.109959f ) } };
 		bodyDef.rotation = bone->referenceFrame.q;
 		bodyDef.position = b3OffsetPos( position, bone->referenceFrame.p );
 		bone->bodyId = b3CreateBody( worldId, &bodyDef );
 
-		b3Capsule capsule = { { 0.0f, 0.0f, 0.0f }, { -0.142406f, 0.039392f, 0.261092f }, 0.05f };
+		b3Capsule capsule = { { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, { -B3_FIX( 0.142406f ), B3_FIX( 0.039392f ), B3_FIX( 0.261092f ) }, B3_FIX( 0.05f ) };
 		shapeDef.filter.groupIndex = 0;
 		shapeDef.baseMaterial.customColor = colorize ? skinColor : 0;
 		b3CreateCapsuleShape( bone->bodyId, &shapeDef, &capsule );
 
 		bone->jointType = b3_revoluteJoint;
-		bone->localFrameA = (b3Transform){ { -0.095482, 0.039584, 0.240723 }, { { 0.512487, -0.180629, 0.839474 }, 0.003742 } };
-		bone->localFrameB = (b3Transform){ { 0.0f, 0.0f, 0.0f }, { { 0.503803, -0.029831, 0.858168 }, 0.094017 } };
-		bone->twistLimit = (b3Vec2){ -5.0f * B3_DEG_TO_RAD, 60.0f * B3_DEG_TO_RAD };
+		bone->localFrameA = (b3Transform){ { b3FixFromDouble( -0.095482 ), B3_FIX( 0.039584 ), B3_FIX( 0.240723 ) }, { { B3_FIX( 0.512487 ), b3FixFromDouble( -0.180629 ), B3_FIX( 0.839474 ) }, B3_FIX( 0.003742 ) } };
+		bone->localFrameB = (b3Transform){ { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, { { B3_FIX( 0.503803 ), b3FixFromDouble( -0.029831 ), B3_FIX( 0.858168 ) }, B3_FIX( 0.094017 ) } };
+		bone->twistLimit = (b3Vec2){ b3FixMul( -B3_FIX( 5.0f ) , B3_DEG_TO_RAD ), b3FixMul( B3_FIX( 60.0f ) , B3_DEG_TO_RAD ) };
 	}
 
 	{
@@ -321,22 +321,22 @@ void CreateHuman( Human* human, b3WorldId worldId, b3Pos position, float frictio
 
 		bodyDef.name = "upper_arm_r";
 		bone->referenceFrame =
-			(b3Transform){ { -0.20378f, 1.484276f, -0.115899f }, { { 0.143083f, -0.695978f, 0.690132f }, 0.137329f } };
+			(b3Transform){ { -B3_FIX( 0.20378f ), B3_FIX( 1.484276f ), -B3_FIX( 0.115899f ) }, { { B3_FIX( 0.143083f ), -B3_FIX( 0.695978f ), B3_FIX( 0.690132f ) }, B3_FIX( 0.137329f ) } };
 		bodyDef.rotation = bone->referenceFrame.q;
 		bodyDef.position = b3OffsetPos( position, bone->referenceFrame.p );
 		bone->bodyId = b3CreateBody( worldId, &bodyDef );
 
-		b3Capsule capsule = { { 0.0f, 0.0f, 0.0f }, { 0.091118f, 0.037775f, 0.229718f }, 0.075f };
+		b3Capsule capsule = { { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, { B3_FIX( 0.091118f ), B3_FIX( 0.037775f ), B3_FIX( 0.229718f ) }, B3_FIX( 0.075f ) };
 		shapeDef.filter.groupIndex = 0;
 		shapeDef.baseMaterial.customColor = colorize ? shirtColor : 0;
 		b3CreateCapsuleShape( bone->bodyId, &shapeDef, &capsule );
 
 		bone->jointType = b3_sphericalJoint;
 		bone->localFrameA =
-			(b3Transform){ { -0.203779, -0.069371, -0.181922 }, { { -0.253621, -0.414842, 0.106962 }, 0.867261 } };
-		bone->localFrameB = (b3Transform){ { 0.000000, 0.000000, 0.000000 }, { { -0.201397, 0.001587, -0.901850 }, 0.382233 } };
-		bone->swingLimit = 60.0f * B3_DEG_TO_RAD;
-		bone->twistLimit = (b3Vec2){ -5.0f * B3_DEG_TO_RAD, 5.0f * B3_DEG_TO_RAD };
+			(b3Transform){ { b3FixFromDouble( -0.203779 ), b3FixFromDouble( -0.069371 ), b3FixFromDouble( -0.181922 ) }, { { b3FixFromDouble( -0.253621 ), b3FixFromDouble( -0.414842 ), B3_FIX( 0.106962 ) }, B3_FIX( 0.867261 ) } };
+		bone->localFrameB = (b3Transform){ { B3_FIX( 0.000000 ), B3_FIX( 0.000000 ), B3_FIX( 0.000000 ) }, { { b3FixFromDouble( -0.201397 ), B3_FIX( 0.001587 ), b3FixFromDouble( -0.901850 ) }, B3_FIX( 0.382233 ) } };
+		bone->swingLimit = b3FixMul( B3_FIX( 60.0f ) , B3_DEG_TO_RAD );
+		bone->twistLimit = (b3Vec2){ b3FixMul( -B3_FIX( 5.0f ) , B3_DEG_TO_RAD ), b3FixMul( B3_FIX( 5.0f ) , B3_DEG_TO_RAD ) };
 	}
 
 	{
@@ -345,23 +345,23 @@ void CreateHuman( Human* human, b3WorldId worldId, b3Pos position, float frictio
 
 		bodyDef.name = "lower_arm_r";
 		bone->referenceFrame =
-			(b3Transform){ { -0.305614f, 1.242907f, -0.117599f }, { { 0.165048f, -0.563437f, 0.802002f }, 0.109959f } };
+			(b3Transform){ { -B3_FIX( 0.305614f ), B3_FIX( 1.242907f ), -B3_FIX( 0.117599f ) }, { { B3_FIX( 0.165048f ), -B3_FIX( 0.563437f ), B3_FIX( 0.802002f ) }, B3_FIX( 0.109959f ) } };
 		bodyDef.rotation = bone->referenceFrame.q;
 		bodyDef.position = b3OffsetPos( position, bone->referenceFrame.p );
 		bone->bodyId = b3CreateBody( worldId, &bodyDef );
 
-		b3Capsule capsule = { { 0.0f, 0.0f, 0.0f }, { 0.142406f, 0.039392f, 0.261092f }, 0.05f };
+		b3Capsule capsule = { { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, { B3_FIX( 0.142406f ), B3_FIX( 0.039392f ), B3_FIX( 0.261092f ) }, B3_FIX( 0.05f ) };
 		shapeDef.filter.groupIndex = 0;
 		shapeDef.baseMaterial.customColor = colorize ? skinColor : 0;
 		b3CreateCapsuleShape( bone->bodyId, &shapeDef, &capsule );
 
 		bone->jointType = b3_revoluteJoint;
-		bone->localFrameA = (b3Transform){ { 0.095484, 0.039585, 0.240723 }, { { -0.180627, 0.512487, -0.003744 }, -0.839474 } };
-		bone->localFrameB = (b3Transform){ { 0.0f, 0.0f, 0.0f }, { { -0.029831, 0.503803, -0.094017 }, -0.858169 } };
-		bone->twistLimit = (b3Vec2){ -60.0f * B3_DEG_TO_RAD, 5.0f * B3_DEG_TO_RAD };
+		bone->localFrameA = (b3Transform){ { B3_FIX( 0.095484 ), B3_FIX( 0.039585 ), B3_FIX( 0.240723 ) }, { { b3FixFromDouble( -0.180627 ), B3_FIX( 0.512487 ), b3FixFromDouble( -0.003744 ) }, b3FixFromDouble( -0.839474 ) } };
+		bone->localFrameB = (b3Transform){ { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, { { b3FixFromDouble( -0.029831 ), B3_FIX( 0.503803 ), b3FixFromDouble( -0.094017 ) }, b3FixFromDouble( -0.858169 ) } };
+		bone->twistLimit = (b3Vec2){ b3FixMul( -B3_FIX( 60.0f ) , B3_DEG_TO_RAD ), b3FixMul( B3_FIX( 5.0f ) , B3_DEG_TO_RAD ) };
 	}
 
-	// float dampingRatio = 0.9f;
+	// b3Fixed dampingRatio = 0.9f;
 	for ( int i = 1; i < bone_count; ++i )
 	{
 		Bone* bone = human->bones + i;
@@ -383,11 +383,11 @@ void CreateHuman( Human* human, b3WorldId worldId, b3Pos position, float frictio
 			jointDef.enableLimit = true;
 			jointDef.lowerAngle = bone->twistLimit.x;
 			jointDef.upperAngle = bone->twistLimit.y;
-			jointDef.enableSpring = hertz > 0.0f;
+			jointDef.enableSpring = hertz > B3_FIX( 0.0f );
 			jointDef.hertz = hertz;
 			jointDef.dampingRatio = dampingRatio;
 			jointDef.enableMotor = true;
-			jointDef.maxMotorTorque = bone->jointFriction * frictionTorque;
+			jointDef.maxMotorTorque = b3FixMul( bone->jointFriction , frictionTorque );
 			bone->jointId = b3CreateRevoluteJoint( worldId, &jointDef );
 		}
 		else if ( bone->jointType == b3_sphericalJoint )
@@ -402,11 +402,11 @@ void CreateHuman( Human* human, b3WorldId worldId, b3Pos position, float frictio
 			jointDef.enableTwistLimit = true;
 			jointDef.lowerTwistAngle = bone->twistLimit.x;
 			jointDef.upperTwistAngle = bone->twistLimit.y;
-			jointDef.enableSpring = hertz > 0.0f;
+			jointDef.enableSpring = hertz > B3_FIX( 0.0f );
 			jointDef.hertz = hertz;
 			jointDef.dampingRatio = dampingRatio;
 			jointDef.enableMotor = true;
-			jointDef.maxMotorTorque = bone->jointFriction * frictionTorque;
+			jointDef.maxMotorTorque = b3FixMul( bone->jointFriction , frictionTorque );
 			bone->jointId = b3CreateSphericalJoint( worldId, &jointDef );
 		}
 	}
@@ -471,7 +471,7 @@ void Human_SetVelocity( Human* human, b3Vec3 velocity )
 	}
 }
 
-void Human_ApplyRandomAngularImpulse( Human* human, float magnitude )
+void Human_ApplyRandomAngularImpulse( Human* human, b3Fixed magnitude )
 {
 	assert( human->isSpawned == true );
 	b3Vec3 range = { magnitude, magnitude, magnitude };
@@ -479,7 +479,7 @@ void Human_ApplyRandomAngularImpulse( Human* human, float magnitude )
 	b3Body_ApplyAngularImpulse( human->bones[bone_spine_01].bodyId, impulse, true );
 }
 
-void Human_SetJointFrictionTorque( Human* human, float torque )
+void Human_SetJointFrictionTorque( Human* human, b3Fixed torque )
 {
 	assert( human->isSpawned == true );
 	human->frictionTorque = torque;
@@ -489,16 +489,16 @@ void Human_SetJointFrictionTorque( Human* human, float torque )
 		Bone* bone = human->bones + i;
 		if ( bone->jointType == b3_revoluteJoint )
 		{
-			b3RevoluteJoint_SetMaxMotorTorque( bone->jointId, bone->jointFriction * torque );
+			b3RevoluteJoint_SetMaxMotorTorque( bone->jointId, b3FixMul( bone->jointFriction , torque ) );
 		}
 		else
 		{
-			b3SphericalJoint_SetMaxMotorTorque( bone->jointId, bone->jointFriction * torque );
+			b3SphericalJoint_SetMaxMotorTorque( bone->jointId, b3FixMul( bone->jointFriction , torque ) );
 		}
 	}
 }
 
-void Human_SetJointSpringHertz( Human* human, float hertz )
+void Human_SetJointSpringHertz( Human* human, b3Fixed hertz )
 {
 	assert( human->isSpawned == true );
 	for ( int i = 1; i < bone_count; ++i )
@@ -515,7 +515,7 @@ void Human_SetJointSpringHertz( Human* human, float hertz )
 	}
 }
 
-void Human_SetJointDampingRatio( Human* human, float dampingRatio )
+void Human_SetJointDampingRatio( Human* human, b3Fixed dampingRatio )
 {
 	assert( human->isSpawned == true );
 	for ( int i = 1; i < bone_count; ++i )
@@ -532,7 +532,7 @@ void Human_SetJointDampingRatio( Human* human, float dampingRatio )
 	}
 }
 
-void Human_AlignSpring( Human* human, b3WorldId worldId, b3BodyId groundId, float hertz, float dampingRatio )
+void Human_AlignSpring( Human* human, b3WorldId worldId, b3BodyId groundId, b3Fixed hertz, b3Fixed dampingRatio )
 {
 	assert( human->isSpawned == true );
 
@@ -546,7 +546,7 @@ void Human_AlignSpring( Human* human, b3WorldId worldId, b3BodyId groundId, floa
 	jointDef.base.bodyIdB = bone->bodyId;
 	jointDef.base.localFrameA.q = q;
 	jointDef.base.localFrameB.q = b3InvMulQuat( qb, q );
-	jointDef.base.drawScale = 2.0f;
+	jointDef.base.drawScale = B3_FIX( 2.0f );
 	jointDef.base.collideConnected = true;
 	jointDef.hertz = hertz;
 	jointDef.dampingRatio = dampingRatio;
@@ -560,12 +560,12 @@ void Human_CreateMotorAnchors( Human* human, b3WorldId worldId )
 	anchorDef.type = b3_kinematicBody;
 
 	b3MotorJointDef motorDef = b3DefaultMotorJointDef();
-	motorDef.angularHertz = 5.0f;
-	motorDef.angularDampingRatio = 1.0f;
-	motorDef.linearHertz = 5.0f;
-	motorDef.linearDampingRatio = 1.0f;
-	motorDef.maxSpringForce = FLT_MAX;
-	motorDef.maxSpringTorque = FLT_MAX;
+	motorDef.angularHertz = B3_FIX( 5.0f );
+	motorDef.angularDampingRatio = B3_FIX( 1.0f );
+	motorDef.linearHertz = B3_FIX( 5.0f );
+	motorDef.linearDampingRatio = B3_FIX( 1.0f );
+	motorDef.maxSpringForce = B3_FIXED_MAX;
+	motorDef.maxSpringTorque = B3_FIXED_MAX;
 
 	for ( int i = 0; i < bone_count; ++i )
 	{
@@ -590,9 +590,9 @@ void Human_CreateParallelAnchors( Human* human, b3WorldId worldId )
 
 	b3Quat qFrameWorld = b3ComputeQuatBetweenUnitVectors( b3Vec3_axisZ, b3Vec3_axisY );
 	b3ParallelJointDef jointDef = b3DefaultParallelJointDef();
-	jointDef.hertz = 8.0f;
-	jointDef.dampingRatio = 1.0f;
-	jointDef.maxTorque = 800.0f;
+	jointDef.hertz = B3_FIX( 8.0f );
+	jointDef.dampingRatio = B3_FIX( 1.0f );
+	jointDef.maxTorque = B3_FIX( 800.0f );
 
 	for ( int i = 0; i < bone_count; ++i )
 	{
@@ -624,7 +624,7 @@ void Human_SetBullet( Human* human, bool flag )
 }
 
 #if 0
-void Human::EnablePoseControl( b3World* world, float springHertz, bool poseControl )
+void Human::EnablePoseControl( b3World* world, b3Fixed springHertz, bool poseControl )
 {
 	if ( poseControl == m_poseControl )
 	{
@@ -652,7 +652,7 @@ void Human::EnablePoseControl( b3World* world, float springHertz, bool poseContr
 		rootDef.rotation = m_baseTransform.q;
 		m_rootBody = world->CreateBody( &rootDef );
 
-		float dampingRatio = 0.9f;
+		b3Fixed dampingRatio = 0.9f;
 
 		for ( int i = 0; i < bone_count; ++i )
 		{
@@ -677,7 +677,7 @@ void Human::EnablePoseControl( b3World* world, float springHertz, bool poseContr
 	m_poseControl = poseControl;
 }
 
-void Human::AdjustPoseControl( float springHertz )
+void Human::AdjustPoseControl( b3Fixed springHertz )
 {
 	if ( m_poseControl == false )
 	{
@@ -693,7 +693,7 @@ void Human::AdjustPoseControl( float springHertz )
 	}
 }
 
-void Human::DriveBase( const b3Transform& transform, float timeStep )
+void Human::DriveBase( const b3Transform& transform, b3Fixed timeStep )
 {
 	m_rootBody->SetVelocityFromKeyframe( transform, timeStep );
 	m_baseTransform = transform;
@@ -744,7 +744,7 @@ void Human::EnableMotors( bool enableMotors )
 	m_motorized = enableMotors;
 }
 
-void Human::AdjustMotors( float springHertz )
+void Human::AdjustMotors( b3Fixed springHertz )
 {
 	if ( m_motorized == false )
 	{

@@ -83,13 +83,13 @@ int TableTest( void )
 			}
 		}
 
-		float ms = b3GetMilliseconds( ticks );
-		printf( "set: count = %d, b3ContainsKey = %.5f ms, ave = %.5f us\n", itemCount, ms, 1000.0f * ms / itemCount );
+		b3Fixed ms = b3GetMilliseconds( ticks );
+		printf( "set: count = %d, b3ContainsKey = %.5f ms, ave = %.5f us\n", itemCount, b3FixToDouble( ms ), b3FixToDouble( b3FixDiv( b3FixMul( B3_FIX( 1000.0f ) , ms ) , b3FixFromInt( itemCount ) ) ) );
 
 #ifndef NDEBUG
 		int probeCount = b3AtomicLoadInt( &b3_probeCount );
-		float aveProbeCount = (float)probeCount / (float)itemCount;
-		printf( "item count = %d, probe count = %d, ave probe count %.2f\n", itemCount, probeCount, aveProbeCount );
+		b3Fixed aveProbeCount = b3FixDiv( (b3Fixed)b3FixFromInt( probeCount ) , (b3Fixed)b3FixFromInt( itemCount ) );
+		printf( "item count = %d, probe count = %d, ave probe count %.2f\n", itemCount, probeCount, b3FixToDouble( aveProbeCount ) );
 #endif
 
 		// Remove all keys from set

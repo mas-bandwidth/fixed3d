@@ -10,7 +10,7 @@
 
 typedef struct b3FaceQuery
 {
-	float separation;
+	b3Fixed separation;
 	int faceIndex;
 	int vertexIndex;
 } b3FaceQuery;
@@ -18,7 +18,7 @@ typedef struct b3FaceQuery
 typedef struct b3EdgeQuery
 {
 	b3Vec3 normal;
-	float separation;
+	b3Fixed separation;
 	int indexA;
 	int indexB;
 } b3EdgeQuery;
@@ -26,7 +26,7 @@ typedef struct b3EdgeQuery
 typedef struct b3ClipVertex
 {
 	b3Vec3 position;
-	float separation;
+	b3Fixed separation;
 	b3FeaturePair pair;
 } b3ClipVertex;
 

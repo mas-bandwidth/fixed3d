@@ -9,7 +9,6 @@
 
 #include "box3d/types.h"
 
-#include <stdio.h>
 
 // This guards against excessive memory usage and complex collision
 #define B3_MAX_MESH_CONTACT_TRIANGLES 256
@@ -96,7 +95,7 @@ static void b3RefreshCache( b3Contact* contact, const b3Shape* shapeA, b3WorldTr
 	}
 
 	// Enlarge to the query bounds to absorb small movement
-	float radius = B3_MAX_AABB_MARGIN + B3_SPECULATIVE_DISTANCE;
+	b3Fixed radius = B3_MAX_AABB_MARGIN + B3_SPECULATIVE_DISTANCE;
 	b3Vec3 extension = { radius, radius, radius };
 	meshContact->queryBounds.lowerBound = b3Sub( bounds->lowerBound, extension );
 	meshContact->queryBounds.upperBound = b3Add( bounds->upperBound, extension );
@@ -106,8 +105,8 @@ static void b3RefreshCache( b3Contact* contact, const b3Shape* shapeA, b3WorldTr
 
 	int triangleIndices[B3_MAX_MESH_CONTACT_TRIANGLES];
 
-	// Bounds are in world space. Convert to the local mesh frame. The broadphase bounds are float,
-	// so the demoted mesh transform is the matching float world frame (exact in float mode).
+	// Bounds are in world space. Convert to the local mesh frame. The broadphase bounds are b3Fixed,
+	// so the demoted mesh transform is the matching b3Fixed world frame (exact in b3Fixed mode).
 	b3Transform meshTransform = b3ToRelativeTransform( xfA, b3Pos_zero );
 	b3AABB localBounds = b3AABB_Transform( b3InvertTransform( meshTransform ), meshContact->queryBounds );
 	int triangleCount;
@@ -140,7 +139,7 @@ static void b3RefreshCache( b3Contact* contact, const b3Shape* shapeA, b3WorldTr
 	int index2 = 0;
 	for ( int index1 = 0; index1 < triangleCount; ++index1 )
 	{
-		contactCache[index1] = (b3ContactCache){ 0 };
+		contactCache[index1] = (b3ContactCache){ b3FixFromInt( 0 ) };
 
 		while ( index2 < contact->meshContact.triangleCache.count &&
 				contact->meshContact.triangleCache.data[index2].triangleIndex < triangleIndices[index1] )
@@ -171,7 +170,7 @@ static void b3RefreshCache( b3Contact* contact, const b3Shape* shapeA, b3WorldTr
 
 typedef struct b3TentativeTriangle
 {
-	float squaredDistance;
+	b3Fixed squaredDistance;
 	int index;
 } b3TentativeTriangle;
 
@@ -274,8 +273,8 @@ static inline bool b3AddVertex( b3FoundVertices* vertices, int vertex )
 }
 
 // Returns true if (score, separation) should replace (bestScore, bestSeparation).
-static inline bool b3IsBetterCullCandidate( float score, float separation, float bestScore, float bestSeparation, float scoreTol,
-											float separationTol )
+static inline bool b3IsBetterCullCandidate( b3Fixed score, b3Fixed separation, b3Fixed bestScore, b3Fixed bestSeparation, b3Fixed scoreTol,
+											b3Fixed separationTol )
 {
 	if ( score > bestScore + scoreTol )
 	{
@@ -293,7 +292,7 @@ static inline bool b3IsBetterCullCandidate( float score, float separation, float
 typedef struct b3Point2D
 {
 	b3Vec2 p;
-	float separation;
+	b3Fixed separation;
 	int originalIndex;
 } b3Point2D;
 
@@ -304,16 +303,16 @@ static int b3CullPoints( b3Point2D* points, int count )
 		return count;
 	}
 
-	float tol = 0.25f * B3_LINEAR_SLOP;
-	float tolSqr = tol * tol;
-	float separationTol = B3_LINEAR_SLOP;
+	b3Fixed tol = b3FixMul( B3_FIX( 0.25f ) , B3_LINEAR_SLOP );
+	b3Fixed tolSqr = b3FixMul( tol , tol );
+	b3Fixed separationTol = B3_LINEAR_SLOP;
 
 	b3Point2D finalPoints[4];
 	int count1 = count;
 
 	// Step 1: the two points with the largest distance, ties broken by deepest combined separation
-	float bestScore = 0.0f;
-	float bestSeparation = FLT_MAX;
+	b3Fixed bestScore = B3_FIX( 0.0f );
+	b3Fixed bestSeparation = B3_FIXED_MAX;
 	int bestIndex1 = B3_NULL_INDEX;
 	int bestIndex2 = B3_NULL_INDEX;
 
@@ -322,9 +321,9 @@ static int b3CullPoints( b3Point2D* points, int count )
 		b3Vec2 p1 = points[i].p;
 		for ( int j = i + 1; j < count1; ++j )
 		{
-			float score = b3DistanceSquared2( p1, points[j].p );
+			b3Fixed score = b3DistanceSquared2( p1, points[j].p );
 			// Separation sum heuristic
-			float separation = points[i].separation + points[j].separation;
+			b3Fixed separation = points[i].separation + points[j].separation;
 
 			if ( b3IsBetterCullCandidate( score, separation, bestScore, bestSeparation, tolSqr, separationTol ) )
 			{
@@ -376,19 +375,19 @@ static int b3CullPoints( b3Point2D* points, int count )
 	// Second anchor point
 	b3Vec2 b = finalPoints[1].p;
 	b3Vec2 ba = b3Sub2( b, a );
-	// float length = b3Length2( ba );
-	// float areaTol = tol * length;
+	// b3Fixed length = b3Length2( ba );
+	// b3Fixed areaTol = tol * length;
 
 	// Step 2: find the point with the maximum triangular area, ties broken by deepest separation
-	bestScore = 0.0f;
-	bestSeparation = FLT_MAX;
+	bestScore = B3_FIX( 0.0f );
+	bestSeparation = B3_FIXED_MAX;
 	int bestIndex = B3_NULL_INDEX;
-	float bestSignedArea = 0.0f;
+	b3Fixed bestSignedArea = B3_FIX( 0.0f );
 	for ( int i = 0; i < count1; ++i )
 	{
 		b3Vec2 p = points[i].p;
-		float signedArea = b3Cross2( ba, b3Sub2( p, a ) );
-		float score = b3AbsFloat( signedArea );
+		b3Fixed signedArea = b3Cross2( ba, b3Sub2( p, a ) );
+		b3Fixed score = b3FixAbs( signedArea );
 
 		if ( b3IsBetterCullCandidate( score, points[i].separation, bestScore, bestSeparation, tolSqr, separationTol ) )
 		{
@@ -428,7 +427,7 @@ static int b3CullPoints( b3Point2D* points, int count )
 	b3Vec2 c = finalPoints[2].p;
 
 	// Ensure CCW ordering
-	if ( bestSignedArea < 0.0f )
+	if ( bestSignedArea < B3_FIX( 0.0f ) )
 	{
 		B3_SWAP( b, c );
 		ba = b3Sub2( b, a );
@@ -437,16 +436,16 @@ static int b3CullPoints( b3Point2D* points, int count )
 	b3Vec2 cb = b3Sub2( c, b );
 	b3Vec2 ac = b3Sub2( a, c );
 
-	bestScore = 0.0f;
-	bestSeparation = FLT_MAX;
+	bestScore = B3_FIX( 0.0f );
+	bestSeparation = B3_FIXED_MAX;
 	bestIndex = B3_NULL_INDEX;
 	for ( int i = 0; i < count1; ++i )
 	{
 		b3Vec2 p = points[i].p;
-		float u1 = b3Cross2( b3Sub2( p, a ), ba );
-		float u2 = b3Cross2( b3Sub2( p, b ), cb );
-		float u3 = b3Cross2( b3Sub2( p, c ), ac );
-		float score = b3MaxFloat( u1, b3MaxFloat( u2, u3 ) );
+		b3Fixed u1 = b3Cross2( b3Sub2( p, a ), ba );
+		b3Fixed u2 = b3Cross2( b3Sub2( p, b ), cb );
+		b3Fixed u3 = b3Cross2( b3Sub2( p, c ), ac );
+		b3Fixed score = b3FixMax( u1, b3FixMax( u2, u3 ) );
 
 		// Use the area tolerance for collinear points and hysteresis
 		if ( b3IsBetterCullCandidate( score, points[i].separation, bestScore, bestSeparation, tolSqr, separationTol ) )
@@ -553,14 +552,14 @@ bool b3ComputeMeshManifolds( b3World* world, int workerIndex, b3Contact* contact
 	// This transform converts from mesh frame into the shapeB frame
 	b3Transform transformAtoB = b3InvMulWorldTransforms( xfB, xfA );
 	b3Matrix3 relativeMatrix = b3MakeMatrixFromQuat( transformAtoB.q );
-	float linearSlop = B3_LINEAR_SLOP;
+	b3Fixed linearSlop = B3_LINEAR_SLOP;
 
 	// This should push apart shapes after a time of impact event.
 	// In the past I've called this `polygon skin`, but PhysX and Unreal
 	// call it `rest offset` which seems appropriate in this case.
 	// It leads to a small visual gap but seems to improve the quality of mesh
 	// collision, especially for hull versus mesh.
-	float restOffset = B3_MESH_REST_OFFSET;
+	b3Fixed restOffset = B3_MESH_REST_OFFSET;
 	bool enableSpeculative = contact->flags & b3_enableSpeculativePoints;
 
 	// Make room for clip points
@@ -616,7 +615,7 @@ bool b3ComputeMeshManifolds( b3World* world, int workerIndex, b3Contact* contact
 				// through the triangle.
 				if ( isFast && cache->satCache.type == b3_edgePairAxis )
 				{
-					cache->satCache = (b3SATCache){ 0 };
+					cache->satCache = (b3SATCache){ b3FixFromInt( 0 ) };
 				}
 
 				b3CollideHullAndTriangle( manifold, pointCapacity, hullB, vertices[0], vertices[1], vertices[2], triangle.flags,
@@ -661,8 +660,8 @@ bool b3ComputeMeshManifolds( b3World* world, int workerIndex, b3Contact* contact
 			}
 			else if ( manifold->feature == b3_featureHullFace )
 			{
-				float cosNormalAngle = b3Dot( manifold->triangleNormal, manifold->normal );
-				if ( cosNormalAngle > 0.5f )
+				b3Fixed cosNormalAngle = b3Dot( manifold->triangleNormal, manifold->normal );
+				if ( cosNormalAngle > B3_FIX( 0.5f ) )
 				{
 					(void)b3AddEdge( &foundEdges, triangle.i1, triangle.i2 );
 					(void)b3AddEdge( &foundEdges, triangle.i2, triangle.i3 );
@@ -675,13 +674,13 @@ bool b3ComputeMeshManifolds( b3World* world, int workerIndex, b3Contact* contact
 				}
 				else
 				{
-					float minSeparation = manifold->points[0].separation;
+					b3Fixed minSeparation = manifold->points[0].separation;
 					for ( int i = 1; i < manifoldPointCount; ++i )
 					{
-						minSeparation = b3MinFloat( minSeparation, manifold->points[i].separation );
+						minSeparation = b3FixMin( minSeparation, manifold->points[i].separation );
 					}
 
-					if ( minSeparation < -2.0f * linearSlop )
+					if ( minSeparation < b3FixMul( -B3_FIX( 2.0f ) , linearSlop ) )
 					{
 						// Deep overlap
 						(void)b3AddEdge( &foundEdges, triangle.i1, triangle.i2 );
@@ -850,7 +849,7 @@ bool b3ComputeMeshManifolds( b3World* world, int workerIndex, b3Contact* contact
 
 	// Cluster tolerance is tighter than the warm starting manifold matching tolerance. These
 	// serve different purposes.
-	const float clusterThreshold = 0.996f;
+	const b3Fixed clusterThreshold = B3_FIX( 0.996f );
 	int clusterCount = 0;
 	int clusterPointCount = 0;
 	for ( int i = 0; i < acceptedManifoldCount; ++i )
@@ -871,8 +870,8 @@ bool b3ComputeMeshManifolds( b3World* world, int workerIndex, b3Contact* contact
 		int clusterIndex = B3_NULL_INDEX;
 		for ( int j = 0; j < clusterCount && allowClustering; ++j )
 		{
-			float cosManifoldAngle = b3Dot( clusters[j].manifoldNormal, manifoldNormal );
-			float cosTriangleAngle = b3Dot( clusters[j].triangleNormal, triangleNormal );
+			b3Fixed cosManifoldAngle = b3Dot( clusters[j].manifoldNormal, manifoldNormal );
+			b3Fixed cosTriangleAngle = b3Dot( clusters[j].triangleNormal, triangleNormal );
 			if ( cosManifoldAngle <= clusterThreshold || cosTriangleAngle <= clusterThreshold )
 			{
 				continue;
@@ -1011,7 +1010,7 @@ bool b3ComputeMeshManifolds( b3World* world, int workerIndex, b3Contact* contact
 	b3Matrix3 matrixB = b3MakeMatrixFromQuat( xfB.q );
 	b3Vec3 offsetA = b3SubPos( xfB.p, xfA.p );
 
-	const float normalMatchTolerance = 0.995f;
+	const b3Fixed normalMatchTolerance = B3_FIX( 0.995f );
 	for ( int i = 0; i < clusterCount; ++i )
 	{
 		b3Cluster* cm = clusters + i;
@@ -1023,7 +1022,7 @@ bool b3ComputeMeshManifolds( b3World* world, int workerIndex, b3Contact* contact
 		manifold->normal = b3MulMV( matrixB, cm->manifoldNormal );
 
 		b3Vec3 clusterNormal = b3MulMV( matrixB, cm->manifoldNormal );
-		float bestDot = normalMatchTolerance;
+		b3Fixed bestDot = normalMatchTolerance;
 		int bestIndex = B3_NULL_INDEX;
 
 		for ( int j = 0; j < oldManifoldCount; ++j )
@@ -1033,7 +1032,7 @@ bool b3ComputeMeshManifolds( b3World* world, int workerIndex, b3Contact* contact
 				continue;
 			}
 
-			float dot = b3Dot( oldManifolds[j].normal, clusterNormal );
+			b3Fixed dot = b3Dot( oldManifolds[j].normal, clusterNormal );
 			if ( dot > bestDot )
 			{
 				bestIndex = j;
@@ -1092,9 +1091,9 @@ bool b3ComputeMeshManifolds( b3World* world, int workerIndex, b3Contact* contact
 	// Update friction and restitution if the mesh has per triangle material
 	if ( shapeA->materialCount > 0 )
 	{
-		float friction = 0.0f;
-		float restitution = 0.0f;
-		float sampleCount = 0.0f;
+		b3Fixed friction = B3_FIX( 0.0f );
+		b3Fixed restitution = B3_FIX( 0.0f );
+		b3Fixed sampleCount = B3_FIX( 0.0f );
 
 		const uint8_t* materialIndices;
 		if ( shapeA->type == b3_meshShape )
@@ -1137,20 +1136,20 @@ bool b3ComputeMeshManifolds( b3World* world, int workerIndex, b3Contact* contact
 
 				tangentVelocityA = b3Add( tangentVelocityA, material.tangentVelocity );
 
-				sampleCount += 1.0f;
+				sampleCount += B3_FIX( 1.0f );
 			}
 		}
 
-		if ( sampleCount > 0.0f )
+		if ( sampleCount > B3_FIX( 0.0f ) )
 		{
-			float invCount = 1.0f / sampleCount;
-			contact->friction = invCount * friction;
-			contact->restitution = invCount * restitution;
+			b3Fixed invCount = b3FixDiv( B3_FIX( 1.0f ), sampleCount );
+			contact->friction = b3FixMul( invCount , friction );
+			contact->restitution = b3FixMul( invCount , restitution );
 			tangentVelocityA = b3MulSV( invCount, tangentVelocityA );
 		}
 
-		B3_ASSERT( b3IsValidFloat( contact->friction ) && contact->friction >= 0.0f );
-		B3_ASSERT( b3IsValidFloat( contact->restitution ) && contact->restitution >= 0.0f );
+		B3_ASSERT( b3IsValidFixed( contact->friction ) && contact->friction >= B3_FIX( 0.0f ) );
+		B3_ASSERT( b3IsValidFixed( contact->restitution ) && contact->restitution >= B3_FIX( 0.0f ) );
 	}
 	else
 	{
@@ -1164,7 +1163,7 @@ bool b3ComputeMeshManifolds( b3World* world, int workerIndex, b3Contact* contact
 
 	tangentVelocityA = b3RotateVector( xfA.q, tangentVelocityA );
 
-	float radiusB = 0.0f;
+	b3Fixed radiusB = B3_FIX( 0.0f );
 	if ( shapeB->type == b3_sphereShape )
 	{
 		radiusB = shapeB->sphere.radius;
@@ -1178,7 +1177,7 @@ bool b3ComputeMeshManifolds( b3World* world, int workerIndex, b3Contact* contact
 		radiusB = shapeB->hull->innerRadius;
 	}
 
-	contact->rollingResistance = materialB->rollingResistance * radiusB;
+	contact->rollingResistance = b3FixMul( materialB->rollingResistance , radiusB );
 
 	b3Vec3 tangentVelocityB = b3RotateVector( xfB.q, materialB->tangentVelocity );
 	contact->tangentVelocity = b3Sub( tangentVelocityA, tangentVelocityB );

@@ -35,7 +35,7 @@ uint64_t b3GetTicks( void )
 	return (uint64_t)counter.QuadPart;
 }
 
-float b3GetMilliseconds( uint64_t ticks )
+b3Fixed b3GetMilliseconds( uint64_t ticks )
 {
 	if ( s_invFrequency == 0.0 )
 	{
@@ -50,10 +50,10 @@ float b3GetMilliseconds( uint64_t ticks )
 	}
 
 	uint64_t ticksNow = b3GetTicks();
-	return (float)( s_invFrequency * ( ticksNow - ticks ) );
+	return (b3Fixed)( s_invFrequency * ( ticksNow - ticks ) );
 }
 
-float b3GetMillisecondsAndReset( uint64_t* ticks )
+b3Fixed b3GetMillisecondsAndReset( uint64_t* ticks )
 {
 	if ( s_invFrequency == 0.0 )
 	{
@@ -68,7 +68,7 @@ float b3GetMillisecondsAndReset( uint64_t* ticks )
 	}
 
 	uint64_t ticksNow = b3GetTicks();
-	float ms = (float)( s_invFrequency * ( ticksNow - *ticks ) );
+	b3Fixed ms = (b3Fixed)( s_invFrequency * ( ticksNow - *ticks ) );
 	*ticks = ticksNow;
 	return ms;
 }
@@ -236,16 +236,16 @@ uint64_t b3GetTicks( void )
 	return ts.tv_sec * 1000000000LL + ts.tv_nsec;
 }
 
-float b3GetMilliseconds( uint64_t ticks )
+b3Fixed b3GetMilliseconds( uint64_t ticks )
 {
 	uint64_t ticksNow = b3GetTicks();
-	return (float)( ( ticksNow - ticks ) / 1000000.0 );
+	return (b3Fixed)( ( ticksNow - ticks ) / 1000000.0 );
 }
 
-float b3GetMillisecondsAndReset( uint64_t* ticks )
+b3Fixed b3GetMillisecondsAndReset( uint64_t* ticks )
 {
 	uint64_t ticksNow = b3GetTicks();
-	float ms = (float)( ( ticksNow - *ticks ) / 1000000.0 );
+	b3Fixed ms = (b3Fixed)( ( ticksNow - *ticks ) / 1000000.0 );
 	*ticks = ticksNow;
 	return ms;
 }
@@ -395,7 +395,7 @@ uint64_t b3GetTicks( void )
 	return mach_absolute_time();
 }
 
-float b3GetMilliseconds( uint64_t ticks )
+b3Fixed b3GetMilliseconds( uint64_t ticks )
 {
 	if ( s_invFrequency == 0 )
 	{
@@ -407,10 +407,10 @@ float b3GetMilliseconds( uint64_t ticks )
 	}
 
 	uint64_t ticksNow = b3GetTicks();
-	return (float)( s_invFrequency * ( ticksNow - ticks ) );
+	return (b3Fixed)b3FixFromDouble( ( s_invFrequency * ( ticksNow - ticks ) ) );
 }
 
-float b3GetMillisecondsAndReset( uint64_t* ticks )
+b3Fixed b3GetMillisecondsAndReset( uint64_t* ticks )
 {
 	if ( s_invFrequency == 0 )
 	{
@@ -422,7 +422,7 @@ float b3GetMillisecondsAndReset( uint64_t* ticks )
 	}
 
 	uint64_t ticksNow = b3GetTicks();
-	float ms = (float)( s_invFrequency * ( ticksNow - *ticks ) );
+	b3Fixed ms = (b3Fixed)b3FixFromDouble( ( s_invFrequency * ( ticksNow - *ticks ) ) );
 	*ticks = ticksNow;
 	return ms;
 }
@@ -566,13 +566,13 @@ uint64_t b3GetTicks( void )
 	return 0;
 }
 
-float b3GetMilliseconds( uint64_t ticks )
+b3Fixed b3GetMilliseconds( uint64_t ticks )
 {
 	( (void)( ticks ) );
 	return 0.0f;
 }
 
-float b3GetMillisecondsAndReset( uint64_t* ticks )
+b3Fixed b3GetMillisecondsAndReset( uint64_t* ticks )
 {
 	( (void)( ticks ) );
 	return 0.0f;

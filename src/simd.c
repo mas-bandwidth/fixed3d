@@ -51,9 +51,9 @@ static inline b3V32 b3Dot3V( b3V32 a, b3V32 b )
 
 #define B3_TRANSPOSE3( C1, C2, C3 )                                                                                              \
 	{                                                                                                                            \
-		float temp1 = C1.y;                                                                                                      \
-		float temp2 = C1.z;                                                                                                      \
-		float temp3 = C2.z;                                                                                                      \
+		b3Fixed temp1 = C1.y;                                                                                                      \
+		b3Fixed temp2 = C1.z;                                                                                                      \
+		b3Fixed temp3 = C2.z;                                                                                                      \
                                                                                                                                  \
 		C1.y = C2.x;                                                                                                             \
 		C1.z = C3.x;                                                                                                             \
@@ -86,7 +86,7 @@ static inline bool b3AnyGreaterEq3V( b3V32 a, b3V32 b )
 
 static inline b3V32 b3Dot3V( b3V32 a, b3V32 b )
 {
-	float d = a.x * b.x + a.y * b.y + a.z * b.z;
+	b3Fixed d = b3FixMul( a.x , b.x ) + b3FixMul( a.y , b.y ) + b3FixMul( a.z , b.z );
 	return B3_LITERAL( b3V32 ){ d, d, d };
 }
 
@@ -94,7 +94,7 @@ static inline b3V32 b3Dot3V( b3V32 a, b3V32 b )
 
 bool b3TestBoundsTriangleOverlap( b3V32 nodeCenter, b3V32 nodeExtent, b3V32 vertex1, b3V32 vertex2, b3V32 vertex3 )
 {
-	b3V32 two = b3SplatV( 2.0f );
+	b3V32 two = b3SplatV( B3_FIX( 2.0f ) );
 
 	// Setup triangle
 	vertex1 = b3SubV( vertex1, nodeCenter );
@@ -152,7 +152,7 @@ bool b3TestBoundsTriangleOverlap( b3V32 nodeCenter, b3V32 nodeExtent, b3V32 vert
 	return true;
 }
 
-float b3IntersectRayTriangle( b3V32 rayStart, b3V32 rayDelta, b3V32 vertex1, b3V32 vertex2, b3V32 vertex3 )
+b3Fixed b3IntersectRayTriangle( b3V32 rayStart, b3V32 rayDelta, b3V32 vertex1, b3V32 vertex2, b3V32 vertex3 )
 {
 	// Test if ray intersects this triangle sharing same calculations for each triangle
 	{
@@ -176,7 +176,7 @@ float b3IntersectRayTriangle( b3V32 rayStart, b3V32 rayDelta, b3V32 vertex1, b3V
 		b3V32 volumes = b3AddV( b3AddV( b3MulV( normal1, rayDeltaX ), b3MulV( normal2, rayDeltaY ) ), b3MulV( normal3, rayDeltaZ ) );
 		if ( b3AnyLess3V( volumes, b3_zeroV ) )
 		{
-			return 1.0f;
+			return B3_FIX( 1.0f );
 		}
 	}
 
@@ -188,13 +188,13 @@ float b3IntersectRayTriangle( b3V32 rayStart, b3V32 rayDelta, b3V32 vertex1, b3V
 	b3V32 denominator = b3Dot3V( normal, rayDelta );
 	if ( b3AnyGreaterEq3V( denominator, b3_zeroV ) )
 	{
-		return 1.0f;
+		return B3_FIX( 1.0f );
 	}
 
 	b3V32 lambda = b3DivV( b3Dot3V( normal, b3SubV( vertex1, rayStart ) ), denominator );
 	if ( b3AnyLessEq3V( lambda, b3_zeroV ) )
 	{
-		return 1.0f;
+		return B3_FIX( 1.0f );
 	}
 
 	lambda = b3MinV( lambda, b3_oneV );

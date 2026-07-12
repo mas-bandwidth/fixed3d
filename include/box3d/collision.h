@@ -56,7 +56,7 @@ B3_API b3TreeStats b3DynamicTree_Query( const b3DynamicTree* tree, b3AABB aabb, 
 /// would be slower than a brute force search.
 ///	@return performance data
 B3_API b3TreeStats b3DynamicTree_QueryClosest( const b3DynamicTree* tree, b3Vec3 point, uint64_t maskBits, bool requireAllBits,
-											   b3TreeQueryClosestCallbackFcn* callback, void* context, float* minDistanceSqr );
+											   b3TreeQueryClosestCallbackFcn* callback, void* context, b3Fixed* minDistanceSqr );
 
 /// Ray cast against the proxies in the tree. This relies on the callback
 /// to perform an exact ray cast in the case where the proxy contains a shape.
@@ -75,9 +75,9 @@ B3_API b3TreeStats b3DynamicTree_QueryClosest( const b3DynamicTree* tree, b3Vec3
 B3_API b3TreeStats b3DynamicTree_RayCast( const b3DynamicTree* tree, const b3RayCastInput* input, uint64_t maskBits,
 										  bool requireAllBits, b3TreeRayCastCallbackFcn* callback, void* context );
 
-/// Sweep an AABB through the tree. The box is in the tree's world float frame and the callback
+/// Sweep an AABB through the tree. The box is in the tree's world b3Fixed frame and the callback
 /// re-differences each shape at full precision against the query origin. Used by the large world
-/// spatial queries so the tree traversal stays float while the narrow phase stays precise.
+/// spatial queries so the tree traversal stays b3Fixed while the narrow phase stays precise.
 B3_API b3TreeStats b3DynamicTree_BoxCast( const b3DynamicTree* tree, const b3BoxCastInput* input, uint64_t maskBits,
 										  bool requireAllBits, b3TreeBoxCastCallbackFcn* callback, void* context );
 
@@ -85,7 +85,7 @@ B3_API b3TreeStats b3DynamicTree_BoxCast( const b3DynamicTree* tree, const b3Box
 B3_API int b3DynamicTree_GetHeight( const b3DynamicTree* tree );
 
 /// Get the ratio of the sum of the node areas to the root area.
-B3_API float b3DynamicTree_GetAreaRatio( const b3DynamicTree* tree );
+B3_API b3Fixed b3DynamicTree_GetAreaRatio( const b3DynamicTree* tree );
 
 /// Get the bounding box that contains the entire tree
 B3_API b3AABB b3DynamicTree_GetRootBounds( const b3DynamicTree* tree );
@@ -109,7 +109,7 @@ B3_API void b3DynamicTree_ValidateNoEnlarged( const b3DynamicTree* tree );
 B3_API void b3DynamicTree_Save( const b3DynamicTree* tree, const char* fileName );
 
 /// Load a file for debugging
-B3_API b3DynamicTree b3DynamicTree_Load( const char* fileName, float scale );
+B3_API b3DynamicTree b3DynamicTree_Load( const char* fileName, b3Fixed scale );
 
 /// Get proxy user data
 B3_INLINE uint64_t b3DynamicTree_GetUserData( const b3DynamicTree* tree, int proxyId )
@@ -186,13 +186,13 @@ B3_INLINE const b3Plane* b3GetHullPlanes( const b3HullData* hull )
 }
 
 /// Create a tessellated cylinder as a hull.
-B3_API b3HullData* b3CreateCylinder( float height, float radius, float yOffset, int sides );
+B3_API b3HullData* b3CreateCylinder( b3Fixed height, b3Fixed radius, b3Fixed yOffset, int sides );
 
 /// Create a tessellated cone as a hull.
-B3_API b3HullData* b3CreateCone( float height, float radius1, float radius2, int slices );
+B3_API b3HullData* b3CreateCone( b3Fixed height, b3Fixed radius1, b3Fixed radius2, int slices );
 
 /// Create a rock shaped hull.
-B3_API b3HullData* b3CreateRock( float radius );
+B3_API b3HullData* b3CreateRock( b3Fixed radius );
 
 /// Create a generic convex hull.
 B3_API b3HullData* b3CreateHull( const b3Vec3* points, int pointCount, int maxVertexCount );
@@ -207,18 +207,18 @@ B3_API b3HullData* b3CloneAndTransformHull( const b3HullData* original, b3Transf
 B3_API void b3DestroyHull( b3HullData* hull );
 
 /// Make a cube as a hull. Do not call b3DestroyHull on this.
-B3_API b3BoxHull b3MakeCubeHull( float halfWidth );
+B3_API b3BoxHull b3MakeCubeHull( b3Fixed halfWidth );
 
 /// Make a box as a hull. Do not call b3DestroyHull on this.
-B3_API b3BoxHull b3MakeBoxHull( float hx, float hy, float hz );
+B3_API b3BoxHull b3MakeBoxHull( b3Fixed hx, b3Fixed hy, b3Fixed hz );
 
 /// Make an offset box as a hull. Do not call b3DestroyHull on this.
-B3_API b3BoxHull b3MakeOffsetBoxHull( float hx, float hy, float hz, b3Vec3 offset );
+B3_API b3BoxHull b3MakeOffsetBoxHull( b3Fixed hx, b3Fixed hy, b3Fixed hz, b3Vec3 offset );
 
 /// Make a transformed box as a hull. Do not call b3DestroyHull on this.
 /// @param hx, hy, hz positive half widths
 /// @param transform local transform of box
-B3_API b3BoxHull b3MakeTransformedBoxHull( float hx, float hy, float hz, b3Transform transform );
+B3_API b3BoxHull b3MakeTransformedBoxHull( b3Fixed hx, b3Fixed hy, b3Fixed hz, b3Transform transform );
 
 /// This makes a transformed box hull with post scaling. This is useful for boxes that are scaled in
 /// a level editor. Such scaling can have reflection and shear. In the case of shear the result
@@ -236,7 +236,7 @@ B3_API b3BoxHull b3MakeScaledBoxHull( b3Vec3 halfWidths, b3Transform transform, 
 /// @param transform [in/out] the box transform with rotation and translation
 /// @param postScale the post scale being applied to the box after the transform
 /// @param minHalfWidth the minimum half width after scale is applied
-B3_API void b3ScaleBox( b3Vec3* halfWidths, b3Transform* transform, b3Vec3 postScale, float minHalfWidth );
+B3_API void b3ScaleBox( b3Vec3* halfWidths, b3Transform* transform, b3Vec3 postScale, b3Fixed minHalfWidth );
 
 /**@}*/ // hull
 
@@ -306,14 +306,14 @@ B3_INLINE const uint8_t* b3GetMeshFlags( const b3MeshData* mesh )
 /// @param cellWidth the width of each cell
 /// @param materialCount the number of materials to generate
 /// @param identifyEdges compute adjacency information
-B3_API b3MeshData* b3CreateGridMesh( int xCount, int zCount, float cellWidth, int materialCount, bool identifyEdges );
+B3_API b3MeshData* b3CreateGridMesh( int xCount, int zCount, b3Fixed cellWidth, int materialCount, bool identifyEdges );
 
 /// Create a wave mesh along the x and z axes.
-B3_API b3MeshData* b3CreateWaveMesh( int xCount, int zCount, float cellWidth, float amplitude, float rowFrequency,
-									 float columnFrequency );
+B3_API b3MeshData* b3CreateWaveMesh( int xCount, int zCount, b3Fixed cellWidth, b3Fixed amplitude, b3Fixed rowFrequency,
+									 b3Fixed columnFrequency );
 
 /// Create a torus mesh.
-B3_API b3MeshData* b3CreateTorusMesh( int radialResolution, int tubularResolution, float radius, float thickness );
+B3_API b3MeshData* b3CreateTorusMesh( int radialResolution, int tubularResolution, b3Fixed radius, b3Fixed thickness );
 
 /// Create a box mesh.
 B3_API b3MeshData* b3CreateBoxMesh( b3Vec3 center, b3Vec3 extent, bool identifyEdges );
@@ -322,7 +322,7 @@ B3_API b3MeshData* b3CreateBoxMesh( b3Vec3 center, b3Vec3 extent, bool identifyE
 B3_API b3MeshData* b3CreateHollowBoxMesh( b3Vec3 center, b3Vec3 extent );
 
 /// Create a platform mesh. A truncated pyramid.
-B3_API b3MeshData* b3CreatePlatformMesh( b3Vec3 center, float height, float topWidth, float bottomWidth );
+B3_API b3MeshData* b3CreatePlatformMesh( b3Vec3 center, b3Fixed height, b3Fixed topWidth, b3Fixed bottomWidth );
 
 /// Create a generic mesh.
 B3_API b3MeshData* b3CreateMesh( const b3MeshDef* def, int* degenerateTriangleIndices, int degenerateCapacity );
@@ -380,7 +380,7 @@ B3_API b3HeightFieldData* b3CreateHeightField( const b3HeightFieldDef* data );
 B3_API b3HeightFieldData* b3CreateGrid( int rowCount, int columnCount, b3Vec3 scale, bool makeHoles );
 
 /// Create a wave grid as a height field.
-B3_API b3HeightFieldData* b3CreateWave( int rowCount, int columnCount, b3Vec3 scale, float rowFrequency, float columnFrequency,
+B3_API b3HeightFieldData* b3CreateWave( int rowCount, int columnCount, b3Vec3 scale, b3Fixed rowFrequency, b3Fixed columnFrequency,
 										bool makeHoles );
 
 /// Destroy a height field.
@@ -444,13 +444,13 @@ B3_API b3CompoundData* b3ConvertBytesToCompound( uint8_t* bytes, int byteCount )
  */
 
 /// Compute mass properties of a sphere
-B3_API b3MassData b3ComputeSphereMass( const b3Sphere* shape, float density );
+B3_API b3MassData b3ComputeSphereMass( const b3Sphere* shape, b3Fixed density );
 
 /// Compute mass properties of a capsule
-B3_API b3MassData b3ComputeCapsuleMass( const b3Capsule* shape, float density );
+B3_API b3MassData b3ComputeCapsuleMass( const b3Capsule* shape, b3Fixed density );
 
 /// Compute mass properties of a hull
-B3_API b3MassData b3ComputeHullMass( const b3HullData* shape, float density );
+B3_API b3MassData b3ComputeHullMass( const b3HullData* shape, b3Fixed density );
 
 /// Compute the bounding box of a transformed sphere
 B3_API b3AABB b3ComputeSphereAABB( const b3Sphere* shape, b3Transform transform );
@@ -571,7 +571,7 @@ B3_API b3DistanceOutput b3ShapeDistance( const b3DistanceInput* input, b3Simplex
 B3_API b3CastOutput b3ShapeCast( const b3ShapeCastPairInput* input );
 
 /// Evaluate the transform sweep at a specific time.
-B3_API b3Transform b3GetSweepTransform( const b3Sweep* sweep, float time );
+B3_API b3Transform b3GetSweepTransform( const b3Sweep* sweep, b3Fixed time );
 
 /// Compute the upper bound on time before two shapes penetrate. Time is represented as
 /// a fraction between [0,tMax]. This uses a swept separating axis and may miss some intermediate,

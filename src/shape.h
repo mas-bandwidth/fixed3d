@@ -32,9 +32,9 @@ typedef struct b3Shape
 	int sensorIndex;
 	int proxyKey;
 	b3ShapeType type;
-	float density;
-	float explosionScale;
-	float aabbMargin;
+	b3Fixed density;
+	b3Fixed explosionScale;
+	b3Fixed aabbMargin;
 
 	b3AABB aabb;
 	b3AABB fatAABB;
@@ -89,11 +89,11 @@ b3AABB b3ComputeShapeAABB( const b3Shape* shape, b3Transform transform );
 
 // Conservative world AABB for a shape inflated by extra margin. In double precision mode the
 // box is built in the body local frame, translated by the double origin, and rounded outward.
-b3AABB b3ComputeFatShapeAABB( const b3Shape* shape, b3WorldTransform transform, float extra );
-b3AABB b3ComputeSweptShapeAABB( const b3Shape* shape, const b3Sweep* sweep, float time );
+b3AABB b3ComputeFatShapeAABB( const b3Shape* shape, b3WorldTransform transform, b3Fixed extra );
+b3AABB b3ComputeSweptShapeAABB( const b3Shape* shape, const b3Sweep* sweep, b3Fixed time );
 b3Vec3 b3GetShapeCentroid( const b3Shape* shape );
-float b3GetShapeArea( const b3Shape* shape );
-float b3GetShapeProjectedArea( const b3Shape* shape, b3Vec3 planeNormal );
+b3Fixed b3GetShapeArea( const b3Shape* shape );
+b3Fixed b3GetShapeProjectedArea( const b3Shape* shape, b3Vec3 planeNormal );
 uint64_t b3GetShapeUserMaterialId( const b3Shape* shape, int childIndex, int triangleIndex );
 
 b3ShapeProxy b3MakeShapeProxy( const b3Shape* shape );
@@ -104,9 +104,9 @@ b3CastOutput b3RayCastShape( const b3Shape* shape, b3Transform transform, const 
 b3CastOutput b3ShapeCastShape( const b3Shape* shape, b3Transform transform, const b3ShapeCastInput* input );
 bool b3OverlapShape( const b3Shape* shape, b3Transform transform, const b3ShapeProxy* proxy );
 
-float b3GetShapeArea( const b3Shape* shape );
-float b3GetShapeProjectedArea( const b3Shape* shape, b3Vec3 planeNormal );
-b3TOIOutput b3ShapeTimeOfImpact( b3Shape* shapeA, b3Shape* shapeB, b3Sweep* sweepA, b3Sweep* sweepB, float maxFraction );
+b3Fixed b3GetShapeArea( const b3Shape* shape );
+b3Fixed b3GetShapeProjectedArea( const b3Shape* shape, b3Vec3 planeNormal );
+b3TOIOutput b3ShapeTimeOfImpact( b3Shape* shapeA, b3Shape* shapeB, b3Sweep* sweepA, b3Sweep* sweepB, b3Fixed maxFraction );
 
 int b3CollideMoverAndSphere( b3PlaneResult* result, const b3Sphere* shape, const b3Capsule* mover );
 int b3CollideMoverAndCapsule( b3PlaneResult* result, const b3Capsule* shape, const b3Capsule* mover );
@@ -122,7 +122,7 @@ int b3FindHullSupportFace( const b3HullData* hull, b3Vec3 direction );
 bool b3IsValidHull( const b3HullData* hull );
 b3AABB b3ComputeSweptHullAABB( const b3HullData* shape, b3Transform xf1, b3Transform xf2 );
 b3ShapeExtent b3ComputeHullExtent( const b3HullData* hull, b3Vec3 origin );
-float b3ComputeHullProjectedArea( const b3HullData* hull, b3Vec3 direction );
+b3Fixed b3ComputeHullProjectedArea( const b3HullData* hull, b3Vec3 direction );
 
 // Height field
 b3Triangle b3GetHeightFieldTriangle( const b3HeightFieldData* heightField, int triangleIndex );

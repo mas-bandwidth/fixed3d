@@ -53,7 +53,7 @@ void b3WakeSolverSet( b3World* world, int setIndex )
 		body->localIndex = awakeSet->bodySims.count;
 
 		// Reset sleep timer
-		body->sleepTime = 0.0f;
+		body->sleepTime = B3_FIX( 0.0f );
 
 		b3BodySim* simDst = b3Array_Emplace( awakeSet->bodySims );
 		memcpy( simDst, simSrc, sizeof( b3BodySim ) );

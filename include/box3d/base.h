@@ -12,6 +12,7 @@
 #include BOX3D_USER_CONFIG
 #endif
 #include "config.h"
+#include "fixed.h"
 
 // clang-format off
 // 
@@ -171,10 +172,10 @@ B3_API bool b3IsDoublePrecision( void );
 B3_API uint64_t b3GetTicks( void );
 
 /// Get the milliseconds passed from an initial tick value.
-B3_API float b3GetMilliseconds( uint64_t ticks );
+B3_API b3Fixed b3GetMilliseconds( uint64_t ticks );
 
 /// Get the milliseconds passed from an initial tick value.
-B3_API float b3GetMillisecondsAndReset( uint64_t* ticks );
+B3_API b3Fixed b3GetMillisecondsAndReset( uint64_t* ticks );
 
 /// Yield to be used in a busy loop.
 B3_API void b3Yield( void );

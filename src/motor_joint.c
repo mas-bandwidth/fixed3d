@@ -41,7 +41,7 @@ b3Vec3 b3MotorJoint_GetAngularVelocity( b3JointId jointId )
 	return joint->motorJoint.angularVelocity;
 }
 
-void b3MotorJoint_SetMaxVelocityTorque( b3JointId jointId, float maxTorque )
+void b3MotorJoint_SetMaxVelocityTorque( b3JointId jointId, b3Fixed maxTorque )
 {
 	b3World* world = b3GetWorld( jointId.world0 );
 	B3_REC( world, MotorJointSetMaxVelocityTorque, jointId, maxTorque );
@@ -49,13 +49,13 @@ void b3MotorJoint_SetMaxVelocityTorque( b3JointId jointId, float maxTorque )
 	joint->motorJoint.maxVelocityTorque = maxTorque;
 }
 
-float b3MotorJoint_GetMaxVelocityTorque( b3JointId jointId )
+b3Fixed b3MotorJoint_GetMaxVelocityTorque( b3JointId jointId )
 {
 	b3JointSim* joint = b3GetJointSimCheckType( jointId, b3_motorJoint );
 	return joint->motorJoint.maxVelocityTorque;
 }
 
-void b3MotorJoint_SetMaxVelocityForce( b3JointId jointId, float maxForce )
+void b3MotorJoint_SetMaxVelocityForce( b3JointId jointId, b3Fixed maxForce )
 {
 	b3World* world = b3GetWorld( jointId.world0 );
 	B3_REC( world, MotorJointSetMaxVelocityForce, jointId, maxForce );
@@ -63,13 +63,13 @@ void b3MotorJoint_SetMaxVelocityForce( b3JointId jointId, float maxForce )
 	joint->motorJoint.maxVelocityForce = maxForce;
 }
 
-float b3MotorJoint_GetMaxVelocityForce( b3JointId jointId )
+b3Fixed b3MotorJoint_GetMaxVelocityForce( b3JointId jointId )
 {
 	b3JointSim* joint = b3GetJointSimCheckType( jointId, b3_motorJoint );
 	return joint->motorJoint.maxVelocityForce;
 }
 
-void b3MotorJoint_SetLinearHertz( b3JointId jointId, float hertz )
+void b3MotorJoint_SetLinearHertz( b3JointId jointId, b3Fixed hertz )
 {
 	b3World* world = b3GetWorld( jointId.world0 );
 	B3_REC( world, MotorJointSetLinearHertz, jointId, hertz );
@@ -77,13 +77,13 @@ void b3MotorJoint_SetLinearHertz( b3JointId jointId, float hertz )
 	joint->motorJoint.linearHertz = hertz;
 }
 
-float b3MotorJoint_GetLinearHertz( b3JointId jointId )
+b3Fixed b3MotorJoint_GetLinearHertz( b3JointId jointId )
 {
 	b3JointSim* joint = b3GetJointSimCheckType( jointId, b3_motorJoint );
 	return joint->motorJoint.linearHertz;
 }
 
-void b3MotorJoint_SetLinearDampingRatio( b3JointId jointId, float damping )
+void b3MotorJoint_SetLinearDampingRatio( b3JointId jointId, b3Fixed damping )
 {
 	b3World* world = b3GetWorld( jointId.world0 );
 	B3_REC( world, MotorJointSetLinearDampingRatio, jointId, damping );
@@ -91,13 +91,13 @@ void b3MotorJoint_SetLinearDampingRatio( b3JointId jointId, float damping )
 	joint->motorJoint.linearDampingRatio = damping;
 }
 
-float b3MotorJoint_GetLinearDampingRatio( b3JointId jointId )
+b3Fixed b3MotorJoint_GetLinearDampingRatio( b3JointId jointId )
 {
 	b3JointSim* joint = b3GetJointSimCheckType( jointId, b3_motorJoint );
 	return joint->motorJoint.linearDampingRatio;
 }
 
-void b3MotorJoint_SetAngularHertz( b3JointId jointId, float hertz )
+void b3MotorJoint_SetAngularHertz( b3JointId jointId, b3Fixed hertz )
 {
 	b3World* world = b3GetWorld( jointId.world0 );
 	B3_REC( world, MotorJointSetAngularHertz, jointId, hertz );
@@ -105,13 +105,13 @@ void b3MotorJoint_SetAngularHertz( b3JointId jointId, float hertz )
 	joint->motorJoint.angularHertz = hertz;
 }
 
-float b3MotorJoint_GetAngularHertz( b3JointId jointId )
+b3Fixed b3MotorJoint_GetAngularHertz( b3JointId jointId )
 {
 	b3JointSim* joint = b3GetJointSimCheckType( jointId, b3_motorJoint );
 	return joint->motorJoint.angularHertz;
 }
 
-void b3MotorJoint_SetAngularDampingRatio( b3JointId jointId, float damping )
+void b3MotorJoint_SetAngularDampingRatio( b3JointId jointId, b3Fixed damping )
 {
 	b3World* world = b3GetWorld( jointId.world0 );
 	B3_REC( world, MotorJointSetAngularDampingRatio, jointId, damping );
@@ -119,35 +119,35 @@ void b3MotorJoint_SetAngularDampingRatio( b3JointId jointId, float damping )
 	joint->motorJoint.angularDampingRatio = damping;
 }
 
-float b3MotorJoint_GetAngularDampingRatio( b3JointId jointId )
+b3Fixed b3MotorJoint_GetAngularDampingRatio( b3JointId jointId )
 {
 	b3JointSim* joint = b3GetJointSimCheckType( jointId, b3_motorJoint );
 	return joint->motorJoint.angularDampingRatio;
 }
 
-void b3MotorJoint_SetMaxSpringForce( b3JointId jointId, float maxForce )
+void b3MotorJoint_SetMaxSpringForce( b3JointId jointId, b3Fixed maxForce )
 {
 	b3World* world = b3GetWorld( jointId.world0 );
 	B3_REC( world, MotorJointSetMaxSpringForce, jointId, maxForce );
 	b3JointSim* joint = b3GetJointSimCheckType( jointId, b3_motorJoint );
-	joint->motorJoint.maxSpringForce = b3MaxFloat( 0.0f, maxForce );
+	joint->motorJoint.maxSpringForce = b3FixMax( B3_FIX( 0.0f ), maxForce );
 }
 
-float b3MotorJoint_GetMaxSpringForce( b3JointId jointId )
+b3Fixed b3MotorJoint_GetMaxSpringForce( b3JointId jointId )
 {
 	b3JointSim* joint = b3GetJointSimCheckType( jointId, b3_motorJoint );
 	return joint->motorJoint.maxSpringForce;
 }
 
-void b3MotorJoint_SetMaxSpringTorque( b3JointId jointId, float maxTorque )
+void b3MotorJoint_SetMaxSpringTorque( b3JointId jointId, b3Fixed maxTorque )
 {
 	b3World* world = b3GetWorld( jointId.world0 );
 	B3_REC( world, MotorJointSetMaxSpringTorque, jointId, maxTorque );
 	b3JointSim* joint = b3GetJointSimCheckType( jointId, b3_motorJoint );
-	joint->motorJoint.maxSpringTorque = b3MaxFloat( 0.0f, maxTorque );
+	joint->motorJoint.maxSpringTorque = b3FixMax( B3_FIX( 0.0f ), maxTorque );
 }
 
-float b3MotorJoint_GetMaxSpringTorque( b3JointId jointId )
+b3Fixed b3MotorJoint_GetMaxSpringTorque( b3JointId jointId )
 {
 	b3JointSim* joint = b3GetJointSimCheckType( jointId, b3_motorJoint );
 	return joint->motorJoint.maxSpringTorque;
@@ -208,7 +208,7 @@ void b3PrepareMotorJoint( b3JointSim* base, b3StepContext* context )
 	base->invIB = bodySimB->invInertiaWorld;
 
 	b3Matrix3 invInertiaSum = b3AddMM( base->invIA, base->invIB );
-	base->fixedRotation = b3Det( invInertiaSum ) < 1000.0f * FLT_MIN;
+	base->fixedRotation = invInertiaSum.cx.x + invInertiaSum.cy.y + invInertiaSum.cz.z == 0;
 
 	b3MotorJoint* joint = &base->motorJoint;
 	joint->indexA = bodyA->setIndex == b3_awakeSet ? localIndexA : B3_NULL_INDEX;
@@ -241,8 +241,8 @@ void b3WarmStartMotorJoint( b3JointSim* base, b3StepContext* context )
 {
 	B3_ASSERT( base->type == b3_motorJoint );
 
-	float mA = base->invMassA;
-	float mB = base->invMassB;
+	b3Fixed mA = base->invMassA;
+	b3Fixed mB = base->invMassB;
 	b3Matrix3 iA = base->invIA;
 	b3Matrix3 iB = base->invIB;
 
@@ -270,8 +270,8 @@ void b3SolveMotorJoint( b3JointSim* base, b3StepContext* context )
 {
 	B3_ASSERT( base->type == b3_motorJoint );
 
-	float mA = base->invMassA;
-	float mB = base->invMassB;
+	b3Fixed mA = base->invMassA;
+	b3Fixed mB = base->invMassB;
 	b3Matrix3 iA = base->invIA;
 	b3Matrix3 iB = base->invIB;
 
@@ -290,7 +290,7 @@ void b3SolveMotorJoint( b3JointSim* base, b3StepContext* context )
 	b3Quat quatA = b3MulQuat( stateA->deltaRotation, joint->frameA.q );
 	b3Quat quatB = b3MulQuat( stateB->deltaRotation, joint->frameB.q );
 
-	if ( b3DotQuat( quatA, quatB ) < 0.0f )
+	if ( b3DotQuat( quatA, quatB ) < B3_FIX( 0.0f ) )
 	{
 		// this keeps the rotation angle in the range [-pi, pi]
 		quatB = b3NegateQuat( quatB );
@@ -299,23 +299,23 @@ void b3SolveMotorJoint( b3JointSim* base, b3StepContext* context )
 	b3Quat relQ = b3InvMulQuat( quatA, quatB );
 
 	// angular spring
-	if ( joint->maxSpringTorque > 0.0f && joint->angularHertz > 0.0f )
+	if ( joint->maxSpringTorque > B3_FIX( 0.0f ) && joint->angularHertz > B3_FIX( 0.0f ) )
 	{
 		b3Quat targetQuat = b3Quat_identity;
 		b3Vec3 deltaRotation = b3DeltaQuatToRotation( relQ, targetQuat );
 		b3Vec3 c = b3Neg( b3RotateVector( quatA, deltaRotation ) );
 
 		b3Vec3 bias = b3MulSV( joint->angularSpring.biasRate, c );
-		float massScale = joint->angularSpring.massScale;
-		float impulseScale = joint->angularSpring.impulseScale;
+		b3Fixed massScale = joint->angularSpring.massScale;
+		b3Fixed impulseScale = joint->angularSpring.impulseScale;
 
 		b3Vec3 cdot = b3Sub( wB, wA );
 
-		float maxImpulse = context->h * joint->maxSpringTorque;
+		b3Fixed maxImpulse = b3FixMul( context->h , joint->maxSpringTorque );
 		b3Vec3 oldImpulse = joint->angularSpringImpulse;
 		b3Vec3 impulse = b3MulSub( b3MulSV( -massScale, b3MulMV( joint->angularMass, b3Add( cdot, bias ) ) ), impulseScale, oldImpulse );
 		joint->angularSpringImpulse = b3Add( oldImpulse, impulse );
-		if ( b3LengthSquared( joint->angularSpringImpulse ) > maxImpulse * maxImpulse )
+		if ( b3LengthSquared( joint->angularSpringImpulse ) > b3FixMul( maxImpulse , maxImpulse ) )
 		{
 			joint->angularSpringImpulse = b3MulSV( maxImpulse, b3Normalize( joint->angularSpringImpulse ) );
 		}
@@ -326,15 +326,15 @@ void b3SolveMotorJoint( b3JointSim* base, b3StepContext* context )
 	}
 
 	// angular velocity
-	if ( joint->maxVelocityTorque > 0.0 )
+	if ( b3FixToDouble( joint->maxVelocityTorque ) > 0.0 )
 	{
 		b3Vec3 cdot = b3Sub( b3Sub( wB, wA ), joint->angularVelocity );
 		b3Vec3 impulse = b3Neg( b3MulMV( joint->angularMass, cdot ) );
 
-		float maxImpulse = context->h * joint->maxVelocityTorque;
+		b3Fixed maxImpulse = b3FixMul( context->h , joint->maxVelocityTorque );
 		b3Vec3 oldImpulse = joint->angularVelocityImpulse;
 		joint->angularVelocityImpulse = b3Add( oldImpulse, impulse );
-		if ( b3LengthSquared( joint->angularVelocityImpulse ) > maxImpulse * maxImpulse )
+		if ( b3LengthSquared( joint->angularVelocityImpulse ) > b3FixMul( maxImpulse , maxImpulse ) )
 		{
 			joint->angularVelocityImpulse = b3MulSV( maxImpulse, b3Normalize( joint->angularVelocityImpulse ) );
 		}
@@ -348,15 +348,15 @@ void b3SolveMotorJoint( b3JointSim* base, b3StepContext* context )
 	b3Vec3 rB = b3RotateVector( stateB->deltaRotation, joint->frameB.p );
 
 	// linear spring
-	if ( joint->maxSpringForce > 0.0f && joint->linearHertz > 0.0f )
+	if ( joint->maxSpringForce > B3_FIX( 0.0f ) && joint->linearHertz > B3_FIX( 0.0f ) )
 	{
 		b3Vec3 dcA = stateA->deltaPosition;
 		b3Vec3 dcB = stateB->deltaPosition;
 		b3Vec3 c = b3Add( b3Add( b3Sub( dcB, dcA ), b3Sub( rB, rA ) ), joint->deltaCenter );
 
 		b3Vec3 bias = b3MulSV( joint->linearSpring.biasRate, c );
-		float massScale = joint->linearSpring.massScale;
-		float impulseScale = joint->linearSpring.impulseScale;
+		b3Fixed massScale = joint->linearSpring.massScale;
+		b3Fixed impulseScale = joint->linearSpring.impulseScale;
 
 		b3Vec3 cdot = b3Sub( b3Add( vB, b3Cross( wB, rB ) ), b3Add( vA, b3Cross( wA, rA ) ) );
 
@@ -374,10 +374,10 @@ void b3SolveMotorJoint( b3JointSim* base, b3StepContext* context )
 
 		b3Vec3 oldImpulse = joint->linearSpringImpulse;
 		b3Vec3 impulse = b3MulSub( b3MulSV( -massScale, b ), impulseScale, oldImpulse );
-		float maxImpulse = context->h * joint->maxSpringForce;
+		b3Fixed maxImpulse = b3FixMul( context->h , joint->maxSpringForce );
 		joint->linearSpringImpulse = b3Add( joint->linearSpringImpulse, impulse );
 
-		if ( b3LengthSquared( joint->linearSpringImpulse ) > maxImpulse * maxImpulse )
+		if ( b3LengthSquared( joint->linearSpringImpulse ) > b3FixMul( maxImpulse , maxImpulse ) )
 		{
 			joint->linearSpringImpulse = b3MulSV( maxImpulse, b3Normalize( joint->linearSpringImpulse ) );
 		}
@@ -391,7 +391,7 @@ void b3SolveMotorJoint( b3JointSim* base, b3StepContext* context )
 	}
 
 	// linear velocity
-	if ( joint->maxVelocityForce > 0.0f )
+	if ( joint->maxVelocityForce > B3_FIX( 0.0f ) )
 	{
 		b3Vec3 cdot = b3Sub( b3Add( vB, b3Cross( wB, rB ) ), b3Add( vA, b3Cross( wA, rA ) ) );
 		cdot = b3Sub( cdot, joint->linearVelocity );
@@ -409,10 +409,10 @@ void b3SolveMotorJoint( b3JointSim* base, b3StepContext* context )
 		b3Vec3 impulse = b3Neg( b );
 
 		b3Vec3 oldImpulse = joint->linearVelocityImpulse;
-		float maxImpulse = context->h * joint->maxVelocityForce;
+		b3Fixed maxImpulse = b3FixMul( context->h , joint->maxVelocityForce );
 		joint->linearVelocityImpulse = b3Add( joint->linearVelocityImpulse, impulse );
 
-		if ( b3LengthSquared( joint->linearVelocityImpulse ) > maxImpulse * maxImpulse )
+		if ( b3LengthSquared( joint->linearVelocityImpulse ) > b3FixMul( maxImpulse , maxImpulse ) )
 		{
 			joint->linearVelocityImpulse = b3MulSV( maxImpulse, b3Normalize( joint->linearVelocityImpulse ) );
 		}

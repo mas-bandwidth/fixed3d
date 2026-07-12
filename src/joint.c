@@ -25,10 +25,10 @@ static b3JointDef b3DefaultJointDef( void )
 	b3JointDef def = { 0 };
 	def.localFrameA.q = b3Quat_identity;
 	def.localFrameB.q = b3Quat_identity;
-	def.forceThreshold = FLT_MAX;
-	def.torqueThreshold = FLT_MAX;
-	def.constraintHertz = 60.0f;
-	def.constraintDampingRatio = 2.0f;
+	def.forceThreshold = B3_FIXED_MAX;
+	def.torqueThreshold = B3_FIXED_MAX;
+	def.constraintHertz = B3_FIX( 60.0f );
+	def.constraintDampingRatio = B3_FIX( 2.0f );
 	def.drawScale = b3GetLengthUnitsPerMeter();
 	def.internalValue = B3_SECRET_COOKIE;
 	return def;
@@ -38,9 +38,9 @@ b3ParallelJointDef b3DefaultParallelJointDef( void )
 {
 	b3ParallelJointDef def = { 0 };
 	def.base = b3DefaultJointDef();
-	def.hertz = 1.0f;
-	def.dampingRatio = 1.0f;
-	def.maxTorque = FLT_MAX;
+	def.hertz = B3_FIX( 1.0f );
+	def.dampingRatio = B3_FIX( 1.0f );
+	def.maxTorque = B3_FIXED_MAX;
 	return def;
 }
 
@@ -48,9 +48,9 @@ b3DistanceJointDef b3DefaultDistanceJointDef( void )
 {
 	b3DistanceJointDef def = { 0 };
 	def.base = b3DefaultJointDef();
-	def.lowerSpringForce = -FLT_MAX;
-	def.upperSpringForce = FLT_MAX;
-	def.length = 1.0f;
+	def.lowerSpringForce = -B3_FIXED_MAX;
+	def.upperSpringForce = B3_FIXED_MAX;
+	def.length = B3_FIX( 1.0f );
 	def.maxLength = B3_HUGE;
 	return def;
 }
@@ -103,10 +103,10 @@ b3WheelJointDef b3DefaultWheelJointDef( void )
 	b3WheelJointDef def = { 0 };
 	def.base = b3DefaultJointDef();
 	def.enableSuspensionSpring = true;
-	def.suspensionHertz = 1.0f;
-	def.suspensionDampingRatio = 0.7f;
-	def.steeringHertz = 1.0f;
-	def.steeringDampingRatio = 0.7f;
+	def.suspensionHertz = B3_FIX( 1.0f );
+	def.suspensionDampingRatio = B3_FIX( 0.7f );
+	def.steeringHertz = B3_FIX( 1.0f );
+	def.steeringDampingRatio = B3_FIX( 0.7f );
 	return def;
 }
 
@@ -307,13 +307,13 @@ static b3JointPair b3CreateJoint( b3World* world, const b3JointDef* def, b3Joint
 	jointSim->constraintHertz = def->constraintHertz;
 	jointSim->constraintDampingRatio = def->constraintDampingRatio;
 	jointSim->constraintSoftness = (b3Softness){
-		.biasRate = 0.0f,
-		.massScale = 1.0f,
-		.impulseScale = 0.0f,
+		.biasRate = B3_FIX( 0.0f ),
+		.massScale = B3_FIX( 1.0f ),
+		.impulseScale = B3_FIX( 0.0f ),
 	};
 
-	B3_ASSERT( b3IsValidFloat( def->forceThreshold ) && def->forceThreshold >= 0.0f );
-	B3_ASSERT( b3IsValidFloat( def->torqueThreshold ) && def->torqueThreshold >= 0.0f );
+	B3_ASSERT( b3IsValidFixed( def->forceThreshold ) && def->forceThreshold >= B3_FIX( 0.0f ) );
+	B3_ASSERT( b3IsValidFixed( def->torqueThreshold ) && def->torqueThreshold >= B3_FIX( 0.0f ) );
 
 	jointSim->forceThreshold = def->forceThreshold;
 	jointSim->torqueThreshold = def->torqueThreshold;
@@ -373,10 +373,10 @@ static void b3DestroyContactsBetweenBodies( b3World* world, b3Body* bodyA, b3Bod
 	b3ValidateSolverSets( world );
 }
 
-void b3Joint_SetConstraintTuning( b3JointId jointId, float hertz, float dampingRatio )
+void b3Joint_SetConstraintTuning( b3JointId jointId, b3Fixed hertz, b3Fixed dampingRatio )
 {
-	B3_ASSERT( b3IsValidFloat( hertz ) && hertz >= 0.0f );
-	B3_ASSERT( b3IsValidFloat( dampingRatio ) && dampingRatio >= 0.0f );
+	B3_ASSERT( b3IsValidFixed( hertz ) && hertz >= B3_FIX( 0.0f ) );
+	B3_ASSERT( b3IsValidFixed( dampingRatio ) && dampingRatio >= B3_FIX( 0.0f ) );
 
 	b3World* world = b3GetWorld( jointId.world0 );
 	B3_REC( world, JointSetConstraintTuning, jointId, hertz, dampingRatio );
@@ -386,7 +386,7 @@ void b3Joint_SetConstraintTuning( b3JointId jointId, float hertz, float dampingR
 	base->constraintDampingRatio = dampingRatio;
 }
 
-void b3Joint_GetConstraintTuning( b3JointId jointId, float* hertz, float* dampingRatio )
+void b3Joint_GetConstraintTuning( b3JointId jointId, b3Fixed* hertz, b3Fixed* dampingRatio )
 {
 	b3World* world = b3GetWorld( jointId.world0 );
 	b3Joint* joint = b3GetJointFullId( world, jointId );
@@ -395,9 +395,9 @@ void b3Joint_GetConstraintTuning( b3JointId jointId, float* hertz, float* dampin
 	*dampingRatio = base->constraintDampingRatio;
 }
 
-void b3Joint_SetForceThreshold( b3JointId jointId, float threshold )
+void b3Joint_SetForceThreshold( b3JointId jointId, b3Fixed threshold )
 {
-	B3_ASSERT( b3IsValidFloat( threshold ) && threshold >= 0.0f );
+	B3_ASSERT( b3IsValidFixed( threshold ) && threshold >= B3_FIX( 0.0f ) );
 
 	b3World* world = b3GetWorld( jointId.world0 );
 	B3_REC( world, JointSetForceThreshold, jointId, threshold );
@@ -406,7 +406,7 @@ void b3Joint_SetForceThreshold( b3JointId jointId, float threshold )
 	base->forceThreshold = threshold;
 }
 
-float b3Joint_GetForceThreshold( b3JointId jointId )
+b3Fixed b3Joint_GetForceThreshold( b3JointId jointId )
 {
 	b3World* world = b3GetWorld( jointId.world0 );
 	b3Joint* joint = b3GetJointFullId( world, jointId );
@@ -414,9 +414,9 @@ float b3Joint_GetForceThreshold( b3JointId jointId )
 	return base->forceThreshold;
 }
 
-void b3Joint_SetTorqueThreshold( b3JointId jointId, float threshold )
+void b3Joint_SetTorqueThreshold( b3JointId jointId, b3Fixed threshold )
 {
-	B3_ASSERT( b3IsValidFloat( threshold ) && threshold >= 0.0f );
+	B3_ASSERT( b3IsValidFixed( threshold ) && threshold >= B3_FIX( 0.0f ) );
 
 	b3World* world = b3GetWorld( jointId.world0 );
 	B3_REC( world, JointSetTorqueThreshold, jointId, threshold );
@@ -425,7 +425,7 @@ void b3Joint_SetTorqueThreshold( b3JointId jointId, float threshold )
 	base->torqueThreshold = threshold;
 }
 
-float b3Joint_GetTorqueThreshold( b3JointId jointId )
+b3Fixed b3Joint_GetTorqueThreshold( b3JointId jointId )
 {
 	b3World* world = b3GetWorld( jointId.world0 );
 	b3Joint* joint = b3GetJointFullId( world, jointId );
@@ -442,30 +442,30 @@ b3JointId b3CreateDistanceJoint( b3WorldId worldId, const b3DistanceJointDef* de
 		return (b3JointId){ 0 };
 	}
 
-	B3_ASSERT( b3IsValidFloat( def->length ) && def->length > 0.0f );
+	B3_ASSERT( b3IsValidFixed( def->length ) && def->length > B3_FIX( 0.0f ) );
 	B3_ASSERT( def->lowerSpringForce <= def->upperSpringForce );
 
 	b3JointPair pair = b3CreateJoint( world, &def->base, b3_distanceJoint );
 
 	b3JointSim* joint = pair.jointSim;
 
-	joint->distanceJoint = (b3DistanceJoint){ 0 };
-	joint->distanceJoint.length = b3MaxFloat( def->length, B3_LINEAR_SLOP );
+	joint->distanceJoint = (b3DistanceJoint){ b3FixFromInt( 0 ) };
+	joint->distanceJoint.length = b3FixMax( def->length, B3_LINEAR_SLOP );
 	joint->distanceJoint.hertz = def->hertz;
 	joint->distanceJoint.dampingRatio = def->dampingRatio;
 	joint->distanceJoint.lowerSpringForce = def->lowerSpringForce;
 	joint->distanceJoint.upperSpringForce = def->upperSpringForce;
-	joint->distanceJoint.minLength = b3MaxFloat( def->minLength, B3_LINEAR_SLOP );
-	joint->distanceJoint.maxLength = b3MaxFloat( def->minLength, def->maxLength );
+	joint->distanceJoint.minLength = b3FixMax( def->minLength, B3_LINEAR_SLOP );
+	joint->distanceJoint.maxLength = b3FixMax( def->minLength, def->maxLength );
 	joint->distanceJoint.maxMotorForce = def->maxMotorForce;
 	joint->distanceJoint.motorSpeed = def->motorSpeed;
 	joint->distanceJoint.enableSpring = def->enableSpring;
 	joint->distanceJoint.enableLimit = def->enableLimit;
 	joint->distanceJoint.enableMotor = def->enableMotor;
-	joint->distanceJoint.impulse = 0.0f;
-	joint->distanceJoint.lowerImpulse = 0.0f;
-	joint->distanceJoint.upperImpulse = 0.0f;
-	joint->distanceJoint.motorImpulse = 0.0f;
+	joint->distanceJoint.impulse = B3_FIX( 0.0f );
+	joint->distanceJoint.lowerImpulse = B3_FIX( 0.0f );
+	joint->distanceJoint.upperImpulse = B3_FIX( 0.0f );
+	joint->distanceJoint.motorImpulse = B3_FIX( 0.0f );
 
 	b3JointId jointId = { joint->jointId + 1, world->worldId, pair.joint->generation };
 	B3_REC_CREATE( world, CreateDistanceJoint, jointId, worldId, *def );
@@ -484,7 +484,7 @@ b3JointId b3CreateMotorJoint( b3WorldId worldId, const b3MotorJointDef* def )
 	b3JointPair pair = b3CreateJoint( world, &def->base, b3_motorJoint );
 	b3JointSim* joint = pair.jointSim;
 
-	joint->motorJoint = (b3MotorJoint){ 0 };
+	joint->motorJoint = (b3MotorJoint){ b3FixFromInt( 0 ) };
 	joint->motorJoint.linearVelocity = def->linearVelocity;
 	joint->motorJoint.maxVelocityForce = def->maxVelocityForce;
 	joint->motorJoint.angularVelocity = def->angularVelocity;
@@ -528,15 +528,15 @@ b3JointId b3CreateParallelJoint( b3WorldId worldId, const b3ParallelJointDef* de
 		return (b3JointId){ 0 };
 	}
 
-	B3_ASSERT( b3IsValidFloat( def->hertz ) && def->hertz >= 0.0f );
-	B3_ASSERT( b3IsValidFloat( def->dampingRatio ) && def->dampingRatio >= 0.0f );
-	B3_ASSERT( b3IsValidFloat( def->maxTorque ) && def->maxTorque >= 0.0f );
+	B3_ASSERT( b3IsValidFixed( def->hertz ) && def->hertz >= B3_FIX( 0.0f ) );
+	B3_ASSERT( b3IsValidFixed( def->dampingRatio ) && def->dampingRatio >= B3_FIX( 0.0f ) );
+	B3_ASSERT( b3IsValidFixed( def->maxTorque ) && def->maxTorque >= B3_FIX( 0.0f ) );
 
 	b3JointPair pair = b3CreateJoint( world, &def->base, b3_parallelJoint );
 
 	b3JointSim* joint = pair.jointSim;
 
-	joint->parallelJoint = (b3ParallelJoint){ 0 };
+	joint->parallelJoint = (b3ParallelJoint){ b3FixFromInt( 0 ) };
 	joint->parallelJoint.hertz = def->hertz;
 	joint->parallelJoint.dampingRatio = def->dampingRatio;
 	joint->parallelJoint.maxTorque = def->maxTorque;
@@ -561,7 +561,7 @@ b3JointId b3CreatePrismaticJoint( b3WorldId worldId, const b3PrismaticJointDef* 
 
 	b3JointSim* joint = pair.jointSim;
 
-	joint->prismaticJoint = (b3PrismaticJoint){ 0 };
+	joint->prismaticJoint = (b3PrismaticJoint){ b3FixFromInt( 0 ) };
 	joint->prismaticJoint.hertz = def->hertz;
 	joint->prismaticJoint.dampingRatio = def->dampingRatio;
 	joint->prismaticJoint.targetTranslation = def->targetTranslation;
@@ -592,15 +592,15 @@ b3JointId b3CreateRevoluteJoint( b3WorldId worldId, const b3RevoluteJointDef* de
 
 	b3JointSim* joint = pair.jointSim;
 
-	joint->revoluteJoint = (b3RevoluteJoint){ 0 };
+	joint->revoluteJoint = (b3RevoluteJoint){ b3FixFromInt( 0 ) };
 	joint->revoluteJoint.hertz = def->hertz;
 	joint->revoluteJoint.dampingRatio = def->dampingRatio;
-	joint->revoluteJoint.targetAngle = b3ClampFloat( def->targetAngle, -B3_PI, B3_PI );
+	joint->revoluteJoint.targetAngle = b3FixClamp( def->targetAngle, -B3_PI, B3_PI );
 
-	float lowerAngle = b3MinFloat( def->lowerAngle, def->upperAngle );
-	float upperAngle = b3MaxFloat( def->lowerAngle, def->upperAngle );
-	joint->revoluteJoint.lowerAngle = b3ClampFloat( lowerAngle, -0.99f * B3_PI, 0.99f * B3_PI );
-	joint->revoluteJoint.upperAngle = b3ClampFloat( upperAngle, -0.99f * B3_PI, 0.99f * B3_PI );
+	b3Fixed lowerAngle = b3FixMin( def->lowerAngle, def->upperAngle );
+	b3Fixed upperAngle = b3FixMax( def->lowerAngle, def->upperAngle );
+	joint->revoluteJoint.lowerAngle = b3FixClamp( lowerAngle, b3FixMul( -B3_FIX( 0.99f ) , B3_PI ), b3FixMul( B3_FIX( 0.99f ) , B3_PI ) );
+	joint->revoluteJoint.upperAngle = b3FixClamp( upperAngle, b3FixMul( -B3_FIX( 0.99f ) , B3_PI ), b3FixMul( B3_FIX( 0.99f ) , B3_PI ) );
 
 	joint->revoluteJoint.maxMotorTorque = def->maxMotorTorque;
 	joint->revoluteJoint.motorSpeed = def->motorSpeed;
@@ -616,7 +616,7 @@ b3JointId b3CreateRevoluteJoint( b3WorldId worldId, const b3RevoluteJointDef* de
 b3JointId b3CreateSphericalJoint( b3WorldId worldId, const b3SphericalJointDef* def )
 {
 	B3_CHECK_JOINT_DEF( def );
-	B3_ASSERT( 0.0f <= def->coneAngle && def->coneAngle <= 0.99f * B3_PI );
+	B3_ASSERT( B3_FIX( 0.0f ) <= def->coneAngle && def->coneAngle <= b3FixMul( B3_FIX( 0.99f ), B3_PI ) );
 	B3_ASSERT( b3IsValidQuat( def->targetRotation ) );
 
 	b3World* world = b3GetUnlockedWorldFromId( worldId );
@@ -629,16 +629,16 @@ b3JointId b3CreateSphericalJoint( b3WorldId worldId, const b3SphericalJointDef* 
 
 	b3JointSim* joint = pair.jointSim;
 
-	joint->sphericalJoint = (b3SphericalJoint){ 0 };
+	joint->sphericalJoint = (b3SphericalJoint){ b3FixFromInt( 0 ) };
 	joint->sphericalJoint.hertz = def->hertz;
 	joint->sphericalJoint.dampingRatio = def->dampingRatio;
 	joint->sphericalJoint.targetRotation = def->targetRotation;
-	joint->sphericalJoint.coneAngle = b3ClampFloat( def->coneAngle, 0.0f, 0.5f * B3_PI );
+	joint->sphericalJoint.coneAngle = b3FixClamp( def->coneAngle, B3_FIX( 0.0f ), b3FixMul( B3_FIX( 0.5f ) , B3_PI ) );
 
-	float lowerAngle = b3MinFloat( def->lowerTwistAngle, def->upperTwistAngle );
-	float upperAngle = b3MaxFloat( def->lowerTwistAngle, def->upperTwistAngle );
-	joint->sphericalJoint.lowerTwistAngle = b3ClampFloat( lowerAngle, -0.99f * B3_PI, 0.99f * B3_PI );
-	joint->sphericalJoint.upperTwistAngle = b3ClampFloat( upperAngle, -0.99f * B3_PI, 0.99f * B3_PI );
+	b3Fixed lowerAngle = b3FixMin( def->lowerTwistAngle, def->upperTwistAngle );
+	b3Fixed upperAngle = b3FixMax( def->lowerTwistAngle, def->upperTwistAngle );
+	joint->sphericalJoint.lowerTwistAngle = b3FixClamp( lowerAngle, b3FixMul( -B3_FIX( 0.99f ) , B3_PI ), b3FixMul( B3_FIX( 0.99f ) , B3_PI ) );
+	joint->sphericalJoint.upperTwistAngle = b3FixClamp( upperAngle, b3FixMul( -B3_FIX( 0.99f ) , B3_PI ), b3FixMul( B3_FIX( 0.99f ) , B3_PI ) );
 
 	joint->sphericalJoint.maxMotorTorque = def->maxMotorTorque;
 	joint->sphericalJoint.motorVelocity = def->motorVelocity;
@@ -655,10 +655,10 @@ b3JointId b3CreateSphericalJoint( b3WorldId worldId, const b3SphericalJointDef* 
 b3JointId b3CreateWeldJoint( b3WorldId worldId, const b3WeldJointDef* def )
 {
 	B3_CHECK_JOINT_DEF( def );
-	B3_ASSERT( 0.0f <= def->angularHertz );
-	B3_ASSERT( 0.0f <= def->angularDampingRatio );
-	B3_ASSERT( 0.0f <= def->linearHertz );
-	B3_ASSERT( 0.0f <= def->linearDampingRatio );
+	B3_ASSERT( B3_FIX( 0.0f ) <= def->angularHertz );
+	B3_ASSERT( B3_FIX( 0.0f ) <= def->angularDampingRatio );
+	B3_ASSERT( B3_FIX( 0.0f ) <= def->linearHertz );
+	B3_ASSERT( B3_FIX( 0.0f ) <= def->linearDampingRatio );
 
 	b3World* world = b3GetUnlockedWorldFromId( worldId );
 	if (world == NULL)
@@ -670,7 +670,7 @@ b3JointId b3CreateWeldJoint( b3WorldId worldId, const b3WeldJointDef* def )
 
 	b3JointSim* joint = pair.jointSim;
 
-	joint->weldJoint = (b3WeldJoint){ 0 };
+	joint->weldJoint = (b3WeldJoint){ b3FixFromInt( 0 ) };
 	joint->weldJoint.linearHertz = def->linearHertz;
 	joint->weldJoint.linearDampingRatio = def->linearDampingRatio;
 	joint->weldJoint.angularHertz = def->angularHertz;
@@ -696,7 +696,7 @@ b3JointId b3CreateWheelJoint( b3WorldId worldId, const b3WheelJointDef* def )
 
 	b3JointSim* joint = pair.jointSim;
 
-	joint->wheelJoint = (b3WheelJoint){ 0 };
+	joint->wheelJoint = (b3WheelJoint){ b3FixFromInt( 0 ) };
 	joint->wheelJoint.enableSuspensionSpring = def->enableSuspensionSpring;
 	joint->wheelJoint.suspensionHertz = def->suspensionHertz;
 	joint->wheelJoint.suspensionDampingRatio = def->suspensionDampingRatio;
@@ -998,10 +998,10 @@ void b3Joint_WakeBodies( b3JointId jointId )
 	world->locked = false;
 }
 
-void b3GetJointReaction( b3World* world, b3JointSim* sim, float invTimeStep, float* force, float* torque )
+void b3GetJointReaction( b3World* world, b3JointSim* sim, b3Fixed invTimeStep, b3Fixed* force, b3Fixed* torque )
 {
-	float linearImpulse = 0.0f;
-	float angularImpulse = 0.0f;
+	b3Fixed linearImpulse = B3_FIX( 0.0f );
+	b3Fixed angularImpulse = B3_FIX( 0.0f );
 
 	switch ( sim->type )
 	{
@@ -1011,7 +1011,7 @@ void b3GetJointReaction( b3World* world, b3JointSim* sim, float invTimeStep, flo
 			b3Vec3 impulse = {
 				.x = joint->perpImpulse.x,
 				.y = joint->perpImpulse.y,
-				.z = 0.0f,
+				.z = B3_FIX( 0.0f ),
 			};
 			angularImpulse = b3Length( impulse );
 		}
@@ -1020,7 +1020,7 @@ void b3GetJointReaction( b3World* world, b3JointSim* sim, float invTimeStep, flo
 		case b3_distanceJoint:
 		{
 			b3DistanceJoint* joint = &sim->distanceJoint;
-			linearImpulse = b3AbsFloat( joint->impulse + joint->lowerImpulse - joint->upperImpulse + joint->motorImpulse );
+			linearImpulse = b3FixAbs( joint->impulse + joint->lowerImpulse - joint->upperImpulse + joint->motorImpulse );
 		}
 		break;
 
@@ -1095,9 +1095,9 @@ void b3GetJointReaction( b3World* world, b3JointSim* sim, float invTimeStep, flo
 			// todo probably wrong
 			b3WheelJoint* joint = &sim->wheelJoint;
 			b3Vec2 perpImpulse = joint->linearImpulse;
-			float axialImpulse = joint->suspensionSpringImpulse + joint->lowerSuspensionImpulse - joint->upperSuspensionImpulse;
-			linearImpulse = sqrtf( perpImpulse.x * perpImpulse.x + perpImpulse.y * perpImpulse.y + axialImpulse * axialImpulse );
-			angularImpulse = b3AbsFloat( joint->spinImpulse );
+			b3Fixed axialImpulse = joint->suspensionSpringImpulse + joint->lowerSuspensionImpulse - joint->upperSuspensionImpulse;
+			linearImpulse = b3FixSqrt( b3FixMul( perpImpulse.x , perpImpulse.x ) + b3FixMul( perpImpulse.y , perpImpulse.y ) + b3FixMul( axialImpulse , axialImpulse ) );
+			angularImpulse = b3FixAbs( joint->spinImpulse );
 		}
 		break;
 
@@ -1105,8 +1105,8 @@ void b3GetJointReaction( b3World* world, b3JointSim* sim, float invTimeStep, flo
 			break;
 	}
 
-	*force = linearImpulse * invTimeStep;
-	*torque = angularImpulse * invTimeStep;
+	*force = b3FixMul( linearImpulse , invTimeStep );
+	*torque = b3FixMul( angularImpulse , invTimeStep );
 }
 
 static b3Vec3 b3GetJointConstraintForce( b3World* world, b3Joint* joint )
@@ -1201,7 +1201,7 @@ b3Vec3 b3Joint_GetConstraintTorque( b3JointId jointId )
 	return b3GetJointConstraintTorque( world, joint );
 }
 
-float b3Joint_GetLinearSeparation( b3JointId jointId )
+b3Fixed b3Joint_GetLinearSeparation( b3JointId jointId )
 {
 	b3World* world = b3GetWorld( jointId.world0 );
 	b3Joint* joint = b3GetJointFullId( world, jointId );
@@ -1217,12 +1217,12 @@ float b3Joint_GetLinearSeparation( b3JointId jointId )
 	switch ( joint->type )
 	{
 		case b3_parallelJoint:
-			return 0.0f;
+			return B3_FIX( 0.0f );
 
 		case b3_distanceJoint:
 		{
 			b3DistanceJoint* distanceJoint = &base->distanceJoint;
-			float length = b3Length( dp );
+			b3Fixed length = b3Length( dp );
 			if ( distanceJoint->enableSpring )
 			{
 				if ( distanceJoint->enableLimit )
@@ -1237,32 +1237,32 @@ float b3Joint_GetLinearSeparation( b3JointId jointId )
 						return length - distanceJoint->maxLength;
 					}
 
-					return 0.0f;
+					return B3_FIX( 0.0f );
 				}
 
-				return 0.0f;
+				return B3_FIX( 0.0f );
 			}
 
-			return b3AbsFloat( length - distanceJoint->length );
+			return b3FixAbs( length - distanceJoint->length );
 		}
 
 		case b3_motorJoint:
-			return 0.0f;
+			return B3_FIX( 0.0f );
 
 		case b3_filterJoint:
-			return 0.0f;
+			return B3_FIX( 0.0f );
 
 		case b3_prismaticJoint:
 		{
 			b3PrismaticJoint* prismaticJoint = &base->prismaticJoint;
 			b3Vec3 axisA = b3RotateVector( xfA.q, b3Vec3_axisX );
 			b3Vec3 perpA = b3Perp( axisA );
-			float perpendicularSeparation = b3AbsFloat( b3Dot( perpA, dp ) );
-			float limitSeparation = 0.0f;
+			b3Fixed perpendicularSeparation = b3FixAbs( b3Dot( perpA, dp ) );
+			b3Fixed limitSeparation = B3_FIX( 0.0f );
 
 			if ( prismaticJoint->enableLimit )
 			{
-				float translation = b3Dot( axisA, dp );
+				b3Fixed translation = b3Dot( axisA, dp );
 				if ( translation < prismaticJoint->lowerTranslation )
 				{
 					limitSeparation = prismaticJoint->lowerTranslation - translation;
@@ -1274,7 +1274,7 @@ float b3Joint_GetLinearSeparation( b3JointId jointId )
 				}
 			}
 
-			return sqrtf( perpendicularSeparation * perpendicularSeparation + limitSeparation * limitSeparation );
+			return b3FixSqrt( b3FixMul( perpendicularSeparation , perpendicularSeparation ) + b3FixMul( limitSeparation , limitSeparation ) );
 		}
 
 		case b3_revoluteJoint:
@@ -1286,12 +1286,12 @@ float b3Joint_GetLinearSeparation( b3JointId jointId )
 		case b3_weldJoint:
 		{
 			b3WeldJoint* weldJoint = &base->weldJoint;
-			if ( weldJoint->linearHertz == 0.0f )
+			if ( weldJoint->linearHertz == B3_FIX( 0.0f ) )
 			{
 				return b3Length( dp );
 			}
 
-			return 0.0f;
+			return B3_FIX( 0.0f );
 		}
 
 		case b3_wheelJoint:
@@ -1299,12 +1299,12 @@ float b3Joint_GetLinearSeparation( b3JointId jointId )
 			b3WheelJoint* wheelJoint = &base->wheelJoint;
 			b3Vec3 axisA = b3RotateVector( xfA.q, b3Vec3_axisX );
 			b3Vec3 perpA = b3Perp( axisA );
-			float perpendicularSeparation = b3AbsFloat( b3Dot( perpA, dp ) );
-			float limitSeparation = 0.0f;
+			b3Fixed perpendicularSeparation = b3FixAbs( b3Dot( perpA, dp ) );
+			b3Fixed limitSeparation = B3_FIX( 0.0f );
 
 			if ( wheelJoint->enableSuspensionLimit )
 			{
-				float translation = b3Dot( axisA, dp );
+				b3Fixed translation = b3Dot( axisA, dp );
 				if ( translation < wheelJoint->lowerSuspensionLimit )
 				{
 					limitSeparation = wheelJoint->lowerSuspensionLimit - translation;
@@ -1316,16 +1316,16 @@ float b3Joint_GetLinearSeparation( b3JointId jointId )
 				}
 			}
 
-			return sqrtf( perpendicularSeparation * perpendicularSeparation + limitSeparation * limitSeparation );
+			return b3FixSqrt( b3FixMul( perpendicularSeparation , perpendicularSeparation ) + b3FixMul( limitSeparation , limitSeparation ) );
 		}
 
 		default:
 			B3_ASSERT( false );
-			return 0.0f;
+			return B3_FIX( 0.0f );
 	}
 }
 
-float b3Joint_GetAngularSeparation( b3JointId jointId )
+b3Fixed b3Joint_GetAngularSeparation( b3JointId jointId )
 {
 	b3World* world = b3GetWorld( jointId.world0 );
 	b3Joint* joint = b3GetJointFullId( world, jointId );
@@ -1341,18 +1341,18 @@ float b3Joint_GetAngularSeparation( b3JointId jointId )
 		case b3_parallelJoint:
 		{
 			// Remove hinge angle
-			relQ.v.z = 0.0f;
+			relQ.v.z = B3_FIX( 0.0f );
 			return b3GetQuatAngle( relQ );
 		}
 
 		case b3_distanceJoint:
-			return 0.0f;
+			return B3_FIX( 0.0f );
 
 		case b3_motorJoint:
-			return 0.0f;
+			return B3_FIX( 0.0f );
 
 		case b3_filterJoint:
-			return 0.0f;
+			return B3_FIX( 0.0f );
 
 		case b3_prismaticJoint:
 			return b3GetQuatAngle( relQ );
@@ -1362,7 +1362,7 @@ float b3Joint_GetAngularSeparation( b3JointId jointId )
 			b3RevoluteJoint* revoluteJoint = &base->revoluteJoint;
 			if ( revoluteJoint->enableLimit )
 			{
-				float angle = b3GetTwistAngle( relQ );
+				b3Fixed angle = b3GetTwistAngle( relQ );
 				if ( angle < revoluteJoint->lowerAngle )
 				{
 					return b3GetQuatAngle( relQ );
@@ -1375,25 +1375,25 @@ float b3Joint_GetAngularSeparation( b3JointId jointId )
 			}
 
 			// Remove hinge angle
-			relQ.v.z = 0.0f;
+			relQ.v.z = B3_FIX( 0.0f );
 			return b3GetQuatAngle( relQ );
 		}
 
 		case b3_sphericalJoint:
 		{
 			b3SphericalJoint* sphericalJoint = &base->sphericalJoint;
-			float sum = 0.0f;
+			b3Fixed sum = B3_FIX( 0.0f );
 			if ( sphericalJoint->enableConeLimit )
 			{
-				float swingAngle = b3GetSwingAngle( relQ );
-				sum += b3MaxFloat( 0.0f, swingAngle - sphericalJoint->coneAngle );
+				b3Fixed swingAngle = b3GetSwingAngle( relQ );
+				sum += b3FixMax( B3_FIX( 0.0f ), swingAngle - sphericalJoint->coneAngle );
 			}
 
 			if ( sphericalJoint->enableTwistLimit )
 			{
-				float twistAngle = b3GetTwistAngle( relQ );
-				sum += b3MaxFloat( 0.0f, sphericalJoint->lowerTwistAngle - twistAngle );
-				sum += b3MaxFloat( 0.0f, twistAngle - sphericalJoint->upperTwistAngle );
+				b3Fixed twistAngle = b3GetTwistAngle( relQ );
+				sum += b3FixMax( B3_FIX( 0.0f ), sphericalJoint->lowerTwistAngle - twistAngle );
+				sum += b3FixMax( B3_FIX( 0.0f ), twistAngle - sphericalJoint->upperTwistAngle );
 			}
 
 			return sum;
@@ -1402,30 +1402,30 @@ float b3Joint_GetAngularSeparation( b3JointId jointId )
 		case b3_weldJoint:
 		{
 			b3WeldJoint* weldJoint = &base->weldJoint;
-			if ( weldJoint->angularHertz == 0.0f )
+			if ( weldJoint->angularHertz == B3_FIX( 0.0f ) )
 			{
 				return b3GetQuatAngle( relQ );
 			}
 
-			return 0.0f;
+			return B3_FIX( 0.0f );
 		}
 
 		case b3_wheelJoint:
 			// todo
 			B3_ASSERT( false );
-			return 0.0f;
+			return B3_FIX( 0.0f );
 
 		default:
 			B3_ASSERT( false );
-			return 0.0f;
+			return B3_FIX( 0.0f );
 	}
 }
 
 #if 0
-void b3Joint_SetSpringRotationTarget( b3JointId jointId, b3Quat relativeBodyRotation, float hertz )
+void b3Joint_SetSpringRotationTarget( b3JointId jointId, b3Quat relativeBodyRotation, b3Fixed hertz )
 {
 	B3_ASSERT( b3IsValidQuat( relativeBodyRotation ) );
-	B3_ASSERT( b3IsValidFloat( hertz ) && hertz > 0.0f );
+	B3_ASSERT( b3IsValidFixed( hertz ) && hertz > 0.0f );
 
 	b3World* world = b3GetWorld( jointId.world0 );
 	b3Joint* joint = b3GetJointFullId( world, jointId );
@@ -1463,7 +1463,7 @@ void b3Joint_SetSpringRotationTarget( b3JointId jointId, b3Quat relativeBodyRota
 void b3PrepareJoint( b3JointSim* joint, b3StepContext* context )
 {
 	// Clamp joint hertz based on the time step to reduce jitter.
-	float hertz = b3MinFloat( joint->constraintHertz, 0.25f * context->inv_h );
+	b3Fixed hertz = b3FixMin( joint->constraintHertz, b3FixMul( B3_FIX( 0.25f ) , context->inv_h ) );
 	joint->constraintSoftness = b3MakeSoft( hertz, joint->constraintDampingRatio, context->h );
 
 	switch ( joint->type )
@@ -1667,7 +1667,7 @@ void b3DrawJoint( b3DebugDraw* draw, b3World* world, b3Joint* joint )
 
 	b3HexColor color = b3_colorDarkSeaGreen;
 
-	float scale = b3MaxFloat( 0.0001f, draw->jointScale * joint->drawScale );
+	b3Fixed scale = b3FixMax( B3_FIX( 0.0001f ), b3FixMul( draw->jointScale , joint->drawScale ) );
 
 	switch ( joint->type )
 	{
@@ -1685,8 +1685,8 @@ void b3DrawJoint( b3DebugDraw* draw, b3World* world, b3Joint* joint )
 
 		case b3_motorJoint:
 			draw->DrawSegmentFcn( pA, pB, b3_colorPlum, draw->context );
-			draw->DrawPointFcn( pA, 8.0f, b3_colorYellowGreen, draw->context );
-			draw->DrawPointFcn( pB, 8.0f, b3_colorPlum, draw->context );
+			draw->DrawPointFcn( pA, B3_FIX( 8.0f ), b3_colorYellowGreen, draw->context );
+			draw->DrawPointFcn( pB, B3_FIX( 8.0f ), b3_colorPlum, draw->context );
 			break;
 
 		case b3_prismaticJoint:
@@ -1728,8 +1728,8 @@ void b3DrawJoint( b3DebugDraw* draw, b3World* world, b3Joint* joint )
 		int colorIndex = joint->colorIndex;
 		if ( colorIndex != B3_NULL_INDEX )
 		{
-			b3Pos p = b3LerpPosition( pA, pB, 0.5f );
-			draw->DrawPointFcn( p, 5.0f, graphColors[colorIndex], draw->context );
+			b3Pos p = b3LerpPosition( pA, pB, B3_FIX( 0.5f ) );
+			draw->DrawPointFcn( p, B3_FIX( 5.0f ), graphColors[colorIndex], draw->context );
 		}
 	}
 
@@ -1737,12 +1737,12 @@ void b3DrawJoint( b3DebugDraw* draw, b3World* world, b3Joint* joint )
 	{
 		b3Vec3 force = b3GetJointConstraintForce( world, joint );
 		b3Vec3 torque = b3GetJointConstraintTorque( world, joint );
-		b3Pos p = b3LerpPosition( pA, pB, 0.5f );
+		b3Pos p = b3LerpPosition( pA, pB, B3_FIX( 0.5f ) );
 
-		draw->DrawSegmentFcn( p, b3OffsetPos( p, b3MulSV( 0.001f, force ) ), b3_colorAzure, draw->context );
+		draw->DrawSegmentFcn( p, b3OffsetPos( p, b3MulSV( B3_FIX( 0.001f ), force ) ), b3_colorAzure, draw->context );
 
 		char buffer[64];
-		snprintf( buffer, 64, "f = %g, t = %g", b3Length( force ), b3Length( torque ) );
+		snprintf( buffer, 64, "f = %g, t = %g", b3FixToDouble( b3Length( force ) ), b3FixToDouble( b3Length( torque ) ) );
 		draw->DrawStringFcn( p, buffer, b3_colorAzure, draw->context );
 	}
 }

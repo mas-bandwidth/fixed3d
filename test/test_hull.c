@@ -6,13 +6,12 @@
 #include "box3d/collision.h"
 #include "box3d/math_functions.h"
 
-#include <float.h>
 #include <math.h>
 #include <string.h>
 
 static const b3Vec3 s_cubeCorners[8] = {
-	{ 1.0f, 1.0f, 1.0f },	{ -1.0f, 1.0f, 1.0f },	 { -1.0f, -1.0f, 1.0f },  { 1.0f, -1.0f, 1.0f },
-	{ 1.0f, 1.0f, -1.0f },	{ -1.0f, 1.0f, -1.0f },	 { -1.0f, -1.0f, -1.0f }, { 1.0f, -1.0f, -1.0f },
+	{ B3_FIX( 1.0f ), B3_FIX( 1.0f ), B3_FIX( 1.0f ) },	{ -B3_FIX( 1.0f ), B3_FIX( 1.0f ), B3_FIX( 1.0f ) },	 { -B3_FIX( 1.0f ), -B3_FIX( 1.0f ), B3_FIX( 1.0f ) },  { B3_FIX( 1.0f ), -B3_FIX( 1.0f ), B3_FIX( 1.0f ) },
+	{ B3_FIX( 1.0f ), B3_FIX( 1.0f ), -B3_FIX( 1.0f ) },	{ -B3_FIX( 1.0f ), B3_FIX( 1.0f ), -B3_FIX( 1.0f ) },	 { -B3_FIX( 1.0f ), -B3_FIX( 1.0f ), -B3_FIX( 1.0f ) }, { B3_FIX( 1.0f ), -B3_FIX( 1.0f ), -B3_FIX( 1.0f ) },
 };
 
 static int CreateHullCubeTest( void )
@@ -27,33 +26,33 @@ static int CreateHullCubeTest( void )
 	// Euler's identity for convex polyhedron
 	ENSURE( hull->vertexCount - hull->edgeCount / 2 + hull->faceCount == 2 );
 
-	b3BoxHull ref = b3MakeBoxHull( 1.0f, 1.0f, 1.0f );
+	b3BoxHull ref = b3MakeBoxHull( B3_FIX( 1.0f ), B3_FIX( 1.0f ), B3_FIX( 1.0f ) );
 
-	ENSURE_SMALL( hull->volume - ref.base.volume, 1e-4f );
-	ENSURE_SMALL( hull->surfaceArea - ref.base.surfaceArea, 1e-4f );
-	ENSURE_SMALL( hull->innerRadius - ref.base.innerRadius, FLT_EPSILON );
+	ENSURE_SMALL( hull->volume - ref.base.volume, B3_FIX( 1e-4f ) );
+	ENSURE_SMALL( hull->surfaceArea - ref.base.surfaceArea, B3_FIX( 1e-4f ) );
+	ENSURE_SMALL( hull->innerRadius - ref.base.innerRadius, B3_FIX( 2e-3f ) );
 
-	ENSURE_SMALL( hull->center.x - ref.base.center.x, 1e-5f );
-	ENSURE_SMALL( hull->center.y - ref.base.center.y, 1e-5f );
-	ENSURE_SMALL( hull->center.z - ref.base.center.z, 1e-5f );
+	ENSURE_SMALL( hull->center.x - ref.base.center.x, B3_FIX( 2e-3f ) );
+	ENSURE_SMALL( hull->center.y - ref.base.center.y, B3_FIX( 2e-3f ) );
+	ENSURE_SMALL( hull->center.z - ref.base.center.z, B3_FIX( 2e-3f ) );
 
-	ENSURE_SMALL( hull->aabb.lowerBound.x + 1.0f, FLT_EPSILON );
-	ENSURE_SMALL( hull->aabb.lowerBound.y + 1.0f, FLT_EPSILON );
-	ENSURE_SMALL( hull->aabb.lowerBound.z + 1.0f, FLT_EPSILON );
-	ENSURE_SMALL( hull->aabb.upperBound.x - 1.0f, FLT_EPSILON );
-	ENSURE_SMALL( hull->aabb.upperBound.y - 1.0f, FLT_EPSILON );
-	ENSURE_SMALL( hull->aabb.upperBound.z - 1.0f, FLT_EPSILON );
+	ENSURE_SMALL( hull->aabb.lowerBound.x + B3_FIX( 1.0f ), 8 * B3_FIXED_EPSILON );
+	ENSURE_SMALL( hull->aabb.lowerBound.y + B3_FIX( 1.0f ), 8 * B3_FIXED_EPSILON );
+	ENSURE_SMALL( hull->aabb.lowerBound.z + B3_FIX( 1.0f ), 8 * B3_FIXED_EPSILON );
+	ENSURE_SMALL( hull->aabb.upperBound.x - B3_FIX( 1.0f ), 8 * B3_FIXED_EPSILON );
+	ENSURE_SMALL( hull->aabb.upperBound.y - B3_FIX( 1.0f ), 8 * B3_FIXED_EPSILON );
+	ENSURE_SMALL( hull->aabb.upperBound.z - B3_FIX( 1.0f ), 8 * B3_FIXED_EPSILON );
 
 	b3Matrix3 d = b3SubMM( hull->centralInertia, ref.base.centralInertia );
-	ENSURE_SMALL( d.cx.x, 1e-4f );
-	ENSURE_SMALL( d.cy.y, 1e-4f );
-	ENSURE_SMALL( d.cz.z, 1e-4f );
-	ENSURE_SMALL( d.cx.y, 1e-4f );
-	ENSURE_SMALL( d.cx.z, 1e-4f );
-	ENSURE_SMALL( d.cy.z, 1e-4f );
-	ENSURE_SMALL( d.cy.x, 1e-4f );
-	ENSURE_SMALL( d.cz.x, 1e-4f );
-	ENSURE_SMALL( d.cz.y, 1e-4f );
+	ENSURE_SMALL( d.cx.x, B3_FIX( 2e-3f ) );
+	ENSURE_SMALL( d.cy.y, B3_FIX( 2e-3f ) );
+	ENSURE_SMALL( d.cz.z, B3_FIX( 2e-3f ) );
+	ENSURE_SMALL( d.cx.y, B3_FIX( 2e-3f ) );
+	ENSURE_SMALL( d.cx.z, B3_FIX( 2e-3f ) );
+	ENSURE_SMALL( d.cy.z, B3_FIX( 2e-3f ) );
+	ENSURE_SMALL( d.cy.x, B3_FIX( 2e-3f ) );
+	ENSURE_SMALL( d.cz.x, B3_FIX( 2e-3f ) );
+	ENSURE_SMALL( d.cz.y, B3_FIX( 2e-3f ) );
 
 	b3DestroyHull( hull );
 	return 0;
@@ -62,10 +61,10 @@ static int CreateHullCubeTest( void )
 static int CreateHullTetrahedronTest( void )
 {
 	b3Vec3 points[4] = {
-		{ 0.0f, 0.0f, 0.0f },
-		{ 1.0f, 0.0f, 0.0f },
-		{ 0.0f, 1.0f, 0.0f },
-		{ 0.0f, 0.0f, 1.0f },
+		{ B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) },
+		{ B3_FIX( 1.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) },
+		{ B3_FIX( 0.0f ), B3_FIX( 1.0f ), B3_FIX( 0.0f ) },
+		{ B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 1.0f ) },
 	};
 
 	b3HullData* hull = b3CreateHull( points, 4, 4 );
@@ -77,24 +76,24 @@ static int CreateHullTetrahedronTest( void )
 	ENSURE( hull->vertexCount - hull->edgeCount / 2 + hull->faceCount == 2 );
 
 	// Analytic values for the unit-corner tetrahedron at the origin.
-	float expectedVolume = 1.0f / 6.0f;
-	float expectedSurfaceArea = 1.5f + 0.5f * sqrtf( 3.0f );
-	float expectedInnerRadius = 0.25f / sqrtf( 3.0f );
+	b3Fixed expectedVolume = b3FixDiv( B3_FIX( 1.0f ) , B3_FIX( 6.0f ) );
+	b3Fixed expectedSurfaceArea = B3_FIX( 1.5f ) + b3FixMul( B3_FIX( 0.5f ) , b3FixSqrt( B3_FIX( 3.0f ) ) );
+	b3Fixed expectedInnerRadius = b3FixDiv( B3_FIX( 0.25f ) , b3FixSqrt( B3_FIX( 3.0f ) ) );
 
-	ENSURE_SMALL( hull->volume - expectedVolume, 1e-5f );
-	ENSURE_SMALL( hull->surfaceArea - expectedSurfaceArea, 1e-5f );
-	ENSURE_SMALL( hull->innerRadius - expectedInnerRadius, 1e-5f );
+	ENSURE_SMALL( hull->volume - expectedVolume, 8 * B3_FIXED_EPSILON );
+	ENSURE_SMALL( hull->surfaceArea - expectedSurfaceArea, 8 * B3_FIXED_EPSILON );
+	ENSURE_SMALL( hull->innerRadius - expectedInnerRadius, 8 * B3_FIXED_EPSILON );
 
-	ENSURE_SMALL( hull->center.x - 0.25f, 1e-5f );
-	ENSURE_SMALL( hull->center.y - 0.25f, 1e-5f );
-	ENSURE_SMALL( hull->center.z - 0.25f, 1e-5f );
+	ENSURE_SMALL( hull->center.x - B3_FIX( 0.25f ), 8 * B3_FIXED_EPSILON );
+	ENSURE_SMALL( hull->center.y - B3_FIX( 0.25f ), 8 * B3_FIXED_EPSILON );
+	ENSURE_SMALL( hull->center.z - B3_FIX( 0.25f ), 8 * B3_FIXED_EPSILON );
 
-	ENSURE_SMALL( hull->aabb.lowerBound.x, FLT_EPSILON );
-	ENSURE_SMALL( hull->aabb.lowerBound.y, FLT_EPSILON );
-	ENSURE_SMALL( hull->aabb.lowerBound.z, FLT_EPSILON );
-	ENSURE_SMALL( hull->aabb.upperBound.x - 1.0f, FLT_EPSILON );
-	ENSURE_SMALL( hull->aabb.upperBound.y - 1.0f, FLT_EPSILON );
-	ENSURE_SMALL( hull->aabb.upperBound.z - 1.0f, FLT_EPSILON );
+	ENSURE_SMALL( hull->aabb.lowerBound.x, 8 * B3_FIXED_EPSILON );
+	ENSURE_SMALL( hull->aabb.lowerBound.y, 8 * B3_FIXED_EPSILON );
+	ENSURE_SMALL( hull->aabb.lowerBound.z, 8 * B3_FIXED_EPSILON );
+	ENSURE_SMALL( hull->aabb.upperBound.x - B3_FIX( 1.0f ), 8 * B3_FIXED_EPSILON );
+	ENSURE_SMALL( hull->aabb.upperBound.y - B3_FIX( 1.0f ), 8 * B3_FIXED_EPSILON );
+	ENSURE_SMALL( hull->aabb.upperBound.z - B3_FIX( 1.0f ), 8 * B3_FIXED_EPSILON );
 
 	b3DestroyHull( hull );
 	return 0;
@@ -125,13 +124,13 @@ static int CreateHullMaxVertexTest( void )
 	int index = 0;
 	for ( int i = 0; i < SPHERE_N; ++i )
 	{
-		float theta = B3_PI * (float)i / (float)( SPHERE_N - 1 );
+		b3Fixed theta = b3FixDiv( b3FixMul( B3_PI , (b3Fixed)b3FixFromInt( i ) ) , (b3Fixed)b3FixFromInt( ( SPHERE_N - 1 ) ) );
 		for ( int j = 0; j < SPHERE_N; ++j )
 		{
-			float phi = 2.0f * B3_PI * (float)j / (float)SPHERE_N;
-			points[index].x = sinf( theta ) * cosf( phi );
-			points[index].y = sinf( theta ) * sinf( phi );
-			points[index].z = cosf( theta );
+			b3Fixed phi = b3FixDiv( b3FixMul( b3FixMul( B3_FIX( 2.0f ) , B3_PI ) , (b3Fixed)b3FixFromInt( j ) ) , (b3Fixed)SPHERE_N );
+			points[index].x = b3FixMul( b3Sin( theta ) , b3Cos( phi ) );
+			points[index].y = b3FixMul( b3Sin( theta ) , b3Sin( phi ) );
+			points[index].z = b3Cos( theta );
 			index += 1;
 		}
 	}
@@ -162,26 +161,26 @@ static int CreateHullRedundantInputTest( void )
 {
 	// 8 cube corners + duplicates + interior points. Builder should produce the cube.
 	b3Vec3 points[20] = {
-		{ 1.0f, 1.0f, 1.0f },	// corners
-		{ -1.0f, 1.0f, 1.0f },
-		{ -1.0f, -1.0f, 1.0f },
-		{ 1.0f, -1.0f, 1.0f },
-		{ 1.0f, 1.0f, -1.0f },
-		{ -1.0f, 1.0f, -1.0f },
-		{ -1.0f, -1.0f, -1.0f },
-		{ 1.0f, -1.0f, -1.0f },
-		{ 1.0f, 1.0f, 1.0f },	// duplicates
-		{ 1.0f, 1.0f, 1.0f },
-		{ 0.0f, 0.0f, 0.0f },	// interior points
-		{ 0.5f, 0.0f, 0.0f },
-		{ 0.0f, 0.5f, 0.0f },
-		{ 0.0f, 0.0f, 0.5f },
-		{ -0.5f, 0.0f, 0.0f },
-		{ 0.0f, -0.5f, 0.0f },
-		{ 0.0f, 0.0f, -0.5f },
-		{ 0.25f, 0.25f, 0.25f },
-		{ -0.25f, -0.25f, -0.25f },
-		{ 0.5f, 0.5f, 0.5f },
+		{ B3_FIX( 1.0f ), B3_FIX( 1.0f ), B3_FIX( 1.0f ) },	// corners
+		{ -B3_FIX( 1.0f ), B3_FIX( 1.0f ), B3_FIX( 1.0f ) },
+		{ -B3_FIX( 1.0f ), -B3_FIX( 1.0f ), B3_FIX( 1.0f ) },
+		{ B3_FIX( 1.0f ), -B3_FIX( 1.0f ), B3_FIX( 1.0f ) },
+		{ B3_FIX( 1.0f ), B3_FIX( 1.0f ), -B3_FIX( 1.0f ) },
+		{ -B3_FIX( 1.0f ), B3_FIX( 1.0f ), -B3_FIX( 1.0f ) },
+		{ -B3_FIX( 1.0f ), -B3_FIX( 1.0f ), -B3_FIX( 1.0f ) },
+		{ B3_FIX( 1.0f ), -B3_FIX( 1.0f ), -B3_FIX( 1.0f ) },
+		{ B3_FIX( 1.0f ), B3_FIX( 1.0f ), B3_FIX( 1.0f ) },	// duplicates
+		{ B3_FIX( 1.0f ), B3_FIX( 1.0f ), B3_FIX( 1.0f ) },
+		{ B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) },	// interior points
+		{ B3_FIX( 0.5f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) },
+		{ B3_FIX( 0.0f ), B3_FIX( 0.5f ), B3_FIX( 0.0f ) },
+		{ B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.5f ) },
+		{ -B3_FIX( 0.5f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) },
+		{ B3_FIX( 0.0f ), -B3_FIX( 0.5f ), B3_FIX( 0.0f ) },
+		{ B3_FIX( 0.0f ), B3_FIX( 0.0f ), -B3_FIX( 0.5f ) },
+		{ B3_FIX( 0.25f ), B3_FIX( 0.25f ), B3_FIX( 0.25f ) },
+		{ -B3_FIX( 0.25f ), -B3_FIX( 0.25f ), -B3_FIX( 0.25f ) },
+		{ B3_FIX( 0.5f ), B3_FIX( 0.5f ), B3_FIX( 0.5f ) },
 	};
 
 	b3HullData* hull = b3CreateHull( points, 20, 8 );
@@ -191,22 +190,22 @@ static int CreateHullRedundantInputTest( void )
 	ENSURE( hull->edgeCount == 24 );
 	ENSURE( hull->faceCount == 6 );
 
-	b3BoxHull ref = b3MakeBoxHull( 1.0f, 1.0f, 1.0f );
+	b3BoxHull ref = b3MakeBoxHull( B3_FIX( 1.0f ), B3_FIX( 1.0f ), B3_FIX( 1.0f ) );
 
-	ENSURE_SMALL( hull->volume - ref.base.volume, 1e-4f );
-	ENSURE_SMALL( hull->surfaceArea - ref.base.surfaceArea, 1e-4f );
-	ENSURE_SMALL( hull->innerRadius - ref.base.innerRadius, FLT_EPSILON );
+	ENSURE_SMALL( hull->volume - ref.base.volume, B3_FIX( 1e-4f ) );
+	ENSURE_SMALL( hull->surfaceArea - ref.base.surfaceArea, B3_FIX( 1e-4f ) );
+	ENSURE_SMALL( hull->innerRadius - ref.base.innerRadius, B3_FIX( 2e-3f ) );
 
-	ENSURE_SMALL( hull->center.x - ref.base.center.x, 1e-5f );
-	ENSURE_SMALL( hull->center.y - ref.base.center.y, 1e-5f );
-	ENSURE_SMALL( hull->center.z - ref.base.center.z, 1e-5f );
+	ENSURE_SMALL( hull->center.x - ref.base.center.x, B3_FIX( 2e-3f ) );
+	ENSURE_SMALL( hull->center.y - ref.base.center.y, B3_FIX( 2e-3f ) );
+	ENSURE_SMALL( hull->center.z - ref.base.center.z, B3_FIX( 2e-3f ) );
 
-	ENSURE_SMALL( hull->aabb.lowerBound.x + 1.0f, FLT_EPSILON );
-	ENSURE_SMALL( hull->aabb.lowerBound.y + 1.0f, FLT_EPSILON );
-	ENSURE_SMALL( hull->aabb.lowerBound.z + 1.0f, FLT_EPSILON );
-	ENSURE_SMALL( hull->aabb.upperBound.x - 1.0f, FLT_EPSILON );
-	ENSURE_SMALL( hull->aabb.upperBound.y - 1.0f, FLT_EPSILON );
-	ENSURE_SMALL( hull->aabb.upperBound.z - 1.0f, FLT_EPSILON );
+	ENSURE_SMALL( hull->aabb.lowerBound.x + B3_FIX( 1.0f ), 8 * B3_FIXED_EPSILON );
+	ENSURE_SMALL( hull->aabb.lowerBound.y + B3_FIX( 1.0f ), 8 * B3_FIXED_EPSILON );
+	ENSURE_SMALL( hull->aabb.lowerBound.z + B3_FIX( 1.0f ), 8 * B3_FIXED_EPSILON );
+	ENSURE_SMALL( hull->aabb.upperBound.x - B3_FIX( 1.0f ), 8 * B3_FIXED_EPSILON );
+	ENSURE_SMALL( hull->aabb.upperBound.y - B3_FIX( 1.0f ), 8 * B3_FIXED_EPSILON );
+	ENSURE_SMALL( hull->aabb.upperBound.z - B3_FIX( 1.0f ), 8 * B3_FIXED_EPSILON );
 
 	b3DestroyHull( hull );
 	return 0;
@@ -229,10 +228,10 @@ static int CreateHullCloneTest( void )
 
 static int CreateHullCylinderTest( void )
 {
-	const float height = 2.0f;
-	const float radius = 1.0f;
+	const b3Fixed height = B3_FIX( 2.0f );
+	const b3Fixed radius = B3_FIX( 1.0f );
 	const int sides = 8;
-	const float yOffset = 0.0f;
+	const b3Fixed yOffset = B3_FIX( 0.0f );
 
 	b3HullData* hull = b3CreateCylinder( height, radius, yOffset, sides );
 	ENSURE( hull != NULL );
@@ -242,29 +241,34 @@ static int CreateHullCylinderTest( void )
 	ENSURE( hull->faceCount == sides + 2 );
 
 	// Analytic n-gon prism values (exact targets, not the circular cylinder approximations).
-	float halfAngle = B3_PI / (float)sides;
-	float capArea = (float)sides * 0.5f * radius * radius * sinf( 2.0f * halfAngle );
-	float chordLen = 2.0f * radius * sinf( halfAngle );
-	float lateralArea = (float)sides * chordLen * height;
+	// Use double precision references: the hull vertices carry the deterministic
+	// trig approximation whose errors cancel around the ring, so the actual bulk
+	// properties land close to the exact prism values.
+	double radiusRef = b3FixToDouble( radius );
+	double heightRef = b3FixToDouble( height );
+	double halfAngleRef = 3.14159265358979323846 / sides;
+	double capAreaRef = sides * 0.5 * radiusRef * radiusRef * sin( 2.0 * halfAngleRef );
+	double chordLenRef = 2.0 * radiusRef * sin( halfAngleRef );
+	double lateralAreaRef = sides * chordLenRef * heightRef;
 
-	float expectedVolume = capArea * height;
-	float expectedSurfaceArea = 2.0f * capArea + lateralArea;
-	float expectedInnerRadius = radius * cosf( halfAngle );
+	b3Fixed expectedVolume = b3FixFromDouble( capAreaRef * heightRef );
+	b3Fixed expectedSurfaceArea = b3FixFromDouble( 2.0 * capAreaRef + lateralAreaRef );
+	b3Fixed expectedInnerRadius = b3FixFromDouble( radiusRef * cos( halfAngleRef ) );
 
-	ENSURE_SMALL( ( hull->volume - expectedVolume ) / expectedVolume, 1e-4f );
-	ENSURE_SMALL( ( hull->surfaceArea - expectedSurfaceArea ) / expectedSurfaceArea, 1e-4f );
-	ENSURE_SMALL( hull->innerRadius - expectedInnerRadius, 1e-5f );
+	ENSURE_SMALL( b3FixDiv( ( hull->volume - expectedVolume ) , expectedVolume ), B3_FIX( 1e-3f ) );
+	ENSURE_SMALL( b3FixDiv( ( hull->surfaceArea - expectedSurfaceArea ) , expectedSurfaceArea ), B3_FIX( 1e-3f ) );
+	ENSURE_SMALL( hull->innerRadius - expectedInnerRadius, 8 * B3_FIXED_EPSILON );
 
-	ENSURE_SMALL( hull->center.x, 1e-5f );
-	ENSURE_SMALL( hull->center.y - ( yOffset + 0.5f * height ), 1e-5f );
-	ENSURE_SMALL( hull->center.z, 1e-5f );
+	ENSURE_SMALL( hull->center.x, 8 * B3_FIXED_EPSILON );
+	ENSURE_SMALL( hull->center.y - ( yOffset + b3FixMul( B3_FIX( 0.5f ) , height ) ), 8 * B3_FIXED_EPSILON );
+	ENSURE_SMALL( hull->center.z, 8 * B3_FIXED_EPSILON );
 
-	ENSURE_SMALL( hull->aabb.lowerBound.x + radius, FLT_EPSILON );
-	ENSURE_SMALL( hull->aabb.lowerBound.y - yOffset, FLT_EPSILON );
-	ENSURE_SMALL( hull->aabb.lowerBound.z + radius, FLT_EPSILON );
-	ENSURE_SMALL( hull->aabb.upperBound.x - radius, FLT_EPSILON );
-	ENSURE_SMALL( hull->aabb.upperBound.y - ( yOffset + height ), FLT_EPSILON );
-	ENSURE_SMALL( hull->aabb.upperBound.z - radius, FLT_EPSILON );
+	ENSURE_SMALL( hull->aabb.lowerBound.x + radius, 8 * B3_FIXED_EPSILON );
+	ENSURE_SMALL( hull->aabb.lowerBound.y - yOffset, 8 * B3_FIXED_EPSILON );
+	ENSURE_SMALL( hull->aabb.lowerBound.z + radius, 8 * B3_FIXED_EPSILON );
+	ENSURE_SMALL( hull->aabb.upperBound.x - radius, 8 * B3_FIXED_EPSILON );
+	ENSURE_SMALL( hull->aabb.upperBound.y - ( yOffset + height ), 8 * B3_FIXED_EPSILON );
+	ENSURE_SMALL( hull->aabb.upperBound.z - radius, 8 * B3_FIXED_EPSILON );
 
 	b3DestroyHull( hull );
 	return 0;
@@ -277,24 +281,24 @@ static void FillSphereSample( b3Vec3* points, int count, uint32_t seed )
 	const uint32_t RAND_LIMIT_LOCAL = 32767u;
 	for ( int i = 0; i < count; ++i )
 	{
-		float u[3];
+		b3Fixed u[3];
 		for ( int k = 0; k < 3; ++k )
 		{
 			seed ^= seed << 13;
 			seed ^= seed >> 17;
 			seed ^= seed << 5;
-			float r = (float)( seed & RAND_LIMIT_LOCAL );
-			r /= (float)RAND_LIMIT_LOCAL;
+			b3Fixed r = (b3Fixed)b3FixFromInt( ( seed & RAND_LIMIT_LOCAL ) );
+			r = b3FixDiv( r, (b3Fixed)b3FixFromInt( RAND_LIMIT_LOCAL ) );
 			u[k] = r;
 		}
-		float u1 = u[0];
-		float u2 = 2.0f * B3_PI * u[1];
-		float u3 = 2.0f * B3_PI * u[2];
-		float sqrt1MinusU1 = sqrtf( 1.0f - u1 );
-		float sqrtU1 = sqrtf( u1 );
-		points[i].x = sqrt1MinusU1 * sinf( u2 );
-		points[i].y = sqrt1MinusU1 * cosf( u2 );
-		points[i].z = sqrtU1 * sinf( u3 );
+		b3Fixed u1 = u[0];
+		b3Fixed u2 = b3FixMul( b3FixMul( B3_FIX( 2.0f ) , B3_PI ) , u[1] );
+		b3Fixed u3 = b3FixMul( b3FixMul( B3_FIX( 2.0f ) , B3_PI ) , u[2] );
+		b3Fixed sqrt1MinusU1 = b3FixSqrt( B3_FIX( 1.0f ) - u1 );
+		b3Fixed sqrtU1 = b3FixSqrt( u1 );
+		points[i].x = b3FixMul( sqrt1MinusU1 , b3Sin( u2 ) );
+		points[i].y = b3FixMul( sqrt1MinusU1 , b3Cos( u2 ) );
+		points[i].z = b3FixMul( sqrtU1 , b3Sin( u3 ) );
 	}
 }
 
@@ -321,15 +325,15 @@ static void FillCubeSample( b3Vec3* points, int count, uint32_t seed )
 	const uint32_t RAND_LIMIT_LOCAL = 32767u;
 	for ( int i = 0; i < count; ++i )
 	{
-		float v[3];
+		b3Fixed v[3];
 		for ( int k = 0; k < 3; ++k )
 		{
 			seed ^= seed << 13;
 			seed ^= seed >> 17;
 			seed ^= seed << 5;
-			float r = (float)( seed & RAND_LIMIT_LOCAL );
-			r /= (float)RAND_LIMIT_LOCAL;
-			v[k] = 2.0f * r - 1.0f;
+			b3Fixed r = (b3Fixed)b3FixFromInt( ( seed & RAND_LIMIT_LOCAL ) );
+			r = b3FixDiv( r, (b3Fixed)b3FixFromInt( RAND_LIMIT_LOCAL ) );
+			v[k] = b3FixMul( B3_FIX( 2.0f ) , r ) - B3_FIX( 1.0f );
 		}
 		points[i].x = v[0];
 		points[i].y = v[1];
@@ -394,9 +398,9 @@ static int CreateHullMergeChurnStressTest( void )
 		// Stamp the 8 corners last so they're guaranteed extremes.
 		for ( int c = 0; c < 8; ++c )
 		{
-			points[N - 8 + c].x = ( c & 1 ) ? 1.0f : -1.0f;
-			points[N - 8 + c].y = ( c & 2 ) ? 1.0f : -1.0f;
-			points[N - 8 + c].z = ( c & 4 ) ? 1.0f : -1.0f;
+			points[N - 8 + c].x = ( c & 1 ) ? B3_FIX( 1.0f ) : -B3_FIX( 1.0f );
+			points[N - 8 + c].y = ( c & 2 ) ? B3_FIX( 1.0f ) : -B3_FIX( 1.0f );
+			points[N - 8 + c].z = ( c & 4 ) ? B3_FIX( 1.0f ) : -B3_FIX( 1.0f );
 		}
 
 		b3HullData* hull = b3CreateHull( points, N, 64 );
@@ -414,8 +418,8 @@ static int CreateHullDegenerateTest( void )
 {
 	// Real (non-null) buffer; pointCount < 4 cases are guarded inside Construct().
 	b3Vec3 collinear[8] = {
-		{ 0.0f, 0.0f, 0.0f }, { 1.0f, 0.0f, 0.0f }, { 2.0f, 0.0f, 0.0f }, { 3.0f, 0.0f, 0.0f },
-		{ 4.0f, 0.0f, 0.0f }, { 5.0f, 0.0f, 0.0f }, { 6.0f, 0.0f, 0.0f }, { 7.0f, 0.0f, 0.0f },
+		{ B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, { B3_FIX( 1.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, { B3_FIX( 2.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, { B3_FIX( 3.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) },
+		{ B3_FIX( 4.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, { B3_FIX( 5.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, { B3_FIX( 6.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, { B3_FIX( 7.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) },
 	};
 
 	// Empty input.
@@ -426,8 +430,8 @@ static int CreateHullDegenerateTest( void )
 
 	// 8 coincident points.
 	b3Vec3 coincident[8] = {
-		{ 1.0f, 2.0f, 3.0f }, { 1.0f, 2.0f, 3.0f }, { 1.0f, 2.0f, 3.0f }, { 1.0f, 2.0f, 3.0f },
-		{ 1.0f, 2.0f, 3.0f }, { 1.0f, 2.0f, 3.0f }, { 1.0f, 2.0f, 3.0f }, { 1.0f, 2.0f, 3.0f },
+		{ B3_FIX( 1.0f ), B3_FIX( 2.0f ), B3_FIX( 3.0f ) }, { B3_FIX( 1.0f ), B3_FIX( 2.0f ), B3_FIX( 3.0f ) }, { B3_FIX( 1.0f ), B3_FIX( 2.0f ), B3_FIX( 3.0f ) }, { B3_FIX( 1.0f ), B3_FIX( 2.0f ), B3_FIX( 3.0f ) },
+		{ B3_FIX( 1.0f ), B3_FIX( 2.0f ), B3_FIX( 3.0f ) }, { B3_FIX( 1.0f ), B3_FIX( 2.0f ), B3_FIX( 3.0f ) }, { B3_FIX( 1.0f ), B3_FIX( 2.0f ), B3_FIX( 3.0f ) }, { B3_FIX( 1.0f ), B3_FIX( 2.0f ), B3_FIX( 3.0f ) },
 	};
 	ENSURE( b3CreateHull( coincident, 8, 8 ) == NULL );
 
@@ -436,8 +440,8 @@ static int CreateHullDegenerateTest( void )
 
 	// Coplanar (in the xy-plane).
 	b3Vec3 coplanar[6] = {
-		{ 0.0f, 0.0f, 0.0f }, { 1.0f, 0.0f, 0.0f }, { 0.0f, 1.0f, 0.0f },
-		{ 1.0f, 1.0f, 0.0f }, { 2.0f, 0.5f, 0.0f }, { 0.5f, 2.0f, 0.0f },
+		{ B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, { B3_FIX( 1.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, { B3_FIX( 0.0f ), B3_FIX( 1.0f ), B3_FIX( 0.0f ) },
+		{ B3_FIX( 1.0f ), B3_FIX( 1.0f ), B3_FIX( 0.0f ) }, { B3_FIX( 2.0f ), B3_FIX( 0.5f ), B3_FIX( 0.0f ) }, { B3_FIX( 0.5f ), B3_FIX( 2.0f ), B3_FIX( 0.0f ) },
 	};
 	ENSURE( b3CreateHull( coplanar, 6, 8 ) == NULL );
 

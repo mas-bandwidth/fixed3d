@@ -54,7 +54,7 @@
 	{                                                                                                                            \
 		if ( ( C ) < -( tol ) || ( tol ) < ( C ) )                                                                               \
 		{                                                                                                                        \
-			printf( "condition false: abs(" #C ") < %g\n", tol );                                                                \
+			printf( "condition false: abs(" #C ") < %g\n", b3FixToDouble( tol ) );                                              \
 			return 1;                                                                                                            \
 		}                                                                                                                        \
 	}                                                                                                                            \

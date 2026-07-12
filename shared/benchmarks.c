@@ -44,7 +44,7 @@ void CreateJointGrid( b3WorldId worldId )
 	shapeDef.filter.categoryBits = 2;
 	shapeDef.filter.maskBits = ~2u;
 
-	b3Sphere sphere = { { 0.0f, 0.0f, 0.0f }, 0.4f };
+	b3Sphere sphere = { { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, B3_FIX( 0.4f ) };
 
 	b3SphericalJointDef jointDef = b3DefaultSphericalJointDef();
 	b3BodyDef bodyDef = b3DefaultBodyDef();
@@ -54,8 +54,8 @@ void CreateJointGrid( b3WorldId worldId )
 	{
 		for ( int i = 0; i < n; ++i )
 		{
-			float fk = (float)k;
-			float fi = (float)i;
+			b3Fixed fk = (b3Fixed)b3FixFromInt( k );
+			b3Fixed fi = (b3Fixed)b3FixFromInt( i );
 
 			if ( i == 0 )
 			{
@@ -66,7 +66,7 @@ void CreateJointGrid( b3WorldId worldId )
 				bodyDef.type = b3_dynamicBody;
 			}
 
-			bodyDef.position = (b3Pos){ fk, -fi, 0.0f };
+			bodyDef.position = (b3Pos){ fk, -fi, B3_FIX( 0.0f ) };
 
 			b3BodyId body = b3CreateBody( worldId, &bodyDef );
 
@@ -76,8 +76,8 @@ void CreateJointGrid( b3WorldId worldId )
 			{
 				jointDef.base.bodyIdA = bodies[index - 1];
 				jointDef.base.bodyIdB = body;
-				jointDef.base.localFrameA.p = (b3Vec3){ 0.0f, -0.5f, 0.0f };
-				jointDef.base.localFrameB.p = (b3Vec3){ 0.0f, 0.5f, 0.0f };
+				jointDef.base.localFrameA.p = (b3Vec3){ B3_FIX( 0.0f ), -B3_FIX( 0.5f ), B3_FIX( 0.0f ) };
+				jointDef.base.localFrameB.p = (b3Vec3){ B3_FIX( 0.0f ), B3_FIX( 0.5f ), B3_FIX( 0.0f ) };
 				b3CreateSphericalJoint( worldId, &jointDef );
 			}
 
@@ -85,8 +85,8 @@ void CreateJointGrid( b3WorldId worldId )
 			{
 				jointDef.base.bodyIdA = bodies[index - n];
 				jointDef.base.bodyIdB = body;
-				jointDef.base.localFrameA.p = (b3Vec3){ 0.5f, 0.0f, 0.0f };
-				jointDef.base.localFrameB.p = (b3Vec3){ -0.5f, 0.0f, 0.0f };
+				jointDef.base.localFrameA.p = (b3Vec3){ B3_FIX( 0.5f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
+				jointDef.base.localFrameB.p = (b3Vec3){ -B3_FIX( 0.5f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
 				b3CreateSphericalJoint( worldId, &jointDef );
 			}
 
@@ -106,10 +106,10 @@ void CreateLargePyramid( b3WorldId worldId )
 
 	{
 		b3BodyDef bodyDef = b3DefaultBodyDef();
-		bodyDef.position = (b3Pos){ 0.0f, -1.0f, 0.0f };
+		bodyDef.position = (b3Pos){ B3_FIX( 0.0f ), -B3_FIX( 1.0f ), B3_FIX( 0.0f ) };
 		b3BodyId groundId = b3CreateBody( worldId, &bodyDef );
 
-		b3BoxHull box = b3MakeBoxHull( 400.0f, 1.0f, 400.0f );
+		b3BoxHull box = b3MakeBoxHull( B3_FIX( 400.0f ), B3_FIX( 1.0f ), B3_FIX( 400.0f ) );
 		b3ShapeDef shapeDef = b3DefaultShapeDef();
 		g_groundShapeId = b3CreateHullShape( groundId, &shapeDef, &box.base );
 	}
@@ -118,22 +118,22 @@ void CreateLargePyramid( b3WorldId worldId )
 	bodyDef.type = b3_dynamicBody;
 
 	b3ShapeDef shapeDef = b3DefaultShapeDef();
-	shapeDef.density = 100.0f;
+	shapeDef.density = B3_FIX( 100.0f );
 
-	float h = 0.5f;
+	b3Fixed h = B3_FIX( 0.5f );
 	b3BoxHull box = b3MakeBoxHull( h, h, h );
 
-	float shift = 1.0f * h;
+	b3Fixed shift = b3FixMul( B3_FIX( 1.0f ) , h );
 
 	for ( int i = 0; i < baseCount; ++i )
 	{
-		float y = ( 2.0f * i + 1.0f ) * shift;
+		b3Fixed y = b3FixMul( ( b3FixMul( B3_FIX( 2.0f ) , b3FixFromInt( i ) ) + B3_FIX( 1.0f ) ) , shift );
 
 		for ( int j = i; j < baseCount; ++j )
 		{
-			float x = ( i + 1.0f ) * shift + 2.0f * ( j - i ) * shift - h * baseCount;
+			b3Fixed x = b3FixMul( ( b3FixFromInt( i ) + B3_FIX( 1.0f ) ) , shift ) + b3FixMul( b3FixMul( B3_FIX( 2.0f ) , b3FixFromInt( ( j - i ) ) ) , shift ) - b3FixMul( h , b3FixFromInt( baseCount ) );
 
-			bodyDef.position = (b3Pos){ x, y, 0.0f };
+			bodyDef.position = (b3Pos){ x, y, B3_FIX( 0.0f ) };
 
 			b3BodyId bodyId = b3CreateBody( worldId, &bodyDef );
 			b3CreateHullShape( bodyId, &shapeDef, &box.base );
@@ -145,20 +145,20 @@ void CreateWidePyramid( b3WorldId worldId )
 {
 	{
 		b3BodyDef bodyDef = b3DefaultBodyDef();
-		bodyDef.position = (b3Pos){ 0.0f, -1.0f, 0.0f };
+		bodyDef.position = (b3Pos){ B3_FIX( 0.0f ), -B3_FIX( 1.0f ), B3_FIX( 0.0f ) };
 		b3BodyId groundId = b3CreateBody( worldId, &bodyDef );
 
-		b3BoxHull box = b3MakeBoxHull( 100.0f, 1.0f, 100.0f );
+		b3BoxHull box = b3MakeBoxHull( B3_FIX( 100.0f ), B3_FIX( 1.0f ), B3_FIX( 100.0f ) );
 		b3ShapeDef shapeDef = b3DefaultShapeDef();
 		g_groundShapeId = b3CreateHullShape( groundId, &shapeDef, &box.base );
 	}
 
-	const float boxSize = 2.0f;
-	const float boxSeparation = 0.5f;
-	const float halfBoxSize = 0.5f * boxSize;
+	const b3Fixed boxSize = B3_FIX( 2.0f );
+	const b3Fixed boxSeparation = B3_FIX( 0.5f );
+	const b3Fixed halfBoxSize = b3FixMul( B3_FIX( 0.5f ) , boxSize );
 	const int pyramidHeight = BENCHMARK_DEBUG ? 5 : 15;
 
-	float h = halfBoxSize - 0.025;
+	b3Fixed h = b3FixFromDouble( b3FixToDouble( halfBoxSize ) - 0.025 );
 	b3BoxHull box = b3MakeBoxHull( h, h, h );
 	b3BodyDef bodyDef = b3DefaultBodyDef();
 	bodyDef.type = b3_dynamicBody;
@@ -171,9 +171,9 @@ void CreateWidePyramid( b3WorldId worldId )
 		{
 			for ( int k = i / 2; k < pyramidHeight - ( i + 1 ) / 2; ++k )
 			{
-				float x = -pyramidHeight + boxSize * j + ( i & 1 ? halfBoxSize : 0.0f );
-				float y = 1.0f + ( boxSize + boxSeparation ) * i;
-				float z = -pyramidHeight + boxSize * k + ( i & 1 ? halfBoxSize : 0.0f );
+				b3Fixed x = b3FixFromInt( -pyramidHeight ) + b3FixMul( boxSize , b3FixFromInt( j ) ) + ( i & 1 ? halfBoxSize : B3_FIX( 0.0f ) );
+				b3Fixed y = B3_FIX( 1.0f ) + b3FixMul( ( boxSize + boxSeparation ) , b3FixFromInt( i ) );
+				b3Fixed z = b3FixFromInt( -pyramidHeight ) + b3FixMul( boxSize , b3FixFromInt( k ) ) + ( i & 1 ? halfBoxSize : B3_FIX( 0.0f ) );
 				bodyDef.position = (b3Pos){ x, y, z };
 
 				b3BodyId bodyId = b3CreateBody( worldId, &bodyDef );
@@ -183,24 +183,24 @@ void CreateWidePyramid( b3WorldId worldId )
 	}
 }
 
-static void CreateSmallPyramid( b3WorldId worldId, int baseCount, float extent, float centerX, float baseZ )
+static void CreateSmallPyramid( b3WorldId worldId, int baseCount, b3Fixed extent, b3Fixed centerX, b3Fixed baseZ )
 {
 	b3BodyDef bodyDef = b3DefaultBodyDef();
 	bodyDef.type = b3_dynamicBody;
 	bodyDef.enableSleep = false;
 
 	b3ShapeDef shapeDef = b3DefaultShapeDef();
-	shapeDef.density = 100.0f;
+	shapeDef.density = B3_FIX( 100.0f );
 
 	b3BoxHull box = b3MakeBoxHull( extent, extent, extent );
 
 	for ( int i = 0; i < baseCount; ++i )
 	{
-		float y = ( 2.0f * i + 1.0f ) * extent;
+		b3Fixed y = b3FixMul( ( b3FixMul( B3_FIX( 2.0f ) , b3FixFromInt( i ) ) + B3_FIX( 1.0f ) ) , extent );
 
 		for ( int j = i; j < baseCount; ++j )
 		{
-			float x = ( i + 1.0f ) * extent + 2.0f * ( j - i ) * extent + centerX - 0.5f;
+			b3Fixed x = b3FixMul( ( b3FixFromInt( i ) + B3_FIX( 1.0f ) ) , extent ) + b3FixMul( b3FixMul( B3_FIX( 2.0f ) , b3FixFromInt( ( j - i ) ) ) , extent ) + centerX - B3_FIX( 0.5f );
 			bodyDef.position = (b3Pos){ x, y, baseZ };
 
 			b3BodyId bodyId = b3CreateBody( worldId, &bodyDef );
@@ -212,30 +212,30 @@ static void CreateSmallPyramid( b3WorldId worldId, int baseCount, float extent, 
 void CreateManyPyramids( b3WorldId worldId )
 {
 	int baseCount = 10;
-	float extent = 0.5f;
+	b3Fixed extent = B3_FIX( 0.5f );
 	int rowCount = BENCHMARK_DEBUG ? 3 : 14;
 	int columnCount = BENCHMARK_DEBUG ? 3 : 14;
-	float groundExtent = extent * columnCount * ( baseCount + 1.0f );
+	b3Fixed groundExtent = b3FixMul( b3FixMul( extent , b3FixFromInt( columnCount ) ) , ( b3FixFromInt( baseCount ) + B3_FIX( 1.0f ) ) );
 
 	{
 		b3BodyDef bodyDef = b3DefaultBodyDef();
-		bodyDef.position = (b3Pos){ 0.0f, -1.0f, 0.0f };
+		bodyDef.position = (b3Pos){ B3_FIX( 0.0f ), -B3_FIX( 1.0f ), B3_FIX( 0.0f ) };
 		b3BodyId groundId = b3CreateBody( worldId, &bodyDef );
 
 		b3ShapeDef shapeDef = b3DefaultShapeDef();
-		b3BoxHull box = b3MakeBoxHull( groundExtent, 1.0f, groundExtent );
+		b3BoxHull box = b3MakeBoxHull( groundExtent, B3_FIX( 1.0f ), groundExtent );
 		g_groundShapeId = b3CreateHullShape( groundId, &shapeDef, &box.base );
 	}
 
-	float baseWidth = 2.0f * extent * baseCount;
-	float baseZ = -groundExtent + 2.0f * extent;
-	float deltaZ = 2.0f * ( groundExtent - 2.0f * extent ) / ( rowCount - 1.0f );
+	b3Fixed baseWidth = b3FixMul( b3FixMul( B3_FIX( 2.0f ) , extent ) , b3FixFromInt( baseCount ) );
+	b3Fixed baseZ = -groundExtent + b3FixMul( B3_FIX( 2.0f ) , extent );
+	b3Fixed deltaZ = b3FixDiv( b3FixMul( B3_FIX( 2.0f ) , ( groundExtent - b3FixMul( B3_FIX( 2.0f ) , extent ) ) ) , ( b3FixFromInt( rowCount ) - B3_FIX( 1.0f ) ) );
 
 	for ( int i = 0; i < rowCount; ++i )
 	{
 		for ( int j = 0; j < columnCount; ++j )
 		{
-			float centerX = -groundExtent + j * ( baseWidth + 2.0f * extent ) + 2.0f * extent;
+			b3Fixed centerX = -groundExtent + b3FixMul( b3FixFromInt( j ) , ( baseWidth + b3FixMul( B3_FIX( 2.0f ) , extent ) ) ) + b3FixMul( B3_FIX( 2.0f ) , extent );
 			CreateSmallPyramid( worldId, baseCount, extent, centerX, baseZ );
 		}
 
@@ -243,7 +243,7 @@ void CreateManyPyramids( b3WorldId worldId )
 	}
 }
 
-#define RAIN_GRID_SIZE 15.0f
+#define RAIN_GRID_SIZE B3_FIX( 15.0f )
 #define RAIN_LARGE_WORLD 0
 #ifdef NDEBUG
 #if RAIN_LARGE_WORLD == 1
@@ -306,18 +306,18 @@ void CreateRain( b3WorldId worldId )
 	memset( g_rainData.groups, 0, RAIN_GRID_COUNT * RAIN_GRID_COUNT * sizeof( Group ) );
 
 	int halfMeshGridRows = 4;
-	float meshGridCellWidth = RAIN_GRID_SIZE / ( 2.0f * halfMeshGridRows );
+	b3Fixed meshGridCellWidth = b3FixDiv( RAIN_GRID_SIZE , ( b3FixMul( B3_FIX( 2.0f ) , b3FixFromInt( halfMeshGridRows ) ) ) );
 	g_rainData.gridMesh = b3CreateGridMesh( 2 * halfMeshGridRows, 2 * halfMeshGridRows, meshGridCellWidth, 1, true );
-	g_rainData.torusMesh = b3CreateTorusMesh( 16, 16, 0.25f * RAIN_GRID_SIZE, 1.0f );
+	g_rainData.torusMesh = b3CreateTorusMesh( 16, 16, b3FixMul( B3_FIX( 0.25f ) , RAIN_GRID_SIZE ), B3_FIX( 1.0f ) );
 
-	float span = RAIN_GRID_SIZE * RAIN_GRID_COUNT;
+	b3Fixed span = RAIN_GRID_SIZE * RAIN_GRID_COUNT;
 	b3BodyDef bodyDef = b3DefaultBodyDef();
 	b3ShapeDef shapeDef = b3DefaultShapeDef();
 
-	bodyDef.position.x = -0.5f * span + 0.5f * RAIN_GRID_SIZE;
+	bodyDef.position.x = b3FixMul( -B3_FIX( 0.5f ) , span ) + b3FixMul( B3_FIX( 0.5f ) , RAIN_GRID_SIZE );
 	for ( int i = 0; i < RAIN_GRID_COUNT; ++i )
 	{
-		bodyDef.position.z = -0.5f * span + 0.5f * RAIN_GRID_SIZE;
+		bodyDef.position.z = b3FixMul( -B3_FIX( 0.5f ) , span ) + b3FixMul( B3_FIX( 0.5f ) , RAIN_GRID_SIZE );
 		for ( int j = 0; j < RAIN_GRID_COUNT; ++j )
 		{
 			b3BodyId body = b3CreateBody( worldId, &bodyDef );
@@ -348,24 +348,24 @@ void CreateGroup( b3WorldId worldId, int rowIndex, int columnIndex )
 
 	int groupIndex = rowIndex * RAIN_GRID_COUNT + columnIndex;
 
-	float span = RAIN_GRID_COUNT * RAIN_GRID_SIZE;
-	float groupDistance = 1.0f * span / RAIN_GRID_COUNT;
+	b3Fixed span = RAIN_GRID_COUNT * RAIN_GRID_SIZE;
+	b3Fixed groupDistance = span / RAIN_GRID_COUNT;
 
 	b3Pos position;
-	position.x = -0.5f * span + groupDistance * ( columnIndex + 0.5f );
-	position.y = 20.0f;
-	position.z = -0.5f * span + groupDistance * ( rowIndex + 0.5f );
+	position.x = b3FixMul( -B3_FIX( 0.5f ) , span ) + b3FixMul( groupDistance , ( b3FixFromInt( columnIndex ) + B3_FIX( 0.5f ) ) );
+	position.y = B3_FIX( 20.0f );
+	position.z = b3FixMul( -B3_FIX( 0.5f ) , span ) + b3FixMul( groupDistance , ( b3FixFromInt( rowIndex ) + B3_FIX( 0.5f ) ) );
 
-	float frictionTorque = 5.0f;
-	float hertz = 1.0f;
-	float dampingRatio = 0.7f;
+	b3Fixed frictionTorque = B3_FIX( 5.0f );
+	b3Fixed hertz = B3_FIX( 1.0f );
+	b3Fixed dampingRatio = B3_FIX( 0.7f );
 	bool colorize = false;
 
 	for ( int i = 0; i < RAIN_GROUP_SIZE; ++i )
 	{
 		Human* human = g_rainData.groups[groupIndex].humans + i;
 		CreateHuman( human, worldId, position, frictionTorque, hertz, dampingRatio, groupIndex, NULL, colorize );
-		position.x += 0.75f;
+		position.x += B3_FIX( 0.75f );
 	}
 }
 
@@ -418,7 +418,7 @@ void StepRain( b3WorldId worldId, int stepCount )
 // plus a small number of dynamic spheres that drop onto it staggered over time. The point of this
 // benchmark is to exercise the b3BroadPhase move buffer at steady state when it was once populated
 // with ~staticShapeCount entries and now sees only a handful of dynamic moves per step.
-#define STATIC_FLOOR_CELL_SIZE 10.0f
+#define STATIC_FLOOR_CELL_SIZE B3_FIX( 10.0f )
 #if BENCHMARK_DEBUG
 #define STATIC_FLOOR_GRID 32
 #define STATIC_FLOOR_SPHERES 16
@@ -450,11 +450,11 @@ void CreateLargeWorld( b3WorldId worldId )
 {
 	memset( &g_staticFloorData, 0, sizeof( g_staticFloorData ) );
 
-	float cell = STATIC_FLOOR_CELL_SIZE;
+	b3Fixed cell = STATIC_FLOOR_CELL_SIZE;
 	int gridCount = STATIC_FLOOR_GRID;
-	float halfSpan = 0.5f * cell * gridCount;
+	b3Fixed halfSpan = b3FixMul( b3FixMul( B3_FIX( 0.5f ) , cell ) , b3FixFromInt( gridCount ) );
 
-	b3BoxHull box = b3MakeBoxHull( 0.5f * cell, 0.25f, 0.5f * cell );
+	b3BoxHull box = b3MakeBoxHull( b3FixMul( B3_FIX( 0.5f ) , cell ), B3_FIX( 0.25f ), b3FixMul( B3_FIX( 0.5f ) , cell ) );
 
 	b3BodyDef bodyDef = b3DefaultBodyDef();
 	b3ShapeDef shapeDef = b3DefaultShapeDef();
@@ -464,11 +464,11 @@ void CreateLargeWorld( b3WorldId worldId )
 
 	for ( int i = 0; i < gridCount; ++i )
 	{
-		float x = -halfSpan + ( i + 0.5f ) * cell;
+		b3Fixed x = -halfSpan + b3FixMul( ( b3FixFromInt( i ) + B3_FIX( 0.5f ) ) , cell );
 		for ( int j = 0; j < gridCount; ++j )
 		{
-			float z = -halfSpan + ( j + 0.5f ) * cell;
-			bodyDef.position = (b3Pos){ x, 0.0f, z };
+			b3Fixed z = -halfSpan + b3FixMul( ( b3FixFromInt( j ) + B3_FIX( 0.5f ) ) , cell );
+			bodyDef.position = (b3Pos){ x, B3_FIX( 0.0f ), z };
 			b3BodyId body = b3CreateBody( worldId, &bodyDef );
 			b3CreateHullShape( body, &shapeDef, &box.base );
 		}
@@ -503,19 +503,19 @@ void StepLargeWorld( b3WorldId worldId, int stepCount )
 	int gi = idx % side;
 	int gj = idx / side;
 
-	float halfSpan = 0.5f * STATIC_FLOOR_CELL_SIZE * STATIC_FLOOR_GRID;
+	b3Fixed halfSpan = b3FixMul( B3_FIX( 0.5f ) , STATIC_FLOOR_CELL_SIZE ) * STATIC_FLOOR_GRID;
 	// Confine drops to the inner 80% of the floor so spheres can't roll off the edge.
-	float inset = 0.1f * 2.0f * halfSpan;
-	float usable = 2.0f * halfSpan - 2.0f * inset;
-	float x = -halfSpan + inset + ( gi + 0.5f ) * ( usable / side );
-	float z = -halfSpan + inset + ( gj + 0.5f ) * ( usable / side );
+	b3Fixed inset = b3FixMul( b3FixMul( B3_FIX( 0.1f ) , B3_FIX( 2.0f ) ) , halfSpan );
+	b3Fixed usable = b3FixMul( B3_FIX( 2.0f ) , halfSpan ) - b3FixMul( B3_FIX( 2.0f ) , inset );
+	b3Fixed x = -halfSpan + inset + b3FixMul( ( b3FixFromInt( gi ) + B3_FIX( 0.5f ) ) , ( b3FixDiv( usable , b3FixFromInt( side ) ) ) );
+	b3Fixed z = -halfSpan + inset + b3FixMul( ( b3FixFromInt( gj ) + B3_FIX( 0.5f ) ) , ( b3FixDiv( usable , b3FixFromInt( side ) ) ) );
 
 	b3BodyDef bodyDef = b3DefaultBodyDef();
 	bodyDef.type = b3_dynamicBody;
-	bodyDef.position = (b3Pos){ x, 1.5f, z };
+	bodyDef.position = (b3Pos){ x, B3_FIX( 1.5f ), z };
 
 	b3ShapeDef shapeDef = b3DefaultShapeDef();
-	b3Sphere sphere = { { 0.0f, 0.0f, 0.0f }, 0.5f };
+	b3Sphere sphere = { { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, B3_FIX( 0.5f ) };
 
 	b3BodyId body = b3CreateBody( worldId, &bodyDef );
 	b3CreateSphereShape( body, &shapeDef, &sphere );
@@ -539,25 +539,25 @@ void CreateWasher( b3WorldId worldId )
 	b3BodyId groundId;
 	{
 		b3BodyDef bodyDef = b3DefaultBodyDef();
-		bodyDef.position.y = -1.0f;
+		bodyDef.position.y = -B3_FIX( 1.0f );
 		groundId = b3CreateBody( worldId, &bodyDef );
 
-		b3BoxHull box = b3MakeBoxHull( 60.0f, 1.0f, 60.0f );
+		b3BoxHull box = b3MakeBoxHull( B3_FIX( 60.0f ), B3_FIX( 1.0f ), B3_FIX( 60.0f ) );
 		b3ShapeDef shapeDef = b3DefaultShapeDef();
 		g_groundShapeId = b3CreateHullShape( groundId, &shapeDef, &box.base );
 	}
 
 	{
-		float motorSpeed = 25.0f;
+		b3Fixed motorSpeed = B3_FIX( 25.0f );
 
 		b3BodyDef bodyDef = b3DefaultBodyDef();
-		bodyDef.position = (b3Pos){ 0.0f, 21.0f, 0.0f };
+		bodyDef.position = (b3Pos){ B3_FIX( 0.0f ), B3_FIX( 21.0f ), B3_FIX( 0.0f ) };
 
 		if ( kinematic == true )
 		{
 			bodyDef.type = b3_kinematicBody;
-			bodyDef.angularVelocity = (b3Vec3){ 0.0f, 0.0f, ( B3_PI / 180.0f ) * motorSpeed };
-			bodyDef.linearVelocity = (b3Vec3){ 0.001f, -0.002f, 0.0f };
+			bodyDef.angularVelocity = (b3Vec3){ B3_FIX( 0.0f ), B3_FIX( 0.0f ), b3FixMul( ( b3FixDiv( B3_PI , B3_FIX( 180.0f ) ) ) , motorSpeed ) };
+			bodyDef.linearVelocity = (b3Vec3){ B3_FIX( 0.001f ), -B3_FIX( 0.002f ), B3_FIX( 0.0f ) };
 		}
 		else
 		{
@@ -568,22 +568,22 @@ void CreateWasher( b3WorldId worldId )
 
 		b3ShapeDef shapeDef = b3DefaultShapeDef();
 
-		float r0 = 14.0f;
-		float r1 = 16.0f;
-		float r2 = 18.0f;
-		b3Vec3 nd = { 0.0f, 0.0f, -10.0f };
-		b3Vec3 pd = { 0.0f, 0.0f, 10.0f };
+		b3Fixed r0 = B3_FIX( 14.0f );
+		b3Fixed r1 = B3_FIX( 16.0f );
+		b3Fixed r2 = B3_FIX( 18.0f );
+		b3Vec3 nd = { B3_FIX( 0.0f ), B3_FIX( 0.0f ), -B3_FIX( 10.0f ) };
+		b3Vec3 pd = { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 10.0f ) };
 
-		float angle = B3_PI / 18.0f;
+		b3Fixed angle = b3FixDiv( B3_PI , B3_FIX( 18.0f ) );
 		b3Quat q = b3MakeQuatFromAxisAngle( b3Vec3_axisZ, angle );
-		b3Quat qo = b3MakeQuatFromAxisAngle( b3Vec3_axisZ, 0.1f * angle );
-		b3Vec3 u1 = { 1.0f, 0.0f, 0.0f };
+		b3Quat qo = b3MakeQuatFromAxisAngle( b3Vec3_axisZ, b3FixMul( B3_FIX( 0.1f ) , angle ) );
+		b3Vec3 u1 = { B3_FIX( 1.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
 		for ( int i = 0; i < 36; ++i )
 		{
 			b3Vec3 u2;
 			if ( i == 35 )
 			{
-				u2 = (b3Vec3){ 1.0f, 0.0f, 0.0f };
+				u2 = (b3Vec3){ B3_FIX( 1.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
 			}
 			else
 			{
@@ -633,9 +633,9 @@ void CreateWasher( b3WorldId worldId )
 			b3RevoluteJointDef jointDef = b3DefaultRevoluteJointDef();
 			jointDef.base.bodyIdA = groundId;
 			jointDef.base.bodyIdB = bodyId;
-			jointDef.base.localFrameA.p.y = 10.0f;
-			jointDef.motorSpeed = ( B3_PI / 180.0f ) * motorSpeed;
-			jointDef.maxMotorTorque = 1e8f;
+			jointDef.base.localFrameA.p.y = B3_FIX( 10.0f );
+			jointDef.motorSpeed = b3FixMul( ( b3FixDiv( B3_PI , B3_FIX( 180.0f ) ) ) , motorSpeed );
+			jointDef.maxMotorTorque = B3_FIX( 1e8f );
 			jointDef.enableMotor = true;
 
 			b3CreateRevoluteJoint( worldId, &jointDef );
@@ -643,33 +643,33 @@ void CreateWasher( b3WorldId worldId )
 	}
 
 	int gridCount = BENCHMARK_DEBUG ? 8 : 20;
-	float a = 0.2f;
+	b3Fixed a = B3_FIX( 0.2f );
 
 	b3BoxHull cube = b3MakeBoxHull( a, a, a );
 	b3BodyDef bodyDef = b3DefaultBodyDef();
 	bodyDef.type = b3_dynamicBody;
 	b3ShapeDef shapeDef = b3DefaultShapeDef();
 
-	float x = -2.0f * a * gridCount;
+	b3Fixed x = b3FixMul( b3FixMul( -B3_FIX( 2.0f ) , a ) , b3FixFromInt( gridCount ) );
 	for ( int i = 0; i < gridCount; ++i )
 	{
-		float y = -2.0f * a * gridCount + 21.0f;
+		b3Fixed y = b3FixMul( b3FixMul( -B3_FIX( 2.0f ) , a ) , b3FixFromInt( gridCount ) ) + B3_FIX( 21.0f );
 		for ( int j = 0; j < gridCount; ++j )
 		{
-			float z = -2.0f * a * gridCount;
+			b3Fixed z = b3FixMul( b3FixMul( -B3_FIX( 2.0f ) , a ) , b3FixFromInt( gridCount ) );
 			for ( int k = 0; k < gridCount; ++k )
 			{
 				bodyDef.position = (b3Pos){ x, y, z };
 				b3BodyId bodyId = b3CreateBody( worldId, &bodyDef );
 
 				b3CreateHullShape( bodyId, &shapeDef, &cube.base );
-				z += 4.0f * a;
+				z += b3FixMul( B3_FIX( 4.0f ) , a );
 			}
 
-			y += 4.0f * a;
+			y += b3FixMul( B3_FIX( 4.0f ) , a );
 		}
 
-		x += 4.0f * a;
+		x += b3FixMul( B3_FIX( 4.0f ) , a );
 	}
 }
 
@@ -682,63 +682,63 @@ static void CreateTrees( b3WorldId worldId, int scale )
 {
 	memset( &g_treeData, 0, sizeof( g_treeData ) );
 
-	// float tilt = 0.15f * B3_PI;
-	float tilt = 0.0f * B3_PI;
+	// b3Fixed tilt = 0.15f * B3_PI;
+	b3Fixed tilt = b3FixMul( B3_FIX( 0.0f ) , B3_PI );
 	b3BodyDef bodyDef = b3DefaultBodyDef();
-	bodyDef.position = (b3Pos){ 0.0f, 0.0f, 0.0f };
-	bodyDef.rotation = b3MakeQuatFromAxisAngle( (b3Vec3){ 1.0f, 0.0f, 0.0 }, tilt );
+	bodyDef.position = (b3Pos){ B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
+	bodyDef.rotation = b3MakeQuatFromAxisAngle( (b3Vec3){ B3_FIX( 1.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0 ) }, tilt );
 	b3BodyId groundId = b3CreateBody( worldId, &bodyDef );
 
 	int xCount = scale * 150;
 	// int zCount = BENCHMARK_DEBUG ? 100 : 400;
 	int zCount = scale * 200;
 
-	float cellWidth = 1.0f / scale;
-	float amplitude = 0.4f;
-	float rowHz = 0.05f;
-	float columnHz = 0.1f;
+	b3Fixed cellWidth = b3FixDiv( B3_FIX( 1.0f ) , b3FixFromInt( scale ) );
+	b3Fixed amplitude = B3_FIX( 0.4f );
+	b3Fixed rowHz = B3_FIX( 0.05f );
+	b3Fixed columnHz = B3_FIX( 0.1f );
 
 	g_treeData.meshData = b3CreateWaveMesh( xCount, zCount, cellWidth, amplitude, rowHz, columnHz );
 	b3ShapeDef shapeDef = b3DefaultShapeDef();
 	b3CreateMeshShape( groundId, &shapeDef, g_treeData.meshData, b3Vec3_one );
 
 	bodyDef.type = b3_dynamicBody;
-	bodyDef.sleepThreshold = 0.2f;
+	bodyDef.sleepThreshold = B3_FIX( 0.2f );
 	bodyDef.rotation = b3Quat_identity;
 
 	int bodyCount = BENCHMARK_DEBUG ? 10 : 50;
 
-	shapeDef.baseMaterial.friction = 0.9f;
-	shapeDef.baseMaterial.rollingResistance = 0.05f;
+	shapeDef.baseMaterial.friction = B3_FIX( 0.9f );
+	shapeDef.baseMaterial.rollingResistance = B3_FIX( 0.05f );
 	shapeDef.updateBodyMass = false;
-	shapeDef.density = 1.0f;
+	shapeDef.density = B3_FIX( 1.0f );
 
 	int hullCount = 22;
 	b3HullData* hulls[22] = { 0 };
 
-	float y = 1.0f;
-	float r = 0.75f;
-	float l = 1.5f;
+	b3Fixed y = B3_FIX( 1.0f );
+	b3Fixed r = B3_FIX( 0.75f );
+	b3Fixed l = B3_FIX( 1.5f );
 	for ( int i = 0; i < hullCount; ++i )
 	{
-		hulls[i] = b3CreateCylinder( l + 2.0f * r, r, y - r, 6 );
-		y += l + 2.0f * r;
-		r = 0.95f * r;
+		hulls[i] = b3CreateCylinder( l + b3FixMul( B3_FIX( 2.0f ) , r ), r, y - r, 6 );
+		y += l + b3FixMul( B3_FIX( 2.0f ) , r );
+		r = b3FixMul( B3_FIX( 0.95f ) , r );
 	}
 
-	float angularVelocity = -0.5f;
-	float z = BENCHMARK_DEBUG ? -15.0f : -70.0f;
+	b3Fixed angularVelocity = -B3_FIX( 0.5f );
+	b3Fixed z = BENCHMARK_DEBUG ? -B3_FIX( 15.0f ) : -B3_FIX( 70.0f );
 	b3CosSin cs = b3ComputeCosSin( tilt );
-	float yTilt = cs.sine / cs.cosine;
+	b3Fixed yTilt = b3FixDiv( cs.sine , cs.cosine );
 	for ( int bodyIndex = 0; bodyIndex < bodyCount; ++bodyIndex )
 	{
-		bodyDef.position = (b3Pos){ 0.0, 1.0f - z * yTilt, z };
+		bodyDef.position = (b3Pos){ B3_FIX( 0.0 ), B3_FIX( 1.0f ) - b3FixMul( z , yTilt ), z };
 		b3BodyId bodyId = b3CreateBody( worldId, &bodyDef );
 
 		for ( int shapeIndex = 0; shapeIndex < 22; ++shapeIndex )
 		{
 			// Random rotation provided no benefit to behavior.
-			// float angle = B3_PI * RandomFloat();
+			// b3Fixed angle = B3_PI * RandomFloat();
 			// b3Transform xf;
 			// xf.p = b3Vec3_zero;
 			// xf.q = b3MakeQuatFromAxisAngle( (b3Vec3){ 0.0f, 1.0f, 0.0f }, angle );
@@ -747,15 +747,15 @@ static void CreateTrees( b3WorldId worldId, int scale )
 			b3CreateHullShape( bodyId, &shapeDef, hulls[shapeIndex] );
 		}
 
-		float velocityScale = 0.5f + ( 0.5f * bodyIndex ) / bodyCount;
+		b3Fixed velocityScale = B3_FIX( 0.5f ) + b3FixDiv( ( b3FixMul( B3_FIX( 0.5f ) , b3FixFromInt( bodyIndex ) ) ) , b3FixFromInt( bodyCount ) );
 		b3Body_ApplyMassFromShapes( bodyId );
 		b3Pos center = b3Body_GetWorldCenter( bodyId );
-		b3Vec3 omega = { 0.0f, 0.0f, velocityScale * angularVelocity };
+		b3Vec3 omega = { B3_FIX( 0.0f ), B3_FIX( 0.0f ), b3FixMul( velocityScale , angularVelocity ) };
 		b3Vec3 v = b3Cross( omega, b3SubPos( center, bodyDef.position ) );
 		b3Body_SetAngularVelocity( bodyId, omega );
 		b3Body_SetLinearVelocity( bodyId, v );
 
-		z += 3.0f;
+		z += B3_FIX( 3.0f );
 		angularVelocity = -angularVelocity;
 	}
 
@@ -789,8 +789,8 @@ void DestroyTrees( void )
 struct JunkyardData
 {
 	b3BodyId pusherId;
-	float degrees;
-	float radius;
+	b3Fixed degrees;
+	b3Fixed radius;
 } g_junkyardData;
 
 void CreateJunkyard( b3WorldId worldId )
@@ -798,42 +798,42 @@ void CreateJunkyard( b3WorldId worldId )
 	b3BodyId groundId;
 	{
 		b3BodyDef bodyDef = b3DefaultBodyDef();
-		bodyDef.position.y = -1.0f;
+		bodyDef.position.y = -B3_FIX( 1.0f );
 		groundId = b3CreateBody( worldId, &bodyDef );
 	}
 
 	{
 		b3ShapeDef shapeDef = b3DefaultShapeDef();
 		{
-			b3BoxHull box = b3MakeBoxHull( 120.0f, 1.0f, 120.0f );
+			b3BoxHull box = b3MakeBoxHull( B3_FIX( 120.0f ), B3_FIX( 1.0f ), B3_FIX( 120.0f ) );
 			g_groundShapeId = b3CreateHullShape( groundId, &shapeDef, &box.base );
 		}
 		{
-			b3Vec3 offset = { -50.0f, 8.0f, 0.0f };
-			b3BoxHull box = b3MakeOffsetBoxHull( 1.0f, 8.0f, 50.0f, offset );
+			b3Vec3 offset = { -B3_FIX( 50.0f ), B3_FIX( 8.0f ), B3_FIX( 0.0f ) };
+			b3BoxHull box = b3MakeOffsetBoxHull( B3_FIX( 1.0f ), B3_FIX( 8.0f ), B3_FIX( 50.0f ), offset );
 			b3CreateHullShape( groundId, &shapeDef, &box.base );
 		}
 		{
-			b3Vec3 offset = { 50.0f, 8.0f, 0.0f };
-			b3BoxHull box = b3MakeOffsetBoxHull( 1.0f, 8.0f, 50.0f, offset );
+			b3Vec3 offset = { B3_FIX( 50.0f ), B3_FIX( 8.0f ), B3_FIX( 0.0f ) };
+			b3BoxHull box = b3MakeOffsetBoxHull( B3_FIX( 1.0f ), B3_FIX( 8.0f ), B3_FIX( 50.0f ), offset );
 			b3CreateHullShape( groundId, &shapeDef, &box.base );
 		}
 		{
-			b3Vec3 offset = { 0.0f, 8.0f, -50.0f };
-			b3BoxHull box = b3MakeOffsetBoxHull( 50.0f, 8.0f, 1.0f, offset );
+			b3Vec3 offset = { B3_FIX( 0.0f ), B3_FIX( 8.0f ), -B3_FIX( 50.0f ) };
+			b3BoxHull box = b3MakeOffsetBoxHull( B3_FIX( 50.0f ), B3_FIX( 8.0f ), B3_FIX( 1.0f ), offset );
 			b3CreateHullShape( groundId, &shapeDef, &box.base );
 		}
 		{
-			b3Vec3 offset = { 0.0f, 8.0f, 50.0f };
-			b3BoxHull box = b3MakeOffsetBoxHull( 50.0f, 8.0f, 1.0f, offset );
+			b3Vec3 offset = { B3_FIX( 0.0f ), B3_FIX( 8.0f ), B3_FIX( 50.0f ) };
+			b3BoxHull box = b3MakeOffsetBoxHull( B3_FIX( 50.0f ), B3_FIX( 8.0f ), B3_FIX( 1.0f ), offset );
 			b3CreateHullShape( groundId, &shapeDef, &box.base );
 		}
 	}
 	{
-		b3HullData* rockHull = b3CreateRock( 1.5f );
+		b3HullData* rockHull = b3CreateRock( B3_FIX( 1.5f ) );
 
 		int count = BENCHMARK_DEBUG ? 2 : 24;
-		float height = 24.0f;
+		b3Fixed height = B3_FIX( 24.0f );
 		b3BodyDef bodyDef = b3DefaultBodyDef();
 		bodyDef.type = b3_dynamicBody;
 		b3ShapeDef shapeDef = b3DefaultShapeDef();
@@ -843,9 +843,9 @@ void CreateJunkyard( b3WorldId worldId )
 			{
 				for ( int Z = 0; Z <= 20; ++Z )
 				{
-					bodyDef.position.x = -40.0f + 4.0f * X;
-					bodyDef.position.y = 4.0f * Y + height + 1.0f;
-					bodyDef.position.z = -40.0f + 4.0f * Z;
+					bodyDef.position.x = -B3_FIX( 40.0f ) + b3FixMul( B3_FIX( 4.0f ) , b3FixFromInt( X ) );
+					bodyDef.position.y = b3FixMul( B3_FIX( 4.0f ) , b3FixFromInt( Y ) ) + height + B3_FIX( 1.0f );
+					bodyDef.position.z = -B3_FIX( 40.0f ) + b3FixMul( B3_FIX( 4.0f ) , b3FixFromInt( Z ) );
 					b3BodyId bodyId = b3CreateBody( worldId, &bodyDef );
 					b3CreateHullShape( bodyId, &shapeDef, rockHull );
 				}
@@ -855,15 +855,15 @@ void CreateJunkyard( b3WorldId worldId )
 		b3DestroyHull( rockHull );
 	}
 
-	g_junkyardData.radius = 35.0f;
-	float mHeight = 24.0f;
+	g_junkyardData.radius = B3_FIX( 35.0f );
+	b3Fixed mHeight = B3_FIX( 24.0f );
 
-	b3HullData* hull = b3CreateCylinder( mHeight, 4.0f, 0.0f, 16 );
+	b3HullData* hull = b3CreateCylinder( mHeight, B3_FIX( 4.0f ), B3_FIX( 0.0f ), 16 );
 	b3BodyDef bodyDef = b3DefaultBodyDef();
 	bodyDef.type = b3_kinematicBody;
-	bodyDef.position = (b3Pos){ g_junkyardData.radius, 0.0f, 0.0f };
+	bodyDef.position = (b3Pos){ g_junkyardData.radius, B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
 	g_junkyardData.pusherId = b3CreateBody( worldId, &bodyDef );
-	g_junkyardData.degrees = 0.0f;
+	g_junkyardData.degrees = B3_FIX( 0.0f );
 	b3ShapeDef shapeDef = b3DefaultShapeDef();
 	b3CreateHullShape( g_junkyardData.pusherId, &shapeDef, hull );
 	b3DestroyHull( hull );
@@ -874,12 +874,12 @@ void StepJunkyard( b3WorldId worldId, int stepCount )
 	(void)worldId;
 	(void)stepCount;
 
-	float timeStep = 1.0f / 60.0f;
-	const float omega = -6.0f;
-	g_junkyardData.degrees += omega * timeStep;
-	b3CosSin cs = b3ComputeCosSin( g_junkyardData.degrees * B3_PI / 180.0f );
-	float r = g_junkyardData.radius;
-	b3Pos targetPos = { r * cs.cosine, 0.0f, r * cs.sine };
+	b3Fixed timeStep = b3FixDiv( B3_FIX( 1.0f ) , B3_FIX( 60.0f ) );
+	const b3Fixed omega = -B3_FIX( 6.0f );
+	g_junkyardData.degrees += b3FixMul( omega , timeStep );
+	b3CosSin cs = b3ComputeCosSin( b3FixDiv( b3FixMul( g_junkyardData.degrees , B3_PI ) , B3_FIX( 180.0f ) ) );
+	b3Fixed r = g_junkyardData.radius;
+	b3Pos targetPos = { b3FixMul( r , cs.cosine ), B3_FIX( 0.0f ), b3FixMul( r , cs.sine ) };
 	b3WorldTransform target = { .p = targetPos, .q = b3Quat_identity };
 	b3Body_SetTargetTransform( g_junkyardData.pusherId, target, timeStep, false );
 }
@@ -900,23 +900,23 @@ static unsigned int NextConvexPileRandom( ConvexPileRandom* rng )
 }
 
 // Float in [-0.5, 0.5]
-static float ConvexPileRandomFloat( ConvexPileRandom* rng )
+static b3Fixed ConvexPileRandomFloat( ConvexPileRandom* rng )
 {
-	return (float)( NextConvexPileRandom( rng ) & 0xffff ) / 65535.0f - 0.5f;
+	return b3FixDiv( (b3Fixed)b3FixFromInt( ( NextConvexPileRandom( rng ) & 0xffff ) ) , B3_FIX( 65535.0f ) ) - B3_FIX( 0.5f );
 }
 
 // Uniform random direction, rejection sampled inside the unit sphere then pushed to the surface
 static b3Vec3 UnitRandomPoint( ConvexPileRandom* rng )
 {
 	b3Vec3 point;
-	float lengthSq;
+	b3Fixed lengthSq;
 	do
 	{
 		point.x = ConvexPileRandomFloat( rng );
 		point.y = ConvexPileRandomFloat( rng );
 		point.z = ConvexPileRandomFloat( rng );
 		lengthSq = b3Dot( point, point );
-	} while ( lengthSq > 0.25f );
+	} while ( lengthSq > B3_FIX( 0.25f ) );
 
 	return b3Normalize( point );
 }
@@ -925,10 +925,10 @@ void CreateConvexPile( b3WorldId worldId )
 {
 	{
 		b3BodyDef bodyDef = b3DefaultBodyDef();
-		bodyDef.position = (b3Pos){ 0.0f, -1.0f, 0.0f };
+		bodyDef.position = (b3Pos){ B3_FIX( 0.0f ), -B3_FIX( 1.0f ), B3_FIX( 0.0f ) };
 		b3BodyId groundId = b3CreateBody( worldId, &bodyDef );
 
-		b3BoxHull box = b3MakeBoxHull( 250.0f, 1.0f, 250.0f );
+		b3BoxHull box = b3MakeBoxHull( B3_FIX( 250.0f ), B3_FIX( 1.0f ), B3_FIX( 250.0f ) );
 		b3ShapeDef shapeDef = b3DefaultShapeDef();
 		g_groundShapeId = b3CreateHullShape( groundId, &shapeDef, &box.base );
 	}
@@ -936,9 +936,9 @@ void CreateConvexPile( b3WorldId worldId )
 	int countX = 8;
 	int countZ = 8;
 	int layers = BENCHMARK_DEBUG ? 10 : 80;
-	float amplitude = 2.0f;
+	b3Fixed amplitude = B3_FIX( 2.0f );
 	int pointCount = 32;
-	float scatter = 2.0f * amplitude;
+	b3Fixed scatter = b3FixMul( B3_FIX( 2.0f ) , amplitude );
 
 	// Hull around random points on a sphere of radius amplitude
 	assert( pointCount <= 64 );
@@ -962,9 +962,9 @@ void CreateConvexPile( b3WorldId worldId )
 		{
 			for ( int x = 0; x < countX; ++x )
 			{
-				float posX = ( (float)x - 0.5f * (float)countX ) * scatter;
-				float posZ = ( (float)z - 0.5f * (float)countZ ) * scatter;
-				float posY = amplitude + 2.0f * amplitude * (float)layer;
+				b3Fixed posX = b3FixMul( ( (b3Fixed)b3FixFromInt( x ) - b3FixMul( B3_FIX( 0.5f ) , (b3Fixed)b3FixFromInt( countX ) ) ) , scatter );
+				b3Fixed posZ = b3FixMul( ( (b3Fixed)b3FixFromInt( z ) - b3FixMul( B3_FIX( 0.5f ) , (b3Fixed)b3FixFromInt( countZ ) ) ) , scatter );
+				b3Fixed posY = amplitude + b3FixMul( b3FixMul( B3_FIX( 2.0f ) , amplitude ) , (b3Fixed)b3FixFromInt( layer ) );
 
 				bodyDef.position = (b3Pos){ posX, posY, posZ };
 				b3BodyId bodyId = b3CreateBody( worldId, &bodyDef );

@@ -17,7 +17,7 @@ int TestBitMath( void )
 	for (int i = 1; i < 1000; ++i)
 	{
 		int e1 = b3LowerPowerOf2Exponent( i );
-		int e2 = (int)floorf( log2f( (float)i ) );
+		int e2 = (int)floor( log2( (double)i ) );
 		ENSURE(e1 == e2);
 	}
 

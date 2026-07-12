@@ -9,12 +9,11 @@
 #include "box3d/collision.h"
 #include "box3d/math_functions.h"
 
-#include <float.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 
-static b3SurfaceMaterial MakeMaterial( float friction, uint64_t userId )
+static b3SurfaceMaterial MakeMaterial( b3Fixed friction, uint64_t userId )
 {
 	b3SurfaceMaterial m = b3DefaultSurfaceMaterial();
 	m.friction = friction;
@@ -27,28 +26,28 @@ static int CompoundCreateMixed( void )
 	b3SurfaceMaterial mat = b3DefaultSurfaceMaterial();
 
 	b3CompoundCapsuleDef capsules[1] = {
-		{ .capsule = { { -1.0f, 0.0f, 0.0f }, { 1.0f, 0.0f, 0.0f }, 0.25f }, .material = mat },
+		{ .capsule = { { -B3_FIX( 1.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, { B3_FIX( 1.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, B3_FIX( 0.25f ) }, .material = mat },
 	};
 
-	b3BoxHull box = b3MakeBoxHull( 0.5f, 0.5f, 0.5f );
+	b3BoxHull box = b3MakeBoxHull( B3_FIX( 0.5f ), B3_FIX( 0.5f ), B3_FIX( 0.5f ) );
 	b3CompoundHullDef hulls[1] = {
 		{ .hull = &box.base, .transform = b3Transform_identity, .material = mat },
 	};
 
-	b3MeshData* meshData = b3CreateBoxMesh( b3Vec3_zero, (b3Vec3){ 0.5f, 0.5f, 0.5f }, false );
+	b3MeshData* meshData = b3CreateBoxMesh( b3Vec3_zero, (b3Vec3){ B3_FIX( 0.5f ), B3_FIX( 0.5f ), B3_FIX( 0.5f ) }, false );
 	b3CompoundMeshDef meshes[1] = {
 		{
 			.meshData = meshData,
 			.transform = b3Transform_identity,
-			.scale = { 1.0f, 1.0f, 1.0f },
+			.scale = { B3_FIX( 1.0f ), B3_FIX( 1.0f ), B3_FIX( 1.0f ) },
 			.materials = &mat,
 			.materialCount = 1,
 		},
 	};
 
 	b3CompoundSphereDef spheres[2] = {
-		{ .sphere = { { 5.0f, 0.0f, 0.0f }, 0.5f }, .material = mat },
-		{ .sphere = { { -5.0f, 0.0f, 0.0f }, 0.5f }, .material = mat },
+		{ .sphere = { { B3_FIX( 5.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, B3_FIX( 0.5f ) }, .material = mat },
+		{ .sphere = { { -B3_FIX( 5.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, B3_FIX( 0.5f ) }, .material = mat },
 	};
 
 	b3CompoundDef def = {
@@ -90,7 +89,7 @@ static int CompoundCreateSingleType( void )
 
 	// Capsule only
 	{
-		b3CompoundCapsuleDef cap = { .capsule = { { 0, 0, 0 }, { 1, 0, 0 }, 0.5f }, .material = mat };
+		b3CompoundCapsuleDef cap = { .capsule = { { b3FixFromInt( 0 ), b3FixFromInt( 0 ), b3FixFromInt( 0 ) }, { b3FixFromInt( 1 ), b3FixFromInt( 0 ), b3FixFromInt( 0 ) }, B3_FIX( 0.5f ) }, .material = mat };
 		b3CompoundDef def = { .capsules = &cap, .capsuleCount = 1 };
 		b3CompoundData* c = b3CreateCompound( &def );
 		ENSURE( c != NULL && c->capsuleCount == 1 && c->hullCount == 0 && c->meshCount == 0 && c->sphereCount == 0 );
@@ -99,7 +98,7 @@ static int CompoundCreateSingleType( void )
 
 	// Hull only
 	{
-		b3BoxHull box = b3MakeBoxHull( 1, 1, 1 );
+		b3BoxHull box = b3MakeBoxHull( b3FixFromInt( 1 ), b3FixFromInt( 1 ), b3FixFromInt( 1 ) );
 		b3CompoundHullDef h = { .hull = &box.base, .transform = b3Transform_identity, .material = mat };
 		b3CompoundDef def = { .hulls = &h, .hullCount = 1 };
 		b3CompoundData* c = b3CreateCompound( &def );
@@ -109,11 +108,11 @@ static int CompoundCreateSingleType( void )
 
 	// Mesh only
 	{
-		b3MeshData* md = b3CreateBoxMesh( b3Vec3_zero, (b3Vec3){ 1, 1, 1 }, false );
+		b3MeshData* md = b3CreateBoxMesh( b3Vec3_zero, (b3Vec3){ b3FixFromInt( 1 ), b3FixFromInt( 1 ), b3FixFromInt( 1 ) }, false );
 		b3CompoundMeshDef m = {
 			.meshData = md,
 			.transform = b3Transform_identity,
-			.scale = { 1, 1, 1 },
+			.scale = { b3FixFromInt( 1 ), b3FixFromInt( 1 ), b3FixFromInt( 1 ) },
 			.materials = &mat,
 			.materialCount = 1,
 		};
@@ -126,7 +125,7 @@ static int CompoundCreateSingleType( void )
 
 	// Sphere only
 	{
-		b3CompoundSphereDef s = { .sphere = { { 0, 0, 0 }, 1.0f }, .material = mat };
+		b3CompoundSphereDef s = { .sphere = { { b3FixFromInt( 0 ), b3FixFromInt( 0 ), b3FixFromInt( 0 ) }, B3_FIX( 1.0f ) }, .material = mat };
 		b3CompoundDef def = { .spheres = &s, .sphereCount = 1 };
 		b3CompoundData* c = b3CreateCompound( &def );
 		ENSURE( c != NULL && c->sphereCount == 1 );
@@ -138,12 +137,12 @@ static int CompoundCreateSingleType( void )
 
 static int CompoundMaterialDedup( void )
 {
-	b3SurfaceMaterial mat = MakeMaterial( 0.4f, 7 );
+	b3SurfaceMaterial mat = MakeMaterial( B3_FIX( 0.4f ), 7 );
 
 	b3CompoundCapsuleDef caps[3];
 	for ( int i = 0; i < 3; ++i )
 	{
-		caps[i].capsule = (b3Capsule){ { (float)i, 0, 0 }, { (float)i + 1, 0, 0 }, 0.25f };
+		caps[i].capsule = (b3Capsule){ { (b3Fixed)b3FixFromInt( i ), b3FixFromInt( 0 ), b3FixFromInt( 0 ) }, { (b3Fixed)b3FixFromInt( i ) + b3FixFromInt( 1 ), b3FixFromInt( 0 ), b3FixFromInt( 0 ) }, B3_FIX( 0.25f ) };
 		caps[i].material = mat;
 	}
 
@@ -164,8 +163,8 @@ static int CompoundMaterialDistinct( void )
 	b3CompoundCapsuleDef caps[3];
 	for ( int i = 0; i < 3; ++i )
 	{
-		caps[i].capsule = (b3Capsule){ { (float)i, 0, 0 }, { (float)i + 1, 0, 0 }, 0.25f };
-		caps[i].material = MakeMaterial( 0.1f * (float)( i + 1 ), (uint64_t)( i + 1 ) );
+		caps[i].capsule = (b3Capsule){ { (b3Fixed)b3FixFromInt( i ), b3FixFromInt( 0 ), b3FixFromInt( 0 ) }, { (b3Fixed)b3FixFromInt( i ) + b3FixFromInt( 1 ), b3FixFromInt( 0 ), b3FixFromInt( 0 ) }, B3_FIX( 0.25f ) };
+		caps[i].material = MakeMaterial( b3FixMul( B3_FIX( 0.1f ) , (b3Fixed)b3FixFromInt( ( i + 1 ) ) ), (uint64_t)( i + 1 ) );
 	}
 
 	b3CompoundDef def = { .capsules = caps, .capsuleCount = 3 };
@@ -189,12 +188,12 @@ static int CompoundMaterialDistinct( void )
 static int CompoundMaterialCrossShape( void )
 {
 	// One material shared across capsule, hull, and sphere → 1 material slot.
-	b3SurfaceMaterial mat = MakeMaterial( 0.5f, 99 );
+	b3SurfaceMaterial mat = MakeMaterial( B3_FIX( 0.5f ), 99 );
 
-	b3CompoundCapsuleDef cap = { .capsule = { { 0, 0, 0 }, { 1, 0, 0 }, 0.25f }, .material = mat };
-	b3BoxHull box = b3MakeBoxHull( 0.5f, 0.5f, 0.5f );
+	b3CompoundCapsuleDef cap = { .capsule = { { b3FixFromInt( 0 ), b3FixFromInt( 0 ), b3FixFromInt( 0 ) }, { b3FixFromInt( 1 ), b3FixFromInt( 0 ), b3FixFromInt( 0 ) }, B3_FIX( 0.25f ) }, .material = mat };
+	b3BoxHull box = b3MakeBoxHull( B3_FIX( 0.5f ), B3_FIX( 0.5f ), B3_FIX( 0.5f ) );
 	b3CompoundHullDef hull = { .hull = &box.base, .transform = b3Transform_identity, .material = mat };
-	b3CompoundSphereDef sph = { .sphere = { { 5, 0, 0 }, 0.5f }, .material = mat };
+	b3CompoundSphereDef sph = { .sphere = { { b3FixFromInt( 5 ), b3FixFromInt( 0 ), b3FixFromInt( 0 ) }, B3_FIX( 0.5f ) }, .material = mat };
 
 	b3CompoundDef def = {
 		.capsules = &cap,
@@ -221,16 +220,16 @@ static int CompoundMaterialMeshShared( void )
 	// materials, so an identical material is deduped across mesh and convex.
 	// (The comment in compound.c about meshes "not being shared" refers to the
 	// per-instance materialIndices arrays, not the b3SurfaceMaterial table.)
-	b3SurfaceMaterial mat = MakeMaterial( 0.3f, 11 );
+	b3SurfaceMaterial mat = MakeMaterial( B3_FIX( 0.3f ), 11 );
 
-	b3MeshData* md = b3CreateBoxMesh( b3Vec3_zero, (b3Vec3){ 1, 1, 1 }, false );
+	b3MeshData* md = b3CreateBoxMesh( b3Vec3_zero, (b3Vec3){ b3FixFromInt( 1 ), b3FixFromInt( 1 ), b3FixFromInt( 1 ) }, false );
 	ENSURE( md->materialCount == 1 );
 
-	b3CompoundSphereDef sph = { .sphere = { { 5, 0, 0 }, 0.5f }, .material = mat };
+	b3CompoundSphereDef sph = { .sphere = { { b3FixFromInt( 5 ), b3FixFromInt( 0 ), b3FixFromInt( 0 ) }, B3_FIX( 0.5f ) }, .material = mat };
 	b3CompoundMeshDef mesh = {
 		.meshData = md,
 		.transform = b3Transform_identity,
-		.scale = { 1, 1, 1 },
+		.scale = { b3FixFromInt( 1 ), b3FixFromInt( 1 ), b3FixFromInt( 1 ) },
 		.materials = &mat,
 		.materialCount = 1,
 	};
@@ -256,14 +255,14 @@ static int CompoundMaterialMeshShared( void )
 static int CompoundHullSharingPointer( void )
 {
 	b3SurfaceMaterial mat = b3DefaultSurfaceMaterial();
-	b3BoxHull box = b3MakeBoxHull( 1, 1, 1 );
+	b3BoxHull box = b3MakeBoxHull( b3FixFromInt( 1 ), b3FixFromInt( 1 ), b3FixFromInt( 1 ) );
 
 	b3CompoundHullDef hulls[3];
 	for ( int i = 0; i < 3; ++i )
 	{
 		hulls[i].hull = &box.base;
 		hulls[i].transform = b3Transform_identity;
-		hulls[i].transform.p.x = (float)( 4 * i );
+		hulls[i].transform.p.x = (b3Fixed)b3FixFromInt( ( 4 * i ) );
 		hulls[i].material = mat;
 	}
 
@@ -281,15 +280,15 @@ static int CompoundHullSharingContent( void )
 
 	// Two box hulls built independently with identical args are byte-identical
 	// (b3MakeBoxHull is deterministic and the hash is computed over the bytes).
-	b3BoxHull boxA = b3MakeBoxHull( 1, 1, 1 );
-	b3BoxHull boxB = b3MakeBoxHull( 1, 1, 1 );
+	b3BoxHull boxA = b3MakeBoxHull( b3FixFromInt( 1 ), b3FixFromInt( 1 ), b3FixFromInt( 1 ) );
+	b3BoxHull boxB = b3MakeBoxHull( b3FixFromInt( 1 ), b3FixFromInt( 1 ), b3FixFromInt( 1 ) );
 	ENSURE( &boxA != &boxB );
 
 	b3CompoundHullDef hulls[2] = {
 		{ .hull = &boxA.base, .transform = b3Transform_identity, .material = mat },
 		{ .hull = &boxB.base, .transform = b3Transform_identity, .material = mat },
 	};
-	hulls[1].transform.p.x = 5.0f;
+	hulls[1].transform.p.x = B3_FIX( 5.0f );
 
 	b3CompoundDef def = { .hulls = hulls, .hullCount = 2 };
 	b3CompoundData* c = b3CreateCompound( &def );
@@ -301,14 +300,14 @@ static int CompoundHullSharingContent( void )
 static int CompoundHullDistinct( void )
 {
 	b3SurfaceMaterial mat = b3DefaultSurfaceMaterial();
-	b3BoxHull boxA = b3MakeBoxHull( 1, 1, 1 );
-	b3BoxHull boxB = b3MakeBoxHull( 2, 1, 1 );
+	b3BoxHull boxA = b3MakeBoxHull( b3FixFromInt( 1 ), b3FixFromInt( 1 ), b3FixFromInt( 1 ) );
+	b3BoxHull boxB = b3MakeBoxHull( b3FixFromInt( 2 ), b3FixFromInt( 1 ), b3FixFromInt( 1 ) );
 
 	b3CompoundHullDef hulls[2] = {
 		{ .hull = &boxA.base, .transform = b3Transform_identity, .material = mat },
 		{ .hull = &boxB.base, .transform = b3Transform_identity, .material = mat },
 	};
-	hulls[1].transform.p.x = 5.0f;
+	hulls[1].transform.p.x = B3_FIX( 5.0f );
 
 	b3CompoundDef def = { .hulls = hulls, .hullCount = 2 };
 	b3CompoundData* c = b3CreateCompound( &def );
@@ -320,15 +319,15 @@ static int CompoundHullDistinct( void )
 static int CompoundMeshSharingPointer( void )
 {
 	b3SurfaceMaterial mat = b3DefaultSurfaceMaterial();
-	b3MeshData* md = b3CreateBoxMesh( b3Vec3_zero, (b3Vec3){ 1, 1, 1 }, false );
+	b3MeshData* md = b3CreateBoxMesh( b3Vec3_zero, (b3Vec3){ b3FixFromInt( 1 ), b3FixFromInt( 1 ), b3FixFromInt( 1 ) }, false );
 
 	b3CompoundMeshDef meshes[3];
 	for ( int i = 0; i < 3; ++i )
 	{
 		meshes[i].meshData = md;
 		meshes[i].transform = b3Transform_identity;
-		meshes[i].transform.p.x = (float)( 4 * i );
-		meshes[i].scale = (b3Vec3){ 1, 1, 1 };
+		meshes[i].transform.p.x = (b3Fixed)b3FixFromInt( ( 4 * i ) );
+		meshes[i].scale = (b3Vec3){ b3FixFromInt( 1 ), b3FixFromInt( 1 ), b3FixFromInt( 1 ) };
 		meshes[i].materials = &mat;
 		meshes[i].materialCount = 1;
 	}
@@ -346,15 +345,15 @@ static int CompoundMeshSharingPointer( void )
 static int CompoundMeshSharingContent( void )
 {
 	b3SurfaceMaterial mat = b3DefaultSurfaceMaterial();
-	b3MeshData* mdA = b3CreateBoxMesh( b3Vec3_zero, (b3Vec3){ 1, 1, 1 }, false );
-	b3MeshData* mdB = b3CreateBoxMesh( b3Vec3_zero, (b3Vec3){ 1, 1, 1 }, false );
+	b3MeshData* mdA = b3CreateBoxMesh( b3Vec3_zero, (b3Vec3){ b3FixFromInt( 1 ), b3FixFromInt( 1 ), b3FixFromInt( 1 ) }, false );
+	b3MeshData* mdB = b3CreateBoxMesh( b3Vec3_zero, (b3Vec3){ b3FixFromInt( 1 ), b3FixFromInt( 1 ), b3FixFromInt( 1 ) }, false );
 	ENSURE( mdA != mdB );
 
 	b3CompoundMeshDef meshes[2] = {
-		{ .meshData = mdA, .transform = b3Transform_identity, .scale = { 1, 1, 1 }, .materials = &mat, .materialCount = 1 },
-		{ .meshData = mdB, .transform = b3Transform_identity, .scale = { 1, 1, 1 }, .materials = &mat, .materialCount = 1 },
+		{ .meshData = mdA, .transform = b3Transform_identity, .scale = { b3FixFromInt( 1 ), b3FixFromInt( 1 ), b3FixFromInt( 1 ) }, .materials = &mat, .materialCount = 1 },
+		{ .meshData = mdB, .transform = b3Transform_identity, .scale = { b3FixFromInt( 1 ), b3FixFromInt( 1 ), b3FixFromInt( 1 ) }, .materials = &mat, .materialCount = 1 },
 	};
-	meshes[1].transform.p.x = 5.0f;
+	meshes[1].transform.p.x = B3_FIX( 5.0f );
 
 	b3CompoundDef def = { .meshes = meshes, .meshCount = 2 };
 	b3CompoundData* c = b3CreateCompound( &def );
@@ -369,14 +368,14 @@ static int CompoundMeshSharingContent( void )
 static int CompoundMeshDistinct( void )
 {
 	b3SurfaceMaterial mat = b3DefaultSurfaceMaterial();
-	b3MeshData* mdA = b3CreateBoxMesh( b3Vec3_zero, (b3Vec3){ 1, 1, 1 }, false );
-	b3MeshData* mdB = b3CreateBoxMesh( b3Vec3_zero, (b3Vec3){ 2, 1, 1 }, false );
+	b3MeshData* mdA = b3CreateBoxMesh( b3Vec3_zero, (b3Vec3){ b3FixFromInt( 1 ), b3FixFromInt( 1 ), b3FixFromInt( 1 ) }, false );
+	b3MeshData* mdB = b3CreateBoxMesh( b3Vec3_zero, (b3Vec3){ b3FixFromInt( 2 ), b3FixFromInt( 1 ), b3FixFromInt( 1 ) }, false );
 
 	b3CompoundMeshDef meshes[2] = {
-		{ .meshData = mdA, .transform = b3Transform_identity, .scale = { 1, 1, 1 }, .materials = &mat, .materialCount = 1 },
-		{ .meshData = mdB, .transform = b3Transform_identity, .scale = { 1, 1, 1 }, .materials = &mat, .materialCount = 1 },
+		{ .meshData = mdA, .transform = b3Transform_identity, .scale = { b3FixFromInt( 1 ), b3FixFromInt( 1 ), b3FixFromInt( 1 ) }, .materials = &mat, .materialCount = 1 },
+		{ .meshData = mdB, .transform = b3Transform_identity, .scale = { b3FixFromInt( 1 ), b3FixFromInt( 1 ), b3FixFromInt( 1 ) }, .materials = &mat, .materialCount = 1 },
 	};
-	meshes[1].transform.p.x = 5.0f;
+	meshes[1].transform.p.x = B3_FIX( 5.0f );
 
 	b3CompoundDef def = { .meshes = meshes, .meshCount = 2 };
 	b3CompoundData* c = b3CreateCompound( &def );
@@ -391,24 +390,24 @@ static int CompoundMeshDistinct( void )
 static int CompoundChildDispatch( void )
 {
 	b3SurfaceMaterial mat = b3DefaultSurfaceMaterial();
-	b3BoxHull box = b3MakeBoxHull( 0.5f, 0.5f, 0.5f );
-	b3MeshData* md = b3CreateBoxMesh( b3Vec3_zero, (b3Vec3){ 0.5f, 0.5f, 0.5f }, false );
+	b3BoxHull box = b3MakeBoxHull( B3_FIX( 0.5f ), B3_FIX( 0.5f ), B3_FIX( 0.5f ) );
+	b3MeshData* md = b3CreateBoxMesh( b3Vec3_zero, (b3Vec3){ B3_FIX( 0.5f ), B3_FIX( 0.5f ), B3_FIX( 0.5f ) }, false );
 
 	b3CompoundCapsuleDef caps[2] = {
-		{ .capsule = { { 0, 0, 0 }, { 1, 0, 0 }, 0.2f }, .material = mat },
-		{ .capsule = { { 0, 2, 0 }, { 1, 2, 0 }, 0.2f }, .material = mat },
+		{ .capsule = { { b3FixFromInt( 0 ), b3FixFromInt( 0 ), b3FixFromInt( 0 ) }, { b3FixFromInt( 1 ), b3FixFromInt( 0 ), b3FixFromInt( 0 ) }, B3_FIX( 0.2f ) }, .material = mat },
+		{ .capsule = { { b3FixFromInt( 0 ), b3FixFromInt( 2 ), b3FixFromInt( 0 ) }, { b3FixFromInt( 1 ), b3FixFromInt( 2 ), b3FixFromInt( 0 ) }, B3_FIX( 0.2f ) }, .material = mat },
 	};
 	b3CompoundHullDef hulls[1] = { { .hull = &box.base, .transform = b3Transform_identity, .material = mat } };
-	hulls[0].transform.p = (b3Vec3){ 5, 0, 0 };
+	hulls[0].transform.p = (b3Vec3){ b3FixFromInt( 5 ), b3FixFromInt( 0 ), b3FixFromInt( 0 ) };
 	b3CompoundMeshDef meshes[1] = { {
 		.meshData = md,
 		.transform = b3Transform_identity,
-		.scale = { 1, 1, 1 },
+		.scale = { b3FixFromInt( 1 ), b3FixFromInt( 1 ), b3FixFromInt( 1 ) },
 		.materials = &mat,
 		.materialCount = 1,
 	} };
-	meshes[0].transform.p = (b3Vec3){ 0, 0, 5 };
-	b3CompoundSphereDef spheres[1] = { { .sphere = { { -5, 0, 0 }, 0.5f }, .material = mat } };
+	meshes[0].transform.p = (b3Vec3){ b3FixFromInt( 0 ), b3FixFromInt( 0 ), b3FixFromInt( 5 ) };
+	b3CompoundSphereDef spheres[1] = { { .sphere = { { b3FixFromInt( -5 ), b3FixFromInt( 0 ), b3FixFromInt( 0 ) }, B3_FIX( 0.5f ) }, .material = mat } };
 
 	b3CompoundDef def = {
 		.capsules = caps,
@@ -432,21 +431,21 @@ static int CompoundChildDispatch( void )
 	// Capsule and sphere children always report identity transform — the position
 	// is encoded in the shape itself (capsule->center{1,2}, sphere->center).
 	b3ChildShape cap0 = b3GetCompoundChild( c, 0 );
-	ENSURE_SMALL( cap0.transform.p.x, FLT_EPSILON );
-	ENSURE_SMALL( cap0.transform.p.y, FLT_EPSILON );
-	ENSURE_SMALL( cap0.transform.p.z, FLT_EPSILON );
-	ENSURE_SMALL( cap0.capsule.center2.x - 1.0f, FLT_EPSILON );
+	ENSURE_SMALL( cap0.transform.p.x, 8 * B3_FIXED_EPSILON );
+	ENSURE_SMALL( cap0.transform.p.y, 8 * B3_FIXED_EPSILON );
+	ENSURE_SMALL( cap0.transform.p.z, 8 * B3_FIXED_EPSILON );
+	ENSURE_SMALL( cap0.capsule.center2.x - B3_FIX( 1.0f ), 8 * B3_FIXED_EPSILON );
 
 	b3ChildShape sph = b3GetCompoundChild( c, 4 );
-	ENSURE_SMALL( sph.transform.p.x, FLT_EPSILON );
-	ENSURE_SMALL( sph.sphere.center.x + 5.0f, FLT_EPSILON );
+	ENSURE_SMALL( sph.transform.p.x, 8 * B3_FIXED_EPSILON );
+	ENSURE_SMALL( sph.sphere.center.x + B3_FIX( 5.0f ), 8 * B3_FIXED_EPSILON );
 
 	// Hull and mesh children carry their stored transform.
 	b3ChildShape hull = b3GetCompoundChild( c, 2 );
-	ENSURE_SMALL( hull.transform.p.x - 5.0f, FLT_EPSILON );
+	ENSURE_SMALL( hull.transform.p.x - B3_FIX( 5.0f ), 8 * B3_FIXED_EPSILON );
 
 	b3ChildShape mesh = b3GetCompoundChild( c, 3 );
-	ENSURE_SMALL( mesh.transform.p.z - 5.0f, FLT_EPSILON );
+	ENSURE_SMALL( mesh.transform.p.z - B3_FIX( 5.0f ), 8 * B3_FIXED_EPSILON );
 	ENSURE( mesh.mesh.data != NULL );
 
 	b3DestroyCompound( c );
@@ -458,24 +457,24 @@ static int CompoundAABBContainsChildren( void )
 {
 	b3SurfaceMaterial mat = b3DefaultSurfaceMaterial();
 	b3CompoundSphereDef spheres[2] = {
-		{ .sphere = { { -3, 0, 0 }, 1.0f }, .material = mat },
-		{ .sphere = { { 4, 0, 0 }, 0.5f }, .material = mat },
+		{ .sphere = { { b3FixFromInt( -3 ), b3FixFromInt( 0 ), b3FixFromInt( 0 ) }, B3_FIX( 1.0f ) }, .material = mat },
+		{ .sphere = { { b3FixFromInt( 4 ), b3FixFromInt( 0 ), b3FixFromInt( 0 ) }, B3_FIX( 0.5f ) }, .material = mat },
 	};
 	b3CompoundDef def = { .spheres = spheres, .sphereCount = 2 };
 	b3CompoundData* c = b3CreateCompound( &def );
 
 	b3AABB local = b3ComputeCompoundAABB( c, b3Transform_identity );
-	ENSURE( local.lowerBound.x <= -4.0f + 1e-5f );
-	ENSURE( local.upperBound.x >= 4.5f - 1e-5f );
-	ENSURE( local.lowerBound.y <= -1.0f + 1e-5f );
-	ENSURE( local.upperBound.y >= 1.0f - 1e-5f );
+	ENSURE( local.lowerBound.x <= -B3_FIX( 4.0f ) + ( 8 * B3_FIXED_EPSILON ) );
+	ENSURE( local.upperBound.x >= B3_FIX( 4.5f ) - ( 8 * B3_FIXED_EPSILON ) );
+	ENSURE( local.lowerBound.y <= -B3_FIX( 1.0f ) + ( 8 * B3_FIXED_EPSILON ) );
+	ENSURE( local.upperBound.y >= B3_FIX( 1.0f ) - ( 8 * B3_FIXED_EPSILON ) );
 
 	// Translation commutes through the bounding-box transform.
-	b3Transform xf = { .p = { 10, 20, 30 }, .q = b3Quat_identity };
+	b3Transform xf = { .p = { b3FixFromInt( 10 ), b3FixFromInt( 20 ), b3FixFromInt( 30 ) }, .q = b3Quat_identity };
 	b3AABB world = b3ComputeCompoundAABB( c, xf );
-	ENSURE_SMALL( world.lowerBound.x - ( local.lowerBound.x + 10.0f ), 1e-4f );
-	ENSURE_SMALL( world.upperBound.y - ( local.upperBound.y + 20.0f ), 1e-4f );
-	ENSURE_SMALL( world.lowerBound.z - ( local.lowerBound.z + 30.0f ), 1e-4f );
+	ENSURE_SMALL( world.lowerBound.x - ( local.lowerBound.x + B3_FIX( 10.0f ) ), B3_FIX( 1e-4f ) );
+	ENSURE_SMALL( world.upperBound.y - ( local.upperBound.y + B3_FIX( 20.0f ) ), B3_FIX( 1e-4f ) );
+	ENSURE_SMALL( world.lowerBound.z - ( local.lowerBound.z + B3_FIX( 30.0f ) ), B3_FIX( 1e-4f ) );
 
 	b3DestroyCompound( c );
 	return 0;
@@ -484,12 +483,12 @@ static int CompoundAABBContainsChildren( void )
 static int CompoundRayCastMiss( void )
 {
 	b3SurfaceMaterial mat = b3DefaultSurfaceMaterial();
-	b3CompoundSphereDef sph = { .sphere = { { 0, 0, 0 }, 0.5f }, .material = mat };
+	b3CompoundSphereDef sph = { .sphere = { { b3FixFromInt( 0 ), b3FixFromInt( 0 ), b3FixFromInt( 0 ) }, B3_FIX( 0.5f ) }, .material = mat };
 	b3CompoundDef def = { .spheres = &sph, .sphereCount = 1 };
 	b3CompoundData* c = b3CreateCompound( &def );
 
 	// Ray well above the sphere on a parallel path.
-	b3RayCastInput input = { .origin = { -5, 5, 0 }, .translation = { 10, 0, 0 }, .maxFraction = 1.0f };
+	b3RayCastInput input = { .origin = { b3FixFromInt( -5 ), b3FixFromInt( 5 ), b3FixFromInt( 0 ) }, .translation = { b3FixFromInt( 10 ), b3FixFromInt( 0 ), b3FixFromInt( 0 ) }, .maxFraction = B3_FIX( 1.0f ) };
 	b3CastOutput out = b3RayCastCompound( c, &input );
 	ENSURE( out.hit == false );
 
@@ -499,24 +498,24 @@ static int CompoundRayCastMiss( void )
 
 static int CompoundRayCastClosest( void )
 {
-	b3SurfaceMaterial matA = MakeMaterial( 0.4f, 100 );
-	b3SurfaceMaterial matB = MakeMaterial( 0.4f, 200 );
+	b3SurfaceMaterial matA = MakeMaterial( B3_FIX( 0.4f ), 100 );
+	b3SurfaceMaterial matB = MakeMaterial( B3_FIX( 0.4f ), 200 );
 
 	// Two unit spheres along +X. Ray from origin must hit the nearer one first.
 	b3CompoundSphereDef spheres[2] = {
-		{ .sphere = { { 5, 0, 0 }, 1.0f }, .material = matA },
-		{ .sphere = { { 10, 0, 0 }, 1.0f }, .material = matB },
+		{ .sphere = { { b3FixFromInt( 5 ), b3FixFromInt( 0 ), b3FixFromInt( 0 ) }, B3_FIX( 1.0f ) }, .material = matA },
+		{ .sphere = { { b3FixFromInt( 10 ), b3FixFromInt( 0 ), b3FixFromInt( 0 ) }, B3_FIX( 1.0f ) }, .material = matB },
 	};
 	b3CompoundDef def = { .spheres = spheres, .sphereCount = 2 };
 	b3CompoundData* c = b3CreateCompound( &def );
 
-	b3RayCastInput input = { .origin = { 0, 0, 0 }, .translation = { 20, 0, 0 }, .maxFraction = 1.0f };
+	b3RayCastInput input = { .origin = { b3FixFromInt( 0 ), b3FixFromInt( 0 ), b3FixFromInt( 0 ) }, .translation = { b3FixFromInt( 20 ), b3FixFromInt( 0 ), b3FixFromInt( 0 ) }, .maxFraction = B3_FIX( 1.0f ) };
 	b3CastOutput out = b3RayCastCompound( c, &input );
 	ENSURE( out.hit == true );
 
 	// Front face of the nearer sphere is at x=4 → fraction 4/20 = 0.2.
-	ENSURE_SMALL( out.fraction - 0.2f, 1e-4f );
-	ENSURE_SMALL( out.normal.x + 1.0f, 1e-4f );
+	ENSURE_SMALL( out.fraction - B3_FIX( 0.2f ), B3_FIX( 1e-4f ) );
+	ENSURE_SMALL( out.normal.x + B3_FIX( 1.0f ), B3_FIX( 1e-4f ) );
 	ENSURE( out.childIndex == 0 );
 
 	const b3SurfaceMaterial* mats = b3GetCompoundMaterials( c );
@@ -533,24 +532,24 @@ static int CompoundRayCastHullNormalRotation( void )
 	// normal returned by the cast has been rotated from hull-local space back
 	// into compound space.
 	b3SurfaceMaterial mat = b3DefaultSurfaceMaterial();
-	b3BoxHull box = b3MakeBoxHull( 1, 1, 1 );
+	b3BoxHull box = b3MakeBoxHull( b3FixFromInt( 1 ), b3FixFromInt( 1 ), b3FixFromInt( 1 ) );
 
 	b3CompoundHullDef hull = {
 		.hull = &box.base,
-		.transform = { .p = { 5, 0, 0 }, .q = b3MakeQuatFromAxisAngle( b3Vec3_axisZ, 0.5f * B3_PI ) },
+		.transform = { .p = { b3FixFromInt( 5 ), b3FixFromInt( 0 ), b3FixFromInt( 0 ) }, .q = b3MakeQuatFromAxisAngle( b3Vec3_axisZ, b3FixMul( B3_FIX( 0.5f ) , B3_PI ) ) },
 		.material = mat,
 	};
 	b3CompoundDef def = { .hulls = &hull, .hullCount = 1 };
 	b3CompoundData* c = b3CreateCompound( &def );
 
-	b3RayCastInput input = { .origin = { 0, 0, 0 }, .translation = { 20, 0, 0 }, .maxFraction = 1.0f };
+	b3RayCastInput input = { .origin = { b3FixFromInt( 0 ), b3FixFromInt( 0 ), b3FixFromInt( 0 ) }, .translation = { b3FixFromInt( 20 ), b3FixFromInt( 0 ), b3FixFromInt( 0 ) }, .maxFraction = B3_FIX( 1.0f ) };
 	b3CastOutput out = b3RayCastCompound( c, &input );
 	ENSURE( out.hit == true );
 	// Box has |hx|=1; with the rotation a face still intersects the +X ray at x=4.
-	ENSURE_SMALL( out.fraction - 0.2f, 1e-4f );
-	ENSURE_SMALL( out.normal.x + 1.0f, 1e-3f );
-	ENSURE_SMALL( out.normal.y, 1e-3f );
-	ENSURE_SMALL( out.normal.z, 1e-3f );
+	ENSURE_SMALL( out.fraction - B3_FIX( 0.2f ), B3_FIX( 1e-4f ) );
+	ENSURE_SMALL( out.normal.x + B3_FIX( 1.0f ), B3_FIX( 1e-3f ) );
+	ENSURE_SMALL( out.normal.y, B3_FIX( 1e-3f ) );
+	ENSURE_SMALL( out.normal.z, B3_FIX( 1e-3f ) );
 
 	b3DestroyCompound( c );
 	return 0;
@@ -560,23 +559,23 @@ static int CompoundShapeCastClosest( void )
 {
 	b3SurfaceMaterial mat = b3DefaultSurfaceMaterial();
 	b3CompoundSphereDef spheres[2] = {
-		{ .sphere = { { 5, 0, 0 }, 1.0f }, .material = mat },
-		{ .sphere = { { 10, 0, 0 }, 1.0f }, .material = mat },
+		{ .sphere = { { b3FixFromInt( 5 ), b3FixFromInt( 0 ), b3FixFromInt( 0 ) }, B3_FIX( 1.0f ) }, .material = mat },
+		{ .sphere = { { b3FixFromInt( 10 ), b3FixFromInt( 0 ), b3FixFromInt( 0 ) }, B3_FIX( 1.0f ) }, .material = mat },
 	};
 	b3CompoundDef def = { .spheres = spheres, .sphereCount = 2 };
 	b3CompoundData* c = b3CreateCompound( &def );
 
-	b3Vec3 point = { 0, 0, 0 };
+	b3Vec3 point = { b3FixFromInt( 0 ), b3FixFromInt( 0 ), b3FixFromInt( 0 ) };
 	b3ShapeCastInput input = {
-		.proxy = { .points = &point, .count = 1, .radius = 0.25f },
-		.translation = { 20, 0, 0 },
-		.maxFraction = 1.0f,
+		.proxy = { .points = &point, .count = 1, .radius = B3_FIX( 0.25f ) },
+		.translation = { b3FixFromInt( 20 ), b3FixFromInt( 0 ), b3FixFromInt( 0 ) },
+		.maxFraction = B3_FIX( 1.0f ),
 		.canEncroach = false,
 	};
 	b3CastOutput out = b3ShapeCastCompound( c, &input );
 	ENSURE( out.hit == true );
 	// Closest contact: caster radius 0.25 + sphere radius 1.0 → first contact at x ≈ 3.75.
-	ENSURE_SMALL( out.fraction - 3.75f / 20.0f, 1e-3f );
+	ENSURE_SMALL( out.fraction - b3FixDiv( B3_FIX( 3.75f ) , B3_FIX( 20.0f ) ), B3_FIX( 1e-3f ) );
 	ENSURE( out.childIndex == 0 );
 
 	b3DestroyCompound( c );
@@ -587,20 +586,20 @@ static int CompoundOverlap( void )
 {
 	b3SurfaceMaterial mat = b3DefaultSurfaceMaterial();
 	b3CompoundSphereDef spheres[2] = {
-		{ .sphere = { { -3, 0, 0 }, 0.5f }, .material = mat },
-		{ .sphere = { { 3, 0, 0 }, 0.5f }, .material = mat },
+		{ .sphere = { { b3FixFromInt( -3 ), b3FixFromInt( 0 ), b3FixFromInt( 0 ) }, B3_FIX( 0.5f ) }, .material = mat },
+		{ .sphere = { { b3FixFromInt( 3 ), b3FixFromInt( 0 ), b3FixFromInt( 0 ) }, B3_FIX( 0.5f ) }, .material = mat },
 	};
 	b3CompoundDef def = { .spheres = spheres, .sphereCount = 2 };
 	b3CompoundData* c = b3CreateCompound( &def );
 
 	// Proxy at the origin lies in the gap between the two spheres.
-	b3Vec3 origin = { 0, 0, 0 };
-	b3ShapeProxy gap = { .points = &origin, .count = 1, .radius = 0.25f };
+	b3Vec3 origin = { b3FixFromInt( 0 ), b3FixFromInt( 0 ), b3FixFromInt( 0 ) };
+	b3ShapeProxy gap = { .points = &origin, .count = 1, .radius = B3_FIX( 0.25f ) };
 	ENSURE( b3OverlapCompound( c, b3Transform_identity, &gap ) == false );
 
 	// Proxy at the center of the second sphere overlaps it.
-	b3Vec3 onSecond = { 3, 0, 0 };
-	b3ShapeProxy hit = { .points = &onSecond, .count = 1, .radius = 0.1f };
+	b3Vec3 onSecond = { b3FixFromInt( 3 ), b3FixFromInt( 0 ), b3FixFromInt( 0 ) };
+	b3ShapeProxy hit = { .points = &onSecond, .count = 1, .radius = B3_FIX( 0.1f ) };
 	ENSURE( b3OverlapCompound( c, b3Transform_identity, &hit ) == true );
 
 	b3DestroyCompound( c );
@@ -633,22 +632,22 @@ static int CompoundQuery( void )
 {
 	b3SurfaceMaterial mat = b3DefaultSurfaceMaterial();
 	b3CompoundSphereDef spheres[3] = {
-		{ .sphere = { { -10, 0, 0 }, 0.5f }, .material = mat },
-		{ .sphere = { { 0, 0, 0 }, 0.5f }, .material = mat },
-		{ .sphere = { { 10, 0, 0 }, 0.5f }, .material = mat },
+		{ .sphere = { { b3FixFromInt( -10 ), b3FixFromInt( 0 ), b3FixFromInt( 0 ) }, B3_FIX( 0.5f ) }, .material = mat },
+		{ .sphere = { { b3FixFromInt( 0 ), b3FixFromInt( 0 ), b3FixFromInt( 0 ) }, B3_FIX( 0.5f ) }, .material = mat },
+		{ .sphere = { { b3FixFromInt( 10 ), b3FixFromInt( 0 ), b3FixFromInt( 0 ) }, B3_FIX( 0.5f ) }, .material = mat },
 	};
 	b3CompoundDef def = { .spheres = spheres, .sphereCount = 3 };
 	b3CompoundData* c = b3CreateCompound( &def );
 
 	// Tight box around the middle sphere — only it should be reported.
-	b3AABB middle = { { -1, -1, -1 }, { 1, 1, 1 } };
+	b3AABB middle = { { b3FixFromInt( -1 ), b3FixFromInt( -1 ), b3FixFromInt( -1 ) }, { b3FixFromInt( 1 ), b3FixFromInt( 1 ), b3FixFromInt( 1 ) } };
 	struct QueryAccumulator acc = { .stopAfter = -1 };
 	b3QueryCompound( c, middle, QueryCallback, &acc );
 	ENSURE( acc.count == 1 );
 	ENSURE( acc.childIndices[0] == 1 );
 
 	// Wide box overlapping all three; early-exit after the first reported child.
-	b3AABB wide = { { -20, -1, -1 }, { 20, 1, 1 } };
+	b3AABB wide = { { b3FixFromInt( -20 ), b3FixFromInt( -1 ), b3FixFromInt( -1 ) }, { b3FixFromInt( 20 ), b3FixFromInt( 1 ), b3FixFromInt( 1 ) } };
 	struct QueryAccumulator stop = { .stopAfter = 1 };
 	b3QueryCompound( c, wide, QueryCallback, &stop );
 	ENSURE( stop.count == 1 );
@@ -665,20 +664,20 @@ static int CompoundQuery( void )
 static int CompoundMover( void )
 {
 	b3SurfaceMaterial mat = b3DefaultSurfaceMaterial();
-	b3BoxHull box = b3MakeBoxHull( 0.5f, 0.5f, 0.5f );
+	b3BoxHull box = b3MakeBoxHull( B3_FIX( 0.5f ), B3_FIX( 0.5f ), B3_FIX( 0.5f ) );
 
 	// Two boxes side-by-side along X, gap of 1 between them.
 	b3CompoundHullDef hulls[2] = {
-		{ .hull = &box.base, .transform = { .p = { -1.0f, 0, 0 }, .q = b3Quat_identity }, .material = mat },
-		{ .hull = &box.base, .transform = { .p = { 1.0f, 0, 0 }, .q = b3Quat_identity }, .material = mat },
+		{ .hull = &box.base, .transform = { .p = { -B3_FIX( 1.0f ), b3FixFromInt( 0 ), b3FixFromInt( 0 ) }, .q = b3Quat_identity }, .material = mat },
+		{ .hull = &box.base, .transform = { .p = { B3_FIX( 1.0f ), b3FixFromInt( 0 ), b3FixFromInt( 0 ) }, .q = b3Quat_identity }, .material = mat },
 	};
 	b3CompoundDef def = { .hulls = hulls, .hullCount = 2 };
 	b3CompoundData* c = b3CreateCompound( &def );
 
 	// Small capsule mover sitting on top of the boxes, low enough to penetrate both.
-	b3Capsule mover = { { -1.0f, 0.6f, 0 }, { 1.0f, 0.6f, 0 }, 0.2f };
+	b3Capsule mover = { { -B3_FIX( 1.0f ), B3_FIX( 0.6f ), b3FixFromInt( 0 ) }, { B3_FIX( 1.0f ), B3_FIX( 0.6f ), b3FixFromInt( 0 ) }, B3_FIX( 0.2f ) };
 
-	b3PlaneResult planes[8] = { 0 };
+	b3PlaneResult planes[8] = { b3FixFromInt( 0 ) };
 	int planeCount = b3CollideMoverAndCompound( planes, 8, c, &mover );
 
 	// Both boxes contribute at least one plane each; the +Y face of each box
@@ -688,7 +687,7 @@ static int CompoundMover( void )
 	int upPlanes = 0;
 	for ( int i = 0; i < planeCount; ++i )
 	{
-		if ( planes[i].plane.normal.y > 0.9f )
+		if ( planes[i].plane.normal.y > B3_FIX( 0.9f ) )
 		{
 			upPlanes += 1;
 		}
@@ -696,7 +695,7 @@ static int CompoundMover( void )
 	ENSURE( upPlanes >= 2 );
 
 	// Capacity cap is honored: ask for 1 and the call must not exceed it.
-	b3PlaneResult one[1] = { 0 };
+	b3PlaneResult one[1] = { b3FixFromInt( 0 ) };
 	int capped = b3CollideMoverAndCompound( one, 1, c, &mover );
 	ENSURE( capped <= 1 );
 
@@ -707,18 +706,18 @@ static int CompoundMover( void )
 static b3CompoundData* BuildSerializableCompound( b3MeshData* md )
 {
 	b3SurfaceMaterial mat = b3DefaultSurfaceMaterial();
-	b3BoxHull box = b3MakeBoxHull( 0.5f, 0.5f, 0.5f );
+	b3BoxHull box = b3MakeBoxHull( B3_FIX( 0.5f ), B3_FIX( 0.5f ), B3_FIX( 0.5f ) );
 
-	b3CompoundCapsuleDef cap = { .capsule = { { -2, 0, 0 }, { -1, 0, 0 }, 0.2f }, .material = mat };
-	b3CompoundHullDef hull = { .hull = &box.base, .transform = { .p = { 5, 0, 0 }, .q = b3Quat_identity }, .material = mat };
+	b3CompoundCapsuleDef cap = { .capsule = { { b3FixFromInt( -2 ), b3FixFromInt( 0 ), b3FixFromInt( 0 ) }, { b3FixFromInt( -1 ), b3FixFromInt( 0 ), b3FixFromInt( 0 ) }, B3_FIX( 0.2f ) }, .material = mat };
+	b3CompoundHullDef hull = { .hull = &box.base, .transform = { .p = { b3FixFromInt( 5 ), b3FixFromInt( 0 ), b3FixFromInt( 0 ) }, .q = b3Quat_identity }, .material = mat };
 	b3CompoundMeshDef mesh = {
 		.meshData = md,
-		.transform = { .p = { 0, 0, 5 }, .q = b3Quat_identity },
-		.scale = { 1, 1, 1 },
+		.transform = { .p = { b3FixFromInt( 0 ), b3FixFromInt( 0 ), b3FixFromInt( 5 ) }, .q = b3Quat_identity },
+		.scale = { b3FixFromInt( 1 ), b3FixFromInt( 1 ), b3FixFromInt( 1 ) },
 		.materials = &mat,
 		.materialCount = 1,
 	};
-	b3CompoundSphereDef sph = { .sphere = { { -5, 0, 0 }, 0.5f }, .material = mat };
+	b3CompoundSphereDef sph = { .sphere = { { b3FixFromInt( -5 ), b3FixFromInt( 0 ), b3FixFromInt( 0 ) }, B3_FIX( 0.5f ) }, .material = mat };
 
 	b3CompoundDef def = {
 		.capsules = &cap,
@@ -735,12 +734,12 @@ static b3CompoundData* BuildSerializableCompound( b3MeshData* md )
 
 static int CompoundSerializeRoundtrip( void )
 {
-	b3MeshData* md = b3CreateBoxMesh( b3Vec3_zero, (b3Vec3){ 0.5f, 0.5f, 0.5f }, false );
+	b3MeshData* md = b3CreateBoxMesh( b3Vec3_zero, (b3Vec3){ B3_FIX( 0.5f ), B3_FIX( 0.5f ), B3_FIX( 0.5f ) }, false );
 	b3CompoundData* a = BuildSerializableCompound( md );
 
 	// Snapshot a few queries on the original.
 	b3AABB aabbA = b3ComputeCompoundAABB( a, b3Transform_identity );
-	b3RayCastInput rayInput = { .origin = { 0, 0, 0 }, .translation = { 20, 0, 0 }, .maxFraction = 1.0f };
+	b3RayCastInput rayInput = { .origin = { b3FixFromInt( 0 ), b3FixFromInt( 0 ), b3FixFromInt( 0 ) }, .translation = { b3FixFromInt( 20 ), b3FixFromInt( 0 ), b3FixFromInt( 0 ) }, .maxFraction = B3_FIX( 1.0f ) };
 	b3CastOutput rayA = b3RayCastCompound( a, &rayInput );
 	ENSURE( rayA.hit );
 
@@ -763,12 +762,12 @@ static int CompoundSerializeRoundtrip( void )
 
 	// Bounds and ray cast on the deserialized compound match the original.
 	b3AABB aabbB = b3ComputeCompoundAABB( b, b3Transform_identity );
-	ENSURE_SMALL( aabbA.lowerBound.x - aabbB.lowerBound.x, 1e-5f );
-	ENSURE_SMALL( aabbA.upperBound.z - aabbB.upperBound.z, 1e-5f );
+	ENSURE_SMALL( aabbA.lowerBound.x - aabbB.lowerBound.x, 8 * B3_FIXED_EPSILON );
+	ENSURE_SMALL( aabbA.upperBound.z - aabbB.upperBound.z, 8 * B3_FIXED_EPSILON );
 
 	b3CastOutput rayB = b3RayCastCompound( b, &rayInput );
 	ENSURE( rayB.hit == rayA.hit );
-	ENSURE_SMALL( rayB.fraction - rayA.fraction, 1e-5f );
+	ENSURE_SMALL( rayB.fraction - rayA.fraction, 8 * B3_FIXED_EPSILON );
 	ENSURE( rayB.childIndex == rayA.childIndex );
 
 	free( buffer );
@@ -778,7 +777,7 @@ static int CompoundSerializeRoundtrip( void )
 
 static int CompoundSerializeBadVersion( void )
 {
-	b3MeshData* md = b3CreateBoxMesh( b3Vec3_zero, (b3Vec3){ 0.5f, 0.5f, 0.5f }, false );
+	b3MeshData* md = b3CreateBoxMesh( b3Vec3_zero, (b3Vec3){ B3_FIX( 0.5f ), B3_FIX( 0.5f ), B3_FIX( 0.5f ) }, false );
 	b3CompoundData* a = BuildSerializableCompound( md );
 
 	int byteCount = a->byteCount;
@@ -799,7 +798,7 @@ static int CompoundSerializeBadVersion( void )
 
 static int CompoundSerializeWrongByteCount( void )
 {
-	b3MeshData* md = b3CreateBoxMesh( b3Vec3_zero, (b3Vec3){ 0.5f, 0.5f, 0.5f }, false );
+	b3MeshData* md = b3CreateBoxMesh( b3Vec3_zero, (b3Vec3){ B3_FIX( 0.5f ), B3_FIX( 0.5f ), B3_FIX( 0.5f ) }, false );
 	b3CompoundData* a = BuildSerializableCompound( md );
 
 	int byteCount = a->byteCount;

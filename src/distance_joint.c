@@ -12,20 +12,20 @@
 // needed for dll export
 #include "box3d/box3d.h"
 
-void b3DistanceJoint_SetLength( b3JointId jointId, float length )
+void b3DistanceJoint_SetLength( b3JointId jointId, b3Fixed length )
 {
 	b3World* world = b3GetWorld( jointId.world0 );
 	B3_REC( world, DistanceJointSetLength, jointId, length );
 	b3JointSim* base = b3GetJointSimCheckType( jointId, b3_distanceJoint );
 	b3DistanceJoint* joint = &base->distanceJoint;
 
-	joint->length = b3ClampFloat( length, B3_LINEAR_SLOP, B3_HUGE );
-	joint->impulse = 0.0f;
-	joint->lowerImpulse = 0.0f;
-	joint->upperImpulse = 0.0f;
+	joint->length = b3FixClamp( length, B3_LINEAR_SLOP, B3_HUGE );
+	joint->impulse = B3_FIX( 0.0f );
+	joint->lowerImpulse = B3_FIX( 0.0f );
+	joint->upperImpulse = B3_FIX( 0.0f );
 }
 
-float b3DistanceJoint_GetLength( b3JointId jointId )
+b3Fixed b3DistanceJoint_GetLength( b3JointId jointId )
 {
 	b3JointSim* base = b3GetJointSimCheckType( jointId, b3_distanceJoint );
 	b3DistanceJoint* joint = &base->distanceJoint;
@@ -47,44 +47,44 @@ bool b3DistanceJoint_IsLimitEnabled( b3JointId jointId )
 	return joint->distanceJoint.enableLimit;
 }
 
-void b3DistanceJoint_SetLengthRange( b3JointId jointId, float minLength, float maxLength )
+void b3DistanceJoint_SetLengthRange( b3JointId jointId, b3Fixed minLength, b3Fixed maxLength )
 {
 	b3World* world = b3GetWorld( jointId.world0 );
 	B3_REC( world, DistanceJointSetLengthRange, jointId, minLength, maxLength );
 	b3JointSim* base = b3GetJointSimCheckType( jointId, b3_distanceJoint );
 	b3DistanceJoint* joint = &base->distanceJoint;
 
-	minLength = b3ClampFloat( minLength, B3_LINEAR_SLOP, B3_HUGE );
-	maxLength = b3ClampFloat( maxLength, B3_LINEAR_SLOP, B3_HUGE );
-	joint->minLength = b3MinFloat( minLength, maxLength );
-	joint->maxLength = b3MaxFloat( minLength, maxLength );
-	joint->impulse = 0.0f;
-	joint->lowerImpulse = 0.0f;
-	joint->upperImpulse = 0.0f;
+	minLength = b3FixClamp( minLength, B3_LINEAR_SLOP, B3_HUGE );
+	maxLength = b3FixClamp( maxLength, B3_LINEAR_SLOP, B3_HUGE );
+	joint->minLength = b3FixMin( minLength, maxLength );
+	joint->maxLength = b3FixMax( minLength, maxLength );
+	joint->impulse = B3_FIX( 0.0f );
+	joint->lowerImpulse = B3_FIX( 0.0f );
+	joint->upperImpulse = B3_FIX( 0.0f );
 }
 
-float b3DistanceJoint_GetMinLength( b3JointId jointId )
+b3Fixed b3DistanceJoint_GetMinLength( b3JointId jointId )
 {
 	b3JointSim* base = b3GetJointSimCheckType( jointId, b3_distanceJoint );
 	b3DistanceJoint* joint = &base->distanceJoint;
 	return joint->minLength;
 }
 
-float b3DistanceJoint_GetMaxLength( b3JointId jointId )
+b3Fixed b3DistanceJoint_GetMaxLength( b3JointId jointId )
 {
 	b3JointSim* base = b3GetJointSimCheckType( jointId, b3_distanceJoint );
 	b3DistanceJoint* joint = &base->distanceJoint;
 	return joint->maxLength;
 }
 
-float b3DistanceJoint_GetCurrentLength( b3JointId jointId )
+b3Fixed b3DistanceJoint_GetCurrentLength( b3JointId jointId )
 {
 	b3JointSim* base = b3GetJointSimCheckType( jointId, b3_distanceJoint );
 
 	b3World* world = b3GetUnlockedWorld( jointId.world0 );
 	if ( world == NULL )
 	{
-		return 0.0f;
+		return B3_FIX( 0.0f );
 	}
 
 	b3WorldTransform transformA = b3GetBodyTransform( world, base->bodyIdA );
@@ -93,7 +93,7 @@ float b3DistanceJoint_GetCurrentLength( b3JointId jointId )
 	b3Pos pA = b3TransformWorldPoint( transformA, base->localFrameA.p );
 	b3Pos pB = b3TransformWorldPoint( transformB, base->localFrameB.p );
 	b3Vec3 d = b3SubPos( pB, pA );
-	float length = b3Length( d );
+	b3Fixed length = b3Length( d );
 	return length;
 }
 
@@ -112,7 +112,7 @@ bool b3DistanceJoint_IsSpringEnabled( b3JointId jointId )
 }
 
 
-void b3DistanceJoint_SetSpringForceRange( b3JointId jointId, float lowerForce, float upperForce )
+void b3DistanceJoint_SetSpringForceRange( b3JointId jointId, b3Fixed lowerForce, b3Fixed upperForce )
 {
 	B3_ASSERT( lowerForce <= upperForce );
 	b3World* world = b3GetWorld( jointId.world0 );
@@ -122,14 +122,14 @@ void b3DistanceJoint_SetSpringForceRange( b3JointId jointId, float lowerForce, f
 	base->distanceJoint.upperSpringForce = upperForce;
 }
 
-void b3DistanceJoint_GetSpringForceRange( b3JointId jointId, float* lowerForce, float* upperForce )
+void b3DistanceJoint_GetSpringForceRange( b3JointId jointId, b3Fixed* lowerForce, b3Fixed* upperForce )
 {
 	b3JointSim* base = b3GetJointSimCheckType( jointId, b3_distanceJoint );
 	*lowerForce = base->distanceJoint.lowerSpringForce;
 	*upperForce = base->distanceJoint.upperSpringForce;
 }
 
-void b3DistanceJoint_SetSpringHertz( b3JointId jointId, float hertz )
+void b3DistanceJoint_SetSpringHertz( b3JointId jointId, b3Fixed hertz )
 {
 	b3World* world = b3GetWorld( jointId.world0 );
 	B3_REC( world, DistanceJointSetSpringHertz, jointId, hertz );
@@ -137,7 +137,7 @@ void b3DistanceJoint_SetSpringHertz( b3JointId jointId, float hertz )
 	base->distanceJoint.hertz = hertz;
 }
 
-void b3DistanceJoint_SetSpringDampingRatio( b3JointId jointId, float dampingRatio )
+void b3DistanceJoint_SetSpringDampingRatio( b3JointId jointId, b3Fixed dampingRatio )
 {
 	b3World* world = b3GetWorld( jointId.world0 );
 	B3_REC( world, DistanceJointSetSpringDampingRatio, jointId, dampingRatio );
@@ -145,14 +145,14 @@ void b3DistanceJoint_SetSpringDampingRatio( b3JointId jointId, float dampingRati
 	base->distanceJoint.dampingRatio = dampingRatio;
 }
 
-float b3DistanceJoint_GetSpringHertz( b3JointId jointId )
+b3Fixed b3DistanceJoint_GetSpringHertz( b3JointId jointId )
 {
 	b3JointSim* base = b3GetJointSimCheckType( jointId, b3_distanceJoint );
 	b3DistanceJoint* joint = &base->distanceJoint;
 	return joint->hertz;
 }
 
-float b3DistanceJoint_GetSpringDampingRatio( b3JointId jointId )
+b3Fixed b3DistanceJoint_GetSpringDampingRatio( b3JointId jointId )
 {
 	b3JointSim* base = b3GetJointSimCheckType( jointId, b3_distanceJoint );
 	b3DistanceJoint* joint = &base->distanceJoint;
@@ -167,7 +167,7 @@ void b3DistanceJoint_EnableMotor( b3JointId jointId, bool enableMotor )
 	if ( enableMotor != joint->distanceJoint.enableMotor )
 	{
 		joint->distanceJoint.enableMotor = enableMotor;
-		joint->distanceJoint.motorImpulse = 0.0f;
+		joint->distanceJoint.motorImpulse = B3_FIX( 0.0f );
 	}
 }
 
@@ -177,7 +177,7 @@ bool b3DistanceJoint_IsMotorEnabled( b3JointId jointId )
 	return joint->distanceJoint.enableMotor;
 }
 
-void b3DistanceJoint_SetMotorSpeed( b3JointId jointId, float motorSpeed )
+void b3DistanceJoint_SetMotorSpeed( b3JointId jointId, b3Fixed motorSpeed )
 {
 	b3World* world = b3GetWorld( jointId.world0 );
 	B3_REC( world, DistanceJointSetMotorSpeed, jointId, motorSpeed );
@@ -185,20 +185,20 @@ void b3DistanceJoint_SetMotorSpeed( b3JointId jointId, float motorSpeed )
 	joint->distanceJoint.motorSpeed = motorSpeed;
 }
 
-float b3DistanceJoint_GetMotorSpeed( b3JointId jointId )
+b3Fixed b3DistanceJoint_GetMotorSpeed( b3JointId jointId )
 {
 	b3JointSim* joint = b3GetJointSimCheckType( jointId, b3_distanceJoint );
 	return joint->distanceJoint.motorSpeed;
 }
 
-float b3DistanceJoint_GetMotorForce( b3JointId jointId )
+b3Fixed b3DistanceJoint_GetMotorForce( b3JointId jointId )
 {
 	b3World* world = b3GetWorld( jointId.world0 );
 	b3JointSim* base = b3GetJointSimCheckType( jointId, b3_distanceJoint );
-	return world->inv_h * base->distanceJoint.motorImpulse;
+	return b3FixMul( world->inv_h , base->distanceJoint.motorImpulse );
 }
 
-void b3DistanceJoint_SetMaxMotorForce( b3JointId jointId, float force )
+void b3DistanceJoint_SetMaxMotorForce( b3JointId jointId, b3Fixed force )
 {
 	b3World* world = b3GetWorld( jointId.world0 );
 	B3_REC( world, DistanceJointSetMaxMotorForce, jointId, force );
@@ -206,7 +206,7 @@ void b3DistanceJoint_SetMaxMotorForce( b3JointId jointId, float force )
 	joint->distanceJoint.maxMotorForce = force;
 }
 
-float b3DistanceJoint_GetMaxMotorForce( b3JointId jointId )
+b3Fixed b3DistanceJoint_GetMaxMotorForce( b3JointId jointId )
 {
 	b3JointSim* joint = b3GetJointSimCheckType( jointId, b3_distanceJoint );
 	return joint->distanceJoint.maxMotorForce;
@@ -223,7 +223,7 @@ b3Vec3 b3GetDistanceJointForce( b3World* world, b3JointSim* base )
 	b3Pos pB = b3TransformWorldPoint( transformB, base->localFrameB.p );
 	b3Vec3 d = b3SubPos( pB, pA );
 	b3Vec3 axis = b3Normalize( d );
-	float force = ( joint->impulse + joint->lowerImpulse - joint->upperImpulse + joint->motorImpulse ) * world->inv_h;
+	b3Fixed force = b3FixMul( ( joint->impulse + joint->lowerImpulse - joint->upperImpulse + joint->motorImpulse ) , world->inv_h );
 	return b3MulSV( force, axis );
 }
 
@@ -265,9 +265,9 @@ void b3PrepareDistanceJoint( b3JointSim* base, b3StepContext* context )
 	b3BodySim* bodySimA = b3Array_Get( setA->bodySims, localIndexA  );
 	b3BodySim* bodySimB = b3Array_Get( setB->bodySims, localIndexB  );
 
-	float mA = bodySimA->invMass;
+	b3Fixed mA = bodySimA->invMass;
 	b3Matrix3 iA = bodySimA->invInertiaWorld;
-	float mB = bodySimB->invMass;
+	b3Fixed mB = bodySimB->invMass;
 	b3Matrix3 iB = bodySimB->invInertiaWorld;
 
 	base->invMassA = mA;
@@ -293,17 +293,17 @@ void b3PrepareDistanceJoint( b3JointSim* base, b3StepContext* context )
 	// compute effective mass
 	b3Vec3 crA = b3Cross( rA, axis );
 	b3Vec3 crB = b3Cross( rB, axis );
-	float k = mA + mB + b3Dot( crA, b3MulMV( iA, crA ) ) + b3Dot( crB, b3MulMV( iB, crB ) );
-	joint->axialMass = k > 0.0f ? 1.0f / k : 0.0f;
+	b3Fixed k = mA + mB + b3Dot( crA, b3MulMV( iA, crA ) ) + b3Dot( crB, b3MulMV( iB, crB ) );
+	joint->axialMass = k > B3_FIX( 0.0f ) ? b3FixDiv( B3_FIX( 1.0f ) , k ) : B3_FIX( 0.0f );
 
 	joint->distanceSoftness = b3MakeSoft( joint->hertz, joint->dampingRatio, context->h );
 
 	if ( context->enableWarmStarting == false )
 	{
-		joint->impulse = 0.0f;
-		joint->lowerImpulse = 0.0f;
-		joint->upperImpulse = 0.0f;
-		joint->motorImpulse = 0.0f;
+		joint->impulse = B3_FIX( 0.0f );
+		joint->lowerImpulse = B3_FIX( 0.0f );
+		joint->upperImpulse = B3_FIX( 0.0f );
+		joint->motorImpulse = B3_FIX( 0.0f );
 	}
 }
 
@@ -311,8 +311,8 @@ void b3WarmStartDistanceJoint( b3JointSim* base, b3StepContext* context )
 {
 	B3_ASSERT( base->type == b3_distanceJoint );
 
-	float mA = base->invMassA;
-	float mB = base->invMassB;
+	b3Fixed mA = base->invMassA;
+	b3Fixed mB = base->invMassB;
 	b3Matrix3 iA = base->invIA;
 	b3Matrix3 iB = base->invIB;
 
@@ -330,7 +330,7 @@ void b3WarmStartDistanceJoint( b3JointSim* base, b3StepContext* context )
 	b3Vec3 separation = b3Add( joint->deltaCenter, ds );
 	b3Vec3 axis = b3Normalize( separation );
 
-	float axialImpulse = joint->impulse + joint->lowerImpulse - joint->upperImpulse + joint->motorImpulse;
+	b3Fixed axialImpulse = joint->impulse + joint->lowerImpulse - joint->upperImpulse + joint->motorImpulse;
 	b3Vec3 P = b3MulSV( axialImpulse, axis );
 
 	if ( stateA->flags & b3_dynamicFlag )
@@ -350,8 +350,8 @@ void b3SolveDistanceJoint( b3JointSim* base, b3StepContext* context, bool useBia
 {
 	B3_ASSERT( base->type == b3_distanceJoint );
 
-	float mA = base->invMassA;
-	float mB = base->invMassB;
+	b3Fixed mA = base->invMassA;
+	b3Fixed mB = base->invMassB;
 	b3Matrix3 iA = base->invIA;
 	b3Matrix3 iB = base->invIB;
 
@@ -375,7 +375,7 @@ void b3SolveDistanceJoint( b3JointSim* base, b3StepContext* context, bool useBia
 	b3Vec3 ds = b3Add( b3Sub( stateB->deltaPosition, stateA->deltaPosition ), b3Sub( rB, rA ) );
 	b3Vec3 separation = b3Add( joint->deltaCenter, ds );
 
-	float length = b3Length( separation );
+	b3Fixed length = b3Length( separation );
 	b3Vec3 axis = b3Normalize( separation );
 
 	// joint is soft if
@@ -384,19 +384,19 @@ void b3SolveDistanceJoint( b3JointSim* base, b3StepContext* context, bool useBia
 	if ( joint->enableSpring && ( joint->minLength < joint->maxLength || joint->enableLimit == false ) )
 	{
 		// spring
-		if ( joint->hertz > 0.0f )
+		if ( joint->hertz > B3_FIX( 0.0f ) )
 		{
 			// Cdot = dot(u, v + cross(w, r))
 			b3Vec3 vr = b3Add( b3Sub( vB, vA ), b3Sub( b3Cross( wB, rB ), b3Cross( wA, rA ) ) );
-			float Cdot = b3Dot( axis, vr );
-			float C = length - joint->length;
-			float bias = joint->distanceSoftness.biasRate * C;
+			b3Fixed Cdot = b3Dot( axis, vr );
+			b3Fixed C = length - joint->length;
+			b3Fixed bias = b3FixMul( joint->distanceSoftness.biasRate , C );
 
-			float m = joint->distanceSoftness.massScale * joint->axialMass;
-			float oldImpulse = joint->impulse;
-			float impulse = -m * ( Cdot + bias ) - joint->distanceSoftness.impulseScale * oldImpulse;
-			float h = context->h;
-			joint->impulse = b3ClampFloat( joint->impulse + impulse, joint->lowerSpringForce * h, joint->upperSpringForce * h );
+			b3Fixed m = b3FixMul( joint->distanceSoftness.massScale , joint->axialMass );
+			b3Fixed oldImpulse = joint->impulse;
+			b3Fixed impulse = b3FixMul( -m , ( Cdot + bias ) ) - b3FixMul( joint->distanceSoftness.impulseScale , oldImpulse );
+			b3Fixed h = context->h;
+			joint->impulse = b3FixClamp( joint->impulse + impulse, b3FixMul( joint->lowerSpringForce , h ), b3FixMul( joint->upperSpringForce , h ) );
 			impulse = joint->impulse - oldImpulse;
 
 			b3Vec3 P = b3MulSV( impulse, axis );
@@ -411,27 +411,27 @@ void b3SolveDistanceJoint( b3JointSim* base, b3StepContext* context, bool useBia
 			// lower limit
 			{
 				b3Vec3 vr = b3Add( b3Sub( vB, vA ), b3Sub( b3Cross( wB, rB ), b3Cross( wA, rA ) ) );
-				float Cdot = b3Dot( axis, vr );
+				b3Fixed Cdot = b3Dot( axis, vr );
 
-				float C = length - joint->minLength;
+				b3Fixed C = length - joint->minLength;
 
-				float bias = 0.0f;
-				float massCoeff = 1.0f;
-				float impulseCoeff = 0.0f;
-				if ( C > 0.0f )
+				b3Fixed bias = B3_FIX( 0.0f );
+				b3Fixed massCoeff = B3_FIX( 1.0f );
+				b3Fixed impulseCoeff = B3_FIX( 0.0f );
+				if ( C > B3_FIX( 0.0f ) )
 				{
 					// speculative
-					bias = C * context->inv_h;
+					bias = b3FixMul( C , context->inv_h );
 				}
 				else if ( useBias )
 				{
-					bias = base->constraintSoftness.biasRate * C;
+					bias = b3FixMul( base->constraintSoftness.biasRate , C );
 					massCoeff = base->constraintSoftness.massScale;
 					impulseCoeff = base->constraintSoftness.impulseScale;
 				}
 
-				float impulse = -massCoeff * joint->axialMass * ( Cdot + bias ) - impulseCoeff * joint->lowerImpulse;
-				float newImpulse = b3MaxFloat( 0.0f, joint->lowerImpulse + impulse );
+				b3Fixed impulse = b3FixMul( b3FixMul( -massCoeff , joint->axialMass ) , ( Cdot + bias ) ) - b3FixMul( impulseCoeff , joint->lowerImpulse );
+				b3Fixed newImpulse = b3FixMax( B3_FIX( 0.0f ), joint->lowerImpulse + impulse );
 				impulse = newImpulse - joint->lowerImpulse;
 				joint->lowerImpulse = newImpulse;
 
@@ -445,27 +445,27 @@ void b3SolveDistanceJoint( b3JointSim* base, b3StepContext* context, bool useBia
 			// upper
 			{
 				b3Vec3 vr = b3Add( b3Sub( vA, vB ), b3Sub( b3Cross( wA, rA ), b3Cross( wB, rB ) ) );
-				float Cdot = b3Dot( axis, vr );
+				b3Fixed Cdot = b3Dot( axis, vr );
 
-				float C = joint->maxLength - length;
+				b3Fixed C = joint->maxLength - length;
 
-				float bias = 0.0f;
-				float massScale = 1.0f;
-				float impulseScale = 0.0f;
-				if ( C > 0.0f )
+				b3Fixed bias = B3_FIX( 0.0f );
+				b3Fixed massScale = B3_FIX( 1.0f );
+				b3Fixed impulseScale = B3_FIX( 0.0f );
+				if ( C > B3_FIX( 0.0f ) )
 				{
 					// speculative
-					bias = C * context->inv_h;
+					bias = b3FixMul( C , context->inv_h );
 				}
 				else if ( useBias )
 				{
-					bias = base->constraintSoftness.biasRate * C;
+					bias = b3FixMul( base->constraintSoftness.biasRate , C );
 					massScale = base->constraintSoftness.massScale;
 					impulseScale = base->constraintSoftness.impulseScale;
 				}
 
-				float impulse = -massScale * joint->axialMass * ( Cdot + bias ) - impulseScale * joint->upperImpulse;
-				float newImpulse = b3MaxFloat( 0.0f, joint->upperImpulse + impulse );
+				b3Fixed impulse = b3FixMul( b3FixMul( -massScale , joint->axialMass ) , ( Cdot + bias ) ) - b3FixMul( impulseScale , joint->upperImpulse );
+				b3Fixed newImpulse = b3FixMax( B3_FIX( 0.0f ), joint->upperImpulse + impulse );
 				impulse = newImpulse - joint->upperImpulse;
 				joint->upperImpulse = newImpulse;
 
@@ -480,11 +480,11 @@ void b3SolveDistanceJoint( b3JointSim* base, b3StepContext* context, bool useBia
 		if ( joint->enableMotor )
 		{
 			b3Vec3 vr = b3Add( b3Sub( vB, vA ), b3Sub( b3Cross( wB, rB ), b3Cross( wA, rA ) ) );
-			float Cdot = b3Dot( axis, vr );
-			float impulse = joint->axialMass * ( joint->motorSpeed - Cdot );
-			float oldImpulse = joint->motorImpulse;
-			float maxImpulse = context->h * joint->maxMotorForce;
-			joint->motorImpulse = b3ClampFloat( joint->motorImpulse + impulse, -maxImpulse, maxImpulse );
+			b3Fixed Cdot = b3Dot( axis, vr );
+			b3Fixed impulse = b3FixMul( joint->axialMass , ( joint->motorSpeed - Cdot ) );
+			b3Fixed oldImpulse = joint->motorImpulse;
+			b3Fixed maxImpulse = b3FixMul( context->h , joint->maxMotorForce );
+			joint->motorImpulse = b3FixClamp( joint->motorImpulse + impulse, -maxImpulse, maxImpulse );
 			impulse = joint->motorImpulse - oldImpulse;
 
 			b3Vec3 P = b3MulSV( impulse, axis );
@@ -498,21 +498,21 @@ void b3SolveDistanceJoint( b3JointSim* base, b3StepContext* context, bool useBia
 	{
 		// rigid constraint
 		b3Vec3 vr = b3Add( b3Sub( vB, vA ), b3Sub( b3Cross( wB, rB ), b3Cross( wA, rA ) ) );
-		float Cdot = b3Dot( axis, vr );
+		b3Fixed Cdot = b3Dot( axis, vr );
 
-		float C = length - joint->length;
+		b3Fixed C = length - joint->length;
 
-		float bias = 0.0f;
-		float massScale = 1.0f;
-		float impulseScale = 0.0f;
+		b3Fixed bias = B3_FIX( 0.0f );
+		b3Fixed massScale = B3_FIX( 1.0f );
+		b3Fixed impulseScale = B3_FIX( 0.0f );
 		if ( useBias )
 		{
-			bias = base->constraintSoftness.biasRate * C;
+			bias = b3FixMul( base->constraintSoftness.biasRate , C );
 			massScale = base->constraintSoftness.massScale;
 			impulseScale = base->constraintSoftness.impulseScale;
 		}
 
-		float impulse = -massScale * joint->axialMass * ( Cdot + bias ) - impulseScale * joint->impulse;
+		b3Fixed impulse = b3FixMul( b3FixMul( -massScale , joint->axialMass ) , ( Cdot + bias ) ) - b3FixMul( impulseScale , joint->impulse );
 		joint->impulse += impulse;
 
 		b3Vec3 P = b3MulSV( impulse, axis );
@@ -553,12 +553,12 @@ void b3DrawDistanceJoint( b3DebugDraw* draw, b3JointSim* base, b3WorldTransform 
 
 		if ( joint->minLength > B3_LINEAR_SLOP )
 		{
-			draw->DrawPointFcn( pMin, 6.0f, b3_colorLightGreen, draw->context );
+			draw->DrawPointFcn( pMin, B3_FIX( 6.0f ), b3_colorLightGreen, draw->context );
 		}
 
 		if ( joint->maxLength < B3_HUGE )
 		{
-			draw->DrawPointFcn(pMax, 6.0f, b3_colorRed, draw->context);
+			draw->DrawPointFcn(pMax, B3_FIX( 6.0f ), b3_colorRed, draw->context);
 		}
 
 		if ( joint->minLength > B3_LINEAR_SLOP && joint->maxLength < B3_HUGE )
@@ -568,12 +568,12 @@ void b3DrawDistanceJoint( b3DebugDraw* draw, b3JointSim* base, b3WorldTransform 
 	}
 
 	draw->DrawSegmentFcn( pA, pB, b3_colorWhite, draw->context );
-	draw->DrawPointFcn( pA, 4.0f, b3_colorWhite, draw->context );
-	draw->DrawPointFcn( pB, 4.0f, b3_colorWhite, draw->context );
+	draw->DrawPointFcn( pA, B3_FIX( 4.0f ), b3_colorWhite, draw->context );
+	draw->DrawPointFcn( pB, B3_FIX( 4.0f ), b3_colorWhite, draw->context );
 
-	if ( joint->hertz > 0.0f && joint->enableSpring )
+	if ( joint->hertz > B3_FIX( 0.0f ) && joint->enableSpring )
 	{
 		b3Pos pRest = b3OffsetPos( pA, b3MulSV( joint->length, axis ) );
-		draw->DrawPointFcn( pRest, 4.0f, b3_colorBlue, draw->context );
+		draw->DrawPointFcn( pRest, B3_FIX( 4.0f ), b3_colorBlue, draw->context );
 	}
 }

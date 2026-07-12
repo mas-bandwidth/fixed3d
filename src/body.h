@@ -105,10 +105,10 @@ typedef struct b3Body
 	// B3_NULL_INDEX when not in an island.
 	int islandIndex;
 
-	float sleepThreshold;
-	float sleepTime;
-	float sleepVelocity;
-	float mass;
+	b3Fixed sleepThreshold;
+	b3Fixed sleepTime;
+	b3Fixed sleepVelocity;
+	b3Fixed mass;
 
 	// local space inertia
 	b3Matrix3 inertia;
@@ -176,7 +176,7 @@ typedef struct b3BodyState
 
 // Identity body state, notice the deltaRotation is identity
 static const b3BodyState b3_identityBodyState = {
-	{ 0.0f, 0.0f, 0.0f }, { 0.0f, 0.0f, 0.0f }, { 0.0f, 0.0f, 0.0f }, { { 0.0f, 0.0f, 0.0f }, 1.0f }, 0,
+	{ B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, { { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, B3_FIX( 1.0f ) }, 0,
 };
 
 // Body simulation data used for integration of position and velocity
@@ -199,19 +199,19 @@ typedef struct b3BodySim
 	b3Vec3 force;
 	b3Vec3 torque;
 
-	float invMass;
+	b3Fixed invMass;
 
 	// Rotational inertia about the center of mass. The world space inverse inertia tensor
 	// must be updated whenever the body rotation is modified.
 	b3Matrix3 invInertiaLocal;
 	b3Matrix3 invInertiaWorld;
 
-	float minExtent;
+	b3Fixed minExtent;
 	b3Vec3 maxExtent;
-	float maxAngularVelocity;
-	float linearDamping;
-	float angularDamping;
-	float gravityScale;
+	b3Fixed maxAngularVelocity;
+	b3Fixed linearDamping;
+	b3Fixed angularDamping;
+	b3Fixed gravityScale;
 
 	// Index of b3Body
 	int bodyId;
@@ -242,7 +242,7 @@ bool b3WakeBodyWithLock( b3World* world, b3Body* body );
 void b3UpdateBodyMassData( b3World* world, b3Body* body );
 void b3SyncBodyFlags( b3World* world, b3Body* body );
 
-// Make a sweep relative to a base position to keep TOI in float precision far from the origin.
+// Make a sweep relative to a base position to keep TOI in b3Fixed precision far from the origin.
 static inline b3Sweep b3MakeRelativeSweep( const b3BodySim* bodySim, b3Pos base )
 {
 	b3Sweep s;

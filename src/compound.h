@@ -6,7 +6,7 @@
 #include "box3d/types.h"
 
 b3TOIOutput b3CompoundTimeOfImpact( const b3CompoundData* compound, b3Transform transform, const b3ShapeProxy* proxy,
-									const b3Sweep* sweep, float maxFraction );
+									const b3Sweep* sweep, b3Fixed maxFraction );
 
 // Transforms a sweep for a compound child shape
 b3Sweep b3MakeCompoundChildSweep( b3Transform compoundTransform, b3Transform childTransform );

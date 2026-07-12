@@ -155,14 +155,14 @@ int b3GetHeight( const b3MeshData* mesh )
 }
 
 #if B3_ENABLE_VALIDATION == 1
-static bool b3IsDegenerate( b3Vec3 v1, b3Vec3 v2, b3Vec3 v3, float minArea )
+static bool b3IsDegenerate( b3Vec3 v1, b3Vec3 v2, b3Vec3 v3, b3Fixed minArea )
 {
 	b3Vec3 normal = b3Cross( b3Sub( v2, v1 ), b3Sub( v3, v1 ) );
-	float lengthSq = b3LengthSquared( normal );
-	return lengthSq < minArea * minArea;
+	b3Fixed lengthSq = b3LengthSquared( normal );
+	return lengthSq < b3FixMul( minArea , minArea );
 }
 
-static bool b3IsNonDegenerate( const b3MeshData* mesh, float minArea )
+static bool b3IsNonDegenerate( const b3MeshData* mesh, b3Fixed minArea )
 {
 	const b3MeshTriangle* triangles = b3GetMeshTriangles( mesh );
 	const b3Vec3* vertices = b3GetMeshVertices( mesh );
@@ -351,22 +351,22 @@ typedef struct b3SpatialHash
 	const b3Vec3* vertices;
 	int vertexCount;
 	b3VertexMap vertexMap;
-	float cellSize;
-	float tolerance;
+	b3Fixed cellSize;
+	b3Fixed tolerance;
 } b3SpatialHash;
 
-static void b3SpatialHash_Create( b3SpatialHash* h, const b3Vec3* vertices, int vertexCount, float tolerance )
+static void b3SpatialHash_Create( b3SpatialHash* h, const b3Vec3* vertices, int vertexCount, b3Fixed tolerance )
 {
 	h->vertices = vertices;
 	h->vertexCount = vertexCount;
 	h->tolerance = tolerance;
-	h->cellSize = 2.0f * tolerance;
+	h->cellSize = b3FixMul( B3_FIX( 2.0f ) , tolerance );
 	b3Array_CreateN( h->nodes, vertexCount );
 
 	b3VertexMap_init( &h->vertexMap );
 	b3VertexMap_reserve( &h->vertexMap, vertexCount );
 
-	B3_ASSERT( h->cellSize > 0.0f );
+	B3_ASSERT( h->cellSize > B3_FIX( 0.0f ) );
 }
 
 static void b3SpatialHash_Destroy( b3SpatialHash* h )
@@ -381,13 +381,13 @@ static int32_t b3SpatialHash_FindDuplicate( b3SpatialHash* h, int32_t currentInd
 {
 	B3_ASSERT( currentIndex < h->vertexCount );
 	b3Vec3 vertex = h->vertices[currentIndex];
-	float cellSize = h->cellSize;
-	float tolerance = h->tolerance;
+	b3Fixed cellSize = h->cellSize;
+	b3Fixed tolerance = h->tolerance;
 
 	// Get the grid coordinates for the current vertex
-	int32_t baseX = (int32_t)( floorf( vertex.x / cellSize ) );
-	int32_t baseY = (int32_t)( floorf( vertex.y / cellSize ) );
-	int32_t baseZ = (int32_t)( floorf( vertex.z / cellSize ) );
+	int32_t baseX = (int32_t)b3FixTruncToInt( ( b3FixFloor( b3FixDiv( vertex.x , cellSize ) ) ) );
+	int32_t baseY = (int32_t)b3FixTruncToInt( ( b3FixFloor( b3FixDiv( vertex.y , cellSize ) ) ) );
+	int32_t baseZ = (int32_t)b3FixTruncToInt( ( b3FixFloor( b3FixDiv( vertex.z , cellSize ) ) ) );
 
 	// Check the current cell and all 26 neighboring cells (3x3x3 - 1)
 	for ( int dx = -1; dx <= 1; ++dx )
@@ -423,8 +423,8 @@ static int32_t b3SpatialHash_FindDuplicate( b3SpatialHash* h, int32_t currentInd
 						b3Vec3 other = h->vertices[existingIndex];
 
 						// IsEqual inlined: check if vertices are within tolerance
-						if ( fabsf( vertex.x - other.x ) <= tolerance && fabsf( vertex.y - other.y ) <= tolerance &&
-							 fabsf( vertex.z - other.z ) <= tolerance )
+						if ( b3FixAbs( vertex.x - other.x ) <= tolerance && b3FixAbs( vertex.y - other.y ) <= tolerance &&
+							 b3FixAbs( vertex.z - other.z ) <= tolerance )
 						{
 							// Found duplicate
 							return existingIndex;
@@ -483,7 +483,7 @@ typedef struct b3WeldData
 	int indexCount;
 } b3WeldData;
 
-static int b3WeldVertices( b3WeldData* data, float tolerance )
+static int b3WeldVertices( b3WeldData* data, b3Fixed tolerance )
 {
 	int vertexCount = data->vertexCount;
 	int uniqueCount = 0;
@@ -574,7 +574,7 @@ static b3Split b3SplitBinnedSah( int count, b3Primitive* primitives )
 	// This is a small O(n^2) loop. This can be further optimized, but it is already
 	// very fast and is kept for simplicity right now.
 	int bestBucket = -1;
-	float bestCost = FLT_MAX;
+	b3Fixed bestCost = B3_FIXED_MAX;
 
 	for ( int axis = 0; axis < 3; ++axis )
 	{
@@ -593,12 +593,12 @@ static b3Split b3SplitBinnedSah( int count, b3Primitive* primitives )
 		}
 
 		// Fill buckets
-		float factor = B3_BIN_COUNT * ( 1.0f - FLT_EPSILON ) /
-					   ( b3GetByIndex( bounds.upperBound, axis ) - b3GetByIndex( bounds.lowerBound, axis ) );
+		b3Fixed factor = b3FixDiv( B3_BIN_COUNT * ( B3_FIX( 1.0f ) - B3_FIXED_EPSILON ),
+					   ( b3GetByIndex( bounds.upperBound, axis ) - b3GetByIndex( bounds.lowerBound, axis ) ) );
 		for ( int i = 0; i < count; ++i )
 		{
 			b3Vec3 center = primitives[i].center;
-			int index = (int)( factor * ( b3GetByIndex( center, axis ) - b3GetByIndex( bounds.lowerBound, axis ) ) );
+			int index = (int)b3FixTruncToInt( ( b3FixMul( factor , ( b3GetByIndex( center, axis ) - b3GetByIndex( bounds.lowerBound, axis ) ) ) ) );
 			B3_ASSERT( 0 <= index && index < B3_BIN_COUNT );
 
 			buckets[index].count++;
@@ -627,7 +627,7 @@ static b3Split b3SplitBinnedSah( int count, b3Primitive* primitives )
 			B3_ASSERT( leftCount + rightCount == count );
 			if ( leftCount > 0 && rightCount > 0 )
 			{
-				float cost = leftCount * b3AABB_Area( leftBounds ) + rightCount * b3AABB_Area( rightBounds );
+				b3Fixed cost = b3FixMul( b3FixFromInt( leftCount ) , b3AABB_Area( leftBounds ) ) + b3FixMul( b3FixFromInt( rightCount ) , b3AABB_Area( rightBounds ) );
 
 				if ( cost < bestCost )
 				{
@@ -647,14 +647,14 @@ static b3Split b3SplitBinnedSah( int count, b3Primitive* primitives )
 	if ( bestBucket >= 0 )
 	{
 		int axis = split.axis;
-		float factor = B3_BIN_COUNT * ( 1.0f - FLT_EPSILON ) /
-					   ( b3GetByIndex( bounds.upperBound, axis ) - b3GetByIndex( bounds.lowerBound, axis ) );
+		b3Fixed factor = b3FixDiv( B3_BIN_COUNT * ( B3_FIX( 1.0f ) - B3_FIXED_EPSILON ),
+					   ( b3GetByIndex( bounds.upperBound, axis ) - b3GetByIndex( bounds.lowerBound, axis ) ) );
 
 		int splitIndex = 0;
 		for ( int i = 0; i < count; ++i )
 		{
 			b3Vec3 center = primitives[i].center;
-			int index = (int)( factor * ( b3GetByIndex( center, axis ) - b3GetByIndex( bounds.lowerBound, axis ) ) );
+			int index = (int)b3FixTruncToInt( ( b3FixMul( factor , ( b3GetByIndex( center, axis ) - b3GetByIndex( bounds.lowerBound, axis ) ) ) ) );
 
 			if ( index <= bestBucket )
 			{
@@ -714,9 +714,9 @@ static b3Split b3SplitMedian( int count, b3Primitive* primitives )
 	}
 
 	b3Vec3 d = b3Sub( upperBound, lowerBound );
-	b3Vec3 c = b3MulSV( 0.5f, b3Add( lowerBound, upperBound ) );
+	b3Vec3 c = b3MulSV( B3_FIX( 0.5f ), b3Add( lowerBound, upperBound ) );
 
-	b3Split split = { 0 };
+	b3Split split = { b3FixFromInt( 0 ) };
 	split.index = -1;
 
 	// Partition longest axis using the Hoare partition scheme
@@ -727,7 +727,7 @@ static b3Split b3SplitMedian( int count, b3Primitive* primitives )
 	{
 		split.axis = 0;
 
-		float pivot = c.x;
+		b3Fixed pivot = c.x;
 
 		while ( i1 < i2 )
 		{
@@ -757,7 +757,7 @@ static b3Split b3SplitMedian( int count, b3Primitive* primitives )
 	{
 		split.axis = 1;
 
-		float pivot = c.y;
+		b3Fixed pivot = c.y;
 
 		while ( i1 < i2 )
 		{
@@ -787,7 +787,7 @@ static b3Split b3SplitMedian( int count, b3Primitive* primitives )
 	{
 		split.axis = 2;
 
-		float pivot = c.z;
+		b3Fixed pivot = c.z;
 
 		while ( i1 < i2 )
 		{
@@ -1189,19 +1189,19 @@ static void b3IdentifyEdges( b3MeshData* mesh )
 		b3Vec3 v3 = vertices[i3];
 		b3Vec3 p = vertices[opposite];
 
-		float cos5Deg = 0.9962f;
-		float signedVolume = b3SignedVolume( v1, v2, v3, p );
+		b3Fixed cos5Deg = B3_FIX( 0.9962f );
+		b3Fixed signedVolume = b3SignedVolume( v1, v2, v3, p );
 		b3Vec3 n1 = normals[edge->triangle1];
 		b3Vec3 n2 = normals[edge->triangle2];
-		float cosAngle = b3Dot( n1, n2 );
-		if ( signedVolume > 0.0f || cosAngle > cos5Deg )
+		b3Fixed cosAngle = b3Dot( n1, n2 );
+		if ( signedVolume > B3_FIX( 0.0f ) || cosAngle > cos5Deg )
 		{
 			int edgeFlags[3] = { b3_concaveEdge1, b3_concaveEdge2, b3_concaveEdge3 };
 			*flag1 |= edgeFlags[edge->triangleEdgeIndex1];
 			*flag2 |= edgeFlags[edge->triangleEdgeIndex2];
 		}
 
-		if ( signedVolume < 0.0f || cosAngle > cos5Deg )
+		if ( signedVolume < B3_FIX( 0.0f ) || cosAngle > cos5Deg )
 		{
 			int edgeFlags[3] = { b3_inverseConcaveEdge1, b3_inverseConcaveEdge2, b3_inverseConcaveEdge3 };
 			*flag1 |= edgeFlags[edge->triangleEdgeIndex1];
@@ -1213,7 +1213,7 @@ static void b3IdentifyEdges( b3MeshData* mesh )
 	B3_FREE( edges, b3MeshEdge, edgeCount );
 }
 
-b3MeshData* b3CreateGridMesh( int xCount, int zCount, float cellWidth, int materialCount, bool identifyEdges )
+b3MeshData* b3CreateGridMesh( int xCount, int zCount, b3Fixed cellWidth, int materialCount, bool identifyEdges )
 {
 	B3_ASSERT( 0 <= materialCount && materialCount <= UINT8_MAX );
 
@@ -1224,16 +1224,16 @@ b3MeshData* b3CreateGridMesh( int xCount, int zCount, float cellWidth, int mater
 	b3Array_Resize( vertices, vertexCount );
 	int index = 0;
 
-	float xWidth = cellWidth * xCount;
-	float zWidth = cellWidth * zCount;
+	b3Fixed xWidth = b3FixMul( cellWidth , b3FixFromInt( xCount ) );
+	b3Fixed zWidth = b3FixMul( cellWidth , b3FixFromInt( zCount ) );
 
-	float x = -0.5f * xWidth;
+	b3Fixed x = b3FixMul( -B3_FIX( 0.5f ) , xWidth );
 	for ( int ix = 0; ix <= xCount; ++ix )
 	{
-		float z = -0.5f * zWidth;
+		b3Fixed z = b3FixMul( -B3_FIX( 0.5f ) , zWidth );
 		for ( int iz = 0; iz <= zCount; ++iz )
 		{
-			vertices.data[index] = (b3Vec3){ x, 0.0f, z };
+			vertices.data[index] = (b3Vec3){ x, B3_FIX( 0.0f ), z };
 			z += cellWidth;
 			index += 1;
 		}
@@ -1304,8 +1304,8 @@ b3MeshData* b3CreateGridMesh( int xCount, int zCount, float cellWidth, int mater
 	return meshData;
 }
 
-b3MeshData* b3CreateWaveMesh( int xCount, int zCount, float cellWidth, float amplitude, float rowFrequency,
-							  float columnFrequency )
+b3MeshData* b3CreateWaveMesh( int xCount, int zCount, b3Fixed cellWidth, b3Fixed amplitude, b3Fixed rowFrequency,
+							  b3Fixed columnFrequency )
 {
 	// Create vertices
 	int vertexCount = ( xCount + 1 ) * ( zCount + 1 );
@@ -1314,23 +1314,23 @@ b3MeshData* b3CreateWaveMesh( int xCount, int zCount, float cellWidth, float amp
 	b3Array_Resize( vertices, vertexCount );
 	int index = 0;
 
-	float xWidth = cellWidth * xCount;
-	float zWidth = cellWidth * zCount;
+	b3Fixed xWidth = b3FixMul( cellWidth , b3FixFromInt( xCount ) );
+	b3Fixed zWidth = b3FixMul( cellWidth , b3FixFromInt( zCount ) );
 
-	float omegaZ = 2.0f * B3_PI * rowFrequency * cellWidth;
-	float omegaX = 2.0f * B3_PI * columnFrequency * cellWidth;
+	b3Fixed omegaZ = b3FixMul( b3FixMul( b3FixMul( B3_FIX( 2.0f ) , B3_PI ) , rowFrequency ) , cellWidth );
+	b3Fixed omegaX = b3FixMul( b3FixMul( b3FixMul( B3_FIX( 2.0f ) , B3_PI ) , columnFrequency ) , cellWidth );
 
-	float x = -0.5f * xWidth;
+	b3Fixed x = b3FixMul( -B3_FIX( 0.5f ) , xWidth );
 	for ( int ix = 0; ix <= xCount; ++ix )
 	{
-		float rowHeight = sinf( omegaX * ix );
+		b3Fixed rowHeight = b3Sin( b3FixMul( omegaX , b3FixFromInt( ix ) ) );
 
-		float z = -0.5f * zWidth;
+		b3Fixed z = b3FixMul( -B3_FIX( 0.5f ) , zWidth );
 		for ( int iz = 0; iz <= zCount; ++iz )
 		{
-			float columnHeight = sinf( omegaZ * iz );
+			b3Fixed columnHeight = b3Sin( b3FixMul( omegaZ , b3FixFromInt( iz ) ) );
 
-			float y = amplitude * rowHeight * columnHeight;
+			b3Fixed y = b3FixMul( b3FixMul( amplitude , rowHeight ) , columnHeight );
 			vertices.data[index] = (b3Vec3){ x, y, z };
 			z += cellWidth;
 			index += 1;
@@ -1389,7 +1389,7 @@ b3MeshData* b3CreateWaveMesh( int xCount, int zCount, float cellWidth, float amp
 	return meshData;
 }
 
-b3MeshData* b3CreateTorusMesh( int radialResolution, int tubularResolution, float radius, float thickness )
+b3MeshData* b3CreateTorusMesh( int radialResolution, int tubularResolution, b3Fixed radius, b3Fixed thickness )
 {
 	// Create vertices
 	b3Array( b3Vec3 ) vertices = { 0 };
@@ -1398,12 +1398,12 @@ b3MeshData* b3CreateTorusMesh( int radialResolution, int tubularResolution, floa
 	{
 		for ( int tubularIndex = 0; tubularIndex < tubularResolution; tubularIndex++ )
 		{
-			float u = (float)tubularIndex / tubularResolution * B3_TWO_PI;
-			float v = (float)radialIndex / radialResolution * B3_TWO_PI;
+			b3Fixed u = b3FixMul( b3FixDiv( (b3Fixed)b3FixFromInt( tubularIndex ) , b3FixFromInt( tubularResolution ) ) , B3_TWO_PI );
+			b3Fixed v = b3FixMul( b3FixDiv( (b3Fixed)b3FixFromInt( radialIndex ) , b3FixFromInt( radialResolution ) ) , B3_TWO_PI );
 
-			float x = ( radius + thickness * b3Cos( v ) ) * b3Cos( u );
-			float y = ( radius + thickness * b3Cos( v ) ) * b3Sin( u );
-			float z = thickness * b3Sin( v );
+			b3Fixed x = b3FixMul( ( radius + b3FixMul( thickness , b3Cos( v ) ) ) , b3Cos( u ) );
+			b3Fixed y = b3FixMul( ( radius + b3FixMul( thickness , b3Cos( v ) ) ) , b3Sin( u ) );
+			b3Fixed z = b3FixMul( thickness , b3Sin( v ) );
 
 			b3Vec3 vertex = { x, y, z };
 			b3Array_Push( vertices, vertex );
@@ -1450,9 +1450,9 @@ b3MeshData* b3CreateTorusMesh( int radialResolution, int tubularResolution, floa
 
 b3MeshData* b3CreateBoxMesh( b3Vec3 center, b3Vec3 extent, bool identifyEdges )
 {
-	float x = extent.x;
-	float y = extent.y;
-	float z = extent.z;
+	b3Fixed x = extent.x;
+	b3Fixed y = extent.y;
+	b3Fixed z = extent.z;
 	b3Vec3 vertices[] = {
 		{ x, y, z }, { -x, y, z }, { -x, -y, z }, { x, -y, z }, { x, y, -z }, { -x, y, -z }, { -x, -y, -z }, { x, -y, -z },
 	};
@@ -1484,9 +1484,9 @@ b3MeshData* b3CreateBoxMesh( b3Vec3 center, b3Vec3 extent, bool identifyEdges )
 
 b3MeshData* b3CreateHollowBoxMesh(b3Vec3 center, b3Vec3 extent)
 {
-	float x = extent.x;
-	float y = extent.y;
-	float z = extent.z;
+	b3Fixed x = extent.x;
+	b3Fixed y = extent.y;
+	b3Fixed z = extent.z;
 	b3Vec3 vertices[] = {
 		{ x, y, z }, { -x, y, z }, { -x, -y, z }, { x, -y, z }, { x, y, -z }, { -x, y, -z }, { -x, -y, -z }, { x, -y, -z },
 	};
@@ -1516,11 +1516,11 @@ b3MeshData* b3CreateHollowBoxMesh(b3Vec3 center, b3Vec3 extent)
 	return b3CreateMesh( &def, NULL, 0 );
 }
 
-b3MeshData* b3CreatePlatformMesh( b3Vec3 center, float height, float topWidth, float bottomWidth )
+b3MeshData* b3CreatePlatformMesh( b3Vec3 center, b3Fixed height, b3Fixed topWidth, b3Fixed bottomWidth )
 {
-	float hb = 0.5f * bottomWidth;
-	float ht = 0.5f * topWidth;
-	float hy = 0.5f * height;
+	b3Fixed hb = b3FixMul( B3_FIX( 0.5f ) , bottomWidth );
+	b3Fixed ht = b3FixMul( B3_FIX( 0.5f ) , topWidth );
+	b3Fixed hy = b3FixMul( B3_FIX( 0.5f ) , height );
 	b3Vec3 vertices[] = {
 		{ ht, hy, ht },	 { -ht, hy, ht },  { -hb, -hy, hb },  { hb, -hy, hb },
 		{ ht, hy, -ht }, { -ht, hy, -ht }, { -hb, -hy, -hb }, { hb, -hy, -hb },
@@ -1576,7 +1576,7 @@ b3MeshData* b3CreateMesh( const b3MeshDef* def, int* degenerateTriangleIndices, 
 	b3Array( b3Vec3 ) vertices;
 	b3Array_CreateN( vertices, vertexCount );
 
-	if ( def->weldVertices && def->weldTolerance > 0.0f )
+	if ( def->weldVertices && def->weldTolerance > B3_FIX( 0.0f ) )
 	{
 		b3Array_Resize( vertices, vertexCount );
 		b3Array_Resize( indices, 3 * triangleCount );
@@ -1601,8 +1601,8 @@ b3MeshData* b3CreateMesh( const b3MeshDef* def, int* degenerateTriangleIndices, 
 	b3Array( b3Primitive ) primitives;
 	b3Array_CreateN( primitives, triangleCount );
 	int degenerateCount = 0;
-	float minArea = 0.01f * B3_LINEAR_SLOP * B3_LINEAR_SLOP;
-	float surfaceArea = 0.0f;
+	b3Fixed minArea = b3FixMul( b3FixMul( B3_FIX( 0.01f ) , B3_LINEAR_SLOP ) , B3_LINEAR_SLOP );
+	b3Fixed surfaceArea = B3_FIX( 0.0f );
 	int materialCount = 1;
 
 	for ( int index = 0; index < triangleCount; ++index )
@@ -1616,7 +1616,7 @@ b3MeshData* b3CreateMesh( const b3MeshDef* def, int* degenerateTriangleIndices, 
 		b3Vec3 vertex3 = vertices.data[index3];
 
 		b3Vec3 normal = b3Cross( b3Sub( vertex2, vertex1 ), b3Sub( vertex3, vertex1 ) );
-		float area = 0.5f * b3Length( normal );
+		b3Fixed area = b3FixMul( B3_FIX( 0.5f ) , b3Length( normal ) );
 
 		if ( area < minArea )
 		{
@@ -1771,7 +1771,7 @@ void b3DestroyMesh( b3MeshData* mesh )
 bool b3OverlapMesh( const b3Mesh* shape, b3Transform shapeTransform, const b3ShapeProxy* proxy )
 {
 	B3_ASSERT( proxy->count > 0 );
-	b3SimplexCache cache = { 0 };
+	b3SimplexCache cache = { b3FixFromInt( 0 ) };
 
 	b3Vec3 buffer[B3_MAX_SHAPE_CAST_POINTS];
 	b3ShapeProxy localProxy = b3MakeLocalProxy( proxy, shapeTransform, buffer );
@@ -1830,7 +1830,7 @@ bool b3OverlapMesh( const b3Mesh* shape, b3Transform shapeTransform, const b3Sha
 						// Shape-triangle overlap test in scaled space. Winding order doesn't matter.
 						b3Vec3 triangleVertices[] = { b3Mul( meshScale, vertex1 ), b3Mul( meshScale, vertex2 ),
 													  b3Mul( meshScale, vertex3 ) };
-						input.proxyA = (b3ShapeProxy){ triangleVertices, 3, 0.0f };
+						input.proxyA = (b3ShapeProxy){ triangleVertices, 3, B3_FIX( 0.0f ) };
 
 						// reset the cache
 						cache.count = 0;
@@ -1838,7 +1838,7 @@ bool b3OverlapMesh( const b3Mesh* shape, b3Transform shapeTransform, const b3Sha
 						// get distance between triangle and query shape
 						b3DistanceOutput output = b3ShapeDistance( &input, &cache, NULL, 0 );
 
-						float tolerance = 0.1f * B3_LINEAR_SLOP;
+						b3Fixed tolerance = b3FixMul( B3_FIX( 0.1f ) , B3_LINEAR_SLOP );
 						if ( output.distance < tolerance )
 						{
 							// overlap detected
@@ -1881,7 +1881,7 @@ b3CastOutput b3RayCastMesh( const b3Mesh* mesh, const b3RayCastInput* input )
 	const b3MeshData* data = mesh->data;
 	b3Vec3 meshScale = mesh->scale;
 
-	b3CastOutput bestOutput = { 0 };
+	b3CastOutput bestOutput = { b3FixFromInt( 0 ) };
 	bestOutput.fraction = input->maxFraction;
 	bestOutput.triangleIndex = B3_NULL_INDEX;
 
@@ -1892,7 +1892,7 @@ b3CastOutput b3RayCastMesh( const b3Mesh* mesh, const b3RayCastInput* input )
 
 	b3V32 scale = b3LoadV( &meshScale.x );
 	b3V32 invScale = b3DivV( b3_oneV, scale );
-	bool clockwise = meshScale.x * meshScale.y * meshScale.z < 0.0f;
+	bool clockwise = b3FixMul( b3FixMul( meshScale.x , meshScale.y ) , meshScale.z ) < B3_FIX( 0.0f );
 
 	// Use the inverse scaled ray for traversal of the BVH
 	b3V32 invScaledRayStart = b3MulV( invScale, rayStart );
@@ -1948,8 +1948,8 @@ b3CastOutput b3RayCastMesh( const b3Mesh* mesh, const b3RayCastInput* input )
 					b3V32 v2 = b3LoadV( &vertex2.x );
 					b3V32 v3 = b3LoadV( &vertex3.x );
 
-					float alpha = b3IntersectRayTriangle( rayStart, rayDelta, v1, v2, v3 );
-					B3_ASSERT( 0 <= alpha && alpha <= 1.0f );
+					b3Fixed alpha = b3IntersectRayTriangle( rayStart, rayDelta, v1, v2, v3 );
+					B3_ASSERT( b3FixFromInt( 0 ) <= alpha && alpha <= B3_FIX( 1.0f ) );
 
 					if ( alpha < bestOutput.fraction )
 					{
@@ -1974,7 +1974,7 @@ b3CastOutput b3RayCastMesh( const b3Mesh* mesh, const b3RayCastInput* input )
 			{
 				// Determine traversal order (front -> back) and recurse
 				int axis = node->data.asNode.axis;
-				if ( b3GetV( invScaledRayDelta, axis ) > 0.0f )
+				if ( b3GetV( invScaledRayDelta, axis ) > B3_FIX( 0.0f ) )
 				{
 					B3_ASSERT( count <= B3_MESH_STACK_SIZE - 1 );
 					stack[count++] = b3GetRightChild( node );
@@ -2006,7 +2006,7 @@ b3CastOutput b3ShapeCastMesh( const b3Mesh* mesh, const b3ShapeCastInput* input 
 	const b3MeshData* data = mesh->data;
 	b3Vec3 meshScale = mesh->scale;
 
-	b3CastOutput bestOutput = { 0 };
+	b3CastOutput bestOutput = { b3FixFromInt( 0 ) };
 	bestOutput.fraction = input->maxFraction;
 	bestOutput.triangleIndex = B3_NULL_INDEX;
 
@@ -2026,7 +2026,7 @@ b3CastOutput b3ShapeCastMesh( const b3Mesh* mesh, const b3ShapeCastInput* input 
 	b3V32 scale = b3LoadV( &meshScale.x );
 	b3V32 invScale = b3DivV( b3_oneV, scale );
 	b3V32 absInvScale = b3AbsV( invScale );
-	bool clockwise = meshScale.x * meshScale.y * meshScale.z < 0.0f;
+	bool clockwise = b3FixMul( b3FixMul( meshScale.x , meshScale.y ) , meshScale.z ) < B3_FIX( 0.0f );
 
 	// Use the inverse scaled shape cast for traversal of the BVH
 	b3V32 invScaledRayStart = b3MulV( invScale, rayStart );
@@ -2095,7 +2095,7 @@ b3CastOutput b3ShapeCastMesh( const b3Mesh* mesh, const b3ShapeCastInput* input 
 						b3Transform shiftedOrigin = { b3Neg( origin ), b3Quat_identity };
 
 						b3ShapeCastPairInput pairInput;
-						pairInput.proxyA = (b3ShapeProxy){ triangleVertices, 3, 0.0f };
+						pairInput.proxyA = (b3ShapeProxy){ triangleVertices, 3, B3_FIX( 0.0f ) };
 						pairInput.proxyB = input->proxy;
 						pairInput.transform = shiftedOrigin;
 						pairInput.maxFraction = bestOutput.fraction;
@@ -2130,7 +2130,7 @@ b3CastOutput b3ShapeCastMesh( const b3Mesh* mesh, const b3ShapeCastInput* input 
 			{
 				// Determine traversal order (front -> back) and recurse
 				int axis = node->data.asNode.axis;
-				if ( b3GetV( invScaledRayDelta, axis ) > 0.0f )
+				if ( b3GetV( invScaledRayDelta, axis ) > B3_FIX( 0.0f ) )
 				{
 					B3_ASSERT( count <= B3_MESH_STACK_SIZE - 1 );
 					stack[count++] = b3GetRightChild( node );
@@ -2174,7 +2174,7 @@ b3Triangle b3GetMeshTriangle( const b3Mesh* mesh, int triangleIndex )
 	result.vertices[0] = b3Mul( scale, vertices[triangle.index1] );
 	result.i1 = triangle.index1;
 
-	if ( scale.x * scale.y * scale.z < 0.0f )
+	if ( b3FixMul( b3FixMul( scale.x , scale.y ) , scale.z ) < B3_FIX( 0.0f ) )
 	{
 		result.vertices[1] = b3Mul( scale, vertices[triangle.index3] );
 		result.vertices[2] = b3Mul( scale, vertices[triangle.index2] );
@@ -2209,12 +2209,12 @@ int b3CollideMoverAndMesh( b3PlaneResult* planes, int capacity, const b3Mesh* sh
 	}
 
 	b3DistanceInput distanceInput = { 0 };
-	distanceInput.proxyB = (b3ShapeProxy){ &mover->center1, 2, 0.0f };
+	distanceInput.proxyB = (b3ShapeProxy){ &mover->center1, 2, B3_FIX( 0.0f ) };
 	distanceInput.transform = b3Transform_identity;
 	distanceInput.useRadii = false;
 
-	b3SimplexCache cache = { 0 };
-	float radius = mover->radius;
+	b3SimplexCache cache = { b3FixFromInt( 0 ) };
+	b3Fixed radius = mover->radius;
 
 	b3V32 center1 = b3LoadV( &mover->center1.x );
 	b3V32 center2 = b3LoadV( &mover->center2.x );
@@ -2271,7 +2271,7 @@ int b3CollideMoverAndMesh( b3PlaneResult* planes, int capacity, const b3Mesh* sh
 						// todo implement one-sided collision?
 						b3Vec3 triangleVertices[] = { b3Mul( meshScale, vertex1 ), b3Mul( meshScale, vertex2 ),
 													  b3Mul( meshScale, vertex3 ) };
-						distanceInput.proxyA = (b3ShapeProxy){ triangleVertices, 3, 0.0f };
+						distanceInput.proxyA = (b3ShapeProxy){ triangleVertices, 3, B3_FIX( 0.0f ) };
 
 						// reset the cache
 						cache.count = 0;
@@ -2279,7 +2279,7 @@ int b3CollideMoverAndMesh( b3PlaneResult* planes, int capacity, const b3Mesh* sh
 						// get distance between triangle and query shape
 						b3DistanceOutput distanceOutput = b3ShapeDistance( &distanceInput, &cache, NULL, 0 );
 
-						if ( distanceOutput.distance == 0.0f )
+						if ( distanceOutput.distance == B3_FIX( 0.0f ) )
 						{
 							// todo SAT
 						}
@@ -2321,7 +2321,7 @@ int b3CollideMoverAndMesh( b3PlaneResult* planes, int capacity, const b3Mesh* sh
 void b3QueryMesh( const b3Mesh* mesh, b3AABB bounds, b3MeshQueryFcn* fcn, void* context )
 {
 	b3Vec3 meshScale = mesh->scale;
-	bool clockwise = meshScale.x * meshScale.y * meshScale.z > 0.0f;
+	bool clockwise = b3FixMul( b3FixMul( meshScale.x , meshScale.y ) , meshScale.z ) > B3_FIX( 0.0f );
 
 	// Scale may have reflection so min/max may become invalid when unscaled
 	b3V32 scale = b3LoadV( &meshScale.x );

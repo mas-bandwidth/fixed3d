@@ -11,44 +11,20 @@
 #include <math.h>
 #include <string.h>
 
-bool b3IsValidFloat( float a )
+bool b3IsValidFixed( b3Fixed a )
 {
-	if ( isnan( a ) )
-	{
-		return false;
-	}
-
-	if ( isinf( a ) )
-	{
-		return false;
-	}
-
-	return true;
+	// Fixed point has no NaN. Saturated values play the role of infinity.
+	return B3_FIXED_MIN < a && a < B3_FIXED_MAX;
 }
 
 bool b3IsValidVec3( b3Vec3 a )
 {
-	if ( isnan( a.x ) || isnan( a.y ) || isnan( a.z ) )
-	{
-		return false;
-	}
-
-	if ( isinf( a.x ) || isinf( a.y ) || isinf( a.z ) )
-	{
-		return false;
-	}
-
-	return true;
+	return b3IsValidFixed( a.x ) && b3IsValidFixed( a.y ) && b3IsValidFixed( a.z );
 }
 
 bool b3IsValidQuat( b3Quat a )
 {
-	if ( isnan( a.v.x ) || isnan( a.v.y ) || isnan( a.v.z ) || isnan( a.s ) )
-	{
-		return false;
-	}
-
-	if ( isinf( a.v.x ) || isinf( a.v.y ) || isinf( a.v.z ) || isinf( a.s ) )
+	if ( !b3IsValidFixed( a.v.x ) || !b3IsValidFixed( a.v.y ) || !b3IsValidFixed( a.v.z ) || !b3IsValidFixed( a.s ) )
 	{
 		return false;
 	}
@@ -143,22 +119,12 @@ bool b3IsValidPlane( b3Plane a )
 		return false;
 	}
 
-	return b3IsValidFloat( a.offset );
+	return b3IsValidFixed( a.offset );
 }
 
 bool b3IsValidPosition( b3Pos p )
 {
-	if ( isnan( p.x ) || isnan( p.y ) || isnan( p.z ) )
-	{
-		return false;
-	}
-
-	if ( isinf( p.x ) || isinf( p.y ) || isinf( p.z ) )
-	{
-		return false;
-	}
-
-	return true;
+	return b3IsValidVec3( p );
 }
 
 bool b3IsValidWorldTransform( b3WorldTransform t )
@@ -166,39 +132,95 @@ bool b3IsValidWorldTransform( b3WorldTransform t )
 	return b3IsValidPosition( t.p ) && b3IsValidQuat( t.q );
 }
 
-// https://stackoverflow.com/questions/46210708/atan2-approximation-with-11bits-in-mantissa-on-x86with-sse2-and-armwith-vfpv4
-float b3Atan2( float y, float x )
+// Internal Q32.32 helpers for the deterministic trig routines. Angles are in
+// [-pi, pi] so the extra fraction bits keep the approximations accurate well
+// below the Q48.16 output resolution.
+#if B3_HAS_INT128
+
+static inline int64_t b3Q32Mul( int64_t a, int64_t b )
 {
-	// Added check for (0,0) to match atan2f and avoid NaN
-	if ( x == 0.0f && y == 0.0f )
+	return (int64_t)( ( (b3Int128)a * b ) >> 32 );
+}
+
+static inline int64_t b3Q32Div( int64_t a, int64_t b )
+{
+	return (int64_t)( ( (b3Int128)a << 32 ) / b );
+}
+
+#else
+
+static inline int64_t b3Q32Mul( int64_t a, int64_t b )
+{
+	int64_t hi;
+	uint64_t lo = _mul128( a, b, &hi );
+	return (int64_t)__shiftright128( lo, (uint64_t)hi, 32 );
+}
+
+static inline int64_t b3Q32Div( int64_t a, int64_t b )
+{
+	int64_t hi = a >> 32;
+	uint64_t lo = (uint64_t)a << 32;
+	int64_t remainder;
+	return _div128( hi, lo, b, &remainder );
+}
+
+#endif
+
+static inline int64_t b3Q32Sqrt( int64_t a )
+{
+	if ( a <= 0 )
 	{
-		return 0.0f;
+		return 0;
+	}
+	uint64_t hi = (uint64_t)a >> 32;
+	uint64_t lo = (uint64_t)a << 32;
+	return (int64_t)b3ISqrt128High( hi, lo );
+}
+
+// Round a Q32.32 value to Q48.16
+static inline b3Fixed b3Q32ToFix( int64_t a )
+{
+	return ( a + ( (int64_t)1 << 15 ) ) >> 16;
+}
+
+#define B3_Q32_PI 13493037705LL	   // round(pi * 2^32)
+#define B3_Q32_HALF_PI 6746518852LL // round(pi/2 * 2^32)
+
+// https://stackoverflow.com/questions/46210708/atan2-approximation-with-11bits-in-mantissa-on-x86with-sse2-and-armwith-vfpv4
+b3Fixed b3Atan2( b3Fixed y, b3Fixed x )
+{
+	// Added check for (0,0) to match atan2f and avoid a zero divide
+	if ( x == 0 && y == 0 )
+	{
+		return 0;
 	}
 
-	float ax = b3AbsFloat( x );
-	float ay = b3AbsFloat( y );
-	float mx = b3MaxFloat( ay, ax );
-	float mn = b3MinFloat( ay, ax );
-	float a = mn / mx;
+	b3Fixed ax = b3FixAbs( x );
+	b3Fixed ay = b3FixAbs( y );
+	b3Fixed mx = b3FixMax( ay, ax );
+	b3Fixed mn = b3FixMin( ay, ax );
+
+	// a = mn / mx in [0, 1], evaluated in Q32.32
+	int64_t a = (int64_t)( ( (b3Int128)mn << 32 ) / mx );
 
 	// Minimax polynomial approximation to atan(a) on [0,1]
-	float s = a * a;
-	float c = s * a;
-	float q = s * s;
-	float r = 0.024840285f * q + 0.18681418f;
-	float t = -0.094097948f * q - 0.33213072f;
-	r = r * s + t;
-	r = r * c + a;
+	int64_t s = b3Q32Mul( a, a );
+	int64_t c = b3Q32Mul( s, a );
+	int64_t q = b3Q32Mul( s, s );
+	int64_t r = b3Q32Mul( 106688212LL, q ) + 802360794LL;	  // 0.024840285, 0.18681418
+	int64_t t = b3Q32Mul( -404147609LL, q ) - 1426490580LL; // -0.094097948, -0.33213072
+	r = b3Q32Mul( r, s ) + t;
+	r = b3Q32Mul( r, c ) + a;
 
 	// Map to full circle
 	if ( ay > ax )
 	{
-		r = 1.57079637f - r;
+		r = B3_Q32_HALF_PI - r;
 	}
 
 	if ( x < 0 )
 	{
-		r = 3.14159274f - r;
+		r = B3_Q32_PI - r;
 	}
 
 	if ( y < 0 )
@@ -206,61 +228,66 @@ float b3Atan2( float y, float x )
 		r = -r;
 	}
 
-	return r;
+	return b3Q32ToFix( r );
 }
 
-// Approximate cosine and sine for determinism. In my testing cosf and sinf produced
-// the same results on x64 and ARM using MSVC, GCC, and Clang. However, I don't trust
-// this result.
+// Approximate cosine and sine for determinism, evaluated in pure integer math.
 // https://en.wikipedia.org/wiki/Bh%C4%81skara_I%27s_sine_approximation_formula
-b3CosSin b3ComputeCosSin( float radians )
+b3CosSin b3ComputeCosSin( b3Fixed radians )
 {
-#if 0
-	return {
-		cosf( radians ),
-		sinf( radians ),
-	};
-#else
-	float x = b3UnwindAngle( radians );
-	float pi2 = B3_PI * B3_PI;
+	const int64_t pi = B3_Q32_PI;
+	const int64_t halfPi = B3_Q32_HALF_PI;
+	const int64_t pi2 = 42389628127LL;		 // pi^2 in Q32.32
+	const int64_t fivePi2 = 211948140636LL; // 5*pi^2 in Q32.32
+
+	// The unwound angle is in [-pi, pi] to within an ulp; promote to Q32.32
+	int64_t x = (int64_t)b3UnwindAngle( radians ) << 16;
+	x = x < -pi ? -pi : ( x > pi ? pi : x );
 
 	// cosine needs angle in [-pi/2, pi/2]
-	float c;
-	if ( x < -0.5f * B3_PI )
+	int64_t c;
+	if ( x < -halfPi )
 	{
-		float y = x + B3_PI;
-		float y2 = y * y;
-		c = -( pi2 - 4.0f * y2 ) / ( pi2 + y2 );
+		int64_t y = x + pi;
+		int64_t y2 = b3Q32Mul( y, y );
+		c = -b3Q32Div( pi2 - 4 * y2, pi2 + y2 );
 	}
-	else if ( x > 0.5f * B3_PI )
+	else if ( x > halfPi )
 	{
-		float y = x - B3_PI;
-		float y2 = y * y;
-		c = -( pi2 - 4.0f * y2 ) / ( pi2 + y2 );
+		int64_t y = x - pi;
+		int64_t y2 = b3Q32Mul( y, y );
+		c = -b3Q32Div( pi2 - 4 * y2, pi2 + y2 );
 	}
 	else
 	{
-		float y2 = x * x;
-		c = ( pi2 - 4.0f * y2 ) / ( pi2 + y2 );
+		int64_t y2 = b3Q32Mul( x, x );
+		c = b3Q32Div( pi2 - 4 * y2, pi2 + y2 );
 	}
 
 	// sine needs angle in [0, pi]
-	float s;
-	if ( x < 0.0f )
+	int64_t s;
+	if ( x < 0 )
 	{
-		float y = x + B3_PI;
-		s = -16.0f * y * ( B3_PI - y ) / ( 5.0f * pi2 - 4.0f * y * ( B3_PI - y ) );
+		int64_t y = x + pi;
+		int64_t u = b3Q32Mul( y, pi - y );
+		s = -b3Q32Div( 16 * u, fivePi2 - 4 * u );
 	}
 	else
 	{
-		s = 16.0f * x * ( B3_PI - x ) / ( 5.0f * pi2 - 4.0f * x * ( B3_PI - x ) );
+		int64_t u = b3Q32Mul( x, pi - x );
+		s = b3Q32Div( 16 * u, fivePi2 - 4 * u );
 	}
 
-	float mag = sqrtf( s * s + c * c );
-	float invMag = mag > 0.0f ? 1.0f / mag : 0.0f;
-	b3CosSin cs = { c * invMag, s * invMag };
+	// Normalize so the pair lies on the unit circle
+	int64_t mag = b3Q32Sqrt( b3Q32Mul( s, s ) + b3Q32Mul( c, c ) );
+	if ( mag > 0 )
+	{
+		c = b3Q32Div( c, mag );
+		s = b3Q32Div( s, mag );
+	}
+
+	b3CosSin cs = { b3Q32ToFix( c ), b3Q32ToFix( s ) };
 	return cs;
-#endif
 }
 
 b3Quat b3MakeQuatFromMatrix( const b3Matrix3* m )
@@ -271,19 +298,19 @@ b3Quat b3MakeQuatFromMatrix( const b3Matrix3* m )
 
 	b3Quat q;
 
-	float trace = m->cx.x + m->cy.y + m->cz.z;
-	if ( trace >= 0.0f )
+	b3Fixed trace = m->cx.x + m->cy.y + m->cz.z;
+	if ( trace >= B3_FIX( 0.0f ) )
 	{
 		q.v.x = c2.z - c3.y;
 		q.v.y = c3.x - c1.z;
 		q.v.z = c1.y - c2.x;
-		q.s = trace + 1.0f;
+		q.s = trace + B3_FIX( 1.0f );
 	}
 	else
 	{
 		if ( c1.x > c2.y && c1.x > c3.z )
 		{
-			q.v.x = c1.x - c2.y - c3.z + 1.0f;
+			q.v.x = c1.x - c2.y - c3.z + B3_FIX( 1.0f );
 			q.v.y = c2.x + c1.y;
 			q.v.z = c3.x + c1.z;
 			q.s = c2.z - c3.y;
@@ -291,7 +318,7 @@ b3Quat b3MakeQuatFromMatrix( const b3Matrix3* m )
 		else if ( c2.y > c3.z )
 		{
 			q.v.x = c1.y + c2.x;
-			q.v.y = c2.y - c3.z - c1.x + 1.0f;
+			q.v.y = c2.y - c3.z - c1.x + B3_FIX( 1.0f );
 			q.v.z = c3.y + c2.z;
 			q.s = c3.x - c1.z;
 		}
@@ -299,7 +326,7 @@ b3Quat b3MakeQuatFromMatrix( const b3Matrix3* m )
 		{
 			q.v.x = c1.z + c3.x;
 			q.v.y = c2.z + c3.y;
-			q.v.z = c3.z - c1.x - c2.y + 1.0f;
+			q.v.z = c3.z - c1.x - c2.y + B3_FIX( 1.0f );
 			q.s = c1.y - c2.x;
 		}
 	}
@@ -315,30 +342,34 @@ b3Quat b3ComputeQuatBetweenUnitVectors( b3Vec3 v1, b3Vec3 v2 )
 
 	b3Quat out;
 
-	b3Vec3 m = b3Lerp( v1, v2, 0.5f );
-	float tolerance = 100.0f * FLT_EPSILON;
-	if ( b3LengthSquared( m ) > tolerance * tolerance )
+	b3Vec3 m = b3Lerp( v1, v2, B3_FIX( 0.5f ) );
+	// Nearly anti-parallel vectors need the perpendicular fallback. In fixed point
+	// the threshold must sit well above the Q48.16 resolution of the squared length,
+	// because normalizing a short vector amplifies quantization error.
+	if ( b3LengthSquared( m ) > B3_FIX( 0.0001f ) )
 	{
+		// Normalize first so the quaternion is algebraically unit length
+		m = b3Normalize( m );
 		out.v = b3Cross( v1, m );
 		out.s = b3Dot( v1, m );
 	}
 	else
 	{
 		// Anti-parallel: Use a perpendicular vector
-		if ( b3AbsFloat( v1.x ) > 0.5f )
+		if ( b3FixAbs( v1.x ) > B3_FIX( 0.5f ) )
 		{
 			out.v.x = v1.y;
 			out.v.y = -v1.x;
-			out.v.z = 0.0f;
+			out.v.z = B3_FIX( 0.0f );
 		}
 		else
 		{
-			out.v.x = 0.0f;
+			out.v.x = B3_FIX( 0.0f );
 			out.v.y = v1.z;
 			out.v.z = -v1.y;
 		}
 
-		out.s = 0.0f;
+		out.s = B3_FIX( 0.0f );
 	}
 
 	// The algorithm is simplified and made more accurate by normalizing at the end
@@ -350,21 +381,21 @@ b3SegmentDistanceResult b3LineDistance( b3Vec3 p1, b3Vec3 d1, b3Vec3 p2, b3Vec3 
 	b3SegmentDistanceResult result;
 
 	// Solve A*x = b
-	float a11 = b3Dot( d1, d1 );
-	float a12 = -b3Dot( d1, d2 );
-	float a21 = b3Dot( d2, d1 );
-	float a22 = -b3Dot( d2, d2 );
+	b3Fixed a11 = b3Dot( d1, d1 );
+	b3Fixed a12 = -b3Dot( d1, d2 );
+	b3Fixed a21 = b3Dot( d2, d1 );
+	b3Fixed a22 = -b3Dot( d2, d2 );
 
 	b3Vec3 w = b3Sub( p1, p2 );
-	float b1 = -b3Dot( d1, w );
-	float b2 = -b3Dot( d2, w );
+	b3Fixed b1 = -b3Dot( d1, w );
+	b3Fixed b2 = -b3Dot( d2, w );
 
-	float det = a11 * a22 - a12 * a21;
-	if ( det * det < 1000.0f * FLT_MIN )
+	b3Fixed det = b3FixMul( a11 , a22 ) - b3FixMul( a12 , a21 );
+	if ( b3FixMul( det , det ) < 0 )
 	{
 		// Lines are parallel - project p2 onto line L1: x1 = p1 + s1 * d1
-		float s1 = b3Dot( b3Sub( p2, p1 ), d1 ) / b3Dot( d1, d1 );
-		float s2 = 0.0f;
+		b3Fixed s1 = b3FixDiv( b3Dot( b3Sub( p2, p1 ), d1 ) , b3Dot( d1, d1 ) );
+		b3Fixed s2 = B3_FIX( 0.0f );
 
 		result.point1 = b3MulAdd( p1, s1, d1 );
 		result.fraction1 = s1;
@@ -374,8 +405,8 @@ b3SegmentDistanceResult b3LineDistance( b3Vec3 p1, b3Vec3 d1, b3Vec3 p2, b3Vec3 
 		return result;
 	}
 
-	float s1 = ( a22 * b1 - a12 * b2 ) / det;
-	float s2 = ( a11 * b2 - a21 * b1 ) / det;
+	b3Fixed s1 = b3FixDiv( ( b3FixMul( a22 , b1 ) - b3FixMul( a12 , b2 ) ) , det );
+	b3Fixed s2 = b3FixDiv( ( b3FixMul( a11 , b2 ) - b3FixMul( a21 , b1 ) ) , det );
 
 	result.point1 = b3MulAdd( p1, s1, d1 );
 	result.fraction1 = s1;
@@ -392,65 +423,65 @@ b3SegmentDistanceResult b3SegmentDistance( b3Vec3 p1, b3Vec3 q1, b3Vec3 p2, b3Ve
 	b3Vec3 d2 = b3Sub( q2, p2 );
 	b3Vec3 r = b3Sub( p1, p2 );
 
-	float a = b3Dot( d1, d1 );
-	float b = b3Dot( d1, d2 );
-	float c = b3Dot( d1, r );
-	float e = b3Dot( d2, d2 );
-	float f = b3Dot( d2, r );
+	b3Fixed a = b3Dot( d1, d1 );
+	b3Fixed b = b3Dot( d1, d2 );
+	b3Fixed c = b3Dot( d1, r );
+	b3Fixed e = b3Dot( d2, d2 );
+	b3Fixed f = b3Dot( d2, r );
 
 	// Check if one of the segments degenerates into a point
-	if ( a < 100.0f * FLT_EPSILON && e < 100.0f * FLT_EPSILON )
+	if ( a < 100 * B3_FIXED_EPSILON && e < 100 * B3_FIXED_EPSILON )
 	{
 		// Both segments degenerate into points
 		result.point1 = p1;
-		result.fraction1 = 0.0f;
+		result.fraction1 = B3_FIX( 0.0f );
 		result.point2 = p2;
-		result.fraction2 = 0.0f;
+		result.fraction2 = B3_FIX( 0.0f );
 
 		return result;
 	}
 
-	if ( a < 100.0f * FLT_EPSILON )
+	if ( a < 100 * B3_FIXED_EPSILON )
 	{
 		// First segment degenerates into a point
-		float s2 = b3ClampFloat( f / e, 0.0f, 1.0f );
+		b3Fixed s2 = b3FixClamp( b3FixDiv( f , e ), B3_FIX( 0.0f ), B3_FIX( 1.0f ) );
 
 		result.point1 = p1;
-		result.fraction1 = 0.0f;
+		result.fraction1 = B3_FIX( 0.0f );
 		result.point2 = b3MulAdd( p2, s2, d2 );
 		result.fraction2 = s2;
 
 		return result;
 	}
 
-	if ( e < 100.0f * FLT_EPSILON )
+	if ( e < 100 * B3_FIXED_EPSILON )
 	{
 		// Second segment degenerates into a point
-		float s1 = b3ClampFloat( -c / a, 0.0f, 1.0f );
+		b3Fixed s1 = b3FixClamp( b3FixDiv( -c , a ), B3_FIX( 0.0f ), B3_FIX( 1.0f ) );
 
 		result.point1 = b3MulAdd( p1, s1, d1 );
 		result.fraction1 = s1;
 		result.point2 = p2;
-		result.fraction2 = 0.0f;
+		result.fraction2 = B3_FIX( 0.0f );
 
 		return result;
 	}
 
 	// Non-degenerate case
-	float denom = a * e - b * b;
-	float s1 = denom > 1000.0f * FLT_MIN ? b3ClampFloat( ( b * f - c * e ) / denom, 0.0f, 1.0f ) : 0.0f;
-	float s2 = ( b * s1 + f ) / e;
+	b3Fixed denom = b3FixMul( a , e ) - b3FixMul( b , b );
+	b3Fixed s1 = denom > 0 ? b3FixClamp( b3FixDiv( ( b3FixMul( b , f ) - b3FixMul( c , e ) ) , denom ), B3_FIX( 0.0f ), B3_FIX( 1.0f ) ) : B3_FIX( 0.0f );
+	b3Fixed s2 = b3FixDiv( ( b3FixMul( b , s1 ) + f ) , e );
 
 	// Clamp lambda2 and recompute lambda1 if necessary
-	if ( s2 < 0.0f )
+	if ( s2 < B3_FIX( 0.0f ) )
 	{
-		s1 = b3ClampFloat( -c / a, 0.0f, 1.0f );
-		s2 = 0.0f;
+		s1 = b3FixClamp( b3FixDiv( -c , a ), B3_FIX( 0.0f ), B3_FIX( 1.0f ) );
+		s2 = B3_FIX( 0.0f );
 	}
-	else if ( s2 > 1.0f )
+	else if ( s2 > B3_FIX( 1.0f ) )
 	{
-		s1 = b3ClampFloat( ( b - c ) / a, 0.0f, 1.0f );
-		s2 = 1.0f;
+		s1 = b3FixClamp( b3FixDiv( ( b - c ) , a ), B3_FIX( 0.0f ), B3_FIX( 1.0f ) );
+		s2 = B3_FIX( 1.0f );
 	}
 
 	result.point1 = b3MulAdd( p1, s1, d1 );
@@ -466,16 +497,16 @@ b3Vec3 b3PointToSegmentDistance( b3Vec3 a, b3Vec3 b, b3Vec3 q )
 	b3Vec3 ab = b3Sub( b, a );
 	b3Vec3 aq = b3Sub( q, a );
 
-	float alpha = b3Dot( ab, aq );
+	b3Fixed alpha = b3Dot( ab, aq );
 
-	if ( alpha <= 0.0f )
+	if ( alpha <= B3_FIX( 0.0f ) )
 	{
 		// q projects outside interval [a, b] on the side of a
 		return a;
 	}
 	else
 	{
-		float denominator = b3Dot( ab, ab );
+		b3Fixed denominator = b3Dot( ab, ab );
 		if ( alpha > denominator )
 		{
 			// q projects outside interval [a, b] on the side of b
@@ -484,7 +515,7 @@ b3Vec3 b3PointToSegmentDistance( b3Vec3 a, b3Vec3 b, b3Vec3 q )
 		else
 		{
 			// q projects inside interval [a, b]
-			alpha /= denominator;
+			alpha = b3FixDiv( alpha, denominator );
 			return b3MulAdd( a, alpha, ab );
 		}
 	}
@@ -497,9 +528,9 @@ b3TrianglePoint b3ClosestPointOnTriangle( b3Vec3 a, b3Vec3 b, b3Vec3 c, b3Vec3 q
 	b3Vec3 ac = b3Sub( c, a );
 	b3Vec3 aq = b3Sub( q, a );
 
-	float d1 = b3Dot( ab, aq );
-	float d2 = b3Dot( ac, aq );
-	if ( d1 <= 0.0f && d2 <= 0.0f )
+	b3Fixed d1 = b3Dot( ab, aq );
+	b3Fixed d2 = b3Dot( ac, aq );
+	if ( d1 <= B3_FIX( 0.0f ) && d2 <= B3_FIX( 0.0f ) )
 	{
 		return (b3TrianglePoint){ a, b3_featureVertex1 };
 	}
@@ -507,91 +538,91 @@ b3TrianglePoint b3ClosestPointOnTriangle( b3Vec3 a, b3Vec3 b, b3Vec3 c, b3Vec3 q
 	// Check if P lies in vertex region of B
 	b3Vec3 bq = b3Sub( q, b );
 
-	float d3 = b3Dot( ab, bq );
-	float d4 = b3Dot( ac, bq );
-	if ( d3 > 0.0f && d4 <= d3 )
+	b3Fixed d3 = b3Dot( ab, bq );
+	b3Fixed d4 = b3Dot( ac, bq );
+	if ( d3 > B3_FIX( 0.0f ) && d4 <= d3 )
 	{
 		return (b3TrianglePoint){ b, b3_featureVertex2 };
 	}
 
 	// Check if P lies in edge region AB
-	float vc = d1 * d4 - d3 * d2;
-	if ( vc <= 0.0f && d1 >= 0.0f && d3 <= 0.0f )
+	b3Fixed vc = b3FixMul( d1 , d4 ) - b3FixMul( d3 , d2 );
+	if ( vc <= B3_FIX( 0.0f ) && d1 >= B3_FIX( 0.0f ) && d3 <= B3_FIX( 0.0f ) )
 	{
-		float t = d1 / ( d1 - d3 );
+		b3Fixed t = b3FixDiv( d1 , ( d1 - d3 ) );
 		return (b3TrianglePoint){ b3MulAdd( a, t, ab ), b3_featureEdge1 };
 	}
 
 	// Check if P lies in vertex region of C
 	b3Vec3 cq = b3Sub( q, c );
 
-	float d5 = b3Dot( ab, cq );
-	float d6 = b3Dot( ac, cq );
-	if ( d6 >= 0.0f && d5 <= d6 )
+	b3Fixed d5 = b3Dot( ab, cq );
+	b3Fixed d6 = b3Dot( ac, cq );
+	if ( d6 >= B3_FIX( 0.0f ) && d5 <= d6 )
 	{
 		return (b3TrianglePoint){ c, b3_featureVertex3 };
 	}
 
 	// Check if P lies in edge region AC
-	float vb = d5 * d2 - d1 * d6;
-	if ( vb <= 0.0f && d2 >= 0.0f && d6 <= 0.0f )
+	b3Fixed vb = b3FixMul( d5 , d2 ) - b3FixMul( d1 , d6 );
+	if ( vb <= B3_FIX( 0.0f ) && d2 >= B3_FIX( 0.0f ) && d6 <= B3_FIX( 0.0f ) )
 	{
-		float t = d2 / ( d2 - d6 );
+		b3Fixed t = b3FixDiv( d2 , ( d2 - d6 ) );
 		return (b3TrianglePoint){ b3MulAdd( a, t, ac ), b3_featureEdge3 };
 	}
 
 	// Check if P lies in edge region of BC
-	float va = d3 * d6 - d5 * d4;
-	if ( va <= 0.0f && d4 >= d3 && d5 >= d6 )
+	b3Fixed va = b3FixMul( d3 , d6 ) - b3FixMul( d5 , d4 );
+	if ( va <= B3_FIX( 0.0f ) && d4 >= d3 && d5 >= d6 )
 	{
 		b3Vec3 bc = b3Sub( c, b );
 
-		float t = ( d4 - d3 ) / ( ( d4 - d3 ) + ( d5 - d6 ) );
+		b3Fixed t = b3FixDiv( ( d4 - d3 ) , ( ( d4 - d3 ) + ( d5 - d6 ) ) );
 		return (b3TrianglePoint){ b3MulAdd( b, t, bc ), b3_featureEdge2 };
 	}
 
 	// P inside face region ABC
-	float t1 = vb / ( va + vb + vc );
-	float t2 = vc / ( va + vb + vc );
+	b3Fixed t1 = b3FixDiv( vb , ( va + vb + vc ) );
+	b3Fixed t2 = b3FixDiv( vc , ( va + vb + vc ) );
 
 	b3Vec3 p = b3MulAdd( a, t1, ab );
 	p = b3MulAdd( p, t2, ac );
 	return (b3TrianglePoint){ p, b3_featureTriangleFace };
 }
 
-b3Matrix3 b3SphereInertia( float mass, float radius )
+b3Matrix3 b3SphereInertia( b3Fixed mass, b3Fixed radius )
 {
-	float i = 0.4f * mass * radius * radius;
+	b3Fixed i = b3FixMul( b3FixMul( b3FixMul( B3_FIX( 0.4f ) , mass ) , radius ) , radius );
 	return b3MakeDiagonalMatrix( i, i, i );
 }
 
-b3Matrix3 b3CylinderInertia( float mass, float radius, float height )
+b3Matrix3 b3CylinderInertia( b3Fixed mass, b3Fixed radius, b3Fixed height )
 {
-	float ixx = mass * ( 3 * radius * radius + height * height ) / 12.0f;
-	float iyy = 0.5f * mass * radius * radius;
+	b3Fixed ixx = b3FixDiv( b3FixMul( mass , ( b3FixMul( b3FixMul( b3FixFromInt( 3 ) , radius ) , radius ) + b3FixMul( height , height ) ) ) , B3_FIX( 12.0f ) );
+	b3Fixed iyy = b3FixMul( b3FixMul( b3FixMul( B3_FIX( 0.5f ) , mass ) , radius ) , radius );
 	return b3MakeDiagonalMatrix( ixx, iyy, ixx );
 }
 
-b3Matrix3 b3BoxInertia( float mass, b3Vec3 min, b3Vec3 max )
+b3Matrix3 b3BoxInertia( b3Fixed mass, b3Vec3 min, b3Vec3 max )
 {
 	b3Vec3 delta = b3Sub( max, min );
-	float ixx = mass * ( delta.y * delta.y + delta.z * delta.z ) / 12.0f;
-	float iyy = mass * ( delta.x * delta.x + delta.z * delta.z ) / 12.0f;
-	float izz = mass * ( delta.x * delta.x + delta.y * delta.y ) / 12.0f;
+	b3Fixed ixx = b3FixDiv( b3FixMul( mass , ( b3FixMul( delta.y , delta.y ) + b3FixMul( delta.z , delta.z ) ) ) , B3_FIX( 12.0f ) );
+	b3Fixed iyy = b3FixDiv( b3FixMul( mass , ( b3FixMul( delta.x , delta.x ) + b3FixMul( delta.z , delta.z ) ) ) , B3_FIX( 12.0f ) );
+	b3Fixed izz = b3FixDiv( b3FixMul( mass , ( b3FixMul( delta.x , delta.x ) + b3FixMul( delta.y , delta.y ) ) ) , B3_FIX( 12.0f ) );
 
 	return b3MakeDiagonalMatrix( ixx, iyy, izz );
 }
 
 // https://en.wikipedia.org/wiki/Parallel_axis_theorem
-b3Matrix3 b3Steiner( float mass, b3Vec3 origin )
+b3Matrix3 b3Steiner( b3Fixed mass, b3Vec3 origin )
 {
 	// Usage: Io = Ic + Is and Ic = Io - Is
-	float ixx = mass * ( origin.y * origin.y + origin.z * origin.z );
-	float iyy = mass * ( origin.x * origin.x + origin.z * origin.z );
-	float izz = mass * ( origin.x * origin.x + origin.y * origin.y );
-	float ixy = -mass * origin.x * origin.y;
-	float ixz = -mass * origin.x * origin.z;
-	float iyz = -mass * origin.y * origin.z;
+	b3Fixed ixx = b3FixMul( mass , ( b3FixMul( origin.y , origin.y ) + b3FixMul( origin.z , origin.z ) ) );
+	b3Fixed iyy = b3FixMul( mass , ( b3FixMul( origin.x , origin.x ) + b3FixMul( origin.z , origin.z ) ) );
+	b3Fixed izz = b3FixMul( mass , ( b3FixMul( origin.x , origin.x ) + b3FixMul( origin.y , origin.y ) ) );
+	b3Fixed ixy = b3FixMul( b3FixMul( -mass , origin.x ) , origin.y );
+	b3Fixed ixz = b3FixMul( b3FixMul( -mass , origin.x ) , origin.z );
+	b3Fixed iyz = b3FixMul( b3FixMul( -mass , origin.y ) , origin.z );
 
 	// Write
 	b3Matrix3 out;
@@ -611,6 +642,6 @@ b3Matrix3 b3Steiner( float mass, b3Vec3 origin )
 bool b3IsValidRay( const b3RayCastInput* input )
 {
 	bool isValid = b3IsValidVec3( input->origin ) && b3IsValidVec3( input->translation ) &&
-				   b3IsValidFloat( input->maxFraction ) && 0.0f <= input->maxFraction && input->maxFraction < B3_HUGE;
+				   b3IsValidFixed( input->maxFraction ) && B3_FIX( 0.0f ) <= input->maxFraction && input->maxFraction < B3_HUGE;
 	return isValid;
 }

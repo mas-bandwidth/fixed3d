@@ -26,7 +26,6 @@
 #include "box3d/box3d.h"
 #include "box3d/constants.h"
 
-#include <float.h>
 #include <inttypes.h>
 #include <stdio.h>
 #include <string.h>
@@ -148,16 +147,16 @@ static void b3DefaultFinishTaskFcn( void* userTask, void* userContext )
 	B3_UNUSED( userContext );
 }
 
-static float b3DefaultFrictionCallback( float frictionA, uint64_t materialA, float frictionB, uint64_t materialB )
+static b3Fixed b3DefaultFrictionCallback( b3Fixed frictionA, uint64_t materialA, b3Fixed frictionB, uint64_t materialB )
 {
 	B3_UNUSED( materialA, materialB );
-	return sqrtf( frictionA * frictionB );
+	return b3FixSqrt( b3FixMul( frictionA , frictionB ) );
 }
 
-static float b3DefaultRestitutionCallback( float restitutionA, uint64_t materialA, float restitutionB, uint64_t materialB )
+static b3Fixed b3DefaultRestitutionCallback( b3Fixed restitutionA, uint64_t materialA, b3Fixed restitutionB, uint64_t materialB )
 {
 	B3_UNUSED( materialA, materialB );
-	return b3MaxFloat( restitutionA, restitutionB );
+	return b3FixMax( restitutionA, restitutionB );
 }
 
 static void b3CreateWorkerContexts( b3World* world )
@@ -569,9 +568,9 @@ static void b3CollideTask( int startIndex, int endIndex, int workerIndex, void* 
 
 	B3_ASSERT( startIndex < endIndex );
 
-	float recycleDistance = world->contactRecycleDistance;
-	float speculativeDistance = B3_SPECULATIVE_DISTANCE;
-	float recycleDistanceNonTouching = b3MinFloat( recycleDistance, speculativeDistance );
+	b3Fixed recycleDistance = world->contactRecycleDistance;
+	b3Fixed speculativeDistance = B3_SPECULATIVE_DISTANCE;
+	b3Fixed recycleDistanceNonTouching = b3FixMin( recycleDistance, speculativeDistance );
 
 	// Prefetch contact[i + contactPrefetchDistance] each iteration so the random
 	// 216 B contact load lands in L1 by the time we reach it. Distance picked to
@@ -647,17 +646,17 @@ static void b3CollideTask( int startIndex, int endIndex, int workerIndex, void* 
 		// but fixed when linked in the constraint graph.
 		contact->bodySimIndexA = isStaticA ? B3_NULL_INDEX : bodyA->localIndex;
 		contact->bodySimIndexB = isStaticB ? B3_NULL_INDEX : bodyB->localIndex;
-		float recycleTolerance = wasTouching ? recycleDistance : recycleDistanceNonTouching;
+		b3Fixed recycleTolerance = wasTouching ? recycleDistance : recycleDistanceNonTouching;
 
 		// Contact recycling optimization. Please cite this library if you use this optimization.
 		// This is inspired by persistent contact manifolds used in some physics engines, such as PhysX.
 		// However, this allows larger relative motion and has fewer tuning parameters (just one).
-		if ( ( isFast == false || isMeshContact == false ) && recycleDistance > 0.0f &&
+		if ( ( isFast == false || isMeshContact == false ) && recycleDistance > B3_FIX( 0.0f ) &&
 			 ( contact->flags & b3_relativeTransformValid ) && ( contact->flags & b3_contactRecycleFlag ) )
 		{
-			float angleA = b3DotQuat( transformA.q, contact->cachedRotationA );
-			float angleB = b3DotQuat( transformB.q, contact->cachedRotationB );
-			float angularDistance = b3MinFloat( angleA * angleA, angleB * angleB );
+			b3Fixed angleA = b3DotQuat( transformA.q, contact->cachedRotationA );
+			b3Fixed angleB = b3DotQuat( transformB.q, contact->cachedRotationB );
+			b3Fixed angularDistance = b3FixMin( b3FixMul( angleA , angleA ), b3FixMul( angleB , angleB ) );
 
 			b3Transform xf = b3InvMulWorldTransforms( transformA, transformB );
 			b3Transform xfc = contact->cachedRelativePose;
@@ -668,12 +667,12 @@ static void b3CollideTask( int startIndex, int endIndex, int workerIndex, void* 
 			// Variation of Conservative Advancement
 			// distance + 2 * length(modified_cross(|qr.v|, maxExtent)) < recycleTolerance.
 			// 2*|qr.v| == 2*|sin(theta/2)| ~= theta for small angles.
-			float distSquared = b3DistanceSquared( xf.p, xfc.p );
+			b3Fixed distSquared = b3DistanceSquared( xf.p, xfc.p );
 
-			if ( angularDistance > B3_CONTACT_RECYCLE_ANGULAR_DISTANCE && distSquared < recycleTolerance * recycleTolerance )
+			if ( angularDistance > B3_CONTACT_RECYCLE_ANGULAR_DISTANCE && distSquared < b3FixMul( recycleTolerance , recycleTolerance ) )
 			{
-				float distance = sqrtf( distSquared );
-				float slack = recycleTolerance - distance;
+				b3Fixed distance = b3FixSqrt( distSquared );
+				b3Fixed slack = recycleTolerance - distance;
 
 				// qr = inv( inv(qA0) * qB0 ) * inv(qA) * qB
 				//    = inv(qB0) * qA0 * inv(qA) * qB
@@ -685,8 +684,8 @@ static void b3CollideTask( int startIndex, int endIndex, int workerIndex, void* 
 				b3Quat qr = b3InvMulQuat( xfc.q, xf.q );
 				b3Vec3 arc = b3ModifiedCross( b3Abs( qr.v ), maxExtent );
 
-				float arcSq = 4.0f * b3LengthSquared( arc );
-				if ( arcSq < slack * slack )
+				b3Fixed arcSq = b3FixMul( B3_FIX( 4.0f ) , b3LengthSquared( arc ) );
+				if ( arcSq < b3FixMul( slack , slack ) )
 				{
 					b3Quat dqA = b3MulQuat( transformA.q, b3Conjugate( contact->cachedRotationA ) );
 					b3Quat dqB = b3MulQuat( transformB.q, b3Conjugate( contact->cachedRotationB ) );
@@ -893,7 +892,7 @@ static void b3Collide( b3StepContext* context )
 	// todo bring this zone together with island merge
 	b3TracyCZoneNC( contact_state, "Contact State", b3_colorLightSlateGray, true );
 
-	int satMultiplier = context->dt > 0.0f ? 1 : 0;
+	int satMultiplier = context->dt > B3_FIX( 0.0f ) ? 1 : 0;
 
 	// Bitwise OR all contact bits
 	b3BitSet* bitSet = &world->taskContexts.data[0].contactStateBitSet;
@@ -1026,7 +1025,7 @@ static void b3Collide( b3StepContext* context )
 	b3TracyCZoneEnd( collide );
 }
 
-void b3World_Step( b3WorldId worldId, float timeStep, int subStepCount )
+void b3World_Step( b3WorldId worldId, b3Fixed timeStep, int subStepCount )
 {
 	b3World* world = b3GetUnlockedWorldFromId( worldId );
 	if ( world == NULL )
@@ -1055,7 +1054,7 @@ void b3World_Step( b3WorldId worldId, float timeStep, int subStepCount )
 	b3Array_Clear( world->contactHitEvents );
 	b3Array_Clear( world->jointEvents );
 
-	world->profile = (b3Profile){ 0 };
+	world->profile = (b3Profile){ b3FixFromInt( 0 ) };
 
 	world->activeTaskCount = 0;
 	world->taskCount = 0;
@@ -1092,32 +1091,32 @@ void b3World_Step( b3WorldId worldId, float timeStep, int subStepCount )
 
 	b3SolverSet* awakeSet = b3Array_Get( world->solverSets, b3_awakeSet );
 
-	b3StepContext context = { 0 };
+	b3StepContext context = { b3FixFromInt( 0 ) };
 	context.world = world;
 	context.states = awakeSet->bodyStates.data;
 	context.dt = timeStep;
 	context.subStepCount = b3MaxInt( 1, subStepCount );
 
-	if ( timeStep > 0.0f )
+	if ( timeStep > B3_FIX( 0.0f ) )
 	{
-		context.inv_dt = 1.0f / timeStep;
-		context.h = timeStep / context.subStepCount;
-		context.inv_h = context.subStepCount * context.inv_dt;
+		context.inv_dt = b3FixDiv( B3_FIX( 1.0f ) , timeStep );
+		context.h = b3FixDiv( timeStep , b3FixFromInt( context.subStepCount ) );
+		context.inv_h = b3FixMul( b3FixFromInt( context.subStepCount ) , context.inv_dt );
 	}
 	else
 	{
-		context.inv_dt = 0.0f;
-		context.h = 0.0f;
-		context.inv_h = 0.0f;
+		context.inv_dt = B3_FIX( 0.0f );
+		context.h = B3_FIX( 0.0f );
+		context.inv_h = B3_FIX( 0.0f );
 	}
 
 	world->inv_h = context.inv_h;
 	world->inv_dt = context.inv_dt;
 
 	// Hertz values get reduced for large time steps
-	float contactHertz = b3MinFloat( world->contactHertz, 0.125f * context.inv_h );
+	b3Fixed contactHertz = b3FixMin( world->contactHertz, b3FixMul( B3_FIX( 0.125f ) , context.inv_h ) );
 	context.contactSoftness = b3MakeSoft( contactHertz, world->contactDampingRatio, context.h );
-	context.staticSoftness = b3MakeSoft( 2.0f * contactHertz, 0.5f * world->contactDampingRatio, context.h );
+	context.staticSoftness = b3MakeSoft( b3FixMul( B3_FIX( 2.0f ) , contactHertz ), b3FixMul( B3_FIX( 0.5f ) , world->contactDampingRatio ), context.h );
 
 	context.restitutionThreshold = world->restitutionThreshold;
 	context.maxLinearVelocity = world->maxLinearSpeed;
@@ -1131,7 +1130,7 @@ void b3World_Step( b3WorldId worldId, float timeStep, int subStepCount )
 	}
 
 	// Integrate velocities, solve velocity constraints, and integrate positions.
-	if ( timeStep > 0.0f )
+	if ( timeStep > B3_FIX( 0.0f ) )
 	{
 		uint64_t solveTicks = b3GetTicks();
 		b3Solve( world, &context );
@@ -1176,7 +1175,7 @@ void b3World_Step( b3WorldId worldId, float timeStep, int subStepCount )
 		b3RecWrite_StateHash( world->recording, &stateHash );
 
 		// Fold this step's world bounds into the recording so a viewer can frame the whole motion.
-		b3AABB worldBounds = { 0 };
+		b3AABB worldBounds = { b3FixFromInt( 0 ) };
 		bool haveBounds = false;
 		for ( int i = 0; i < b3_bodyTypeCount; ++i )
 		{
@@ -1241,7 +1240,7 @@ static bool DrawQueryCallback( int proxyId, uint64_t userData, void* context )
 			b3HexColor rgb;
 			b3DebugMaterial material = b3_debugMaterialDefault;
 
-			if ( body->type == b3_dynamicBody && body->mass == 0.0f )
+			if ( body->type == b3_dynamicBody && body->mass == B3_FIX( 0.0f ) )
 			{
 				// Bad body
 				rgb = b3_colorRed;
@@ -1369,8 +1368,8 @@ void b3World_Draw( b3WorldId worldId, b3DebugDraw* draw, uint64_t maskBits )
 
 	B3_ASSERT( b3IsValidAABB( draw->drawingBounds ) );
 
-	float lengthScale = b3GetLengthUnitsPerMeter();
-	float axisScale = 0.3f * lengthScale;
+	b3Fixed lengthScale = b3GetLengthUnitsPerMeter();
+	b3Fixed axisScale = b3FixMul( B3_FIX( 0.3f ) , lengthScale );
 	b3HexColor farColor = b3_colorDarkBlue;
 	b3HexColor speculativeColor = b3_colorBlue;
 	b3HexColor addColor = b3_colorLimeGreen;
@@ -1420,7 +1419,7 @@ void b3World_Draw( b3WorldId worldId, b3DebugDraw* draw, uint64_t maskBits )
 
 			if ( draw->drawBodyNames && body->nameId != B3_NULL_NAME )
 			{
-				b3Vec3 offset = { 0.05f, 0.05f, 0.05f };
+				b3Vec3 offset = { B3_FIX( 0.05f ), B3_FIX( 0.05f ), B3_FIX( 0.05f ) };
 				b3WorldTransform transform = { bodySim->center, bodySim->transform.q };
 				b3Pos p = b3TransformWorldPoint( transform, offset );
 				const char* name = b3FindName( &world->names, body->nameId );
@@ -1432,14 +1431,14 @@ void b3World_Draw( b3WorldId worldId, b3DebugDraw* draw, uint64_t maskBits )
 
 			if ( draw->drawMass && body->type == b3_dynamicBody )
 			{
-				b3Vec3 offset = { 0.1f, 0.1f, 0.1f };
+				b3Vec3 offset = { B3_FIX( 0.1f ), B3_FIX( 0.1f ), B3_FIX( 0.1f ) };
 
 				b3WorldTransform transform = { bodySim->center, bodySim->transform.q };
 				draw->DrawTransformFcn( transform, draw->context );
 				b3Pos p = b3TransformWorldPoint( transform, offset );
 
 				char buffer[32];
-				snprintf( buffer, 32, "  %.2f", body->mass );
+				snprintf( buffer, 32, "  %.2f", b3FixToDouble( body->mass ) );
 				draw->DrawStringFcn( p, buffer, b3_colorWhite, draw->context );
 			}
 
@@ -1452,21 +1451,21 @@ void b3World_Draw( b3WorldId worldId, b3DebugDraw* draw, uint64_t maskBits )
 					b3HexColor colors[4] = { b3_colorBlue, b3_colorSkyBlue, b3_colorOrange, b3_colorRed };
 
 					b3HexColor color = b3_colorBlack;
-					if ( body->sleepThreshold > 0.0f )
+					if ( body->sleepThreshold > B3_FIX( 0.0f ) )
 					{
-						float ratio = body->sleepVelocity / body->sleepThreshold;
-						int index = b3ClampInt( (int)ratio, 0, 3 );
+						b3Fixed ratio = b3FixDiv( body->sleepVelocity , body->sleepThreshold );
+						int index = b3ClampInt( (int)b3FixTruncToInt( ratio ), 0, 3 );
 						color = colors[index];
 					}
 
 					b3Pos center = bodySim->center;
-					draw->DrawPointFcn( center, 10.0f, color, draw->context );
+					draw->DrawPointFcn( center, B3_FIX( 10.0f ), color, draw->context );
 
-					b3Vec3 offset = { 0.1f, 0.1f, 0.1f };
+					b3Vec3 offset = { B3_FIX( 0.1f ), B3_FIX( 0.1f ), B3_FIX( 0.1f ) };
 					b3Pos p = b3OffsetPos( center, offset );
 
 					char buffer[32];
-					snprintf( buffer, 32, "  %.3f", body->sleepVelocity );
+					snprintf( buffer, 32, "  %.3f", b3FixToDouble( body->sleepVelocity ) );
 					draw->DrawStringFcn( p, buffer, color, draw->context );
 				}
 			}
@@ -1491,7 +1490,7 @@ void b3World_Draw( b3WorldId worldId, b3DebugDraw* draw, uint64_t maskBits )
 				}
 			}
 
-			const float speculativeDistance = B3_SPECULATIVE_DISTANCE;
+			const b3Fixed speculativeDistance = B3_SPECULATIVE_DISTANCE;
 			if ( draw->drawContacts && body->type == b3_dynamicBody && body->setIndex == b3_awakeSet )
 			{
 				int contactKey = body->headContactKey;
@@ -1544,20 +1543,20 @@ void b3World_Draw( b3WorldId worldId, b3DebugDraw* draw, uint64_t maskBits )
 									b3Pos p2 = b3OffsetPos( p1, b3MulSV( axisScale, normal ) );
 									draw->DrawSegmentFcn( p1, p2, b3_colorLightGray, draw->context );
 
-									snprintf( buffer, B3_ARRAY_COUNT( buffer ), "   %.2f", 100.0f * mp->separation );
+									snprintf( buffer, B3_ARRAY_COUNT( buffer ), "   %.2f", b3FixToDouble( b3FixMul( B3_FIX( 100.0f ) , mp->separation ) ) );
 									draw->DrawStringFcn( p, buffer, b3_colorWhite, draw->context );
 								}
 								else if ( draw->drawContactForces )
 								{
 									// Hack inv_dt for single step debugging
-									float inv_dt = world->inv_dt > 0.0f ? world->inv_dt : 60.0f;
+									b3Fixed inv_dt = world->inv_dt > B3_FIX( 0.0f ) ? world->inv_dt : B3_FIX( 60.0f );
 									// todo validate
 									// multiply by one-half due to relax iteration
-									float force = 0.5f * mp->totalNormalImpulse * inv_dt;
+									b3Fixed force = b3FixMul( b3FixMul( B3_FIX( 0.5f ) , mp->totalNormalImpulse ) , inv_dt );
 									b3Pos p1 = p;
-									b3Pos p2 = b3OffsetPos( p1, b3MulSV( draw->forceScale * force, normal ) );
+									b3Pos p2 = b3OffsetPos( p1, b3MulSV( b3FixMul( draw->forceScale , force ), normal ) );
 									draw->DrawSegmentFcn( p1, p2, impulseColor, draw->context );
-									snprintf( buffer, B3_ARRAY_COUNT( buffer ), "  %.1f", force );
+									snprintf( buffer, B3_ARRAY_COUNT( buffer ), "  %.1f", b3FixToDouble( force ) );
 									draw->DrawStringFcn( p1, buffer, b3_colorWhite, draw->context );
 								}
 								else if ( draw->drawContactFeatures )
@@ -1569,47 +1568,47 @@ void b3World_Draw( b3WorldId worldId, b3DebugDraw* draw, uint64_t maskBits )
 								if ( draw->drawGraphColors )
 								{
 									// graph color
-									float pointSize = contact->colorIndex == B3_OVERFLOW_INDEX ? 15.0f : 10.0f;
+									b3Fixed pointSize = contact->colorIndex == B3_OVERFLOW_INDEX ? B3_FIX( 15.0f ) : B3_FIX( 10.0f );
 									draw->DrawPointFcn( p, pointSize, graphColors[contact->colorIndex], draw->context );
 									// g_draw.DrawString(point->position, "%d", point->color);
 								}
 								else if ( mp->persisted == false )
 								{
 									// Add
-									draw->DrawPointFcn( p, 20.0f, addColor, draw->context );
+									draw->DrawPointFcn( p, B3_FIX( 20.0f ), addColor, draw->context );
 								}
 								else if ( mp->separation > speculativeDistance )
 								{
 									// Speculative
-									draw->DrawPointFcn( p, 10.0f, farColor, draw->context );
+									draw->DrawPointFcn( p, B3_FIX( 10.0f ), farColor, draw->context );
 								}
-								else if ( mp->separation > 0.0f )
+								else if ( mp->separation > B3_FIX( 0.0f ) )
 								{
 									// Speculative
-									draw->DrawPointFcn( p, 10.0f, speculativeColor, draw->context );
+									draw->DrawPointFcn( p, B3_FIX( 10.0f ), speculativeColor, draw->context );
 								}
 								else
 								{
 									// Persist
-									draw->DrawPointFcn( p, 10.0f, persistColor, draw->context );
+									draw->DrawPointFcn( p, B3_FIX( 10.0f ), persistColor, draw->context );
 								}
 							}
 
 							if ( draw->drawContactForces )
 							{
 								// Hack inv_dt for single step debugging
-								float inv_dt = world->inv_dt > 0.0f ? world->inv_dt : 60.0f;
+								b3Fixed inv_dt = world->inv_dt > B3_FIX( 0.0f ) ? world->inv_dt : B3_FIX( 60.0f );
 
-								b3Vec3 avgAnchor = b3MulSV( 1.0f / manifold->pointCount, anchorSum );
+								b3Vec3 avgAnchor = b3MulSV( b3FixDiv( B3_FIX( 1.0f ) , b3FixFromInt( manifold->pointCount ) ), anchorSum );
 								b3Pos p1 = b3OffsetPos( contactCenter, avgAnchor );
-								b3Vec3 frictionForce = b3MulSV( 0.5f * inv_dt, manifold->frictionImpulse );
+								b3Vec3 frictionForce = b3MulSV( b3FixMul( B3_FIX( 0.5f ) , inv_dt ), manifold->frictionImpulse );
 								b3Pos p2 = b3OffsetPos( p1, b3MulSV( draw->forceScale, frictionForce ) );
 								draw->DrawSegmentFcn( p1, p2, frictionColor, draw->context );
-								draw->DrawPointFcn( p1, 5.0f, frictionColor, draw->context );
+								draw->DrawPointFcn( p1, B3_FIX( 5.0f ), frictionColor, draw->context );
 
-								p1 = b3OffsetPos( p1, b3MulSV( 0.05f * lengthScale, normal ) );
+								p1 = b3OffsetPos( p1, b3MulSV( b3FixMul( B3_FIX( 0.05f ) , lengthScale ), normal ) );
 								char buffer[32];
-								snprintf( buffer, B3_ARRAY_COUNT( buffer ), "%.2f", b3Length( frictionForce ) );
+								snprintf( buffer, B3_ARRAY_COUNT( buffer ), "%.2f", b3FixToDouble( b3Length( frictionForce ) ) );
 								draw->DrawStringFcn( p1, buffer, b3_colorWhite, draw->context );
 							}
 						}
@@ -1634,8 +1633,8 @@ void b3World_Draw( b3WorldId worldId, b3DebugDraw* draw, uint64_t maskBits )
 
 					int shapeCount = 0;
 					b3AABB aabb = {
-						.lowerBound = { FLT_MAX, FLT_MAX, FLT_MAX },
-						.upperBound = { -FLT_MAX, -FLT_MAX, -FLT_MAX },
+						.lowerBound = { B3_FIXED_MAX, B3_FIXED_MAX, B3_FIXED_MAX },
+						.upperBound = { -B3_FIXED_MAX, -B3_FIXED_MAX, -B3_FIXED_MAX },
 					};
 
 					for ( int b = 0; b < island->bodies.count; ++b )
@@ -1667,8 +1666,8 @@ void b3World_Draw( b3WorldId worldId, b3DebugDraw* draw, uint64_t maskBits )
 	}
 
 	char buffer[32] = { 0 };
-	float lengthUnits = b3GetLengthUnitsPerMeter();
-	b3Vec3 offset = { 0.002f * lengthUnits, 0.002f * lengthUnits, 0.002f * lengthUnits };
+	b3Fixed lengthUnits = b3GetLengthUnitsPerMeter();
+	b3Vec3 offset = { b3FixMul( B3_FIX( 0.002f ) , lengthUnits ), b3FixMul( B3_FIX( 0.002f ) , lengthUnits ), b3FixMul( B3_FIX( 0.002f ) , lengthUnits ) };
 	for ( int i = 0; i < world->workerCount; ++i )
 	{
 		int pointCount = world->taskContexts.data[i].pointCount;
@@ -1677,8 +1676,8 @@ void b3World_Draw( b3WorldId worldId, b3DebugDraw* draw, uint64_t maskBits )
 		{
 			b3DebugPoint* point = points + j;
 			b3Pos p = point->p;
-			draw->DrawPointFcn( p, 5.0f, point->color, draw->context );
-			snprintf( buffer, 32, "   %d, %.2f", point->label, point->value );
+			draw->DrawPointFcn( p, B3_FIX( 5.0f ), point->color, draw->context );
+			snprintf( buffer, 32, "   %d, %.2f", point->label, b3FixToDouble( point->value ) );
 			b3Pos ps = b3OffsetPos( p, offset );
 			draw->DrawStringFcn( ps, buffer, point->color, draw->context );
 		}
@@ -1691,7 +1690,7 @@ void b3World_Draw( b3WorldId worldId, b3DebugDraw* draw, uint64_t maskBits )
 			b3Pos p1 = line->p1;
 			b3Pos p2 = line->p2;
 			draw->DrawSegmentFcn( p1, p2, line->color, draw->context );
-			draw->DrawPointFcn( p1, 10.0f, line->color, draw->context );
+			draw->DrawPointFcn( p1, B3_FIX( 10.0f ), line->color, draw->context );
 			snprintf( buffer, 32, "%d", line->label );
 			b3Pos ps = b3OffsetPos( p1, offset );
 			draw->DrawStringFcn( ps, buffer, line->color, draw->context );
@@ -1704,10 +1703,10 @@ b3AABB b3World_GetBounds( b3WorldId worldId )
 	b3World* world = b3GetUnlockedWorldFromId( worldId );
 	if ( world == NULL )
 	{
-		return (b3AABB){ 0 };
+		return (b3AABB){ b3FixFromInt( 0 ) };
 	}
 
-	b3AABB worldBounds = { 0 };
+	b3AABB worldBounds = { b3FixFromInt( 0 ) };
 	bool haveBounds = false;
 
 	for ( int i = 0; i < b3_bodyTypeCount; ++i )
@@ -2049,7 +2048,7 @@ bool b3World_IsContinuousEnabled( b3WorldId worldId )
 	return world->enableContinuous;
 }
 
-void b3World_SetRestitutionThreshold( b3WorldId worldId, float value )
+void b3World_SetRestitutionThreshold( b3WorldId worldId, b3Fixed value )
 {
 	b3World* world = b3GetUnlockedWorldFromId( worldId );
 	if ( world == NULL )
@@ -2059,16 +2058,16 @@ void b3World_SetRestitutionThreshold( b3WorldId worldId, float value )
 
 	B3_REC( world, WorldSetRestitutionThreshold, worldId, value );
 
-	world->restitutionThreshold = b3ClampFloat( value, 0.0f, FLT_MAX );
+	world->restitutionThreshold = b3FixClamp( value, B3_FIX( 0.0f ), B3_FIXED_MAX );
 }
 
-float b3World_GetRestitutionThreshold( b3WorldId worldId )
+b3Fixed b3World_GetRestitutionThreshold( b3WorldId worldId )
 {
 	b3World* world = b3GetWorldFromId( worldId );
 	return world->restitutionThreshold;
 }
 
-void b3World_SetHitEventThreshold( b3WorldId worldId, float value )
+void b3World_SetHitEventThreshold( b3WorldId worldId, b3Fixed value )
 {
 	b3World* world = b3GetUnlockedWorldFromId( worldId );
 	if ( world == NULL )
@@ -2078,16 +2077,16 @@ void b3World_SetHitEventThreshold( b3WorldId worldId, float value )
 
 	B3_REC( world, WorldSetHitEventThreshold, worldId, value );
 
-	world->hitEventThreshold = b3ClampFloat( value, 0.0f, FLT_MAX );
+	world->hitEventThreshold = b3FixClamp( value, B3_FIX( 0.0f ), B3_FIXED_MAX );
 }
 
-float b3World_GetHitEventThreshold( b3WorldId worldId )
+b3Fixed b3World_GetHitEventThreshold( b3WorldId worldId )
 {
 	b3World* world = b3GetWorldFromId( worldId );
 	return world->hitEventThreshold;
 }
 
-void b3World_SetContactTuning( b3WorldId worldId, float hertz, float dampingRatio, float contactSpeed )
+void b3World_SetContactTuning( b3WorldId worldId, b3Fixed hertz, b3Fixed dampingRatio, b3Fixed contactSpeed )
 {
 	b3World* world = b3GetUnlockedWorldFromId( worldId );
 	if ( world == NULL )
@@ -2097,12 +2096,12 @@ void b3World_SetContactTuning( b3WorldId worldId, float hertz, float dampingRati
 
 	B3_REC( world, WorldSetContactTuning, worldId, hertz, dampingRatio, contactSpeed );
 
-	world->contactHertz = b3ClampFloat( hertz, 0.0f, FLT_MAX );
-	world->contactDampingRatio = b3ClampFloat( dampingRatio, 0.0f, FLT_MAX );
-	world->contactSpeed = b3ClampFloat( contactSpeed, 0.0f, FLT_MAX );
+	world->contactHertz = b3FixClamp( hertz, B3_FIX( 0.0f ), B3_FIXED_MAX );
+	world->contactDampingRatio = b3FixClamp( dampingRatio, B3_FIX( 0.0f ), B3_FIXED_MAX );
+	world->contactSpeed = b3FixClamp( contactSpeed, B3_FIX( 0.0f ), B3_FIXED_MAX );
 }
 
-void b3World_SetContactRecycleDistance( b3WorldId worldId, float recycleDistance )
+void b3World_SetContactRecycleDistance( b3WorldId worldId, b3Fixed recycleDistance )
 {
 	b3World* world = b3GetWorldFromId( worldId );
 	B3_ASSERT( world->locked == false );
@@ -2113,18 +2112,18 @@ void b3World_SetContactRecycleDistance( b3WorldId worldId, float recycleDistance
 
 	B3_REC( world, WorldSetContactRecycleDistance, worldId, recycleDistance );
 
-	world->contactRecycleDistance = b3ClampFloat( recycleDistance, 0.0f, FLT_MAX );
+	world->contactRecycleDistance = b3FixClamp( recycleDistance, B3_FIX( 0.0f ), B3_FIXED_MAX );
 }
 
-float b3World_GetContactRecycleDistance( b3WorldId worldId )
+b3Fixed b3World_GetContactRecycleDistance( b3WorldId worldId )
 {
 	b3World* world = b3GetWorldFromId( worldId );
 	return world->contactRecycleDistance;
 }
 
-void b3World_SetMaximumLinearSpeed( b3WorldId worldId, float maximumLinearSpeed )
+void b3World_SetMaximumLinearSpeed( b3WorldId worldId, b3Fixed maximumLinearSpeed )
 {
-	B3_ASSERT( b3IsValidFloat( maximumLinearSpeed ) && maximumLinearSpeed > 0.0f );
+	B3_ASSERT( b3IsValidFixed( maximumLinearSpeed ) && maximumLinearSpeed > B3_FIX( 0.0f ) );
 
 	b3World* world = b3GetUnlockedWorldFromId( worldId );
 	if ( world == NULL )
@@ -2137,7 +2136,7 @@ void b3World_SetMaximumLinearSpeed( b3WorldId worldId, float maximumLinearSpeed 
 	world->maxLinearSpeed = maximumLinearSpeed;
 }
 
-float b3World_GetMaximumLinearSpeed( b3WorldId worldId )
+b3Fixed b3World_GetMaximumLinearSpeed( b3WorldId worldId )
 {
 	b3World* world = b3GetWorldFromId( worldId );
 	return world->maxLinearSpeed;
@@ -2148,7 +2147,7 @@ b3Profile b3World_GetProfile( b3WorldId worldId )
 	b3World* world = b3GetUnlockedWorldFromId( worldId );
 	if ( world == NULL )
 	{
-		return (b3Profile){ 0 };
+		return (b3Profile){ b3FixFromInt( 0 ) };
 	}
 	return world->profile;
 }
@@ -2657,7 +2656,7 @@ static bool b3TreeOverlapCallback( int proxyId, uint64_t userData, void* context
 		return true;
 	}
 
-	// Re-center on the query origin so the overlap test stays in float precision far from the origin
+	// Re-center on the query origin so the overlap test stays in b3Fixed precision far from the origin
 	b3Body* body = b3Array_Get( world->bodies, shape->bodyId );
 	b3Transform transform = b3ToRelativeTransform( b3GetBodyTransformQuick( world, body ), worldContext->origin );
 
@@ -2699,7 +2698,7 @@ b3TreeStats b3World_OverlapShape( b3WorldId worldId, b3Pos origin, const b3Shape
 		context = &recWriter;
 	}
 
-	// Bound the proxy in origin relative space then lift to a conservative world float box
+	// Bound the proxy in origin relative space then lift to a conservative world b3Fixed box
 	b3AABB aabb = b3OffsetAABB( b3MakeAABB( proxy->points, proxy->count, proxy->radius ), origin );
 	WorldOverlapContext worldContext = {
 		world, fcn, filter, *proxy, origin, context,
@@ -2798,7 +2797,7 @@ void b3World_CollideMover( b3WorldId worldId, b3Pos origin, const b3Capsule* mov
 
 	b3Vec3 r = { mover->radius, mover->radius, mover->radius };
 
-	// Relative box lifted to world float with outward rounding, conservative for the tree
+	// Relative box lifted to world b3Fixed with outward rounding, conservative for the tree
 	b3AABB relBox;
 	relBox.lowerBound = b3Sub( b3Min( mover->center1, mover->center2 ), r );
 	relBox.upperBound = b3Add( b3Max( mover->center1, mover->center2 ), r );
@@ -2826,12 +2825,12 @@ typedef struct WorldRayCastContext
 	b3World* world;
 	b3CastResultFcn* fcn;
 	b3QueryFilter filter;
-	float fraction;
+	b3Fixed fraction;
 	b3Pos origin;
 	void* userContext;
 } WorldRayCastContext;
 
-static float RayCastCallback( const b3RayCastInput* input, int proxyId, uint64_t userData, void* context )
+static b3Fixed RayCastCallback( const b3RayCastInput* input, int proxyId, uint64_t userData, void* context )
 {
 	B3_UNUSED( proxyId );
 
@@ -2867,11 +2866,11 @@ static float RayCastCallback( const b3RayCastInput* input, int proxyId, uint64_t
 
 		int triangleIndex = output.triangleIndex;
 		int childIndex = output.childIndex;
-		float fraction = worldContext->fcn( id, point, output.normal, output.fraction, userMaterialId, triangleIndex, childIndex,
+		b3Fixed fraction = worldContext->fcn( id, point, output.normal, output.fraction, userMaterialId, triangleIndex, childIndex,
 											worldContext->userContext );
 
 		// The user may return -1 to skip this shape
-		if ( 0.0f <= fraction && fraction <= 1.0f )
+		if ( B3_FIX( 0.0f ) <= fraction && fraction <= B3_FIX( 1.0f ) )
 		{
 			worldContext->fraction = fraction;
 		}
@@ -2910,11 +2909,11 @@ b3TreeStats b3World_CastRay( b3WorldId worldId, b3Pos origin, b3Vec3 translation
 		context = &recWriter;
 	}
 
-	// The tree traverses in float relative to the world origin. Each shape is then re-differenced at
+	// The tree traverses in b3Fixed relative to the world origin. Each shape is then re-differenced at
 	// full precision against the origin, so a hit stays accurate far from the origin.
-	b3RayCastInput input = { b3ToVec3( origin ), translation, 1.0f };
+	b3RayCastInput input = { b3ToVec3( origin ), translation, B3_FIX( 1.0f ) };
 
-	WorldRayCastContext worldContext = { world, fcn, filter, 1.0f, origin, context };
+	WorldRayCastContext worldContext = { world, fcn, filter, B3_FIX( 1.0f ), origin, context };
 
 	for ( int i = 0; i < b3_bodyTypeCount; ++i )
 	{
@@ -2923,7 +2922,7 @@ b3TreeStats b3World_CastRay( b3WorldId worldId, b3Pos origin, b3Vec3 translation
 		treeStats.nodeVisits += treeResult.nodeVisits;
 		treeStats.leafVisits += treeResult.leafVisits;
 
-		if ( worldContext.fraction == 0.0f )
+		if ( worldContext.fraction == B3_FIX( 0.0f ) )
 		{
 			break;
 		}
@@ -2942,13 +2941,13 @@ b3TreeStats b3World_CastRay( b3WorldId worldId, b3Pos origin, b3Vec3 translation
 }
 
 // This callback finds the closest hit. This is the most common callback used in games.
-static float b3RayCastClosestFcn( b3ShapeId shapeId, b3Pos point, b3Vec3 normal, float fraction, uint64_t userMaterialId,
+static b3Fixed b3RayCastClosestFcn( b3ShapeId shapeId, b3Pos point, b3Vec3 normal, b3Fixed fraction, uint64_t userMaterialId,
 								  int triangleIndex, int childIndex, void* context )
 {
 	// Ignore initial overlap
-	if ( fraction == 0.0f )
+	if ( fraction == B3_FIX( 0.0f ) )
 	{
-		return -1.0f;
+		return -B3_FIX( 1.0f );
 	}
 
 	b3RayResult* rayResult = (b3RayResult*)context;
@@ -2976,14 +2975,14 @@ b3RayResult b3World_CastRayClosest( b3WorldId worldId, b3Pos origin, b3Vec3 tran
 	B3_ASSERT( b3IsValidPosition( origin ) );
 	B3_ASSERT( b3IsValidVec3( translation ) );
 
-	// The tree traverses in float relative to the world origin. Each shape is then re-differenced at
+	// The tree traverses in b3Fixed relative to the world origin. Each shape is then re-differenced at
 	// full precision against its body, so a hit stays accurate far from the origin.
-	b3RayCastInput input = { b3ToVec3( origin ), translation, 1.0f };
+	b3RayCastInput input = { b3ToVec3( origin ), translation, B3_FIX( 1.0f ) };
 	WorldRayCastContext worldContext = {
 		.world = world,
 		.fcn = b3RayCastClosestFcn,
 		.filter = filter,
-		.fraction = 1.0f,
+		.fraction = B3_FIX( 1.0f ),
 		.origin = origin,
 		.userContext = &result,
 	};
@@ -2995,7 +2994,7 @@ b3RayResult b3World_CastRayClosest( b3WorldId worldId, b3Pos origin, b3Vec3 tran
 		result.nodeVisits += treeResult.nodeVisits;
 		result.leafVisits += treeResult.leafVisits;
 
-		if ( worldContext.fraction == 0.0f )
+		if ( worldContext.fraction == B3_FIX( 0.0f ) )
 		{
 			break;
 		}
@@ -3024,14 +3023,14 @@ typedef struct WorldShapeCastContext
 	b3World* world;
 	b3CastResultFcn* fcn;
 	b3QueryFilter filter;
-	float fraction;
+	b3Fixed fraction;
 	b3Pos origin;
 	// origin relative input
 	b3ShapeCastInput input;
 	void* userContext;
 } WorldShapeCastContext;
 
-static float b3ShapeCastCallback( const b3BoxCastInput* input, int proxyId, uint64_t userData, void* context )
+static b3Fixed b3ShapeCastCallback( const b3BoxCastInput* input, int proxyId, uint64_t userData, void* context )
 {
 	B3_UNUSED( proxyId );
 
@@ -3049,11 +3048,11 @@ static float b3ShapeCastCallback( const b3BoxCastInput* input, int proxyId, uint
 	}
 
 	// Rebuild from the origin relative input, taking only the advancing fraction from the tree.
-	// The tree box is world float and would lose the cast far from the origin.
+	// The tree box is world b3Fixed and would lose the cast far from the origin.
 	b3ShapeCastInput localInput = worldContext->input;
 	localInput.maxFraction = input->maxFraction;
 
-	// Re-center on the query origin so the per-shape cast stays in float precision far from the origin
+	// Re-center on the query origin so the per-shape cast stays in b3Fixed precision far from the origin
 	b3Body* body = b3Array_Get( world->bodies, shape->bodyId );
 	b3Transform transform = b3ToRelativeTransform( b3GetBodyTransformQuick( world, body ), worldContext->origin );
 
@@ -3067,11 +3066,11 @@ static float b3ShapeCastCallback( const b3BoxCastInput* input, int proxyId, uint
 
 		int triangleIndex = output.triangleIndex;
 		int childIndex = output.childIndex;
-		float fraction = worldContext->fcn( id, b3OffsetPos( worldContext->origin, output.point ), output.normal, output.fraction,
+		b3Fixed fraction = worldContext->fcn( id, b3OffsetPos( worldContext->origin, output.point ), output.normal, output.fraction,
 											userMaterialId, triangleIndex, childIndex, worldContext->userContext );
 
 		// The user may return -1 to skip this shape
-		if ( 0.0f <= fraction && fraction <= 1.0f )
+		if ( B3_FIX( 0.0f ) <= fraction && fraction <= B3_FIX( 1.0f ) )
 		{
 			worldContext->fraction = fraction;
 		}
@@ -3115,19 +3114,19 @@ b3TreeStats b3World_CastShape( b3WorldId worldId, b3Pos origin, const b3ShapePro
 	worldContext.world = world;
 	worldContext.fcn = fcn;
 	worldContext.filter = filter;
-	worldContext.fraction = 1.0f;
+	worldContext.fraction = B3_FIX( 1.0f );
 	worldContext.origin = origin;
 	worldContext.input.proxy = *proxy;
 	worldContext.input.translation = translation;
-	worldContext.input.maxFraction = 1.0f;
+	worldContext.input.maxFraction = B3_FIX( 1.0f );
 	worldContext.input.canEncroach = false;
 	worldContext.userContext = context;
 
-	// Bound the proxy in origin relative space then lift to a conservative world float box. The tree
+	// Bound the proxy in origin relative space then lift to a conservative world b3Fixed box. The tree
 	// node boxes use the same directed rounding, so the swept box never clips a shape far from the
 	// origin. Per shape casts re-difference at full precision against the carried origin.
 	b3AABB localBox = b3MakeAABB( proxy->points, proxy->count, proxy->radius );
-	b3BoxCastInput treeInput = { b3OffsetAABB( localBox, origin ), translation, 1.0f };
+	b3BoxCastInput treeInput = { b3OffsetAABB( localBox, origin ), translation, B3_FIX( 1.0f ) };
 
 	for ( int i = 0; i < b3_bodyTypeCount; ++i )
 	{
@@ -3136,7 +3135,7 @@ b3TreeStats b3World_CastShape( b3WorldId worldId, b3Pos origin, const b3ShapePro
 		treeStats.nodeVisits += treeResult.nodeVisits;
 		treeStats.leafVisits += treeResult.leafVisits;
 
-		if ( worldContext.fraction == 0.0f )
+		if ( worldContext.fraction == B3_FIX( 0.0f ) )
 		{
 			break;
 		}
@@ -3159,14 +3158,14 @@ typedef struct WorldMoverCastContext
 	b3World* world;
 	b3MoverFilterFcn* fcn;
 	b3QueryFilter filter;
-	float fraction;
+	b3Fixed fraction;
 	b3Pos origin;
 	// origin relative input
 	b3ShapeCastInput input;
 	void* userContext;
 } WorldMoverCastContext;
 
-static float MoverCastCallback( const b3BoxCastInput* input, int proxyId, uint64_t userData, void* context )
+static b3Fixed MoverCastCallback( const b3BoxCastInput* input, int proxyId, uint64_t userData, void* context )
 {
 	B3_UNUSED( proxyId );
 
@@ -3197,12 +3196,12 @@ static float MoverCastCallback( const b3BoxCastInput* input, int proxyId, uint64
 	b3ShapeCastInput localInput = worldContext->input;
 	localInput.maxFraction = input->maxFraction;
 
-	// Re-center on the query origin so the per-shape cast stays in float precision far from the origin
+	// Re-center on the query origin so the per-shape cast stays in b3Fixed precision far from the origin
 	b3Body* body = b3Array_Get( world->bodies, shape->bodyId );
 	b3Transform transform = b3ToRelativeTransform( b3GetBodyTransformQuick( world, body ), worldContext->origin );
 
 	b3CastOutput output = b3ShapeCastShape( shape, transform, &localInput );
-	if ( output.fraction == 0.0f )
+	if ( output.fraction == B3_FIX( 0.0f ) )
 	{
 		// Ignore overlapping shapes
 		return worldContext->fraction;
@@ -3212,7 +3211,7 @@ static float MoverCastCallback( const b3BoxCastInput* input, int proxyId, uint64
 	return output.fraction;
 }
 
-float b3World_CastMover( b3WorldId worldId, b3Pos origin, const b3Capsule* mover, b3Vec3 translation, b3QueryFilter filter,
+b3Fixed b3World_CastMover( b3WorldId worldId, b3Pos origin, const b3Capsule* mover, b3Vec3 translation, b3QueryFilter filter,
 						 b3MoverFilterFcn* fcn, void* context )
 {
 	B3_ASSERT( b3IsValidPosition( origin ) );
@@ -3221,7 +3220,7 @@ float b3World_CastMover( b3WorldId worldId, b3Pos origin, const b3Capsule* mover
 	b3World* world = b3GetUnlockedWorldFromId( worldId );
 	if ( world == NULL )
 	{
-		return 1.0f;
+		return B3_FIX( 1.0f );
 	}
 
 	// The mover filter is a per-shape bool(shapeId, ctx) decision, the same shape as an overlap
@@ -3246,25 +3245,25 @@ float b3World_CastMover( b3WorldId worldId, b3Pos origin, const b3Capsule* mover
 		.world = world,
 		.fcn = fcn,
 		.filter = filter,
-		.fraction = 1.0f,
+		.fraction = B3_FIX( 1.0f ),
 		.origin = origin,
 		.userContext = context,
 	};
 	worldContext.input.proxy = (b3ShapeProxy){ &mover->center1, 2, mover->radius };
 	worldContext.input.translation = translation;
-	worldContext.input.maxFraction = 1.0f;
-	worldContext.input.canEncroach = mover->radius > 0.0f;
+	worldContext.input.maxFraction = B3_FIX( 1.0f );
+	worldContext.input.canEncroach = mover->radius > B3_FIX( 0.0f );
 
-	// Bound the capsule in origin relative space then lift to a conservative world float box
+	// Bound the capsule in origin relative space then lift to a conservative world b3Fixed box
 	b3Vec3 centers[2] = { mover->center1, mover->center2 };
-	b3BoxCastInput treeInput = { b3OffsetAABB( b3MakeAABB( centers, 2, mover->radius ), origin ), translation, 1.0f };
+	b3BoxCastInput treeInput = { b3OffsetAABB( b3MakeAABB( centers, 2, mover->radius ), origin ), translation, B3_FIX( 1.0f ) };
 
 	for ( int i = 0; i < b3_bodyTypeCount; ++i )
 	{
 		b3DynamicTree_BoxCast( world->broadPhase.trees + i, &treeInput, filter.maskBits, false, MoverCastCallback,
 							   &worldContext );
 
-		if ( worldContext.fraction == 0.0f )
+		if ( worldContext.fraction == B3_FIX( 0.0f ) )
 		{
 			break;
 		}
@@ -3325,9 +3324,9 @@ typedef struct ExplosionContext
 {
 	b3World* world;
 	b3Pos position;
-	float radius;
-	float falloff;
-	float impulsePerArea;
+	b3Fixed radius;
+	b3Fixed falloff;
+	b3Fixed impulsePerArea;
 } ExplosionContext;
 
 static bool ExplosionCallback( int proxyId, uint64_t userData, void* context )
@@ -3339,7 +3338,7 @@ static bool ExplosionCallback( int proxyId, uint64_t userData, void* context )
 	b3World* world = explosionContext->world;
 
 	b3Shape* shape = b3Array_Get( world->shapes, shapeId );
-	if ( shape->explosionScale == 0.0f )
+	if ( shape->explosionScale == B3_FIX( 0.0f ) )
 	{
 		return true;
 	}
@@ -3355,15 +3354,15 @@ static bool ExplosionCallback( int proxyId, uint64_t userData, void* context )
 
 	b3DistanceInput input;
 	input.proxyA = b3MakeShapeProxy( shape );
-	input.proxyB = (b3ShapeProxy){ &localPosition, 1, 0.0f };
+	input.proxyB = (b3ShapeProxy){ &localPosition, 1, B3_FIX( 0.0f ) };
 	input.transform = b3Transform_identity;
 	input.useRadii = true;
 
-	b3SimplexCache cache = { 0 };
+	b3SimplexCache cache = { b3FixFromInt( 0 ) };
 	b3DistanceOutput output = b3ShapeDistance( &input, &cache, NULL, 0 );
 
-	float radius = explosionContext->radius;
-	float falloff = explosionContext->falloff;
+	b3Fixed radius = explosionContext->radius;
+	b3Fixed falloff = explosionContext->falloff;
 	if ( output.distance > radius + falloff )
 	{
 		return true;
@@ -3378,29 +3377,29 @@ static bool ExplosionCallback( int proxyId, uint64_t userData, void* context )
 
 	// Witness point is already in the body local query frame
 	b3Vec3 closestPoint = output.pointA;
-	if ( output.distance == 0.0f )
+	if ( output.distance == B3_FIX( 0.0f ) )
 	{
 		closestPoint = b3GetShapeCentroid( shape );
 	}
 
 	b3Vec3 direction = b3Sub( closestPoint, localPosition );
-	if ( b3LengthSquared( direction ) > 100.0f * FLT_EPSILON * FLT_EPSILON )
+	if ( b3LengthSquared( direction ) > 0 )
 	{
 		direction = b3Normalize( direction );
 	}
 	else
 	{
-		direction = (b3Vec3){ 1.0f, 0.0f, 0.0f };
+		direction = (b3Vec3){ B3_FIX( 1.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
 	}
 
-	float area = b3GetShapeProjectedArea( shape, direction );
-	float scale = 1.0f;
-	if ( output.distance > radius && falloff > 0.0f )
+	b3Fixed area = b3GetShapeProjectedArea( shape, direction );
+	b3Fixed scale = B3_FIX( 1.0f );
+	if ( output.distance > radius && falloff > B3_FIX( 0.0f ) )
 	{
-		scale = b3ClampFloat( ( radius + falloff - output.distance ) / falloff, 0.0f, 1.0f );
+		scale = b3FixClamp( b3FixDiv( ( radius + falloff - output.distance ) , falloff ), B3_FIX( 0.0f ), B3_FIX( 1.0f ) );
 	}
 
-	float magnitude = explosionContext->impulsePerArea * area * scale * shape->explosionScale;
+	b3Fixed magnitude = b3FixMul( b3FixMul( b3FixMul( explosionContext->impulsePerArea , area ) , scale ) , shape->explosionScale );
 	b3Vec3 impulse = b3MulSV( magnitude, b3RotateVector( xf.q, direction ) );
 
 	int localIndex = body->localIndex;
@@ -3420,14 +3419,14 @@ void b3World_Explode( b3WorldId worldId, const b3ExplosionDef* explosionDef )
 {
 	uint64_t maskBits = explosionDef->maskBits;
 	b3Pos position = explosionDef->position;
-	float radius = explosionDef->radius;
-	float falloff = explosionDef->falloff;
-	float impulsePerArea = explosionDef->impulsePerArea;
+	b3Fixed radius = explosionDef->radius;
+	b3Fixed falloff = explosionDef->falloff;
+	b3Fixed impulsePerArea = explosionDef->impulsePerArea;
 
 	B3_ASSERT( b3IsValidPosition( position ) );
-	B3_ASSERT( b3IsValidFloat( radius ) && radius >= 0.0f );
-	B3_ASSERT( b3IsValidFloat( falloff ) && falloff >= 0.0f );
-	B3_ASSERT( b3IsValidFloat( impulsePerArea ) );
+	B3_ASSERT( b3IsValidFixed( radius ) && radius >= B3_FIX( 0.0f ) );
+	B3_ASSERT( b3IsValidFixed( falloff ) && falloff >= B3_FIX( 0.0f ) );
+	B3_ASSERT( b3IsValidFixed( impulsePerArea ) );
 
 	b3World* world = b3GetUnlockedWorldFromId( worldId );
 	if ( world == NULL )
@@ -3442,8 +3441,8 @@ void b3World_Explode( b3WorldId worldId, const b3ExplosionDef* explosionDef )
 
 	struct ExplosionContext explosionContext = { world, position, radius, falloff, impulsePerArea };
 
-	// The broad-phase tree is float, so translate a local query box out to world with outward rounding
-	float extent = radius + falloff;
+	// The broad-phase tree is b3Fixed, so translate a local query box out to world with outward rounding
+	b3Fixed extent = radius + falloff;
 	b3AABB localBox = { { -extent, -extent, -extent }, { extent, extent, extent } };
 	b3AABB aabb = b3OffsetAABB( localBox, position );
 

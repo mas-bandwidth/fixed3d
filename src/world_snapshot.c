@@ -434,17 +434,17 @@ static void b3DesGraphColor( b3SnapReader* r, b3GraphColor* color, bool isOverfl
 static void b3SerWorldConfig( b3RecBuffer* buf, const b3World* world )
 {
 	b3SnapW_Bytes( buf, &world->gravity, sizeof( b3Vec3 ) );
-	b3SnapW_Bytes( buf, &world->hitEventThreshold, sizeof( float ) );
-	b3SnapW_Bytes( buf, &world->restitutionThreshold, sizeof( float ) );
-	b3SnapW_Bytes( buf, &world->maxLinearSpeed, sizeof( float ) );
-	b3SnapW_Bytes( buf, &world->contactSpeed, sizeof( float ) );
-	b3SnapW_Bytes( buf, &world->contactHertz, sizeof( float ) );
-	b3SnapW_Bytes( buf, &world->contactDampingRatio, sizeof( float ) );
-	b3SnapW_Bytes( buf, &world->contactRecycleDistance, sizeof( float ) );
+	b3SnapW_Bytes( buf, &world->hitEventThreshold, sizeof( b3Fixed ) );
+	b3SnapW_Bytes( buf, &world->restitutionThreshold, sizeof( b3Fixed ) );
+	b3SnapW_Bytes( buf, &world->maxLinearSpeed, sizeof( b3Fixed ) );
+	b3SnapW_Bytes( buf, &world->contactSpeed, sizeof( b3Fixed ) );
+	b3SnapW_Bytes( buf, &world->contactHertz, sizeof( b3Fixed ) );
+	b3SnapW_Bytes( buf, &world->contactDampingRatio, sizeof( b3Fixed ) );
+	b3SnapW_Bytes( buf, &world->contactRecycleDistance, sizeof( b3Fixed ) );
 	b3SnapW_Bytes( buf, &world->stepIndex, sizeof( uint64_t ) );
 	b3SnapW_I32( buf, world->splitIslandId );
-	b3SnapW_Bytes( buf, &world->inv_h, sizeof( float ) );
-	b3SnapW_Bytes( buf, &world->inv_dt, sizeof( float ) );
+	b3SnapW_Bytes( buf, &world->inv_h, sizeof( b3Fixed ) );
+	b3SnapW_Bytes( buf, &world->inv_dt, sizeof( b3Fixed ) );
 	b3SnapW_I32( buf, world->endEventArrayIndex );
 	b3SnapW_Bytes( buf, &world->maxCapacity, sizeof( b3Capacity ) );
 	uint8_t flags = 0;
@@ -458,17 +458,17 @@ static void b3SerWorldConfig( b3RecBuffer* buf, const b3World* world )
 static void b3DesWorldConfig( b3SnapReader* r, b3World* world )
 {
 	b3SnapR_Bytes( r, &world->gravity, sizeof( b3Vec3 ) );
-	b3SnapR_Bytes( r, &world->hitEventThreshold, sizeof( float ) );
-	b3SnapR_Bytes( r, &world->restitutionThreshold, sizeof( float ) );
-	b3SnapR_Bytes( r, &world->maxLinearSpeed, sizeof( float ) );
-	b3SnapR_Bytes( r, &world->contactSpeed, sizeof( float ) );
-	b3SnapR_Bytes( r, &world->contactHertz, sizeof( float ) );
-	b3SnapR_Bytes( r, &world->contactDampingRatio, sizeof( float ) );
-	b3SnapR_Bytes( r, &world->contactRecycleDistance, sizeof( float ) );
+	b3SnapR_Bytes( r, &world->hitEventThreshold, sizeof( b3Fixed ) );
+	b3SnapR_Bytes( r, &world->restitutionThreshold, sizeof( b3Fixed ) );
+	b3SnapR_Bytes( r, &world->maxLinearSpeed, sizeof( b3Fixed ) );
+	b3SnapR_Bytes( r, &world->contactSpeed, sizeof( b3Fixed ) );
+	b3SnapR_Bytes( r, &world->contactHertz, sizeof( b3Fixed ) );
+	b3SnapR_Bytes( r, &world->contactDampingRatio, sizeof( b3Fixed ) );
+	b3SnapR_Bytes( r, &world->contactRecycleDistance, sizeof( b3Fixed ) );
 	b3SnapR_Bytes( r, &world->stepIndex, sizeof( uint64_t ) );
 	world->splitIslandId = b3SnapR_I32( r );
-	b3SnapR_Bytes( r, &world->inv_h, sizeof( float ) );
-	b3SnapR_Bytes( r, &world->inv_dt, sizeof( float ) );
+	b3SnapR_Bytes( r, &world->inv_h, sizeof( b3Fixed ) );
+	b3SnapR_Bytes( r, &world->inv_dt, sizeof( b3Fixed ) );
 	world->endEventArrayIndex = b3SnapR_I32( r );
 	b3SnapR_Bytes( r, &world->maxCapacity, sizeof( b3Capacity ) );
 	uint8_t flags = 0;
