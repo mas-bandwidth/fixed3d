@@ -1714,6 +1714,100 @@ static inline void b3AuditM3( int slot, b3Matrix3 value )
 #endif
 
 
+#if defined( B3_SIMD_AVX512 )
+
+// 4x4 transpose of 64-bit lanes: rows in, columns out
+static inline void b3Transpose4x4AVX( __m256i r0, __m256i r1, __m256i r2, __m256i r3, __m256i* c0, __m256i* c1, __m256i* c2,
+									  __m256i* c3 )
+{
+	__m256i t0 = _mm256_unpacklo_epi64( r0, r1 );
+	__m256i t1 = _mm256_unpackhi_epi64( r0, r1 );
+	__m256i t2 = _mm256_unpacklo_epi64( r2, r3 );
+	__m256i t3 = _mm256_unpackhi_epi64( r2, r3 );
+	*c0 = _mm256_permute2x128_si256( t0, t2, 0x20 );
+	*c1 = _mm256_permute2x128_si256( t1, t3, 0x20 );
+	*c2 = _mm256_permute2x128_si256( t0, t2, 0x31 );
+	*c3 = _mm256_permute2x128_si256( t1, t3, 0x31 );
+}
+
+// AoS -> SoA gather through three 4x4 transposes over the 13 contiguous
+// b3Fixed fields of b3BodyState (deltaRotation.s stays scalar: a fourth
+// vector load would read past the end of the states array for the last
+// body). Pure data movement, bit-identical to the scalar member loads.
+static b3BodyStateW b3GatherBodies( const b3BodyState* states, int* indices )
+{
+	_Static_assert( offsetof( b3BodyState, angularVelocity ) == 3 * sizeof( b3Fixed ), "b3BodyState layout" );
+	_Static_assert( offsetof( b3BodyState, deltaPosition ) == 6 * sizeof( b3Fixed ), "b3BodyState layout" );
+	_Static_assert( offsetof( b3BodyState, deltaRotation ) == 9 * sizeof( b3Fixed ), "b3BodyState layout" );
+
+	const b3BodyState* s1 = indices[0] == 0 ? &b3_identityBodyState : states + indices[0] - 1;
+	const b3BodyState* s2 = indices[1] == 0 ? &b3_identityBodyState : states + indices[1] - 1;
+	const b3BodyState* s3 = indices[2] == 0 ? &b3_identityBodyState : states + indices[2] - 1;
+	const b3BodyState* s4 = indices[3] == 0 ? &b3_identityBodyState : states + indices[3] - 1;
+
+	b3BodyStateW simdBody;
+
+	// fields 0..3: v.x v.y v.z w.x
+	b3Transpose4x4AVX( _mm256_loadu_si256( (const __m256i*)&s1->linearVelocity.x ),
+					   _mm256_loadu_si256( (const __m256i*)&s2->linearVelocity.x ),
+					   _mm256_loadu_si256( (const __m256i*)&s3->linearVelocity.x ),
+					   _mm256_loadu_si256( (const __m256i*)&s4->linearVelocity.x ), &simdBody.v.X.v, &simdBody.v.Y.v,
+					   &simdBody.v.Z.v, &simdBody.w.X.v );
+
+	// fields 4..7: w.y w.z dp.x dp.y
+	b3Transpose4x4AVX( _mm256_loadu_si256( (const __m256i*)&s1->angularVelocity.y ),
+					   _mm256_loadu_si256( (const __m256i*)&s2->angularVelocity.y ),
+					   _mm256_loadu_si256( (const __m256i*)&s3->angularVelocity.y ),
+					   _mm256_loadu_si256( (const __m256i*)&s4->angularVelocity.y ), &simdBody.w.Y.v, &simdBody.w.Z.v,
+					   &simdBody.dp.X.v, &simdBody.dp.Y.v );
+
+	// fields 8..11: dp.z dq.v.x dq.v.y dq.v.z
+	b3Transpose4x4AVX( _mm256_loadu_si256( (const __m256i*)&s1->deltaPosition.z ),
+					   _mm256_loadu_si256( (const __m256i*)&s2->deltaPosition.z ),
+					   _mm256_loadu_si256( (const __m256i*)&s3->deltaPosition.z ),
+					   _mm256_loadu_si256( (const __m256i*)&s4->deltaPosition.z ), &simdBody.dp.Z.v, &simdBody.dq.V.X.v,
+					   &simdBody.dq.V.Y.v, &simdBody.dq.V.Z.v );
+
+	simdBody.dq.S = b3MakeW( s1->deltaRotation.s, s2->deltaRotation.s, s3->deltaRotation.s, s4->deltaRotation.s );
+
+	B3_AUDIT_V3W( b3_auditBodyV, simdBody.v );
+	B3_AUDIT_V3W( b3_auditBodyW, simdBody.w );
+	B3_AUDIT_V3W( b3_auditDeltaPos, simdBody.dp );
+
+	return simdBody;
+}
+
+// SoA -> AoS scatter of the velocities: one 32-byte store (v.xyz, w.x) and
+// one 16-byte store (w.y, w.z) per dynamic body, exactly the six fields the
+// scalar version writes.
+static void b3ScatterBodies( b3BodyState* states, int* indices, const b3BodyStateW* simdBody )
+{
+	__m256i row[4];
+	b3Transpose4x4AVX( simdBody->v.X.v, simdBody->v.Y.v, simdBody->v.Z.v, simdBody->w.X.v, row + 0, row + 1, row + 2,
+					   row + 3 );
+
+	__m256i lo = _mm256_unpacklo_epi64( simdBody->w.Y.v, simdBody->w.Z.v ); // [y0 z0 y2 z2]
+	__m256i hi = _mm256_unpackhi_epi64( simdBody->w.Y.v, simdBody->w.Z.v ); // [y1 z1 y3 z3]
+	__m128i half[4];
+	half[0] = _mm256_castsi256_si128( lo );
+	half[1] = _mm256_castsi256_si128( hi );
+	half[2] = _mm256_extracti128_si256( lo, 1 );
+	half[3] = _mm256_extracti128_si256( hi, 1 );
+
+	for ( int lane = 0; lane < B3_SIMD_WIDTH; ++lane )
+	{
+		int index = indices[lane] - 1;
+		if ( index != -1 && ( states[index].flags & b3_dynamicFlag ) != 0 )
+		{
+			b3BodyState* state = states + index;
+			_mm256_storeu_si256( (__m256i*)&state->linearVelocity.x, row[lane] );
+			_mm_storeu_si128( (__m128i*)&state->angularVelocity.y, half[lane] );
+		}
+	}
+}
+
+#else
+
 static b3BodyStateW b3GatherBodies( const b3BodyState* states, int* indices )
 {
 	b3BodyState identity = b3_identityBodyState;
@@ -1796,6 +1890,8 @@ static void b3ScatterBodies( b3BodyState* states, int* indices, const b3BodyStat
 		state->angularVelocity.z = simdBody->w.Z.w;
 	}
 }
+
+#endif // B3_SIMD_AVX512
 
 #if defined( B3_SIMD_AVX512 )
 
