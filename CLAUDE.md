@@ -150,8 +150,11 @@ Fixes landed in session 2 (beyond the session-1 list):
 4. **Sentinel arithmetic wraps**: `-B3_FIXED_MAX - x` wraps to +huge (float
    `-FLT_MAX` saturates). Edge-query "no admissible pair" cases are now guarded
    via `indexB != B3_NULL_INDEX` in `convex_manifold.c` (hull-capsule deep path)
-   and `triangle_manifold.c` (triangle-capsule). Audit any new
-   `sentinel ± value` code.
+   and `triangle_manifold.c` (triangle-capsule). Multiplication too, and worse
+   since b3FixMul stopped saturating: `b3FixMul(1000, B3_FIXED_MAX)` wraps to
+   ~-1000 raw — this made the CCD stall threshold (default B3_FIXED_MAX, float
+   used `1000 * FLT_MAX = inf`) log on every CCD call until guarded in
+   solver.c/shape.c. Audit any new `sentinel ± value` OR `sentinel * value` code.
 5. **Degenerate simplexes are common** in fixed point (support points quantize
    to identical values). GJK (`src/distance.c`) flushes cached simplexes with
    duplicate vertices and restarts (instead of restoring an empty backup) when

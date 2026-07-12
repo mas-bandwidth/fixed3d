@@ -458,8 +458,11 @@ static bool b3ContinuousQueryCallback( int proxyId, uint64_t userData, void* con
 		}
 	}
 
+	// The default threshold is the B3_FIXED_MAX sentinel (float used FLT_MAX, where
+	// 1000 * FLT_MAX = inf disabled the check); multiplying the sentinel wraps.
+	b3Fixed stallThreshold = b3GetStallThreshold();
 	b3Fixed ms = b3GetMilliseconds( ticks );
-	if ( ms > b3FixMul( B3_FIX( 1000.0f ) , b3GetStallThreshold() ) )
+	if ( stallThreshold < B3_FIXED_MAX && ms > b3FixMul( B3_FIX( 1000.0f ) , stallThreshold ) )
 	{
 		const char* nameFast = b3FindNameWithDefault( &world->names, fastBody->nameId, "NULL" );
 		const char* name = b3FindNameWithDefault( &world->names, body->nameId, "NULL" );
@@ -641,8 +644,10 @@ static void b3SolveContinuous( b3World* world, int bodySimIndex, b3TaskContext* 
 	taskContext->pushBackIterations = b3MaxInt( taskContext->pushBackIterations, context.pushBackIterations );
 	taskContext->rootIterations = b3MaxInt( taskContext->rootIterations, context.rootIterations );
 
+	// See the sentinel note at the dynamic-versus-dynamic stall check above
+	b3Fixed stallThreshold = b3GetStallThreshold();
 	b3Fixed ms = b3GetMilliseconds( ticks );
-	if ( ms > b3FixMul( B3_FIX( 1000.0f ) , b3GetStallThreshold() ) )
+	if ( stallThreshold < B3_FIXED_MAX && ms > b3FixMul( B3_FIX( 1000.0f ) , stallThreshold ) )
 	{
 		const char* nameFast = b3FindNameWithDefault( &world->names, fastBody->nameId, "NULL" );
 		b3Vec3 c1 = sweep.c1;

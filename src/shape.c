@@ -2307,8 +2307,11 @@ b3TOIOutput b3ShapeTimeOfImpact( b3Shape* shapeA, b3Shape* shapeB, b3Sweep* swee
 			b3QueryHeightField( shapeA->heightField, localBounds, b3MeshTimeOfImpactFcn, &context );
 		}
 
+		// The default threshold is the B3_FIXED_MAX sentinel (float used FLT_MAX,
+		// where 1000 * FLT_MAX = inf disabled the check); multiplying the sentinel wraps.
+		b3Fixed stallThreshold = b3GetStallThreshold();
 		b3Fixed ms = b3GetMilliseconds( ticks );
-		if ( ms > b3FixMul( B3_FIX( 1000.0f ) , b3GetStallThreshold() ) )
+		if ( stallThreshold < B3_FIXED_MAX && ms > b3FixMul( B3_FIX( 1000.0f ) , stallThreshold ) )
 		{
 			b3Log( "CCD stall: visited %d triangles", context.visitCount );
 		}
