@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 #include "gfx/draw.h"
+#include "fixed_ui.h"
 #include "human.h"
 #include "imgui.h"
 #include "mesh_loader.h"
@@ -18,16 +19,16 @@ public:
 	{
 		if ( context->restart == false )
 		{
-			m_camera->SetView( -55.0f, 30.0f, 60.0f, { 0.0f, 7.5f, 0.0f } );
+			m_camera->SetView( -55.0f, 30.0f, 60.0f, { B3_FIX( 0.0f ), B3_FIX( 7.5f ), B3_FIX( 0.0f ) } );
 		}
 
 		AddGroundBox( 50.0f );
 
 		b3BodyDef bodyDef = b3DefaultBodyDef();
-		bodyDef.position = { 0.0f, 7.5f, -5.0f };
-		bodyDef.rotation = b3MakeQuatFromAxisAngle( { 1.0f, 0.0f, 0.0f }, 40.0f * B3_DEG_TO_RAD );
+		bodyDef.position = { B3_FIX( 0.0f ), B3_FIX( 7.5f ), B3_FIX( -5.0f ) };
+		bodyDef.rotation = b3MakeQuatFromAxisAngle( { B3_FIX( 1.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, 40.0f * B3_DEG_TO_RAD );
 		b3BodyId planeBody = b3CreateBody( m_worldId, &bodyDef );
-		b3BoxHull planeBox = b3MakeBoxHull( 16.0f, 0.5f, 10.0f );
+		b3BoxHull planeBox = b3MakeBoxHull( 16.0f, B3_FIX( 0.5f ), 10.0f );
 		b3ShapeDef shapeDef = b3DefaultShapeDef();
 		shapeDef.baseMaterial.friction = 1.0f;
 		b3CreateHullShape( planeBody, &shapeDef, &planeBox.base );
@@ -36,7 +37,7 @@ public:
 		bodyDef.type = b3_dynamicBody;
 		for ( int index = 0; index < m_boxCount; ++index )
 		{
-			bodyDef.position = { -10.0f + 5.0f * index, 15.75f, -10.6f };
+			bodyDef.position = { b3FixFromFloat( -10.0f + 5.0f * index ), B3_FIX( 15.75f ), B3_FIX( -10.6f ) };
 			b3BodyId boxBody = b3CreateBody( m_worldId, &bodyDef );
 			shapeDef.baseMaterial.friction = ( index + 1 ) * ( index + 1 ) * 0.04f;
 			b3CreateHullShape( boxBody, &shapeDef, &box.base );
@@ -61,7 +62,7 @@ public:
 	{
 		if ( m_context->restart == false )
 		{
-			m_camera->SetView( -140.0f, 17.0f, 60.0f, { 0.0f, 7.5f, 0.0f } );
+			m_camera->SetView( -140.0f, 17.0f, 60.0f, { B3_FIX( 0.0f ), B3_FIX( 7.5f ), B3_FIX( 0.0f ) } );
 		}
 
 		AddGroundBox( 50.0f );
@@ -69,29 +70,29 @@ public:
 		b3BodyDef bodyDef = b3DefaultBodyDef();
 		b3ShapeDef shapeDef = b3DefaultShapeDef();
 
-		bodyDef.position = { 0.0f, 2.0f, -20.0f };
-		bodyDef.rotation = b3MakeQuatFromAxisAngle( { 1.0f, 0.0f, 0.0f }, 10.0f * B3_DEG_TO_RAD );
+		bodyDef.position = { B3_FIX( 0.0f ), B3_FIX( 2.0f ), B3_FIX( -20.0f ) };
+		bodyDef.rotation = b3MakeQuatFromAxisAngle( { B3_FIX( 1.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, 10.0f * B3_DEG_TO_RAD );
 		b3BodyId planeBody = b3CreateBody( m_worldId, &bodyDef );
 
-		b3BoxHull plane = b3MakeBoxHull( 32.0f, 0.5f, 15.0f );
+		b3BoxHull plane = b3MakeBoxHull( 32.0f, B3_FIX( 0.5f ), 15.0f );
 		b3CreateHullShape( planeBody, &shapeDef, &plane.base );
 
-		b3Sphere sphere = { b3Vec3_zero, 1.0f };
+		b3Sphere sphere = { b3Vec3_zero, B3_FIX( 1.0f ) };
 		bodyDef.type = b3_dynamicBody;
 		for ( int index = 0; index < m_count; ++index )
 		{
-			bodyDef.position = { -25.0f + 5.0f * index, 8.0f, -24.0f };
+			bodyDef.position = { b3FixFromFloat( -25.0f + 5.0f * index ), B3_FIX( 8.0f ), B3_FIX( -24.0f ) };
 			b3BodyId body = b3CreateBody( m_worldId, &bodyDef );
 
 			shapeDef.baseMaterial.rollingResistance = 0.05f * index;
 			b3CreateSphereShape( body, &shapeDef, &sphere );
 		}
 
-		b3Capsule capsule = { { -1.0f, 0.0f, 0.0f }, { 1.0f, 0.0f, 0.0f }, 0.5f };
+		b3Capsule capsule = { { B3_FIX( -1.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, { B3_FIX( 1.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, B3_FIX( 0.5f ) };
 		bodyDef.type = b3_dynamicBody;
 		for ( int index = 0; index < m_count; ++index )
 		{
-			bodyDef.position = { 2.0f + 5.0f * index, 8.0f, -24.0f };
+			bodyDef.position = { b3FixFromFloat( 2.0f + 5.0f * index ), B3_FIX( 8.0f ), B3_FIX( -24.0f ) };
 			b3BodyId body = b3CreateBody( m_worldId, &bodyDef );
 
 			shapeDef.baseMaterial.rollingResistance = 0.05f * index;
@@ -117,7 +118,7 @@ public:
 	{
 		if ( m_context->restart == false )
 		{
-			m_camera->SetView( 0.0f, 5.0f, 40.0f, { 0.0f, 7.5f, 0.0f } );
+			m_camera->SetView( 0.0f, 5.0f, 40.0f, { B3_FIX( 0.0f ), B3_FIX( 7.5f ), B3_FIX( 0.0f ) } );
 		}
 
 		AddGroundBox( 50.0f );
@@ -125,12 +126,12 @@ public:
 		b3BodyDef bodyDef = b3DefaultBodyDef();
 		b3ShapeDef shapeDef = b3DefaultShapeDef();
 
-		b3Capsule capsule = { { 0.0f, -1.0f, 0.0f }, { 0.0f, 1.0f, 0.0f }, 0.5f };
+		b3Capsule capsule = { { B3_FIX( 0.0f ), B3_FIX( -1.0f ), B3_FIX( 0.0f ) }, { B3_FIX( 0.0f ), B3_FIX( 1.0f ), B3_FIX( 0.0f ) }, B3_FIX( 0.5f ) };
 		bodyDef.type = b3_dynamicBody;
 		bodyDef.rotation = b3MakeQuatFromAxisAngle( b3Vec3_axisZ, B3_DEG_TO_RAD * 30.0f );
 		for ( int index = 0; index < m_count; ++index )
 		{
-			bodyDef.position = { -22.0f + 5.0f * index, 1.5f, 0.0f };
+			bodyDef.position = { b3FixFromFloat( -22.0f + 5.0f * index ), B3_FIX( 1.5f ), B3_FIX( 0.0f ) };
 			b3BodyId body = b3CreateBody( m_worldId, &bodyDef );
 
 			shapeDef.baseMaterial.rollingResistance = 0.2f * index;
@@ -165,14 +166,14 @@ public:
 		b3BoxHull box = b3MakeBoxHull( 1.0f, 1.0f, 1.0f );
 		bodyDef.type = b3_dynamicBody;
 		b3ShapeDef shapeDef = b3DefaultShapeDef();
-		shapeDef.baseMaterial.friction = 0.6f;
+		shapeDef.baseMaterial.friction = B3_FIX( 0.6f );
 		for ( int index = 0; index < m_boxCount; ++index )
 		{
 			float alpha = B3_PI / 16.0f * index;
 			b3CosSin cs = b3ComputeCosSin( alpha );
-			b3Pos position = { 15.0f * cs.cosine, 1.0f, 15.0f * cs.sine };
-			b3Quat orientation = b3MakeQuatFromAxisAngle( { 0.0f, 1.0f, 0.0f }, -alpha );
-			b3Vec3 velocity = { 25.0f * cs.cosine, 0.0f, 25.0f * cs.sine };
+			b3Pos position = { b3FixFromFloat( 15.0f * cs.cosine ), B3_FIX( 1.0f ), b3FixFromFloat( 15.0f * cs.sine ) };
+			b3Quat orientation = b3MakeQuatFromAxisAngle( { B3_FIX( 0.0f ), B3_FIX( 1.0f ), B3_FIX( 0.0f ) }, -alpha );
+			b3Vec3 velocity = { b3FixFromFloat( 25.0f * cs.cosine ), B3_FIX( 0.0f ), b3FixFromFloat( 25.0f * cs.sine ) };
 
 			bodyDef.position = position;
 			bodyDef.rotation = orientation;
@@ -201,7 +202,7 @@ public:
 	{
 		if ( context->restart == false )
 		{
-			m_camera->SetView( -30.0f, 17.0f, 30.0f, { 0.0f, 5.0f, 0.0f } );
+			m_camera->SetView( -30.0f, 17.0f, 30.0f, { B3_FIX( 0.0f ), B3_FIX( 5.0f ), B3_FIX( 0.0f ) } );
 		}
 
 		AddGroundBox( 50.0f );
@@ -212,21 +213,21 @@ public:
 		b3ShapeDef shapeDef = b3DefaultShapeDef();
 		shapeDef.baseMaterial.friction = 1.0f;
 
-		bodyDef.position = { 0.0f, 4.0f, 0.0f };
+		bodyDef.position = { B3_FIX( 0.0f ), B3_FIX( 4.0f ), B3_FIX( 0.0f ) };
 		bodyDef.rotation = orientation;
 		b3BodyId planeBody = b3CreateBody( m_worldId, &bodyDef );
 
-		b3BoxHull plane = b3MakeBoxHull( 10.0f, 0.5f, 10.0f );
-		shapeDef.baseMaterial.friction = 0.6f;
+		b3BoxHull plane = b3MakeBoxHull( 10.0f, B3_FIX( 0.5f ), 10.0f );
+		shapeDef.baseMaterial.friction = B3_FIX( 0.6f );
 		b3CreateHullShape( planeBody, &shapeDef, &plane.base );
 
 		bodyDef.type = b3_dynamicBody;
-		bodyDef.position = { 0.0f, 5.0f, 0.0f };
+		bodyDef.position = { B3_FIX( 0.0f ), B3_FIX( 5.0f ), B3_FIX( 0.0f ) };
 		bodyDef.rotation = orientation;
 		bodyDef.angularVelocity = 25.0f * b3RotateVector( orientation, b3Vec3_axisY );
 		b3BodyId boxBody = b3CreateBody( m_worldId, &bodyDef );
-		b3BoxHull mBox = b3MakeBoxHull( 1.0f, 0.5f, 1.0f );
-		shapeDef.baseMaterial.friction = 0.3f;
+		b3BoxHull mBox = b3MakeBoxHull( 1.0f, B3_FIX( 0.5f ), 1.0f );
+		shapeDef.baseMaterial.friction = B3_FIX( 0.3f );
 		b3CreateHullShape( boxBody, &shapeDef, &mBox.base );
 	}
 
@@ -252,7 +253,7 @@ public:
 	{
 		if ( context->restart == false )
 		{
-			m_camera->SetView( 0.0f, 25.0f, 85.0f, { 0.0f, 20.0f, 0.0f } );
+			m_camera->SetView( 0.0f, 25.0f, 85.0f, { B3_FIX( 0.0f ), B3_FIX( 20.0f ), B3_FIX( 0.0f ) } );
 		}
 
 		AddGroundBox( 50.0f );
@@ -273,8 +274,8 @@ public:
 			}
 		}
 
-		b3Sphere sphere = { b3Vec3_zero, 0.5f };
-		b3BoxHull box = b3MakeBoxHull( 0.5f, 0.5f, 0.5f );
+		b3Sphere sphere = { b3Vec3_zero, B3_FIX( 0.5f ) };
+		b3BoxHull box = b3MakeBoxHull( B3_FIX( 0.5f ), B3_FIX( 0.5f ), B3_FIX( 0.5f ) );
 
 		b3ShapeDef shapeDef = b3DefaultShapeDef();
 
@@ -287,7 +288,7 @@ public:
 
 		for ( int i = 0; i < m_count; ++i )
 		{
-			bodyDef.position = { x, 40.0f, 0.0f };
+			bodyDef.position = { b3FixFromFloat( x ), B3_FIX( 40.0f ), B3_FIX( 0.0f ) };
 			b3BodyId bodyId = b3CreateBody( m_worldId, &bodyDef );
 
 			m_bodyIds[i] = bodyId;
@@ -346,19 +347,19 @@ public:
 	{
 		if ( context->restart == false )
 		{
-			m_camera->SetView( 0.0f, 25.0f, 10.0f, { 0.0f, 1.0f, 0.0f } );
+			m_camera->SetView( 0.0f, 25.0f, 10.0f, { B3_FIX( 0.0f ), B3_FIX( 1.0f ), B3_FIX( 0.0f ) } );
 		}
 
 		AddGroundBox( 20.0f );
 
 		b3BodyDef bodyDef = b3DefaultBodyDef();
 		bodyDef.type = b3_dynamicBody;
-		bodyDef.position = { 0.25f, 1.0f, 0.0f };
+		bodyDef.position = { B3_FIX( 0.25f ), B3_FIX( 1.0f ), B3_FIX( 0.0f ) };
 		b3BodyId bodyId = b3CreateBody( m_worldId, &bodyDef );
 
 		b3ShapeDef shapeDef = b3DefaultShapeDef();
-		shapeDef.baseMaterial.rollingResistance = 0.2f;
-		b3Sphere sphere = { b3Vec3_zero, 0.5f };
+		shapeDef.baseMaterial.rollingResistance = B3_FIX( 0.2f );
+		b3Sphere sphere = { b3Vec3_zero, B3_FIX( 0.5f ) };
 		b3CreateSphereShape( bodyId, &shapeDef, &sphere );
 
 		m_invoke = false;
@@ -374,9 +375,9 @@ public:
 		}
 
 		b3BodyDef bodyDef = b3DefaultBodyDef();
-		bodyDef.position = { 0.0f, 0.5f, 0.0f };
+		bodyDef.position = { B3_FIX( 0.0f ), B3_FIX( 0.5f ), B3_FIX( 0.0f ) };
 		m_bodyId = b3CreateBody( m_worldId, &bodyDef );
-		b3Sphere sphere = { b3Vec3_zero, 0.5f };
+		b3Sphere sphere = { b3Vec3_zero, B3_FIX( 0.5f ) };
 		b3ShapeDef shapeDef = b3DefaultShapeDef();
 		shapeDef.invokeContactCreation = m_invoke;
 
@@ -443,7 +444,7 @@ public:
 	{
 		if ( context->restart == false )
 		{
-			m_camera->SetView( 0.0f, 25.0f, 40.0f, { 0.0f, 1.0f, 0.0f } );
+			m_camera->SetView( 0.0f, 25.0f, 40.0f, { B3_FIX( 0.0f ), B3_FIX( 1.0f ), B3_FIX( 0.0f ) } );
 		}
 
 		AddGroundBox( 20.0f );
@@ -451,26 +452,26 @@ public:
 		// Platform
 		{
 			b3BodyDef bodyDef = b3DefaultBodyDef();
-			bodyDef.position = { -5.0f, 5.0f, 0.0f };
-			bodyDef.rotation = b3MakeQuatFromAxisAngle( b3Vec3_axisY, 0.2f );
+			bodyDef.position = { B3_FIX( -5.0f ), B3_FIX( 5.0f ), B3_FIX( 0.0f ) };
+			bodyDef.rotation = b3MakeQuatFromAxisAngle( b3Vec3_axisY, B3_FIX( 0.2f ) );
 			b3BodyId bodyId = b3CreateBody( m_worldId, &bodyDef );
 
-			b3BoxHull box = b3MakeBoxHull( 10.0f, 0.25f, 2.0f );
+			b3BoxHull box = b3MakeBoxHull( 10.0f, B3_FIX( 0.25f ), 2.0f );
 
 			b3ShapeDef shapeDef = b3DefaultShapeDef();
-			shapeDef.baseMaterial.friction = 0.8f;
-			shapeDef.baseMaterial.tangentVelocity = { 2.0f, 0.0f, 0.0f };
+			shapeDef.baseMaterial.friction = B3_FIX( 0.8f );
+			shapeDef.baseMaterial.tangentVelocity = { B3_FIX( 2.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
 			b3CreateHullShape( bodyId, &shapeDef, &box.base );
 		}
 
 		// Boxes
 		b3ShapeDef shapeDef = b3DefaultShapeDef();
-		b3BoxHull cube = b3MakeBoxHull( 0.5f, 0.5f, 0.5f );
+		b3BoxHull cube = b3MakeBoxHull( B3_FIX( 0.5f ), B3_FIX( 0.5f ), B3_FIX( 0.5f ) );
 		for ( int i = 0; i < 5; ++i )
 		{
 			b3BodyDef bodyDef = b3DefaultBodyDef();
 			bodyDef.type = b3_dynamicBody;
-			bodyDef.position = { -10.0f + 2.0f * i, 7.0f, 0.0f };
+			bodyDef.position = { b3FixFromFloat( -10.0f + 2.0f * i ), B3_FIX( 7.0f ), B3_FIX( 0.0f ) };
 			b3BodyId bodyId = b3CreateBody( m_worldId, &bodyDef );
 
 			b3CreateHullShape( bodyId, &shapeDef, &cube.base );
@@ -493,7 +494,7 @@ public:
 	{
 		if ( context->restart == false )
 		{
-			m_camera->SetView( 65.0f, 25.0f, 28.0f, { 0.0f, 1.0f, 0.0f } );
+			m_camera->SetView( 65.0f, 25.0f, 28.0f, { B3_FIX( 0.0f ), B3_FIX( 1.0f ), B3_FIX( 0.0f ) } );
 		}
 
 		AddGroundBox( 20.0f );
@@ -507,37 +508,37 @@ public:
 			uint8_t* materialIndices = (uint8_t*)( (intptr_t)m_meshData + m_meshData->materialOffset );
 
 			memset( materialIndices, 0, triangleCount * sizeof( uint8_t ) );
-			m_velocities[0] = { 0.0f, 0.0f, 0.0f };
+			m_velocities[0] = { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
 
 			// +x -z
 			materialIndices[0] = 1;
 			materialIndices[4] = 1;
-			m_velocities[1] = { 0.7f, 0.0f, -0.2f };
+			m_velocities[1] = { B3_FIX( 0.7f ), B3_FIX( 0.0f ), B3_FIX( -0.2f ) };
 
 			// +x +z
 			materialIndices[9] = 2;
 			materialIndices[12] = 2;
-			m_velocities[2] = { 0.6f, 0.0f, 0.4f };
+			m_velocities[2] = { B3_FIX( 0.6f ), B3_FIX( 0.0f ), B3_FIX( 0.4f ) };
 
 			// +z
 			materialIndices[21] = 3;
 			materialIndices[38] = 3;
-			m_velocities[3] = { 0.0f, 0.0f, 1.3f };
+			m_velocities[3] = { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 1.3f ) };
 
 			// -x +z
 			materialIndices[43] = 4;
 			materialIndices[46] = 4;
-			m_velocities[4] = { -0.6f, 0.0f, 0.4f };
+			m_velocities[4] = { B3_FIX( -0.6f ), B3_FIX( 0.0f ), B3_FIX( 0.4f ) };
 
 			// -x -z
 			materialIndices[30] = 5;
 			materialIndices[33] = 5;
-			m_velocities[5] = { -0.75f, 0.0f, -0.4f };
+			m_velocities[5] = { B3_FIX( -0.75f ), B3_FIX( 0.0f ), B3_FIX( -0.4f ) };
 
 			// -z
 			materialIndices[18] = 6;
 			materialIndices[24] = 6;
-			m_velocities[6] = { 0.0f, 0.0f, -1.3f };
+			m_velocities[6] = { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( -1.3f ) };
 
 			b3HexColor colors[7] = {
 				b3_colorGreen,	   b3_colorGreenYellow, b3_colorHoneyDew, b3_colorHotPink,
@@ -548,12 +549,12 @@ public:
 			for ( int i = 0; i < 7; ++i )
 			{
 				materials[i] = b3DefaultSurfaceMaterial();
-				materials[i].friction = 0.8f;
+				materials[i].friction = B3_FIX( 0.8f );
 				materials[i].tangentVelocity = 2.0f * m_velocities[i];
 				materials[i].customColor = colors[i];
 			}
 
-			m_meshTransform.p = { 0.0f, 0.5f, 6.0f };
+			m_meshTransform.p = { B3_FIX( 0.0f ), B3_FIX( 0.5f ), B3_FIX( 6.0f ) };
 			m_meshTransform.q = b3MakeQuatFromAxisAngle( b3Vec3_axisY, 0.5f * B3_PI );
 			// m_meshTransform.q = b3Quat_identity;
 
@@ -570,7 +571,7 @@ public:
 
 		// High number of sides to stress the collision code
 		// Normally the number of sides should be 16 or less.
-		m_cylinderHull = b3CreateCylinder( 0.3f, 0.15f, 0.0f, 32 );
+		m_cylinderHull = b3CreateCylinder( B3_FIX( 0.3f ), B3_FIX( 0.15f ), 0.0f, 32 );
 		b3ShapeDef shapeDef = b3DefaultShapeDef();
 
 		// Cylinders
@@ -578,7 +579,7 @@ public:
 		{
 			b3BodyDef bodyDef = b3DefaultBodyDef();
 			bodyDef.type = b3_dynamicBody;
-			bodyDef.position = { -8.5f + 0.9f * i, 1.5f, -5.5f };
+			bodyDef.position = { b3FixFromFloat( -8.5f + 0.9f * i ), B3_FIX( 1.5f ), B3_FIX( -5.5f ) };
 			b3BodyId bodyId = b3CreateBody( m_worldId, &bodyDef );
 
 			b3CreateHullShape( bodyId, &shapeDef, m_cylinderHull );
@@ -690,7 +691,7 @@ public:
 	{
 		if ( context->restart == false )
 		{
-			m_camera->SetView( 0.0f, 0.0f, 5.0f, { 0.0f, 1.0f, 0.0f } );
+			m_camera->SetView( 0.0f, 0.0f, 5.0f, { B3_FIX( 0.0f ), B3_FIX( 1.0f ), B3_FIX( 0.0f ) } );
 		}
 
 		AddGroundBox( 20.0f );
@@ -701,11 +702,11 @@ public:
 		}
 
 		m_shapeType = e_boxShape;
-		m_wind = { 6.0f, 0.0f, 0.0f };
+		m_wind = { B3_FIX( 6.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
 		m_drag = 1.0f;
 		m_lift = 0.75f;
 		m_count = 10;
-		m_noise = { 0.0f, 0.0f, 0.0f };
+		m_noise = { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
 
 		// Need this to be false for debug draw to work
 		m_stepWhilePaused = false;
@@ -727,26 +728,26 @@ public:
 		float radius = 0.1f;
 		float verticalOffset = 2.0f;
 
-		b3Sphere sphere = { { 0.0f, 0.0f, 0.0f }, radius };
-		b3Capsule capsule = { { -radius, 0.0f, 0.0f }, { radius, 0.0f, 0.0f }, 0.5f * radius };
+		b3Sphere sphere = { { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, b3FixFromFloat( radius ) };
+		b3Capsule capsule = { { b3FixFromFloat( -radius ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, { b3FixFromFloat( radius ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, b3FixFromFloat( 0.5f * radius ) };
 		b3BoxHull box = b3MakeBoxHull( 1.25f * radius, 0.75f * radius, 0.125f * radius );
 
 		b3SphericalJointDef jointDef = b3DefaultSphericalJointDef();
 		jointDef.base.bodyIdA = m_groundId;
-		jointDef.base.localFrameA.p = { 0.0f, verticalOffset, 0.0f };
-		jointDef.base.drawScale = 0.1f;
+		jointDef.base.localFrameA.p = { B3_FIX( 0.0f ), b3FixFromFloat( verticalOffset ), B3_FIX( 0.0f ) };
+		jointDef.base.drawScale = B3_FIX( 0.1f );
 
 		b3ShapeDef shapeDef = b3DefaultShapeDef();
 		shapeDef.density = 20.0f;
 
 		b3BodyDef bodyDef = b3DefaultBodyDef();
 		bodyDef.type = b3_dynamicBody;
-		bodyDef.gravityScale = 0.5f;
+		bodyDef.gravityScale = B3_FIX( 0.5f );
 		bodyDef.enableSleep = false;
 
 		for ( int i = 0; i < m_count; ++i )
 		{
-			bodyDef.position = { ( 2.0f * i + 1.0f ) * radius, verticalOffset, 0.0f };
+			bodyDef.position = { b3FixFromFloat( ( 2.0f * i + 1.0f ) * radius ), b3FixFromFloat( verticalOffset ), B3_FIX( 0.0f ) };
 			m_bodyIds[i] = b3CreateBody( m_worldId, &bodyDef );
 
 			if ( m_shapeType == e_sphereShape )
@@ -763,11 +764,11 @@ public:
 			}
 
 			jointDef.base.bodyIdB = m_bodyIds[i];
-			jointDef.base.localFrameB.p = { -radius, 0.0f, 0.0f };
+			jointDef.base.localFrameB.p = { b3FixFromFloat( -radius ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
 			b3CreateSphericalJoint( m_worldId, &jointDef );
 
 			jointDef.base.bodyIdA = m_bodyIds[i];
-			jointDef.base.localFrameA.p = { radius, 0.0f, 0.0f };
+			jointDef.base.localFrameA.p = { b3FixFromFloat( radius ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
 		}
 	}
 
@@ -781,7 +782,7 @@ public:
 			CreateScene();
 		}
 
-		ImGui::SliderFloat( "Wind", &m_wind.x, -50.0f, 50.0f, "%.1f" );
+		SliderFixed( "Wind", &m_wind.x, -50.0f, 50.0f, "%.1f" );
 		ImGui::SliderFloat( "Drag", &m_drag, 0.0f, 1.0f, "%.2f" );
 		ImGui::SliderFloat( "Lift", &m_lift, 0.0f, 4.0f, "%.2f" );
 		if ( ImGui::SliderInt( "Count", &m_count, 1, m_maxCount, "%d" ) )
@@ -799,7 +800,7 @@ public:
 
 		if ( shouldStep == true )
 		{
-			float speed;
+			b3Fixed speed;
 			b3Vec3 direction = b3GetLengthAndNormalize( &speed, m_wind );
 			b3Vec3 wind = b3MulSV( speed, b3Add( direction, m_noise ) );
 
@@ -813,11 +814,11 @@ public:
 				}
 			}
 
-			b3Vec3 rand = RandomVec3( { -0.3f, -0.3f, -0.3f }, { 0.3f, 0.3f, 0.3f } );
-			m_noise = b3Lerp( m_noise, rand, 0.05f );
+			b3Vec3 rand = RandomVec3( { B3_FIX( -0.3f ), B3_FIX( -0.3f ), B3_FIX( -0.3f ) }, { B3_FIX( 0.3f ), B3_FIX( 0.3f ), B3_FIX( 0.3f ) } );
+			m_noise = b3Lerp( m_noise, rand, B3_FIX( 0.05f ) );
 
-			b3Pos p1 = { 0.0f, 0.5f, 0.0f };
-			b3Pos p2 = p1 + b3MulSV( 0.2f, wind );
+			b3Pos p1 = { B3_FIX( 0.0f ), B3_FIX( 0.5f ), B3_FIX( 0.0f ) };
+			b3Pos p2 = p1 + b3MulSV( B3_FIX( 0.2f ), wind );
 			DrawArrow( p1, p2, MakeColor( b3_colorFuchsia ) );
 		}
 	}
@@ -849,7 +850,7 @@ public:
 	{
 		if ( context->restart == false )
 		{
-			m_camera->SetView( -45.0f, 15.0f, 20.0f, { 0.0f, 5.0f, 0.0f } );
+			m_camera->SetView( -45.0f, 15.0f, 20.0f, { B3_FIX( 0.0f ), B3_FIX( 5.0f ), B3_FIX( 0.0f ) } );
 		}
 
 		AddGroundBox( 15.0f );
@@ -869,11 +870,11 @@ public:
 
 		b3BodyDef bodyDef = b3DefaultBodyDef();
 		bodyDef.type = b3_dynamicBody;
-		bodyDef.linearVelocity = { 0.0f, 0.0f, 0.0f };
-		bodyDef.rotation = b3MakeQuatFromAxisAngle( b3Vec3_axisX, 0.25f );
-		bodyDef.gravityScale = 0.5f;
+		bodyDef.linearVelocity = { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
+		bodyDef.rotation = b3MakeQuatFromAxisAngle( b3Vec3_axisX, B3_FIX( 0.25f ) );
+		bodyDef.gravityScale = B3_FIX( 0.5f );
 
-		bodyDef.position = { 0.0f, 10.0f, 0.0f };
+		bodyDef.position = { B3_FIX( 0.0f ), B3_FIX( 10.0f ), B3_FIX( 0.0f ) };
 		b3BodyId bodyId = b3CreateBody( m_worldId, &bodyDef );
 
 		m_shapeId = b3CreateHullShape( bodyId, &shapeDef, &box.base );
@@ -910,7 +911,7 @@ public:
 	{
 		if ( context->restart == false )
 		{
-			m_camera->SetView( -35.0f, 15.0f, 65.0f, { 0.0f, 5.0f, 10.0f } );
+			m_camera->SetView( -35.0f, 15.0f, 65.0f, { B3_FIX( 0.0f ), B3_FIX( 5.0f ), B3_FIX( 10.0f ) } );
 		}
 
 		AddGroundBox( 50.0f );
@@ -923,12 +924,12 @@ public:
 
 		float a = 0.4f;
 		// b3BoxHull box = b3MakeBoxHull( 0.25f * radius, 1.25f * radius, 0.25f * radius );
-		b3Capsule capsule = { { 0.0f, 0.0f, -a }, { 0.0f, 0.0f, a }, 0.25f * a };
+		b3Capsule capsule = { { B3_FIX( 0.0f ), B3_FIX( 0.0f ), b3FixFromFloat( -a ) }, { B3_FIX( 0.0f ), B3_FIX( 0.0f ), b3FixFromFloat( a ) }, b3FixFromFloat( 0.25f * a ) };
 		// b3BoxHull box = b3MakeBoxHull( 2.0f * a, 0.01f, a );
-		b3Transform wingTransform1 = { b3Vec3_zero, b3MakeQuatFromAxisAngle( b3Vec3_axisX, 0.1f ) };
-		b3BoxHull box1 = b3MakeTransformedBoxHull( 2.0f * a, 0.01f, a, wingTransform1 );
-		b3Transform wingTransform2 = { b3Vec3_zero, b3MakeQuatFromAxisAngle( b3Vec3_axisX, 0.1f ) };
-		b3BoxHull box2 = b3MakeTransformedBoxHull( 2.0f * a, 0.01f, a, wingTransform2 );
+		b3Transform wingTransform1 = { b3Vec3_zero, b3MakeQuatFromAxisAngle( b3Vec3_axisX, B3_FIX( 0.1f ) ) };
+		b3BoxHull box1 = b3MakeTransformedBoxHull( 2.0f * a, B3_FIX( 0.01f ), a, wingTransform1 );
+		b3Transform wingTransform2 = { b3Vec3_zero, b3MakeQuatFromAxisAngle( b3Vec3_axisX, B3_FIX( 0.1f ) ) };
+		b3BoxHull box2 = b3MakeTransformedBoxHull( 2.0f * a, B3_FIX( 0.01f ), a, wingTransform2 );
 
 		float y = 20.0f;
 
@@ -939,15 +940,15 @@ public:
 		// bodyDef.gravityScale = 0.5f;
 
 		shapeDef.density = 5.0f;
-		bodyDef.position = { -2.0f * a, y, 0.0f };
+		bodyDef.position = { b3FixFromFloat( -2.0f * a ), b3FixFromFloat( y ), B3_FIX( 0.0f ) };
 		b3BodyId wingBodyId1 = b3CreateBody( m_worldId, &bodyDef );
 		m_shapeId1 = b3CreateHullShape( wingBodyId1, &shapeDef, &box1.base );
 
-		bodyDef.position = { 2.0f * a, y, 0.0f };
+		bodyDef.position = { b3FixFromFloat( 2.0f * a ), b3FixFromFloat( y ), B3_FIX( 0.0f ) };
 		b3BodyId wingBodyId2 = b3CreateBody( m_worldId, &bodyDef );
 		m_shapeId2 = b3CreateHullShape( wingBodyId2, &shapeDef, &box2.base );
 
-		bodyDef.position = { 0.0f, y, 0.0f };
+		bodyDef.position = { B3_FIX( 0.0f ), b3FixFromFloat( y ), B3_FIX( 0.0f ) };
 		// bodyDef.type = b3_staticBody;
 		b3BodyId torsoBodyId = b3CreateBody( m_worldId, &bodyDef );
 
@@ -955,21 +956,21 @@ public:
 		m_torsoShapeId = b3CreateCapsuleShape( torsoBodyId, &shapeDef, &capsule );
 
 		b3RevoluteJointDef jointDef = b3DefaultRevoluteJointDef();
-		jointDef.base.drawScale = 0.1f;
+		jointDef.base.drawScale = B3_FIX( 0.1f );
 		jointDef.base.bodyIdA = torsoBodyId;
-		jointDef.base.localFrameA.p = { 0.0f, 0.0f, 0.0f };
+		jointDef.base.localFrameA.p = { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
 		jointDef.base.bodyIdB = wingBodyId1;
-		jointDef.base.localFrameB.p = { 2.0f * a, 0.0f, 0.0f };
+		jointDef.base.localFrameB.p = { b3FixFromFloat( 2.0f * a ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
 		jointDef.enableSpring = true;
 		jointDef.hertz = 6.0f;
-		jointDef.dampingRatio = 0.5f;
+		jointDef.dampingRatio = B3_FIX( 0.5f );
 		jointDef.enableLimit = true;
 		jointDef.lowerAngle = -30.0f * B3_PI / 180.0f;
 		jointDef.upperAngle = 30.0f * B3_PI / 180.0f;
 		m_jointId1 = b3CreateRevoluteJoint( m_worldId, &jointDef );
 
 		jointDef.base.bodyIdB = wingBodyId2;
-		jointDef.base.localFrameB.p = { -2.0f * a, 0.0f, 0.0f };
+		jointDef.base.localFrameB.p = { b3FixFromFloat( -2.0f * a ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
 		m_jointId2 = b3CreateRevoluteJoint( m_worldId, &jointDef );
 
 		b3FilterJointDef filterDef = b3DefaultFilterJointDef();

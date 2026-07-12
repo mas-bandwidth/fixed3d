@@ -1216,13 +1216,13 @@ void InitRenderer( const sg_environment* env )
 	OverlayInit();
 	s_gfx.swapchainColorFormat = env->defaults.color_format;
 
-	s_gfx.sun.dirToSun = b3Normalize( (b3Vec3){ 0.5f, 0.8f, 0.4f } );
+	s_gfx.sun.dirToSun = b3Normalize( (b3Vec3){ B3_FIX( 0.5f ), B3_FIX( 0.8f ), B3_FIX( 0.4f ) } );
 
 	// Sun strength 8.0 matches the target "soft" sun:sky luminance ratio
 	// (~8:1) under AgX with EV=-2. AgX's curve absorbs the extra headroom
 	// and the image lands at a sensible exposure.
 	// Using s to reduce the sun strength
-	s_gfx.sun.color = (b3Vec3){ 8.0f, 7.6f, 6.8f };
+	s_gfx.sun.color = (b3Vec3){ 8.0f, B3_FIX( 7.6f ), B3_FIX( 6.8f ) };
 
 	// Multiplies the color to make the strength easily tuned
 	s_gfx.sun.strength = 0.8f;

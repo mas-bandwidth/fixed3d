@@ -14,6 +14,7 @@
 #include "box3d/box3d.h"
 
 #include <assert.h>
+#include <float.h>
 #include <math.h>
 #include <stdbool.h>
 #include <stddef.h>
@@ -428,7 +429,7 @@ static b3Transform GetCapsuleLocalFrame( b3Vec3 c1, b3Vec3 c2, float* outHalfLen
 		// For rendering, the capsule axis is along x
 		t.q = b3ComputeQuatBetweenUnitVectors( b3Vec3_axisX, axis );
 	}
-	t.p = b3Lerp( c1, c2, 0.5f );
+	t.p = b3Lerp( c1, c2, B3_FIX( 0.5f ) );
 	return t;
 }
 
@@ -946,26 +947,29 @@ static void DrawTransformFcn( b3WorldTransform transform, void* context )
 					   OVERLAY_OCCLUSION_HIDE );
 }
 
-static void DrawPointFcn( b3Pos p, float size, b3HexColor color, void* context )
+static void DrawPointFcn( b3Pos p, b3Fixed size, b3HexColor color, void* context )
 {
 	(void)context;
-	OverlayAppendPoint( b3SubPos( p, GetDrawOrigin() ), HexColorToVec4( color ), size, OVERLAY_THICKNESS_PIXELS,
-						OVERLAY_OCCLUSION_HIDE );
+	OverlayAppendPoint( b3SubPos( p, GetDrawOrigin() ), HexColorToVec4( color ), b3FixToFloat( size ),
+						OVERLAY_THICKNESS_PIXELS, OVERLAY_OCCLUSION_HIDE );
 }
 
-static void DrawSphereFcn( b3Pos p, float radius, b3HexColor color, float alpha, void* context )
+static void DrawSphereFcn( b3Pos p, b3Fixed radius, b3HexColor color, b3Fixed alpha, void* context )
 {
 	(void)context;
-	DrawSphereEx( (b3WorldTransform){ p, b3Quat_identity }, radius, HexColorAToVec4( color, alpha ), DEFAULT_METALLIC,
-				  DEFAULT_ROUGHNESS, TRANSPARENT_SHADOW_NONE );
+	DrawSphereEx( (b3WorldTransform){ p, b3Quat_identity }, b3FixToFloat( radius ),
+				  HexColorAToVec4( color, b3FixToFloat( alpha ) ), DEFAULT_METALLIC, DEFAULT_ROUGHNESS,
+				  TRANSPARENT_SHADOW_NONE );
 }
 
-static void DrawCapsuleFcn( b3Pos p1, b3Pos p2, float radius, b3HexColor color, float alpha, void* context )
+static void DrawCapsuleFcn( b3Pos p1, b3Pos p2, b3Fixed radiusFixed, b3HexColor color, b3Fixed alphaFixed, void* context )
 {
 	(void)context;
 
+	float radius = b3FixToFloat( radiusFixed );
+	float alpha = b3FixToFloat( alphaFixed );
 	b3Vec3 e = b3SubPos(p2, p1);
-	float length = b3Length( e );
+	float length = b3FixToFloat( b3Length( e ) );
 	if (length < FLT_EPSILON)
 	{
 		DrawSphereEx( (b3WorldTransform){ p1, b3Quat_identity }, radius, HexColorAToVec4( color, alpha ), DEFAULT_METALLIC,
@@ -975,7 +979,7 @@ static void DrawCapsuleFcn( b3Pos p1, b3Pos p2, float radius, b3HexColor color, 
 
 	b3Vec3 en = b3MulSV( 1.0f / length, e );
 	b3WorldTransform transform;
-	transform.p = b3OffsetPos( p1, b3MulSV( 0.5f, e ));
+	transform.p = b3OffsetPos( p1, b3MulSV( B3_FIX( 0.5f ), e ));
 	transform.q = b3ComputeQuatBetweenUnitVectors( b3Vec3_axisX, en );
 
 	DrawCapsuleEx( transform, 0.5f * length, radius, HexColorAToVec4( color, alpha ), DEFAULT_METALLIC,

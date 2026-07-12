@@ -47,7 +47,7 @@ public:
 						float coeff = i - 0.5f * count;
 
 						float yy = count == 1 ? y + 2.0f : y;
-						bodyDef.position = { 2.0f * coeff * extent + offset, yy, 0.0f };
+						bodyDef.position = { b3FixFromFloat( 2.0f * coeff * extent + offset ), b3FixFromFloat( yy ), B3_FIX( 0.0f ) };
 						b3BodyId bodyId = b3CreateBody( m_worldId, &bodyDef );
 
 						shapeDef.density = count == 1 ? ( j + 1.0f ) * 100.0f : 1.0f;
@@ -80,7 +80,7 @@ public:
 	{
 		if ( m_context->restart == false )
 		{
-			m_camera->SetView( -30.0f, 20.0f, 10.0f, { 0.0f, 0.5f, 0.0f } );
+			m_camera->SetView( -30.0f, 20.0f, 10.0f, { B3_FIX( 0.0f ), B3_FIX( 0.5f ), B3_FIX( 0.0f ) } );
 		}
 
 		AddGroundBox( 20.0f );
@@ -103,7 +103,7 @@ public:
 				for ( int j = i; j < baseCount; ++j )
 				{
 					float x = ( i + 1.0f ) * m_extent + 2.0f * ( j - i ) * m_extent - baseCount * m_extent;
-					bodyDef.position = { x, y, 0.0f };
+					bodyDef.position = { b3FixFromFloat( x ), b3FixFromFloat( y ), B3_FIX( 0.0f ) };
 
 					b3BodyId bodyId = b3CreateBody( m_worldId, &bodyDef );
 					b3CreateHullShape( bodyId, &shapeDef, &box.base );
@@ -185,7 +185,7 @@ public:
 			float x = fraction * m_extent * ( i - m_baseCount );
 			for ( int j = i; j < m_baseCount; ++j )
 			{
-				bodyDef.position = { x, y };
+				bodyDef.position = { b3FixFromFloat( x ), b3FixFromFloat( y ) };
 				b3BodyId bodyId = b3CreateBody( m_worldId, &bodyDef );
 
 				b3CreateHullShape( bodyId, &shapeDef, &box.base );

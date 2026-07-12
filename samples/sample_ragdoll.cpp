@@ -32,7 +32,7 @@ public:
 
 	void Spawn()
 	{
-		CreateHuman( &m_human, m_worldId, { 0.0f, 2.0f, 0.0f }, m_jointFrictionTorque, m_jointHertz, m_jointDampingRatio, 1,
+		CreateHuman( &m_human, m_worldId, { B3_FIX( 0.0f ), B3_FIX( 2.0f ), B3_FIX( 0.0f ) }, m_jointFrictionTorque, m_jointHertz, m_jointDampingRatio, 1,
 					 nullptr, false );
 		// Human_ApplyRandomAngularImpulse( &m_human, 10.0f );
 	}
@@ -100,36 +100,36 @@ public:
 
 		{
 			b3Transform transform;
-			transform.p = { 0.0f, 5.0f, -20.0f };
+			transform.p = { B3_FIX( 0.0f ), B3_FIX( 5.0f ), B3_FIX( -20.0f ) };
 			transform.q = b3Quat_identity;
-			b3BoxHull wallBox = b3MakeTransformedBoxHull( 20.0f, 5.0f, 0.1f, transform );
+			b3BoxHull wallBox = b3MakeTransformedBoxHull( 20.0f, 5.0f, B3_FIX( 0.1f ), transform );
 			b3ShapeDef shapeDef = b3DefaultShapeDef();
 			b3CreateHullShape( m_groundId, &shapeDef, &wallBox.base );
 		}
 
 		{
 			b3Transform transform;
-			transform.p = { 0.0f, 5.0f, 20.0f };
+			transform.p = { B3_FIX( 0.0f ), B3_FIX( 5.0f ), B3_FIX( 20.0f ) };
 			transform.q = b3Quat_identity;
-			b3BoxHull wallBox = b3MakeTransformedBoxHull( 20.0f, 5.0f, 0.1f, transform );
+			b3BoxHull wallBox = b3MakeTransformedBoxHull( 20.0f, 5.0f, B3_FIX( 0.1f ), transform );
 			b3ShapeDef shapeDef = b3DefaultShapeDef();
 			b3CreateHullShape( m_groundId, &shapeDef, &wallBox.base );
 		}
 
 		{
 			b3Transform transform;
-			transform.p = { -20.0f, 5.0f, 0.0f };
+			transform.p = { B3_FIX( -20.0f ), B3_FIX( 5.0f ), B3_FIX( 0.0f ) };
 			transform.q = b3Quat_identity;
-			b3BoxHull wallBox = b3MakeTransformedBoxHull( 0.1f, 5.0f, 20.0f, transform );
+			b3BoxHull wallBox = b3MakeTransformedBoxHull( B3_FIX( 0.1f ), 5.0f, 20.0f, transform );
 			b3ShapeDef shapeDef = b3DefaultShapeDef();
 			b3CreateHullShape( m_groundId, &shapeDef, &wallBox.base );
 		}
 
 		{
 			b3Transform transform;
-			transform.p = { 20.0f, 5.0f, 0.0f };
+			transform.p = { B3_FIX( 20.0f ), B3_FIX( 5.0f ), B3_FIX( 0.0f ) };
 			transform.q = b3Quat_identity;
-			b3BoxHull wallBox = b3MakeTransformedBoxHull( 0.1f, 5.0f, 20.0f, transform );
+			b3BoxHull wallBox = b3MakeTransformedBoxHull( B3_FIX( 0.1f ), 5.0f, 20.0f, transform );
 			b3ShapeDef shapeDef = b3DefaultShapeDef();
 			b3CreateHullShape( m_groundId, &shapeDef, &wallBox.base );
 		}
@@ -150,7 +150,7 @@ public:
 
 	void Spawn()
 	{
-		CreateHuman( &m_human, m_worldId, { 0.0f, 1.0f, 0.0f }, m_jointFrictionTorque, m_jointHertz, m_jointDampingRatio, 1,
+		CreateHuman( &m_human, m_worldId, { B3_FIX( 0.0f ), B3_FIX( 1.0f ), B3_FIX( 0.0f ) }, m_jointFrictionTorque, m_jointHertz, m_jointDampingRatio, 1,
 					 nullptr, false );
 		// Human_AlignSpring( &m_human, m_worldId, m_groundId, 25.0f, 1.0f );
 		//  Human_ApplyRandomAngularImpulse( &m_human, 10.0f );
@@ -225,7 +225,7 @@ public:
 		}
 
 		b3BodyDef bodyDef = b3DefaultBodyDef();
-		bodyDef.position = { 0.0f, -1.0f, 0.0f };
+		bodyDef.position = { B3_FIX( 0.0f ), B3_FIX( -1.0f ), B3_FIX( 0.0f ) };
 		b3BodyId groundId = b3CreateBody( m_worldId, &bodyDef );
 
 		b3ShapeDef shapeDef = b3DefaultShapeDef();
@@ -234,7 +234,7 @@ public:
 
 		for ( int i = 0; i < e_count; ++i )
 		{
-			b3Pos position = { 0.1f * i, 2.0f + 0.5f * i, -0.1f * i };
+			b3Pos position = { b3FixFromFloat( 0.1f * i ), b3FixFromFloat( 2.0f + 0.5f * i ), b3FixFromFloat( -0.1f * i ) };
 			float torque = 10.0f;
 			float hertz = 0.5f;
 			float damping = 0.7f;
@@ -277,7 +277,7 @@ public:
 
 		{
 			b3BodyDef bodyDef = b3DefaultBodyDef();
-			bodyDef.position = { -10.0f, 2.0f, 0.0f };
+			bodyDef.position = { B3_FIX( -10.0f ), B3_FIX( 2.0f ), B3_FIX( 0.0f ) };
 			bodyDef.rotation = b3MakeQuatFromAxisAngle( b3Vec3_axisZ, -0.2f * B3_PI );
 			b3BodyId groundId = b3CreateBody( m_worldId, &bodyDef );
 			b3CreateMeshShape( groundId, &shapeDef, m_groundMesh, b3Vec3_one );
@@ -285,14 +285,14 @@ public:
 
 		{
 			b3BodyDef bodyDef = b3DefaultBodyDef();
-			bodyDef.position = { 0.0f, 0.0f, 0.0f };
+			bodyDef.position = { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
 			b3BodyId groundId = b3CreateBody( m_worldId, &bodyDef );
-			b3Vec3 scale = { 4.0f, 4.0f, 4.0f };
+			b3Vec3 scale = { B3_FIX( 4.0f ), B3_FIX( 4.0f ), B3_FIX( 4.0f ) };
 			b3CreateMeshShape( groundId, &shapeDef, m_groundMesh, scale );
 		}
 
 		m_human = {};
-		b3Pos position = { -12.0f, 6.0f, 0.0f };
+		b3Pos position = { B3_FIX( -12.0f ), B3_FIX( 6.0f ), B3_FIX( 0.0f ) };
 		float torque = 10.0f;
 		float hertz = 2.0f;
 		float damping = 0.7f;
@@ -313,8 +313,8 @@ public:
 	{
 		if ( m_time > 2.0f && m_motorized == true )
 		{
-			Human_SetJointFrictionTorque( &m_human, 0.5f );
-			Human_SetJointSpringHertz( &m_human, 0.5f );
+			Human_SetJointFrictionTorque( &m_human, B3_FIX( 0.5f ) );
+			Human_SetJointSpringHertz( &m_human, B3_FIX( 0.5f ) );
 			m_motorized = false;
 		}
 

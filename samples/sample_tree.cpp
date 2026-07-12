@@ -301,12 +301,12 @@ public:
 		Generate();
 	}
 
-	static float RayCallback( const b3RayCastInput* input, int proxyId, uint64_t userData, void* context )
+	static b3Fixed RayCallback( const b3RayCastInput* input, int proxyId, uint64_t userData, void* context )
 	{
 		TreeBenchmark* sample = static_cast<TreeBenchmark*>( context );
 		Proxy& proxy = sample->m_proxies[userData];
 		proxy.rayTimeStamp = sample->m_timeStamp;
-		return 1.0f;
+		return B3_FIX( 1.0f );
 	}
 
 	static bool QueryCallback( int proxyId, uint64_t userData, void* context )
@@ -317,7 +317,7 @@ public:
 		return true;
 	}
 
-	static float ClosetPointCallback( float minDistanceSquared, int proxyId, uint64_t userData, void* context )
+	static b3Fixed ClosetPointCallback( b3Fixed minDistanceSquared, int proxyId, uint64_t userData, void* context )
 	{
 		(void)proxyId;
 
@@ -327,7 +327,7 @@ public:
 		proxy.queryTimeStamp = sample->m_timeStamp;
 		b3Vec3 queryPoint = sample->m_closestPointQueries[testIndex].center;
 		b3Vec3 closestPoint = b3ClosestPointToAABB( queryPoint, proxy.aabb );
-		float distanceSquared = b3DistanceSquared( queryPoint, closestPoint );
+		b3Fixed distanceSquared = b3DistanceSquared( queryPoint, closestPoint );
 		if ( distanceSquared < minDistanceSquared )
 		{
 			sample->m_closestPoint = b3ToPos( closestPoint );
@@ -352,7 +352,7 @@ public:
 			b3Vec3 end = RandomVec3( bounds.lowerBound, bounds.upperBound );
 			m_rays[i].translation = end - m_rays[i].origin;
 
-			float s = RandomFloatRange( 0.01f, 0.2f );
+			float s = RandomFloatRange( B3_FIX( 0.01f ), B3_FIX( 0.2f ) );
 			b3Vec3 c = RandomVec3( bounds.lowerBound, bounds.upperBound );
 			b3Vec3 p1 = c - s * extents;
 			b3Vec3 p2 = c + s * extents;
@@ -362,7 +362,7 @@ public:
 
 			m_closestPointQueries[i] = {
 				.center = c,
-				.radius = s * radius,
+				.radius = b3FixFromFloat( s * radius ),
 			};
 		}
 	}
@@ -373,7 +373,7 @@ public:
 		for ( int i = 0; i < m_testCount; ++i )
 		{
 			Ray ray = m_rays[i];
-			b3RayCastInput input = { ray.origin, ray.translation, 1.0f };
+			b3RayCastInput input = { ray.origin, ray.translation, B3_FIX( 1.0f ) };
 
 			b3DynamicTree_RayCast( &m_tree, &input, B3_DEFAULT_MASK_BITS, false, RayCallback, this );
 		}
@@ -388,8 +388,8 @@ public:
 		for ( int i = 0; i < m_testCount; ++i )
 		{
 			b3Vec3 point = m_closestPointQueries[i].center;
-			float radius = m_closestPointQueries[i].radius;
-			float distanceSquared = radius * radius;
+			b3Fixed radius = m_closestPointQueries[i].radius;
+			b3Fixed distanceSquared = b3FixMul( radius, radius );
 			m_closestPoint = b3ToPos( point );
 			m_haveClosest = false;
 			b3DynamicTree_QueryClosest( &m_tree, point, B3_DEFAULT_MASK_BITS, false, ClosetPointCallback, this,
@@ -555,7 +555,7 @@ public:
 		if ( m_doRay )
 		{
 			Ray ray = m_rays[m_testIndex];
-			b3RayCastInput input = { ray.origin, ray.translation, 1.0f };
+			b3RayCastInput input = { ray.origin, ray.translation, B3_FIX( 1.0f ) };
 
 			b3DynamicTree_RayCast( &m_tree, &input, B3_DEFAULT_MASK_BITS, false, RayCallback, this );
 		}
@@ -568,8 +568,8 @@ public:
 		if ( m_doClosest )
 		{
 			b3Vec3 point = m_closestPointQueries[m_testIndex].center;
-			float radius = m_closestPointQueries[m_testIndex].radius;
-			float distanceSquared = radius * radius;
+			b3Fixed radius = m_closestPointQueries[m_testIndex].radius;
+			b3Fixed distanceSquared = b3FixMul( radius, radius );
 			m_closestPoint = b3ToPos( point );
 			m_haveClosest = false;
 			b3DynamicTree_QueryClosest( &m_tree, point, B3_DEFAULT_MASK_BITS, false, ClosetPointCallback, this,

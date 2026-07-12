@@ -274,11 +274,11 @@ static void OnEvent( const sapp_event* e )
 		case SAPP_EVENTTYPE_MOUSE_DOWN:
 			s_context.mouseX = e->mouse_x;
 			s_context.mouseY = e->mouse_y;
-			s_context.sample->MouseDown( { e->mouse_x, e->mouse_y }, e->mouse_button, mods );
+			s_context.sample->MouseDown( { b3FixFromFloat( e->mouse_x ), b3FixFromFloat( e->mouse_y ) }, e->mouse_button, mods );
 			break;
 
 		case SAPP_EVENTTYPE_MOUSE_UP:
-			s_context.sample->MouseUp( { e->mouse_x, e->mouse_y }, e->mouse_button );
+			s_context.sample->MouseUp( { b3FixFromFloat( e->mouse_x ), b3FixFromFloat( e->mouse_y ) }, e->mouse_button );
 			break;
 
 		case SAPP_EVENTTYPE_MOUSE_MOVE:
@@ -286,7 +286,7 @@ static void OnEvent( const sapp_event* e )
 			s_context.mouseY = e->mouse_y;
 			s_context.mouseDX = e->mouse_dx;
 			s_context.mouseDY = e->mouse_dy;
-			s_context.sample->MouseMove( { e->mouse_x, e->mouse_y } );
+			s_context.sample->MouseMove( { b3FixFromFloat( e->mouse_x ), b3FixFromFloat( e->mouse_y ) } );
 			break;
 
 		case SAPP_EVENTTYPE_RESIZED:

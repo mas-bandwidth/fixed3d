@@ -35,7 +35,7 @@ static void ReverseZPerspectiveAndInverse( Mat4* outProj, Mat4* outProjInv, floa
 static b3Vec3 ForwardFromAngles( float yaw, float pitch )
 {
 	const float cp = cosf( pitch );
-	return b3Vec3{ sinf( yaw ) * cp, sinf( pitch ), cosf( yaw ) * cp };
+	return b3Vec3{ b3FixFromFloat( sinf( yaw ) * cp ), b3FixFromFloat( sinf( pitch ) ), b3FixFromFloat( cosf( yaw ) * cp ) };
 }
 
 // Refresh the world-space basis and the view / viewInv pair from yaw / pitch /
@@ -44,7 +44,7 @@ static b3Vec3 ForwardFromAngles( float yaw, float pitch )
 static void RebuildBasisAndView( Camera& c )
 {
 	const b3Vec3 forward = ForwardFromAngles( c.m_yaw, c.m_pitch );
-	const b3Vec3 worldUp = { 0.0f, 1.0f, 0.0f };
+	const b3Vec3 worldUp = { B3_FIX( 0.0f ), B3_FIX( 1.0f ), B3_FIX( 0.0f ) };
 	// up = worldUp re-orthogonalized against forward. right = up x forward.
 	// Matches Box3D's UpdateTransform; produces a right-handed view basis.
 	const b3Vec3 upUnnorm = b3Sub( worldUp, b3MulSV( b3Dot( worldUp, forward ), forward ) );
@@ -71,7 +71,7 @@ static void RebuildBasisAndView( Camera& c )
 }
 
 Camera::Camera()
-	: m_pivot{ 0.0f, 0.0f, 0.0f }
+	: m_pivot{ B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }
 	, m_yaw( 35.0f * DEG_TO_RAD )
 	, m_pitch( -25.0f * DEG_TO_RAD )
 	, m_radius( 25.0f )
@@ -83,11 +83,11 @@ Camera::Camera()
 	, m_width( 0 )
 	, m_height( 0 )
 	, m_thirdPerson( false )
-	, m_position{ 0.0f, 0.0f, 0.0f }
-	, m_worldEye{ 0.0f, 0.0f, 0.0f }
-	, m_right{ 1.0f, 0.0f, 0.0f }
-	, m_up{ 0.0f, 1.0f, 0.0f }
-	, m_forward{ 0.0f, 0.0f, 1.0f }
+	, m_position{ B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }
+	, m_worldEye{ B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }
+	, m_right{ B3_FIX( 1.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }
+	, m_up{ B3_FIX( 0.0f ), B3_FIX( 1.0f ), B3_FIX( 0.0f ) }
+	, m_forward{ B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 1.0f ) }
 	, m_view( MakeIdentity() )
 	, m_viewInv( MakeIdentity() )
 	, m_proj( MakeIdentity() )
@@ -145,8 +145,8 @@ static b3AABB TransformAABBToDisplay( const Mat4& s, b3AABB a )
 	Vec4 lo = MulMV4( s, MakeVec4( a.lowerBound.x, a.lowerBound.y, a.lowerBound.z, 1.0f ) );
 	Vec4 hi = MulMV4( s, MakeVec4( a.upperBound.x, a.upperBound.y, a.upperBound.z, 1.0f ) );
 	b3AABB out;
-	out.lowerBound = { fminf( lo.x, hi.x ), fminf( lo.y, hi.y ), fminf( lo.z, hi.z ) };
-	out.upperBound = { fmaxf( lo.x, hi.x ), fmaxf( lo.y, hi.y ), fmaxf( lo.z, hi.z ) };
+	out.lowerBound = { b3FixFromFloat( fminf( lo.x, hi.x ) ), b3FixFromFloat( fminf( lo.y, hi.y ) ), b3FixFromFloat( fminf( lo.z, hi.z ) ) };
+	out.upperBound = { b3FixFromFloat( fmaxf( lo.x, hi.x ) ), b3FixFromFloat( fmaxf( lo.y, hi.y ) ), b3FixFromFloat( fmaxf( lo.z, hi.z ) ) };
 	return out;
 }
 
@@ -244,8 +244,8 @@ PickRay Camera::BuildPickRay( float x, float y ) const
 	float invWN = 1.0f / wN.w;
 	float invWF = 1.0f / wF.w;
 
-	b3Vec3 nearWorld = { wN.x * invWN, wN.y * invWN, wN.z * invWN };
-	b3Vec3 farWorld = { wF.x * invWF, wF.y * invWF, wF.z * invWF };
+	b3Vec3 nearWorld = { b3FixFromFloat( wN.x * invWN ), b3FixFromFloat( wN.y * invWN ), b3FixFromFloat( wN.z * invWN ) };
+	b3Vec3 farWorld = { b3FixFromFloat( wF.x * invWF ), b3FixFromFloat( wF.y * invWF ), b3FixFromFloat( wF.z * invWF ) };
 
 	// viewInv folds in S^-1, so the unprojected points are in simulation space
 	// relative to the eye. Lift the near point with the simulation eye so the ray
@@ -439,7 +439,7 @@ void Camera::Update( float dt, int width, int height )
 		{
 			// Right = normalize(worldUp x forward), matching Box3D's
 			// UpdateTransform. worldUp = (0,1,0).
-			const b3Vec3 worldUp = { 0.0f, 1.0f, 0.0f };
+			const b3Vec3 worldUp = { B3_FIX( 0.0f ), B3_FIX( 1.0f ), B3_FIX( 0.0f ) };
 			b3Vec3 right = b3Cross( worldUp, forward );
 			const float rlen = sqrtf( right.x * right.x + right.y * right.y + right.z * right.z );
 			if ( rlen > 1.0e-6f )

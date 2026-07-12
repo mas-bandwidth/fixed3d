@@ -6,6 +6,7 @@
 #endif
 
 #include "sample.h"
+#include "fixed_ui.h"
 
 #include "benchmarks.h"
 #include "gfx/debug_adapter.h"
@@ -313,8 +314,8 @@ Sample::Sample( SampleContext* context )
 	m_didStep = false;
 
 	m_haveMouseLast = false;
-	m_mouseLast = { 0.0f, 0.0f };
-	m_mouseDelta = { 0.0f, 0.0f };
+	m_mouseLast = { B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
+	m_mouseDelta = { B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
 	m_launchSpeedScale = 5.0f;
 
 	g_randomSeed = RAND_SEED;
@@ -532,7 +533,7 @@ b3BodyId Sample::AddGroundBox( float extent )
 {
 	b3BodyDef bodyDef = b3DefaultBodyDef();
 	bodyDef.name = "ground";
-	bodyDef.position = { 0.0f, -1.0f, 0.0f };
+	bodyDef.position = { B3_FIX( 0.0f ), B3_FIX( -1.0f ), B3_FIX( 0.0f ) };
 	b3BodyId groundId = b3CreateBody( m_worldId, &bodyDef );
 
 	b3ShapeDef shapeDef = b3DefaultShapeDef();
@@ -1173,7 +1174,7 @@ void Sample::MouseDown( b3Vec2 p, int button, int modifiers )
 			jointDef.base.bodyIdA = m_mouseBodyId;
 			jointDef.base.bodyIdB = bodyId;
 			jointDef.base.localFrameB.p = b3Body_GetLocalPoint( bodyId, result.point );
-			jointDef.linearHertz = 7.5f;
+			jointDef.linearHertz = B3_FIX( 7.5f );
 			jointDef.linearDampingRatio = 1.0f;
 
 			b3MassData massData = b3Body_GetMassData( bodyId );
@@ -1211,7 +1212,7 @@ void Sample::MouseDown( b3Vec2 p, int button, int modifiers )
 			bodyDef.isBullet = true;
 			b3BodyId bodyId = b3CreateBody( m_worldId, &bodyDef );
 
-			b3HullData* hull = b3CreateCylinder( 2.0f, 0.15f, 0.0f, 6 );
+			b3HullData* hull = b3CreateCylinder( 2.0f, B3_FIX( 0.15f ), 0.0f, 6 );
 			b3CreateHullShape( bodyId, &shapeDef, hull );
 			b3DestroyHull( hull );
 		}
@@ -1232,7 +1233,7 @@ void Sample::MouseDown( b3Vec2 p, int button, int modifiers )
 			bodyDef.isBullet = true;
 			b3BodyId bodyId = b3CreateBody( m_worldId, &bodyDef );
 
-			b3Sphere sphere = { b3Vec3_zero, 0.25f };
+			b3Sphere sphere = { b3Vec3_zero, B3_FIX( 0.25f ) };
 			shapeDef.density *= 4.0f;
 			b3CreateSphereShape( bodyId, &shapeDef, &sphere );
 		}
@@ -1262,7 +1263,7 @@ void Sample::MouseMove( b3Vec2 p )
 	{
 		// The cursor is locked in third person, so look uses the host's
 		// relative deltas. Camera angles are radians here (host camera).
-		m_mouseDelta = { m_context->mouseDX, m_context->mouseDY };
+		m_mouseDelta = { b3FixFromFloat( m_context->mouseDX ), b3FixFromFloat( m_context->mouseDY ) };
 
 		const float sensitivity = 0.1f * B3_DEG_TO_RAD;
 		m_camera->m_yaw -= 2.0f * sensitivity * m_mouseDelta.x;
@@ -1652,8 +1653,8 @@ static void DrawMenuBar( SampleContext* context )
 			if ( ImGui::BeginMenu( "Scale" ) )
 			{
 				ImGui::PushItemWidth( 6.0f * fontSize );
-				ImGui::InputFloat( "Joint", &gd->jointScale );
-				ImGui::InputFloat( "Force", &gd->forceScale, 0, 0, "%.6f", ImGuiInputTextFlags_CharsScientific );
+				InputFixed( "Joint", &gd->jointScale );
+				InputFixed( "Force", &gd->forceScale, 0, 0, "%.6f", ImGuiInputTextFlags_CharsScientific );
 				ImGui::PopItemWidth();
 				ImGui::EndMenu();
 			}
@@ -1922,7 +1923,7 @@ static void DrawInfoPanel( SampleContext* context )
 	// The camera lives in display space, so pivot, radius and speed are in meters
 	// regardless of the simulation's length units.
 	b3Pos p = context->camera.m_pivot;
-	ImGui::TextColored( HexColor( b3_colorSeaGreen ), "pivot m (%.1f, %.1f, %.1f)", p.x, p.y, p.z );
+	ImGui::TextColored( HexColor( b3_colorSeaGreen ), "pivot m (%.1f, %.1f, %.1f)", b3FixToDouble( p.x ), b3FixToDouble( p.y ), b3FixToDouble( p.z ) );
 	float yawDeg = B3_RAD_TO_DEG * context->camera.m_yaw;
 	float pitchDeg = B3_RAD_TO_DEG * context->camera.m_pitch;
 	ImGui::TextColored( HexColor( b3_colorSeaGreen ), "yaw/pitch (%.1f, %.1f)", yawDeg, pitchDeg );
@@ -2055,7 +2056,7 @@ void Sample::ToggleThirdPerson()
 	}
 }
 
-float CastClosestCallback( b3ShapeId shapeId, b3Pos point, b3Vec3 normal, float fraction, uint64_t materialId, int triangleIndex,
+b3Fixed CastClosestCallback( b3ShapeId shapeId, b3Pos point, b3Vec3 normal, b3Fixed fraction, uint64_t materialId, int triangleIndex,
 						   int childIndex, void* context )
 {
 	CastClosestContext* rayContext = (CastClosestContext*)context;
@@ -2089,8 +2090,8 @@ void CharacterMover::Initialize( Sample* sample, b3Pos position )
 	m_sample = sample;
 	m_transform.p = position;
 	m_transform.q = b3Quat_identity;
-	m_velocity = { 0.0f, 0.0f, 0.0f };
-	m_capsule = { { 0.0f, -0.5f, 0.0f }, { 0.0f, 0.5f, 0.0f }, 0.3f };
+	m_velocity = { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
+	m_capsule = { { B3_FIX( 0.0f ), B3_FIX( -0.5f ), B3_FIX( 0.0f ) }, { B3_FIX( 0.0f ), B3_FIX( 0.5f ), B3_FIX( 0.0f ) }, B3_FIX( 0.3f ) };
 
 	m_planeCount = 0;
 	m_totalIterations = 0;
@@ -2125,8 +2126,8 @@ static bool PlaneResultFcn( b3ShapeId shapeId, const b3PlaneResult* planeResults
 		assert( b3IsValidPlane( planeResults[i].plane ) );
 		self->m_planes[self->m_planeCount] = {
 			.plane = planeResults[i].plane,
-			.pushLimit = maxPush,
-			.push = 0.0f,
+			.pushLimit = b3FixFromFloat( maxPush ),
+			.push = B3_FIX( 0.0f ),
 			.clipVelocity = clipVelocity,
 		};
 		self->m_planeExtras[self->m_planeCount] = {
@@ -2162,7 +2163,7 @@ void CharacterMover::SolveMove( float timeStep, b3Vec3 forward, b3Vec3 right, b3
 	float maxSpeed = m_sprint ? 1.5f * m_maxSpeed : m_maxSpeed;
 
 	b3Vec3 desiredVelocity = maxSpeed * throttle.x * forward + maxSpeed * throttle.y * right;
-	float desiredSpeed;
+	b3Fixed desiredSpeed;
 	b3Vec3 desiredDirection = b3GetLengthAndNormalize( &desiredSpeed, desiredVelocity );
 
 	if ( desiredSpeed > maxSpeed )
@@ -2318,7 +2319,7 @@ void CharacterMover::Step( b3ShapeId* ignoreShapes, int ignoreCount, bool clipVe
 	m_ignoreShapeIds = ignoreShapes;
 	m_ignoreCount = ignoreCount;
 
-	b3Vec2 throttle = { 0.0f, 0.0f };
+	b3Vec2 throttle = { B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
 	b3Vec3 forward = -m_sample->m_camera->GetForward();
 	b3Vec3 right = m_sample->m_camera->GetRight();
 	forward.y = 0.0f;
@@ -2385,7 +2386,7 @@ void CharacterMover::Step( b3ShapeId* ignoreShapes, int ignoreCount, bool clipVe
 	{
 		b3Plane plane = m_planes[i].plane;
 		b3Pos p1 = position + ( plane.offset - m_capsule.radius ) * plane.normal;
-		b3Pos p2 = p1 + 0.1f * plane.normal;
+		b3Pos p2 = p1 + B3_FIX( 0.1f ) * plane.normal;
 		DrawPoint( p1, 5.0f, MakeColor( b3_colorYellow ) );
 		DrawLine( p1, p2, MakeColor( b3_colorYellow ) );
 	}

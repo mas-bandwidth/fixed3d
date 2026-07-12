@@ -138,7 +138,6 @@ bool b3IsValidWorldTransform( b3WorldTransform t )
 // Internal Q32.32 helpers for the deterministic trig routines. Angles are in
 // [-pi, pi] so the extra fraction bits keep the approximations accurate well
 // below the Q48.16 output resolution.
-#if B3_HAS_INT128
 
 static inline int64_t b3Q32Mul( int64_t a, int64_t b )
 {
@@ -150,24 +149,6 @@ static inline int64_t b3Q32Div( int64_t a, int64_t b )
 	return (int64_t)( b3Int128ShiftLeft( a, 32 ) / b );
 }
 
-#else
-
-static inline int64_t b3Q32Mul( int64_t a, int64_t b )
-{
-	int64_t hi;
-	uint64_t lo = _mul128( a, b, &hi );
-	return (int64_t)__shiftright128( lo, (uint64_t)hi, 32 );
-}
-
-static inline int64_t b3Q32Div( int64_t a, int64_t b )
-{
-	int64_t hi = a >> 32;
-	uint64_t lo = (uint64_t)a << 32;
-	int64_t remainder;
-	return _div128( hi, lo, b, &remainder );
-}
-
-#endif
 
 static inline int64_t b3Q32Sqrt( int64_t a )
 {

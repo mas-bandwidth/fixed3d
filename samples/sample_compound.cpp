@@ -25,13 +25,13 @@ public:
 
 		{
 			float a = 4.0f;
-			b3Vec3 extents = { a, 0.125f * a, a };
+			b3Vec3 extents = { b3FixFromFloat( a ), b3FixFromFloat( 0.125f * a ), b3FixFromFloat( a ) };
 			b3SurfaceMaterial material = b3DefaultSurfaceMaterial();
 			b3BoxHull box = b3MakeBoxHull( extents.x, extents.y, extents.z );
 
 			b3Transform hullTransform;
-			hullTransform.p = { 1.0f, -0.125f * a, 0.0f };
-			hullTransform.q = b3MakeQuatFromAxisAngle( b3Normalize( { 1.0f, 0.0f, 1.0f } ), 0.0f * B3_PI );
+			hullTransform.p = { B3_FIX( 1.0f ), b3FixFromFloat( -0.125f * a ), B3_FIX( 0.0f ) };
+			hullTransform.q = b3MakeQuatFromAxisAngle( b3Normalize( { B3_FIX( 1.0f ), B3_FIX( 0.0f ), B3_FIX( 1.0f ) } ), 0.0f * B3_PI );
 
 			b3CompoundHullDef hullDef = {
 				.hull = &box.base,
@@ -46,8 +46,8 @@ public:
 			m_compound = b3CreateCompound( &def );
 
 			b3BodyDef bodyDef = b3DefaultBodyDef();
-			bodyDef.position = { 2.0f, -1.0f, 0.0f };
-			bodyDef.rotation = b3MakeQuatFromAxisAngle( { 0.0f, 1.0f, 0.0f }, 0.25f * B3_PI );
+			bodyDef.position = { B3_FIX( 2.0f ), B3_FIX( -1.0f ), B3_FIX( 0.0f ) };
+			bodyDef.rotation = b3MakeQuatFromAxisAngle( { B3_FIX( 0.0f ), B3_FIX( 1.0f ), B3_FIX( 0.0f ) }, 0.25f * B3_PI );
 			b3BodyId groundId = b3CreateBody( m_worldId, &bodyDef );
 
 			b3ShapeDef shapeDef = b3DefaultShapeDef();
@@ -59,11 +59,11 @@ public:
 		{
 			b3BodyDef bodyDef = b3DefaultBodyDef();
 			bodyDef.type = b3_dynamicBody;
-			bodyDef.position = { 0.0f, 2.0f, 0.0f };
+			bodyDef.position = { B3_FIX( 0.0f ), B3_FIX( 2.0f ), B3_FIX( 0.0f ) };
 			b3BodyId bodyId = b3CreateBody( m_worldId, &bodyDef );
 
 			b3ShapeDef shapeDef = b3DefaultShapeDef();
-			b3Sphere sphere = { b3Vec3_zero, 0.25f };
+			b3Sphere sphere = { b3Vec3_zero, B3_FIX( 0.25f ) };
 			b3CreateSphereShape( bodyId, &shapeDef, &sphere );
 		}
 
@@ -89,7 +89,7 @@ public:
 	void Render() override
 	{
 		Sample::Render();
-		b3Transform transform = { { 0.0f, 0.01f, 0.0f }, b3Quat_identity };
+		b3Transform transform = { { B3_FIX( 0.0f ), B3_FIX( 0.01f ), B3_FIX( 0.0f ) }, b3Quat_identity };
 		DrawAxes( b3MakeWorldTransform( transform ), 1.0f );
 
 		int height = b3DynamicTree_GetHeight( &m_compound->tree );
@@ -118,8 +118,8 @@ public:
 		}
 
 		float h = 10.0f;
-		b3Vec3 lower = { -h, -h, -h };
-		b3Vec3 upper = { h, h, h };
+		b3Vec3 lower = { b3FixFromFloat( -h ), b3FixFromFloat( -h ), b3FixFromFloat( -h ) };
+		b3Vec3 upper = { b3FixFromFloat( h ), b3FixFromFloat( h ), b3FixFromFloat( h ) };
 		b3CompoundSphereDef spheres[m_count];
 		for ( int i = 0; i < m_count; ++i )
 		{
@@ -149,7 +149,7 @@ public:
 	void Render() override
 	{
 		Sample::Render();
-		b3Transform transform = { { 0.0f, 0.01f, 0.0f }, b3Quat_identity };
+		b3Transform transform = { { B3_FIX( 0.0f ), B3_FIX( 0.01f ), B3_FIX( 0.0f ) }, b3Quat_identity };
 		DrawAxes( b3MakeWorldTransform( transform ), 1.0f );
 
 		int height = b3DynamicTree_GetHeight( &m_compound->tree );
@@ -179,8 +179,8 @@ public:
 		}
 
 		float h = 10.0f;
-		b3Vec3 lower = { -h, -h, -h };
-		b3Vec3 upper = { h, h, h };
+		b3Vec3 lower = { b3FixFromFloat( -h ), b3FixFromFloat( -h ), b3FixFromFloat( -h ) };
+		b3Vec3 upper = { b3FixFromFloat( h ), b3FixFromFloat( h ), b3FixFromFloat( h ) };
 		b3SurfaceMaterial material = b3DefaultSurfaceMaterial();
 		b3BoxHull boxHulls[m_count];
 		b3CompoundHullDef hulls[m_count];
@@ -223,7 +223,7 @@ public:
 	void Render() override
 	{
 		Sample::Render();
-		b3Transform transform = { { 0.0f, 0.01f, 0.0f }, b3Quat_identity };
+		b3Transform transform = { { B3_FIX( 0.0f ), B3_FIX( 0.01f ), B3_FIX( 0.0f ) }, b3Quat_identity };
 		DrawAxes( b3MakeWorldTransform( transform ), 1.0f );
 
 		int height = b3DynamicTree_GetHeight( &m_compound->tree );
@@ -257,7 +257,7 @@ public:
 			constexpr int boxCount = gridCount * gridCount;
 
 			float a = 4.0f;
-			b3Vec3 extents = { a, 0.5f * a, a };
+			b3Vec3 extents = { b3FixFromFloat( a ), b3FixFromFloat( 0.5f * a ), b3FixFromFloat( a ) };
 			b3SurfaceMaterial material = b3DefaultSurfaceMaterial();
 			b3BoxHull box = b3MakeBoxHull( extents.x, extents.y, extents.z );
 
@@ -273,7 +273,7 @@ public:
 				for ( int j = 0; j < gridCount; ++j )
 				{
 					transform.p.z = ( 2.0f * j - gridCount ) * a;
-					transform.p.y = RandomFloatRange( -0.5f, 0.25f ) * a;
+					transform.p.y = RandomFloatRange( B3_FIX( -0.5f ), B3_FIX( 0.25f ) ) * a;
 
 					assert( index < boxCount );
 
@@ -292,8 +292,8 @@ public:
 			m_compound = b3CreateCompound( &def );
 
 			b3BodyDef bodyDef = b3DefaultBodyDef();
-			bodyDef.position = { -2.0f, 1.0f, -3.0f };
-			bodyDef.rotation = b3MakeQuatFromAxisAngle( b3Normalize( { 1.0f, -1.0f, 0.5f } ), 0.0f );
+			bodyDef.position = { B3_FIX( -2.0f ), B3_FIX( 1.0f ), B3_FIX( -3.0f ) };
+			bodyDef.rotation = b3MakeQuatFromAxisAngle( b3Normalize( { B3_FIX( 1.0f ), B3_FIX( -1.0f ), B3_FIX( 0.5f ) } ), 0.0f );
 			b3BodyId groundId = b3CreateBody( m_worldId, &bodyDef );
 
 			b3ShapeDef shapeDef = b3DefaultShapeDef();
@@ -308,11 +308,11 @@ public:
 		{
 			b3BodyDef bodyDef = b3DefaultBodyDef();
 			bodyDef.type = b3_dynamicBody;
-			bodyDef.position = { 3.0f, 12.0f, 0.0f };
+			bodyDef.position = { B3_FIX( 3.0f ), B3_FIX( 12.0f ), B3_FIX( 0.0f ) };
 			b3BodyId bodyId = b3CreateBody( m_worldId, &bodyDef );
 
 			b3ShapeDef shapeDef = b3DefaultShapeDef();
-			b3Sphere sphere = { b3Vec3_zero, 0.25f };
+			b3Sphere sphere = { b3Vec3_zero, B3_FIX( 0.25f ) };
 			b3CreateSphereShape( bodyId, &shapeDef, &sphere );
 		}
 
@@ -338,7 +338,7 @@ public:
 	void Render() override
 	{
 		Sample::Render();
-		b3Transform transform = { { 0.0f, 0.01f, 0.0f }, b3Quat_identity };
+		b3Transform transform = { { B3_FIX( 0.0f ), B3_FIX( 0.01f ), B3_FIX( 0.0f ) }, b3Quat_identity };
 		DrawAxes( b3MakeWorldTransform( transform ), 1.0f );
 
 		DrawTextLine( "compound hull count = %d, mesh count = %d", m_compound->hullCount, m_compound->meshCount );
@@ -375,10 +375,10 @@ public:
 			constexpr int boxCount = gridCount * gridCount;
 
 			float a = 4.0f;
-			b3Vec3 extents = { a, 0.5f * a, a };
+			b3Vec3 extents = { b3FixFromFloat( a ), b3FixFromFloat( 0.5f * a ), b3FixFromFloat( a ) };
 			b3SurfaceMaterial material = b3DefaultSurfaceMaterial();
 
-			b3MeshData* box = b3CreateBoxMesh( { 0.0f, 0.0f, 0.0f }, extents, true );
+			b3MeshData* box = b3CreateBoxMesh( { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, extents, true );
 			b3CompoundMeshDef* meshes = new b3CompoundMeshDef[boxCount];
 			b3Transform transform = b3Transform_identity;
 			transform.p.y = -0.5f * a;
@@ -392,13 +392,13 @@ public:
 				{
 					transform.p.z = ( 2.0f * j - gridCount ) * a;
 
-					transform.p.y = RandomFloatRange( -0.5f, 0.25f ) * a;
+					transform.p.y = RandomFloatRange( B3_FIX( -0.5f ), B3_FIX( 0.25f ) ) * a;
 
 					assert( index < boxCount );
 
 					meshes[index].meshData = box;
 					meshes[index].transform = transform;
-					meshes[index].scale = { 1.0f, 1.0f, 1.0f };
+					meshes[index].scale = { B3_FIX( 1.0f ), B3_FIX( 1.0f ), B3_FIX( 1.0f ) };
 					meshes[index].materials = &material;
 					meshes[index].materialCount = 1;
 
@@ -455,7 +455,7 @@ public:
 	void Render() override
 	{
 		Sample::Render();
-		b3Transform transform = { { 0.0f, 0.01f, 0.0f }, b3Quat_identity };
+		b3Transform transform = { { B3_FIX( 0.0f ), B3_FIX( 0.01f ), B3_FIX( 0.0f ) }, b3Quat_identity };
 		DrawAxes( b3MakeWorldTransform( transform ), 1.0f );
 
 		DrawTextLine( "compound instance count = %d, byte count = %d", m_compound->meshCount, m_compound->byteCount );
@@ -493,7 +493,7 @@ public:
 		constexpr float a = 4.0f;
 		m_worldWidth = 2.0f * gridCount * a;
 
-		b3Pos position = { 0.0f, 10.0f, 0.0f };
+		b3Pos position = { B3_FIX( 0.0f ), B3_FIX( 10.0f ), B3_FIX( 0.0f ) };
 		if ( m_context->restart == false )
 		{
 			m_camera->SetView( 45.0f, 10.0f, 5.0f, position );
@@ -507,7 +507,7 @@ public:
 			constexpr int hullCount = gridCount * gridCount;
 			constexpr int sphereCapacity = gridCount * gridCount / 8 + 1;
 
-			b3Vec3 extents = { a, 0.5f * a, a };
+			b3Vec3 extents = { b3FixFromFloat( a ), b3FixFromFloat( 0.5f * a ), b3FixFromFloat( a ) };
 			b3SurfaceMaterial material = b3DefaultSurfaceMaterial();
 			b3BoxHull box = b3MakeBoxHull( extents.x, extents.y, extents.z );
 
@@ -529,27 +529,27 @@ public:
 				for ( int j = 0; j < gridCount; ++j )
 				{
 					transform.p.z = ( 2.0f * j - gridCount ) * a;
-					transform.p.y = RandomFloatRange( -0.25f, 0.125f ) * a;
+					transform.p.y = RandomFloatRange( B3_FIX( -0.25f ), B3_FIX( 0.125f ) ) * a;
 
 					assert( hullIndex < hullCount );
 
 					if ( ( i & 1 ) && ( j & 1 ) )
 					{
-						b3Vec3 p1 = transform.p + RandomVec3( { -a, a, -a }, { a, 2.0f * a, a } );
-						b3Vec3 p2 = transform.p + RandomVec3( { -a, a, -a }, { a, 2.0f * a, a } );
-						float radius = RandomFloatRange( 0.1f, 0.5f );
+						b3Vec3 p1 = transform.p + RandomVec3( { b3FixFromFloat( -a ), b3FixFromFloat( a ), b3FixFromFloat( -a ) }, { b3FixFromFloat( a ), b3FixFromFloat( 2.0f * a ), b3FixFromFloat( a ) } );
+						b3Vec3 p2 = transform.p + RandomVec3( { b3FixFromFloat( -a ), b3FixFromFloat( a ), b3FixFromFloat( -a ) }, { b3FixFromFloat( a ), b3FixFromFloat( 2.0f * a ), b3FixFromFloat( a ) } );
+						float radius = RandomFloatRange( B3_FIX( 0.1f ), B3_FIX( 0.5f ) );
 
 						if ( capsuleIndex < sphereIndex )
 						{
 							assert( capsuleIndex < capsuleCapacity );
-							capsules[capsuleIndex].capsule = { p1, p2, radius };
+							capsules[capsuleIndex].capsule = { p1, p2, b3FixFromFloat( radius ) };
 							capsules[capsuleIndex].material = material;
 							capsuleIndex += 1;
 						}
 						else
 						{
 							assert( sphereIndex < capsuleCapacity );
-							spheres[sphereIndex].sphere = { p1, radius };
+							spheres[sphereIndex].sphere = { p1, b3FixFromFloat( radius ) };
 							spheres[sphereIndex].material = material;
 							sphereIndex += 1;
 						}
@@ -587,7 +587,7 @@ public:
 				}
 				else if ( i == 1 )
 				{
-					meshMaterials[i].restitution = 0.5f;
+					meshMaterials[i].restitution = B3_FIX( 0.5f );
 				}
 				meshMaterials[i].userMaterialId = i + 42;
 			}
@@ -604,13 +604,13 @@ public:
 				{
 					transform.p.y = 0.5f * a;
 					transform.p.z = ( 2.0f * j - meshGridCount ) * b + 0.5f * b;
-					transform.q = b3MakeQuatFromAxisAngle( { 0.0f, 1.0f, 0.0 }, RandomFloatRange( -B3_PI, B3_PI ) );
+					transform.q = b3MakeQuatFromAxisAngle( { B3_FIX( 0.0f ), B3_FIX( 1.0f ), B3_FIX( 0.0 ) }, RandomFloatRange( -B3_PI, B3_PI ) );
 
 					assert( meshIndex < meshCount );
 
 					meshes[meshIndex].meshData = buildingMesh;
 					meshes[meshIndex].transform = transform;
-					meshes[meshIndex].scale = RandomVec3( { 0.5f, 0.5f, 0.5f }, { 2.0f, 2.0f, 2.0f } );
+					meshes[meshIndex].scale = RandomVec3( { B3_FIX( 0.5f ), B3_FIX( 0.5f ), B3_FIX( 0.5f ) }, { B3_FIX( 2.0f ), B3_FIX( 2.0f ), B3_FIX( 2.0f ) } );
 
 					if ( meshIndex & 1 )
 					{
@@ -645,8 +645,8 @@ public:
 			m_compound = b3CreateCompound( &def );
 
 			b3BodyDef bodyDef = b3DefaultBodyDef();
-			bodyDef.position = { -1.0f, -0.5f, 2.0f };
-			bodyDef.rotation = b3MakeQuatFromAxisAngle( { 0.0f, 1.0f, 0.0f }, -1.15f * B3_PI );
+			bodyDef.position = { B3_FIX( -1.0f ), B3_FIX( -0.5f ), B3_FIX( 2.0f ) };
+			bodyDef.rotation = b3MakeQuatFromAxisAngle( { B3_FIX( 0.0f ), B3_FIX( 1.0f ), B3_FIX( 0.0f ) }, -1.15f * B3_PI );
 			b3BodyId groundId = b3CreateBody( m_worldId, &bodyDef );
 
 			b3ShapeDef shapeDef = b3DefaultShapeDef();
@@ -667,7 +667,7 @@ public:
 			b3DestroyMesh( buildingMesh );
 		}
 
-		m_rayOrigin = { -0.45f * m_worldWidth, 20.0f, -0.45f * m_worldWidth };
+		m_rayOrigin = { b3FixFromFloat( -0.45f * m_worldWidth ), B3_FIX( 20.0f ), b3FixFromFloat( -0.45f * m_worldWidth ) };
 	}
 
 	~Village() override
@@ -686,7 +686,7 @@ public:
 	void Render() override
 	{
 		Sample::Render();
-		b3Transform transform = { { 0.0f, 0.01f, 0.0f }, b3Quat_identity };
+		b3Transform transform = { { B3_FIX( 0.0f ), B3_FIX( 0.01f ), B3_FIX( 0.0f ) }, b3Quat_identity };
 		DrawAxes( b3MakeWorldTransform( transform ), 4.0f );
 
 		DrawTextLine( "surface type = %d", m_userMaterialId );
@@ -708,7 +708,7 @@ public:
 		m_mover.Step( nullptr, 0, true );
 		DrawTextLine( "third person (T) = %d", m_camera->m_thirdPerson );
 
-		b3Vec3 translation = { 10.0f, -40.0f, -5.0f };
+		b3Vec3 translation = { B3_FIX( 10.0f ), B3_FIX( -40.0f ), B3_FIX( -5.0f ) };
 		b3QueryFilter filter = b3DefaultQueryFilter();
 
 		{
@@ -719,7 +719,7 @@ public:
 			if ( context.hit )
 			{
 				b3Pos p1 = context.point;
-				b3Pos p2 = p1 + 0.5f * context.normal;
+				b3Pos p2 = p1 + B3_FIX( 0.5f ) * context.normal;
 				DrawLine( p1, p2, MakeColor( b3_colorYellow ) );
 				DrawPoint( p1, 8.0f, MakeColor( b3_colorLightCoral ) );
 				DrawTextLine( "ray hit triangle/child/material = %d / %d / %d", context.triangleIndex, context.childIndex,
@@ -733,8 +733,8 @@ public:
 
 		{
 			CastClosestContext context = {};
-			b3Pos origin = m_rayOrigin - b3Vec3{ 1.0f, 0.0f, 1.0f };
-			b3ShapeProxy proxy = { &b3Vec3_zero, 1, 0.25f };
+			b3Pos origin = m_rayOrigin - b3Vec3{ B3_FIX( 1.0f ), B3_FIX( 0.0f ), B3_FIX( 1.0f ) };
+			b3ShapeProxy proxy = { &b3Vec3_zero, 1, B3_FIX( 0.25f ) };
 			b3World_CastShape( m_worldId, origin, &proxy, translation, filter, CastClosestCallback, &context );
 
 			DrawLine( origin, b3OffsetPos( origin, translation ), MakeColor( b3_colorAliceBlue ) );
@@ -742,10 +742,10 @@ public:
 			{
 				b3Pos position = b3OffsetPos( origin, context.fraction * translation );
 				b3Pos p1 = context.point;
-				b3Pos p2 = p1 + 0.5f * context.normal;
+				b3Pos p2 = p1 + B3_FIX( 0.5f ) * context.normal;
 				DrawLine( p1, p2, MakeColor( b3_colorYellow ) );
 				DrawPoint( p1, 8.0f, MakeColor( b3_colorLightCoral ) );
-				b3Sphere sphere = { b3Vec3_zero, 0.25f };
+				b3Sphere sphere = { b3Vec3_zero, B3_FIX( 0.25f ) };
 				DrawSolidSphere( { position, b3Quat_identity }, sphere, MakeColor( b3_colorOrchid ) );
 				DrawTextLine( "shape hit triangle/child/material = %d / %d / %d", context.triangleIndex, context.childIndex,
 							  context.materialId );
@@ -758,12 +758,12 @@ public:
 
 		{
 			bool overlap = false;
-			b3Pos origin = { m_rayOrigin.x - 1.0f, 2.0f, m_rayOrigin.z - 1.0f };
-			b3ShapeProxy proxy = { &b3Vec3_zero, 1, 0.3f };
+			b3Pos origin = { b3FixFromFloat( m_rayOrigin.x - 1.0f ), B3_FIX( 2.0f ), b3FixFromFloat( m_rayOrigin.z - 1.0f ) };
+			b3ShapeProxy proxy = { &b3Vec3_zero, 1, B3_FIX( 0.3f ) };
 			b3World_OverlapShape( m_worldId, origin, &proxy, filter, OverlapResultFcn, &overlap );
 
 			b3HexColor color = overlap ? b3_colorDarkMagenta : b3_colorDarkSeaGreen;
-			b3Sphere sphere = { b3Vec3_zero, 0.3f };
+			b3Sphere sphere = { b3Vec3_zero, B3_FIX( 0.3f ) };
 			DrawSolidSphere( { origin, b3Quat_identity }, sphere, MakeColor( color ) );
 		}
 

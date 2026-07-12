@@ -29,7 +29,7 @@ public:
 
 		if ( context->restart == false )
 		{
-			m_camera->SetView( 0.0f, 8.0f, 16.0f, { 0.0f, 2.0f, 0.0f } );
+			m_camera->SetView( 0.0f, 8.0f, 16.0f, { B3_FIX( 0.0f ), B3_FIX( 2.0f ), B3_FIX( 0.0f ) } );
 		}
 
 		BuildScene();
@@ -40,14 +40,14 @@ public:
 	// no matter how large the offset.
 	void BuildScene()
 	{
-		b3Pos base = { 1000.0f * m_offsetKilometers, 0.0f, 0.0f };
+		b3Pos base = { b3FixFromFloat( 1000.0f * m_offsetKilometers ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
 		m_base = base;
-		m_camera->m_pivot = b3OffsetPos( base, { 0.0f, 2.0f, 0.0f } );
+		m_camera->m_pivot = b3OffsetPos( base, { B3_FIX( 0.0f ), B3_FIX( 2.0f ), B3_FIX( 0.0f ) } );
 		m_camera->UpdateTransform();
 
 		b3BodyDef bodyDef = b3DefaultBodyDef();
 		bodyDef.name = "ground";
-		bodyDef.position = b3OffsetPos( base, { 0.0f, -1.0f, 0.0f } );
+		bodyDef.position = b3OffsetPos( base, { B3_FIX( 0.0f ), B3_FIX( -1.0f ), B3_FIX( 0.0f ) } );
 		b3BodyId groundId = b3CreateBody( m_worldId, &bodyDef );
 
 		b3ShapeDef shapeDef = b3DefaultShapeDef();
@@ -55,7 +55,7 @@ public:
 		b3ShapeId groundShapeId = b3CreateHullShape( groundId, &shapeDef, &groundHull.base );
 		SetGroundShape( groundShapeId );
 
-		b3BoxHull box = b3MakeBoxHull( 0.5f, 0.5f, 0.5f );
+		b3BoxHull box = b3MakeBoxHull( B3_FIX( 0.5f ), B3_FIX( 0.5f ), B3_FIX( 0.5f ) );
 		b3BodyDef boxDef = b3DefaultBodyDef();
 		boxDef.type = b3_dynamicBody;
 		b3ShapeDef boxShape = b3DefaultShapeDef();
@@ -65,7 +65,7 @@ public:
 		{
 			// A small alternating skew so a float build visibly drifts rather than balancing by luck.
 			float skew = 0.02f * ( i & 1 ? 1.0f : -1.0f );
-			boxDef.position = b3OffsetPos( base, { skew, 0.5f + 1.0f * i, 0.0f } );
+			boxDef.position = b3OffsetPos( base, { b3FixFromFloat( skew ), b3FixFromFloat( 0.5f + 1.0f * i ), B3_FIX( 0.0f ) } );
 			b3BodyId body = b3CreateBody( m_worldId, &boxDef );
 			b3CreateHullShape( body, &boxShape, &box.base );
 			m_topBodyId = body;
@@ -129,17 +129,17 @@ public:
 	explicit FarPyramid( SampleContext* context )
 		: Sample( context )
 	{
-		b3Pos base = { 1000.0f * m_offsetKilometers, 0.0f, 0.0f };
+		b3Pos base = { b3FixFromFloat( 1000.0f * m_offsetKilometers ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
 
 		if ( context->restart == false )
 		{
-			m_camera->SetView( 40.0f, -10.0f, 60.0f, b3OffsetPos( base, { 0.0f, 20.0f, 0.0f } ) );
+			m_camera->SetView( 40.0f, -10.0f, 60.0f, b3OffsetPos( base, { B3_FIX( 0.0f ), B3_FIX( 20.0f ), B3_FIX( 0.0f ) } ) );
 		}
 
 		int baseCount = 40;
 
 		b3BodyDef bodyDef = b3DefaultBodyDef();
-		bodyDef.position = b3OffsetPos( base, { 0.0f, -1.0f, 0.0f } );
+		bodyDef.position = b3OffsetPos( base, { B3_FIX( 0.0f ), B3_FIX( -1.0f ), B3_FIX( 0.0f ) } );
 		b3BodyId groundId = b3CreateBody( m_worldId, &bodyDef );
 
 		b3ShapeDef shapeDef = b3DefaultShapeDef();
@@ -158,7 +158,7 @@ public:
 			for ( int j = i; j < baseCount; ++j )
 			{
 				float x = ( i + 1.0f ) * shift + 2.0f * ( j - i ) * shift - h * baseCount;
-				bodyDef.position = b3OffsetPos( base, { x, y, 0.0f } );
+				bodyDef.position = b3OffsetPos( base, { b3FixFromFloat( x ), b3FixFromFloat( y ), B3_FIX( 0.0f ) } );
 				b3BodyId bodyId = b3CreateBody( m_worldId, &bodyDef );
 				b3CreateHullShape( bodyId, &shapeDef, &box.base );
 			}
@@ -190,7 +190,7 @@ public:
 	explicit FarRagdolls( SampleContext* context )
 		: Sample( context )
 	{
-		b3Pos base = { 1000.0f * m_offsetKilometers, 0.0f, 0.0f };
+		b3Pos base = { b3FixFromFloat( 1000.0f * m_offsetKilometers ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
 
 		if ( context->restart == false )
 		{
@@ -198,7 +198,7 @@ public:
 		}
 
 		b3BodyDef bodyDef = b3DefaultBodyDef();
-		bodyDef.position = b3OffsetPos( base, { 0.0f, -1.0f, 0.0f } );
+		bodyDef.position = b3OffsetPos( base, { B3_FIX( 0.0f ), B3_FIX( -1.0f ), B3_FIX( 0.0f ) } );
 		b3BodyId groundId = b3CreateBody( m_worldId, &bodyDef );
 
 		b3ShapeDef shapeDef = b3DefaultShapeDef();
@@ -208,9 +208,9 @@ public:
 		for ( int i = 0; i < m_count; ++i )
 		{
 			b3Vec3 offset = {
-				0.15f * ( i - 0.5f * m_count ),
-				2.0f + 0.25f * i,
-				0.15f * ( 0.5f * m_count - i ),
+				b3FixFromFloat( 0.15f * ( i - 0.5f * m_count ) ),
+				b3FixFromFloat( 2.0f + 0.25f * i ),
+				b3FixFromFloat( 0.15f * ( 0.5f * m_count - i ) ),
 			};
 			b3Pos position = b3OffsetPos( base, offset );
 			float torque = 10.0f;
@@ -256,12 +256,12 @@ public:
 	explicit FarMeshDrop( SampleContext* context )
 		: Sample( context )
 	{
-		b3Pos base = { 1000.0f * m_offsetKilometers, 0.0f, 1000.0f * m_offsetKilometers };
+		b3Pos base = { b3FixFromFloat( 1000.0f * m_offsetKilometers ), B3_FIX( 0.0f ), b3FixFromFloat( 1000.0f * m_offsetKilometers ) };
 
 		if ( context->restart == false )
 		{
 			m_camera->SetView( 0.0f, 30.0f, 20.0f, base );
-			GetGuiDraw()->forceScale = 0.1f;
+			GetGuiDraw()->forceScale = B3_FIX( 0.1f );
 		}
 
 		m_data = CreateMeshDrop( m_worldId, base );

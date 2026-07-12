@@ -120,6 +120,27 @@ static const b3Matrix3 b3Mat3_identity = {
 static const b3Pos b3Pos_zero = { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
 static const b3WorldTransform b3WorldTransform_identity = { { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, { { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, B3_FIX( 1.0f ) } };
 
+// Float utilities for rendering, UI, and other non-simulation code. The
+// simulation itself never uses these (see the fixed-point conversion notes).
+
+/// @return the minimum of two floats.
+B3_INLINE float b3MinFloat( float a, float b )
+{
+	return a < b ? a : b;
+}
+
+/// @return the maximum of two floats.
+B3_INLINE float b3MaxFloat( float a, float b )
+{
+	return a > b ? a : b;
+}
+
+/// @return a float clamped between a lower and upper bound.
+B3_INLINE float b3ClampFloat( float a, float lower, float upper )
+{
+	return a < lower ? lower : ( upper < a ? upper : a );
+}
+
 /// @return the minimum of two integers.
 B3_INLINE int b3MinInt( int a, int b )
 {

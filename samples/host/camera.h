@@ -166,7 +166,7 @@ public:
 	b3Pos DrawOrigin() const
 	{
 		Vec4 e = MulMV4( m_renderXformInv, MakeVec4( m_worldEye.x, m_worldEye.y, m_worldEye.z, 1.0f ) );
-		return b3Pos{ e.x, e.y, e.z };
+		return b3Pos{ b3FixFromFloat( e.x ), b3FixFromFloat( e.y ), b3FixFromFloat( e.z ) };
 	}
 
 	// Cull box for b3World_Draw, in simulation space (length units): a cube of the
@@ -175,7 +175,7 @@ public:
 	b3AABB DrawBounds() const
 	{
 		float h = m_drawDistance * m_lengthUnitsPerMeter;
-		b3Vec3 r = { h, h, h };
+		b3Vec3 r = { b3FixFromFloat( h ), b3FixFromFloat( h ), b3FixFromFloat( h ) };
 		return b3OffsetAABB( { b3Neg( r ), r }, DrawOrigin() );
 	}
 

@@ -269,14 +269,14 @@ struct CastClosestContext
 	b3ShapeId shapeId;
 	b3Pos point;
 	b3Vec3 normal;
-	float fraction;
+	b3Fixed fraction;
 	uint64_t materialId;
 	int childIndex;
 	int triangleIndex;
 	bool hit;
 };
 
-float CastClosestCallback( b3ShapeId shapeId, b3Pos point, b3Vec3 normal, float fraction, uint64_t materialId, int triangleIndex,
+b3Fixed CastClosestCallback( b3ShapeId shapeId, b3Pos point, b3Vec3 normal, b3Fixed fraction, uint64_t materialId, int triangleIndex,
 						   int childIndex, void* context );
 
 struct MoverShapeUserData

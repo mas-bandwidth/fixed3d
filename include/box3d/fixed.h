@@ -64,22 +64,18 @@ typedef int64_t b3Fixed;
 #define B3_FIX( x )                                                                                                              \
 	( (b3Fixed)( (double)( x ) * (double)B3_FIXED_ONE + ( (double)( x ) >= 0.0 ? 0.5 : -0.5 ) ) )
 
-// 128 bit helper layer. Clang/GCC have __int128. MSVC x64/arm64 uses intrinsics.
-// __extension__ keeps -Wpedantic quiet: __int128 is a compiler extension, not ISO C.
+// 128 bit helper layer. The fixed-point core requires the __int128 compiler
+// extension (clang, gcc, or clang-cl on Windows; pure MSVC does not have it).
+// __extension__ keeps -Wpedantic quiet: __int128 is not ISO C.
 #if defined( __SIZEOF_INT128__ )
 
 #define B3_HAS_INT128 1
 __extension__ typedef __int128 b3Int128;
 __extension__ typedef unsigned __int128 b3UInt128;
 
-#elif defined( _MSC_VER ) && defined( _M_X64 )
-
-#define B3_HAS_INT128 0
-#include <intrin.h>
-
 #else
 
-#error "Box3D fixed point math requires clang, gcc, or 64 bit x64 MSVC (use clang-cl on ARM64 Windows)"
+#error "Box3D fixed point math requires __int128: use clang, gcc, or clang-cl on Windows"
 
 #endif
 
@@ -91,13 +87,11 @@ B3_FIXED_INLINE b3Fixed b3FixShiftLeft( b3Fixed a, int shift )
 	return (b3Fixed)( (uint64_t)a << shift );
 }
 
-#if B3_HAS_INT128
 /// 128-bit variant of b3FixShiftLeft
 B3_FIXED_INLINE b3Int128 b3Int128ShiftLeft( b3Int128 a, int shift )
 {
 	return (b3Int128)( (b3UInt128)a << shift );
 }
-#endif
 
 /// Multiply two fixed-point numbers with round-to-nearest.
 /// By default the product is not checked for overflow: simulation quantities are
@@ -105,7 +99,6 @@ B3_FIXED_INLINE b3Int128 b3Int128ShiftLeft( b3Int128 a, int shift )
 /// Define BOX3D_FIXED_SATURATE to saturate on overflow instead of wrapping.
 B3_FIXED_INLINE b3Fixed b3FixMul( b3Fixed a, b3Fixed b )
 {
-#if B3_HAS_INT128
 	b3Int128 product = (b3Int128)a * b;
 	// Round half up, then shift out the fraction bits (arithmetic shift)
 	b3Int128 r = ( product + B3_FIXED_HALF ) >> B3_FIXED_FRACTION_BITS;
@@ -120,22 +113,6 @@ B3_FIXED_INLINE b3Fixed b3FixMul( b3Fixed a, b3Fixed b )
 	}
 #endif
 	return (b3Fixed)r;
-#else
-	int64_t hi;
-	uint64_t lo = _mul128( a, b, &hi );
-	uint64_t lo2 = lo + (uint64_t)B3_FIXED_HALF;
-	if ( lo2 < lo )
-	{
-		hi += 1;
-	}
-	int64_t r = (int64_t)__shiftright128( lo2, (uint64_t)hi, B3_FIXED_FRACTION_BITS );
-	// The discarded high bits must equal the sign extension of the result
-	if ( ( hi >> B3_FIXED_FRACTION_BITS ) != ( r >> 63 ) )
-	{
-		return hi < 0 ? B3_FIXED_MIN : B3_FIXED_MAX;
-	}
-	return r;
-#endif
 }
 
 /// Divide two fixed-point numbers with truncation toward zero and saturation.
@@ -147,7 +124,6 @@ B3_FIXED_INLINE b3Fixed b3FixDiv( b3Fixed a, b3Fixed b )
 		return a > 0 ? B3_FIXED_MAX : ( a < 0 ? B3_FIXED_MIN : 0 );
 	}
 
-#if B3_HAS_INT128
 	// Fast path: when the numerator fits in 64 bits (nearly always) a single
 	// hardware divide replaces the 128-bit library call. Bit-identical result.
 	if ( -( (int64_t)1 << 47 ) < a && a < ( (int64_t)1 << 47 ) )
@@ -165,27 +141,11 @@ B3_FIXED_INLINE b3Fixed b3FixDiv( b3Fixed a, b3Fixed b )
 		return B3_FIXED_MIN;
 	}
 	return (b3Fixed)q;
-#else
-	// MSVC: _div128 traps on quotient overflow, so pre-clamp using magnitude bounds.
-	int64_t hi = a >> ( 64 - B3_FIXED_FRACTION_BITS );
-	uint64_t lo = (uint64_t)a << B3_FIXED_FRACTION_BITS;
-	// |numerator| = |a| * 2^16. Overflow occurs when |a| * 2^16 / |b| > INT64_MAX
-	// i.e. when |a| / |b| > 2^47. Detect via magnitude comparison.
-	uint64_t absA = (uint64_t)( a < 0 ? -a : a );
-	uint64_t absB = (uint64_t)( b < 0 ? -b : b );
-	if ( ( absA >> ( 63 - B3_FIXED_FRACTION_BITS ) ) >= absB )
-	{
-		return ( ( a < 0 ) != ( b < 0 ) ) ? B3_FIXED_MIN : B3_FIXED_MAX;
-	}
-	int64_t remainder;
-	return _div128( hi, lo, b, &remainder );
-#endif
 }
 
 /// Exact integer square root of an unsigned 128 bit value (helper for b3FixSqrt).
 B3_FIXED_INLINE uint64_t b3ISqrt128High( uint64_t hi, uint64_t lo )
 {
-#if B3_HAS_INT128
 	if ( hi == 0 )
 	{
 		// Common case: 64 bit input. Seed with the hardware double sqrt (an exact,
@@ -237,54 +197,6 @@ B3_FIXED_INLINE uint64_t b3ISqrt128High( uint64_t hi, uint64_t lo )
 	}
 
 	return (uint64_t)c;
-#else
-	// Restoring shift-subtract square root on a 128 bit value represented as two
-	// 64 bit halves. Same algorithm as the __int128 path.
-	uint64_t xHi = hi, xLo = lo;
-	uint64_t cHi = 0, cLo = 0;
-	uint64_t dHi = (uint64_t)1 << 62, dLo = 0;
-
-	// Shrink d below n
-	while ( dHi > xHi || ( dHi == xHi && dLo > xLo ) )
-	{
-		// d >>= 2
-		dLo = ( dLo >> 2 ) | ( dHi << 62 );
-		dHi >>= 2;
-		if ( dHi == 0 && dLo == 0 )
-		{
-			return 0;
-		}
-	}
-
-	while ( dHi != 0 || dLo != 0 )
-	{
-		// t = c + d
-		uint64_t tLo = cLo + dLo;
-		uint64_t tHi = cHi + dHi + ( tLo < cLo ? 1 : 0 );
-		if ( xHi > tHi || ( xHi == tHi && xLo >= tLo ) )
-		{
-			// x -= t
-			uint64_t borrow = ( xLo < tLo ) ? 1 : 0;
-			xLo -= tLo;
-			xHi -= tHi + borrow;
-			// c = (c >> 1) + d
-			cLo = ( ( cLo >> 1 ) | ( cHi << 63 ) ) + dLo;
-			uint64_t carry = ( cLo < dLo ) ? 1 : 0;
-			cHi = ( cHi >> 1 ) + dHi + carry;
-		}
-		else
-		{
-			// c >>= 1
-			cLo = ( cLo >> 1 ) | ( cHi << 63 );
-			cHi >>= 1;
-		}
-		// d >>= 2
-		dLo = ( dLo >> 2 ) | ( dHi << 62 );
-		dHi >>= 2;
-	}
-
-	return cLo;
-#endif
 }
 
 /// Fixed-point square root. Exact (round toward zero). Negative inputs return 0.

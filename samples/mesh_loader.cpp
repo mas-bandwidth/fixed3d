@@ -50,7 +50,7 @@ void LoadTempMesh( const char* path, TempMesh* tempMesh, float scale, bool zUp )
 		float x = scale * attrib.vertices[3 * i + 0];
 		float y = scale * attrib.vertices[3 * i + 1];
 		float z = scale * attrib.vertices[3 * i + 2];
-		b3Vec3 vertex = zUp ? b3Vec3{ y, z, x } : b3Vec3{ x, y, z };
+		b3Vec3 vertex = zUp ? b3Vec3{ b3FixFromFloat( y ), b3FixFromFloat( z ), b3FixFromFloat( x ) } : b3Vec3{ b3FixFromFloat( x ), b3FixFromFloat( y ), b3FixFromFloat( z ) };
 		tempMesh->vertices.push_back( vertex );
 	}
 
@@ -121,7 +121,7 @@ b3MeshData* CreateMeshData( const char* path, float scale, bool zUp, bool useMed
 		float x = scale * attrib.vertices[3 * i + 0];
 		float y = scale * attrib.vertices[3 * i + 1];
 		float z = scale * attrib.vertices[3 * i + 2];
-		b3Vec3 vertex = zUp ? b3Vec3{ y, z, x } : b3Vec3{ x, y, z };
+		b3Vec3 vertex = zUp ? b3Vec3{ b3FixFromFloat( y ), b3FixFromFloat( z ), b3FixFromFloat( x ) } : b3Vec3{ b3FixFromFloat( x ), b3FixFromFloat( y ), b3FixFromFloat( z ) };
 		mesh.vertices.push_back( vertex );
 	}
 
@@ -165,7 +165,7 @@ b3MeshData* CreateMeshData( const char* path, float scale, bool zUp, bool useMed
 	def.useMedianSplit = useMedianSplit;
 	def.identifyEdges = identifyConvexEdges;
 	def.weldVertices = weldVertices;
-	def.weldTolerance = 0.002f;
+	def.weldTolerance = B3_FIX( 0.002f );
 
 	b3MeshData* meshData = b3CreateMesh( &def, nullptr, 0 );
 	return meshData;

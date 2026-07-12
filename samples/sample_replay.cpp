@@ -252,7 +252,7 @@ public:
 
 		if ( context->restart == false )
 		{
-			m_camera->SetView( 30.0f, 22.0f, 14.0f, { 0.0f, 2.0f, 0.0f } );
+			m_camera->SetView( 30.0f, 22.0f, 14.0f, { B3_FIX( 0.0f ), B3_FIX( 2.0f ), B3_FIX( 0.0f ) } );
 		}
 
 		m_prevShowMetrics = m_context->showMetrics;
@@ -947,7 +947,7 @@ public:
 				{
 					b3Pos point = b3OffsetPos( originA, manifold->points[p].anchorA );
 					DrawPoint( point, 6.0f, MakeColor( b3_colorOrange ) );
-					DrawLine( point, b3OffsetPos( point, b3MulSV( 0.3f, manifold->normal ) ), MakeColor( b3_colorOrange ) );
+					DrawLine( point, b3OffsetPos( point, b3MulSV( B3_FIX( 0.3f ), manifold->normal ) ), MakeColor( b3_colorOrange ) );
 				}
 			}
 		}
@@ -1370,7 +1370,7 @@ public:
 			{
 				b3Vec3 g = b3World_GetGravity( m_replayWorldId );
 				b3Counters c = b3World_GetCounters( m_replayWorldId );
-				ImGui::Text( "gravity (%.2f, %.2f, %.2f)", g.x, g.y, g.z );
+				ImGui::Text( "gravity (%.2f, %.2f, %.2f)", b3FixToDouble( g.x ), b3FixToDouble( g.y ), b3FixToDouble( g.z ) );
 				ImGui::Text( "bodies %d  shapes %d", c.bodyCount, c.shapeCount );
 				ImGui::Text( "contacts %d  joints %d", c.contactCount, c.jointCount );
 			}
@@ -1421,22 +1421,22 @@ public:
 		b3WorldTransform xf = b3Body_GetTransform( body );
 		b3Vec3 v = b3Body_GetLinearVelocity( body );
 		b3Vec3 w = b3Body_GetAngularVelocity( body );
-		float spin;
+		b3Fixed spin;
 		b3GetAxisAngle( &spin, xf.q );
 
 		ImGui::Text( "id      %d", body.index1 );
 		ImGui::Text( "name    %s", ( name != nullptr && name[0] != '\0' ) ? name : "(none)" );
 		ImGui::Text( "type    %s", ReplayBodyTypeName( b3Body_GetType( body ) ) );
-		ImGui::Text( "pos     (%.3f, %.3f, %.3f)", xf.p.x, xf.p.y, xf.p.z );
-		ImGui::Text( "spin    %.1f deg", spin * B3_RAD_TO_DEG );
-		ImGui::Text( "vel     (%.3f, %.3f, %.3f)", v.x, v.y, v.z );
-		ImGui::Text( "omega   (%.3f, %.3f, %.3f)", w.x, w.y, w.z );
-		ImGui::Text( "speed   %.3f  spin rate %.3f", b3Length( v ), b3Length( w ) );
-		ImGui::Text( "mass    %.4g kg", b3Body_GetMass( body ) );
+		ImGui::Text( "pos     (%.3f, %.3f, %.3f)", b3FixToDouble( xf.p.x ), b3FixToDouble( xf.p.y ), b3FixToDouble( xf.p.z ) );
+		ImGui::Text( "spin    %.1f deg", (double)b3FixToFloat( b3FixMul( spin, B3_RAD_TO_DEG ) ) );
+		ImGui::Text( "vel     (%.3f, %.3f, %.3f)", b3FixToDouble( v.x ), b3FixToDouble( v.y ), b3FixToDouble( v.z ) );
+		ImGui::Text( "omega   (%.3f, %.3f, %.3f)", b3FixToDouble( w.x ), b3FixToDouble( w.y ), b3FixToDouble( w.z ) );
+		ImGui::Text( "speed   %.3f  spin rate %.3f", (double)b3FixToFloat( b3Length( v ) ), (double)b3FixToFloat( b3Length( w ) ) );
+		ImGui::Text( "mass    %.4g kg", b3FixToDouble( b3Body_GetMass( body ) ) );
 		ImGui::Text( "awake   %s", b3Body_IsAwake( body ) ? "yes" : "no" );
 		ImGui::Text( "enabled %s", b3Body_IsEnabled( body ) ? "yes" : "no" );
 		ImGui::Text( "bullet  %s", b3Body_IsBullet( body ) ? "yes" : "no" );
-		ImGui::Text( "gravity scale %.2f", b3Body_GetGravityScale( body ) );
+		ImGui::Text( "gravity scale %.2f", b3FixToDouble( b3Body_GetGravityScale( body ) ) );
 		ImGui::Text( "shapes %d  joints %d", b3Body_GetShapeCount( body ), b3Body_GetJointCount( body ) );
 	}
 
@@ -1453,15 +1453,15 @@ public:
 		ImGui::Text( "category 0x%016" PRIx64, f.categoryBits );
 		ImGui::Text( "mask     0x%016" PRIx64, f.maskBits );
 		ImGui::Text( "group    %d", f.groupIndex );
-		ImGui::Text( "density  %.3g", b3Shape_GetDensity( shape ) );
-		ImGui::Text( "friction %.3g", b3Shape_GetFriction( shape ) );
-		ImGui::Text( "restitution %.3g", b3Shape_GetRestitution( shape ) );
+		ImGui::Text( "density  %.3g", b3FixToDouble( b3Shape_GetDensity( shape ) ) );
+		ImGui::Text( "friction %.3g", b3FixToDouble( b3Shape_GetFriction( shape ) ) );
+		ImGui::Text( "restitution %.3g", b3FixToDouble( b3Shape_GetRestitution( shape ) ) );
 		ImGui::Text( "sensor   %s", b3Shape_IsSensor( shape ) ? "yes" : "no" );
 		b3SurfaceMaterial mat = b3Shape_GetSurfaceMaterial( shape );
 		ImGui::Text( "custom color 0x%06x", (unsigned)mat.customColor );
 		b3AABB aabb = b3Shape_GetAABB( shape );
-		ImGui::Text( "aabb (%.2f, %.2f, %.2f)", aabb.lowerBound.x, aabb.lowerBound.y, aabb.lowerBound.z );
-		ImGui::Text( "     (%.2f, %.2f, %.2f)", aabb.upperBound.x, aabb.upperBound.y, aabb.upperBound.z );
+		ImGui::Text( "aabb (%.2f, %.2f, %.2f)", b3FixToDouble( aabb.lowerBound.x ), b3FixToDouble( aabb.lowerBound.y ), b3FixToDouble( aabb.lowerBound.z ) );
+		ImGui::Text( "     (%.2f, %.2f, %.2f)", b3FixToDouble( aabb.upperBound.x ), b3FixToDouble( aabb.upperBound.y ), b3FixToDouble( aabb.upperBound.z ) );
 	}
 
 	void DrawContactDetail( b3BodyId body )
@@ -1487,12 +1487,12 @@ public:
 			for ( int m = 0; m < contacts[i].manifoldCount; ++m )
 			{
 				const b3Manifold* manifold = &contacts[i].manifolds[m];
-				ImGui::Text( "normal (%.2f, %.2f, %.2f)", manifold->normal.x, manifold->normal.y, manifold->normal.z );
+				ImGui::Text( "normal (%.2f, %.2f, %.2f)", b3FixToDouble( manifold->normal.x ), b3FixToDouble( manifold->normal.y ), b3FixToDouble( manifold->normal.z ) );
 				ImGui::Text( "points %d", manifold->pointCount );
 				for ( int p = 0; p < manifold->pointCount; ++p )
 				{
 					const b3ManifoldPoint* mp = &manifold->points[p];
-					ImGui::Text( "  sep %.3f  Pn %.2g", mp->separation, mp->normalImpulse );
+					ImGui::Text( "  sep %.3f  Pn %.2g", b3FixToDouble( mp->separation ), b3FixToDouble( mp->normalImpulse ) );
 				}
 			}
 
@@ -1512,19 +1512,19 @@ public:
 		ImGui::Text( "body A   %d", b3Joint_GetBodyA( joint ).index1 );
 		ImGui::Text( "body B   %d", b3Joint_GetBodyB( joint ).index1 );
 		ImGui::Text( "collide  %s", b3Joint_GetCollideConnected( joint ) ? "yes" : "no" );
-		ImGui::Text( "force    %.3g", b3Length( b3Joint_GetConstraintForce( joint ) ) );
-		ImGui::Text( "torque   %.3g", b3Length( b3Joint_GetConstraintTorque( joint ) ) );
+		ImGui::Text( "force    %.3g", b3FixToDouble( b3Length( b3Joint_GetConstraintForce( joint ) ) ) );
+		ImGui::Text( "torque   %.3g", b3FixToDouble( b3Length( b3Joint_GetConstraintTorque( joint ) ) ) );
 
 		switch ( type )
 		{
 			case b3_revoluteJoint:
-				ImGui::Text( "angle    %.1f deg", b3RevoluteJoint_GetAngle( joint ) * B3_RAD_TO_DEG );
+				ImGui::Text( "angle    %.1f deg", b3FixToDouble( b3RevoluteJoint_GetAngle( joint ) * B3_RAD_TO_DEG ) );
 				break;
 			case b3_prismaticJoint:
-				ImGui::Text( "translation %.3f", b3PrismaticJoint_GetTranslation( joint ) );
+				ImGui::Text( "translation %.3f", b3FixToDouble( b3PrismaticJoint_GetTranslation( joint ) ) );
 				break;
 			case b3_distanceJoint:
-				ImGui::Text( "length   %.3f", b3DistanceJoint_GetCurrentLength( joint ) );
+				ImGui::Text( "length   %.3f", b3FixToDouble( b3DistanceJoint_GetCurrentLength( joint ) ) );
 				break;
 			default:
 				break;
@@ -1572,13 +1572,13 @@ public:
 		ImGui::Text( "mask     0x%016" PRIx64, q.filter.maskBits );
 		if ( q.type != b3_recQueryOverlapAABB )
 		{
-			ImGui::Text( "origin   (%.2f, %.2f, %.2f)", q.origin.x, q.origin.y, q.origin.z );
+			ImGui::Text( "origin   (%.2f, %.2f, %.2f)", b3FixToDouble( q.origin.x ), b3FixToDouble( q.origin.y ), b3FixToDouble( q.origin.z ) );
 		}
 		// Translation is the ray or sweep vector. Overlaps and collide-mover leave it zero.
 		if ( q.type == b3_recQueryCastRay || q.type == b3_recQueryCastRayClosest || q.type == b3_recQueryCastShape ||
 			 q.type == b3_recQueryCastMover )
 		{
-			ImGui::Text( "sweep    (%.2f, %.2f, %.2f)", q.translation.x, q.translation.y, q.translation.z );
+			ImGui::Text( "sweep    (%.2f, %.2f, %.2f)", b3FixToDouble( q.translation.x ), b3FixToDouble( q.translation.y ), b3FixToDouble( q.translation.z ) );
 		}
 		ImGui::Text( "hits     %d", q.hitCount );
 

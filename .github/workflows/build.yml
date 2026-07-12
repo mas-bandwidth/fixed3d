@@ -38,10 +38,12 @@ jobs:
             os: macos-latest
             args: -DBOX3D_SANITIZE=ON
             test: ./bin/test
+          # Pure MSVC cannot build the fixed-point core (no __int128); all
+          # Windows coverage uses clang-cl, with and without ASan.
           - name: windows
             os: windows-latest
             msvc: true
-            args: -DBOX3D_SANITIZE=ON
+            args: -T ClangCL -DBOX3D_SANITIZE=ON
             test: ./bin/Debug/test
           # Box3D is width-4 SIMD only, so this covers the clang-cl toolchain, not AVX2.
           - name: windows-clang-cl
@@ -51,16 +53,7 @@ jobs:
             test: ./bin/Debug/test
           - name: windows-arm64
             os: windows-11-arm
-            args: -A arm64 -DBOX3D_DISABLE_SIMD=TRUE -DBOX3D_SANITIZE=ON
-            test: ./bin/Debug/test
-          - name: ubuntu-gcc-double
-            os: ubuntu-latest
-            args: -DBOX3D_DOUBLE_PRECISION=ON
-            test: ./bin/test
-          - name: windows-double
-            os: windows-latest
-            msvc: true
-            args: -DBOX3D_DOUBLE_PRECISION=ON -DBOX3D_SANITIZE=ON
+            args: -A arm64 -T ClangCL -DBOX3D_DISABLE_SIMD=TRUE -DBOX3D_SANITIZE=ON
             test: ./bin/Debug/test
     steps:
     - uses: actions/checkout@v6
@@ -156,10 +149,6 @@ jobs:
             os: windows-latest
             msvc: true
             args: -DBUILD_SHARED_LIBS=OFF
-          - name: samples-windows-double
-            os: windows-latest
-            msvc: true
-            args: -DBOX3D_DOUBLE_PRECISION=ON -DBUILD_SHARED_LIBS=OFF
           - name: samples-windows-dynamic
             os: windows-latest
             msvc: true

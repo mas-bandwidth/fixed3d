@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 #include "gfx/debug_adapter.h"
+#include "fixed_ui.h"
 #include "gfx/draw.h"
 #include "gfx/keycodes.h"
 #include "sample.h"
@@ -27,34 +28,34 @@ public:
 			m_camera->SetView( 45.0f, 30.0f, 20.0f, b3Pos_zero );
 		}
 
-		b3BoxHull box = b3MakeBoxHull( 0.6f, 0.6f, 0.6f );
+		b3BoxHull box = b3MakeBoxHull( B3_FIX( 0.6f ), B3_FIX( 0.6f ), B3_FIX( 0.6f ) );
 
-		m_mesh = b3CreateTorusMesh( 10, 12, 0.65f, 0.35f );
+		m_mesh = b3CreateTorusMesh( 10, 12, B3_FIX( 0.65f ), B3_FIX( 0.35f ) );
 
 		b3BodyDef bodyDef = b3DefaultBodyDef();
 		bodyDef.type = b3_kinematicBody;
 
 		b3ShapeDef shapeDef = b3DefaultShapeDef();
 
-		bodyDef.position = { -6.0f, 3.0f, 0.0f };
-		bodyDef.angularVelocity = { 0.8f, 0.4f, 0.8f };
+		bodyDef.position = { B3_FIX( -6.0f ), B3_FIX( 3.0f ), B3_FIX( 0.0f ) };
+		bodyDef.angularVelocity = { B3_FIX( 0.8f ), B3_FIX( 0.4f ), B3_FIX( 0.8f ) };
 		b3BodyId sphereBody = b3CreateBody( m_worldId, &bodyDef );
-		b3Sphere sphere = { b3Vec3_zero, 0.9f };
+		b3Sphere sphere = { b3Vec3_zero, B3_FIX( 0.9f ) };
 		b3CreateSphereShape( sphereBody, &shapeDef, &sphere );
 
-		bodyDef.position = { -2.0f, 3.0f, 0.0f };
-		bodyDef.angularVelocity = { 0.8f, 0.4f, 0.8f };
+		bodyDef.position = { B3_FIX( -2.0f ), B3_FIX( 3.0f ), B3_FIX( 0.0f ) };
+		bodyDef.angularVelocity = { B3_FIX( 0.8f ), B3_FIX( 0.4f ), B3_FIX( 0.8f ) };
 		b3BodyId capsuleBody = b3CreateBody( m_worldId, &bodyDef );
-		b3Capsule capsule = { { -0.5f, 0.0f, 0.0f }, { 0.5f, 0.0f, 0.0f }, 0.8f };
+		b3Capsule capsule = { { B3_FIX( -0.5f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, { B3_FIX( 0.5f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, B3_FIX( 0.8f ) };
 		b3CreateCapsuleShape( capsuleBody, &shapeDef, &capsule );
 
-		bodyDef.position = { 2.0f, 3.0f, 0.0f };
-		bodyDef.angularVelocity = { 0.8f, 0.4f, 0.8f };
+		bodyDef.position = { B3_FIX( 2.0f ), B3_FIX( 3.0f ), B3_FIX( 0.0f ) };
+		bodyDef.angularVelocity = { B3_FIX( 0.8f ), B3_FIX( 0.4f ), B3_FIX( 0.8f ) };
 		b3BodyId hullBody = b3CreateBody( m_worldId, &bodyDef );
 		b3CreateHullShape( hullBody, &shapeDef, &box.base );
 
-		bodyDef.position = { 6.0f, 3.0f, 0.0f };
-		bodyDef.angularVelocity = { 0.8f, 0.4f, 0.8f };
+		bodyDef.position = { B3_FIX( 6.0f ), B3_FIX( 3.0f ), B3_FIX( 0.0f ) };
+		bodyDef.angularVelocity = { B3_FIX( 0.8f ), B3_FIX( 0.4f ), B3_FIX( 0.8f ) };
 		b3BodyId meshBody = b3CreateBody( m_worldId, &bodyDef );
 		b3CreateMeshShape( meshBody, &shapeDef, m_mesh, b3Vec3_one );
 
@@ -73,20 +74,20 @@ public:
 		Sample::Render();
 
 		DrawGroundGrid( 10 );
-		DrawLine( b3Pos_zero, b3OffsetPos( b3Pos_zero, 0.4f * b3Vec3_axisX ), MakeColor( b3_colorRed ) );
-		DrawLine( b3Pos_zero, b3OffsetPos( b3Pos_zero, 0.4f * b3Vec3_axisY ), MakeColor( b3_colorGreen ) );
-		DrawLine( b3Pos_zero, b3OffsetPos( b3Pos_zero, 0.4f * b3Vec3_axisZ ), MakeColor( b3_colorBlue ) );
+		DrawLine( b3Pos_zero, b3OffsetPos( b3Pos_zero, B3_FIX( 0.4f ) * b3Vec3_axisX ), MakeColor( b3_colorRed ) );
+		DrawLine( b3Pos_zero, b3OffsetPos( b3Pos_zero, B3_FIX( 0.4f ) * b3Vec3_axisY ), MakeColor( b3_colorGreen ) );
+		DrawLine( b3Pos_zero, b3OffsetPos( b3Pos_zero, B3_FIX( 0.4f ) * b3Vec3_axisZ ), MakeColor( b3_colorBlue ) );
 
 		for ( float x = -8.0f; x <= 8.0f; x += 0.1f )
 		{
-			b3Pos rayOrigin = { x, 8.0f, m_offset };
-			b3Pos rayEnd = { x, 0.0f, m_offset };
+			b3Pos rayOrigin = { b3FixFromFloat( x ), B3_FIX( 8.0f ), b3FixFromFloat( m_offset ) };
+			b3Pos rayEnd = { b3FixFromFloat( x ), B3_FIX( 0.0f ), b3FixFromFloat( m_offset ) };
 			b3Vec3 rayTranslation = b3SubPos( rayEnd, rayOrigin );
 
 			b3RayResult result = b3World_CastRayClosest( m_worldId, rayOrigin, rayTranslation, b3DefaultQueryFilter() );
 			if ( result.hit )
 			{
-				DrawLine( result.point, b3OffsetPos( result.point, 0.5f * result.normal ), MakeColor( b3_colorGreen ) );
+				DrawLine( result.point, b3OffsetPos( result.point, B3_FIX( 0.5f ) * result.normal ), MakeColor( b3_colorGreen ) );
 			}
 
 			DrawPoint( rayOrigin, 4.0f, MakeColor( b3_colorGreen ) );
@@ -122,7 +123,7 @@ struct CastContext
 {
 	b3Pos points[3];
 	b3Vec3 normals[3];
-	float fractions[3];
+	b3Fixed fractions[3];
 	uint64_t materialIds[3];
 	int triangleIndices[3];
 	int childIndices[3];
@@ -131,17 +132,17 @@ struct CastContext
 };
 
 // This callback finds the closest hit. This is the most common callback used in games.
-static float RayCastClosestCallback( b3ShapeId shapeId, b3Pos point, b3Vec3 normal, float fraction, uint64_t materialId,
+static b3Fixed RayCastClosestCallback( b3ShapeId shapeId, b3Pos point, b3Vec3 normal, b3Fixed fraction, uint64_t materialId,
 									 int triangleIndex, int childIndex, void* context )
 {
 	CastContext* rayContext = (CastContext*)context;
 
 	// Check for initial overlap
-	if ( rayContext->initialOverlap == false && fraction == 0.0f )
+	if ( rayContext->initialOverlap == false && fraction == B3_FIX( 0.0f ) )
 	{
 		// By returning -1, we instruct the calling code to ignore this shape and
 		// continue the ray-cast to the next shape.
-		return -1.0f;
+		return -B3_FIX( 1.0f );
 	}
 
 	// Ignore a specific shape. Also ignore initial overlap.
@@ -150,7 +151,7 @@ static float RayCastClosestCallback( b3ShapeId shapeId, b3Pos point, b3Vec3 norm
 	{
 		// By returning -1, we instruct the calling code to ignore this shape and
 		// continue the ray-cast to the next shape.
-		return -1.0f;
+		return -B3_FIX( 1.0f );
 	}
 
 	rayContext->points[0] = point;
@@ -170,17 +171,17 @@ static float RayCastClosestCallback( b3ShapeId shapeId, b3Pos point, b3Vec3 norm
 // This callback finds any hit. For this type of query we are usually just checking for obstruction,
 // so the hit data is not relevant.
 // NOTE: shape hits are not ordered, so this may not return the closest hit
-static float RayCastAnyCallback( b3ShapeId shapeId, b3Pos point, b3Vec3 normal, float fraction, uint64_t materialId,
+static b3Fixed RayCastAnyCallback( b3ShapeId shapeId, b3Pos point, b3Vec3 normal, b3Fixed fraction, uint64_t materialId,
 								 int triangleIndex, int childIndex, void* context )
 {
 	CastContext* rayContext = (CastContext*)context;
 
 	// Check for initial overlap
-	if ( rayContext->initialOverlap == false && fraction == 0.0f )
+	if ( rayContext->initialOverlap == false && fraction == B3_FIX( 0.0f ) )
 	{
 		// By returning -1, we instruct the calling code to ignore this shape and
 		// continue the ray-cast to the next shape.
-		return -1.0f;
+		return -B3_FIX( 1.0f );
 	}
 
 	intptr_t ignoreFlag = intptr_t( b3Shape_GetUserData( shapeId ) );
@@ -188,7 +189,7 @@ static float RayCastAnyCallback( b3ShapeId shapeId, b3Pos point, b3Vec3 normal, 
 	{
 		// By returning -1, we instruct the calling code to ignore this shape and
 		// continue the ray-cast to the next shape.
-		return -1.0f;
+		return -B3_FIX( 1.0f );
 	}
 
 	rayContext->points[0] = point;
@@ -201,7 +202,7 @@ static float RayCastAnyCallback( b3ShapeId shapeId, b3Pos point, b3Vec3 normal, 
 
 	// At this point we have a hit, so we know the ray is obstructed.
 	// By returning 0, we instruct the calling code to terminate the ray-cast.
-	return 0.0f;
+	return B3_FIX( 0.0f );
 }
 
 // This ray cast collects multiple hits along the ray.
@@ -210,17 +211,17 @@ static float RayCastAnyCallback( b3ShapeId shapeId, b3Pos point, b3Vec3 normal, 
 // NOTE: shape hits are not ordered, so this may return hits in any order. This means that
 // if you limit the number of results, you may discard the closest hit. You can see this
 // behavior in the sample.
-static float RayCastMultipleCallback( b3ShapeId shapeId, b3Pos point, b3Vec3 normal, float fraction, uint64_t materialId,
+static b3Fixed RayCastMultipleCallback( b3ShapeId shapeId, b3Pos point, b3Vec3 normal, b3Fixed fraction, uint64_t materialId,
 									  int triangleIndex, int childIndex, void* context )
 {
 	CastContext* rayContext = (CastContext*)context;
 
 	// Check for initial overlap
-	if ( rayContext->initialOverlap == false && fraction == 0.0f )
+	if ( rayContext->initialOverlap == false && fraction == B3_FIX( 0.0f ) )
 	{
 		// By returning -1, we instruct the calling code to ignore this shape and
 		// continue the ray-cast to the next shape.
-		return -1.0f;
+		return -B3_FIX( 1.0f );
 	}
 
 	intptr_t ignoreFlag = intptr_t( b3Shape_GetUserData( shapeId ) );
@@ -228,7 +229,7 @@ static float RayCastMultipleCallback( b3ShapeId shapeId, b3Pos point, b3Vec3 nor
 	{
 		// By returning -1, we instruct the calling code to ignore this shape and
 		// continue the ray-cast to the next shape.
-		return -1.0f;
+		return -B3_FIX( 1.0f );
 	}
 
 	int count = rayContext->count;
@@ -246,25 +247,25 @@ static float RayCastMultipleCallback( b3ShapeId shapeId, b3Pos point, b3Vec3 nor
 	{
 		// At this point the buffer is full.
 		// By returning 0, we instruct the calling code to terminate the ray-cast.
-		return 0.0f;
+		return B3_FIX( 0.0f );
 	}
 
 	// By returning 1, we instruct the caller to continue without clipping the ray.
-	return 1.0f;
+	return B3_FIX( 1.0f );
 }
 
 // This ray cast collects multiple hits along the ray and sorts them.
-static float RayCastSortedCallback( b3ShapeId shapeId, b3Pos point, b3Vec3 normal, float fraction, uint64_t materialId,
+static b3Fixed RayCastSortedCallback( b3ShapeId shapeId, b3Pos point, b3Vec3 normal, b3Fixed fraction, uint64_t materialId,
 									int triangleIndex, int childIndex, void* context )
 {
 	CastContext* rayContext = (CastContext*)context;
 
 	// Check for initial overlap
-	if ( rayContext->initialOverlap == false && fraction == 0.0f )
+	if ( rayContext->initialOverlap == false && fraction == B3_FIX( 0.0f ) )
 	{
 		// By returning -1, we instruct the calling code to ignore this shape and
 		// continue the ray-cast to the next shape.
-		return -1.0f;
+		return -B3_FIX( 1.0f );
 	}
 
 	intptr_t ignoreFlag = intptr_t( b3Shape_GetUserData( shapeId ) );
@@ -272,7 +273,7 @@ static float RayCastSortedCallback( b3ShapeId shapeId, b3Pos point, b3Vec3 norma
 	{
 		// By returning -1, we instruct the calling code to ignore this shape and
 		// continue the ray-cast to the next shape.
-		return -1.0f;
+		return -B3_FIX( 1.0f );
 	}
 
 	int count = rayContext->count;
@@ -322,7 +323,7 @@ static float RayCastSortedCallback( b3ShapeId shapeId, b3Pos point, b3Vec3 norma
 	}
 
 	// By returning 1, we instruct the caller to continue without clipping the ray.
-	return 1.0f;
+	return B3_FIX( 1.0f );
 }
 
 class CastWorld : public Sample
@@ -357,12 +358,12 @@ public:
 			m_camera->SetView( 45.0f, 30.0f, 20.0f, b3Pos_zero );
 		}
 
-		m_sphere = { b3Vec3_zero, 0.9f };
-		m_capsule = { { -0.5f, 0.0f, 0.0f }, { 0.5f, 0.0f, 0.0f }, 0.8f };
-		m_box = b3MakeBoxHull( 0.6f, 0.6f, 0.6f );
-		m_mesh = b3CreateTorusMesh( 10, 12, 0.65f, 0.35f );
+		m_sphere = { b3Vec3_zero, B3_FIX( 0.9f ) };
+		m_capsule = { { B3_FIX( -0.5f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, { B3_FIX( 0.5f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, B3_FIX( 0.8f ) };
+		m_box = b3MakeBoxHull( B3_FIX( 0.6f ), B3_FIX( 0.6f ), B3_FIX( 0.6f ) );
+		m_mesh = b3CreateTorusMesh( 10, 12, B3_FIX( 0.65f ), B3_FIX( 0.35f ) );
 
-		m_heightField = b3CreateWave( 10, 10, 0.5f * b3Vec3_one, 0.03f, 0.09f, false );
+		m_heightField = b3CreateWave( 10, 10, B3_FIX( 0.5f ) * b3Vec3_one, B3_FIX( 0.03f ), B3_FIX( 0.09f ), false );
 
 		m_bodyIndex = 0;
 
@@ -376,8 +377,8 @@ public:
 		m_castType = e_rayCast;
 		m_castRadius = 0.5f;
 
-		m_origin = { -20.0f, 10.0f, 0.0f };
-		m_translation = { 20.0f, 10.0f, 0.0f };
+		m_origin = { B3_FIX( -20.0f ), B3_FIX( 10.0f ), B3_FIX( 0.0f ) };
+		m_translation = { B3_FIX( 20.0f ), B3_FIX( 10.0f ), B3_FIX( 0.0f ) };
 
 		m_castContext = {};
 		m_initialOverlap = false;
@@ -453,7 +454,7 @@ public:
 
 				case b3_meshShape:
 					shapeDef.baseMaterial.userMaterialId = 44;
-					b3CreateMeshShape( bodyId, &shapeDef, m_mesh, { 4.0f, 3.0f, -2.0f } );
+					b3CreateMeshShape( bodyId, &shapeDef, m_mesh, { B3_FIX( 4.0f ), B3_FIX( 3.0f ), B3_FIX( -2.0f ) } );
 					break;
 
 				case b3_heightShape:
@@ -580,12 +581,12 @@ public:
 		m_castContext.initialOverlap = m_initialOverlap;
 
 		// Must initialize fractions for sorting
-		m_castContext.fractions[0] = FLT_MAX;
-		m_castContext.fractions[1] = FLT_MAX;
-		m_castContext.fractions[2] = FLT_MAX;
+		m_castContext.fractions[0] = B3_FIXED_MAX;
+		m_castContext.fractions[1] = B3_FIXED_MAX;
+		m_castContext.fractions[2] = B3_FIXED_MAX;
 
-		b3Sphere sphere = { b3Vec3_zero, m_castRadius };
-		b3Capsule capsule = { b3Vec3_zero, b3Vec3{ 0.0f, 1.0f, 0.0f }, m_castRadius };
+		b3Sphere sphere = { b3Vec3_zero, b3FixFromFloat( m_castRadius ) };
+		b3Capsule capsule = { b3Vec3_zero, b3Vec3{ B3_FIX( 0.0f ), B3_FIX( 1.0f ), B3_FIX( 0.0f ) }, b3FixFromFloat( m_castRadius ) };
 		b3BoxHull box = {};
 
 		b3Vec3 pointBuffer[2];
@@ -614,7 +615,7 @@ public:
 
 			case e_boxCast:
 			{
-				b3Vec3 extent = { m_castRadius, 0.5f * m_castRadius, 0.25f * m_castRadius };
+				b3Vec3 extent = { b3FixFromFloat( m_castRadius ), b3FixFromFloat( 0.5f * m_castRadius ), b3FixFromFloat( 0.25f * m_castRadius ) };
 				b3Transform boxXf = { b3Vec3_zero, b3Quat_identity };
 				box = b3MakeTransformedBoxHull( extent.x, extent.y, extent.z, boxXf );
 				proxy.points = box.boxPoints;
@@ -649,7 +650,7 @@ public:
 				b3Pos point = m_castContext.points[i];
 				b3Vec3 normal = m_castContext.normals[i];
 				DrawPoint( point, 10.0f, MakeColor( colors[i] ) );
-				b3Pos head = b3OffsetPos( point, 0.5f * normal );
+				b3Pos head = b3OffsetPos( point, B3_FIX( 0.5f ) * normal );
 
 				b3WorldTransform transform = { m_origin + m_castContext.fractions[i] * m_translation, b3Quat_identity };
 
@@ -787,15 +788,15 @@ public:
 			m_camera->SetView( 45.0f, 30.0f, 20.0f, b3Pos_zero );
 		}
 
-		m_mesh = b3CreateBoxMesh( { 0.0f, 0.0f, 0.0f }, { 0.5f, 0.5f, 0.5f }, true );
-		m_scale = { 1.0f, 1.0f, 1.0f };
+		m_mesh = b3CreateBoxMesh( { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, { B3_FIX( 0.5f ), B3_FIX( 0.5f ), B3_FIX( 0.5f ) }, true );
+		m_scale = { B3_FIX( 1.0f ), B3_FIX( 1.0f ), B3_FIX( 1.0f ) };
 
 		b3BodyDef bodyDef = b3DefaultBodyDef();
 		b3ShapeDef shapeDef = b3DefaultShapeDef();
 
 		m_meshBodyId = b3CreateBody( m_worldId, &bodyDef );
 		m_meshShapeId = b3CreateMeshShape( m_meshBodyId, &shapeDef, m_mesh, m_scale );
-		m_start = { -2.0f, 0.0f, 0.0f };
+		m_start = { B3_FIX( -2.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
 		m_sphereCast = true;
 	}
 
@@ -813,9 +814,9 @@ public:
 	{
 		b3Vec3 scale = m_scale;
 		bool changed = false;
-		changed = changed || ImGui::SliderFloat( "Scale X", &scale.x, -2.0f, 2.0f, "%.1f" );
-		changed = changed || ImGui::SliderFloat( "Scale Y", &scale.y, -2.0f, 2.0f, "%.1f" );
-		changed = changed || ImGui::SliderFloat( "Scale Z", &scale.z, -2.0f, 2.0f, "%.1f" );
+		changed = changed || SliderFixed( "Scale X", &scale.x, -2.0f, 2.0f, "%.1f" );
+		changed = changed || SliderFixed( "Scale Y", &scale.y, -2.0f, 2.0f, "%.1f" );
+		changed = changed || SliderFixed( "Scale Z", &scale.z, -2.0f, 2.0f, "%.1f" );
 
 		if ( changed )
 		{
@@ -824,8 +825,8 @@ public:
 		}
 
 		b3Vec3 delta = b3SubPos( m_start, b3Pos_zero );
-		ImGui::SliderFloat( "Start Y", &delta.y, -2.0f, 2.0f, "%.1f" );
-		ImGui::SliderFloat( "Start Z", &delta.z, -2.0f, 2.0f, "%.1f" );
+		SliderFixed( "Start Y", &delta.y, -2.0f, 2.0f, "%.1f" );
+		SliderFixed( "Start Z", &delta.z, -2.0f, 2.0f, "%.1f" );
 		m_start = b3OffsetPos( b3Pos_zero, delta );
 
 		ImGui::Checkbox( "sphere Cast", &m_sphereCast );
@@ -836,7 +837,7 @@ public:
 	void Step() override
 	{
 		b3Pos rayOrigin = m_start;
-		b3Vec3 rayTranslation = { 4.0f, 0.0f, 0.0f };
+		b3Vec3 rayTranslation = { B3_FIX( 4.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
 
 		DrawPoint( rayOrigin, 8.0f, MakeColor( b3_colorGreen ) );
 		DrawPoint( b3OffsetPos( rayOrigin, rayTranslation ), 8.0f, MakeColor( b3_colorRed ) );
@@ -844,7 +845,7 @@ public:
 
 		if ( m_sphereCast )
 		{
-			b3Sphere sphere = { b3Vec3_zero, 0.25f };
+			b3Sphere sphere = { b3Vec3_zero, B3_FIX( 0.25f ) };
 
 			CastContext context = {};
 			b3ShapeProxy proxy = { &sphere.center, 1, sphere.radius };
@@ -857,7 +858,7 @@ public:
 				DrawSolidSphere( transform, sphere, MakeColor( b3_colorYellow ) );
 
 				b3Pos point = context.points[0];
-				DrawLine( point, b3OffsetPos( point, 0.5f * context.normals[0] ), MakeColor( b3_colorGreen ) );
+				DrawLine( point, b3OffsetPos( point, B3_FIX( 0.5f ) * context.normals[0] ), MakeColor( b3_colorGreen ) );
 				DrawPoint( point, 5.0f, MakeColor( b3_colorYellow ) );
 			}
 			else
@@ -871,7 +872,7 @@ public:
 			b3RayResult result = b3World_CastRayClosest( m_worldId, rayOrigin, rayTranslation, b3DefaultQueryFilter() );
 			if ( result.hit )
 			{
-				DrawLine( result.point, b3OffsetPos( result.point, 0.5f * result.normal ), MakeColor( b3_colorGreen ) );
+				DrawLine( result.point, b3OffsetPos( result.point, B3_FIX( 0.5f ) * result.normal ), MakeColor( b3_colorGreen ) );
 				DrawPoint( result.point, 5.0f, MakeColor( b3_colorYellow ) );
 			}
 		}
@@ -893,34 +894,34 @@ public:
 	explicit ShapeCast( SampleContext* context )
 		: Sample( context )
 	{
-		m_camera->SetView( 120.0f, 30.0f, 20.0f, { 0.0f, 1.5f, 0.0f } );
+		m_camera->SetView( 120.0f, 30.0f, 20.0f, { B3_FIX( 0.0f ), B3_FIX( 1.5f ), B3_FIX( 0.0f ) } );
 
-		b3BoxHull box = b3MakeBoxHull( 0.6f, 0.6f, 0.6f );
-		m_mesh = b3CreateTorusMesh( 10, 12, 0.65f, 0.35f );
+		b3BoxHull box = b3MakeBoxHull( B3_FIX( 0.6f ), B3_FIX( 0.6f ), B3_FIX( 0.6f ) );
+		m_mesh = b3CreateTorusMesh( 10, 12, B3_FIX( 0.65f ), B3_FIX( 0.35f ) );
 
 		b3BodyDef bodyDef = b3DefaultBodyDef();
 		b3ShapeDef shapeDef = b3DefaultShapeDef();
 
 		for ( int index = 0; index < 3; ++index )
 		{
-			bodyDef.position = { -6.0f, 3.0f + 2.0f * index, 0.0f };
+			bodyDef.position = { B3_FIX( -6.0f ), b3FixFromFloat( 3.0f + 2.0f * index ), B3_FIX( 0.0f ) };
 			bodyDef.rotation = b3MakeQuatFromAxisAngle( b3Vec3_axisX, 0.5f * B3_PI );
 			b3BodyId sphereBody = b3CreateBody( m_worldId, &bodyDef );
-			b3Sphere sphere = { b3Vec3_zero, 0.9f };
+			b3Sphere sphere = { b3Vec3_zero, B3_FIX( 0.9f ) };
 			b3CreateSphereShape( sphereBody, &shapeDef, &sphere );
 
-			bodyDef.position = { -2.0f, 3.0f + 2.0f * index, 0.0f };
+			bodyDef.position = { B3_FIX( -2.0f ), b3FixFromFloat( 3.0f + 2.0f * index ), B3_FIX( 0.0f ) };
 			bodyDef.rotation = b3MakeQuatFromAxisAngle( b3Vec3_axisZ, 0.25f * B3_PI );
 			b3BodyId capsuleBody = b3CreateBody( m_worldId, &bodyDef );
-			b3Capsule capsule = { { -0.5f, 0.0f, 0.0f }, { 0.5f, 0.0f, 0.0f }, 0.7f };
+			b3Capsule capsule = { { B3_FIX( -0.5f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, { B3_FIX( 0.5f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, B3_FIX( 0.7f ) };
 			b3CreateCapsuleShape( capsuleBody, &shapeDef, &capsule );
 
-			bodyDef.position = { 2.0f, 3.0f + 2.0f * index, 0.0f };
+			bodyDef.position = { B3_FIX( 2.0f ), b3FixFromFloat( 3.0f + 2.0f * index ), B3_FIX( 0.0f ) };
 			bodyDef.rotation = b3MakeQuatFromAxisAngle( b3Vec3_axisZ, 0.25f * B3_PI );
 			b3BodyId hullBody = b3CreateBody( m_worldId, &bodyDef );
 			b3CreateHullShape( hullBody, &shapeDef, &box.base );
 
-			bodyDef.position = { 6.0f, 3.0f + 2.0f * index, 0.0f };
+			bodyDef.position = { B3_FIX( 6.0f ), b3FixFromFloat( 3.0f + 2.0f * index ), B3_FIX( 0.0f ) };
 			bodyDef.rotation = b3MakeQuatFromAxisAngle( b3Vec3_axisX, 0.5f * B3_PI );
 			b3BodyId meshBody = b3CreateBody( m_worldId, &bodyDef );
 			b3CreateMeshShape( meshBody, &shapeDef, m_mesh, b3Vec3_one );
@@ -946,8 +947,8 @@ public:
 		for ( int castIndex = 0; castIndex < 4; ++castIndex )
 		{
 			// World space sweep
-			b3Sphere sphere = { b3Vec3_zero, 0.3f };
-			b3Vec3 offset = b3Vec3{ -6.0f + 4.0f * castIndex, 3.0f, -5.0f } + m_castOffset;
+			b3Sphere sphere = { b3Vec3_zero, B3_FIX( 0.3f ) };
+			b3Vec3 offset = b3Vec3{ b3FixFromFloat( -6.0f + 4.0f * castIndex ), B3_FIX( 3.0f ), B3_FIX( -5.0f ) } + m_castOffset;
 			sphere.center += offset;
 			b3Vec3 translation = 10.0f * b3Vec3_axisZ;
 			b3ShapeProxy proxy = { &sphere.center, 1, sphere.radius };
@@ -971,7 +972,7 @@ public:
 								 MakeColor( b3_colorRed ) );
 
 				DrawPoint( point, 2.0f, MakeColor( b3_colorRed ) );
-				DrawLine( point, b3OffsetPos( point, 0.2f * normal ), MakeColor( b3_colorYellow ) );
+				DrawLine( point, b3OffsetPos( point, B3_FIX( 0.2f ) * normal ), MakeColor( b3_colorYellow ) );
 			}
 			else
 			{
@@ -984,8 +985,8 @@ public:
 	{
 		for ( int castIndex = 0; castIndex < 4; ++castIndex )
 		{
-			b3Capsule capsule = { { -0.2f, -0.2f, -0.2f }, { 0.2f, 0.2f, 0.2f }, 0.2f };
-			b3Vec3 offset = b3Vec3{ -6.0f + 4.0f * castIndex, 5.0f, -5.0f } + m_castOffset;
+			b3Capsule capsule = { { B3_FIX( -0.2f ), B3_FIX( -0.2f ), B3_FIX( -0.2f ) }, { B3_FIX( 0.2f ), B3_FIX( 0.2f ), B3_FIX( 0.2f ) }, B3_FIX( 0.2f ) };
+			b3Vec3 offset = b3Vec3{ b3FixFromFloat( -6.0f + 4.0f * castIndex ), B3_FIX( 5.0f ), B3_FIX( -5.0f ) } + m_castOffset;
 			capsule.center1 += offset;
 			capsule.center2 += offset;
 			b3Vec3 translation = 10.0f * b3Vec3_axisZ;
@@ -1009,7 +1010,7 @@ public:
 								  MakeColor( b3_colorRed ) );
 
 				DrawPoint( point, 2.0f, MakeColor( b3_colorRed ) );
-				DrawLine( point, b3OffsetPos( point, 0.2f * normal ), MakeColor( b3_colorYellow ) );
+				DrawLine( point, b3OffsetPos( point, B3_FIX( 0.2f ) * normal ), MakeColor( b3_colorYellow ) );
 			}
 			else
 			{
@@ -1022,7 +1023,7 @@ public:
 	{
 		for ( int castIndex = 0; castIndex < 4; ++castIndex )
 		{
-			b3Vec3 offset = b3Vec3{ -6.0f + 4.0f * castIndex, 7.0f, -5.0f } + m_castOffset;
+			b3Vec3 offset = b3Vec3{ b3FixFromFloat( -6.0f + 4.0f * castIndex ), B3_FIX( 7.0f ), B3_FIX( -5.0f ) } + m_castOffset;
 			b3Quat qx = b3MakeQuatFromAxisAngle( b3Vec3_axisX, 0.25f * B3_PI );
 			b3Quat qy = b3MakeQuatFromAxisAngle( b3Vec3_axisY, 0.25f * B3_PI );
 			b3Quat qz = b3MakeQuatFromAxisAngle( b3Vec3_axisZ, 0.25f * B3_PI );
@@ -1031,10 +1032,10 @@ public:
 
 			b3Transform transform = { offset, q };
 
-			b3BoxHull box = b3MakeTransformedBoxHull( 0.3f, 0.3f, 0.3f, transform );
+			b3BoxHull box = b3MakeTransformedBoxHull( B3_FIX( 0.3f ), B3_FIX( 0.3f ), B3_FIX( 0.3f ), transform );
 
 			b3Vec3 translation = 10.0f * b3Vec3_axisZ;
-			b3ShapeProxy proxy = { box.boxPoints, box.base.vertexCount, 0.0f };
+			b3ShapeProxy proxy = { box.boxPoints, box.base.vertexCount, B3_FIX( 0.0f ) };
 
 			CastContext context = {};
 			context.initialOverlap = m_initialOverlap;
@@ -1055,7 +1056,7 @@ public:
 						  MakeColor( b3_colorRed ) );
 
 				DrawPoint( point, 2.0f, MakeColor( b3_colorRed ) );
-				DrawLine( point, b3OffsetPos( point, 0.2f * normal ), MakeColor( b3_colorYellow ) );
+				DrawLine( point, b3OffsetPos( point, B3_FIX( 0.2f ) * normal ), MakeColor( b3_colorYellow ) );
 			}
 			else
 			{
@@ -1163,15 +1164,15 @@ public:
 		if ( context->restart == false )
 		{
 
-			m_camera->SetView( 120.0f, 30.0f, 20.0f, { 0.0f, 1.5f, 0.0f } );
+			m_camera->SetView( 120.0f, 30.0f, 20.0f, { B3_FIX( 0.0f ), B3_FIX( 1.5f ), B3_FIX( 0.0f ) } );
 		}
 
 		b3World_SetGravity( m_worldId, b3Vec3_zero );
 
-		m_box = b3MakeBoxHull( 0.6f, 0.6f, 0.6f );
-		m_mesh = b3CreateTorusMesh( 10, 12, 0.65f, 0.35f );
+		m_box = b3MakeBoxHull( B3_FIX( 0.6f ), B3_FIX( 0.6f ), B3_FIX( 0.6f ) );
+		m_mesh = b3CreateTorusMesh( 10, 12, B3_FIX( 0.65f ), B3_FIX( 0.35f ) );
 
-		m_heightField = b3CreateWave( 10, 10, 0.2f * b3Vec3_one, 0.03f, 0.09f, false );
+		m_heightField = b3CreateWave( 10, 10, B3_FIX( 0.2f ) * b3Vec3_one, B3_FIX( 0.03f ), B3_FIX( 0.09f ), false );
 
 		b3BodyDef bodyDef = b3DefaultBodyDef();
 		b3ShapeDef shapeDef = b3DefaultShapeDef();
@@ -1181,34 +1182,34 @@ public:
 			b3BodyType type = b3BodyType( index );
 
 			bodyDef.type = type;
-			bodyDef.position = { -6.0f, 3.0f + 2.0f * index, 0.0f };
+			bodyDef.position = { B3_FIX( -6.0f ), b3FixFromFloat( 3.0f + 2.0f * index ), B3_FIX( 0.0f ) };
 			bodyDef.rotation = b3MakeQuatFromAxisAngle( b3Vec3_axisX, 0.5f * B3_PI );
 			b3BodyId sphereBody = b3CreateBody( m_worldId, &bodyDef );
-			b3Sphere sphere = { b3Vec3_zero, 0.8f };
+			b3Sphere sphere = { b3Vec3_zero, B3_FIX( 0.8f ) };
 			b3CreateSphereShape( sphereBody, &shapeDef, &sphere );
 
 			bodyDef.type = type;
-			bodyDef.position = { -3.0f, 3.0f + 2.0f * index, 0.0f };
+			bodyDef.position = { B3_FIX( -3.0f ), b3FixFromFloat( 3.0f + 2.0f * index ), B3_FIX( 0.0f ) };
 			bodyDef.rotation = b3MakeQuatFromAxisAngle( b3Vec3_axisZ, 0.25f * B3_PI );
 			b3BodyId capsuleBody = b3CreateBody( m_worldId, &bodyDef );
-			b3Capsule capsule = { { -0.5f, 0.0f, 0.0f }, { 0.5f, 0.0f, 0.0f }, 0.5f };
+			b3Capsule capsule = { { B3_FIX( -0.5f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, { B3_FIX( 0.5f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, B3_FIX( 0.5f ) };
 			b3CreateCapsuleShape( capsuleBody, &shapeDef, &capsule );
 
 			bodyDef.type = type;
-			bodyDef.position = { 0.0f, 3.0f + 2.0f * index, 0.0f };
+			bodyDef.position = { B3_FIX( 0.0f ), b3FixFromFloat( 3.0f + 2.0f * index ), B3_FIX( 0.0f ) };
 			bodyDef.rotation = b3MakeQuatFromAxisAngle( b3Vec3_axisZ, 0.25f * B3_PI );
 			b3BodyId hullBody = b3CreateBody( m_worldId, &bodyDef );
 			b3CreateHullShape( hullBody, &shapeDef, &m_box.base );
 
 			bodyDef.type = type;
-			bodyDef.position = { 3.0f, 3.0f + 2.0f * index, 0.0f };
+			bodyDef.position = { B3_FIX( 3.0f ), b3FixFromFloat( 3.0f + 2.0f * index ), B3_FIX( 0.0f ) };
 			bodyDef.rotation = b3MakeQuatFromAxisAngle( b3Vec3_axisX, 0.5f * B3_PI );
 			b3BodyId meshBody = b3CreateBody( m_worldId, &bodyDef );
-			b3CreateMeshShape( meshBody, &shapeDef, m_mesh, { -0.5f, 1.5f, -1.0f } );
+			b3CreateMeshShape( meshBody, &shapeDef, m_mesh, { B3_FIX( -0.5f ), B3_FIX( 1.5f ), B3_FIX( -1.0f ) } );
 
 			// Height fields only on static bodies
 			bodyDef.type = b3_staticBody;
-			bodyDef.position = { 5.0f, 2.0f + 2.0f * index, 0.0f };
+			bodyDef.position = { B3_FIX( 5.0f ), b3FixFromFloat( 2.0f + 2.0f * index ), B3_FIX( 0.0f ) };
 			bodyDef.rotation = b3MakeQuatFromAxisAngle( b3Vec3_axisX, -0.5f * B3_PI );
 			b3BodyId heightBody = b3CreateBody( m_worldId, &bodyDef );
 			b3CreateHeightFieldShape( heightBody, &shapeDef, m_heightField );
@@ -1238,7 +1239,7 @@ public:
 	{
 		for ( int i = 0; i < 5; ++i )
 		{
-			b3Sphere sphere = { { -6.0f + 3.0f * i, 3.0f, -5.0f + m_castOffset }, 0.3f };
+			b3Sphere sphere = { { b3FixFromFloat( -6.0f + 3.0f * i ), B3_FIX( 3.0f ), b3FixFromFloat( -5.0f + m_castOffset ) }, B3_FIX( 0.3f ) };
 			b3ShapeProxy proxy = { &sphere.center, 1, sphere.radius };
 			b3HexColor color = b3_colorGreen;
 			b3World_OverlapShape( m_worldId, b3Pos_zero, &proxy, b3DefaultQueryFilter(), OverlapResultFcn, &color );
@@ -1251,8 +1252,8 @@ public:
 
 		for ( int i = 0; i < 5; ++i )
 		{
-			b3Vec3 offset = { -6.0f + 3.0f * i, 5.0f, -5.0f + m_castOffset };
-			b3Capsule capsule = { { -0.2f, -0.2f, -0.2f }, { 0.2f, 0.2f, 0.2f }, 0.2f };
+			b3Vec3 offset = { b3FixFromFloat( -6.0f + 3.0f * i ), B3_FIX( 5.0f ), b3FixFromFloat( -5.0f + m_castOffset ) };
+			b3Capsule capsule = { { B3_FIX( -0.2f ), B3_FIX( -0.2f ), B3_FIX( -0.2f ) }, { B3_FIX( 0.2f ), B3_FIX( 0.2f ), B3_FIX( 0.2f ) }, B3_FIX( 0.2f ) };
 			capsule.center1 += offset;
 			capsule.center2 += offset;
 			b3ShapeProxy proxy = { &capsule.center1, 2, capsule.radius };
@@ -1266,9 +1267,9 @@ public:
 	{
 		for ( int i = 0; i < 5; ++i )
 		{
-			b3Transform transform{ { -6.0f + 3.0f * i, 7.0f, -5.0f + m_castOffset }, b3Quat_identity };
-			b3BoxHull box = b3MakeTransformedBoxHull( 0.3f, 0.3f, 0.3f, transform );
-			b3ShapeProxy proxy = { box.boxPoints, box.base.vertexCount, 0.0f };
+			b3Transform transform{ { b3FixFromFloat( -6.0f + 3.0f * i ), B3_FIX( 7.0f ), b3FixFromFloat( -5.0f + m_castOffset ) }, b3Quat_identity };
+			b3BoxHull box = b3MakeTransformedBoxHull( B3_FIX( 0.3f ), B3_FIX( 0.3f ), B3_FIX( 0.3f ), transform );
+			b3ShapeProxy proxy = { box.boxPoints, box.base.vertexCount, B3_FIX( 0.0f ) };
 			b3HexColor color = b3_colorGreen;
 			b3World_OverlapShape( m_worldId, b3Pos_zero, &proxy, b3DefaultQueryFilter(), OverlapResultFcn, &color );
 			DrawHull( b3WorldTransform_identity, &box.base, MakeColor( color ) );
@@ -1313,9 +1314,9 @@ public:
 		DrawTextLine( "Shift + LMB and drag to move shapes" );
 
 		DrawGroundGrid( 10 );
-		DrawLine( b3Pos_zero, b3OffsetPos( b3Pos_zero, 0.4f * b3Vec3_axisX ), MakeColor( b3_colorRed ) );
-		DrawLine( b3Pos_zero, b3OffsetPos( b3Pos_zero, 0.4f * b3Vec3_axisY ), MakeColor( b3_colorGreen ) );
-		DrawLine( b3Pos_zero, b3OffsetPos( b3Pos_zero, 0.4f * b3Vec3_axisZ ), MakeColor( b3_colorBlue ) );
+		DrawLine( b3Pos_zero, b3OffsetPos( b3Pos_zero, B3_FIX( 0.4f ) * b3Vec3_axisX ), MakeColor( b3_colorRed ) );
+		DrawLine( b3Pos_zero, b3OffsetPos( b3Pos_zero, B3_FIX( 0.4f ) * b3Vec3_axisY ), MakeColor( b3_colorGreen ) );
+		DrawLine( b3Pos_zero, b3OffsetPos( b3Pos_zero, B3_FIX( 0.4f ) * b3Vec3_axisZ ), MakeColor( b3_colorBlue ) );
 	}
 
 	b3BoxHull m_box;
@@ -1350,17 +1351,17 @@ public:
 	{
 		if ( context->restart == false )
 		{
-			m_camera->SetView( -35.0f, 22.0f, 34.0f, { 0.0f, 1.0f, 0.0f } );
+			m_camera->SetView( -35.0f, 22.0f, 34.0f, { B3_FIX( 0.0f ), B3_FIX( 1.0f ), B3_FIX( 0.0f ) } );
 		}
 
 		b3World_SetGravity( m_worldId, b3Vec3_zero );
 
 		m_hull = b3CreateRock( 1.0f );
-		m_mesh = b3CreateWaveMesh( 8, 8, 0.5f, 0.25f, 0.2f, 0.2f );
+		m_mesh = b3CreateWaveMesh( 8, 8, B3_FIX( 0.5f ), B3_FIX( 0.25f ), B3_FIX( 0.2f ), B3_FIX( 0.2f ) );
 
 		int hfCount = 9;
-		b3Vec3 hfScale = 0.5f * b3Vec3_one;
-		m_heightField = b3CreateWave( hfCount, hfCount, hfScale, 0.08f, 0.16f, false );
+		b3Vec3 hfScale = B3_FIX( 0.5f ) * b3Vec3_one;
+		m_heightField = b3CreateWave( hfCount, hfCount, hfScale, B3_FIX( 0.08f ), B3_FIX( 0.16f ), false );
 
 		// Aim each ray at a point above its shape so the cone sweeps the hit across the surface.
 		float spacing = 5.0f;
@@ -1368,7 +1369,7 @@ public:
 		for ( int i = 0; i < SHAPE_COUNT; ++i )
 		{
 			float x = ( i - 2 ) * spacing;
-			m_targets[i] = { x, aimHeight, 0.0f };
+			m_targets[i] = { b3FixFromFloat( x ), b3FixFromFloat( aimHeight ), B3_FIX( 0.0f ) };
 			m_trailNext[i] = 0;
 			m_trailCount[i] = 0;
 			m_failRate[i] = 0.0f;
@@ -1384,7 +1385,7 @@ public:
 		bodyDef.position.x = m_targets[0].x;
 		{
 			b3BodyId body = b3CreateBody( m_worldId, &bodyDef );
-			b3Sphere sphere = { b3Vec3_zero, 1.0f };
+			b3Sphere sphere = { b3Vec3_zero, B3_FIX( 1.0f ) };
 			b3CreateSphereShape( body, &shapeDef, &sphere );
 		}
 
@@ -1392,7 +1393,7 @@ public:
 		bodyDef.position.x = m_targets[1].x;
 		{
 			b3BodyId body = b3CreateBody( m_worldId, &bodyDef );
-			b3Capsule capsule = { { -1.0f, 0.0f, 0.0f }, { 1.0f, 0.0f, 0.0f }, 0.7f };
+			b3Capsule capsule = { { B3_FIX( -1.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, { B3_FIX( 1.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, B3_FIX( 0.7f ) };
 			b3CreateCapsuleShape( body, &shapeDef, &capsule );
 		}
 
@@ -1414,7 +1415,7 @@ public:
 		{
 			float extentX = hfScale.x * ( hfCount - 1 );
 			float extentZ = hfScale.z * ( hfCount - 1 );
-			bodyDef.position = { m_targets[4].x - 0.5f * extentX, 0.0f, -0.5f * extentZ };
+			bodyDef.position = { b3FixFromFloat( m_targets[4].x - 0.5f * extentX ), B3_FIX( 0.0f ), b3FixFromFloat( -0.5f * extentZ ) };
 			b3BodyId body = b3CreateBody( m_worldId, &bodyDef );
 			b3CreateHeightFieldShape( body, &shapeDef, m_heightField );
 		}
@@ -1484,7 +1485,7 @@ public:
 				}
 
 				DrawLine( b3OffsetPos( cast.point, b3MulSV( 3.0f, coneDir ) ), cast.point, MakeColor( b3_colorAqua ) );
-				DrawLine( cast.point, b3OffsetPos( cast.point, b3MulSV( 1.5f, cast.normal ) ), MakeColor( b3_colorYellow ) );
+				DrawLine( cast.point, b3OffsetPos( cast.point, b3MulSV( B3_FIX( 1.5f ), cast.normal ) ), MakeColor( b3_colorYellow ) );
 				DrawPoint( cast.point, 8.0f, MakeColor( color ) );
 			}
 			else if ( truth.hit )
@@ -1540,9 +1541,9 @@ public:
 		b3Vec3 translation = b3MulSV( -( distance + reach ), coneDir );
 
 		CastContext context = {};
-		context.fractions[0] = FLT_MAX;
-		context.fractions[1] = FLT_MAX;
-		context.fractions[2] = FLT_MAX;
+		context.fractions[0] = B3_FIXED_MAX;
+		context.fractions[1] = B3_FIXED_MAX;
+		context.fractions[2] = B3_FIXED_MAX;
 		b3World_CastRay( m_worldId, origin, translation, filter, RayCastClosestCallback, &context );
 
 		CastHit output = {};
@@ -1580,15 +1581,15 @@ public:
 	{
 		if ( context->restart == false )
 		{
-			m_camera->SetView( -140.0f, 10.0f, 10.0f, { 0.0f, 0.0f, 0.0f } );
+			m_camera->SetView( -140.0f, 10.0f, 10.0f, { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) } );
 		}
 
 		int indices[] = { 0, 1, 2, 2, 3, 0 };
 
-		b3Vec3 vertices[] = { { -0.5f, 0.5f, 0.5f }, { -0.5f, 0.5f, -0.5f }, { -0.5f, -0.5f, -0.5f }, { -0.5f, -0.5f, 0.5f } };
+		b3Vec3 vertices[] = { { B3_FIX( -0.5f ), B3_FIX( 0.5f ), B3_FIX( 0.5f ) }, { B3_FIX( -0.5f ), B3_FIX( 0.5f ), B3_FIX( -0.5f ) }, { B3_FIX( -0.5f ), B3_FIX( -0.5f ), B3_FIX( -0.5f ) }, { B3_FIX( -0.5f ), B3_FIX( -0.5f ), B3_FIX( 0.5f ) } };
 
 		b3BodyDef bodyDef = b3DefaultBodyDef();
-		bodyDef.position = { 0.0f, 0.0f, 0.0f };
+		bodyDef.position = { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
 		bodyDef.rotation = b3MakeQuatFromAxisAngle( b3Vec3_axisZ, 10.0f * B3_DEG_TO_RAD );
 		b3BodyId body = b3CreateBody( m_worldId, &bodyDef );
 
@@ -1635,19 +1636,19 @@ public:
 	{
 		Sample::Step();
 
-		b3Vec3 offset = { -2.1f, -0.8f, 0.95f };
+		b3Vec3 offset = { B3_FIX( -2.1f ), B3_FIX( -0.8f ), B3_FIX( 0.95f ) };
 
 		CastContext context = {};
 		context.initialOverlap = m_initialOverlap;
 
 		b3Capsule capsule = {
 			.center1 = offset,
-			.center2 = offset + b3Vec3{ 0.0f, 1.0f, 0.0f },
-			.radius = 0.25f,
+			.center2 = offset + b3Vec3{ B3_FIX( 0.0f ), B3_FIX( 1.0f ), B3_FIX( 0.0f ) },
+			.radius = B3_FIX( 0.25f ),
 		};
 
 		// zero length cast
-		b3Vec3 translation = { 0.0f, 0.0f, 0.0f };
+		b3Vec3 translation = { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
 
 		b3ShapeProxy proxy = { &capsule.center1, 2, capsule.radius };
 
@@ -1663,7 +1664,7 @@ public:
 		{
 			b3Pos p = context.points[0];
 			b3Vec3 n = context.normals[0];
-			DrawLine( p, b3OffsetPos( p, 0.5f * n ), MakeColor( b3_colorAliceBlue ) );
+			DrawLine( p, b3OffsetPos( p, B3_FIX( 0.5f ) * n ), MakeColor( b3_colorAliceBlue ) );
 			DrawPoint( p, 8.0f, MakeColor( b3_colorAliceBlue ) );
 		}
 	}
@@ -1697,40 +1698,40 @@ public:
 	{
 		if ( context->restart == false )
 		{
-			m_camera->SetView( 120.0f, 30.0f, 20.0f, { 0.0f, 1.5f, 0.0f } );
+			m_camera->SetView( 120.0f, 30.0f, 20.0f, { B3_FIX( 0.0f ), B3_FIX( 1.5f ), B3_FIX( 0.0f ) } );
 		}
 
 		// this triggers an assert with scale of 1 and b3_lengthUnitsPerMeter of 100
 		float scale = 0.01f;
-		m_triangle[0] = scale * b3Vec3{ 0.000000000, 0.000000000, 0.000000000 };
-		m_triangle[1] = scale * b3Vec3{ 0.000000000, -6400.000000000, 0.000000000 };
-		m_triangle[2] = scale * b3Vec3{ 6400.000000000, 0.000000000, 22.609375000 };
+		m_triangle[0] = scale * b3Vec3{ B3_FIX( 0.000000000 ), B3_FIX( 0.000000000 ), B3_FIX( 0.000000000 ) };
+		m_triangle[1] = scale * b3Vec3{ B3_FIX( 0.000000000 ), B3_FIX( -6400.000000000 ), B3_FIX( 0.000000000 ) };
+		m_triangle[2] = scale * b3Vec3{ B3_FIX( 6400.000000000 ), B3_FIX( 0.000000000 ), B3_FIX( 22.609375000 ) };
 
 		b3Vec3 origin = m_triangle[0];
 		m_triangle[0] = b3Vec3_zero;
 		m_triangle[1] -= origin;
 		m_triangle[2] -= origin;
 
-		m_points[0] = scale * b3Vec3{ 200.305283, 200.460999, 9.53760529 };
-		m_points[1] = scale * b3Vec3{ -200.305283, 200.460999, 9.53760529 };
-		m_points[2] = scale * b3Vec3{ -200.305283, -200.460999, 9.53760529 };
-		m_points[3] = scale * b3Vec3{ 200.305283, -200.460999, 9.53760529 };
-		m_points[4] = scale * b3Vec3{ 200.305283, 200.460999, -9.53760529 };
-		m_points[5] = scale * b3Vec3{ -200.305283, 200.460999, -9.53760529 };
-		m_points[6] = scale * b3Vec3{ -200.305283, -200.460999, -9.53760529 };
-		m_points[7] = scale * b3Vec3{ 200.305283, -200.460999, -9.53760529 };
+		m_points[0] = scale * b3Vec3{ B3_FIX( 200.305283 ), B3_FIX( 200.460999 ), B3_FIX( 9.53760529 ) };
+		m_points[1] = scale * b3Vec3{ B3_FIX( -200.305283 ), B3_FIX( 200.460999 ), B3_FIX( 9.53760529 ) };
+		m_points[2] = scale * b3Vec3{ B3_FIX( -200.305283 ), B3_FIX( -200.460999 ), B3_FIX( 9.53760529 ) };
+		m_points[3] = scale * b3Vec3{ B3_FIX( 200.305283 ), B3_FIX( -200.460999 ), B3_FIX( 9.53760529 ) };
+		m_points[4] = scale * b3Vec3{ B3_FIX( 200.305283 ), B3_FIX( 200.460999 ), B3_FIX( -9.53760529 ) };
+		m_points[5] = scale * b3Vec3{ B3_FIX( -200.305283 ), B3_FIX( 200.460999 ), B3_FIX( -9.53760529 ) };
+		m_points[6] = scale * b3Vec3{ B3_FIX( -200.305283 ), B3_FIX( -200.460999 ), B3_FIX( -9.53760529 ) };
+		m_points[7] = scale * b3Vec3{ B3_FIX( 200.305283 ), B3_FIX( -200.460999 ), B3_FIX( -9.53760529 ) };
 
-		m_capsule.center1 = scale * b3Vec3{ 43616.210937500, -100213.000000000, 132631.812500000 };
-		m_capsule.center2 = scale * b3Vec3{ 342231.968750000, 359711.687500000, 132631.812500000 };
+		m_capsule.center1 = scale * b3Vec3{ B3_FIX( 43616.210937500 ), B3_FIX( -100213.000000000 ), B3_FIX( 132631.812500000 ) };
+		m_capsule.center2 = scale * b3Vec3{ B3_FIX( 342231.968750000 ), B3_FIX( 359711.687500000 ), B3_FIX( 132631.812500000 ) };
 		m_capsule.radius = scale * 1.0f;
 
 		float length = b3Distance( m_capsule.center1, m_capsule.center2 );
 		(void)length;
 
-		m_transform = { scale * b3Vec3{ -115200.000000000, -19200.000000000, -202755.000000000 } - origin,
-						{ { 0.00000000, 0.00000000, 0.0f }, 1.0f } };
+		m_transform = { scale * b3Vec3{ B3_FIX( -115200.000000000 ), B3_FIX( -19200.000000000 ), B3_FIX( -202755.000000000 ) } - origin,
+						{ { B3_FIX( 0.00000000 ), B3_FIX( 0.00000000 ), B3_FIX( 0.0f ) }, B3_FIX( 1.0f ) } };
 
-		m_translation = scale * b3Vec3{ 0.008614914, 0.000000000, 72267.117187500 };
+		m_translation = scale * b3Vec3{ B3_FIX( 0.008614914 ), B3_FIX( 0.000000000 ), B3_FIX( 72267.117187500 ) };
 
 		m_box = b3CreateHull( m_points, 8, 8 );
 	}
@@ -1748,12 +1749,12 @@ public:
 		DrawAxes( b3WorldTransform_identity, 1.0f );
 
 		b3ShapeCastPairInput input;
-		input.proxyA = { m_triangle, 3, 0.0f };
+		input.proxyA = { m_triangle, 3, B3_FIX( 0.0f ) };
 		// input.proxyB = { m_points, 8, 0.0f };
 		input.proxyB = { &m_capsule.center1, 2, m_capsule.radius };
 		input.transform = m_transform;
 		input.translationB = m_translation;
-		input.maxFraction = 0.970617533;
+		input.maxFraction = B3_FIX( 0.970617533 );
 		input.canEncroach = false;
 
 		b3CastOutput output = b3ShapeCast( &input );
@@ -1798,14 +1799,14 @@ public:
 	{
 		if ( context->restart == false )
 		{
-			m_camera->SetView( 120.0f, 30.0f, 20.0f, { 0.0f, 1.5f, 0.0f } );
+			m_camera->SetView( 120.0f, 30.0f, 20.0f, { B3_FIX( 0.0f ), B3_FIX( 1.5f ), B3_FIX( 0.0f ) } );
 		}
 
 		// this triggers an assert with scale of 1 and b3_lengthUnitsPerMeter of 100
 		float scale = 0.01f;
-		m_triangle[0] = scale * b3Vec3{ 1400.00000, 1600.00000, 70.1534424 };
-		m_triangle[1] = scale * b3Vec3{ 1400.00000, 1500.00000, 66.1250000 };
-		m_triangle[2] = scale * b3Vec3{ 1500.00000, 1600.00000, 72.3507080 };
+		m_triangle[0] = scale * b3Vec3{ B3_FIX( 1400.00000 ), B3_FIX( 1600.00000 ), B3_FIX( 70.1534424 ) };
+		m_triangle[1] = scale * b3Vec3{ B3_FIX( 1400.00000 ), B3_FIX( 1500.00000 ), B3_FIX( 66.1250000 ) };
+		m_triangle[2] = scale * b3Vec3{ B3_FIX( 1500.00000 ), B3_FIX( 1600.00000 ), B3_FIX( 72.3507080 ) };
 
 		// shifting to the origin give more accuracy
 		b3Vec3 origin = m_triangle[0];
@@ -1813,17 +1814,17 @@ public:
 		m_triangle[1] -= origin;
 		m_triangle[2] -= origin;
 
-		m_points[0] = scale * b3Vec3{ 200.305283, 200.460999, 9.53760529 };
-		m_points[1] = scale * b3Vec3{ -200.305283, 200.460999, 9.53760529 };
-		m_points[2] = scale * b3Vec3{ -200.305283, -200.460999, 9.53760529 };
-		m_points[3] = scale * b3Vec3{ 200.305283, -200.460999, 9.53760529 };
-		m_points[4] = scale * b3Vec3{ 200.305283, 200.460999, -9.53760529 };
-		m_points[5] = scale * b3Vec3{ -200.305283, 200.460999, -9.53760529 };
-		m_points[6] = scale * b3Vec3{ -200.305283, -200.460999, -9.53760529 };
-		m_points[7] = scale * b3Vec3{ 200.305283, -200.460999, -9.53760529 };
+		m_points[0] = scale * b3Vec3{ B3_FIX( 200.305283 ), B3_FIX( 200.460999 ), B3_FIX( 9.53760529 ) };
+		m_points[1] = scale * b3Vec3{ B3_FIX( -200.305283 ), B3_FIX( 200.460999 ), B3_FIX( 9.53760529 ) };
+		m_points[2] = scale * b3Vec3{ B3_FIX( -200.305283 ), B3_FIX( -200.460999 ), B3_FIX( 9.53760529 ) };
+		m_points[3] = scale * b3Vec3{ B3_FIX( 200.305283 ), B3_FIX( -200.460999 ), B3_FIX( 9.53760529 ) };
+		m_points[4] = scale * b3Vec3{ B3_FIX( 200.305283 ), B3_FIX( 200.460999 ), B3_FIX( -9.53760529 ) };
+		m_points[5] = scale * b3Vec3{ B3_FIX( -200.305283 ), B3_FIX( 200.460999 ), B3_FIX( -9.53760529 ) };
+		m_points[6] = scale * b3Vec3{ B3_FIX( -200.305283 ), B3_FIX( -200.460999 ), B3_FIX( -9.53760529 ) };
+		m_points[7] = scale * b3Vec3{ B3_FIX( 200.305283 ), B3_FIX( -200.460999 ), B3_FIX( -9.53760529 ) };
 
 		m_boxA = b3MakeBoxHull( 40.0f, 1.0f, 40.0f );
-		m_boxB = b3MakeTransformedBoxHull( 0.5f, 10.0f, 0.5f, { { 0.0f, 10.0f, 0.0f }, b3Quat_identity } );
+		m_boxB = b3MakeTransformedBoxHull( B3_FIX( 0.5f ), 10.0f, B3_FIX( 0.5f ), { { B3_FIX( 0.0f ), B3_FIX( 10.0f ), B3_FIX( 0.0f ) }, b3Quat_identity } );
 
 		// m_transformA = {
 		//	.p = { 0.0f, -1.0f, 0.0f },
@@ -1832,8 +1833,8 @@ public:
 
 		m_transformA = b3WorldTransform_identity;
 		m_transformB = {
-			.p = { -1.64657831e-06, 1.00989532471, 0.0f },
-			.q = { { 0.00000000, 0.00000000, 0.00494779600 }, 0.999987781 },
+			.p = { B3_FIX( -1.64657831e-06 ), B3_FIX( 1.00989532471 ), B3_FIX( 0.0f ) },
+			.q = { { B3_FIX( 0.00000000 ), B3_FIX( 0.00000000 ), B3_FIX( 0.00494779600 ) }, B3_FIX( 0.999987781 ) },
 		};
 
 		m_box = b3CreateHull( m_points, 8, 8 );
@@ -1935,8 +1936,8 @@ public:
 	void Step() override
 	{
 		b3DistanceInput input;
-		input.proxyA = { m_boxA.boxPoints, 8, 0.0f };
-		input.proxyB = { m_boxB.boxPoints, 8, 0.0f };
+		input.proxyA = { m_boxA.boxPoints, 8, B3_FIX( 0.0f ) };
+		input.proxyB = { m_boxB.boxPoints, 8, B3_FIX( 0.0f ) };
 		input.transform = b3InvMulWorldTransforms( m_transformA, m_transformB );
 		input.useRadii = false;
 
@@ -2063,27 +2064,27 @@ public:
 	{
 		if ( m_context->restart == false )
 		{
-			m_camera->SetView( -45.0f, 10.0f, 5.0f, { 0.0f, 0.0f, 0.0f } );
+			m_camera->SetView( -45.0f, 10.0f, 5.0f, { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) } );
 		}
 
 		m_point = b3Vec3_zero;
-		m_segment[0] = { -0.5f, 0.0f, 0.0f };
-		m_segment[1] = { 0.5f, 0.0f, 0.0f };
+		m_segment[0] = { B3_FIX( -0.5f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
+		m_segment[1] = { B3_FIX( 0.5f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
 
-		m_triangle[0] = { -1.5f, 0.0f, 0.0f };
-		m_triangle[1] = { 1.5f, 0.0f, 0.0f };
-		m_triangle[2] = { 0.0f, 0.0f, 2.0f };
-		m_box = b3MakeBoxHull( 0.125f, 0.25f, 0.5f );
+		m_triangle[0] = { B3_FIX( -1.5f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
+		m_triangle[1] = { B3_FIX( 1.5f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
+		m_triangle[2] = { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 2.0f ) };
+		m_box = b3MakeBoxHull( B3_FIX( 0.125f ), B3_FIX( 0.25f ), B3_FIX( 0.5f ) );
 
 		m_transformA = b3WorldTransform_identity;
-		m_transformB = { { 0.0f, 1.0f, 0.0f }, b3Quat_identity };
+		m_transformB = { { B3_FIX( 0.0f ), B3_FIX( 1.0f ), B3_FIX( 0.0f ) }, b3Quat_identity };
 
 		m_cache = {};
 		m_simplexCount = 0;
 		m_simplexIndex = 0;
-		m_dragStart = { 0.0f, 0.0f };
-		m_basePosition = { 0.0f, 0.0f, 0.0f };
-		m_baseQuat = { .v = { .z = 1.0f } };
+		m_dragStart = { B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
+		m_basePosition = { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
+		m_baseQuat = { .v = { .z = B3_FIX( 1.0f ) } };
 
 		m_dragging = false;
 		m_rotating = false;
@@ -2144,7 +2145,7 @@ public:
 				{
 					b3Sphere sphere = {
 						.center = m_point,
-						.radius = radius,
+						.radius = b3FixFromFloat( radius ),
 					};
 					DrawSolidSphere( transform, sphere, MakeColor( color ) );
 				}
@@ -2163,7 +2164,7 @@ public:
 					b3Capsule capsule = {
 						.center1 = m_segment[0],
 						.center2 = m_segment[1],
-						.radius = radius,
+						.radius = b3FixFromFloat( radius ),
 					};
 
 					DrawSolidCapsule( transform, capsule, MakeColor( color ) );
@@ -2415,7 +2416,7 @@ public:
 			DrawPoint( pB, 10.0f, MakeColor( b3_colorLightBlue ) );
 
 			b3Vec3 normal = b3RotateVector( m_transformA.q, output.normal );
-			DrawLine( pA, b3OffsetPos( pA, 0.5f * normal ), MakeColor( b3_colorYellow ) );
+			DrawLine( pA, b3OffsetPos( pA, B3_FIX( 0.5f ) * normal ), MakeColor( b3_colorYellow ) );
 		}
 
 		if ( m_showIndices )
@@ -2510,14 +2511,14 @@ public:
 	{
 		if ( m_context->restart == false )
 		{
-			m_camera->SetView( -90.0f, 0.0f, 10.0f, { 0.0f, 0.0f, 0.0f } );
+			m_camera->SetView( -90.0f, 0.0f, 10.0f, { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) } );
 		}
 
-		m_box = b3MakeBoxHull( 0.02f, 0.2f, 0.04f );
-		m_capsule = { { 0.0f, -0.2f, 0.0f }, { 0.0f, 0.2f, 0.0f }, 0.02f };
-		m_triangle[0] = { -4.0f, 0.0f, -4.0f };
-		m_triangle[1] = { -4.0f, 0.0f, -8.0f };
-		m_triangle[2] = { -8.0f, 0.0f, -8.0f };
+		m_box = b3MakeBoxHull( B3_FIX( 0.02f ), B3_FIX( 0.2f ), B3_FIX( 0.04f ) );
+		m_capsule = { { B3_FIX( 0.0f ), B3_FIX( -0.2f ), B3_FIX( 0.0f ) }, { B3_FIX( 0.0f ), B3_FIX( 0.2f ), B3_FIX( 0.0f ) }, B3_FIX( 0.02f ) };
+		m_triangle[0] = { B3_FIX( -4.0f ), B3_FIX( 0.0f ), B3_FIX( -4.0f ) };
+		m_triangle[1] = { B3_FIX( -4.0f ), B3_FIX( 0.0f ), B3_FIX( -8.0f ) };
+		m_triangle[2] = { B3_FIX( -8.0f ), B3_FIX( 0.0f ), B3_FIX( -8.0f ) };
 
 		m_typeA = e_triangle;
 		m_typeB = e_capsule;
@@ -2530,10 +2531,10 @@ public:
 		m_sweepA.q2.s = 1.0f;
 
 		m_sweepB = {};
-		m_sweepB.c1 = { -4.06512070, 0.101333618, -7.87591267 };
-		m_sweepB.c2 = { -4.15895557, 0.0356027633, -7.69682646 };
-		m_sweepB.q1 = { { -0.860495985, -0.272824734, 0.0724888667 }, 0.424097389 };
-		m_sweepB.q2 = { { -0.604184389, -0.424355596, 0.0457959622 }, 0.672894001 };
+		m_sweepB.c1 = { B3_FIX( -4.06512070 ), B3_FIX( 0.101333618 ), B3_FIX( -7.87591267 ) };
+		m_sweepB.c2 = { B3_FIX( -4.15895557 ), B3_FIX( 0.0356027633 ), B3_FIX( -7.69682646 ) };
+		m_sweepB.q1 = { { B3_FIX( -0.860495985 ), B3_FIX( -0.272824734 ), B3_FIX( 0.0724888667 ) }, B3_FIX( 0.424097389 ) };
+		m_sweepB.q2 = { { B3_FIX( -0.604184389 ), B3_FIX( -0.424355596 ), B3_FIX( 0.0457959622 ) }, B3_FIX( 0.672894001 ) };
 	}
 
 	b3ShapeProxy MakeProxy( ShapeType type )
@@ -2572,7 +2573,7 @@ public:
 			case e_capsule:
 			{
 				DrawSolidCapsule( transform, m_capsule, MakeColor( color ) );
-				b3Vec3 center = b3Lerp( m_capsule.center1, m_capsule.center2, 0.5f );
+				b3Vec3 center = b3Lerp( m_capsule.center1, m_capsule.center2, B3_FIX( 0.5f ) );
 				b3WorldTransform xf = {
 					.p = b3TransformWorldPoint( transform, center ),
 					.q = transform.q,
@@ -2653,9 +2654,9 @@ public:
 
 		// qr = inv(q1) * q2
 		b3Quat qr = b3InvMulQuat( transform1.q, transform2.q );
-		float angle;
+		b3Fixed angle;
 		(void)b3GetAxisAngle( &angle, qr );
-		DrawTextLine( "angle = %g", 180.0f * angle / B3_PI );
+		DrawTextLine( "angle = %g", (double)( 180.0f * b3FixToFloat( angle ) / b3FixToFloat( B3_PI ) ) );
 
 		DrawShape( m_typeB, b3MakeWorldTransform( transform1 ), b3_colorLightGreen );
 		DrawShape( m_typeB, b3MakeWorldTransform( transform2 ), b3_colorLightCoral );
@@ -2669,7 +2670,7 @@ public:
 		if ( output.state == b3_toiStateHit || output.state == b3_toiStateFailed )
 		{
 			b3Pos p = b3ToPos( output.point );
-			DrawLine( p, b3OffsetPos( p, 0.5f * output.normal ), MakeColor( b3_colorDimGray ) );
+			DrawLine( p, b3OffsetPos( p, B3_FIX( 0.5f ) * output.normal ), MakeColor( b3_colorDimGray ) );
 			DrawPoint( p, 10.0f, MakeColor( b3_colorLightGreen ) );
 		}
 
@@ -2736,7 +2737,7 @@ public:
 	{
 		if ( m_context->restart == false )
 		{
-			m_camera->SetView( 120.0f, 30.0f, 20.0f, { 0.0f, 1.5f, 0.0f } );
+			m_camera->SetView( 120.0f, 30.0f, 20.0f, { B3_FIX( 0.0f ), B3_FIX( 1.5f ), B3_FIX( 0.0f ) } );
 		}
 
 		b3BodyDef bodyDef = b3DefaultBodyDef();
@@ -2752,9 +2753,9 @@ public:
 		// };
 
 		b3Capsule capsule = {
-			.center1 = { 0.0f, 0.0f, 0.0f },
-			.center2 = { 0.0f, 1.0f, 0.0f },
-			.radius = 0.5f,
+			.center1 = { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) },
+			.center2 = { B3_FIX( 0.0f ), B3_FIX( 1.0f ), B3_FIX( 0.0f ) },
+			.radius = B3_FIX( 0.5f ),
 		};
 
 		m_offset = capsule.center1;
@@ -2767,12 +2768,12 @@ public:
 		Sample::Render();
 
 		DrawGroundGrid( 10 );
-		DrawLine( b3Pos_zero, b3OffsetPos( b3Pos_zero, 0.4f * b3Vec3_axisX ), MakeColor( b3_colorRed ) );
-		DrawLine( b3Pos_zero, b3OffsetPos( b3Pos_zero, 0.4f * b3Vec3_axisY ), MakeColor( b3_colorGreen ) );
-		DrawLine( b3Pos_zero, b3OffsetPos( b3Pos_zero, 0.4f * b3Vec3_axisZ ), MakeColor( b3_colorBlue ) );
+		DrawLine( b3Pos_zero, b3OffsetPos( b3Pos_zero, B3_FIX( 0.4f ) * b3Vec3_axisX ), MakeColor( b3_colorRed ) );
+		DrawLine( b3Pos_zero, b3OffsetPos( b3Pos_zero, B3_FIX( 0.4f ) * b3Vec3_axisY ), MakeColor( b3_colorGreen ) );
+		DrawLine( b3Pos_zero, b3OffsetPos( b3Pos_zero, B3_FIX( 0.4f ) * b3Vec3_axisZ ), MakeColor( b3_colorBlue ) );
 
-		b3Pos origin = { -1.0f, 0.5f, 0.0f };
-		b3Vec3 translation = { 2.0f, 0.0f, 0.0f };
+		b3Pos origin = { B3_FIX( -1.0f ), B3_FIX( 0.5f ), B3_FIX( 0.0f ) };
+		b3Vec3 translation = { B3_FIX( 2.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
 		b3QueryFilter filter = b3DefaultQueryFilter();
 		float maxFraction = 1.0f;
 		b3WorldTransform bodyTransform = b3WorldTransform_identity;

@@ -93,7 +93,7 @@ void DrawSolidCapsule( b3WorldTransform transform, b3Capsule capsule, Vec4 color
 		q = b3ComputeQuatBetweenUnitVectors( b3Vec3_axisX, b3MulSV( 1.0f / length, axis ) );
 	}
 
-	b3Transform world = { b3MulSV( 0.5f, b3Add( c1, c2 ) ), q };
+	b3Transform world = { b3MulSV( B3_FIX( 0.5f ), b3Add( c1, c2 ) ), q };
 	AppendCapsule( world, 0.5f * length, capsule.radius, color, DEFAULT_METALLIC, DEFAULT_ROUGHNESS, TRANSPARENT_SHADOW_FULL );
 }
 
@@ -130,7 +130,7 @@ void DrawPlane( b3Vec3 normal, b3Pos point, Vec4 color )
 	OverlayAppendLine( p2, p3, color, th, OVERLAY_THICKNESS_PIXELS, OVERLAY_OCCLUSION_HIDE );
 	OverlayAppendLine( p3, p4, color, th, OVERLAY_THICKNESS_PIXELS, OVERLAY_OCCLUSION_HIDE );
 	OverlayAppendLine( p4, p1, color, th, OVERLAY_THICKNESS_PIXELS, OVERLAY_OCCLUSION_HIDE );
-	OverlayAppendLine( c, b3Add( c, b3MulSV( 0.5f, normal ) ), color, th, OVERLAY_THICKNESS_PIXELS, OVERLAY_OCCLUSION_HIDE );
+	OverlayAppendLine( c, b3Add( c, b3MulSV( B3_FIX( 0.5f ), normal ) ), color, th, OVERLAY_THICKNESS_PIXELS, OVERLAY_OCCLUSION_HIDE );
 	OverlayAppendPoint( c, color, 10.0f, OVERLAY_THICKNESS_PIXELS, OVERLAY_OCCLUSION_DIM );
 }
 

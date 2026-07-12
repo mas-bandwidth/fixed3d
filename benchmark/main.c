@@ -308,7 +308,7 @@ int main( int argc, char** argv )
 
 		printf( "benchmark: %s, steps = %d\n", benchmarks[benchmarkIndex].name, stepCount );
 
-		b3Fixed minTime[B3_MAX_WORKERS] = { b3FixFromInt( 0 ) };
+		b3Fixed minTime[B3_MAX_WORKERS] = { 0 };
 
 		for ( int threadCount = 1; threadCount <= maxThreadCount; ++threadCount )
 		{

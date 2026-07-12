@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 #include "human.h"
+#include "fixed_ui.h"
 #include "mesh_loader.h"
 #include "sample.h"
 #include "gfx/draw.h"
@@ -39,7 +40,7 @@ public:
 		m_gridMesh = b3CreateGridMesh( 20, 20, 1.0f, 0, true );
 
 		m_scale = b3Vec3_one;
-		m_scale = { 2.0f, 2.0f, 2.0f };
+		m_scale = { B3_FIX( 2.0f ), B3_FIX( 2.0f ), B3_FIX( 2.0f ) };
 		// m_scale = { -1.2f, 2.0f, 4.0f };
 		// m_scale = {  8.0f, 8.0f, 8.0f };
 		// m_scale = {  0.5f, 0.5f, 0.5f };
@@ -50,12 +51,12 @@ public:
 
 		m_shapeType = ShapeType::cylinder;
 		m_bodyId = b3_nullBodyId;
-		m_cylinderHull = b3CreateCylinder( 1.0f, 0.25f, 0.0f, 15 );
+		m_cylinderHull = b3CreateCylinder( 1.0f, B3_FIX( 0.25f ), 0.0f, 15 );
 		// m_cylinderHull = b3CreateCylinder( 0.5f, 0.2f, 0.0f, 15 );
 
 		Spawn();
 
-		GetGuiDraw()->forceScale = 0.01f;
+		GetGuiDraw()->forceScale = B3_FIX( 0.01f );
 	}
 
 	~GridMesh() override
@@ -74,9 +75,9 @@ public:
 		b3BodyDef bodyDef = b3DefaultBodyDef();
 		bodyDef.type = b3_dynamicBody;
 		// bodyDef.position = { 0.5f, 2.0f, -0.5f };
-		bodyDef.position = { 0.1f, 1.0f, -0.1f };
+		bodyDef.position = { B3_FIX( 0.1f ), B3_FIX( 1.0f ), B3_FIX( -0.1f ) };
 		// bodyDef.enableContactRecycling = m_shapeType != ShapeType::cylinder;
-		bodyDef.angularDamping = m_shapeType == ShapeType::cylinder ? 0.1f : 0.0f;
+		bodyDef.angularDamping = m_shapeType == ShapeType::cylinder ? B3_FIX( 0.1f ) : 0.0f;
 
 		// bodyDef.linearVelocity = { 2.0f, 0.0f, 0.0f };
 		//  bodyDef.position = { 0.208701894, 0.0791450217, -0.298710823 };
@@ -91,23 +92,23 @@ public:
 		{
 			case ShapeType::sphere:
 			{
-				shapeDef.baseMaterial.rollingResistance = 0.05f;
-				b3Sphere sphere = { { 0.0f, 0.0f, 0.0f }, 0.5f };
+				shapeDef.baseMaterial.rollingResistance = B3_FIX( 0.05f );
+				b3Sphere sphere = { { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, B3_FIX( 0.5f ) };
 				b3CreateSphereShape( m_bodyId, &shapeDef, &sphere );
 			}
 			break;
 
 			case ShapeType::capsule:
 			{
-				shapeDef.baseMaterial.rollingResistance = 0.05f;
-				b3Capsule capsule = { { 0.0f, 0.0f, 1.276f }, { 0.0f, 0.0f, 0.476f }, 0.15f };
+				shapeDef.baseMaterial.rollingResistance = B3_FIX( 0.05f );
+				b3Capsule capsule = { { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 1.276f ) }, { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.476f ) }, B3_FIX( 0.15f ) };
 				b3CreateCapsuleShape( m_bodyId, &shapeDef, &capsule );
 			}
 			break;
 
 			case ShapeType::box:
 			{
-				b3BoxHull box = b3MakeBoxHull( 0.5f, 0.5f, 0.5f );
+				b3BoxHull box = b3MakeBoxHull( B3_FIX( 0.5f ), B3_FIX( 0.5f ), B3_FIX( 0.5f ) );
 				// shapeDef.baseMaterial.friction = 0.01f;
 				b3CreateHullShape( m_bodyId, &shapeDef, &box.base );
 			}
@@ -115,7 +116,7 @@ public:
 
 			case ShapeType::cylinder:
 			{
-				shapeDef.baseMaterial.rollingResistance = 0.02f;
+				shapeDef.baseMaterial.rollingResistance = B3_FIX( 0.02f );
 				b3CreateHullShape( m_bodyId, &shapeDef, m_cylinderHull );
 			}
 			break;
@@ -153,8 +154,8 @@ public:
 
 		b3Vec3 scale = m_scale;
 		bool changed = false;
-		changed = changed || ImGui::SliderFloat( "Scale X", &scale.x, -2.0f, 2.0f, "%.1f" );
-		changed = changed || ImGui::SliderFloat( "Scale Z", &scale.z, -2.0f, 2.0f, "%.1f" );
+		changed = changed || SliderFixed( "Scale X", &scale.x, -2.0f, 2.0f, "%.1f" );
+		changed = changed || SliderFixed( "Scale Z", &scale.z, -2.0f, 2.0f, "%.1f" );
 
 		if ( changed )
 		{
@@ -170,7 +171,7 @@ public:
 		Sample::Render();
 
 		DrawTextLine( "triangle count = %d, bytes = %d", m_gridMesh->triangleCount, m_gridMesh->byteCount );
-		b3Transform transform = { { 0.0f, 0.01f, 0.0f }, b3Quat_identity };
+		b3Transform transform = { { B3_FIX( 0.0f ), B3_FIX( 0.01f ), B3_FIX( 0.0f ) }, b3Quat_identity };
 		DrawAxes( b3MakeWorldTransform( transform ), 1.0f );
 	}
 
@@ -220,11 +221,11 @@ public:
 
 		b3BodyDef bodyDef = b3DefaultBodyDef();
 		b3BodyId groundId = b3CreateBody( m_worldId, &bodyDef );
-		m_boxMesh = b3CreateBoxMesh( {0.0f, -1.0f, 0.0f}, { 50.0f, 1.0f, 50.0f }, true );
+		m_boxMesh = b3CreateBoxMesh( {B3_FIX( 0.0f ), B3_FIX( -1.0f ), B3_FIX( 0.0f )}, { B3_FIX( 50.0f ), B3_FIX( 1.0f ), B3_FIX( 50.0f ) }, true );
 		m_scale = b3Vec3_one;
 
 		b3ShapeDef shapeDef = b3DefaultShapeDef();
-		shapeDef.baseMaterial.friction = 0.5f;
+		shapeDef.baseMaterial.friction = B3_FIX( 0.5f );
 		// shapeDef.baseMaterial.restitution = 0.5f;
 		// shapeDef.baseMaterial.rollingResistance = 0.5f;
 		m_gridShapeId = b3CreateMeshShape( groundId, &shapeDef, m_boxMesh, m_scale );
@@ -232,7 +233,7 @@ public:
 		m_shapeType = ShapeType::cylinder;
 		m_bodyId = b3_nullBodyId;
 		//m_cylinderHull = b3CreateCylinder( 0.5f, 0.2f, 0.0f, 15 );
-		m_cylinderHull = b3CreateCylinder( 0.3f, 0.15f, 0.0f, 32 );
+		m_cylinderHull = b3CreateCylinder( B3_FIX( 0.3f ), B3_FIX( 0.15f ), 0.0f, 32 );
 
 		m_stepWhilePaused = false;
 
@@ -254,17 +255,17 @@ public:
 
 		b3BodyDef bodyDef = b3DefaultBodyDef();
 		bodyDef.type = b3_dynamicBody;
-		bodyDef.position = { 0.5f, 0.0f, 0.0f };
+		bodyDef.position = { B3_FIX( 0.5f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
 		m_bodyId = b3CreateBody( m_worldId, &bodyDef );
 
 		b3ShapeDef shapeDef = b3DefaultShapeDef();
-		shapeDef.baseMaterial.rollingResistance = 0.05f;
+		shapeDef.baseMaterial.rollingResistance = B3_FIX( 0.05f );
 
 		switch ( m_shapeType )
 		{
 			case ShapeType::sphere:
 			{
-				b3Sphere sphere = { { 0.0f, 0.0f, 0.0f }, 0.5f };
+				b3Sphere sphere = { { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, B3_FIX( 0.5f ) };
 				b3CreateSphereShape( m_bodyId, &shapeDef, &sphere );
 			}
 			break;
@@ -274,17 +275,17 @@ public:
 				b3SurfaceMaterial material = b3DefaultSurfaceMaterial();
 				// material.friction = 0.0f;
 				// material.restitution = 1.0f;
-				material.rollingResistance = 0.1f;
+				material.rollingResistance = B3_FIX( 0.1f );
 				shapeDef.materials = &material;
 				shapeDef.materialCount = 1;
-				b3Capsule capsule = { { 0.0f, 0.0f, 1.276f }, { 0.0f, 0.0f, 0.476f }, 0.15f };
+				b3Capsule capsule = { { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 1.276f ) }, { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.476f ) }, B3_FIX( 0.15f ) };
 				b3CreateCapsuleShape( m_bodyId, &shapeDef, &capsule );
 			}
 			break;
 
 			case ShapeType::box:
 			{
-				b3BoxHull box = b3MakeBoxHull( 0.5f, 0.5f, 0.5f );
+				b3BoxHull box = b3MakeBoxHull( B3_FIX( 0.5f ), B3_FIX( 0.5f ), B3_FIX( 0.5f ) );
 				// shapeDef.baseMaterial.friction = 0.01f;
 				b3CreateHullShape( m_bodyId, &shapeDef, &box.base );
 			}
@@ -329,8 +330,8 @@ public:
 
 		b3Vec3 scale = m_scale;
 		bool changed = false;
-		changed = changed || ImGui::SliderFloat( "Scale X", &scale.x, -2.0f, 2.0f, "%.1f" );
-		changed = changed || ImGui::SliderFloat( "Scale Z", &scale.z, -2.0f, 2.0f, "%.1f" );
+		changed = changed || SliderFixed( "Scale X", &scale.x, -2.0f, 2.0f, "%.1f" );
+		changed = changed || SliderFixed( "Scale Z", &scale.z, -2.0f, 2.0f, "%.1f" );
 
 		if ( changed )
 		{
@@ -344,7 +345,7 @@ public:
 	void Render() override
 	{
 		Sample::Render();
-		b3Transform transform = { { 0.0f, 0.01f, 0.0f }, b3Quat_identity };
+		b3Transform transform = { { B3_FIX( 0.0f ), B3_FIX( 0.01f ), B3_FIX( 0.0f ) }, b3Quat_identity };
 		DrawAxes( b3MakeWorldTransform( transform ), 1.0f );
 	}
 
@@ -396,18 +397,18 @@ public:
 		AddGroundBox( 20.0f );
 
 		b3BodyDef bodyDef = b3DefaultBodyDef();
-		bodyDef.position = { 0.0f, -1.0f, 0.0f };
+		bodyDef.position = { B3_FIX( 0.0f ), B3_FIX( -1.0f ), B3_FIX( 0.0f ) };
 		bodyDef.rotation = b3MakeQuatFromAxisAngle( b3Vec3_axisY, 0.25f * B3_PI );
 		b3BodyId groundId = b3CreateBody( m_worldId, &bodyDef );
 
 		b3ShapeDef shapeDef = b3DefaultShapeDef();
 
-		m_boxMesh = b3CreateBoxMesh( { 0.0f, 1.0f, 0.0f }, { 1.0f, 1.0f, 1.0f }, true );
+		m_boxMesh = b3CreateBoxMesh( { B3_FIX( 0.0f ), B3_FIX( 1.0f ), B3_FIX( 0.0f ) }, { B3_FIX( 1.0f ), B3_FIX( 1.0f ), B3_FIX( 1.0f ) }, true );
 		// m_scale = { -0.6f, 1.0f, 2.0f };
 		m_scale = b3Vec3_one;
 		m_boxShapeId = b3CreateMeshShape( groundId, &shapeDef, m_boxMesh, m_scale );
 
-		m_cylinderHull = b3CreateCylinder( 1.0f, 0.75f, 0.0f, 8 );
+		m_cylinderHull = b3CreateCylinder( 1.0f, B3_FIX( 0.75f ), 0.0f, 8 );
 
 		m_shapeType = ShapeType::box;
 		m_bodyId = b3_nullBodyId;
@@ -430,7 +431,7 @@ public:
 
 		b3BodyDef bodyDef = b3DefaultBodyDef();
 		bodyDef.type = b3_dynamicBody;
-		bodyDef.position = { 0.0f, 1.5f, 0.0f };
+		bodyDef.position = { B3_FIX( 0.0f ), B3_FIX( 1.5f ), B3_FIX( 0.0f ) };
 		// bodyDef.position = { -0.2f, 1.5f, -1.25f };
 
 		if ( m_shapeType == ShapeType::cylinder )
@@ -446,21 +447,21 @@ public:
 		{
 			case ShapeType::sphere:
 			{
-				b3Sphere sphere = { { 0.0f, 0.0f, 0.0f }, 0.5f };
+				b3Sphere sphere = { { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, B3_FIX( 0.5f ) };
 				b3CreateSphereShape( m_bodyId, &shapeDef, &sphere );
 			}
 			break;
 
 			case ShapeType::capsule:
 			{
-				b3Capsule capsule = { { -0.5f, 0.0f, 0.0f }, { 0.5f, 0.0f, 0.0f }, 0.1f };
+				b3Capsule capsule = { { B3_FIX( -0.5f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, { B3_FIX( 0.5f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, B3_FIX( 0.1f ) };
 				b3CreateCapsuleShape( m_bodyId, &shapeDef, &capsule );
 			}
 			break;
 
 			case ShapeType::box:
 			{
-				b3BoxHull box = b3MakeBoxHull( 0.5f, 0.5f, 0.5f );
+				b3BoxHull box = b3MakeBoxHull( B3_FIX( 0.5f ), B3_FIX( 0.5f ), B3_FIX( 0.5f ) );
 				// b3BoxHull box = b3MakeBoxHull( 0.1f, 1.0f, 0.1f );
 				b3CreateHullShape( m_bodyId, &shapeDef, &box.base );
 			}
@@ -505,8 +506,8 @@ public:
 
 		b3Vec3 scale = m_scale;
 		bool changed = false;
-		changed = changed || ImGui::SliderFloat( "Scale X", &scale.x, -2.0f, 2.0f, "%.1f" );
-		changed = changed || ImGui::SliderFloat( "Scale Z", &scale.z, -2.0f, 2.0f, "%.1f" );
+		changed = changed || SliderFixed( "Scale X", &scale.x, -2.0f, 2.0f, "%.1f" );
+		changed = changed || SliderFixed( "Scale Z", &scale.z, -2.0f, 2.0f, "%.1f" );
 
 		if ( changed )
 		{
@@ -581,55 +582,55 @@ public:
 			b3ShapeDef meshShapeDef = b3DefaultShapeDef();
 			b3SurfaceMaterial materials[3] = {
 				{
-					.friction = 0.6f,
+					.friction = B3_FIX( 0.6f ),
 				},
 				{
-					.friction = 0.0f,
-					.restitution = 0.95f,
+					.friction = B3_FIX( 0.0f ),
+					.restitution = B3_FIX( 0.95f ),
 					.userMaterialId = 1,
 				},
 				{
-					.friction = 0.2f,
-					.restitution = 0.2f,
+					.friction = B3_FIX( 0.2f ),
+					.restitution = B3_FIX( 0.2f ),
 					.userMaterialId = 2,
 				},
 			};
 			meshShapeDef.materials = materials;
 			meshShapeDef.materialCount = 3;
 
-			bodyDef.position = { -10.0f, 0.0f, 0.0f };
+			bodyDef.position = { B3_FIX( -10.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
 			b3BodyId body = b3CreateBody( m_worldId, &bodyDef );
 			b3CreateMeshShape( body, &meshShapeDef, m_buildingMesh, b3Vec3_one );
 
-			m_scale = { -1.0f, 1.0f, 1.0f };
-			bodyDef.position = { 10.0f, 0.0f, 0.0f };
+			m_scale = { B3_FIX( -1.0f ), B3_FIX( 1.0f ), B3_FIX( 1.0f ) };
+			bodyDef.position = { B3_FIX( 10.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
 			m_meshBodyId = b3CreateBody( m_worldId, &bodyDef );
 			m_meshShapeId = b3CreateMeshShape( m_meshBodyId, &meshShapeDef, m_buildingMesh, m_scale );
 		}
 
 		bodyDef.type = b3_dynamicBody;
 		{
-			bodyDef.position = { 6.0f, 15.0f, 0.0f };
+			bodyDef.position = { B3_FIX( 6.0f ), B3_FIX( 15.0f ), B3_FIX( 0.0f ) };
 			b3BodyId body = b3CreateBody( m_worldId, &bodyDef );
-			b3Sphere sphere = { b3Vec3_zero, 0.5f };
-			shapeDef.baseMaterial.rollingResistance = 0.2f;
+			b3Sphere sphere = { b3Vec3_zero, B3_FIX( 0.5f ) };
+			shapeDef.baseMaterial.rollingResistance = B3_FIX( 0.2f );
 			shapeDef.baseMaterial.userMaterialId = 42;
 			b3CreateSphereShape( body, &shapeDef, &sphere );
 		}
 
 		{
-			bodyDef.position = { 9.0f, 15.0f, 0.0f };
+			bodyDef.position = { B3_FIX( 9.0f ), B3_FIX( 15.0f ), B3_FIX( 0.0f ) };
 			b3BodyId body = b3CreateBody( m_worldId, &bodyDef );
-			b3Capsule capsule = { { -0.5f, 0.5f, 0.0f }, { 0.5f, 0.0f, 0.0f }, 0.25f };
-			shapeDef.baseMaterial.rollingResistance = 0.2f;
+			b3Capsule capsule = { { B3_FIX( -0.5f ), B3_FIX( 0.5f ), B3_FIX( 0.0f ) }, { B3_FIX( 0.5f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, B3_FIX( 0.25f ) };
+			shapeDef.baseMaterial.rollingResistance = B3_FIX( 0.2f );
 			shapeDef.baseMaterial.userMaterialId = 11;
 			b3CreateCapsuleShape( body, &shapeDef, &capsule );
 		}
 
 		{
-			bodyDef.position = { 12.0f, 15.0f, 0.0f };
+			bodyDef.position = { B3_FIX( 12.0f ), B3_FIX( 15.0f ), B3_FIX( 0.0f ) };
 			b3BodyId body = b3CreateBody( m_worldId, &bodyDef );
-			b3BoxHull hull = b3MakeBoxHull( 0.25f, 0.5f, 0.75f );
+			b3BoxHull hull = b3MakeBoxHull( B3_FIX( 0.25f ), B3_FIX( 0.5f ), B3_FIX( 0.75f ) );
 			shapeDef.baseMaterial.userMaterialId = 555;
 			b3CreateHullShape( body, &shapeDef, &hull.base );
 		}
@@ -643,7 +644,7 @@ public:
 			m_humans[humanIndex] = {};
 
 			int groupIndex = humanIndex;
-			b3Pos position = { -14.0f + 1.5f * humanIndex, 8.0f, 0.0f };
+			b3Pos position = { b3FixFromFloat( -14.0f + 1.5f * humanIndex ), B3_FIX( 8.0f ), B3_FIX( 0.0f ) };
 			CreateHuman( &m_humans[humanIndex], m_worldId, position, frictionTorque, hertz, dampingRatio, groupIndex, nullptr,
 						 colorize );
 		}
@@ -743,7 +744,7 @@ struct CastContext
 {
 	b3Pos point;
 	b3Vec3 normal;
-	float fraction;
+	b3Fixed fraction;
 	bool hit;
 };
 
@@ -782,8 +783,8 @@ public:
 		// m_rayOrigin = { 30.0f, 2.0f, 0.0f };
 		// m_rayTranslation = { -60.0f, -4.0f, 0.0f };
 
-		m_rayOrigin = { 5.5f, 4.0f, 1.01f };
-		m_rayTranslation = { 0.0f, -8.0f, 0.0f };
+		m_rayOrigin = { B3_FIX( 5.5f ), B3_FIX( 4.0f ), B3_FIX( 1.01f ) };
+		m_rayTranslation = { B3_FIX( 0.0f ), B3_FIX( -8.0f ), B3_FIX( 0.0f ) };
 		m_radius = 0.2f;
 
 		m_heightField = nullptr;
@@ -824,7 +825,7 @@ public:
 		b3BodyDef bodyDef = b3DefaultBodyDef();
 		b3ShapeDef shapeDef = b3DefaultShapeDef();
 
-		m_scale = { 2.0f, 2.0f * m_amplitude, 2.0f };
+		m_scale = { B3_FIX( 2.0f ), b3FixFromFloat( 2.0f * m_amplitude ), B3_FIX( 2.0f ) };
 
 		if ( m_amplitude == 0.0f )
 		{
@@ -832,11 +833,11 @@ public:
 		}
 		else
 		{
-			m_heightField = b3CreateWave( m_rowCount, m_columnCount, m_scale, 0.1f, 0.03333f, m_holes );
+			m_heightField = b3CreateWave( m_rowCount, m_columnCount, m_scale, B3_FIX( 0.1f ), B3_FIX( 0.03333f ), m_holes );
 		}
 
-		bodyDef.position = { -0.5f * m_heightField->scale.x * ( m_columnCount - 1 ), 0.0f,
-							 -0.5f * m_heightField->scale.z * ( m_rowCount - 1 ) };
+		bodyDef.position = { b3FixFromFloat( -0.5f * m_heightField->scale.x * ( m_columnCount - 1 ) ), B3_FIX( 0.0f ),
+							 b3FixFromFloat( -0.5f * m_heightField->scale.z * ( m_rowCount - 1 ) ) };
 		// bodyDef.rotation = b3MakeQuatFromAxisAngle( b3Vec3_axisY, 0.25f * B3_PI );
 		m_groundId = b3CreateBody( m_worldId, &bodyDef );
 		b3CreateHeightFieldShape( m_groundId, &shapeDef, m_heightField );
@@ -881,13 +882,13 @@ public:
 			CreateScene();
 		}
 
-		ImGui::SliderFloat( "ray x", &m_rayOrigin.x, -2.0f * m_radius - 0.5f * m_scale.x * ( m_columnCount - 1 ),
+		SliderFixed( "ray x", &m_rayOrigin.x, -2.0f * m_radius - 0.5f * m_scale.x * ( m_columnCount - 1 ),
 							2.0f * m_radius + 0.5f * m_scale.x * ( m_columnCount - 1 ) );
-		ImGui::SliderFloat( "ray z", &m_rayOrigin.z, -2.0f * m_radius - 0.5f * m_scale.z * ( m_rowCount - 1 ),
+		SliderFixed( "ray z", &m_rayOrigin.z, -2.0f * m_radius - 0.5f * m_scale.z * ( m_rowCount - 1 ),
 							2.0f * m_radius + 0.5f * m_scale.z * ( m_rowCount - 1 ) );
-		ImGui::SliderFloat( "delta x", &m_rayTranslation.x, -2.0f * m_scale.x * ( m_columnCount - 1 ),
+		SliderFixed( "delta x", &m_rayTranslation.x, -2.0f * m_scale.x * ( m_columnCount - 1 ),
 							2.0f * m_scale.x * ( m_columnCount - 1 ) );
-		ImGui::SliderFloat( "delta z", &m_rayTranslation.z, -2.0f * m_scale.z * ( m_rowCount - 1 ),
+		SliderFixed( "delta z", &m_rayTranslation.z, -2.0f * m_scale.z * ( m_rowCount - 1 ),
 							2.0f * m_scale.z * ( m_rowCount - 1 ) );
 		ImGui::SliderFloat( "radius", &m_radius, 0.0f, 1.0f );
 
@@ -898,12 +899,12 @@ public:
 	void Render() override
 	{
 		Sample::Render();
-		b3Transform transform = { { 0.0f, 0.1f, 0.0f }, b3Quat_identity };
+		b3Transform transform = { { B3_FIX( 0.0f ), B3_FIX( 0.1f ), B3_FIX( 0.0f ) }, b3Quat_identity };
 		DrawAxes( b3MakeWorldTransform( transform ), 0.5f );
 	}
 
 	// This callback finds the closest hit.
-	static float CastCallback( b3ShapeId shapeId, b3Pos point, b3Vec3 normal, float fraction, uint64_t surfaceType,
+	static b3Fixed CastCallback( b3ShapeId shapeId, b3Pos point, b3Vec3 normal, b3Fixed fraction, uint64_t surfaceType,
 							   int triangleIndex, int childIndex, void* context )
 	{
 		(void)shapeId;
@@ -943,7 +944,7 @@ public:
 			if ( result.hit )
 			{
 				b3Pos point = result.point;
-				DrawLine( point, b3OffsetPos( point, 0.5f * result.normal ), MakeColor( b3_colorGray ) );
+				DrawLine( point, b3OffsetPos( point, B3_FIX( 0.5f ) * result.normal ), MakeColor( b3_colorGray ) );
 				DrawPoint( point, 10.0f, MakeColor( b3_colorOrange ) );
 			}
 		}
@@ -952,7 +953,7 @@ public:
 			b3ShapeProxy proxy = {
 				.points = &m_rayOrigin,
 				.count = 1,
-				.radius = m_radius,
+				.radius = b3FixFromFloat( m_radius ),
 			};
 
 			CastContext result = {};
@@ -965,14 +966,14 @@ public:
 			DrawPoint( b3OffsetPos( origin, m_rayTranslation ), 2.0f, MakeColor( b3_colorRed ) );
 			DrawLine( origin, b3OffsetPos( origin, m_rayTranslation ), MakeColor( b3_colorYellow ) );
 
-			b3Sphere sphere = { b3Vec3_zero, m_radius };
+			b3Sphere sphere = { b3Vec3_zero, b3FixFromFloat( m_radius ) };
 			b3Transform sphereXf = { m_rayOrigin + result.fraction * m_rayTranslation, b3Quat_identity };
 			DrawSolidSphere( b3MakeWorldTransform( sphereXf ), sphere, MakeColor( b3_colorOrange ) );
 
 			if ( result.hit )
 			{
 				b3Pos point = result.point;
-				DrawLine( point, b3OffsetPos( point, 0.5f * result.normal ), MakeColor( b3_colorGreen ) );
+				DrawLine( point, b3OffsetPos( point, B3_FIX( 0.5f ) * result.normal ), MakeColor( b3_colorGreen ) );
 				DrawPoint( point, 6.0f, MakeColor( b3_colorPurple ) );
 			}
 		}
@@ -1155,19 +1156,19 @@ public:
 				b3Pos centerPos = b3ToPos( center );
 				if ( axis == 0 )
 				{
-					DrawArrow( centerPos, b3OffsetPos( centerPos, 0.1f * b3Vec3_axisX ), MakeColor( b3_colorRed ) );
+					DrawArrow( centerPos, b3OffsetPos( centerPos, B3_FIX( 0.1f ) * b3Vec3_axisX ), MakeColor( b3_colorRed ) );
 				}
 				else if ( axis == 1 )
 				{
-					DrawArrow( centerPos, b3OffsetPos( centerPos, 0.1f * b3Vec3_axisY ), MakeColor( b3_colorGreen ) );
+					DrawArrow( centerPos, b3OffsetPos( centerPos, B3_FIX( 0.1f ) * b3Vec3_axisY ), MakeColor( b3_colorGreen ) );
 				}
 				else if ( axis == 2 )
 				{
-					DrawArrow( centerPos, b3OffsetPos( centerPos, 0.1f * b3Vec3_axisZ ), MakeColor( b3_colorBlue ) );
+					DrawArrow( centerPos, b3OffsetPos( centerPos, B3_FIX( 0.1f ) * b3Vec3_axisZ ), MakeColor( b3_colorBlue ) );
 				}
 				else
 				{
-					DrawSolidSphere( b3WorldTransform_identity, { center, 0.03f }, MakeColor( b3_colorOrange ) );
+					DrawSolidSphere( b3WorldTransform_identity, { center, B3_FIX( 0.03f ) }, MakeColor( b3_colorOrange ) );
 				}
 			}
 
@@ -1240,7 +1241,7 @@ public:
 
 		DrawNodes();
 
-		b3Vec3 offset = { 0.01f, 0.01f, 0.01f };
+		b3Vec3 offset = { B3_FIX( 0.01f ), B3_FIX( 0.01f ), B3_FIX( 0.01f ) };
 		for ( int i = 0; i < m_mesh->degenerateCount; ++i )
 		{
 			int triangleIndex = m_degenerateTriangles[i];
@@ -1344,7 +1345,7 @@ public:
 				def.useMedianSplit = true;
 				def.identifyEdges = false;
 				def.weldVertices = true;
-				def.weldTolerance = 0.0015f;
+				def.weldTolerance = B3_FIX( 0.0015f );
 
 				b3MeshData* meshData = b3CreateMesh( &def, nullptr, 0 );
 				triangleCount += i == 0 ? meshData->triangleCount : 0;
@@ -1384,11 +1385,11 @@ public:
 	explicit VoxelMesh( SampleContext* context )
 		: Sample( context )
 	{
-		b3Pos origin = { 5000.0f, 3500.0f, -7000.0f };
+		b3Pos origin = { B3_FIX( 5000.0f ), B3_FIX( 3500.0f ), B3_FIX( -7000.0f ) };
 
 		if ( context->restart == false )
 		{
-			m_camera->SetView( -115.0f, 5.0f, 5.0f, b3OffsetPos( origin, b3Vec3{ 0.0f, 10.0f, 0.0f } ) );
+			m_camera->SetView( -115.0f, 5.0f, 5.0f, b3OffsetPos( origin, b3Vec3{ B3_FIX( 0.0f ), B3_FIX( 10.0f ), B3_FIX( 0.0f ) } ) );
 		}
 
 		m_launchSpeedScale = 1.0f;
@@ -1416,7 +1417,7 @@ public:
 			def.identifyEdges = true;
 
 			def.weldVertices = true;
-			def.weldTolerance = 0.002f;
+			def.weldTolerance = B3_FIX( 0.002f );
 
 			m_meshData = b3CreateMesh( &def, nullptr, 0 );
 
@@ -1426,40 +1427,40 @@ public:
 
 		{
 			b3Vec3 points[16];
-			points[0] = { -3.13548756, 3.81141949, 237.289047 };
-			points[1] = { -16.2333279, -23.4977913, 235.486603 };
-			points[2] = { -13.8834839, 6.20244455, 23.7760544 };
-			points[3] = { 14.0794125, 4.63170528, 24.9530792 };
-			points[4] = { 3.98322797, -16.4192238, 236.704071 };
-			points[5] = { -23.3520412, -3.26714420, 236.071594 };
-			points[6] = { 13.4517860, -6.94963741, 24.4085312 };
-			points[7] = { -5.24953651, 13.9316301, 24.5058060 };
-			points[8] = { -4.65071201, -24.1484108, 235.974121 };
-			points[9] = { -14.5111103, -5.37889385, 23.2315063 };
-			points[10] = { 6.33307076, 13.2810068, 24.9935150 };
-			points[11] = { 4.81784487, -14.6788225, 23.6787796 };
-			points[12] = { -14.7180958, 4.46204281, 236.801331 };
-			points[13] = { -23.9796677, -14.8484812, 235.527039 };
-			points[14] = { 4.61085415, -4.83788204, 237.248611 };
-			points[15] = { -6.76476669, -14.0281992, 23.1910706 };
+			points[0] = { B3_FIX( -3.13548756 ), B3_FIX( 3.81141949 ), B3_FIX( 237.289047 ) };
+			points[1] = { B3_FIX( -16.2333279 ), B3_FIX( -23.4977913 ), B3_FIX( 235.486603 ) };
+			points[2] = { B3_FIX( -13.8834839 ), B3_FIX( 6.20244455 ), B3_FIX( 23.7760544 ) };
+			points[3] = { B3_FIX( 14.0794125 ), B3_FIX( 4.63170528 ), B3_FIX( 24.9530792 ) };
+			points[4] = { B3_FIX( 3.98322797 ), B3_FIX( -16.4192238 ), B3_FIX( 236.704071 ) };
+			points[5] = { B3_FIX( -23.3520412 ), B3_FIX( -3.26714420 ), B3_FIX( 236.071594 ) };
+			points[6] = { B3_FIX( 13.4517860 ), B3_FIX( -6.94963741 ), B3_FIX( 24.4085312 ) };
+			points[7] = { B3_FIX( -5.24953651 ), B3_FIX( 13.9316301 ), B3_FIX( 24.5058060 ) };
+			points[8] = { B3_FIX( -4.65071201 ), B3_FIX( -24.1484108 ), B3_FIX( 235.974121 ) };
+			points[9] = { B3_FIX( -14.5111103 ), B3_FIX( -5.37889385 ), B3_FIX( 23.2315063 ) };
+			points[10] = { B3_FIX( 6.33307076 ), B3_FIX( 13.2810068 ), B3_FIX( 24.9935150 ) };
+			points[11] = { B3_FIX( 4.81784487 ), B3_FIX( -14.6788225 ), B3_FIX( 23.6787796 ) };
+			points[12] = { B3_FIX( -14.7180958 ), B3_FIX( 4.46204281 ), B3_FIX( 236.801331 ) };
+			points[13] = { B3_FIX( -23.9796677 ), B3_FIX( -14.8484812 ), B3_FIX( 235.527039 ) };
+			points[14] = { B3_FIX( 4.61085415 ), B3_FIX( -4.83788204 ), B3_FIX( 237.248611 ) };
+			points[15] = { B3_FIX( -6.76476669 ), B3_FIX( -14.0281992 ), B3_FIX( 23.1910706 ) };
 
 			for ( int i = 0; i < 16; ++i )
 			{
 				b3Vec3 p = points[i];
-				points[i] = b3MulSV( 0.01f, b3Vec3{ p.y, p.z, p.x } );
+				points[i] = b3MulSV( B3_FIX( 0.01f ), b3Vec3{ p.y, p.z, p.x } );
 			}
 
 			b3HullData* hull = b3CreateHull( points, 16, 16 );
 			b3BodyDef bodyDef = b3DefaultBodyDef();
 			bodyDef.name = "cylinder";
 			bodyDef.type = b3_dynamicBody;
-			bodyDef.position = { 5020.27734f, 3506.22559f, -6986.48584f };
-			bodyDef.rotation = { { 0.664546967, 0.669287264, 0.135021493 }, 0.303646326 };
+			bodyDef.position = { B3_FIX( 5020.27734f ), B3_FIX( 3506.22559f ), B3_FIX( -6986.48584f ) };
+			bodyDef.rotation = { { B3_FIX( 0.664546967 ), B3_FIX( 0.669287264 ), B3_FIX( 0.135021493 ) }, B3_FIX( 0.303646326 ) };
 
 			b3BodyId bodyId = b3CreateBody( m_worldId, &bodyDef );
 
 			b3ShapeDef shapeDef = b3DefaultShapeDef();
-			shapeDef.baseMaterial.rollingResistance = 0.1f;
+			shapeDef.baseMaterial.rollingResistance = B3_FIX( 0.1f );
 			b3CreateHullShape( bodyId, &shapeDef, hull );
 			b3DestroyHull( hull );
 		}
@@ -1510,7 +1511,7 @@ public:
 			b3BodyDef bodyDef = b3DefaultBodyDef();
 			b3BodyId groundId = b3CreateBody( m_worldId, &bodyDef );
 
-			m_mesh = b3CreateHollowBoxMesh( { 0.0f, 0.0f, 0.0f }, { 10.0f, 10.0f, 10.0f } );
+			m_mesh = b3CreateHollowBoxMesh( { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, { B3_FIX( 10.0f ), B3_FIX( 10.0f ), B3_FIX( 10.0f ) } );
 			b3ShapeDef shapeDef = b3DefaultShapeDef();
 			b3CreateMeshShape( groundId, &shapeDef, m_mesh, b3Vec3_one );
 		}
@@ -1522,11 +1523,11 @@ public:
 		b3ShapeDef shapeDef = b3DefaultShapeDef();
 
 		{
-			b3HullData* cylinderHull = b3CreateCylinder( 1.0f, 0.25f, 0.0f, 8 );
+			b3HullData* cylinderHull = b3CreateCylinder( 1.0f, B3_FIX( 0.25f ), 0.0f, 8 );
 
 			b3Pos positions[6] = {
-				{ 0.0f, -10.2f, 0.0f }, { 0.0f, 9.2f, 0.0f }, { -9.8f, 0.0f, 0.0f },
-				{ 9.8f, 0.0f, 0.0f }, { 0.0f, 0.0f, -9.8f }, { 0.0f, 0.0f, 9.8f },
+				{ B3_FIX( 0.0f ), B3_FIX( -10.2f ), B3_FIX( 0.0f ) }, { B3_FIX( 0.0f ), B3_FIX( 9.2f ), B3_FIX( 0.0f ) }, { B3_FIX( -9.8f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) },
+				{ B3_FIX( 9.8f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( -9.8f ) }, { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 9.8f ) },
 			};
 
 			for (int i = 0; i < 6; ++i)
@@ -1540,12 +1541,12 @@ public:
 		}
 
 		{
-			b3Capsule capsule ={{0.0f, 0.0f, 0.0f}, {0.0f, 1.0f, 0.0f}, 0.25f};
+			b3Capsule capsule ={{B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f )}, {B3_FIX( 0.0f ), B3_FIX( 1.0f ), B3_FIX( 0.0f )}, B3_FIX( 0.25f )};
 			b3Pos positions[8] = {
-				{ 0.0f, -10.2f, 2.0f }, { 0.0f, 9.2f, 2.0f }, 
-				{ 0.0f, -9.9f, 4.0f }, { 0.0f, 8.9f, 4.0f }, 
-				{ -9.8f, 2.0f, 0.0f },
-				{ 9.8f, 2.0f, 0.0f }, { 0.0f, 2.0f, -9.8f }, { 0.0f, 2.0f, 9.8f },
+				{ B3_FIX( 0.0f ), B3_FIX( -10.2f ), B3_FIX( 2.0f ) }, { B3_FIX( 0.0f ), B3_FIX( 9.2f ), B3_FIX( 2.0f ) }, 
+				{ B3_FIX( 0.0f ), B3_FIX( -9.9f ), B3_FIX( 4.0f ) }, { B3_FIX( 0.0f ), B3_FIX( 8.9f ), B3_FIX( 4.0f ) }, 
+				{ B3_FIX( -9.8f ), B3_FIX( 2.0f ), B3_FIX( 0.0f ) },
+				{ B3_FIX( 9.8f ), B3_FIX( 2.0f ), B3_FIX( 0.0f ) }, { B3_FIX( 0.0f ), B3_FIX( 2.0f ), B3_FIX( -9.8f ) }, { B3_FIX( 0.0f ), B3_FIX( 2.0f ), B3_FIX( 9.8f ) },
 			};
 
 			for (int i = 0; i < 8; ++i)
@@ -1566,7 +1567,7 @@ public:
 	{
 		Sample::Render();
 
-		b3Transform transform = { { 0.0f, 0.01f, 0.0f }, b3Quat_identity };
+		b3Transform transform = { { B3_FIX( 0.0f ), B3_FIX( 0.01f ), B3_FIX( 0.0f ) }, b3Quat_identity };
 		DrawAxes( b3MakeWorldTransform( transform ), 1.0f );
 	}
 

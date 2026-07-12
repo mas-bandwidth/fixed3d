@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 #include "sample.h"
+#include "fixed_ui.h"
 #include "gfx/draw.h"
 #include "utils.h"
 
@@ -22,9 +23,9 @@ public:
 
 		m_hull = nullptr;
 
-		m_halfWidths = { 1.0f, 0.5f, 0.25f };
-		m_postScale = { 1.0f, 1.0f, 1.0f };
-		m_rotation = { 0.0f, 0.0f, 0.0f };
+		m_halfWidths = { B3_FIX( 1.0f ), B3_FIX( 0.5f ), B3_FIX( 0.25f ) };
+		m_postScale = { B3_FIX( 1.0f ), B3_FIX( 1.0f ), B3_FIX( 1.0f ) };
+		m_rotation = { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
 		m_transform = b3Transform_identity;
 
 		UpdateRotation();
@@ -79,23 +80,23 @@ public:
 		float fontSize = ImGui::GetFontSize();
 		ImGui::PushItemWidth( 10.0f * fontSize );
 
-		if ( ImGui::SliderFloat3( "h", &m_halfWidths.x, 0.1f, 2.0f, "%.1f" ) )
+		if ( SliderFixed3( "h", &m_halfWidths, 0.1f, 2.0f, "%.1f" ) )
 		{
 			CreateHulls( m_halfWidths, m_transform, m_postScale );
 		}
 
-		if ( ImGui::SliderFloat3( "c", &m_transform.p.x, -2.0f, 2.0f, "%.1f" ) )
+		if ( SliderFixed3( "c", &m_transform.p, -2.0f, 2.0f, "%.1f" ) )
 		{
 			CreateHulls( m_halfWidths, m_transform, m_postScale );
 		}
 
-		if ( ImGui::SliderFloat3( "r", &m_rotation.x, -180.0f, 180.0f, "%.0f" ) )
+		if ( SliderFixed3( "r", &m_rotation, -180.0f, 180.0f, "%.0f" ) )
 		{
 			UpdateRotation();
 			CreateHulls( m_halfWidths, m_transform, m_postScale );
 		}
 
-		if ( ImGui::SliderFloat3( "s", &m_postScale.x, -2.0f, 2.0f, "%.1f" ) )
+		if ( SliderFixed3( "s", &m_postScale, -2.0f, 2.0f, "%.1f" ) )
 		{
 			CreateHulls( m_halfWidths, m_transform, m_postScale );
 		}
@@ -150,30 +151,30 @@ public:
 
 		// this fails because it generates too many edges
 		b3Vec3 points[] = {
-			{ -3.9866004, 75.4595108, 28.3783073 },	  { -13.1079493, 73.080368, 28.296587 },
-			{ -18.6611958, 72.0040894, 16.9292431 },  { 4.82537603, 79.2908554, 22.2369995 },
-			{ -12.7315464, 79.2187576, 2.94275379 },  { -21.806488, 78.7758865, 0.985544085 },
-			{ -27.7619209, 73.3481522, 11.9647141 },  { -22.3994541, 72.2203826, 21.4116211 },
-			{ -25.3797474, 76.7417755, 27.9124985 },  { -22.7552319, 77.0559006, 29.4733639 },
-			{ -6.81736374, 78.3484726, 36.8649979 },  { 3.62397718, 85.5270843, 29.2077713 },
-			{ 7.90363788, 84.121231, 18.2612896 },	  { -12.3809223, 84.5280533, -0.43230924 },
-			{ 5.83599472, 95.2908325, 4.4423275 },	  { -22.5541401, 89.9094467, -4.87791252 },
-			{ -43.9060402, 78.5287094, 1.32877088 },  { -42.6015129, 76.7829742, 7.67437983 },
-			{ -25.735527, 78.1218796, 27.908411 },	  { -23.5183544, 77.6326675, 29.1178799 },
-			{ 2.0977366, 100.430191, 34.3929482 },	  { 1.09743047, 103.952553, 35.5656395 },
-			{ 8.50175952, 96.0529861, 8.73674774 },	  { 2.52570295, 103.303696, 32.2314339 },
-			{ -20.099781, 89.4923248, -4.15468454 },  { 2.8092947, 123.516098, -1.12693477 },
-			{ -43.9318161, 79.1106186, 1.39006138 },  { -23.358511, 90.9599686, -4.25683546 },
-			{ 2.10804915, 123.603645, -1.38435471 },  { -44.1329117, 78.7192383, 1.54941654 },
-			{ -42.4365158, 77.725357, 8.14835929 },	  { -43.204792, 77.5811691, 7.14319515 },
-			{ -44.17416, 78.7810363, 2.50146222 },	  { -32.8975143, 99.1221771, 7.55588436 },
-			{ -0.624746263, 110.070351, 32.7381058 }, { 0.00431228895, 109.14341, 33.6411133 },
-			{ -0.58865279, 122.980537, 16.6554794 },  { 2.18539238, 124.324593, -0.620266676 },
-			{ -1.02177501, 123.881721, 16.8230057 },  { 1.9842999, 124.571777, -0.321986318 },
-			{ 1.86570692, 124.365791, -0.599836588 }, { -43.591507, 78.1373291, 6.1135149 },
-			{ -43.8235397, 79.2239074, 3.48619604 },  { -43.591507, 78.50811, 5.54555655 },
-			{ 1.21086729, 124.49453, 1.07543683 },	  { -1.86223853, 124.195847, 15.6257992 },
-			{ -1.46520972, 124.355492, 16.9864483 },  { 1.654302, 124.612976, 0.621887207 },
+			{ B3_FIX( -3.9866004 ), B3_FIX( 75.4595108 ), B3_FIX( 28.3783073 ) },	  { B3_FIX( -13.1079493 ), B3_FIX( 73.080368 ), B3_FIX( 28.296587 ) },
+			{ B3_FIX( -18.6611958 ), B3_FIX( 72.0040894 ), B3_FIX( 16.9292431 ) },  { B3_FIX( 4.82537603 ), B3_FIX( 79.2908554 ), B3_FIX( 22.2369995 ) },
+			{ B3_FIX( -12.7315464 ), B3_FIX( 79.2187576 ), B3_FIX( 2.94275379 ) },  { B3_FIX( -21.806488 ), B3_FIX( 78.7758865 ), B3_FIX( 0.985544085 ) },
+			{ B3_FIX( -27.7619209 ), B3_FIX( 73.3481522 ), B3_FIX( 11.9647141 ) },  { B3_FIX( -22.3994541 ), B3_FIX( 72.2203826 ), B3_FIX( 21.4116211 ) },
+			{ B3_FIX( -25.3797474 ), B3_FIX( 76.7417755 ), B3_FIX( 27.9124985 ) },  { B3_FIX( -22.7552319 ), B3_FIX( 77.0559006 ), B3_FIX( 29.4733639 ) },
+			{ B3_FIX( -6.81736374 ), B3_FIX( 78.3484726 ), B3_FIX( 36.8649979 ) },  { B3_FIX( 3.62397718 ), B3_FIX( 85.5270843 ), B3_FIX( 29.2077713 ) },
+			{ B3_FIX( 7.90363788 ), B3_FIX( 84.121231 ), B3_FIX( 18.2612896 ) },	  { B3_FIX( -12.3809223 ), B3_FIX( 84.5280533 ), B3_FIX( -0.43230924 ) },
+			{ B3_FIX( 5.83599472 ), B3_FIX( 95.2908325 ), B3_FIX( 4.4423275 ) },	  { B3_FIX( -22.5541401 ), B3_FIX( 89.9094467 ), B3_FIX( -4.87791252 ) },
+			{ B3_FIX( -43.9060402 ), B3_FIX( 78.5287094 ), B3_FIX( 1.32877088 ) },  { B3_FIX( -42.6015129 ), B3_FIX( 76.7829742 ), B3_FIX( 7.67437983 ) },
+			{ B3_FIX( -25.735527 ), B3_FIX( 78.1218796 ), B3_FIX( 27.908411 ) },	  { B3_FIX( -23.5183544 ), B3_FIX( 77.6326675 ), B3_FIX( 29.1178799 ) },
+			{ B3_FIX( 2.0977366 ), B3_FIX( 100.430191 ), B3_FIX( 34.3929482 ) },	  { B3_FIX( 1.09743047 ), B3_FIX( 103.952553 ), B3_FIX( 35.5656395 ) },
+			{ B3_FIX( 8.50175952 ), B3_FIX( 96.0529861 ), B3_FIX( 8.73674774 ) },	  { B3_FIX( 2.52570295 ), B3_FIX( 103.303696 ), B3_FIX( 32.2314339 ) },
+			{ B3_FIX( -20.099781 ), B3_FIX( 89.4923248 ), B3_FIX( -4.15468454 ) },  { B3_FIX( 2.8092947 ), B3_FIX( 123.516098 ), B3_FIX( -1.12693477 ) },
+			{ B3_FIX( -43.9318161 ), B3_FIX( 79.1106186 ), B3_FIX( 1.39006138 ) },  { B3_FIX( -23.358511 ), B3_FIX( 90.9599686 ), B3_FIX( -4.25683546 ) },
+			{ B3_FIX( 2.10804915 ), B3_FIX( 123.603645 ), B3_FIX( -1.38435471 ) },  { B3_FIX( -44.1329117 ), B3_FIX( 78.7192383 ), B3_FIX( 1.54941654 ) },
+			{ B3_FIX( -42.4365158 ), B3_FIX( 77.725357 ), B3_FIX( 8.14835929 ) },	  { B3_FIX( -43.204792 ), B3_FIX( 77.5811691 ), B3_FIX( 7.14319515 ) },
+			{ B3_FIX( -44.17416 ), B3_FIX( 78.7810363 ), B3_FIX( 2.50146222 ) },	  { B3_FIX( -32.8975143 ), B3_FIX( 99.1221771 ), B3_FIX( 7.55588436 ) },
+			{ B3_FIX( -0.624746263 ), B3_FIX( 110.070351 ), B3_FIX( 32.7381058 ) }, { B3_FIX( 0.00431228895 ), B3_FIX( 109.14341 ), B3_FIX( 33.6411133 ) },
+			{ B3_FIX( -0.58865279 ), B3_FIX( 122.980537 ), B3_FIX( 16.6554794 ) },  { B3_FIX( 2.18539238 ), B3_FIX( 124.324593 ), B3_FIX( -0.620266676 ) },
+			{ B3_FIX( -1.02177501 ), B3_FIX( 123.881721 ), B3_FIX( 16.8230057 ) },  { B3_FIX( 1.9842999 ), B3_FIX( 124.571777 ), B3_FIX( -0.321986318 ) },
+			{ B3_FIX( 1.86570692 ), B3_FIX( 124.365791 ), B3_FIX( -0.599836588 ) }, { B3_FIX( -43.591507 ), B3_FIX( 78.1373291 ), B3_FIX( 6.1135149 ) },
+			{ B3_FIX( -43.8235397 ), B3_FIX( 79.2239074 ), B3_FIX( 3.48619604 ) },  { B3_FIX( -43.591507 ), B3_FIX( 78.50811 ), B3_FIX( 5.54555655 ) },
+			{ B3_FIX( 1.21086729 ), B3_FIX( 124.49453 ), B3_FIX( 1.07543683 ) },	  { B3_FIX( -1.86223853 ), B3_FIX( 124.195847 ), B3_FIX( 15.6257992 ) },
+			{ B3_FIX( -1.46520972 ), B3_FIX( 124.355492 ), B3_FIX( 16.9864483 ) },  { B3_FIX( 1.654302 ), B3_FIX( 124.612976 ), B3_FIX( 0.621887207 ) },
 		};
 
 		static_assert( sizeof( points ) / sizeof( points[0] ) < m_capacity, "bad" );
@@ -181,7 +182,7 @@ public:
 		m_count = sizeof( points ) / sizeof( points[0] );
 		for ( int i = 0; i < m_count; ++i )
 		{
-			m_points[i] = 0.01f * points[i];
+			m_points[i] = B3_FIX( 0.01f ) * points[i];
 		}
 
 		// This shift shouldn't be necessary but I'm doing it so the hull
@@ -261,11 +262,11 @@ public:
 
 		if ( m_type == e_box )
 		{
-			b3Vec3 lower = { -2.0f, -2.0f, -2.0f };
-			b3Vec3 upper = { 2.0f, 2.0f, 2.0f };
-			b3AABB box = { { -1.0f, -1.0f, -1.0f }, { 1.0f, 1.0f, 1.0f } };
+			b3Vec3 lower = { B3_FIX( -2.0f ), B3_FIX( -2.0f ), B3_FIX( -2.0f ) };
+			b3Vec3 upper = { B3_FIX( 2.0f ), B3_FIX( 2.0f ), B3_FIX( 2.0f ) };
+			b3AABB box = { { B3_FIX( -1.0f ), B3_FIX( -1.0f ), B3_FIX( -1.0f ) }, { B3_FIX( 1.0f ), B3_FIX( 1.0f ), B3_FIX( 1.0f ) } };
 			float a = 0.001f;
-			b3AABB noise = { { -a, -a, -a }, { a, a, a } };
+			b3AABB noise = { { b3FixFromFloat( -a ), b3FixFromFloat( -a ), b3FixFromFloat( -a ) }, { b3FixFromFloat( a ), b3FixFromFloat( a ), b3FixFromFloat( a ) } };
 
 			for ( int i = 0; i < m_capacity; ++i )
 			{
@@ -370,10 +371,10 @@ public:
 			m_camera->SetView( 0.0f, 15.0f, 5.0f, b3Pos_zero );
 		}
 
-		m_original = b3CreateCylinder( 1.0f, 0.5f, 0.0f, 9 );
-		m_box = b3MakeBoxHull( 0.5f, 0.5f, 0.5f );
+		m_original = b3CreateCylinder( 1.0f, B3_FIX( 0.5f ), 0.0f, 9 );
+		m_box = b3MakeBoxHull( B3_FIX( 0.5f ), B3_FIX( 0.5f ), B3_FIX( 0.5f ) );
 		// m_original = &m_box.base;
-		m_scale = { 1.0f, 1.0f, 1.0f };
+		m_scale = { B3_FIX( 1.0f ), B3_FIX( 1.0f ), B3_FIX( 1.0f ) };
 		m_angles = b3Vec3_zero;
 		m_offset = b3Vec3_zero;
 		m_hull = b3CloneAndTransformHull( m_original, b3Transform_identity, m_scale );
@@ -403,8 +404,8 @@ public:
 
 	void Render() override
 	{
-		b3Transform transform1 = { { -2.0f, 0.0f, 0.0f }, b3Quat_identity };
-		b3Transform transform2 = { { 2.0f, 0.0f, 0.0f }, b3Quat_identity };
+		b3Transform transform1 = { { B3_FIX( -2.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, b3Quat_identity };
+		b3Transform transform2 = { { B3_FIX( 2.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, b3Quat_identity };
 
 		DrawHull( b3MakeWorldTransform( transform1 ), m_original, MakeColor( b3_colorGreen ) );
 		DrawHull( b3MakeWorldTransform( transform2 ), m_hull, MakeColor( b3_colorYellow ) );
@@ -424,47 +425,47 @@ public:
 
 	bool DrawControls() override
 	{
-		if ( ImGui::SliderFloat( "sx", &m_scale.x, -2.0f, 2.0f, "%.1f" ) )
+		if ( SliderFixed( "sx", &m_scale.x, -2.0f, 2.0f, "%.1f" ) )
 		{
 			UpdateHull();
 		}
 
-		if ( ImGui::SliderFloat( "sy", &m_scale.y, -2.0f, 2.0f, "%.1f" ) )
+		if ( SliderFixed( "sy", &m_scale.y, -2.0f, 2.0f, "%.1f" ) )
 		{
 			UpdateHull();
 		}
 
-		if ( ImGui::SliderFloat( "sz", &m_scale.z, -2.0f, 2.0f, "%.1f" ) )
+		if ( SliderFixed( "sz", &m_scale.z, -2.0f, 2.0f, "%.1f" ) )
 		{
 			UpdateHull();
 		}
 
-		if ( ImGui::SliderFloat( "rx", &m_angles.x, -180.0f, 180.0f, "%.0f" ) )
+		if ( SliderFixed( "rx", &m_angles.x, -180.0f, 180.0f, "%.0f" ) )
 		{
 			UpdateHull();
 		}
 
-		if ( ImGui::SliderFloat( "ry", &m_angles.y, -180.0f, 180.0f, "%.0f" ) )
+		if ( SliderFixed( "ry", &m_angles.y, -180.0f, 180.0f, "%.0f" ) )
 		{
 			UpdateHull();
 		}
 
-		if ( ImGui::SliderFloat( "rz", &m_angles.z, -180.0f, 180.0f, "%.0f" ) )
+		if ( SliderFixed( "rz", &m_angles.z, -180.0f, 180.0f, "%.0f" ) )
 		{
 			UpdateHull();
 		}
 
-		if ( ImGui::SliderFloat( "px", &m_offset.x, -1.0f, 1.0f, "%.1f" ) )
+		if ( SliderFixed( "px", &m_offset.x, -1.0f, 1.0f, "%.1f" ) )
 		{
 			UpdateHull();
 		}
 
-		if ( ImGui::SliderFloat( "py", &m_offset.y, -1.0f, 1.0f, "%.1f" ) )
+		if ( SliderFixed( "py", &m_offset.y, -1.0f, 1.0f, "%.1f" ) )
 		{
 			UpdateHull();
 		}
 
-		if ( ImGui::SliderFloat( "pz", &m_offset.z, -1.0f, 1.0f, "%.1f" ) )
+		if ( SliderFixed( "pz", &m_offset.z, -1.0f, 1.0f, "%.1f" ) )
 		{
 			UpdateHull();
 		}
@@ -501,7 +502,7 @@ public:
 		m_radius = 1.0f;
 		m_length = 2.0f;
 		m_sides = 6;
-		m_capsule = { { -0.5f * m_length, 0.0f, 0.0f }, { 0.5f * m_length, 0.0f, 0.0f }, m_radius };
+		m_capsule = { { b3FixFromFloat( -0.5f * m_length ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, { b3FixFromFloat( 0.5f * m_length ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, b3FixFromFloat( m_radius ) };
 		m_box = b3MakeBoxHull( m_radius + 0.5f * m_length, m_radius, m_radius );
 
 		m_hull = nullptr;

@@ -181,7 +181,7 @@ static Mat4 FitCascade( const Mat4* viewInv, const Mat4* proj, b3Vec3 dirToSun, 
 
 void InitShadows( void )
 {
-	s_shadow.sunDir = b3Normalize( (b3Vec3){ 0.5f, 0.8f, 0.4f } );
+	s_shadow.sunDir = b3Normalize( (b3Vec3){ B3_FIX( 0.5f ), B3_FIX( 0.8f ), B3_FIX( 0.4f ) } );
 	s_shadow.splitNear = SHADOW_SPLIT_NEAR;
 	s_shadow.splitFar = SHADOW_SPLIT_FAR;
 	s_shadow.splitLambda = SplitLambdaForRange( s_shadow.splitNear, s_shadow.splitFar );
