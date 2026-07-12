@@ -1,21 +1,40 @@
 # Box3D Fixed-Point Conversion — Session Handoff
 
-This working tree contains the conversion of Box3D from float to fixed-point math
-(internal and external API). The conversion itself is committed (45078b4); the
-session-3 performance pass below is a working-tree diff on top. Baseline float
-code is at e9f6f1d.
+Box3D converted from float to Q48.16 fixed point (internal and external API).
+Baseline float code is commit e9f6f1d. EVERYTHING below is committed and pushed;
+there is no pending working-tree state.
 
-## Current status (as of 2026-07-11, session 3 — performance pass)
+## Current status (as of 2026-07-12 — all work landed)
 
-**ALL 22 test suites pass** (`./build-fixed2/bin/test`, ~1.2 s). Single suite:
-`./build-fixed2/bin/test <SuiteName>`.
+- **ALL 22 test suites pass** in Release (`./build-fixed2/bin/test`, ~1.1 s) AND
+  in Debug + B3_VALIDATE + ASan/UBSan (exit 0, zero sanitizer reports). Single
+  suite: `./build-fixed2/bin/test <SuiteName>`.
+- **CI: fully green** — 13 jobs (ubuntu gcc / clang-TSan / clang-MSan, macos
+  sanitized, windows-clang-cl, windows-arm64, windows-mingw, emscripten, six
+  samples jobs). See the CI section for the rules that keep it green.
+- **Performance: ~2.3x of vanilla float** geomean over all 11 benchmarks (was
+  5.4x at the first conversion commit). Full optimization log with per-pass
+  numbers and profiles: benchmark/apple_m3_ultra_fixed/README.md.
+- **Samples build and run** (the float→fixed sample pass is done).
+- **Determinism goldens**: sleepStep=286, hash=0xFF09131D, verified bit-identical
+  across 1-4 workers.
+- History (main): e9f6f1d float baseline → 45078b4 + 98b9889 conversion →
+  d29ef7d..a40134f optimization passes → 924cd56 narrow storage → ea684c7..632ff0d
+  CI/samples → 973acd1 bug-hunt hardening.
 
-**TWO TREES WARNING**: `/Users/glenn/box3d` is a separate clone. Commit 98b9889
-("optimized to ~3.2x of float") was made there in a parallel session and has been
-**fetched and fast-forwarded into this repo** (main is now 98b9889 + the session-3
-work). `build-fixed/` and `build-ast/` here were copied from box3d and their
-build.ninja files hold ABSOLUTE paths into /Users/glenn/box3d — building them
-compiles the WRONG tree. Use `build-fixed2/` (fresh configure).
+## Repository and remotes (IMPORTANT)
+
+- This checkout (`/Users/glenn/fixed3d`) maps to **github.com/mas-bandwidth/fixed3d**
+  (`origin`, push target; main tracks it). `upstream` is erincatto/box3d,
+  fetch-only, with its push URL set to the invalid `DO-NOT-PUSH-TO-UPSTREAM` as a
+  guard. NEVER push to Erin's repo. Glenn sometimes edits the README in the GitHub
+  web UI — pull/merge before pushing if the remote is ahead.
+- **TWO TREES WARNING**: `/Users/glenn/box3d` is a separate stale clone (its
+  history was fetched into this repo long ago). `build-fixed/` and `build-ast/`
+  dirs here were copied from it and their build.ninja files hold ABSOLUTE paths
+  into /Users/glenn/box3d — building them compiles the WRONG tree. Use
+  `build-fixed2/` (fresh configure). If a build behaves impossibly, check
+  `grep -m1 /Users/glenn build*/build.ninja` FIRST.
 
 Session-3 performance work (all on top of 98b9889's fixed.h fast paths):
 
@@ -139,9 +158,9 @@ like a hang). It writes `<name>.csv` to the CWD.
 Fixes landed in session 2 (beyond the session-1 list):
 
 - **ShapeTest**: divide-last test references; `N - B3_FIX(1.0f)` int/fixed mixup that fed
-  quickhull a degenerate cloud (hung `b3HullBuilder_ConnectFaces` — quickhull still has no
-  iteration guard, see follow-ups); sub-resolution tolerance literals floored; on-ray
-  reconstruction tolerance scaled by ray length.
+  quickhull a degenerate cloud (hung `b3HullBuilder_ConnectFaces`; the builder is
+  guarded now, see the bug-hunt section); sub-resolution tolerance literals floored;
+  on-ray reconstruction tolerance scaled by ray length.
 - **b3RayCastSphere** rewritten: quadratic on the *raw* translation at 128 bits with a
   shift-normalization for huge coefficients. Errors now 1e-14..9e-3 over origins 1e1..1e7.
 - **b3RayCastCapsule** rewritten: exact `b3Normalize` for the axis (was reciprocal-multiply,
@@ -157,21 +176,29 @@ Fixes landed in session 2 (beyond the session-1 list):
 ## Build workflow
 
 - Dev build: `cmake --build build-fixed2` (Ninja, RelWithDebInfo, samples OFF,
-  benchmarks ON, tests ON). **Do NOT use `build-fixed/` or `build-ast/`** — they
-  compile /Users/glenn/box3d (absolute paths in build.ninja); delete or reconfigure
-  them. Validation compiles only in Debug; a Debug build has NOT been run recently —
-  `B3_ASSERT`/`B3_VALIDATE` conditions were all converted, but expect some asserts
-  to need ULP slack when first run (pattern: see `b3GetTwistAngle` in
-  math_functions.h).
-- The AST audit needs a compile_commands.json that points at THIS tree; reconfigure
-  build-ast (Debug, `-DBOX3D_DISABLE_SIMD=ON -DBOX3D_VALIDATE=ON`) before trusting
-  `tools/fixed-point/ast_audit.py` again.
-- Git worktrees were added for tooling and may now dangle (they live in a
-  session-specific scratch dir): `git worktree list` / `git worktree prune`.
-  One was a pristine copy for the rewriter; one (`floatref`) built the **float
-  library at HEAD** for ground-truthing behavior — recreating that is the best
-  way to answer "is this fixed-point behavior a bug or did float do it too?"
-  (that trick resolved capsule rolling and ray-triangle winding questions).
+  benchmarks ON, tests ON). **Do NOT use `build-fixed/` or `build-ast/`** — see
+  the two-trees warning above. `build-ast` may also be a dangling symlink into a
+  dead session scratchpad; delete and reconfigure fresh when needed.
+- Sanitized debug config (matches the macos CI job): configure a separate dir
+  with `-DCMAKE_BUILD_TYPE=Debug -DBOX3D_VALIDATE=ON -DBOX3D_SANITIZE=ON
+  -DCMAKE_COMPILE_WARNING_AS_ERROR=ON`. Both configs are expected green at all
+  times. Debug asserts print to a BUFFERED stdout and the buffer is lost on
+  trap — run under lldb (`lldb -b -o run -o bt -o quit -- bin/test Suite`) to
+  see which assert fired.
+- The AST audit (`tools/fixed-point/ast_audit.py`) derives the repo root from
+  its own path and reads `build-ast/compile_commands.json`; reconfigure
+  build-ast fresh (Debug, `-DBOX3D_DISABLE_SIMD=ON -DBOX3D_VALIDATE=ON
+  -DCMAKE_EXPORT_COMPILE_COMMANDS=ON`) before trusting it. Rerun it after any
+  large edit or merge from upstream float code.
+- Float ground truth: `git worktree add <scratch>/floatref e9f6f1d`, then cmake
+  it standalone. Running the same scenario in the float build is the best way to
+  answer "is this fixed-point behavior a bug or did float do it too?" — it
+  settled the edge-query profile, capsule rolling, and ray-triangle winding
+  questions. Worktrees live in session scratchpads and dangle when those die:
+  `git worktree prune`.
+- Samples build: `-DBOX3D_SAMPLES=ON -DBOX3D_UNIT_TESTS=OFF` (Release). If
+  configure fails on a stale `.fetchcontent-cache`, delete it (it may be a copy
+  from the box3d tree with baked absolute paths).
 
 ## The fixed-point design
 
@@ -323,6 +350,35 @@ provides SliderFixed/SliderFixed3/InputFixed for editing fixed fields, and the
 debug-draw adapter converts at the render boundary. The C++11-narrowing error
 plus -Wliteral-conversion and -Wformat warnings are the tools for auditing any
 new sample code — keep them clean.
+
+## Bug-hunt pass (2026-07-12, all landed in 973acd1)
+
+- **b3FindFarthestPointFromLine** divided by a squared segment length that
+  quantizes to zero for sub-resolution segments; `b3FixDiv(1, 0)` returned the
+  saturation sentinel and the following non-saturating multiply wrapped —
+  garbage initial hull seeds (rules 7 + 4 combined; the likely origin of the
+  historical ConnectFaces hang). Now: exact `b3DotRaw` squared length,
+  cross-multiplied threshold compare, coincident endpoints return no-index.
+- **Quickhull is hang-proof and overflow-proof**: `failed` flag on the builder,
+  bounded ring walks (cap = edge pool size) in ConnectFaces and the merge
+  scans, release-safe pool allocators (capacity checks were assert-only — in
+  Release, corrupt topology meant out-of-bounds pool writes; they now alias the
+  last slot and fail the build), driver-level propagation to a clean NULL.
+  Regression test: `CreateHullNearDegenerateTest` (sub-resolution jittered
+  clouds — thin needles, near-planar grids, ulp clusters). That test flushed
+  out the FromLine bug within minutes of existing.
+- **b3UnwindAngle**: quotient stays 64-bit (was truncated through the 32-bit
+  `b3FixRoundToInt`) and `n * twoPi` forms at 128 bits (overflows int64 near
+  the b3Fixed range limit).
+- **b3Log** now has the printf format attribute — mismatches used to be
+  invisible to -Wformat (rule 9). All call sites were already correct; now the
+  compiler enforces it.
+- **ast_audit.py** had a hardcoded /Users/glenn/box3d root, so every earlier
+  "clean" audit ran against the WRONG tree's compile database. Root is now
+  derived from the script path; the first honest audit of this tree is clean.
+- Checked clean: height-field grid indexing (floor-then-trunc matches float),
+  the scanf boundary, b3MakeQuatFromMatrix/FromVectors, benchmark scenes under
+  Debug+VALIDATE+sanitizers (10-step smoke, NDEBUG gates full step counts).
 
 ## Known leftovers / follow-ups
 
