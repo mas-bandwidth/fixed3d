@@ -1690,16 +1690,231 @@ static b3HullHalfEdge* b3GetHullEdgesWrite( b3HullData* hull )
 	return (b3HullHalfEdge*)( (intptr_t)hull + hull->edgeOffset );
 }
 
+#if defined( B3_SIMD_AVX512 )
+
+#include <immintrin.h>
+
+// Wide support scans. The scalar loops compare exact raw 128-bit dots; the
+// wide path is taken only when a conservative bound proves every dot fits in
+// int64 (3 * max|direction component| * max|operand component| < 2^63). Under
+// that bound the int64 dots are exact values, so every comparison - ties
+// included - resolves identically to the 128-bit scalar scan and the returned
+// index is bit-identical. The vertex bound comes from the hull's local AABB
+// (the cooker computes it from the points and the blob hash guards it); the
+// face bound assumes validated unit normals with a 4x margin. Lanes hold
+// running (value, index) argmax pairs per index residue class; the reduction
+// breaks value ties on the smaller index and the tail continues on the exact
+// 128-bit compare, together matching the scalar first-wins semantics.
+
+static inline uint64_t b3AbsBoundU64( b3Fixed a )
+{
+	return a < 0 ? ( 0 - (uint64_t)a ) : (uint64_t)a;
+}
+
+static inline bool b3DotFitsInt64( b3Vec3 direction, uint64_t operandBound )
+{
+	uint64_t dMax = b3AbsBoundU64( direction.x );
+	uint64_t dy = b3AbsBoundU64( direction.y );
+	uint64_t dz = b3AbsBoundU64( direction.z );
+	dMax = dy > dMax ? dy : dMax;
+	dMax = dz > dMax ? dz : dMax;
+	return (b3UInt128)3 * dMax * operandBound < ( (b3UInt128)1 << 63 );
+}
+
+// Argmax of dot(direction, points[i]) over an array with 3-field (24 byte)
+// stride, int64-exact under the caller's bound
+static int b3FindSupportVertexAVX( const b3Vec3* points, int count, b3Vec3 direction )
+{
+	__m256i dirX = _mm256_set1_epi64x( direction.x );
+	__m256i dirY = _mm256_set1_epi64x( direction.y );
+	__m256i dirZ = _mm256_set1_epi64x( direction.z );
+
+	// Gather x/y/z lanes of four consecutive points from the three 256-bit
+	// rows that hold their twelve fields
+	const __m256i pickX0 = _mm256_setr_epi64x( 0, 3, 6, 6 );
+	const __m256i pickX1 = _mm256_setr_epi64x( 0, 1, 2, 5 );
+	const __m256i pickY0 = _mm256_setr_epi64x( 1, 4, 7, 7 );
+	const __m256i pickY1 = _mm256_setr_epi64x( 0, 1, 2, 6 );
+	const __m256i pickZ0 = _mm256_setr_epi64x( 2, 5, 5, 5 );
+	const __m256i pickZ1 = _mm256_setr_epi64x( 0, 1, 4, 7 );
+
+	__m256i bestVal = _mm256_setzero_si256();
+	__m256i bestIdx = _mm256_setzero_si256();
+	__m256i curIdx = _mm256_setr_epi64x( 0, 1, 2, 3 );
+	const __m256i four = _mm256_set1_epi64x( 4 );
+
+	int groupCount = count / 4;
+	const b3Fixed* fields = (const b3Fixed*)points;
+	for ( int group = 0; group < groupCount; ++group )
+	{
+		__m256i r0 = _mm256_loadu_si256( (const __m256i*)( fields + 12 * group + 0 ) );
+		__m256i r1 = _mm256_loadu_si256( (const __m256i*)( fields + 12 * group + 4 ) );
+		__m256i r2 = _mm256_loadu_si256( (const __m256i*)( fields + 12 * group + 8 ) );
+
+		__m256i px = _mm256_permutex2var_epi64( r0, pickX0, r1 );
+		px = _mm256_permutex2var_epi64( px, pickX1, r2 );
+		__m256i py = _mm256_permutex2var_epi64( r0, pickY0, r1 );
+		py = _mm256_permutex2var_epi64( py, pickY1, r2 );
+		__m256i pz = _mm256_permutex2var_epi64( r0, pickZ0, r1 );
+		pz = _mm256_permutex2var_epi64( pz, pickZ1, r2 );
+
+		__m256i dot = _mm256_add_epi64( _mm256_add_epi64( _mm256_mullo_epi64( dirX, px ), _mm256_mullo_epi64( dirY, py ) ),
+										_mm256_mullo_epi64( dirZ, pz ) );
+
+		if ( group == 0 )
+		{
+			// First group is accepted unconditionally, like the scalar scan's
+			// first vertex
+			bestVal = dot;
+			bestIdx = curIdx;
+		}
+		else
+		{
+			__mmask8 greater = _mm256_cmpgt_epi64_mask( dot, bestVal );
+			bestVal = _mm256_mask_blend_epi64( greater, bestVal, dot );
+			bestIdx = _mm256_mask_blend_epi64( greater, bestIdx, curIdx );
+		}
+		curIdx = _mm256_add_epi64( curIdx, four );
+	}
+
+	// Reduce lanes: larger value wins, equal values resolve to the smaller
+	// index, which is exactly the scalar first-wins order
+	int64_t vals[4], idxs[4];
+	_mm256_storeu_si256( (__m256i*)vals, bestVal );
+	_mm256_storeu_si256( (__m256i*)idxs, bestIdx );
+	int bestIndex = (int)idxs[0];
+	b3Int128 bestDot = vals[0];
+	for ( int lane = 1; lane < 4; ++lane )
+	{
+		if ( vals[lane] > bestDot || ( vals[lane] == bestDot && idxs[lane] < bestIndex ) )
+		{
+			bestDot = vals[lane];
+			bestIndex = (int)idxs[lane];
+		}
+	}
+
+	// Tail on the exact 128-bit compare; tail indices are all larger, so a
+	// strictly-greater update preserves first-wins
+	for ( int index = 4 * groupCount; index < count; ++index )
+	{
+		b3Int128 dot = b3DotRaw( direction, points[index] );
+		if ( dot > bestDot )
+		{
+			bestDot = dot;
+			bestIndex = index;
+		}
+	}
+
+	return bestIndex;
+}
+
+// Argmax of dot(direction, planes[i].normal) over the 4-field (32 byte)
+// plane stride: a straight 4x4 transpose per group
+static int b3FindSupportFaceAVX( const b3Plane* planes, int count, b3Vec3 direction )
+{
+	__m256i dirX = _mm256_set1_epi64x( direction.x );
+	__m256i dirY = _mm256_set1_epi64x( direction.y );
+	__m256i dirZ = _mm256_set1_epi64x( direction.z );
+
+	__m256i bestVal = _mm256_setzero_si256();
+	__m256i bestIdx = _mm256_setzero_si256();
+	__m256i curIdx = _mm256_setr_epi64x( 0, 1, 2, 3 );
+	const __m256i four = _mm256_set1_epi64x( 4 );
+
+	int groupCount = count / 4;
+	for ( int group = 0; group < groupCount; ++group )
+	{
+		const b3Plane* p = planes + 4 * group;
+		__m256i r0 = _mm256_loadu_si256( (const __m256i*)( p + 0 ) );
+		__m256i r1 = _mm256_loadu_si256( (const __m256i*)( p + 1 ) );
+		__m256i r2 = _mm256_loadu_si256( (const __m256i*)( p + 2 ) );
+		__m256i r3 = _mm256_loadu_si256( (const __m256i*)( p + 3 ) );
+
+		__m256i t0 = _mm256_unpacklo_epi64( r0, r1 );
+		__m256i t1 = _mm256_unpackhi_epi64( r0, r1 );
+		__m256i t2 = _mm256_unpacklo_epi64( r2, r3 );
+		__m256i t3 = _mm256_unpackhi_epi64( r2, r3 );
+		__m256i nx = _mm256_permute2x128_si256( t0, t2, 0x20 );
+		__m256i ny = _mm256_permute2x128_si256( t1, t3, 0x20 );
+		__m256i nz = _mm256_permute2x128_si256( t0, t2, 0x31 );
+
+		__m256i dot = _mm256_add_epi64( _mm256_add_epi64( _mm256_mullo_epi64( dirX, nx ), _mm256_mullo_epi64( dirY, ny ) ),
+										_mm256_mullo_epi64( dirZ, nz ) );
+
+		if ( group == 0 )
+		{
+			bestVal = dot;
+			bestIdx = curIdx;
+		}
+		else
+		{
+			__mmask8 greater = _mm256_cmpgt_epi64_mask( dot, bestVal );
+			bestVal = _mm256_mask_blend_epi64( greater, bestVal, dot );
+			bestIdx = _mm256_mask_blend_epi64( greater, bestIdx, curIdx );
+		}
+		curIdx = _mm256_add_epi64( curIdx, four );
+	}
+
+	int64_t vals[4], idxs[4];
+	_mm256_storeu_si256( (__m256i*)vals, bestVal );
+	_mm256_storeu_si256( (__m256i*)idxs, bestIdx );
+	int bestIndex = (int)idxs[0];
+	b3Int128 bestDot = vals[0];
+	for ( int lane = 1; lane < 4; ++lane )
+	{
+		if ( vals[lane] > bestDot || ( vals[lane] == bestDot && idxs[lane] < bestIndex ) )
+		{
+			bestDot = vals[lane];
+			bestIndex = (int)idxs[lane];
+		}
+	}
+
+	for ( int index = 4 * groupCount; index < count; ++index )
+	{
+		b3Int128 dot = b3DotRaw( planes[index].normal, direction );
+		if ( dot > bestDot )
+		{
+			bestDot = dot;
+			bestIndex = index;
+		}
+	}
+
+	return bestIndex;
+}
+
+#endif // B3_SIMD_AVX512
+
 int b3FindHullSupportVertex( const b3HullData* hull, b3Vec3 direction )
 {
+	int vertexCount = hull->vertexCount;
+	const b3Vec3* points = b3GetHullPoints( hull );
+
+#if defined( B3_SIMD_AVX512 )
+	if ( vertexCount >= 4 )
+	{
+		// Every |vertex component| is bounded by the hull's local AABB
+		uint64_t bound = b3AbsBoundU64( hull->aabb.lowerBound.x );
+		uint64_t candidates[5] = { b3AbsBoundU64( hull->aabb.lowerBound.y ), b3AbsBoundU64( hull->aabb.lowerBound.z ),
+								   b3AbsBoundU64( hull->aabb.upperBound.x ), b3AbsBoundU64( hull->aabb.upperBound.y ),
+								   b3AbsBoundU64( hull->aabb.upperBound.z ) };
+		for ( int i = 0; i < 5; ++i )
+		{
+			bound = candidates[i] > bound ? candidates[i] : bound;
+		}
+		if ( b3DotFitsInt64( direction, bound ) )
+		{
+			int bestIndex = b3FindSupportVertexAVX( points, vertexCount, direction );
+			B3_ASSERT( bestIndex >= 0 );
+			return bestIndex;
+		}
+	}
+#endif
+
 	int bestIndex = B3_NULL_INDEX;
 
 	// Compare exact raw 128-bit dots: no per-component rounding or saturation
 	// in the scan, and ties resolve on the exact values.
 	b3Int128 bestDot = 0;
-
-	int vertexCount = hull->vertexCount;
-	const b3Vec3* points = b3GetHullPoints( hull );
 
 	for ( int index = 0; index < vertexCount; ++index )
 	{
@@ -1717,13 +1932,23 @@ int b3FindHullSupportVertex( const b3HullData* hull, b3Vec3 direction )
 
 int b3FindHullSupportFace( const b3HullData* hull, b3Vec3 direction )
 {
+	int faceCount = hull->faceCount;
+	const b3Plane* planes = b3GetHullPlanes( hull );
+
+#if defined( B3_SIMD_AVX512 )
+	// Face normals are validated unit vectors; bound them with a 4x margin
+	if ( faceCount >= 4 && b3DotFitsInt64( direction, (uint64_t)( 4 * B3_FIXED_ONE ) ) )
+	{
+		int bestIndex = b3FindSupportFaceAVX( planes, faceCount, direction );
+		B3_ASSERT( bestIndex >= 0 );
+		return bestIndex;
+	}
+#endif
+
 	int bestIndex = B3_NULL_INDEX;
 
 	// Compare exact raw 128-bit dots, matching b3FindHullSupportVertex
 	b3Int128 bestDot = 0;
-
-	int faceCount = hull->faceCount;
-	const b3Plane* planes = b3GetHullPlanes( hull );
 
 	for ( int index = 0; index < faceCount; ++index )
 	{
