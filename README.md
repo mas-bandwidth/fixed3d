@@ -1,4 +1,4 @@
-# Box3D, but it's fixed point now
+# Box3D, but it's fixed point to make Erin mad
 
 > # ⚠️ DO NOT USE THIS LIBRARY ⚠️
 >
