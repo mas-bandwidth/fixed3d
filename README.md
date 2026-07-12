@@ -16,9 +16,10 @@
 Box3D with every `float` torn out of the simulation and replaced with **Q48.16
 fixed point** in an `int64_t`. All of it: the solver, GJK, the trig, the ray
 casts, the mass properties, the recording format. The SIMD is gone (it grew
-back on AVX-512 — same bits, just faster; see below). In exchange, every step
-is bit-exact on every platform, resolution is a uniform 1/65536 everywhere in
-a ±1.4×10¹⁴ meter world, and all 22 unit test suites still pass.
+back on AVX-512 — same bits, just faster; see below). In exchange, resolution
+is a uniform 1/65536 everywhere in a ±1.4×10¹⁴ meter world, every step is
+still bit-exact on every platform (vanilla Box3D already was — see below),
+and all 22 unit test suites still pass.
 
 ```
 45078b4 there i fixed it for you
@@ -67,12 +68,19 @@ dense hulls was measured carrying 5.8 million units of accumulated impulse,
 
 ### What you get for the 2.3×
 
-- Cross-platform, cross-compiler, bit-exact determinism by construction —
-  no FP contraction flags, no `-ffloat-store`, no x87 anxiety, no per-platform
-  golden files. The determinism test hashes 200 steps of ragdoll piles and
-  gets the same answer on 1, 2, 3, and 4 threads, every time.
-- Uniform 1.5×10⁻⁵ resolution at the origin and at 100 km from the origin.
-  Large-world mode deleted because every world is a large world now.
+To be clear: **vanilla Box3D is already deterministic across platforms.**
+Erin did that work in floating point — pinned contraction, no fast-math, the
+discipline. Determinism is not a Fixed3D feature; it came with the library we
+vandalized. Fixed point merely gets it by construction instead of by
+vigilance: no FP contraction flags, no `-ffloat-store`, no x87 anxiety —
+integers wrap the same everywhere, so there is nothing to hold carefully.
+
+What you actually get for the 2.3×:
+
+- Uniform 1.5×10⁻⁵ resolution at the origin and at 100 km from the origin,
+  in a ±1.4×10¹⁴ meter world. Large-world mode deleted because every world
+  is a large world now.
+- Erin, mad.
 
 ## The SIMD grew back: AVX-512 results
 

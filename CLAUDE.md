@@ -21,6 +21,12 @@ there is no pending working-tree state.
   across 1-5 workers. Updated for the e961bfb friction-center weighted-average
   port — any solver-affecting change invalidates these, see the test conventions
   section for how to regenerate.
+- **Public-claims rule (from Glenn)**: vanilla Box3D is ALREADY deterministic
+  across platforms — Erin achieves it in float with FP discipline. Never pitch
+  determinism as a Fixed3D feature (README, commit messages, anywhere public);
+  the honest differentiators are uniform resolution in an enormous world
+  (large-world mode deleted) and making Erin mad. Fixed point only changes HOW
+  determinism is achieved (by construction, no FP flags to police).
 - History (main): e9f6f1d float baseline → 45078b4 + 98b9889 conversion →
   d29ef7d..a40134f optimization passes → 924cd56 narrow storage → ea684c7..632ff0d
   CI/samples → 973acd1 bug-hunt hardening → 1f1c941 friction center weighted
