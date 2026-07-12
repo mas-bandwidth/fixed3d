@@ -64,13 +64,6 @@ solver runs on per-step precomputed Jacobian rows stored as 32-bit lanes
 dense hulls was measured carrying 5.8 million units of accumulated impulse,
 177× past what 32-bit lanes would hold).
 
-The earlier edition of this README reported **12,858,880 "CCD stall"
-warnings** during a benchmark run. That turned out to be the stall *report*
-threshold, not the stall: the float code disables it with
-`1000 * FLT_MAX = inf`, and the fixed-point translation of that idiom wraps
-to roughly −0.015 ms, so every single time-of-impact query "exceeded" it.
-The physics was fine. The physics was being slandered.
-
 ### What you get for the 2.3×
 
 - Cross-platform, cross-compiler, bit-exact determinism by construction —
