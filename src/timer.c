@@ -172,7 +172,9 @@ static void b3SetCurrentThreadName( const char* name )
 			// This is the intended use of GetProcAddress, so suppress locally.
 #pragma warning( push )
 #pragma warning( disable : 4191 )
-			pfn = (b3SetThreadDescriptionFn)GetProcAddress( kernel, "SetThreadDescription" );
+			// The void* intermediate also silences clang-cl's stricter
+			// -Wcast-function-type-mismatch for the same intended use.
+			pfn = (b3SetThreadDescriptionFn)(void*)GetProcAddress( kernel, "SetThreadDescription" );
 #pragma warning( pop )
 		}
 		resolved = 1;
