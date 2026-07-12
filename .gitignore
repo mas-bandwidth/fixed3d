@@ -19,3 +19,4 @@ build-fixed2/
 *.csv
 !benchmark/*/*.csv
 .fetchcontent-cache/
+build*/
