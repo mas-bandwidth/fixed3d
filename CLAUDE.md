@@ -26,7 +26,7 @@ there is no pending working-tree state.
   CI/samples → 973acd1 bug-hunt hardening → 1f1c941 friction center weighted
   average (ports box3d e961bfb).
 
-## AVX-512 wide solver path (branch avx512, 2026-07-12)
+## AVX-512 wide solver path (landed on main 2026-07-12)
 
 - **BOX3D_AVX512** (CMake, default OFF) makes `b3FloatW` a union with one
   `__m256i` and implements every wide lane primitive in contact_solver.c with

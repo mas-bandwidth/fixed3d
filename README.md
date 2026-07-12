@@ -124,8 +124,10 @@ while scalar int64 gets nothing, and 128-bit multiply chains sting more at
 3 GHz — which is exactly why this is the machine where the SIMD had to grow
 back.
 
-Deterministic, bit-exact, and now with vector units. Your floats can't do
-that, Erin. nya nya nya.
+House rule: taunting Erin is only permitted once fixed point is close to or
+beating his single-precision floats. At 2.9× we have not earned it, so there
+will be no taunting today. But convex_pile is at 1.6× and the contact prepare
+is still scalar. Getting warmer. Preparing the nya.
 
 ## Should I use this?
 
