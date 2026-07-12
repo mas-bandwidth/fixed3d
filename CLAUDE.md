@@ -109,6 +109,24 @@ there is no pending working-tree state.
   scenes swing +/-10% run to run — always A/B before believing small-scene
   deltas). Remaining scalar targets: b3CollideTask (~14% of the profile),
   gather/scatter transposes (~6%), the mesh contact path.
+- **NEON narrow-phase path (BOX3D_NEON, landed with the M3 work)**: the M3
+  has no 64-bit vector multiply (FEAT_SME 0, no SVE2, AMX private), so the
+  wide solver stays scalar on ARM (documented: Apple's scalar core wins the
+  emulation trade; do not port b3FloatW to NEON without measuring first).
+  The narrow phase escapes through int32: when the exactness gates ALSO
+  prove every operand fits int32 (b3WideScanAdmissible/b3EdgeWideAdmissible
+  have per-ISA clauses), smull/smlal 32x32->64 compute the exact int64 dots
+  four elements at a time. Shares the AVX scaffolding: b3EdgeLane typedef
+  narrows the edge-query SoA prepass to int32 (stores are unconditional
+  truncating casts - only read when the gate passes), survivors go through
+  the same b3TestEdgePair, argmax uses int64x2 lane pairs (vcgtq_s64+vbslq)
+  with the same value-then-smaller-index reduction. Vertex xyz de-swizzling:
+  vuzp1q_s32 64->32 narrowing + vqtbl3q_u8 byte-table gathers (b3_pickX/Y/Z).
+  M3 Ultra results (4 workers, min of 2): convex_pile 20,558 -> 10,188 ms =
+  2.02x, 0.74x of float e961bfb (fixed BEATS float on Apple silicon);
+  junkyard 1.13x; solver-bound scenes flat by design; geomean 2.25x -> 2.08x
+  of float. M3 bench protocol: macOS timer was always correct, CSVs are true
+  ms; float reference = worktree at e961bfb built locally.
 - **Linux/Windows/Emscripten timer bug fixed on the branch** (2fdc189):
   b3GetMilliseconds cast double ms straight to b3Fixed (ms/65536 — only the
   macOS path used b3FixFromDouble). Any Linux benchmark CSV written before

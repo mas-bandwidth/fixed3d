@@ -16,10 +16,10 @@
 Box3D with every `float` torn out of the simulation and replaced with **Q48.16
 fixed point** in an `int64_t`. All of it: the solver, GJK, the trig, the ray
 casts, the mass properties, the recording format. The SIMD is gone (it grew
-back on AVX-512 — same bits, just faster; see below). In exchange, resolution
-is a uniform 1/65536 everywhere in a ±1.4×10¹⁴ meter world, every step is
-still bit-exact on every platform (vanilla Box3D already was — see below),
-and all 22 unit test suites still pass.
+back on AVX-512 and NEON — same bits, just faster; see below). In exchange,
+resolution is a uniform 1/65536 everywhere in a ±1.4×10¹⁴ meter world, every
+step is still bit-exact on every platform (vanilla Box3D already was — see
+below), and all 22 unit test suites still pass.
 
 ```
 45078b4 there i fixed it for you
@@ -30,35 +30,37 @@ and all 22 unit test suites still pass.
 `benchmark -t=4 -w=4 -r=2` (4 workers, min of 2 runs, continuous collision on),
 Apple M3 Ultra, macOS 26.5.1, Apple clang 21, RelWithDebInfo, Ninja.
 
-- **float** = vanilla Box3D at `e9f6f1d` (single precision, NEON SIMD)
-- **fixed** = this tree (Q48.16 `int64_t`, SIMD removed, scalar 4-wide constraint blocks)
+- **float** = vanilla Box3D at `e961bfb` (single precision, NEON SIMD)
+- **fixed** = this tree, scalar int64 lanes
+- **fixed+NEON** = this tree with `-DBOX3D_NEON=ON` (narrow phase only — see below)
 
-| Benchmark     | float (ms) | fixed (ms) | fixed / float |
-|---------------|-----------:|-----------:|--------------:|
-| convex_pile   |   13,733.1 |   21,039.6 |         1.5× |
-| joint_grid    |      275.4 |      776.1 |         2.8× |
-| junkyard      |    4,733.1 |    9,517.8 |         2.0× |
-| large_pyramid |      521.9 |    1,588.4 |         3.0× |
-| large_world   |       13.2 |       63.2 |         4.8× |
-| many_pyramids |      501.7 |    1,666.1 |         3.3× |
-| rain          |      586.1 |    1,235.5 |         2.1× |
-| trees25       |      227.2 |      390.2 |         1.7× |
-| trees50       |      113.6 |      198.0 |         1.7× |
-| trees100      |       80.7 |      144.1 |         1.8× |
-| washer        |    6,630.4 |   13,545.4 |         2.0× |
+| Benchmark     | float (ms) | fixed (ms) | fixed+NEON (ms) | fixed/float | NEON/float | NEON speedup |
+|---------------|-----------:|-----------:|----------------:|------------:|-----------:|-------------:|
+| convex_pile   |   13,821.5 |   20,558.5 |        10,187.9 |       1.5× |  **0.74×** |        2.02× |
+| joint_grid    |      267.9 |      774.8 |           768.4 |       2.9× |      2.9× |        1.01× |
+| junkyard      |    4,713.5 |    9,676.6 |         8,596.0 |       2.1× |      1.8× |        1.13× |
+| large_pyramid |      506.1 |    1,592.4 |         1,593.3 |       3.1× |      3.1× |        1.00× |
+| large_world   |       13.4 |       51.6 |            48.6 |       3.9× |      3.6× |        1.06× |
+| many_pyramids |      484.5 |    1,575.0 |         1,573.7 |       3.3× |      3.3× |        1.00× |
+| rain          |      571.5 |    1,245.5 |         1,247.3 |       2.2× |      2.2× |        1.00× |
+| trees25       |      209.0 |      351.1 |           342.5 |       1.7× |      1.6× |        1.03× |
+| trees50       |      111.7 |      192.0 |           188.0 |       1.7× |      1.7× |        1.02× |
+| trees100      |       86.5 |      145.7 |           149.9 |       1.7× |      1.7× |        0.97× |
+| washer        |    6,365.3 |   13,089.4 |        13,064.5 |       2.1× |      2.1× |        1.00× |
 
-**Geometric mean: 2.3× slower** (down from 3.0× at the first commit; the
-optimization log with per-pass numbers and sample profiles lives in
-[benchmark/apple_m3_ultra_fixed](benchmark/apple_m3_ultra_fixed/README.md)).
-Worst case (large_world): 4.8× slower. The unit test suite runs in ~0.9 s vs
-0.39 s for the float baseline (~2.2×).
+**Geometric mean: 2.25× slower scalar, 2.08× with NEON — and convex_pile, the
+most collision-bound scene in the suite, comes in at 0.74× of float: fixed
+point beats the floats on Apple silicon too.** The optimization log with
+per-pass numbers and sample profiles lives in
+[benchmark/apple_m3_ultra_fixed](benchmark/apple_m3_ultra_fixed/README.md).
 
 ### Where the time goes
 
-Both builds are now solver-bound in the same functions, so the gap is pure
-arithmetic: a fixed-point multiply is `mul + smulh + add + shift` against a
-single float FMA, and no 64-bit NEON multiply exists to vectorize it away
-(on Zen 4 one exists — see the AVX-512 section).
+Both builds are solver-bound in the same functions on most scenes, so the gap
+is pure arithmetic: a fixed-point multiply is `mul + smulh + add + shift`
+against a single float FMA, and no 64-bit NEON multiply exists to vectorize
+it away (on Zen 4 one exists — see the AVX-512 section; on Apple silicon the
+narrow phase escapes through a 32-bit side door — see the NEON section).
 The narrow phase — once 60% of a step — is a sliver after exact raw 128-bit
 sign tests replaced per-product rounding in the SAT queries. The contact
 solver runs on per-step precomputed Jacobian rows stored as 32-bit lanes
@@ -84,11 +86,12 @@ What you actually get for the 2.3×:
 
 ## The SIMD grew back: AVX-512 results
 
-NEON never had a chance: fixed point needs 64×64-bit lane multiplies, ARM
-keeps those in SVE2, and Apple does not expose SVE2. So Apple silicon runs
-scalar, by decree of Cupertino, and the table above is what that costs. But
-Zen 4 ships `vpmullq` — a native, single-µop, 64-bit vector multiply — and a
-Q48.16 solver is exactly the workload it was born for.
+NEON was never supposed to have a chance: fixed point needs 64×64-bit lane
+multiplies, ARM keeps those in SVE2/SME, and Apple exposes neither on the M3
+(`FEAT_SME: 0`; AMX is private). So the wide solver runs scalar on Apple
+silicon, by decree of Cupertino. But Zen 4 ships `vpmullq` — a native,
+single-µop, 64-bit vector multiply — and a Q48.16 solver is exactly the
+workload it was born for. (NEON found a side door anyway — see below.)
 
 `-DBOX3D_AVX512=ON` (default OFF) runs the whole hot path four lanes wide:
 the contact solver (solve, warm start, restitution, prepare), the body
@@ -136,18 +139,40 @@ precomputed edge vectors (survivors take the exact scalar path, so admission
 is unchanged bit for bit). LTO adds another 1–3% on top if you want it
 (`-DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON`); the table is without it.
 
+## The NEON side door
+
+The M3 has no 64-bit vector multiply, but the AVX-512 round exposed a loophole:
+the narrow phase runs on values its exactness gates already prove are small.
+When every operand also fits in int32 — hull-local edge vectors, unit normals,
+bounded directions, checked at runtime — NEON's native `smull`/`smlal`
+32×32→64 widening multiplies compute the exact int64 dots four elements at a
+time. `-DBOX3D_NEON=ON` (default OFF) runs the SAT edge query's two Minkowski
+sign tests and both hull support scans that way, sharing the AVX-512
+scaffolding: same SoA prepass (narrowed to int32 lanes), same shared scalar
+body for survivors, same first-wins reductions. Anything that fails the gate
+falls back to the 128-bit scalar scan, so results stay **bit-identical for
+all inputs** — same goldens, verified under ASan/UBSan. The solver keeps its
+scalar lanes on ARM: Apple's very wide scalar core wins that emulation trade,
+and the table above shows the solver-bound scenes unmoved. The
+collision-bound ones are a different story: convex_pile 20,559 → 10,188 ms.
+
+## The taunt section
+
 House rule: taunting Erin is only permitted once fixed point is close to or
 beating his single-precision floats.
 
-**convex_pile: fixed point 53,092 ms, float 63,943 ms. The bit-exact integer
-physics engine beats the floats by 17% on the hull pile.** nya nya nya.
+**convex_pile, AMD Zen 4: fixed point 53,092 ms, float 63,943 ms — 17%
+faster. convex_pile, Apple M3 Ultra: fixed point 10,188 ms, float 13,822 ms —
+26% faster. The bit-exact integer physics engine beats the floats on both
+instruction sets.** nya nya nya.
 
 Full disclosure, so the taunt stays legal: we did not out-multiply the FPU —
 we out-vectorized it. Erin's float SIMD stops at the contact solver; his SAT
-edge query is scalar. Ours tests four edge pairs per iteration with exact
-integer sign tests. Your floats could do this too, Erin. That is the taunt:
-they don't. The geomean is still 2.4×, so the nya is scoped to where we won.
-For now.
+edge query is scalar on every platform. Ours tests four edge pairs per
+iteration with exact integer sign tests, on AVX-512 and on NEON. Your floats
+could do this too, Erin. That is the taunt: they don't. The geomeans are
+still 2.4× (Zen 4) and 2.1× (M3), so the nya is scoped to where we won. For
+now.
 
 ## Should I use this?
 
