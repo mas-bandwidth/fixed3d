@@ -53,16 +53,32 @@ there is no pending working-tree state.
   edge-pair multiplies, 8M x 8 reduction forms, full-range int64) zero
   mismatches; full suite + DeterminismTest (same 287/0x6FA8A4C5 goldens) in
   Release AND Debug+VALIDATE+ASan/UBSan with AVX on, on Zen 4.
-- **Perf (AMD EPYC 9124, ssh space, 4 workers, min of 2)**: geomean 1.35x
-  over scalar fixed across all 11 benchmarks — large_world 2.09x,
-  large_pyramid 1.96x, many_pyramids 1.75x, washer 1.69x, junkyard 1.54x;
+- **Perf (AMD EPYC 9124, ssh space, 4 workers, min of 2)**: geomean 1.41x
+  over scalar fixed across all 11 benchmarks — large_world 2.60x,
+  large_pyramid 2.06x, many_pyramids 1.83x, washer 1.76x, junkyard 1.58x;
   joint/tree scenes flat (not wide-solver bound). vs float e961bfb (SSE2) on
-  the same box: geomean 3.91x scalar → 2.89x AVX. b3SolveContacts_Convex
-  itself 1.96x faster; **b3PrepareContacts_Convex is now the top remaining
-  scalar target** (23% of the AVX profile). Benchmark dirs on the box:
-  ~/fixed3d (main, scalar), ~/fixed3d-avx (branch, AVX on), ~/box3d-float
-  (upstream e961bfb float; e961bfb..e9f6f1d changed nothing in benchmark/,
-  so scenes and step counts are identical across all three).
+  the same box: geomean 3.91x scalar → 2.78x AVX. Benchmark dirs on the box:
+  ~/fixed3d (main, scalar; build-avx2 = main with AVX on), ~/fixed3d-avx
+  (branch, AVX on), ~/box3d-float (upstream e961bfb float; e961bfb..e9f6f1d
+  changed nothing in benchmark/, so scenes and step counts are identical
+  across all three).
+- **Wide prepare**: b3PrepareContacts_Convex has a full wide variant under
+  B3_SIMD_AVX512 (scalar version kept verbatim in the #else). The per-lane
+  pass gathers and keeps b3Perp, b3Invert2, b3InvertMatrix, and lever-arm
+  sqrts scalar; all other math runs wide with the exact per-site rounding
+  (unfused b3Cross/b3MulMV compositions, fused b3DotW). KEY SUBTLETIES:
+  (1) invInertiaWorld = (R*I)*R^T is NOT bitwise symmetric, so the wide math
+  stages all NINE entries (b3Matrix3FullW) even though the constraint stores
+  only the symmetric 6; (2) inactive (lane, point) slots are zero-fed or
+  masked (b3MaskKeepW) so stored bytes equal the scalar zero-fill and setup
+  memset exactly; (3) the per-point loop is bounded by max(pointCount) over
+  the four lanes — without that bound, one-point-manifold scenes (rain,
+  trees) paid for four slots. Result: prepare itself 1.6x faster (23% -> ~14%
+  of the large_pyramid profile); residual staging tax on sphere scenes
+  measured -1% rain / -6% trees100 (min-of-3 interleaved A/B; the trees
+  scenes swing +/-10% run to run — always A/B before believing small-scene
+  deltas). Remaining scalar targets: b3CollideTask (~14% of the profile),
+  gather/scatter transposes (~6%), the mesh contact path.
 - **Linux/Windows/Emscripten timer bug fixed on the branch** (2fdc189):
   b3GetMilliseconds cast double ms straight to b3Fixed (ms/65536 — only the
   macOS path used b3FixFromDouble). Any Linux benchmark CSV written before

@@ -108,34 +108,36 @@ on), AMD EPYC 9124 (Zen 4), Ubuntu 24.04, clang 18, RelWithDebInfo.
 
 | Benchmark     | float (ms) | fixed (ms) | fixed+AVX (ms) | fixed/float | AVX/float | AVX speedup |
 |---------------|-----------:|-----------:|---------------:|------------:|----------:|------------:|
-| convex_pile   |   63,942.9 |  126,761.0 |      101,926.8 |       2.0× |     1.6× |       1.24× |
-| joint_grid    |    5,470.8 |   18,353.0 |       18,360.0 |       3.4× |     3.4× |       1.00× |
-| junkyard      |   50,846.1 |  184,930.1 |      120,225.8 |       3.6× |     2.4× |       1.54× |
-| large_pyramid |    8,582.3 |   56,672.0 |       28,954.0 |       6.6× |     3.4× |       1.96× |
-| large_world   |       26.2 |      526.0 |          252.0 |      20.1× |     9.6× |       2.09× |
-| many_pyramids |   11,843.7 |   53,265.0 |       30,499.0 |       4.5× |     2.6× |       1.75× |
-| rain          |    6,659.8 |   24,157.0 |       20,693.0 |       3.6× |     3.1× |       1.17× |
-| trees100      |      407.5 |      974.0 |          901.0 |       2.4× |     2.2× |       1.08× |
-| trees25       |    1,020.4 |    2,382.0 |        2,370.0 |       2.3× |     2.3× |       1.01× |
-| trees50       |      465.1 |    1,152.0 |        1,244.0 |       2.5× |     2.7× |       0.93× |
-| washer        |   70,407.1 |  313,886.0 |      185,430.8 |       4.5× |     2.6× |       1.69× |
+| convex_pile   |   63,942.9 |  126,761.0 |      102,083.0 |       2.0× |     1.6× |       1.24× |
+| joint_grid    |    5,470.8 |   18,353.0 |       18,277.6 |       3.4× |     3.3× |       1.00× |
+| junkyard      |   50,846.1 |  184,930.1 |      117,152.0 |       3.6× |     2.3× |       1.58× |
+| large_pyramid |    8,582.3 |   56,672.0 |       27,559.1 |       6.6× |     3.2× |       2.06× |
+| large_world   |       26.2 |      526.0 |          202.6 |      20.1× |     7.7× |       2.60× |
+| many_pyramids |   11,843.7 |   53,265.0 |       29,166.7 |       4.5× |     2.5× |       1.83× |
+| rain          |    6,659.8 |   24,157.0 |       21,649.2 |       3.6× |     3.3× |       1.12× |
+| trees100      |      407.5 |      974.0 |          949.6 |       2.4× |     2.3× |       1.03× |
+| trees25       |    1,020.4 |    2,382.0 |        2,323.7 |       2.3× |     2.3× |       1.03× |
+| trees50       |      465.1 |    1,152.0 |        1,067.2 |       2.5× |     2.3× |       1.08× |
+| washer        |   70,407.1 |  313,886.0 |      178,370.0 |       4.5× |     2.5× |       1.76× |
 
-**Geomean: 3.9× of float scalar, 2.9× with AVX-512 — a 1.35× overall speedup,
-and the solver-bound scenes nearly halve** (large_pyramid 6.6× → 3.4×, washer
-4.5× → 2.6×, junkyard 3.6× → 2.4×; up to 2.1× faster per scene). The tiny
-scenes don't move because their steps are dominated by joints and the narrow
-phase, which stay scalar for now. In the profile, `b3SolveContacts_Convex`
-alone runs 1.96× faster and the anchor-rotation helpers vanish into it;
-contact prepare is the top remaining scalar target. Note the scalar gap is
-wider on Zen 4 than on the M3 to begin with — the floats get SSE2 on x86
-while scalar int64 gets nothing, and 128-bit multiply chains sting more at
-3 GHz — which is exactly why this is the machine where the SIMD had to grow
-back.
+**Geomean: 3.9× of float scalar, 2.8× with AVX-512 — a 1.41× overall speedup,
+and the solver-bound scenes halve or better** (large_pyramid 6.6× → 3.2×,
+washer 4.5× → 2.5×, junkyard 3.6× → 2.3×; up to 2.6× faster per scene). Both
+the solve loop and the contact prepare run wide: `b3SolveContacts_Convex`
+alone is 1.96× faster with the anchor-rotation helpers vanishing into it, and
+`b3PrepareContacts_Convex` is 1.6× faster on its own (one-point-manifold
+scenes like the trees keep a small staging tax, measured −1% on rain and −6%
+on the one-second trees100 run). The tiny scenes don't move because their
+steps are dominated by joints and the narrow phase, which stay scalar. Note
+the scalar gap is wider on Zen 4 than on the M3 to begin with — the floats
+get SSE2 on x86 while scalar int64 gets nothing, and 128-bit multiply chains
+sting more at 3 GHz — which is exactly why this is the machine where the SIMD
+had to grow back.
 
 House rule: taunting Erin is only permitted once fixed point is close to or
-beating his single-precision floats. At 2.9× we have not earned it, so there
-will be no taunting today. But convex_pile is at 1.6× and the contact prepare
-is still scalar. Getting warmer. Preparing the nya.
+beating his single-precision floats. At 2.8× we have not earned it, so there
+will be no taunting today. But convex_pile is at 1.6× and the narrow phase
+has not even been vectorized yet. Getting warmer. Preparing the nya.
 
 ## Should I use this?
 
