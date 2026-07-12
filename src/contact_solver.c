@@ -1571,11 +1571,13 @@ typedef struct b3ContactConstraintWide
 
 	b3Manifold* manifolds[B3_SIMD_WIDTH];
 
-	// todo store the maximum point count per wide constraint
-	// to make this work I need zero initialization which is too
-	// expensive for all the wide constraint data. Instead
-	// the graph color should store the point count as a compact secondary
-	// transient array with zero initialization.
+	// Widest manifold across the four lanes, written by prepare (which visits
+	// every wide constraint, so no zero initialization is needed). Warm start,
+	// solve, and restitution loop only this far: the slots beyond it hold
+	// exact zeros in every lane and contribute nothing, so skipping them is
+	// bit-identical and one-point-manifold scenes skip 3/4 of the point work.
+	int maxPointCount;
+
 	b3ContactConstraintPointWide points[B3_MAX_MANIFOLD_POINTS];
 
 } b3ContactConstraintWide;
@@ -2171,6 +2173,7 @@ void b3PrepareContacts_Convex( b3SolverBlock block, b3StepContext* context )
 			{
 				maxPointCount = b3MaxInt( maxPointCount, (int)laneCounts[lane] );
 			}
+			constraint->maxPointCount = maxPointCount;
 
 			for ( int pointIndex = 0; pointIndex < maxPointCount; ++pointIndex )
 			{
@@ -2410,6 +2413,7 @@ void b3PrepareContacts_Convex( b3SolverBlock block, b3StepContext* context )
 		{
 			b3ContactConstraintWide* constraint = wideBase + wideIndex;
 			int localWideIndex = wideIndex - colorWideStart;
+			int maxPointCount = 0;
 
 			for ( int lane = 0; lane < B3_SIMD_WIDTH; ++lane )
 			{
@@ -2536,6 +2540,7 @@ void b3PrepareContacts_Convex( b3SolverBlock block, b3StepContext* context )
 				( (b3Fixed*)&constraint->impulseScale )[lane] = soft.impulseScale;
 
 				int pointCount = manifold->pointCount;
+				maxPointCount = b3MaxInt( maxPointCount, pointCount );
 				b3Vec3 centerA = b3Vec3_zero;
 				b3Vec3 centerB = b3Vec3_zero;
 				b3Fixed totalFrictionWeight = B3_FIX( 0.0f );
@@ -2742,6 +2747,8 @@ void b3PrepareContacts_Convex( b3SolverBlock block, b3StepContext* context )
 					( (b3Fixed*)&cp->leverArms )[lane] = B3_FIX( 0.0f );
 				}
 			}
+
+			constraint->maxPointCount = maxPointCount;
 		}
 
 		// Advance to next color
@@ -2766,8 +2773,10 @@ void b3WarmStartContacts_Convex( b3SolverBlock block, b3StepContext* context )
 		b3BodyStateW bA = b3GatherBodies( states, c->indexA );
 		b3BodyStateW bB = b3GatherBodies( states, c->indexB );
 
-		// Normal impulses, applied through the precomputed Jacobian rows
-		for ( int j = 0; j < B3_MAX_MANIFOLD_POINTS; ++j )
+		// Normal impulses, applied through the precomputed Jacobian rows.
+		// Point slots past maxPointCount hold exact zeros in every lane and
+		// apply nothing; skipping them is bit-identical.
+		for ( int j = 0; j < c->maxPointCount; ++j )
 		{
 			b3ContactConstraintPointWide* cp = c->points + j;
 
@@ -2857,8 +2866,10 @@ void b3SolveContacts_Convex( b3SolverBlock block, b3StepContext* context, bool u
 		b3FloatW totalNormalImpulse = b3ZeroW();
 		b3FloatW totalTwistLimit = b3ZeroW();
 
-		// todo_erin use the max point count of the four manifolds
-		for ( int pointIndex = 0; pointIndex < B3_MAX_MANIFOLD_POINTS; ++pointIndex )
+		// Point slots past maxPointCount hold exact zeros in every lane
+		// (normalMasses 0, impulses 0), produce zero deltas, and store back
+		// the zeros already there; skipping them is bit-identical.
+		for ( int pointIndex = 0; pointIndex < c->maxPointCount; ++pointIndex )
 		{
 			b3ContactConstraintPointWide* cp = c->points + pointIndex;
 
@@ -3064,7 +3075,9 @@ void b3ApplyRestitution_Convex( b3SolverBlock block, b3StepContext* context )
 		// by the calculations below.
 		b3FloatW restitutionMask = b3EqualsW( c->restitution, zero );
 
-		for ( int pointIndex = 0; pointIndex < B3_MAX_MANIFOLD_POINTS; ++pointIndex )
+		// Inactive point slots have totalNormalImpulses == 0, which masks the
+		// effective mass to zero; skipping them is bit-identical.
+		for ( int pointIndex = 0; pointIndex < c->maxPointCount; ++pointIndex )
 		{
 			b3ContactConstraintPointWide* cp = c->points + pointIndex;
 
