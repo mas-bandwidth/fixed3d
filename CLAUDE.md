@@ -55,7 +55,8 @@ there is no pending working-tree state.
   Release AND Debug+VALIDATE+ASan/UBSan with AVX on, on Zen 4.
 - **Perf (AMD EPYC 9124, ssh space, 4 workers, min of 2)**: geomean 1.62x
   over scalar fixed across all 11 benchmarks; vs float e961bfb (SSE2) on the
-  same box: geomean 3.91x scalar → 2.41x AVX, and **convex_pile BEATS float
+  same box: geomean 3.36x scalar → 2.27x AVX (post large_world scene fix),
+  and **convex_pile BEATS float
   at 0.83x** (53,092 ms vs 63,943 — the README taunt is scoped to this; the
   honest story is Erin's float SIMD stops at the solver while our narrow
   phase is vectorized too). Per-scene speedups over scalar fixed:
@@ -124,9 +125,24 @@ there is no pending working-tree state.
   vuzp1q_s32 64->32 narrowing + vqtbl3q_u8 byte-table gathers (b3_pickX/Y/Z).
   M3 Ultra results (4 workers, min of 2): convex_pile 20,558 -> 10,188 ms =
   2.02x, 0.74x of float e961bfb (fixed BEATS float on Apple silicon);
-  junkyard 1.13x; solver-bound scenes flat by design; geomean 2.25x -> 2.08x
-  of float. M3 bench protocol: macOS timer was always correct, CSVs are true
+  junkyard 1.13x; solver-bound scenes flat by design; geomean 2.09x scalar ->
+  1.94x NEON of float (post large_world scene fix). M3 bench protocol: macOS timer was always correct, CSVs are true
   ms; float reference = worktree at e961bfb built locally.
+- **large_world scene bug (fixed on main)**: the benchmark reported fixed
+  point 4-20x slower, but the engine was innocent — the scene's drop inset
+  went through B3_FIX(0.1f) products (1000.061 vs float's exact 1000), every
+  sphere landed 55mm off the floor-box seams float lands on exactly, the
+  off-center impact caught the neighbor box's top edge and kicked spheres
+  into eternal rolling (zero rolling resistance + pure rolling defeats
+  friction), so nothing slept and the awake set grew monotonically. Float
+  forced to the same landing rolls forever too (79/100 awake). RULE: shared
+  benchmark scene placement math must be exact in BOTH number systems
+  (integer scaling like halfSpan / 5), or the builds silently run different
+  workloads. Post-fix large_world: M3 22.6 ms scalar vs float 13.4 (1.7x);
+  EPYC 99.7 scalar / 51.7 AVX vs float 26.2. Diagnosis pattern that found
+  it: per-phase b3Profile totals (scratchpad driver), then
+  b3World_GetAwakeBodyCount over time (fixed grew, float plateaued), then
+  per-sphere velocity traces showing v = w x r steady-state rolling.
 - **Linux/Windows/Emscripten timer bug fixed on the branch** (2fdc189):
   b3GetMilliseconds cast double ms straight to b3Fixed (ms/65536 — only the
   macOS path used b3FixFromDouble). Any Linux benchmark CSV written before

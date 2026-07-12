@@ -40,7 +40,7 @@ Apple M3 Ultra, macOS 26.5.1, Apple clang 21, RelWithDebInfo, Ninja.
 | joint_grid    |      267.9 |      774.8 |           768.4 |       2.9× |      2.9× |        1.01× |
 | junkyard      |    4,713.5 |    9,676.6 |         8,596.0 |       2.1× |      1.8× |        1.13× |
 | large_pyramid |      506.1 |    1,592.4 |         1,593.3 |       3.1× |      3.1× |        1.00× |
-| large_world   |       13.4 |       51.6 |            48.6 |       3.9× |      3.6× |        1.06× |
+| large_world   |       13.4 |       22.6 |            22.7 |       1.7× |      1.7× |        1.00× |
 | many_pyramids |      484.5 |    1,575.0 |         1,573.7 |       3.3× |      3.3× |        1.00× |
 | rain          |      571.5 |    1,245.5 |         1,247.3 |       2.2× |      2.2× |        1.00× |
 | trees25       |      209.0 |      351.1 |           342.5 |       1.7× |      1.6× |        1.03× |
@@ -48,7 +48,7 @@ Apple M3 Ultra, macOS 26.5.1, Apple clang 21, RelWithDebInfo, Ninja.
 | trees100      |       86.5 |      145.7 |           149.9 |       1.7× |      1.7× |        0.97× |
 | washer        |    6,365.3 |   13,089.4 |        13,064.5 |       2.1× |      2.1× |        1.00× |
 
-**Geometric mean: 2.25× slower scalar, 2.08× with NEON — and convex_pile, the
+**Geometric mean: 2.09× slower scalar, 1.94× with NEON — and convex_pile, the
 most collision-bound scene in the suite, comes in at 0.74× of float: fixed
 point beats the floats on Apple silicon too.** The optimization log with
 per-pass numbers and sample profiles lives in
@@ -119,7 +119,7 @@ on), AMD EPYC 9124 (Zen 4), Ubuntu 24.04, clang 18, RelWithDebInfo.
 | joint_grid    |    5,470.8 |   18,353.0 |       18,439.9 |       3.4× |     3.4× |       1.00× |
 | junkyard      |   50,846.1 |  184,930.1 |      108,090.0 |       3.6× |     2.1× |       1.71× |
 | large_pyramid |    8,582.3 |   56,672.0 |       26,282.7 |       6.6× |     3.1× |       2.16× |
-| large_world   |       26.2 |      526.0 |           98.0 |      20.1× |     3.7× |       5.37× |
+| large_world   |       26.2 |       99.7 |           51.7 |       3.8× |     2.0× |       1.93× |
 | many_pyramids |   11,843.7 |   53,265.0 |       27,587.2 |       4.5× |     2.3× |       1.93× |
 | rain          |    6,659.8 |   24,157.0 |       20,874.7 |       3.6× |     3.1× |       1.16× |
 | trees100      |      407.5 |      974.0 |          990.2 |       2.4× |     2.4× |       0.98× |
@@ -127,7 +127,7 @@ on), AMD EPYC 9124 (Zen 4), Ubuntu 24.04, clang 18, RelWithDebInfo.
 | trees50       |      465.1 |    1,152.0 |        1,123.6 |       2.5× |     2.4× |       1.03× |
 | washer        |   70,407.1 |  313,886.0 |      166,511.0 |       4.5× |     2.4× |       1.89× |
 
-**Geomean: 3.9× of float scalar, 2.4× with AVX-512 — a 1.62× overall
+**Geomean: 3.4× of float scalar, 2.3× with AVX-512 — a 1.48× overall
 speedup.** The solver-bound scenes land at 2.1–3.1× (large_pyramid
 6.6× → 3.1×, washer 4.5× → 2.4×, junkyard 3.6× → 2.1×), the joint and tree
 scenes are joint/mesh-bound and barely move, and convex_pile — the hull pile,
@@ -171,8 +171,18 @@ we out-vectorized it. Erin's float SIMD stops at the contact solver; his SAT
 edge query is scalar on every platform. Ours tests four edge pairs per
 iteration with exact integer sign tests, on AVX-512 and on NEON. Your floats
 could do this too, Erin. That is the taunt: they don't. The geomeans are
-still 2.4× (Zen 4) and 2.1× (M3), so the nya is scoped to where we won. For
+still 2.3× (Zen 4) and 1.9× (M3), so the nya is scoped to where we won. For
 now.
+
+Post-script for the archaeologists: large_world used to report fixed point
+4–20× slower. That wasn't the engine — the scene's drop placement went
+through `B3_FIX(0.1f)` arithmetic that landed every sphere 55 mm off the
+floor seams the float build hits exactly, the off-center impacts kicked the
+spheres into eternal friction-proof rolling, and nothing ever slept. Forcing
+the float build to the same landing spot reproduced the eternal rolling
+there too. The engines agreed all along; the benchmark was running two
+different worlds. Placement math in shared scenes now uses arithmetic that
+is exact in both number systems.
 
 ## Should I use this?
 
