@@ -888,8 +888,43 @@ B3_INLINE b3Matrix3 b3InvertMatrix( b3Matrix3 m )
 
 /// Solve a matrix equation.
 /// @return inv(m) * a
+/// Solves directly from the 128-bit cofactors with three divisions rather than
+/// inverting (nine divisions) and multiplying.
 B3_INLINE b3Vec3 b3Solve3( b3Matrix3 m, b3Vec3 a )
 {
+	b3Int128 c00 = b3Cofactor128( m.cy.y, m.cz.z, m.cy.z, m.cz.y );
+	b3Int128 c01 = b3Cofactor128( m.cy.z, m.cz.x, m.cy.x, m.cz.z );
+	b3Int128 c02 = b3Cofactor128( m.cy.x, m.cz.y, m.cy.y, m.cz.x );
+	b3Int128 c10 = b3Cofactor128( m.cz.y, m.cx.z, m.cz.z, m.cx.y );
+	b3Int128 c11 = b3Cofactor128( m.cz.z, m.cx.x, m.cz.x, m.cx.z );
+	b3Int128 c12 = b3Cofactor128( m.cz.x, m.cx.y, m.cz.y, m.cx.x );
+	b3Int128 c20 = b3Cofactor128( m.cx.y, m.cy.z, m.cx.z, m.cy.y );
+	b3Int128 c21 = b3Cofactor128( m.cx.z, m.cy.x, m.cx.x, m.cy.z );
+	b3Int128 c22 = b3Cofactor128( m.cx.x, m.cy.y, m.cx.y, m.cy.x );
+
+	b3Int128 limit = (b3Int128)1 << 62;
+	if ( -limit < c00 && c00 < limit && -limit < c10 && c10 < limit && -limit < c20 && c20 < limit )
+	{
+		// Exact path: cofactors fit in 64 bits, determinant at Q16.48
+		b3Int128 det = (b3Int128)m.cx.x * (int64_t)c00 + (b3Int128)m.cy.x * (int64_t)c10 + (b3Int128)m.cz.x * (int64_t)c20;
+		if ( det != 0 )
+		{
+			// x_i = ( sum_j cofactor_ji * a_j ) / det: (Q32.32 * Q48.16 << 16) / Q16.48 -> Q48.16
+			b3Int128 nx = (b3Int128)(int64_t)c00 * a.x + (b3Int128)(int64_t)c01 * a.y + (b3Int128)(int64_t)c02 * a.z;
+			b3Int128 ny = (b3Int128)(int64_t)c10 * a.x + (b3Int128)(int64_t)c11 * a.y + (b3Int128)(int64_t)c12 * a.z;
+			b3Int128 nz = (b3Int128)(int64_t)c20 * a.x + (b3Int128)(int64_t)c21 * a.y + (b3Int128)(int64_t)c22 * a.z;
+
+			b3Vec3 b = {
+				(b3Fixed)( ( nx << 16 ) / det ),
+				(b3Fixed)( ( ny << 16 ) / det ),
+				(b3Fixed)( ( nz << 16 ) / det ),
+			};
+			return b;
+		}
+		return b3Vec3_zero;
+	}
+
+	// Huge matrix path
 	b3Matrix3 inv = b3InvertMatrix( m );
 	return b3MulMV( inv, a );
 }

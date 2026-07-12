@@ -391,7 +391,7 @@ b3SegmentDistanceResult b3LineDistance( b3Vec3 p1, b3Vec3 d1, b3Vec3 p2, b3Vec3 
 	b3Fixed b2 = -b3Dot( d2, w );
 
 	b3Fixed det = b3FixMul( a11 , a22 ) - b3FixMul( a12 , a21 );
-	if ( b3FixMul( det , det ) < 0 )
+	if ( det == 0 )
 	{
 		// Lines are parallel - project p2 onto line L1: x1 = p1 + s1 * d1
 		b3Fixed s1 = b3FixDiv( b3Dot( b3Sub( p2, p1 ), d1 ) , b3Dot( d1, d1 ) );

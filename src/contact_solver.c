@@ -154,7 +154,9 @@ void b3PrepareContacts_Mesh( b3SolverBlock block, b3StepContext* context )
 			contactConstraint->invMassA = mA;
 			contactConstraint->invIB = iB;
 			contactConstraint->invMassB = mB;
-			contactConstraint->rollingMass = b3InvertMatrix( b3AddMM( iA, iB ) );
+			// The 128-bit matrix inversion is only needed when rolling resistance is active
+			contactConstraint->rollingMass =
+				contact->rollingResistance > B3_FIX( 0.0f ) ? b3InvertMatrix( b3AddMM( iA, iB ) ) : b3Mat3_zero;
 			contactConstraint->softness =
 				( contact->flags & b3_contactStaticFlag ) != 0 ? context->staticSoftness : context->contactSoftness;
 			contactConstraint->friction = contact->friction;
@@ -1477,7 +1479,9 @@ void b3PrepareContacts_Convex( b3SolverBlock block, b3StepContext* context )
 				}
 
 				{
-					b3Matrix3 rollingMass = b3InvertMatrix( b3AddMM( iA, iB ) );
+					// The 128-bit matrix inversion is only needed when rolling resistance is active
+					b3Matrix3 rollingMass =
+						contact->rollingResistance > B3_FIX( 0.0f ) ? b3InvertMatrix( b3AddMM( iA, iB ) ) : b3Mat3_zero;
 
 					( (b3Fixed*)&constraint->rollingMass.cxx )[lane] = rollingMass.cx.x;
 					( (b3Fixed*)&constraint->rollingMass.cxy )[lane] = rollingMass.cx.y;
