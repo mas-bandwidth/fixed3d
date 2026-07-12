@@ -15,10 +15,10 @@
 
 Box3D with every `float` torn out of the simulation and replaced with **Q48.16
 fixed point** in an `int64_t`. All of it: the solver, GJK, the trig, the ray
-casts, the mass properties, the recording format. The SIMD is gone. In
-exchange, every step is bit-exact on every platform, resolution is a uniform
-1/65536 everywhere in a ±1.4×10¹⁴ meter world, and all 22 unit test suites
-still pass.
+casts, the mass properties, the recording format. The SIMD is gone (it grew
+back on AVX-512 — same bits, just faster; see below). In exchange, every step
+is bit-exact on every platform, resolution is a uniform 1/65536 everywhere in
+a ±1.4×10¹⁴ meter world, and all 22 unit test suites still pass.
 
 ```
 45078b4 there i fixed it for you
@@ -56,7 +56,8 @@ Worst case (large_world): 4.8× slower. The unit test suite runs in ~0.9 s vs
 
 Both builds are now solver-bound in the same functions, so the gap is pure
 arithmetic: a fixed-point multiply is `mul + smulh + add + shift` against a
-single float FMA, and no 64-bit NEON multiply exists to vectorize it away.
+single float FMA, and no 64-bit NEON multiply exists to vectorize it away
+(on Zen 4 one exists — see the AVX-512 section).
 The narrow phase — once 60% of a step — is a sliver after exact raw 128-bit
 sign tests replaced per-product rounding in the SAT queries. The contact
 solver runs on per-step precomputed Jacobian rows stored as 32-bit lanes
@@ -72,6 +73,59 @@ dense hulls was measured carrying 5.8 million units of accumulated impulse,
   gets the same answer on 1, 2, 3, and 4 threads, every time.
 - Uniform 1.5×10⁻⁵ resolution at the origin and at 100 km from the origin.
   Large-world mode deleted because every world is a large world now.
+
+## The SIMD grew back: AVX-512 results
+
+NEON never had a chance: fixed point needs 64×64-bit lane multiplies, ARM
+keeps those in SVE2, and Apple does not expose SVE2. So Apple silicon runs
+scalar, by decree of Cupertino, and the table above is what that costs. But
+Zen 4 ships `vpmullq` — a native, single-µop, 64-bit vector multiply — and a
+Q48.16 solver is exactly the workload it was born for.
+
+`-DBOX3D_AVX512=ON` (default OFF) packs the wide contact solver's four Q48.16
+lanes into one 256-bit register. One `vpmullq` + one `vpmuludq` + one
+`vpmuldq` reproduce the exact 128-bit fixed-point product, and the solver's
+fused 128-bit dot reductions ride along as three carry-free 64-bit partial
+sums. **Bit-identical to the scalar path for all inputs** — same determinism
+goldens, same state hash on every thread count, verified by a 25-million-case
+differential harness against the scalar reference and the full test suite
+under ASan/UBSan. It is the same simulation. It is just faster.
+
+`benchmark -t=4 -w=4 -r=2` (4 workers, min of 2 runs, continuous collision
+on), AMD EPYC 9124 (Zen 4), Ubuntu 24.04, clang 18, RelWithDebInfo.
+
+- **float** = vanilla Box3D at `e961bfb` (single precision, SSE2 SIMD)
+- **fixed** = this tree, scalar int64 lanes
+- **fixed+AVX** = this tree with `-DBOX3D_AVX512=ON`
+
+| Benchmark     | float (ms) | fixed (ms) | fixed+AVX (ms) | fixed/float | AVX/float | AVX speedup |
+|---------------|-----------:|-----------:|---------------:|------------:|----------:|------------:|
+| convex_pile   |   63,942.9 |  126,761.0 |      101,926.8 |       2.0× |     1.6× |       1.24× |
+| joint_grid    |    5,470.8 |   18,353.0 |       18,360.0 |       3.4× |     3.4× |       1.00× |
+| junkyard      |   50,846.1 |  184,930.1 |      120,225.8 |       3.6× |     2.4× |       1.54× |
+| large_pyramid |    8,582.3 |   56,672.0 |       28,954.0 |       6.6× |     3.4× |       1.96× |
+| large_world   |       26.2 |      526.0 |          252.0 |      20.1× |     9.6× |       2.09× |
+| many_pyramids |   11,843.7 |   53,265.0 |       30,499.0 |       4.5× |     2.6× |       1.75× |
+| rain          |    6,659.8 |   24,157.0 |       20,693.0 |       3.6× |     3.1× |       1.17× |
+| trees100      |      407.5 |      974.0 |          901.0 |       2.4× |     2.2× |       1.08× |
+| trees25       |    1,020.4 |    2,382.0 |        2,370.0 |       2.3× |     2.3× |       1.01× |
+| trees50       |      465.1 |    1,152.0 |        1,244.0 |       2.5× |     2.7× |       0.93× |
+| washer        |   70,407.1 |  313,886.0 |      185,430.8 |       4.5× |     2.6× |       1.69× |
+
+**Geomean: 3.9× of float scalar, 2.9× with AVX-512 — a 1.35× overall speedup,
+and the solver-bound scenes nearly halve** (large_pyramid 6.6× → 3.4×, washer
+4.5× → 2.6×, junkyard 3.6× → 2.4×; up to 2.1× faster per scene). The tiny
+scenes don't move because their steps are dominated by joints and the narrow
+phase, which stay scalar for now. In the profile, `b3SolveContacts_Convex`
+alone runs 1.96× faster and the anchor-rotation helpers vanish into it;
+contact prepare is the top remaining scalar target. Note the scalar gap is
+wider on Zen 4 than on the M3 to begin with — the floats get SSE2 on x86
+while scalar int64 gets nothing, and 128-bit multiply chains sting more at
+3 GHz — which is exactly why this is the machine where the SIMD had to grow
+back.
+
+Deterministic, bit-exact, and now with vector units. Your floats can't do
+that, Erin. nya nya nya.
 
 ## Should I use this?
 

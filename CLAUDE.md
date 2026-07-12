@@ -26,6 +26,52 @@ there is no pending working-tree state.
   CI/samples → 973acd1 bug-hunt hardening → 1f1c941 friction center weighted
   average (ports box3d e961bfb).
 
+## AVX-512 wide solver path (branch avx512, 2026-07-12)
+
+- **BOX3D_AVX512** (CMake, default OFF) makes `b3FloatW` a union with one
+  `__m256i` and implements every wide lane primitive in contact_solver.c with
+  AVX-512VL 256-bit integer ops (needs AVX512F/DQ/VL; clang/gcc `-mavx512*`,
+  MSVC `/arch:AVX512`). B3_ALIGNMENT becomes 32 under it (aligned constraint
+  streams). Disabled under BOX3D_FIXED_SATURATE (implements wrapping b3FixMul
+  only). Scalar path untouched; b3DivW/b3SqrtW stay per-lane scalar.
+- **Bit-identical by construction**: `(a*b + half) >> 16` decomposes as
+  `a*(b>>16) + ((a*(b&0xffff) + half) >> 16)` — one vpmullq (single-uop on
+  Zen 4) + vpmuludq + vpmuldq, wrap-consistent mod 2^64 for ALL inputs
+  including sentinels. Dot reductions carry `(K<<16) + (P2<<32) + M`
+  (congruent mod 2^80, |P2|<2^51 |M|<2^53 stay exact through nine products
+  plus a doubling; K wraps consistently). Round-half-up is not odd-symmetric:
+  SubDot3W/RotDiagW accumulate the NEGATED sum then round (do not "simplify"
+  to acc - round(S)). AddDot3W = AddW(acc, Dot3W(...)) is exact because
+  acc<<16 splits out of the rounded shift.
+- **Verified**: differential harness (tools/session scratchpad; 25M random +
+  edge-pair multiplies, 8M x 8 reduction forms, full-range int64) zero
+  mismatches; full suite + DeterminismTest (same 287/0x6FA8A4C5 goldens) in
+  Release AND Debug+VALIDATE+ASan/UBSan with AVX on, on Zen 4.
+- **Perf (AMD EPYC 9124, ssh space, 4 workers, min of 2)**: geomean 1.35x
+  over scalar fixed across all 11 benchmarks — large_world 2.09x,
+  large_pyramid 1.96x, many_pyramids 1.75x, washer 1.69x, junkyard 1.54x;
+  joint/tree scenes flat (not wide-solver bound). vs float e961bfb (SSE2) on
+  the same box: geomean 3.91x scalar → 2.89x AVX. b3SolveContacts_Convex
+  itself 1.96x faster; **b3PrepareContacts_Convex is now the top remaining
+  scalar target** (23% of the AVX profile). Benchmark dirs on the box:
+  ~/fixed3d (main, scalar), ~/fixed3d-avx (branch, AVX on), ~/box3d-float
+  (upstream e961bfb float; e961bfb..e9f6f1d changed nothing in benchmark/,
+  so scenes and step counts are identical across all three).
+- **Linux/Windows/Emscripten timer bug fixed on the branch** (2fdc189):
+  b3GetMilliseconds cast double ms straight to b3Fixed (ms/65536 — only the
+  macOS path used b3FixFromDouble). Any Linux benchmark CSV written before
+  the fix needs values multiplied by 65536; the M3 CSVs are unaffected.
+- **The `space` box**: `ssh space`, AMD EPYC 9124 (Zen 4, 16 cores, full
+  AVX-512 incl. DQ/VL/IFMA), Ubuntu 24.04, clang 18, cmake 4.3.2, no ninja
+  (make -j16), passwordless sudo. perf needs
+  `sudo sysctl kernel.perf_event_paranoid=1` (default 4; restore after).
+  GitHub is reachable over https; the fixed3d clone there has upstream main
+  fetched (e961bfb resolves).
+- Follow-ups: no CI job yet (GitHub runners aren't guaranteed AVX-512 —
+  a compile-only job would work); B3_SIMD_WIDTH=8 zmm variant unexplored
+  (Zen 4 double-pumps 512-bit, expect small gains at best); prepare/warm
+  start gather-scatter and the mesh contact path are still scalar.
+
 ## Repository and remotes (IMPORTANT)
 
 - This checkout (`/Users/glenn/fixed3d`) maps to **github.com/mas-bandwidth/fixed3d**
