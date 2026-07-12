@@ -2163,7 +2163,16 @@ void b3PrepareContacts_Convex( b3SolverBlock block, b3StepContext* context )
 			b3Vec3W centerBW = b3ZeroVW();
 			b3FloatW totalFrictionWeightW = b3ZeroW();
 
-			for ( int pointIndex = 0; pointIndex < B3_MAX_MANIFOLD_POINTS; ++pointIndex )
+			// Only run the per-point math up to the widest manifold in the
+			// block: sphere-heavy scenes are mostly one-point manifolds and
+			// the remaining slots are all-lane inactive anyway.
+			int maxPointCount = 0;
+			for ( int lane = 0; lane < laneCount; ++lane )
+			{
+				maxPointCount = b3MaxInt( maxPointCount, (int)laneCounts[lane] );
+			}
+
+			for ( int pointIndex = 0; pointIndex < maxPointCount; ++pointIndex )
 			{
 				b3ContactConstraintPointWide* cp = constraint->points + pointIndex;
 				__mmask8 laneValid = _mm256_cmpgt_epi64_mask( pointCountsV, _mm256_set1_epi64x( pointIndex ) );
@@ -2214,6 +2223,25 @@ void b3PrepareContacts_Convex( b3SolverBlock block, b3StepContext* context )
 				b3Vec3W vrA = b3AddVW( vAW, b3CrossUnfusedW( wAW, rA ) );
 				b3Vec3W vrB = b3AddVW( vBW, b3CrossUnfusedW( wBW, rB ) );
 				cp->relativeVelocities = b3MaskKeepW( laneValid, b3DotW( normalW, b3SubVW( vrB, vrA ) ) );
+			}
+
+			// Slots past the widest manifold are inactive in every lane; store
+			// the zeros the scalar zero-fill would (the per-point math above
+			// would compute exactly these from the zeroed staging).
+			for ( int pointIndex = maxPointCount; pointIndex < B3_MAX_MANIFOLD_POINTS; ++pointIndex )
+			{
+				b3ContactConstraintPointWide* cp = constraint->points + pointIndex;
+				b3StoreNarrowVW( &cp->anchorAs, b3ZeroVW() );
+				b3StoreNarrowVW( &cp->anchorBs, b3ZeroVW() );
+				b3StoreNarrowVW( &cp->rnAs, b3ZeroVW() );
+				b3StoreNarrowVW( &cp->rnBs, b3ZeroVW() );
+				b3StoreNarrowVW( &cp->iRnAs, b3ZeroVW() );
+				b3StoreNarrowVW( &cp->iRnBs, b3ZeroVW() );
+				cp->baseSeparations = b3ZeroW();
+				cp->normalImpulses = b3ZeroW();
+				cp->totalNormalImpulses = b3ZeroW();
+				cp->normalMasses = b3ZeroW();
+				cp->relativeVelocities = b3ZeroW();
 			}
 
 			b3FloatW invWeightW = b3DivW( oneW, totalFrictionWeightW );
