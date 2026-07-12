@@ -12,7 +12,8 @@ binops outside allowed files, compound assigns, and unresolvable macro-body ops.
 import json, os, subprocess, sys
 from collections import defaultdict
 
-ROOT = "/Users/glenn/box3d"
+# Repo root derived from this script's location (tools/fixed-point/../..)
+ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 BUILD = os.path.join(ROOT, "build-ast")
 OUR_DIRS = [os.path.join(ROOT, d) for d in ("src", "include/box3d", "test", "shared", "benchmark")]
 EXCLUDE_FILES = {os.path.join(ROOT, "src/verstable.h"),

@@ -124,6 +124,11 @@ typedef struct b3HullBuilder
 	b3QHFace* faceBase;
 	int faceCapacity;
 	int faceCount;
+
+	// Set when degenerate topology is detected (ring walk cycles, pool budget
+	// exceeded). The build is abandoned and the caller receives failure instead
+	// of a hang or an out-of-bounds pool write.
+	bool failed;
 	b3QHFace* faceFreeHead; // LIFO free list; overlays face->link.next
 
 	// Reusable scratch buffers.
@@ -217,6 +222,14 @@ static b3QHHalfEdge* b3HullBuilder_NewEdge( b3HullBuilder* b )
 	else
 	{
 		B3_ASSERT( b->edgeCount < b->edgeCapacity );
+		if ( b->edgeCount >= b->edgeCapacity )
+		{
+			// The Euler-formula budget only holds for consistent topology. Alias
+			// the last slot instead of writing out of bounds; the failed flag
+			// discards the build.
+			b->failed = true;
+			return b->edgeBase + ( b->edgeCapacity - 1 );
+		}
 		edge = b->edgeBase + b->edgeCount++;
 	}
 	// All other fields (prev/next/origin/face/twin) are written by NewFace immediately after.
@@ -242,6 +255,12 @@ static b3QHFace* b3HullBuilder_NewFace( b3HullBuilder* b, b3QHVertex* v1, b3QHVe
 	else
 	{
 		B3_ASSERT( b->faceCount < b->faceCapacity );
+		if ( b->faceCount >= b->faceCapacity )
+		{
+			// See b3HullBuilder_NewEdge: fail safely instead of overflowing the pool
+			b->failed = true;
+			return b->faceBase + ( b->faceCapacity - 1 );
+		}
 		face = b->faceBase + b->faceCount++;
 	}
 
@@ -399,11 +418,23 @@ static int b3FindFarthestPointFromLine( int index1, int index2, b3Fixed toleranc
 	// |ap x ab|^2 / |ab|^2 is the squared perpendicular distance from p to the line.
 	// Compares against (2 * tolerance)^2
 	b3Vec3 ab = b3Sub( b, a );
-	b3Fixed abLengthSqr = b3Dot( ab, ab );
-	B3_ASSERT( abLengthSqr > B3_FIX( 0.0f ) );
 
-	b3Fixed invAbLengthSqr = b3FixDiv( B3_FIX( 1.0f ) , abLengthSqr );
-	b3Fixed maxDistanceSqr = b3FixMul( b3FixMul( B3_FIX( 4.0f ) , tolerance ) , tolerance );
+	// Exact 128-bit squared length: b3Dot quantizes a sub-resolution segment to
+	// zero, and the old reciprocal then divided by zero, returned the saturation
+	// sentinel, and wrapped in the following multiply - garbage hull seeds.
+	b3Int128 abLengthSqr = b3DotRaw( ab, ab ); // scale 2^32
+	if ( abLengthSqr == 0 )
+	{
+		// Coincident endpoints: there is no line to measure against
+		return B3_NULL_INDEX;
+	}
+
+	// Compare |ap x ab|^2 > (2 tol)^2 * |ab|^2 by cross-multiplying instead of
+	// dividing (divide last). The argmax of |ap x ab|^2 / |ab|^2 is the argmax
+	// of |ap x ab|^2 because |ab|^2 is constant across candidates.
+	b3Fixed threshold = b3FixMul( b3FixMul( B3_FIX( 4.0f ) , tolerance ) , tolerance );
+	b3Int128 thresholdScaled = (b3Int128)threshold * abLengthSqr; // scale 2^48
+	b3Int128 maxCrossSqr = 0;
 	int maxIndex = B3_NULL_INDEX;
 
 	for ( int i = 0; i < vertexCount; ++i )
@@ -415,10 +446,10 @@ static int b3FindFarthestPointFromLine( int index1, int index2, b3Fixed toleranc
 
 		b3Vec3 ap = b3Sub( vertexBase[i], a );
 		b3Vec3 cross = b3Cross( ap, ab );
-		b3Fixed distanceSqr = b3FixMul( b3Dot( cross, cross ) , invAbLengthSqr );
-		if ( distanceSqr > maxDistanceSqr )
+		b3Int128 crossSqr = b3DotRaw( cross, cross ); // scale 2^32
+		if ( b3Int128ShiftLeft( crossSqr, B3_FIXED_FRACTION_BITS ) > thresholdScaled && crossSqr > maxCrossSqr )
 		{
-			maxDistanceSqr = distanceSqr;
+			maxCrossSqr = crossSqr;
 			maxIndex = i;
 		}
 	}
@@ -1038,6 +1069,10 @@ static void b3HullBuilder_ConnectFaces( b3HullBuilder* b, b3QHHalfEdge* edge )
 	b3QHHalfEdge* twinPrev = twin->prev;
 	b3QHHalfEdge* twinNext = twin->next;
 
+	// Bounded walks: corrupt rings on degenerate input cycle forever otherwise.
+	// A consistent ring can never be longer than the whole edge pool.
+	int guard = 0;
+
 	while ( edgePrev->twin->face == twin->face )
 	{
 		B3_ASSERT( edgePrev->twin == twinNext );
@@ -1045,6 +1080,12 @@ static void b3HullBuilder_ConnectFaces( b3HullBuilder* b, b3QHHalfEdge* edge )
 
 		edgePrev = edgePrev->prev;
 		twinNext = twinNext->next;
+
+		if ( ++guard > b->edgeCapacity )
+		{
+			b->failed = true;
+			return;
+		}
 	}
 	B3_ASSERT( edgePrev->face != twinNext->face );
 
@@ -1055,6 +1096,12 @@ static void b3HullBuilder_ConnectFaces( b3HullBuilder* b, b3QHHalfEdge* edge )
 
 		edgeNext = edgeNext->next;
 		twinPrev = twinPrev->prev;
+
+		if ( ++guard > b->edgeCapacity )
+		{
+			b->failed = true;
+			return;
+		}
 	}
 	B3_ASSERT( edgeNext->face != twinPrev->face );
 
@@ -1070,6 +1117,12 @@ static void b3HullBuilder_ConnectFaces( b3HullBuilder* b, b3QHHalfEdge* edge )
 	for ( b3QHHalfEdge* absorbed = twinNext; absorbed != twinPrev->next; absorbed = absorbed->next )
 	{
 		absorbed->face = face;
+
+		if ( ++guard > b->edgeCapacity )
+		{
+			b->failed = true;
+			return;
+		}
 	}
 
 	b3HullBuilder_DestroyEdges( b, edgePrev->next, edgeNext );
@@ -1092,6 +1145,7 @@ static void b3HullBuilder_ConnectFaces( b3HullBuilder* b, b3QHHalfEdge* edge )
 static bool b3HullBuilder_MergeConcave( b3HullBuilder* b, b3QHFace* face )
 {
 	b3QHHalfEdge* edge = face->edge;
+	int guard = 0;
 
 	do
 	{
@@ -1104,6 +1158,12 @@ static bool b3HullBuilder_MergeConcave( b3HullBuilder* b, b3QHFace* face )
 		}
 
 		edge = edge->next;
+
+		if ( ++guard > b->edgeCapacity )
+		{
+			b->failed = true;
+			return false;
+		}
 	}
 	while ( edge != face->edge );
 
@@ -1113,6 +1173,7 @@ static bool b3HullBuilder_MergeConcave( b3HullBuilder* b, b3QHFace* face )
 static bool b3HullBuilder_MergeCoplanar( b3HullBuilder* b, b3QHFace* face )
 {
 	b3QHHalfEdge* edge = face->edge;
+	int guard = 0;
 
 	do
 	{
@@ -1125,6 +1186,12 @@ static bool b3HullBuilder_MergeCoplanar( b3HullBuilder* b, b3QHFace* face )
 		}
 
 		edge = edge->next;
+
+		if ( ++guard > b->edgeCapacity )
+		{
+			b->failed = true;
+			return false;
+		}
 	}
 	while ( edge != face->edge );
 
@@ -1142,6 +1209,7 @@ static void b3HullBuilder_MergeFaces( b3HullBuilder* b )
 
 			b3Fixed bestArea = b3FixFromInt( 0 );
 			b3QHHalfEdge* bestEdge = NULL;
+			int guard = 0;
 
 			b3QHHalfEdge* edge = face->edge;
 			do
@@ -1155,10 +1223,21 @@ static void b3HullBuilder_MergeFaces( b3HullBuilder* b )
 				}
 
 				edge = edge->next;
+
+				if ( ++guard > b->edgeCapacity )
+				{
+					b->failed = true;
+					return;
+				}
 			}
 			while ( edge != face->edge );
 
-			B3_ASSERT( bestEdge != NULL );
+			if ( bestEdge == NULL )
+			{
+				B3_ASSERT( false );
+				b->failed = true;
+				return;
+			}
 			b3HullBuilder_ConnectFaces( b, bestEdge );
 		}
 	}
@@ -1428,11 +1507,16 @@ static bool b3HullBuilder_Construct( b3HullBuilder* b, const b3Vec3* points, int
 	int budget = b3ClampInt( maxVertexCount - 4, 0, B3_HULL_LIMIT - 4 );
 
 	b3QHVertex* vertex = b3HullBuilder_NextConflictVertex( b );
-	while ( vertex && budget > 0 )
+	while ( vertex && budget > 0 && b->failed == false )
 	{
 		b3HullBuilder_AddVertexToHull( b, vertex );
 		vertex = b3HullBuilder_NextConflictVertex( b );
 		budget -= 1;
+	}
+
+	if ( b->failed )
+	{
+		return false;
 	}
 
 	b3HullBuilder_CleanHull( b, origin );

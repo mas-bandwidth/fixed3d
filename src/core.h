@@ -112,7 +112,11 @@ void* b3AllocZeroed( size_t size );
 void b3Free( void* mem, size_t size );
 void* b3GrowAlloc( void* oldMem, int oldSize, int newSize );
 
+#if defined( __GNUC__ ) || defined( __clang__ )
+void b3Log( const char* format, ... ) __attribute__( ( format( printf, 1, 2 ) ) );
+#else
 void b3Log( const char* format, ... );
+#endif
 
 // Geometry content hashes reserve zero to mean unhashed
 static inline uint32_t b3NonZeroHash( uint32_t hash )

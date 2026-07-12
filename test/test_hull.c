@@ -448,6 +448,76 @@ static int CreateHullDegenerateTest( void )
 	return 0;
 }
 
+// Near-degenerate clouds: these pass the initial tetrahedron check but produce
+// sliver faces and heavy face merging. Before the bounded ring walks these
+// input shapes could cycle forever inside b3HullBuilder_ConnectFaces; the
+// contract now is termination with either failure (NULL) or a valid hull.
+static int CreateHullNearDegenerateTest( void )
+{
+	uint32_t rng = 12345;
+#define NEXT_JITTER() ( (int)( ( rng = 1664525u * rng + 1013904223u ) % 5u ) - 2 )
+
+	// Thin needle: points along x with a couple of ulps of lateral jitter
+	{
+		b3Vec3 points[64];
+		for ( int i = 0; i < 64; ++i )
+		{
+			points[i].x = b3FixFromInt( i );
+			points[i].y = NEXT_JITTER() * B3_FIXED_EPSILON;
+			points[i].z = NEXT_JITTER() * B3_FIXED_EPSILON;
+		}
+
+		b3HullData* hull = b3CreateHull( points, 64, 32 );
+		if ( hull != NULL )
+		{
+			ENSURE( hull->vertexCount - hull->edgeCount / 2 + hull->faceCount == 2 );
+			b3DestroyHull( hull );
+		}
+	}
+
+	// Near-planar grid with one ulp of z noise
+	{
+		b3Vec3 points[64];
+		for ( int i = 0; i < 8; ++i )
+		{
+			for ( int j = 0; j < 8; ++j )
+			{
+				points[8 * i + j].x = b3FixFromInt( i );
+				points[8 * i + j].y = b3FixFromInt( j );
+				points[8 * i + j].z = NEXT_JITTER() * B3_FIXED_EPSILON;
+			}
+		}
+
+		b3HullData* hull = b3CreateHull( points, 64, 32 );
+		if ( hull != NULL )
+		{
+			ENSURE( hull->vertexCount - hull->edgeCount / 2 + hull->faceCount == 2 );
+			b3DestroyHull( hull );
+		}
+	}
+
+	// Sub-resolution cluster: every pairwise distance is a handful of ulps
+	{
+		b3Vec3 points[32];
+		for ( int i = 0; i < 32; ++i )
+		{
+			points[i].x = B3_FIX( 5.0f ) + NEXT_JITTER() * B3_FIXED_EPSILON;
+			points[i].y = B3_FIX( 5.0f ) + NEXT_JITTER() * B3_FIXED_EPSILON;
+			points[i].z = B3_FIX( 5.0f ) + NEXT_JITTER() * B3_FIXED_EPSILON;
+		}
+
+		b3HullData* hull = b3CreateHull( points, 32, 16 );
+		if ( hull != NULL )
+		{
+			ENSURE( hull->vertexCount - hull->edgeCount / 2 + hull->faceCount == 2 );
+			b3DestroyHull( hull );
+		}
+	}
+
+#undef NEXT_JITTER
+	return 0;
+}
+
 int HullTest( void )
 {
 	RUN_SUBTEST( CreateHullCubeTest );
@@ -461,6 +531,7 @@ int HullTest( void )
 	RUN_SUBTEST( CreateHullSphereStressTest );
 	RUN_SUBTEST( CreateHullMergeChurnStressTest );
 	RUN_SUBTEST( CreateHullDegenerateTest );
+	RUN_SUBTEST( CreateHullNearDegenerateTest );
 
 	return 0;
 }

@@ -195,10 +195,14 @@ B3_INLINE b3Fixed b3Cos( b3Fixed radians )
 B3_INLINE b3Fixed b3UnwindAngle( b3Fixed radians )
 {
 	// remainder( radians, 2 * pi ) with a round-to-nearest quotient,
-	// matching the semantics of remainderf
+	// matching the semantics of remainderf.
+	// The quotient stays in 64 bits (b3FixRoundToInt returns 32, which a huge
+	// angle overflows) and the product is formed at 128 bits: near the b3Fixed
+	// range limit n * twoPi overflows int64 even though the final remainder is
+	// always in [-pi, pi].
 	const b3Fixed twoPi = B3_FIX( 6.28318530718 );
-	int64_t n = b3FixRoundToInt( b3FixDiv( radians, twoPi ) );
-	return radians - n * twoPi;
+	int64_t n = ( b3FixDiv( radians, twoPi ) + B3_FIXED_HALF ) >> B3_FIXED_FRACTION_BITS;
+	return (b3Fixed)( radians - (b3Int128)n * twoPi );
 }
 
 /// Vector addition.

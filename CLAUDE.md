@@ -326,8 +326,12 @@ new sample code — keep them clean.
 
 ## Known leftovers / follow-ups
 
-- Quickhull (`b3HullBuilder_ConnectFaces`) has no iteration guard; a degenerate
-  input hangs instead of failing. Consider a bounded walk + failure return.
+- ~~Quickhull iteration guard~~ DONE (bug-hunt pass): the builder has a
+  `failed` flag, bounded ring walks in ConnectFaces/merge loops, release-safe
+  pool allocators, and `b3FindFarthestPointFromLine` no longer divides by a
+  quantized-to-zero squared length (exact raw-128 compare instead — the old
+  reciprocal went through the 1/0 sentinel and wrapped). Regression test:
+  CreateHullNearDegenerateTest.
 - `verstable.h` (vendored hash table) intentionally keeps internal floats
   (load factors only); excluded from conversion.
 - A few sub-resolution guards were mapped `1000*FLT_MIN → 0` comparisons and
