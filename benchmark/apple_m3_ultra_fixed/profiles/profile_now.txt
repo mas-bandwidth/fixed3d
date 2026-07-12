@@ -1,584 +1,771 @@
-Analysis of sampling benchmark (pid 19013) every 1 millisecond
-Process:         benchmark [19013]
+Analysis of sampling benchmark (pid 28302) every 1 millisecond
+Process:         benchmark [28302]
 Path:            /Users/USER/*/benchmark
-Load Address:    0x100a64000
+Load Address:    0x100dec000
 Identifier:      benchmark
 Version:         0
 Code Type:       ARM64
 Platform:        macOS
-Parent Process:  zsh [19011]
+Parent Process:  zsh [28075]
 Target Type:     live task
 
-Date/Time:       2026-07-11 23:21:34.338 -0400
-Launch Time:     2026-07-11 23:21:32.302 -0400
+Date/Time:       2026-07-11 23:44:31.117 -0400
+Launch Time:     2026-07-11 23:44:29.079 -0400
 OS Version:      macOS 26.5.1 (25F80)
 Report Version:  7
 Analysis Tool:   /usr/bin/sample
+
+Physical footprint:         80.3M
+Physical footprint (peak):  80.3M
+Idle exit:                  untracked
 ----
 
 Call graph:
-    4945 Thread_8996135   DispatchQueue_1: com.apple.main-thread  (serial)
-      4945 start  (in dyld) + 6992  [0x181da7e00]
-        4945 main  (in benchmark) + 1872  [0x100a651b8]  main.c:362
-          4555 b3World_Step  (in benchmark) + 3560  [0x100ad6218]  physics_world.c:1136
-          + 4474 b3Solve  (in benchmark) + 3576  [0x100b0ae54]  solver.c:1832
-          + ! 4474 b3DefaultAddTaskFcn  (in benchmark) + 20  [0x100ad4b50]  physics_world.c:140
-          + !   1530 b3SolverTask  (in benchmark) + 992  [0x100b0c330]  solver.c:1307
-          + !   : 1530 b3ExecuteMainStage  (in benchmark) + 272  [0x100b0db14]  solver.c:1142
-          + !   :   128 b3RotateVectorW  (in benchmark) + 112,580,...  [0x100a87530,0x100a87704,...]  contact_solver.c:1116
-          + !   :   103 b3RotateVectorW  (in benchmark) + 1276,1124,...  [0x100a879bc,0x100a87924,...]  contact_solver.c:1121
-          + !   :   89 b3SolveContacts_Convex  (in benchmark) + 7688,7476,...  [0x100a84d08,0x100a84c34,...]  contact_solver.c:1731
-          + !   :   69 b3SolveContacts_Convex  (in benchmark) + 5480,5520,...  [0x100a84468,0x100a84490,...]  contact_solver.c:1712
-          + !   :   65 b3SolveContacts_Convex  (in benchmark) + 6012,5620,...  [0x100a8467c,0x100a844f4,...]  contact_solver.c:1713
-          + !   :   57 b3SolveContacts_Convex  (in benchmark) + 8908,8768,...  [0x100a851cc,0x100a85140,...]  contact_solver.c:1733
-          + !   :   49 b3MulSubMVW  (in benchmark) + 712,672,...  [0x100a82930,0x100a82908,...]  contact_solver.c:1086
-          + !   :   49 b3SolveContacts_Convex  (in benchmark) + 9808,5356,...  [0x100a85550,0x100a843ec,...]  contact_solver.c:0
-          + !   :   46 b3MulAddMVW  (in benchmark) + 72,308,...  [0x100a82a68,0x100a82b54,...]  contact_solver.c:1094
-          + !   :   45 b3MulAddMVW  (in benchmark) + 572,644,...  [0x100a82c5c,0x100a82ca4,...]  contact_solver.c:1095
-          + !   :   44 b3RotateVectorW  (in benchmark) + 728,688,...  [0x100a87798,0x100a87770,...]  contact_solver.c:1118
-          + !   :   43 b3MulAddMVW  (in benchmark) + 788,916,...  [0x100a82d34,0x100a82db4,...]  contact_solver.c:1096
-          + !   :   42 b3MulSubMVW  (in benchmark) + 600,508,...  [0x100a828c0,0x100a82864,...]  contact_solver.c:1085
-          + !   :   38 b3MulSubMVW  (in benchmark) + 232,72,...  [0x100a82750,0x100a826b0,...]  contact_solver.c:1084
-          + !   :   35 b3SolveContacts_Convex  (in benchmark) + 6608,6632,...  [0x100a848d0,0x100a848e8,...]  contact_solver.c:1714
-          + !   :   35 b3SolveContacts_Convex  (in benchmark) + 8604,8456,...  [0x100a8509c,0x100a85008,...]  contact_solver.c:1732
-          + !   :   27 b3RotateVectorW  (in benchmark) + 1536,1252,...  [0x100a87ac0,0x100a879a4,...]  contact_solver.c:1124
-          + !   :   27 b3SolveContacts_Convex  (in benchmark) + 6744,6892,...  [0x100a84958,0x100a849ec,...]  contact_solver.c:1717
-          + !   :   27 b3SolveContacts_Convex  (in benchmark) + 9572,9700,...  [0x100a85464,0x100a854e4,...]  contact_solver.c:1734
-          + !   :   26 b3SolveContacts_Convex  (in benchmark) + 632,616,...  [0x100a83178,0x100a83168,...]  contact_solver.c:1837
-          + !   :   25 b3RotateVectorW  (in benchmark) + 776,792,...  [0x100a877c8,0x100a877d8,...]  contact_solver.c:1119
-          + !   :   21 b3RotateVectorW  (in benchmark) + 1464,1484,...  [0x100a87a78,0x100a87a8c,...]  contact_solver.c:1126
-          + !   :   21 b3SolveContacts_Convex  (in benchmark) + 15300,14980,...  [0x100a86ac4,0x100a86984,...]  contact_solver.c:1799
-          + !   :   19 b3RotateVectorW  (in benchmark) + 1000,908,...  [0x100a878a8,0x100a8784c,...]  contact_solver.c:1120
-          + !   :   19 b3SolveContacts_Convex  (in benchmark) + 4036,4100,...  [0x100a83ec4,0x100a83f04,...]  contact_solver.c:1699
-          + !   :   18 b3SolveContacts_Convex  (in benchmark) + 1232,1408,...  [0x100a833d0,0x100a83480,...]  contact_solver.c:1838
-          + !   :   17 b3RotateVectorW  (in benchmark) + 1692,1680,...  [0x100a87b5c,0x100a87b50,...]  contact_solver.c:1128
-          + !   :   16 b3SolveContacts_Convex  (in benchmark) + 4728,4768,...  [0x100a84178,0x100a841a0,...]  contact_solver.c:1704
-          + !   :   14 b3RotateVectorW  (in benchmark) + 1300,1432,...  [0x100a879d4,0x100a87a58,...]  contact_solver.c:1125
-          + !   :   14 b3SolveContacts_Convex  (in benchmark) + 2404,2516,...  [0x100a83864,0x100a838d4,...]  contact_solver.c:1840
-          + !   :   13 b3SolveContacts_Convex  (in benchmark) + 3012,2988,...  [0x100a83ac4,0x100a83aac,...]  contact_solver.c:1841
-          + !   :   12 b3MulAddMVW  (in benchmark) + 992,972,...  [0x100a82e00,0x100a82dec,...]  contact_solver.c:1093
-          + !   :   12 b3MulSubMVW  (in benchmark) + 940,928,...  [0x100a82a14,0x100a82a08,...]  contact_solver.c:1083
-          + !   :   12 b3SolveContacts_Convex  (in benchmark) + 7024,7048,...  [0x100a84a70,0x100a84a88,...]  contact_solver.c:1721
-          + !   :   12 b3SolveContacts_Convex  (in benchmark) + 7412,7204,...  [0x100a84bf4,0x100a84b24,...]  contact_solver.c:1727
-          + !   :   11 b3SolveContacts_Convex  (in benchmark) + 4588,4372,...  [0x100a840ec,0x100a84014,...]  contact_solver.c:1700
-          + !   :   10 b3SolveContacts_Convex  (in benchmark) + 4812,4836,...  [0x100a841cc,0x100a841e4,...]  contact_solver.c:1705
-          + !   :   8 b3SolveContacts_Convex  (in benchmark) + 7116,7084,...  [0x100a84acc,0x100a84aac,...]  contact_solver.c:1724
-          + !   :   8 b3SolveContacts_Convex  (in benchmark) + 12968,13008,...  [0x100a861a8,0x100a861d0,...]  contact_solver.c:1776
-          + !   :   8 b3SolveContacts_Convex  (in benchmark) + 14536,14332,...  [0x100a867c8,0x100a866fc,...]  contact_solver.c:1798
-          + !   :   8 b3SolveContacts_Convex  (in benchmark) + 3168  [0x100a83b60]  contact_solver.c:1845
-          + !   :   | 2 b3ScatterBodies  (in benchmark) + 0  [0x100a82e0c]  contact_solver.c:1234
-          + !   :   | 2 b3ScatterBodies  (in benchmark) + 64,76  [0x100a82e4c,0x100a82e58]  contact_solver.c:1247
-          + !   :   | 2 b3ScatterBodies  (in benchmark) + 136  [0x100a82e94]  contact_solver.c:1259
-          + !   :   | 1 b3ScatterBodies  (in benchmark) + 176  [0x100a82ebc]  contact_solver.c:1266
-          + !   :   | 1 b3ScatterBodies  (in benchmark) + 228  [0x100a82ef0]  contact_solver.c:1278
-          + !   :   7 b3GatherBodies  (in benchmark) + 132,176,...  [0x100a8243c,0x100a82468,...]  contact_solver.c:1209
-          + !   :   7 b3RotateVectorW  (in benchmark) + 704,360,...  [0x100a87780,0x100a87628,...]  contact_solver.c:0
-          + !   :   7 b3SolveContacts_Convex  (in benchmark) + 13740,13788,...  [0x100a864ac,0x100a864dc,...]  contact_solver.c:1783
-          + !   :   7 b3SolveContacts_Convex  (in benchmark) + 16412,16456,...  [0x100a86f1c,0x100a86f48,...]  contact_solver.c:1807
-          + !   :   7 b3SolveContacts_Convex  (in benchmark) + 17284  [0x100a87284]  contact_solver.c:1822
-          + !   :   | 7 b3SqrtW  (in benchmark) + 100,44,...  [0x100a87bcc,0x100a87b94,...]  contact_solver.c:856
-          + !   :   6 b3SolveContacts_Convex  (in benchmark) + 3856,3860,...  [0x100a83e10,0x100a83e14,...]  contact_solver.c:1694
-          + !   :   6 b3SolveContacts_Convex  (in benchmark) + 4920,4952,...  [0x100a84238,0x100a84258,...]  contact_solver.c:1708
-          + !   :   6 b3SolveContacts_Convex  (in benchmark) + 1808,1784,...  [0x100a83610,0x100a835f8,...]  contact_solver.c:1839
-          + !   :   5 b3SolveContacts_Convex  (in benchmark) + 3968  [0x100a83e80]  contact_solver.c:1695
-          + !   :   | 3 b3RotateVectorW  (in benchmark) + 12,24  [0x100a874cc,0x100a874d8]  contact_solver.c:1115
-          + !   :   | 2 b3RotateVectorW  (in benchmark) + 32  [0x100a874e0]  contact_solver.c:1116
-          + !   :   5 b3SolveContacts_Convex  (in benchmark) + 6928,6976,...  [0x100a84a10,0x100a84a40,...]  contact_solver.c:1718
-          + !   :   5 b3SolveContacts_Convex  (in benchmark) + 7172,7228,...  [0x100a84b04,0x100a84b3c,...]  contact_solver.c:1722
-          + !   :   5 b3SolveContacts_Convex  (in benchmark) + 7180,7236,...  [0x100a84b0c,0x100a84b44,...]  contact_solver.c:1723
-          + !   :   5 b3SolveContacts_Convex  (in benchmark) + 9324  [0x100a8536c]  contact_solver.c:1733
-          + !   :   | 4 b3MulAddMVW  (in benchmark) + 0,4,...  [0x100a82a20,0x100a82a24,...]  contact_solver.c:1092
-          + !   :   | 1 b3MulAddMVW  (in benchmark) + 32  [0x100a82a40]  contact_solver.c:1094
-          + !   :   5 b3SolveContacts_Convex  (in benchmark) + 3184  [0x100a83b70]  contact_solver.c:1846
-          + !   :   | 2 b3ScatterBodies  (in benchmark) + 76  [0x100a82e58]  contact_solver.c:1247
-          + !   :   | 2 b3ScatterBodies  (in benchmark) + 136  [0x100a82e94]  contact_solver.c:1259
-          + !   :   | 1 b3ScatterBodies  (in benchmark) + 236  [0x100a82ef8]  contact_solver.c:1278
-          + !   :   4 b3GatherBodies  (in benchmark) + 448,72  [0x100a82578,0x100a82400]  contact_solver.c:0
-          + !   :   4 b3GatherBodies  (in benchmark) + 292,288,...  [0x100a824dc,0x100a824d8,...]  contact_solver.c:1211
-          + !   :   4 b3MulSubMVW  (in benchmark) + 644  [0x100a828ec]  contact_solver.c:0
-          + !   :   4 b3SolveContacts_Convex  (in benchmark) + 3756,3768,...  [0x100a83dac,0x100a83db8,...]  contact_solver.c:1690
-          + !   :   4 b3SolveContacts_Convex  (in benchmark) + 15948,15776,...  [0x100a86d4c,0x100a86ca0,...]  contact_solver.c:1790
-          + !   :   4 b3SolveContacts_Convex  (in benchmark) + 17064,17112  [0x100a871a8,0x100a871d8]  contact_solver.c:1815
-          + !   :   3 b3GatherBodies  (in benchmark) + 464,468,...  [0x100a82588,0x100a8258c,...]  contact_solver.c:1215
-          + !   :   3 b3GatherBodies  (in benchmark) + 504,516  [0x100a825b0,0x100a825bc]  contact_solver.c:1217
-          + !   :   3 b3GatherBodies  (in benchmark) + 576,572  [0x100a825f8,0x100a825f4]  contact_solver.c:1221
-          + !   :   3 b3SolveContacts_Convex  (in benchmark) + 3660,3552  [0x100a83d4c,0x100a83ce0]  contact_solver.c:1678
-          + !   :   3 b3SolveContacts_Convex  (in benchmark) + 3884  [0x100a83e2c]  contact_solver.c:1694
-          + !   :   | 3 b3RotateVectorW  (in benchmark) + 0,4,...  [0x100a874c0,0x100a874c4,...]  contact_solver.c:1115
-          + !   :   3 b3SolveContacts_Convex  (in benchmark) + 3916  [0x100a83e4c]  contact_solver.c:1695
-          + !   :   3 b3SolveContacts_Convex  (in benchmark) + 5056,4960  [0x100a842c0,0x100a84260]  contact_solver.c:1709
-          + !   :   3 b3SolveContacts_Convex  (in benchmark) + 13336,13348  [0x100a86318,0x100a86324]  contact_solver.c:1777
-          + !   :   3 b3SolveContacts_Convex  (in benchmark) + 15752,16120  [0x100a86c88,0x100a86df8]  contact_solver.c:1802
-          + !   :   3 b3SolveContacts_Convex  (in benchmark) + 16096,16296,...  [0x100a86de0,0x100a86ea8,...]  contact_solver.c:1803
-          + !   :   3 b3SolveContacts_Convex  (in benchmark) + 17296,17332,...  [0x100a87290,0x100a872b4,...]  contact_solver.c:1822
-          + !   :   3 b3SolveContacts_Convex  (in benchmark) + 268,244  [0x100a8300c,0x100a82ff4]  contact_solver.c:1825
-          + !   :   3 b3SolveContacts_Convex  (in benchmark) + 316,340  [0x100a8303c,0x100a83054]  contact_solver.c:1826
-          + !   :   2 b3GatherBodies  (in benchmark) + 624,628  [0x100a82628,0x100a8262c]  contact_solver.c:1224
-          + !   :   2 b3GatherBodies  (in benchmark) + 648  [0x100a82640]  contact_solver.c:1226
-          + !   :   2 b3MulAddMVW  (in benchmark) + 68,684  [0x100a82a64,0x100a82ccc]  contact_solver.c:0
-          + !   :   2 b3SolveContacts_Convex  (in benchmark) + 3240  [0x100a83ba8]  contact_solver.c:1661
-          + !   :   | 2 b3GatherBodies  (in benchmark) + 28  [0x100a823d4]  contact_solver.c:1208
-          + !   :   2 b3SolveContacts_Convex  (in benchmark) + 3256  [0x100a83bb8]  contact_solver.c:1662
-          + !   :   | 2 b3GatherBodies  (in benchmark) + 28,32  [0x100a823d4,0x100a823d8]  contact_solver.c:1208
-          + !   :   2 b3SolveContacts_Convex  (in benchmark) + 4904,5008  [0x100a84228,0x100a84290]  contact_solver.c:1706
-          + !   :   2 b3SolveContacts_Convex  (in benchmark) + 8252  [0x100a84f3c]  contact_solver.c:1731
-          + !   :   | 2 b3MulSubMVW  (in benchmark) + 0,8  [0x100a82668,0x100a82670]  contact_solver.c:1082
-          + !   :   2 b3SolveContacts_Convex  (in benchmark) + 13468,13472  [0x100a8639c,0x100a863a0]  contact_solver.c:1778
-          + !   :   2 b3SolveContacts_Convex  (in benchmark) + 13640,13692  [0x100a86448,0x100a8647c]  contact_solver.c:1780
-          + !   :   2 b3SolveContacts_Convex  (in benchmark) + 14028  [0x100a865cc]  contact_solver.c:1784
-          + !   :   | 2 b3MulSubMVW  (in benchmark) + 0,12  [0x100a82668,0x100a82674]  contact_solver.c:1082
-          + !   :   2 b3SolveContacts_Convex  (in benchmark) + 14176  [0x100a86660]  contact_solver.c:1785
-          + !   :   | 2 b3MulAddMVW  (in benchmark) + 24  [0x100a82a38]  contact_solver.c:1092
-          + !   :   2 b3SolveContacts_Convex  (in benchmark) + 16740,16996  [0x100a87064,0x100a87164]  contact_solver.c:1809
-          + !   :   2 b3SolveContacts_Convex  (in benchmark) + 17188,17192  [0x100a87224,0x100a87228]  contact_solver.c:1818
-          + !   :   1 b3GatherBodies  (in benchmark) + 244  [0x100a824ac]  contact_solver.c:1210
-          + !   :   1 b3GatherBodies  (in benchmark) + 540  [0x100a825d4]  contact_solver.c:1219
-          + !   :   1 b3GatherBodies  (in benchmark) + 552  [0x100a825e0]  contact_solver.c:1220
-          + !   :   1 b3GatherBodies  (in benchmark) + 588  [0x100a82604]  contact_solver.c:1222
-          + !   :   1 b3GatherBodies  (in benchmark) + 656  [0x100a82648]  contact_solver.c:1229
-          + !   :   1 b3SolveContacts_Convex  (in benchmark) + 3744  [0x100a83da0]  contact_solver.c:1689
-          + !   :   1 b3SolveContacts_Convex  (in benchmark) + 7248  [0x100a84b50]  contact_solver.c:1726
-          + !   :   1 b3SolveContacts_Convex  (in benchmark) + 14072  [0x100a865f8]  contact_solver.c:1784
-          + !   :   1 b3SolveContacts_Convex  (in benchmark) + 15160  [0x100a86a38]  contact_solver.c:1795
-          + !   :   1 b3SolveContacts_Convex  (in benchmark) + 16880  [0x100a870f0]  contact_solver.c:1811
-          + !   :   1 b3SolveContacts_Convex  (in benchmark) + 16900  [0x100a87104]  contact_solver.c:1812
-          + !   :   1 b3SolveContacts_Convex  (in benchmark) + 440  [0x100a830b8]  contact_solver.c:1831
-          + !   :   1 b3SolveContacts_Convex  (in benchmark) + 464  [0x100a830d0]  contact_solver.c:1834
-          + !   :   1 b3SolveContacts_Convex  (in benchmark) + 3152  [0x100a83b50]  contact_solver.c:1845
-          + !   :   1 b3SolveContacts_Convex  (in benchmark) + 17824  [0x100a874a0]  contact_solver.c:1850
-          + !   :   1 b3SolveContacts_Convex  (in benchmark) + 17712  [0x100a87430]  fixed.h:0
-          + !   1239 b3SolverTask  (in benchmark) + 828  [0x100b0c28c]  solver.c:1279
-          + !   : 1238 b3ExecuteMainStage  (in benchmark) + 272  [0x100b0db14]  solver.c:1142
-          + !   : | 112 b3RotateVectorW  (in benchmark) + 540,220,...  [0x100a876dc,0x100a8759c,...]  contact_solver.c:1116
-          + !   : | 108 b3RotateVectorW  (in benchmark) + 1384,1440,...  [0x100a87a28,0x100a87a60,...]  contact_solver.c:1121
-          + !   : | 93 b3SolveContacts_Convex  (in benchmark) + 7604,7668,...  [0x100a84cb4,0x100a84cf4,...]  contact_solver.c:1731
-          + !   : | 73 b3SolveContacts_Convex  (in benchmark) + 5384,5440,...  [0x100a84408,0x100a84440,...]  contact_solver.c:1712
-          + !   : | 65 b3SolveContacts_Convex  (in benchmark) + 6012,5692,...  [0x100a8467c,0x100a8453c,...]  contact_solver.c:1713
-          + !   : | 48 b3SolveContacts_Convex  (in benchmark) + 9044,9208,...  [0x100a85254,0x100a852f8,...]  contact_solver.c:1733
-          + !   : | 39 b3SolveContacts_Convex  (in benchmark) + 8236,4520,...  [0x100a84f2c,0x100a840a8,...]  contact_solver.c:0
-          + !   : | 34 b3MulAddMVW  (in benchmark) + 464,644,...  [0x100a82bf0,0x100a82ca4,...]  contact_solver.c:1095
-          + !   : | 33 b3MulSubMVW  (in benchmark) + 508,600,...  [0x100a82864,0x100a828c0,...]  contact_solver.c:1085
-          + !   : | 32 b3MulAddMVW  (in benchmark) + 712,944,...  [0x100a82ce8,0x100a82dd0,...]  contact_solver.c:1096
-          + !   : | 32 b3MulSubMVW  (in benchmark) + 804,712,...  [0x100a8298c,0x100a82930,...]  contact_solver.c:1086
-          + !   : | 32 b3RotateVectorW  (in benchmark) + 776,792,...  [0x100a877c8,0x100a877d8,...]  contact_solver.c:1119
-          + !   : | 32 b3SolveContacts_Convex  (in benchmark) + 9412,9700,...  [0x100a853c4,0x100a854e4,...]  contact_solver.c:1734
-          + !   : | 29 b3RotateVectorW  (in benchmark) + 940,960,...  [0x100a8786c,0x100a87880,...]  contact_solver.c:1120
-          + !   : | 28 b3SolveContacts_Convex  (in benchmark) + 8504,8652,...  [0x100a85038,0x100a850cc,...]  contact_solver.c:1732
-          + !   : | 27 b3RotateVectorW  (in benchmark) + 660,728,...  [0x100a87754,0x100a87798,...]  contact_solver.c:1118
-          + !   : | 25 b3RotateVectorW  (in benchmark) + 1252,1244,...  [0x100a879a4,0x100a8799c,...]  contact_solver.c:1124
-          + !   : | 25 b3RotateVectorW  (in benchmark) + 1464,1484,...  [0x100a87a78,0x100a87a8c,...]  contact_solver.c:1126
-          + !   : | 24 b3SolveContacts_Convex  (in benchmark) + 6608,6724,...  [0x100a848d0,0x100a84944,...]  contact_solver.c:1714
-          + !   : | 24 b3SolveContacts_Convex  (in benchmark) + 6680,6868,...  [0x100a84918,0x100a849d4,...]  contact_solver.c:1717
-          + !   : | 22 b3MulAddMVW  (in benchmark) + 308,36,...  [0x100a82b54,0x100a82a44,...]  contact_solver.c:1094
-          + !   : | 22 b3MulSubMVW  (in benchmark) + 36,104,...  [0x100a8268c,0x100a826d0,...]  contact_solver.c:1084
-          + !   : | 20 b3SolveContacts_Convex  (in benchmark) + 4560,4604,...  [0x100a840d0,0x100a840fc,...]  contact_solver.c:1700
-          + !   : | 19 b3RotateVectorW  (in benchmark) + 704,360,...  [0x100a87780,0x100a87628,...]  contact_solver.c:0
-          + !   : | 18 b3RotateVectorW  (in benchmark) + 1300,1564,...  [0x100a879d4,0x100a87adc,...]  contact_solver.c:1125
-          + !   : | 18 b3RotateVectorW  (in benchmark) + 1692,1684,...  [0x100a87b5c,0x100a87b54,...]  contact_solver.c:1128
-          + !   : | 13 b3SolveContacts_Convex  (in benchmark) + 4100,4000,...  [0x100a83f04,0x100a83ea0,...]  contact_solver.c:1699
-          + !   : | 12 b3SolveContacts_Convex  (in benchmark) + 4812,4860,...  [0x100a841cc,0x100a841fc,...]  contact_solver.c:1705
-          + !   : | 12 b3SolveContacts_Convex  (in benchmark) + 7024,7048,...  [0x100a84a70,0x100a84a88,...]  contact_solver.c:1721
-          + !   : | 11 b3MulSubMVW  (in benchmark) + 940,924,...  [0x100a82a14,0x100a82a04,...]  contact_solver.c:1083
-          + !   : | 11 b3SolveContacts_Convex  (in benchmark) + 6952,6976,...  [0x100a84a28,0x100a84a40,...]  contact_solver.c:1718
-          + !   : | 9 b3GatherBodies  (in benchmark) + 132  [0x100a8243c]  contact_solver.c:1209
-          + !   : | 9 b3SolveContacts_Convex  (in benchmark) + 7084,7092,...  [0x100a84aac,0x100a84ab4,...]  contact_solver.c:1724
-          + !   : | 8 b3SolveContacts_Convex  (in benchmark) + 3792,3780,...  [0x100a83dd0,0x100a83dc4,...]  contact_solver.c:1690
-          + !   : | 7 b3MulAddMVW  (in benchmark) + 992  [0x100a82e00]  contact_solver.c:1093
-          + !   : | 7 b3SolveContacts_Convex  (in benchmark) + 4728,4752,...  [0x100a84178,0x100a84190,...]  contact_solver.c:1704
-          + !   : | 6 b3GatherBodies  (in benchmark) + 676,660,...  [0x100a8265c,0x100a8264c,...]  contact_solver.c:1229
-          + !   : | 6 b3SolveContacts_Convex  (in benchmark) + 3884  [0x100a83e2c]  contact_solver.c:1694
-          + !   : | + 4 b3RotateVectorW  (in benchmark) + 24,0,...  [0x100a874d8,0x100a874c0,...]  contact_solver.c:1115
-          + !   : | + 2 b3RotateVectorW  (in benchmark) + 32  [0x100a874e0]  contact_solver.c:1116
-          + !   : | 6 b3SolveContacts_Convex  (in benchmark) + 7180,7240,...  [0x100a84b0c,0x100a84b48,...]  contact_solver.c:1723
-          + !   : | 6 b3SolveContacts_Convex  (in benchmark) + 7204,7196,...  [0x100a84b24,0x100a84b1c,...]  contact_solver.c:1727
-          + !   : | 6 b3SolveContacts_Convex  (in benchmark) + 3184  [0x100a83b70]  contact_solver.c:1846
-          + !   : | + 2 b3ScatterBodies  (in benchmark) + 228,236  [0x100a82ef0,0x100a82ef8]  contact_solver.c:1278
-          + !   : | + 1 b3ScatterBodies  (in benchmark) + 56  [0x100a82e44]  contact_solver.c:1242
-          + !   : | + 1 b3ScatterBodies  (in benchmark) + 108  [0x100a82e78]  contact_solver.c:1254
-          + !   : | + 1 b3ScatterBodies  (in benchmark) + 180  [0x100a82ec0]  contact_solver.c:1270
-          + !   : | + 1 b3ScatterBodies  (in benchmark) + 200  [0x100a82ed4]  contact_solver.c:1271
-          + !   : | 5 b3GatherBodies  (in benchmark) + 64,72,...  [0x100a823f8,0x100a82400,...]  contact_solver.c:0
-          + !   : | 5 b3GatherBodies  (in benchmark) + 288  [0x100a824d8]  contact_solver.c:1211
-          + !   : | 5 b3SolveContacts_Convex  (in benchmark) + 3744,3708,...  [0x100a83da0,0x100a83d7c,...]  contact_solver.c:1689
-          + !   : | 5 b3SolveContacts_Convex  (in benchmark) + 8252  [0x100a84f3c]  contact_solver.c:1731
-          + !   : | + 5 b3MulSubMVW  (in benchmark) + 4,8,...  [0x100a8266c,0x100a82670,...]  contact_solver.c:1082
-          + !   : | 4 b3SolveContacts_Convex  (in benchmark) + 3820,3832,...  [0x100a83dec,0x100a83df8,...]  contact_solver.c:1694
-          + !   : | 4 b3SolveContacts_Convex  (in benchmark) + 4928,5056  [0x100a84240,0x100a842c0]  contact_solver.c:1709
-          + !   : | 3 b3GatherBodies  (in benchmark) + 528,532  [0x100a825c8,0x100a825cc]  contact_solver.c:1218
-          + !   : | 3 b3MulSubMVW  (in benchmark) + 644,68  [0x100a828ec,0x100a826ac]  contact_solver.c:0
-          + !   : | 3 b3SolveContacts_Convex  (in benchmark) + 3968  [0x100a83e80]  contact_solver.c:1695
-          + !   : | + 3 b3RotateVectorW  (in benchmark) + 4,12,...  [0x100a874c4,0x100a874cc,...]  contact_solver.c:1115
-          + !   : | 3 b3SolveContacts_Convex  (in benchmark) + 3916  [0x100a83e4c]  contact_solver.c:1695
-          + !   : | 3 b3SolveContacts_Convex  (in benchmark) + 7248,7352  [0x100a84b50,0x100a84bb8]  contact_solver.c:1726
-          + !   : | 2 b3GatherBodies  (in benchmark) + 508  [0x100a825b4]  contact_solver.c:1217
-          + !   : | 2 b3GatherBodies  (in benchmark) + 540,544  [0x100a825d4,0x100a825d8]  contact_solver.c:1219
-          + !   : | 2 b3GatherBodies  (in benchmark) + 552,556  [0x100a825e0,0x100a825e4]  contact_solver.c:1220
-          + !   : | 2 b3GatherBodies  (in benchmark) + 568,576  [0x100a825f0,0x100a825f8]  contact_solver.c:1221
-          + !   : | 2 b3GatherBodies  (in benchmark) + 596  [0x100a8260c]  contact_solver.c:1222
-          + !   : | 2 b3GatherBodies  (in benchmark) + 608  [0x100a82618]  contact_solver.c:1223
-          + !   : | 2 b3GatherBodies  (in benchmark) + 628  [0x100a8262c]  contact_solver.c:1224
-          + !   : | 2 b3MulAddMVW  (in benchmark) + 684  [0x100a82ccc]  contact_solver.c:0
-          + !   : | 2 b3SolveContacts_Convex  (in benchmark) + 3276,3292  [0x100a83bcc,0x100a83bdc]  contact_solver.c:1667
-          + !   : | 2 b3SolveContacts_Convex  (in benchmark) + 3600  [0x100a83d10]  contact_solver.c:1678
-          + !   : | 2 b3SolveContacts_Convex  (in benchmark) + 7228,7332  [0x100a84b3c,0x100a84ba4]  contact_solver.c:1722
-          + !   : | 2 b3SolveContacts_Convex  (in benchmark) + 9324  [0x100a8536c]  contact_solver.c:1733
-          + !   : | + 2 b3MulAddMVW  (in benchmark) + 0,8  [0x100a82a20,0x100a82a28]  contact_solver.c:1092
-          + !   : | 2 b3SolveContacts_Convex  (in benchmark) + 3168  [0x100a83b60]  contact_solver.c:1845
-          + !   : | + 1 b3ScatterBodies  (in benchmark) + 176  [0x100a82ebc]  contact_solver.c:1266
-          + !   : | + 1 b3ScatterBodies  (in benchmark) + 236  [0x100a82ef8]  contact_solver.c:1278
-          + !   : | 1 b3GatherBodies  (in benchmark) + 496  [0x100a825a8]  contact_solver.c:1216
-          + !   : | 1 b3GatherBodies  (in benchmark) + 632  [0x100a82630]  contact_solver.c:1225
-          + !   : | 1 b3SolveContacts_Convex  (in benchmark) + 3240  [0x100a83ba8]  contact_solver.c:1661
-          + !   : | + 1 b3GatherBodies  (in benchmark) + 32  [0x100a823d8]  contact_solver.c:1208
-          + !   : | 1 b3SolveContacts_Convex  (in benchmark) + 3256  [0x100a83bb8]  contact_solver.c:1662
-          + !   : | + 1 b3GatherBodies  (in benchmark) + 32  [0x100a823d8]  contact_solver.c:1208
-          + !   : | 1 b3SolveContacts_Convex  (in benchmark) + 4908  [0x100a8422c]  contact_solver.c:1706
-          + !   : | 1 b3SolveContacts_Convex  (in benchmark) + 4952  [0x100a84258]  contact_solver.c:1708
-          + !   : 1 b3SolveContacts_Convex  (in benchmark) + 17848  [0x100a874b8]  contact_solver.c:1850
-          + !   781 b3SolverTask  (in benchmark) + 712  [0x100b0c218]  solver.c:1260
-          + !   : 781 b3ExecuteMainStage  (in benchmark) + 272  [0x100b0db14]  solver.c:1142
-          + !   :   103 b3WarmStartContacts_Convex  (in benchmark) + 780,808,...  [0x100a80dbc,0x100a80dd8,...]  contact_solver.c:1606
-          + !   :   70 b3WarmStartContacts_Convex  (in benchmark) + 2220,2068,...  [0x100a8135c,0x100a812c4,...]  contact_solver.c:1608
-          + !   :   65 b3MulAddMVW  (in benchmark) + 644,464,...  [0x100a82ca4,0x100a82bf0,...]  contact_solver.c:1095
-          + !   :   49 b3MulSubMVW  (in benchmark) + 740,712,...  [0x100a8294c,0x100a82930,...]  contact_solver.c:1086
-          + !   :   48 b3MulSubMVW  (in benchmark) + 600,476,...  [0x100a828c0,0x100a82844,...]  contact_solver.c:1085
-          + !   :   46 b3MulAddMVW  (in benchmark) + 332,188,...  [0x100a82b6c,0x100a82adc,...]  contact_solver.c:1094
-          + !   :   44 b3MulSubMVW  (in benchmark) + 104,284,...  [0x100a826d0,0x100a82784,...]  contact_solver.c:1084
-          + !   :   44 b3WarmStartContacts_Convex  (in benchmark) + 2480,2576,...  [0x100a81460,0x100a814c0,...]  contact_solver.c:1609
-          + !   :   38 b3MulAddMVW  (in benchmark) + 944,712,...  [0x100a82dd0,0x100a82ce8,...]  contact_solver.c:1096
-          + !   :   36 b3WarmStartContacts_Convex  (in benchmark) + 1548,1696,...  [0x100a810bc,0x100a81150,...]  contact_solver.c:1607
-          + !   :   17 b3WarmStartContacts_Convex  (in benchmark) + 4648,4736,...  [0x100a81cd8,0x100a81d30,...]  contact_solver.c:1621
-          + !   :   16 b3WarmStartContacts_Convex  (in benchmark) + 5440,5492,...  [0x100a81ff0,0x100a82024,...]  contact_solver.c:1622
-          + !   :   15 b3WarmStartContacts_Convex  (in benchmark) + 3448,3464,...  [0x100a81828,0x100a81838,...]  contact_solver.c:1617
-          + !   :   13 b3MulSubMVW  (in benchmark) + 940,928,...  [0x100a82a14,0x100a82a08,...]  contact_solver.c:1083
-          + !   :   12 b3WarmStartContacts_Convex  (in benchmark) + 864,876,...  [0x100a80e10,0x100a80e1c,...]  contact_solver.c:0
-          + !   :   12 b3WarmStartContacts_Convex  (in benchmark) + 4476,4280,...  [0x100a81c2c,0x100a81b68,...]  contact_solver.c:1620
-          + !   :   11 b3MulAddMVW  (in benchmark) + 992,988  [0x100a82e00,0x100a82dfc]  contact_solver.c:1093
-          + !   :   11 b3WarmStartContacts_Convex  (in benchmark) + 3652,3876,...  [0x100a818f4,0x100a819d4,...]  contact_solver.c:1619
-          + !   :   11 b3WarmStartContacts_Convex  (in benchmark) + 6336  [0x100a82370]  contact_solver.c:1639
-          + !   :   | 3 b3ScatterBodies  (in benchmark) + 120  [0x100a82e84]  contact_solver.c:1258
-          + !   :   | 2 b3ScatterBodies  (in benchmark) + 136  [0x100a82e94]  contact_solver.c:1259
-          + !   :   | 1 b3ScatterBodies  (in benchmark) + 0  [0x100a82e0c]  contact_solver.c:1234
-          + !   :   | 1 b3ScatterBodies  (in benchmark) + 56  [0x100a82e44]  contact_solver.c:1242
-          + !   :   | 1 b3ScatterBodies  (in benchmark) + 76  [0x100a82e58]  contact_solver.c:1247
-          + !   :   | 1 b3ScatterBodies  (in benchmark) + 104  [0x100a82e74]  contact_solver.c:1252
-          + !   :   | 1 b3ScatterBodies  (in benchmark) + 116  [0x100a82e80]  contact_solver.c:1254
-          + !   :   | 1 b3ScatterBodies  (in benchmark) + 176  [0x100a82ebc]  contact_solver.c:1266
-          + !   :   9 b3WarmStartContacts_Convex  (in benchmark) + 1316  [0x100a80fd4]  contact_solver.c:1606
-          + !   :   | 9 b3MulSubMVW  (in benchmark) + 0,4,...  [0x100a82668,0x100a8266c,...]  contact_solver.c:1082
-          + !   :   9 b3WarmStartContacts_Convex  (in benchmark) + 5752,5824,...  [0x100a82128,0x100a82170,...]  contact_solver.c:1627
-          + !   :   8 b3MulSubMVW  (in benchmark) + 644,96  [0x100a828ec,0x100a826c8]  contact_solver.c:0
-          + !   :   6 b3GatherBodies  (in benchmark) + 132,196  [0x100a8243c,0x100a8247c]  contact_solver.c:1209
-          + !   :   6 b3GatherBodies  (in benchmark) + 244  [0x100a824ac]  contact_solver.c:1210
-          + !   :   6 b3WarmStartContacts_Convex  (in benchmark) + 828,860,...  [0x100a80dec,0x100a80e0c,...]  contact_solver.c:1599
-          + !   :   5 b3MulAddMVW  (in benchmark) + 684,100  [0x100a82ccc,0x100a82a84]  contact_solver.c:0
-          + !   :   5 b3WarmStartContacts_Convex  (in benchmark) + 2332  [0x100a813cc]  contact_solver.c:1608
-          + !   :   | 5 b3MulAddMVW  (in benchmark) + 4,12,...  [0x100a82a24,0x100a82a2c,...]  contact_solver.c:1092
-          + !   :   5 b3WarmStartContacts_Convex  (in benchmark) + 2872,2972,...  [0x100a815e8,0x100a8164c,...]  contact_solver.c:1616
-          + !   :   4 b3GatherBodies  (in benchmark) + 72,128,...  [0x100a82400,0x100a82438,...]  contact_solver.c:0
-          + !   :   4 b3GatherBodies  (in benchmark) + 676,660  [0x100a8265c,0x100a8264c]  contact_solver.c:1229
-          + !   :   4 b3WarmStartContacts_Convex  (in benchmark) + 144  [0x100a80b40]  contact_solver.c:1591
-          + !   :   | 4 b3GatherBodies  (in benchmark) + 28  [0x100a823d4]  contact_solver.c:1208
-          + !   :   4 b3WarmStartContacts_Convex  (in benchmark) + 816,156,...  [0x100a80de0,0x100a80b4c,...]  contact_solver.c:1598
-          + !   :   4 b3WarmStartContacts_Convex  (in benchmark) + 236,260  [0x100a80b9c,0x100a80bb4]  contact_solver.c:1603
-          + !   :   3 b3GatherBodies  (in benchmark) + 288,324  [0x100a824d8,0x100a824fc]  contact_solver.c:1211
-          + !   :   3 b3GatherBodies  (in benchmark) + 616,624,...  [0x100a82620,0x100a82628,...]  contact_solver.c:1224
-          + !   :   3 b3WarmStartContacts_Convex  (in benchmark) + 720,888  [0x100a80d80,0x100a80e28]  contact_solver.c:1602
-          + !   :   3 b3WarmStartContacts_Convex  (in benchmark) + 6352  [0x100a82380]  contact_solver.c:1640
-          + !   :   | 1 b3ScatterBodies  (in benchmark) + 0  [0x100a82e0c]  contact_solver.c:1234
-          + !   :   | 1 b3ScatterBodies  (in benchmark) + 120  [0x100a82e84]  contact_solver.c:1258
-          + !   :   | 1 b3ScatterBodies  (in benchmark) + 136  [0x100a82e94]  contact_solver.c:1259
-          + !   :   2 b3GatherBodies  (in benchmark) + 504,516  [0x100a825b0,0x100a825bc]  contact_solver.c:1217
-          + !   :   2 b3GatherBodies  (in benchmark) + 568,580  [0x100a825f0,0x100a825fc]  contact_solver.c:1221
-          + !   :   2 b3GatherBodies  (in benchmark) + 588,592  [0x100a82604,0x100a82608]  contact_solver.c:1222
-          + !   :   2 b3GatherBodies  (in benchmark) + 636  [0x100a82634]  contact_solver.c:1225
-          + !   :   2 b3WarmStartContacts_Convex  (in benchmark) + 3396,3404  [0x100a817f4,0x100a817fc]  contact_solver.c:1614
-          + !   :   2 b3WarmStartContacts_Convex  (in benchmark) + 3692  [0x100a8191c]  contact_solver.c:1615
-          + !   :   2 b3WarmStartContacts_Convex  (in benchmark) + 5164  [0x100a81edc]  contact_solver.c:1621
-          + !   :   | 2 b3MulAddMVW  (in benchmark) + 0,8  [0x100a82a20,0x100a82a28]  contact_solver.c:1092
-          + !   :   2 b3WarmStartContacts_Convex  (in benchmark) + 6000  [0x100a82220]  contact_solver.c:1628
-          + !   :   2 b3WarmStartContacts_Convex  (in benchmark) + 6220  [0x100a822fc]  contact_solver.c:1635
-          + !   :   1 b3GatherBodies  (in benchmark) + 476  [0x100a82594]  contact_solver.c:1215
-          + !   :   1 b3GatherBodies  (in benchmark) + 500  [0x100a825ac]  contact_solver.c:1216
-          + !   :   1 b3GatherBodies  (in benchmark) + 532  [0x100a825cc]  contact_solver.c:1218
-          + !   :   1 b3GatherBodies  (in benchmark) + 540  [0x100a825d4]  contact_solver.c:1219
-          + !   :   1 b3GatherBodies  (in benchmark) + 564  [0x100a825ec]  contact_solver.c:1220
-          + !   :   1 b3GatherBodies  (in benchmark) + 608  [0x100a82618]  contact_solver.c:1223
-          + !   :   1 b3GatherBodies  (in benchmark) + 652  [0x100a82644]  contact_solver.c:1226
-          + !   :   1 b3WarmStartContacts_Convex  (in benchmark) + 124  [0x100a80b2c]  contact_solver.c:1590
-          + !   :   | 1 b3GatherBodies  (in benchmark) + 28  [0x100a823d4]  contact_solver.c:1208
-          + !   :   1 b3WarmStartContacts_Convex  (in benchmark) + 276  [0x100a80bc4]  contact_solver.c:1604
-          + !   :   1 b3WarmStartContacts_Convex  (in benchmark) + 6256  [0x100a82320]  contact_solver.c:1636
-          + !   :   | 1 b3MulAddMVW  (in benchmark) + 24  [0x100a82a38]  contact_solver.c:1092
-          + !   :   1 b3WarmStartContacts_Convex  (in benchmark) + 6300  [0x100a8234c]  contact_solver.c:1636
-          + !   521 b3SolverTask  (in benchmark) + 440  [0x100b0c108]  solver.c:1217
-          + !   : 521 b3ExecuteMainStage  (in benchmark) + 272  [0x100b0db14]  solver.c:1142
-          + !   :   112 b3PrepareContacts_Convex  (in benchmark) + 3452,3380,...  [0x100a7fbdc,0x100a7fb94,...]  contact_solver.c:1480
-          + !   :   37 b3PrepareContacts_Convex  (in benchmark) + 2652,2700,...  [0x100a7f8bc,0x100a7f8ec,...]  contact_solver.c:1478
-          + !   :   33 b3PrepareContacts_Convex  (in benchmark) + 2604,2584  [0x100a7f88c,0x100a7f878]  contact_solver.c:1475
-          + !   :   28 b3PrepareContacts_Convex  (in benchmark) + 2736,2772,...  [0x100a7f910,0x100a7f934,...]  contact_solver.c:1479
-          + !   :   27 b3PrepareContacts_Convex  (in benchmark) + 2436,2376,...  [0x100a7f7e4,0x100a7f7a8,...]  contact_solver.c:1486
-          + !   :   26 b3PrepareContacts_Convex  (in benchmark) + 2248,2224,...  [0x100a7f728,0x100a7f710,...]  contact_solver.c:1485
-          + !   :   21 b3PrepareContacts_Convex  (in benchmark) + 2156,2072,...  [0x100a7f6cc,0x100a7f678,...]  contact_solver.c:1484
-          + !   :   18 b3PrepareContacts_Convex  (in benchmark) + 1376,1380  [0x100a7f3c0,0x100a7f3c4]  contact_solver.c:1419
-          + !   :   18 b3PrepareContacts_Convex  (in benchmark) + 6620,6692,...  [0x100a8083c,0x100a80884,...]  contact_solver.c:1531
-          + !   :   16 b3PrepareContacts_Convex  (in benchmark) + 5596,5464,...  [0x100a8043c,0x100a803b8,...]  contact_solver.c:1516
-          + !   :   15 b3PrepareContacts_Convex  (in benchmark) + 1452  [0x100a7f40c]  contact_solver.c:1429
-          + !   :   | 8 b3Perp  (in benchmark) + 48,64  [0x100a7ae14,0x100a7ae24]  math_functions.h:0
-          + !   :   | 5 b3Perp  (in benchmark) + 152,116,...  [0x100a7ae7c,0x100a7ae58,...]  math_functions.h:323
-          + !   :   | 2 b3Perp  (in benchmark) + 20  [0x100a7adf8]  math_functions.h:314
-          + !   :   15 b3PrepareContacts_Convex  (in benchmark) + 3500  [0x100a7fc0c]  contact_solver.c:1476
-          + !   :   15 b3PrepareContacts_Convex  (in benchmark) + 3864,3892,...  [0x100a7fd78,0x100a7fd94,...]  contact_solver.c:1504
-          + !   :   13 b3PrepareContacts_Convex  (in benchmark) + 1064,1924,...  [0x100a7f288,0x100a7f5e4,...]  contact_solver.c:0
-          + !   :   12 __divti3  (in libcompiler_rt.dylib) + 64  [0x191f94980]
-          + !   :   | 12 __udivmodti4  (in libcompiler_rt.dylib) + 236,0,...  [0x191f94814,0x191f94728,...]
-          + !   :   10 b3PrepareContacts_Convex  (in benchmark) + 1344,1340,...  [0x100a7f3a0,0x100a7f39c,...]  contact_solver.c:1422
-          + !   :   10 b3PrepareContacts_Convex  (in benchmark) + 1408,1404  [0x100a7f3e0,0x100a7f3dc]  contact_solver.c:1426
-          + !   :   10 b3PrepareContacts_Convex  (in benchmark) + 4844,5100,...  [0x100a8014c,0x100a8024c,...]  contact_solver.c:1515
-          + !   :   7 b3PrepareContacts_Convex  (in benchmark) + 4312,4360,...  [0x100a7ff38,0x100a7ff68,...]  contact_solver.c:1508
-          + !   :   7 b3PrepareContacts_Convex  (in benchmark) + 4632,4528,...  [0x100a80078,0x100a80010,...]  contact_solver.c:1511
-          + !   :   5 b3PrepareContacts_Convex  (in benchmark) + 1280  [0x100a7f360]  contact_solver.c:1412
-          + !   :   5 b3PrepareContacts_Convex  (in benchmark) + 1700,1724,...  [0x100a7f504,0x100a7f51c,...]  contact_solver.c:1443
-          + !   :   5 b3PrepareContacts_Convex  (in benchmark) + 4384,4408,...  [0x100a7ff80,0x100a7ff98,...]  contact_solver.c:1510
-          + !   :   4 __divti3  (in libcompiler_rt.dylib) + 84  [0x191f94994]
-          + !   :   4 b3PrepareContacts_Convex  (in benchmark) + 1436,1432  [0x100a7f3fc,0x100a7f3f8]  contact_solver.c:1429
-          + !   :   4 b3PrepareContacts_Convex  (in benchmark) + 4160,4200,...  [0x100a7fea0,0x100a7fec8,...]  contact_solver.c:1507
-          + !   :   4 b3PrepareContacts_Convex  (in benchmark) + 7036  [0x100a809dc]  contact_solver.c:1544
-          + !   :   3 b3PrepareContacts_Convex  (in benchmark) + 1400  [0x100a7f3d8]  contact_solver.c:1425
-          + !   :   3 b3PrepareContacts_Convex  (in benchmark) + 2460  [0x100a7f7fc]  contact_solver.c:1459
-          + !   :   3 b3PrepareContacts_Convex  (in benchmark) + 2024,1988  [0x100a7f648,0x100a7f624]  contact_solver.c:1481
-          + !   :   3 b3PrepareContacts_Convex  (in benchmark) + 5936,6008  [0x100a80590,0x100a805d8]  contact_solver.c:1517
-          + !   :   2 b3PrepareContacts_Convex  (in benchmark) + 1312  [0x100a7f380]  contact_solver.c:1416
-          + !   :   2 b3PrepareContacts_Convex  (in benchmark) + 1764  [0x100a7f544]  contact_solver.c:1444
-          + !   :   2 b3PrepareContacts_Convex  (in benchmark) + 3724  [0x100a7fcec]  contact_solver.c:1494
-          + !   :   2 b3PrepareContacts_Convex  (in benchmark) + 6340,6348  [0x100a80724,0x100a8072c]  contact_solver.c:1525
-          + !   :   1 b3PrepareContacts_Convex  (in benchmark) + 772  [0x100a7f164]  contact_solver.c:1338
-          + !   :   1 b3PrepareContacts_Convex  (in benchmark) + 796  [0x100a7f17c]  contact_solver.c:1354
-          + !   :   1 b3PrepareContacts_Convex  (in benchmark) + 1060  [0x100a7f284]  contact_solver.c:1374
-          + !   :   1 b3PrepareContacts_Convex  (in benchmark) + 972  [0x100a7f22c]  contact_solver.c:1402
-          + !   :   1 b3PrepareContacts_Convex  (in benchmark) + 1212  [0x100a7f31c]  contact_solver.c:1406
-          + !   :   1 b3PrepareContacts_Convex  (in benchmark) + 1248  [0x100a7f340]  contact_solver.c:1410
-          + !   :   1 b3PrepareContacts_Convex  (in benchmark) + 1300  [0x100a7f374]  contact_solver.c:1415
-          + !   :   1 b3PrepareContacts_Convex  (in benchmark) + 1316  [0x100a7f384]  contact_solver.c:1417
-          + !   :   1 b3PrepareContacts_Convex  (in benchmark) + 1612  [0x100a7f4ac]  contact_solver.c:1435
-          + !   :   1 b3PrepareContacts_Convex  (in benchmark) + 1892  [0x100a7f5c4]  contact_solver.c:1448
-          + !   :   1 b3PrepareContacts_Convex  (in benchmark) + 1896  [0x100a7f5c8]  contact_solver.c:1450
-          + !   :   1 b3PrepareContacts_Convex  (in benchmark) + 2516  [0x100a7f834]  contact_solver.c:1469
-          + !   :   1 b3PrepareContacts_Convex  (in benchmark) + 2552  [0x100a7f858]  contact_solver.c:1472
-          + !   :   1 b3PrepareContacts_Convex  (in benchmark) + 3688  [0x100a7fcc8]  contact_solver.c:1491
-          + !   :   1 b3PrepareContacts_Convex  (in benchmark) + 6164  [0x100a80674]  contact_solver.c:1518
-          + !   :   | 1 DYLD-STUB$$__divti3  (in benchmark) + 4  [0x100b32a4c]
-          + !   :   1 b3PrepareContacts_Convex  (in benchmark) + 6084  [0x100a80624]  contact_solver.c:1518
-          + !   :   1 b3PrepareContacts_Convex  (in benchmark) + 6368  [0x100a80740]  contact_solver.c:1524
-          + !   :   1 b3PrepareContacts_Convex  (in benchmark) + 6400  [0x100a80760]  contact_solver.c:1527
-          + !   :   1 b3PrepareContacts_Convex  (in benchmark) + 7104  [0x100a80a20]  contact_solver.c:1549
-          + !   :   1 b3PrepareContacts_Convex  (in benchmark) + 7128  [0x100a80a38]  contact_solver.c:1550
-          + !   234 b3SolverTask  (in benchmark) + 636  [0x100b0c1cc]  solver.c:1246
-          + !   : 234 b3ExecuteMainStage  (in benchmark) + 272  [0x100b0db14]  solver.c:1142
-          + !   :   156 b3ExecuteBlock  (in benchmark) + 1892,3324,...  [0x100b0e2d4,0x100b0e86c,...]  solver.c:988
-          + !   :   67 b3ExecuteBlock  (in benchmark) + 2416  [0x100b0e4e0]  solver.c:988
-          + !   :   | 36 __divti3  (in libcompiler_rt.dylib) + 64  [0x191f94980]
-          + !   :   | + 36 __udivmodti4  (in libcompiler_rt.dylib) + 0,164,...  [0x191f94728,0x191f947cc,...]
-          + !   :   | 5 b3InvertMatrix  (in benchmark) + 52,80  [0x100a7a9e0,0x100a7a9fc]  math_functions.h:869
-          + !   :   | 4 __divti3  (in libcompiler_rt.dylib) + 84  [0x191f94994]
-          + !   :   | 4 b3InvertMatrix  (in benchmark) + 264  [0x100a7aab4]  math_functions.h:876
-          + !   :   | 4 b3InvertMatrix  (in benchmark) + 320,324  [0x100a7aaec,0x100a7aaf0]  math_functions.h:879
-          + !   :   | 3 b3InvertMatrix  (in benchmark) + 408  [0x100a7ab44]  math_functions.h:882
-          + !   :   | 2 b3InvertMatrix  (in benchmark) + 156,176  [0x100a7aa48,0x100a7aa5c]  math_functions.h:872
-          + !   :   | 2 b3InvertMatrix  (in benchmark) + 500  [0x100a7aba0]  math_functions.h:887
-          + !   :   | + 2 DYLD-STUB$$__divti3  (in benchmark) + 4  [0x100b32a4c]
-          + !   :   | 1 b3InvertMatrix  (in benchmark) + 104  [0x100a7aa14]  math_functions.h:870
-          + !   :   | 1 b3InvertMatrix  (in benchmark) + 524  [0x100a7abb8]  math_functions.h:888
-          + !   :   | + 1 DYLD-STUB$$__divti3  (in benchmark) + 4  [0x100b32a4c]
-          + !   :   | 1 b3InvertMatrix  (in benchmark) + 556  [0x100a7abd8]  math_functions.h:889
-          + !   :   | + 1 DYLD-STUB$$__divti3  (in benchmark) + 4  [0x100b32a4c]
-          + !   :   | 1 b3InvertMatrix  (in benchmark) + 584  [0x100a7abf4]  math_functions.h:889
-          + !   :   | + 1 DYLD-STUB$$__divti3  (in benchmark) + 4  [0x100b32a4c]
-          + !   :   | 1 b3InvertMatrix  (in benchmark) + 612  [0x100a7ac10]  math_functions.h:890
-          + !   :   | + 1 DYLD-STUB$$__divti3  (in benchmark) + 4  [0x100b32a4c]
-          + !   :   | 1 b3InvertMatrix  (in benchmark) + 644  [0x100a7ac30]  math_functions.h:891
-          + !   :   | + 1 DYLD-STUB$$__divti3  (in benchmark) + 4  [0x100b32a4c]
-          + !   :   | 1 b3InvertMatrix  (in benchmark) + 672  [0x100a7ac4c]  math_functions.h:891
-          + !   :   |   1 DYLD-STUB$$__divti3  (in benchmark) + 4  [0x100b32a4c]
-          + !   :   7 __divti3  (in libcompiler_rt.dylib) + 64  [0x191f94980]
-          + !   :   | 7 __udivmodti4  (in libcompiler_rt.dylib) + 0,20,...  [0x191f94728,0x191f9473c,...]
-          + !   :   1 __divti3  (in libcompiler_rt.dylib) + 84  [0x191f94994]
-          + !   :   1 b3ExecuteBlock  (in benchmark) + 4172  [0x100b0ebbc]  solver.c:988
-          + !   :   | 1 DYLD-STUB$$__divti3  (in benchmark) + 4  [0x100b32a4c]
-          + !   :   1 b3ExecuteBlock  (in benchmark) + 4232  [0x100b0ebf8]  solver.c:988
-          + !   :   | 1 DYLD-STUB$$__divti3  (in benchmark) + 4  [0x100b32a4c]
-          + !   :   1 b3InvertMatrix  (in benchmark) + 1068  [0x100a7add8]  math_functions.h:915
-          + !   88 b3SolverTask  (in benchmark) + 896  [0x100b0c2d0]  solver.c:1290
-          + !   : 88 b3ExecuteMainStage  (in benchmark) + 272  [0x100b0db14]  solver.c:1142
-          + !   :   59 b3ExecuteBlock  (in benchmark) + 5468,4984,...  [0x100b0f0cc,0x100b0eee8,...]  solver.c:1025
-          + !   :   23 __divti3  (in libcompiler_rt.dylib) + 64  [0x191f94980]
-          + !   :   | 23 __udivmodti4  (in libcompiler_rt.dylib) + 0,16,...  [0x191f94728,0x191f94738,...]
-          + !   :   2 __divti3  (in libcompiler_rt.dylib) + 36,84  [0x191f94964,0x191f94994]
-          + !   :   1 b3ExecuteBlock  (in benchmark) + 4736  [0x100b0edf0]  solver.c:1025
-          + !   :   | 1 DYLD-STUB$$__divti3  (in benchmark) + 4  [0x100b32a4c]
-          + !   :   1 b3ExecuteBlock  (in benchmark) + 4760  [0x100b0ee08]  solver.c:1025
-          + !   :   | 1 DYLD-STUB$$__divti3  (in benchmark) + 4  [0x100b32a4c]
-          + !   :   1 b3ExecuteBlock  (in benchmark) + 4784  [0x100b0ee20]  solver.c:1025
-          + !   :   | 1 DYLD-STUB$$__divti3  (in benchmark) + 4  [0x100b32a4c]
-          + !   :   1 b3ExecuteBlock  (in benchmark) + 4808  [0x100b0ee38]  solver.c:1025
-          + !   :     1 DYLD-STUB$$__divti3  (in benchmark) + 4  [0x100b32a4c]
-          + !   81 b3SolverTask  (in benchmark) + 1156  [0x100b0c3d4]  solver.c:1343
-          + !     21 b3StoreImpulses_Convex  (in benchmark) + 616,652  [0x100a89508,0x100a8952c]  contact_solver.c:1999
-          + !     18 b3StoreImpulses_Convex  (in benchmark) + 488,464,...  [0x100a89488,0x100a89470,...]  contact_solver.c:1988
-          + !     7 b3StoreImpulses_Convex  (in benchmark) + 604  [0x100a894fc]  contact_solver.c:1998
-          + !     6 b3StoreImpulses_Convex  (in benchmark) + 436,452,...  [0x100a89454,0x100a89464,...]  contact_solver.c:1987
-          + !     6 b3StoreImpulses_Convex  (in benchmark) + 564,516,...  [0x100a894d4,0x100a894a4,...]  contact_solver.c:1989
-          + !     6 b3StoreImpulses_Convex  (in benchmark) + 588  [0x100a894ec]  contact_solver.c:1994
-          + !     4 b3StoreImpulses_Convex  (in benchmark) + 568,572  [0x100a894d8,0x100a894dc]  contact_solver.c:1986
-          + !     3 b3StoreImpulses_Convex  (in benchmark) + 580,576  [0x100a894e4,0x100a894e0]  contact_solver.c:1991
-          + !     3 b3StoreImpulses_Convex  (in benchmark) + 636,640  [0x100a8951c,0x100a89520]  contact_solver.c:2008
-          + !     2 b3StoreImpulses_Convex  (in benchmark) + 600  [0x100a894f8]  contact_solver.c:1992
-          + !     2 b3StoreImpulses_Convex  (in benchmark) + 592  [0x100a894f0]  contact_solver.c:1995
-          + !     1 b3StoreImpulses_Convex  (in benchmark) + 584  [0x100a894e8]  contact_solver.c:1993
-          + !     1 b3StoreImpulses_Convex  (in benchmark) + 628  [0x100a89514]  contact_solver.c:2007
-          + !     1 b3StoreImpulses_Convex  (in benchmark) + 644  [0x100a89524]  contact_solver.c:2009
-          + 77 b3Solve  (in benchmark) + 3936  [0x100b0afbc]  solver.c:1889
-          + ! 77 b3ParallelFor  (in benchmark) + 172  [0x100ad11ac]  parallel_for.c:118
-          + !   77 b3DefaultAddTaskFcn  (in benchmark) + 20  [0x100ad4b50]  physics_world.c:140
-          + !     77 b3ParallelForTrampoline  (in benchmark) + 88  [0x100ad12e4]  parallel_for.c:60
-          + !       13 __divti3  (in libcompiler_rt.dylib) + 64  [0x191f94980]
-          + !       : 13 __udivmodti4  (in libcompiler_rt.dylib) + 0,4,...  [0x191f94728,0x191f9472c,...]
-          + !       12 b3FinalizeBodiesTask  (in benchmark) + 4908  [0x100b0d754]  solver.c:798
-          + !       : 5 b3MulMM  (in benchmark) + 32,56,...  [0x100a68acc,0x100a68ae4,...]  math_functions.h:846
-          + !       : 4 b3MulMM  (in benchmark) + 288,336,...  [0x100a68bcc,0x100a68bfc,...]  math_functions.h:847
-          + !       : 3 b3MulMM  (in benchmark) + 536,560,...  [0x100a68cc4,0x100a68cdc,...]  math_functions.h:848
-          + !       9 b3FinalizeBodiesTask  (in benchmark) + 4952  [0x100b0d780]  solver.c:798
-          + !       : 3 b3MulMM  (in benchmark) + 288,384  [0x100a68bcc,0x100a68c2c]  math_functions.h:847
-          + !       : 3 b3MulMM  (in benchmark) + 536,564,...  [0x100a68cc4,0x100a68ce0,...]  math_functions.h:848
-          + !       : 2 b3MulMM  (in benchmark) + 40,132  [0x100a68ad4,0x100a68b30]  math_functions.h:846
-          + !       : 1 b3MulMM  (in benchmark) + 684  [0x100a68d58]  math_functions.h:849
-          + !       9 b3FinalizeBodiesTask  (in benchmark) + 5344  [0x100b0d908]  solver.c:841
-          + !       : 9 b3ComputeFatShapeAABB  (in benchmark) + 60  [0x100affd70]  shape.c:608
-          + !       :   8 b3ComputeShapeAABB  (in benchmark) + 224  [0x100affca0]  shape.c:578
-          + !       :   | 3 b3AABB_Transform  (in benchmark) + 540,548,...  [0x100ab3040,0x100ab3048,...]  math_functions.h:1096
-          + !       :   | 3 b3AABB_Transform  (in benchmark) + 736,792,...  [0x100ab3104,0x100ab313c,...]  math_functions.h:1097
-          + !       :   | 2 b3AABB_Transform  (in benchmark) + 64,284  [0x100ab2e64,0x100ab2f40]  math_functions.h:1095
-          + !       :   1 b3ComputeShapeAABB  (in benchmark) + 360  [0x100affd28]  shape.c:593
-          + !       5 b3FinalizeBodiesTask  (in benchmark) + 1520,1396,...  [0x100b0ca18,0x100b0c99c,...]  solver.c:711
-          + !       4 b3FinalizeBodiesTask  (in benchmark) + 636,704,...  [0x100b0c6a4,0x100b0c6e8,...]  solver.c:699
-          + !       3 b3FinalizeBodiesTask  (in benchmark) + 2920,3704  [0x100b0cf90,0x100b0d2a0]  fixed.h:0
-          + !       3 b3FinalizeBodiesTask  (in benchmark) + 288,344,...  [0x100b0c548,0x100b0c580,...]  solver.c:698
-          + !       3 b3FinalizeBodiesTask  (in benchmark) + 3460,3144  [0x100b0d1ac,0x100b0d070]  solver.c:721
-          + !       2 __divti3  (in libcompiler_rt.dylib) + 36,84  [0x191f94964,0x191f94994]
-          + !       2 b3FinalizeBodiesTask  (in benchmark) + 2612,2624  [0x100b0ce5c,0x100b0ce68]  solver.c:715
-          + !       2 b3FinalizeBodiesTask  (in benchmark) + 3988,4172  [0x100b0d3bc,0x100b0d474]  solver.c:731
-          + !       2 b3FinalizeBodiesTask  (in benchmark) + 4372,4452  [0x100b0d53c,0x100b0d58c]  solver.c:764
-          + !       1 b3FinalizeBodiesTask  (in benchmark) + 980  [0x100b0c7fc]  solver.c:696
-          + !       1 b3FinalizeBodiesTask  (in benchmark) + 1012  [0x100b0c81c]  solver.c:701
-          + !       : 1 b3IsValidVec3  (in benchmark) + 0  [0x100abf050]  math_functions.c:22
-          + !       1 b3FinalizeBodiesTask  (in benchmark) + 2112  [0x100b0cc68]  solver.c:714
-          + !       1 b3FinalizeBodiesTask  (in benchmark) + 4344  [0x100b0d520]  solver.c:755
-          + !       1 b3FinalizeBodiesTask  (in benchmark) + 4732  [0x100b0d6a4]  solver.c:797
-          + !       1 b3FinalizeBodiesTask  (in benchmark) + 4884  [0x100b0d73c]  solver.c:798
-          + !       1 b3FinalizeBodiesTask  (in benchmark) + 5288  [0x100b0d8d0]  solver.c:828
-          + !       1 b3FinalizeBodiesTask  (in benchmark) + 5384  [0x100b0d930]  solver.c:846
-          + 4 b3Solve  (in benchmark) + 5988  [0x100b0b7c0]  solver.c:2150
-          +   4 b3BroadPhase_EnlargeProxy  (in benchmark) + 76  [0x100a6e518]  broad_phase.c:126
-          +     2 b3DynamicTree_EnlargeProxy  (in benchmark) + 136,168  [0x100aa6968,0x100aa6988]  dynamic_tree.c:826
-          +     2 b3DynamicTree_EnlargeProxy  (in benchmark) + 256  [0x100aa69e0]  dynamic_tree.c:848
-          368 b3World_Step  (in benchmark) + 2340  [0x100ad5d54]  physics_world.c:1128
-          + 368 b3ParallelFor  (in benchmark) + 172  [0x100ad11ac]  parallel_for.c:118
-          +   368 b3DefaultAddTaskFcn  (in benchmark) + 20  [0x100ad4b50]  physics_world.c:140
-          +     368 b3ParallelForTrampoline  (in benchmark) + 88  [0x100ad12e4]  parallel_for.c:60
-          +       91 b3CollideTask  (in benchmark) + 1124  [0x100adcb14]  physics_world.c:661
-          +       ! 58 b3InvMulWorldTransforms  (in benchmark) + 256,280,...  [0x100addc74,0x100addc8c,...]  math_functions.h:723
-          +       ! 26 b3InvMulWorldTransforms  (in benchmark) + 528,440,...  [0x100addd84,0x100addd2c,...]  math_functions.h:725
-          +       ! 4 b3InvMulWorldTransforms  (in benchmark) + 412,416  [0x100addd10,0x100addd14]  math_functions.h:724
-          +       ! 2 b3InvMulWorldTransforms  (in benchmark) + 796  [0x100adde90]  math_functions.h:727
-          +       ! 1 b3InvMulWorldTransforms  (in benchmark) + 0  [0x100addb74]  math_functions.h:721
-          +       56 b3CollideTask  (in benchmark) + 4232,3772,...  [0x100add738,0x100add56c,...]  physics_world.c:709
-          +       48 b3CollideTask  (in benchmark) + 3996,3940,...  [0x100add64c,0x100add614,...]  physics_world.c:710
-          +       29 b3CollideTask  (in benchmark) + 4304,4284,...  [0x100add780,0x100add76c,...]  physics_world.c:712
-          +       27 b3CollideTask  (in benchmark) + 2584,2356,...  [0x100add0c8,0x100adcfe4,...]  physics_world.c:691
-          +       26 b3CollideTask  (in benchmark) + 2704,2548,...  [0x100add140,0x100add0a4,...]  physics_world.c:693
-          +       21 b3CollideTask  (in benchmark) + 4272,4252,...  [0x100add760,0x100add74c,...]  physics_world.c:711
-          +       14 b3CollideTask  (in benchmark) + 3252,2884,...  [0x100add364,0x100add1f4,...]  physics_world.c:690
-          +       8 b3CollideTask  (in benchmark) + 1788,1648,...  [0x100adcdac,0x100adcd20,...]  physics_world.c:684
-          +       7 b3CollideTask  (in benchmark) + 4156,4208,...  [0x100add6ec,0x100add720,...]  physics_world.c:696
-          +       6 b3CollideTask  (in benchmark) + 3500,3136,...  [0x100add45c,0x100add2f0,...]  physics_world.c:692
-          +       5 b3CollideTask  (in benchmark) + 632  [0x100adc928]  physics_world.c:642
-          +       5 b3CollideTask  (in benchmark) + 4372  [0x100add7c4]  physics_world.c:713
-          +       4 b3CollideTask  (in benchmark) + 1896,2004  [0x100adce18,0x100adce84]  physics_world.c:685
-          +       3 b3CollideTask  (in benchmark) + 504,708,...  [0x100adc8a8,0x100adc974,...]  physics_world.c:0
-          +       3 b3CollideTask  (in benchmark) + 980,940  [0x100adca84,0x100adca5c]  physics_world.c:658
-          +       3 b3CollideTask  (in benchmark) + 1360,1392,...  [0x100adcc00,0x100adcc20,...]  physics_world.c:674
-          +       2 b3CollideTask  (in benchmark) + 432  [0x100adc860]  physics_world.c:598
-          +       2 b3CollideTask  (in benchmark) + 1056,1072  [0x100adcad0,0x100adcae0]  physics_world.c:661
-          +       2 b3CollideTask  (in benchmark) + 1228,1284  [0x100adcb7c,0x100adcbb4]  physics_world.c:670
-          +       1 b3CollideTask  (in benchmark) + 1172  [0x100adcb44]  physics_world.c:664
-          +       1 b3CollideTask  (in benchmark) + 1200  [0x100adcb60]  physics_world.c:665
-          +       1 b3CollideTask  (in benchmark) + 1332  [0x100adcbe4]  physics_world.c:672
-          +       1 b3CollideTask  (in benchmark) + 3588  [0x100add4b4]  physics_world.c:699
-          +       1 b3CollideTask  (in benchmark) + 3632  [0x100add4e0]  physics_world.c:702
-          +       1 b3CollideTask  (in benchmark) + 3616  [0x100add4d0]  physics_world.c:704
-          21 b3World_Step  (in benchmark) + 520  [0x100ad5638]  physics_world.c:1088
-          + 17 b3UpdateBroadPhasePairs  (in benchmark) + 128  [0x100a6e654]  broad_phase.c:426
-          + ! 17 b3ParallelFor  (in benchmark) + 172  [0x100ad11ac]  parallel_for.c:118
-          + !   17 b3DefaultAddTaskFcn  (in benchmark) + 20  [0x100ad4b50]  physics_world.c:140
-          + !     17 b3ParallelForTrampoline  (in benchmark) + 88  [0x100ad12e4]  parallel_for.c:60
-          + !       16 b3FindPairsTask  (in benchmark) + 164  [0x100a6eaa0]  broad_phase.c:380
-          + !       : 7 b3DynamicTree_Query  (in benchmark) + 152  [0x100aa6d28]  dynamic_tree.c:0
-          + !       : 6 b3DynamicTree_Query  (in benchmark) + 144  [0x100aa6d20]  dynamic_tree.c:1128
-          + !       : | 2 b3PairQueryCallback  (in benchmark) + 1888  [0x100a6f404]  broad_phase.c:244
-          + !       : | + 1 b3ContainsKey  (in benchmark) + 132  [0x100b1ad04]  table.c:0
-          + !       : | + 1 b3ContainsKey  (in benchmark) + 116  [0x100b1acf4]  table.c:138
-          + !       : | 2 b3PairQueryCallback  (in benchmark) + 1952  [0x100a6f444]  broad_phase.c:324
-          + !       : | 1 b3PairQueryCallback  (in benchmark) + 1988  [0x100a6f468]  broad_phase.c:0
-          + !       : | 1 b3PairQueryCallback  (in benchmark) + 1888  [0x100a6f404]  broad_phase.c:244
-          + !       : 3 b3DynamicTree_Query  (in benchmark) + 292  [0x100aa6db4]  dynamic_tree.c:1123
-          + !       1 b3FindPairsTask  (in benchmark) + 320  [0x100a6eb3c]  broad_phase.c:369
-          + !         1 b3DynamicTree_Query  (in benchmark) + 356  [0x100aa6df4]  dynamic_tree.c:0
-          + 4 b3UpdateBroadPhasePairs  (in benchmark) + 172  [0x100a6e680]  broad_phase.c:434
-          +   4 b3DefaultAddTaskFcn  (in benchmark) + 20  [0x100ad4b50]  physics_world.c:140
-          +     4 b3UpdateTreesTask  (in benchmark) + 28  [0x100a6ebac]  broad_phase.c:392
-          +       3 b3DynamicTree_Rebuild  (in benchmark) + 676  [0x100aa8138]  dynamic_tree.c:2077
-          +       : 1 b3PartitionMid  (in benchmark) + 464  [0x100aa87a4]  dynamic_tree.c:1490
-          +       : 1 b3PartitionMid  (in benchmark) + 756  [0x100aa88c8]  dynamic_tree.c:1511
-          +       : 1 b3PartitionMid  (in benchmark) + 652  [0x100aa8860]  dynamic_tree.c:1529
-          +       1 b3DynamicTree_Rebuild  (in benchmark) + 788  [0x100aa81a8]  dynamic_tree.c:2077
-          1 b3World_Step  (in benchmark) + 1776  [0x100ad5b20]  physics_world.c:1128
+    6738 Thread_9086915   DispatchQueue_1: com.apple.main-thread  (serial)
+      6738 start  (in dyld) + 6992  [0x181da7e00]
+        6692 main  (in benchmark) + 1872  [0x100ded1b8]  main.c:362
+        + 5980 b3World_Step  (in benchmark) + 3560  [0x100e5d690]  physics_world.c:1136
+        + ! 5809 b3Solve  (in benchmark) + 3576  [0x100e922cc]  solver.c:1832
+        + ! : 5809 b3DefaultAddTaskFcn  (in benchmark) + 20  [0x100e5bfc8]  physics_world.c:140
+        + ! :   1833 b3SolverTask  (in benchmark) + 992  [0x100e937a8]  solver.c:1307
+        + ! :   | 1833 b3ExecuteMainStage  (in benchmark) + 272  [0x100e94f8c]  solver.c:1142
+        + ! :   |   131 b3MulMV3W  (in benchmark) + 684,604,...  [0x100e0f4fc,0x100e0f4ac,...]  contact_solver.c:1179
+        + ! :   |   119 b3MulMV3W  (in benchmark) + 496,332,...  [0x100e0f440,0x100e0f39c,...]  contact_solver.c:1178
+        + ! :   |   91 b3SolveContacts_Convex  (in benchmark) + 6992,6800,...  [0x100e0cd74,0x100e0ccb4,...]  contact_solver.c:1860
+        + ! :   |   86 b3SolveContacts_Convex  (in benchmark) + 6212,6092,...  [0x100e0ca68,0x100e0c9f0,...]  contact_solver.c:1858
+        + ! :   |   70 b3SolveContacts_Convex  (in benchmark) + 7436,7532,...  [0x100e0cf30,0x100e0cf90,...]  contact_solver.c:1861
+        + ! :   |   66 b3SolveContacts_Convex  (in benchmark) + 6500,6404,...  [0x100e0cb88,0x100e0cb28,...]  contact_solver.c:1859
+        + ! :   |   61 b3SolveContacts_Convex  (in benchmark) + 628,652,...  [0x100e0b498,0x100e0b4b0,...]  contact_solver.c:1958
+        + ! :   |   57 b3MulMV3W  (in benchmark) + 256,108,...  [0x100e0f350,0x100e0f2bc,...]  contact_solver.c:1177
+        + ! :   |   56 b3MakeMatrixFromQuatW  (in benchmark) + 260,636,...  [0x100e0ec08,0x100e0ed80,...]  contact_solver.c:1167
+        + ! :   |   50 b3MakeMatrixFromQuatW  (in benchmark) + 1164,1616,...  [0x100e0ef90,0x100e0f154,...]  contact_solver.c:1168
+        + ! :   |   44 b3SolveContacts_Convex  (in benchmark) + 4412,4060,...  [0x100e0c360,0x100e0c200,...]  contact_solver.c:0
+        + ! :   |   38 b3SolveContacts_Convex  (in benchmark) + 5336,5400,...  [0x100e0c6fc,0x100e0c73c,...]  contact_solver.c:1845
+        + ! :   |   38 b3SolveContacts_Convex  (in benchmark) + 1424,1600,...  [0x100e0b7b4,0x100e0b864,...]  contact_solver.c:1959
+        + ! :   |   35 b3MakeMatrixFromQuatW  (in benchmark) + 1528,1548,...  [0x100e0f0fc,0x100e0f110,...]  contact_solver.c:1169
+        + ! :   |   34 b3SolveContacts_Convex  (in benchmark) + 1988,2036,...  [0x100e0b9e8,0x100e0ba18,...]  contact_solver.c:1960
+        + ! :   |   32 b3MulMV3W  (in benchmark) + 788,784,...  [0x100e0f564,0x100e0f560,...]  contact_solver.c:1176
+        + ! :   |   31 b3SolveContacts_Convex  (in benchmark) + 4296,4372,...  [0x100e0c2ec,0x100e0c338,...]  contact_solver.c:1828
+        + ! :   |   31 b3SolveContacts_Convex  (in benchmark) + 4612,4716,...  [0x100e0c428,0x100e0c490,...]  contact_solver.c:1829
+        + ! :   |   29 b3SolveContacts_Convex  (in benchmark) + 5568,5488,...  [0x100e0c7e4,0x100e0c794,...]  contact_solver.c:1846
+        + ! :   |   28 b3SolveContacts_Convex  (in benchmark) + 12240,11936,...  [0x100e0e1f4,0x100e0e0c4,...]  contact_solver.c:1911
+        + ! :   |   25 b3RelVelocityW  (in benchmark) + 88,244,...  [0x100e0f5c4,0x100e0f660,...]  contact_solver.c:1005
+        + ! :   |   25 b3SolveContacts_Convex  (in benchmark) + 4984,4960,...  [0x100e0c59c,0x100e0c584,...]  contact_solver.c:1834
+        + ! :   |   24 b3RelVelocityW  (in benchmark) + 768,824,...  [0x100e0f86c,0x100e0f8a4,...]  contact_solver.c:1014
+        + ! :   |   22 b3RelVelocityW  (in benchmark) + 496,532,...  [0x100e0f75c,0x100e0f780,...]  contact_solver.c:1011
+        + ! :   |   22 b3RelVelocityW  (in benchmark) + 720,552,...  [0x100e0f83c,0x100e0f794,...]  contact_solver.c:1012
+        + ! :   |   21 b3SolveContacts_Convex  (in benchmark) + 11792,11580,...  [0x100e0e034,0x100e0df60,...]  contact_solver.c:1910
+        + ! :   |   19 b3RelVelocityW  (in benchmark) + 924,912,...  [0x100e0f908,0x100e0f8fc,...]  contact_solver.c:1004
+        + ! :   |   19 b3SolveContacts_Convex  (in benchmark) + 4844,4868,...  [0x100e0c510,0x100e0c528,...]  contact_solver.c:1833
+        + ! :   |   18 b3MulSubMVW  (in benchmark) + 600,536,...  [0x100e0abe4,0x100e0aba4,...]  contact_solver.c:1095
+        + ! :   |   18 b3MulSubMVW  (in benchmark) + 712,780,...  [0x100e0ac54,0x100e0ac98,...]  contact_solver.c:1096
+        + ! :   |   17 b3MulAddMVW  (in benchmark) + 560,652,...  [0x100e0af74,0x100e0afd0,...]  contact_solver.c:1105
+        + ! :   |   16 b3RelVelocityW  (in benchmark) + 328,424,...  [0x100e0f6b4,0x100e0f714,...]  contact_solver.c:1008
+        + ! :   |   16 b3SolveContacts_Convex  (in benchmark) + 13296,13396,...  [0x100e0e614,0x100e0e678,...]  contact_solver.c:1928
+        + ! :   |   15 b3RelVelocityW  (in benchmark) + 636,620,...  [0x100e0f7e8,0x100e0f7d8,...]  contact_solver.c:1013
+        + ! :   |   15 b3SolveContacts_Convex  (in benchmark) + 11052,11028,...  [0x100e0dd50,0x100e0dd38,...]  contact_solver.c:1903
+        + ! :   |   14 b3RelVelocityW  (in benchmark) + 136,112,...  [0x100e0f5f4,0x100e0f5dc,...]  contact_solver.c:1006
+        + ! :   |   14 b3SolveContacts_Convex  (in benchmark) + 13980  [0x100e0e8c0]  contact_solver.c:1943
+        + ! :   |   + 14 b3SqrtW  (in benchmark) + 1004,264,...  [0x100e0fd00,0x100e0fa1c,...]  contact_solver.c:856
+        + ! :   |   13 b3RelVelocityW  (in benchmark) + 188,204,...  [0x100e0f628,0x100e0f638,...]  contact_solver.c:1007
+        + ! :   |   13 b3RelVelocityW  (in benchmark) + 852,864,...  [0x100e0f8c0,0x100e0f8cc,...]  contact_solver.c:1015
+        + ! :   |   12 b3SolveContacts_Convex  (in benchmark) + 5648  [0x100e0c834]  contact_solver.c:1851
+        + ! :   |   12 b3SolveContacts_Convex  (in benchmark) + 13856,13676,...  [0x100e0e844,0x100e0e790,...]  contact_solver.c:1936
+        + ! :   |   12 b3SolveContacts_Convex  (in benchmark) + 2896,2704,...  [0x100e0bd74,0x100e0bcb4,...]  contact_solver.c:1962
+        + ! :   |   12 b3SolveContacts_Convex  (in benchmark) + 3652  [0x100e0c068]  contact_solver.c:1968
+        + ! :   |   + 3 b3ScatterBodies  (in benchmark) + 0  [0x100e0b130]  contact_solver.c:1302
+        + ! :   |   + 3 b3ScatterBodies  (in benchmark) + 60  [0x100e0b16c]  contact_solver.c:1314
+        + ! :   |   + 3 b3ScatterBodies  (in benchmark) + 136  [0x100e0b1b8]  contact_solver.c:1327
+        + ! :   |   + 2 b3ScatterBodies  (in benchmark) + 48  [0x100e0b160]  contact_solver.c:1310
+        + ! :   |   + 1 b3ScatterBodies  (in benchmark) + 236  [0x100e0b21c]  contact_solver.c:1346
+        + ! :   |   12 b3SolveContacts_Convex  (in benchmark) + 3668  [0x100e0c078]  contact_solver.c:1969
+        + ! :   |   + 4 b3ScatterBodies  (in benchmark) + 196  [0x100e0b1f4]  contact_solver.c:1339
+        + ! :   |   + 3 b3ScatterBodies  (in benchmark) + 120  [0x100e0b1a8]  contact_solver.c:1326
+        + ! :   |   + 1 b3ScatterBodies  (in benchmark) + 16  [0x100e0b140]  contact_solver.c:1303
+        + ! :   |   + 1 b3ScatterBodies  (in benchmark) + 56  [0x100e0b168]  contact_solver.c:1310
+        + ! :   |   + 1 b3ScatterBodies  (in benchmark) + 108  [0x100e0b19c]  contact_solver.c:1322
+        + ! :   |   + 1 b3ScatterBodies  (in benchmark) + 136  [0x100e0b1b8]  contact_solver.c:1327
+        + ! :   |   + 1 b3ScatterBodies  (in benchmark) + 176  [0x100e0b1e0]  contact_solver.c:1334
+        + ! :   |   11 b3GatherBodies  (in benchmark) + 544,540  [0x100e0a8fc,0x100e0a8f8]  contact_solver.c:1287
+        + ! :   |   11 b3SolveContacts_Convex  (in benchmark) + 5620  [0x100e0c818]  contact_solver.c:1849
+        + ! :   |   11 b3SolveContacts_Convex  (in benchmark) + 3296,3540,...  [0x100e0bf04,0x100e0bff8,...]  contact_solver.c:1964
+        + ! :   |   10 b3GatherBodies  (in benchmark) + 132,176,...  [0x100e0a760,0x100e0a78c,...]  contact_solver.c:1277
+        + ! :   |   10 b3MulAddMVW  (in benchmark) + 788,892,...  [0x100e0b058,0x100e0b0c0,...]  contact_solver.c:1106
+        + ! :   |   10 b3RelVelocityW  (in benchmark) + 796,780  [0x100e0f888,0x100e0f878]  contact_solver.c:1016
+        + ! :   |   9 b3SolveContacts_Convex  (in benchmark) + 5032,5064,...  [0x100e0c5cc,0x100e0c5ec,...]  contact_solver.c:1842
+        + ! :   |   9 b3SolveContacts_Convex  (in benchmark) + 12680,12760,...  [0x100e0e3ac,0x100e0e3fc,...]  contact_solver.c:1923
+        + ! :   |   8 b3GatherBodies  (in benchmark) + 244,276  [0x100e0a7d0,0x100e0a7f0]  contact_solver.c:1278
+        + ! :   |   8 b3GatherBodies  (in benchmark) + 580,576  [0x100e0a920,0x100e0a91c]  contact_solver.c:1289
+        + ! :   |   8 b3MulSubMVW  (in benchmark) + 52,104,...  [0x100e0a9c0,0x100e0a9f4,...]  contact_solver.c:1094
+        + ! :   |   8 b3RelVelocityW  (in benchmark) + 368,352,...  [0x100e0f6dc,0x100e0f6cc,...]  contact_solver.c:1009
+        + ! :   |   8 b3SolveContacts_Convex  (in benchmark) + 12940,12888,...  [0x100e0e4b0,0x100e0e47c,...]  contact_solver.c:1924
+        + ! :   |   7 b3GatherBodies  (in benchmark) + 652,648  [0x100e0a968,0x100e0a964]  contact_solver.c:1294
+        + ! :   |   7 b3SolveContacts_Convex  (in benchmark) + 5760,5800,...  [0x100e0c8a4,0x100e0c8cc,...]  contact_solver.c:1855
+        + ! :   |   7 b3SolveContacts_Convex  (in benchmark) + 11160,11116,...  [0x100e0ddbc,0x100e0dd90,...]  contact_solver.c:1904
+        + ! :   |   7 b3SolveContacts_Convex  (in benchmark) + 2452,2428,...  [0x100e0bbb8,0x100e0bba0,...]  contact_solver.c:1961
+        + ! :   |   6 b3GatherBodies  (in benchmark) + 504,508  [0x100e0a8d4,0x100e0a8d8]  contact_solver.c:1285
+        + ! :   |   6 b3GatherBodies  (in benchmark) + 616,624  [0x100e0a944,0x100e0a94c]  contact_solver.c:1292
+        + ! :   |   6 b3GatherBodies  (in benchmark) + 676,656,...  [0x100e0a980,0x100e0a96c,...]  contact_solver.c:1297
+        + ! :   |   6 b3MakeMatrixFromQuatW  (in benchmark) + 36  [0x100e0eb28]  contact_solver.c:1162
+        + ! :   |   6 b3SolveContacts_Convex  (in benchmark) + 5164  [0x100e0c650]  contact_solver.c:1837
+        + ! :   |   6 b3SolveContacts_Convex  (in benchmark) + 5272  [0x100e0c6bc]  contact_solver.c:1842
+        + ! :   |   + 6 b3RelVelocityW  (in benchmark) + 0,24  [0x100e0f56c,0x100e0f584]  contact_solver.c:1003
+        + ! :   |   6 b3SolveContacts_Convex  (in benchmark) + 5680,5692,...  [0x100e0c854,0x100e0c860,...]  contact_solver.c:1852
+        + ! :   |   5 b3GatherBodies  (in benchmark) + 612  [0x100e0a940]  contact_solver.c:1291
+        + ! :   |   5 b3MulAddMVW  (in benchmark) + 232,284,...  [0x100e0ae2c,0x100e0ae60,...]  contact_solver.c:1104
+        + ! :   |   5 b3SolveContacts_Convex  (in benchmark) + 11216,11280,...  [0x100e0ddf4,0x100e0de34,...]  contact_solver.c:1905
+        + ! :   |   5 b3SolveContacts_Convex  (in benchmark) + 12464,12504  [0x100e0e2d4,0x100e0e2fc]  contact_solver.c:1921
+        + ! :   |   5 b3SolveContacts_Convex  (in benchmark) + 13568,13604  [0x100e0e724,0x100e0e748]  contact_solver.c:1933
+        + ! :   |   4 b3GatherBodies  (in benchmark) + 60,68,...  [0x100e0a718,0x100e0a720,...]  contact_solver.c:1276
+        + ! :   |   4 b3RelVelocityW  (in benchmark) + 396  [0x100e0f6f8]  contact_solver.c:1010
+        + ! :   |   4 b3SolveContacts_Convex  (in benchmark) + 4224  [0x100e0c2a4]  contact_solver.c:1824
+        + ! :   |   + 4 b3MulMV3W  (in benchmark) + 28  [0x100e0f26c]  contact_solver.c:1177
+        + ! :   |   4 b3SolveContacts_Convex  (in benchmark) + 12608,12424  [0x100e0e364,0x100e0e2ac]  contact_solver.c:1917
+        + ! :   |   4 b3SolveContacts_Convex  (in benchmark) + 320,344  [0x100e0b364,0x100e0b37c]  contact_solver.c:1947
+        + ! :   |   4 b3SolveContacts_Convex  (in benchmark) + 3108,3164,...  [0x100e0be48,0x100e0be80,...]  contact_solver.c:1963
+        + ! :   |   3 b3MakeMatrixFromQuatW  (in benchmark) + 1860  [0x100e0f248]  contact_solver.c:1171
+        + ! :   |   3 b3MulSubMVW  (in benchmark) + 940,924  [0x100e0ad38,0x100e0ad28]  contact_solver.c:1093
+        + ! :   |   3 b3SolveContacts_Convex  (in benchmark) + 11328,11408  [0x100e0de64,0x100e0deb4]  contact_solver.c:1907
+        + ! :   |   3 b3SolveContacts_Convex  (in benchmark) + 13472,13436  [0x100e0e6c4,0x100e0e6a0]  contact_solver.c:1930
+        + ! :   |   3 b3SolveContacts_Convex  (in benchmark) + 13892  [0x100e0e868]  contact_solver.c:1939
+        + ! :   |   3 b3SolveContacts_Convex  (in benchmark) + 13964,14288  [0x100e0e8b0,0x100e0e9f4]  contact_solver.c:1943
+        + ! :   |   3 b3SolveContacts_Convex  (in benchmark) + 3636  [0x100e0c058]  contact_solver.c:1968
+        + ! :   |   2 b3GatherBodies  (in benchmark) + 288  [0x100e0a7fc]  contact_solver.c:1279
+        + ! :   |   2 b3GatherBodies  (in benchmark) + 584,588  [0x100e0a924,0x100e0a928]  contact_solver.c:1290
+        + ! :   |   2 b3MulAddMVW  (in benchmark) + 980,992  [0x100e0b118,0x100e0b124]  contact_solver.c:1103
+        + ! :   |   2 b3SolveContacts_Convex  (in benchmark) + 3684  [0x100e0c088]  contact_solver.c:1782
+        + ! :   |   2 b3SolveContacts_Convex  (in benchmark) + 3744  [0x100e0c0c4]  contact_solver.c:1787
+        + ! :   |   + 2 b3GatherBodies  (in benchmark) + 28  [0x100e0a6f8]  contact_solver.c:1276
+        + ! :   |   2 b3SolveContacts_Convex  (in benchmark) + 4028,4064  [0x100e0c1e0,0x100e0c204]  contact_solver.c:1803
+        + ! :   |   2 b3SolveContacts_Convex  (in benchmark) + 4124  [0x100e0c240]  contact_solver.c:1807
+        + ! :   |   + 2 b3MakeMatrixFromQuatW  (in benchmark) + 4  [0x100e0eb08]  contact_solver.c:1160
+        + ! :   |   2 b3SolveContacts_Convex  (in benchmark) + 4208  [0x100e0c294]  contact_solver.c:1823
+        + ! :   |   + 2 b3MulMV3W  (in benchmark) + 20  [0x100e0f264]  contact_solver.c:1175
+        + ! :   |   2 b3SolveContacts_Convex  (in benchmark) + 5168,5196  [0x100e0c654,0x100e0c670]  contact_solver.c:1838
+        + ! :   |   2 b3SolveContacts_Convex  (in benchmark) + 11244  [0x100e0de10]  contact_solver.c:1906
+        + ! :   |   2 b3SolveContacts_Convex  (in benchmark) + 252,276  [0x100e0b320,0x100e0b338]  contact_solver.c:1946
+        + ! :   |   2 b3SolveContacts_Convex  (in benchmark) + 14416  [0x100e0ea74]  fixed.h:0
+        + ! :   |   1 b3GatherBodies  (in benchmark) + 468  [0x100e0a8b0]  contact_solver.c:1283
+        + ! :   |   1 b3GatherBodies  (in benchmark) + 524  [0x100e0a8e8]  contact_solver.c:1286
+        + ! :   |   1 b3GatherBodies  (in benchmark) + 564  [0x100e0a910]  contact_solver.c:1288
+        + ! :   |   1 b3MakeMatrixFromQuatW  (in benchmark) + 416  [0x100e0eca4]  contact_solver.c:1164
+        + ! :   |   1 b3MulAddMVW  (in benchmark) + 684  [0x100e0aff0]  contact_solver.c:0
+        + ! :   |   1 b3RelVelocityW  (in benchmark) + 36  [0x100e0f590]  contact_solver.c:1003
+        + ! :   |   1 b3SolveContacts_Convex  (in benchmark) + 3728  [0x100e0c0b4]  contact_solver.c:1786
+        + ! :   |   + 1 b3GatherBodies  (in benchmark) + 24  [0x100e0a6f4]  contact_solver.c:1273
+        + ! :   |   1 b3SolveContacts_Convex  (in benchmark) + 5132  [0x100e0c630]  contact_solver.c:1835
+        + ! :   |   1 b3SolveContacts_Convex  (in benchmark) + 5744  [0x100e0c894]  contact_solver.c:1854
+        + ! :   |   1 b3SolveContacts_Convex  (in benchmark) + 7740  [0x100e0d060]  contact_solver.c:1868
+        + ! :   |   1 b3SolveContacts_Convex  (in benchmark) + 12392  [0x100e0e28c]  contact_solver.c:1916
+        + ! :   |   1 b3SolveContacts_Convex  (in benchmark) + 12804  [0x100e0e428]  contact_solver.c:1923
+        + ! :   |   + 1 b3RelVelocityW  (in benchmark) + 12  [0x100e0f578]  contact_solver.c:1003
+        + ! :   |   1 b3SolveContacts_Convex  (in benchmark) + 13516  [0x100e0e6f0]  contact_solver.c:1932
+        + ! :   |   1 b3SolveContacts_Convex  (in benchmark) + 444  [0x100e0b3e0]  contact_solver.c:1952
+        + ! :   |   1 b3SolveContacts_Convex  (in benchmark) + 376  [0x100e0b39c]  contact_solver.c:1955
+        + ! :   1354 b3SolverTask  (in benchmark) + 828  [0x100e93704]  solver.c:1279
+        + ! :   | 1354 b3ExecuteMainStage  (in benchmark) + 272  [0x100e94f8c]  solver.c:1142
+        + ! :   |   138 b3MulMV3W  (in benchmark) + 684,624,...  [0x100e0f4fc,0x100e0f4c0,...]  contact_solver.c:1179
+        + ! :   |   95 b3MulMV3W  (in benchmark) + 496,444,...  [0x100e0f440,0x100e0f40c,...]  contact_solver.c:1178
+        + ! :   |   84 b3SolveContacts_Convex  (in benchmark) + 6212,6092,...  [0x100e0ca68,0x100e0c9f0,...]  contact_solver.c:1858
+        + ! :   |   81 b3SolveContacts_Convex  (in benchmark) + 6652,6524,...  [0x100e0cc20,0x100e0cba0,...]  contact_solver.c:1859
+        + ! :   |   80 b3SolveContacts_Convex  (in benchmark) + 7676,7496,...  [0x100e0d020,0x100e0cf6c,...]  contact_solver.c:1861
+        + ! :   |   73 b3SolveContacts_Convex  (in benchmark) + 6992,7116,...  [0x100e0cd74,0x100e0cdf0,...]  contact_solver.c:1860
+        + ! :   |   66 b3MakeMatrixFromQuatW  (in benchmark) + 704,376,...  [0x100e0edc4,0x100e0ec7c,...]  contact_solver.c:1167
+        + ! :   |   56 b3MulMV3W  (in benchmark) + 256,204,...  [0x100e0f350,0x100e0f31c,...]  contact_solver.c:1177
+        + ! :   |   47 b3MakeMatrixFromQuatW  (in benchmark) + 1164,1016,...  [0x100e0ef90,0x100e0eefc,...]  contact_solver.c:1168
+        + ! :   |   46 b3SolveContacts_Convex  (in benchmark) + 5336,5428,...  [0x100e0c6fc,0x100e0c758,...]  contact_solver.c:1845
+        + ! :   |   44 b3MakeMatrixFromQuatW  (in benchmark) + 1548,1592,...  [0x100e0f110,0x100e0f13c,...]  contact_solver.c:1169
+        + ! :   |   43 b3SolveContacts_Convex  (in benchmark) + 4776,4816,...  [0x100e0c4cc,0x100e0c4f4,...]  contact_solver.c:1829
+        + ! :   |   31 b3MulMV3W  (in benchmark) + 788,772,...  [0x100e0f564,0x100e0f554,...]  contact_solver.c:1176
+        + ! :   |   30 b3SolveContacts_Convex  (in benchmark) + 4372,4296,...  [0x100e0c338,0x100e0c2ec,...]  contact_solver.c:1828
+        + ! :   |   28 b3RelVelocityW  (in benchmark) + 96,68,...  [0x100e0f5cc,0x100e0f5b0,...]  contact_solver.c:1005
+        + ! :   |   27 b3SolveContacts_Convex  (in benchmark) + 5568,5524,...  [0x100e0c7e4,0x100e0c7b8,...]  contact_solver.c:1846
+        + ! :   |   25 b3RelVelocityW  (in benchmark) + 916,924,...  [0x100e0f900,0x100e0f908,...]  contact_solver.c:1004
+        + ! :   |   22 b3SolveContacts_Convex  (in benchmark) + 5236,5904,...  [0x100e0c698,0x100e0c934,...]  contact_solver.c:0
+        + ! :   |   22 b3SolveContacts_Convex  (in benchmark) + 4844,4868,...  [0x100e0c510,0x100e0c528,...]  contact_solver.c:1833
+        + ! :   |   18 b3SolveContacts_Convex  (in benchmark) + 5620,5592,...  [0x100e0c818,0x100e0c7fc,...]  contact_solver.c:1849
+        + ! :   |   16 b3RelVelocityW  (in benchmark) + 536,692,...  [0x100e0f784,0x100e0f820,...]  contact_solver.c:1011
+        + ! :   |   14 b3SolveContacts_Convex  (in benchmark) + 4960,4948,...  [0x100e0c584,0x100e0c578,...]  contact_solver.c:1834
+        + ! :   |   13 b3RelVelocityW  (in benchmark) + 768,800,...  [0x100e0f86c,0x100e0f88c,...]  contact_solver.c:1014
+        + ! :   |   12 b3GatherBodies  (in benchmark) + 132,168,...  [0x100e0a760,0x100e0a784,...]  contact_solver.c:1277
+        + ! :   |   12 b3RelVelocityW  (in benchmark) + 156,152,...  [0x100e0f608,0x100e0f604,...]  contact_solver.c:1006
+        + ! :   |   12 b3RelVelocityW  (in benchmark) + 424,340,...  [0x100e0f714,0x100e0f6c0,...]  contact_solver.c:1008
+        + ! :   |   12 b3RelVelocityW  (in benchmark) + 568,552,...  [0x100e0f7a4,0x100e0f794,...]  contact_solver.c:1012
+        + ! :   |   12 b3SolveContacts_Convex  (in benchmark) + 5032,5060,...  [0x100e0c5cc,0x100e0c5e8,...]  contact_solver.c:1842
+        + ! :   |   11 b3GatherBodies  (in benchmark) + 580,572,...  [0x100e0a920,0x100e0a918,...]  contact_solver.c:1289
+        + ! :   |   10 b3RelVelocityW  (in benchmark) + 600,636,...  [0x100e0f7c4,0x100e0f7e8,...]  contact_solver.c:1013
+        + ! :   |   10 b3SolveContacts_Convex  (in benchmark) + 4104,4020,...  [0x100e0c22c,0x100e0c1d8,...]  contact_solver.c:1803
+        + ! :   |   9 b3SolveContacts_Convex  (in benchmark) + 5272  [0x100e0c6bc]  contact_solver.c:1842
+        + ! :   |   + 9 b3RelVelocityW  (in benchmark) + 0,24,...  [0x100e0f56c,0x100e0f584,...]  contact_solver.c:1003
+        + ! :   |   9 b3SolveContacts_Convex  (in benchmark) + 3652  [0x100e0c068]  contact_solver.c:1968
+        + ! :   |   + 2 b3ScatterBodies  (in benchmark) + 120  [0x100e0b1a8]  contact_solver.c:1326
+        + ! :   |   + 2 b3ScatterBodies  (in benchmark) + 136  [0x100e0b1b8]  contact_solver.c:1327
+        + ! :   |   + 2 b3ScatterBodies  (in benchmark) + 236  [0x100e0b21c]  contact_solver.c:1346
+        + ! :   |   + 1 b3ScatterBodies  (in benchmark) + 48  [0x100e0b160]  contact_solver.c:1310
+        + ! :   |   + 1 b3ScatterBodies  (in benchmark) + 60  [0x100e0b16c]  contact_solver.c:1314
+        + ! :   |   + 1 b3ScatterBodies  (in benchmark) + 176  [0x100e0b1e0]  contact_solver.c:1334
+        + ! :   |   8 b3GatherBodies  (in benchmark) + 676,668,...  [0x100e0a980,0x100e0a978,...]  contact_solver.c:1297
+        + ! :   |   8 b3SolveContacts_Convex  (in benchmark) + 5760,5772,...  [0x100e0c8a4,0x100e0c8b0,...]  contact_solver.c:1855
+        + ! :   |   8 b3SolveContacts_Convex  (in benchmark) + 3668  [0x100e0c078]  contact_solver.c:1969
+        + ! :   |   + 2 b3ScatterBodies  (in benchmark) + 180  [0x100e0b1e4]  contact_solver.c:1338
+        + ! :   |   + 1 b3ScatterBodies  (in benchmark) + 16  [0x100e0b140]  contact_solver.c:1303
+        + ! :   |   + 1 b3ScatterBodies  (in benchmark) + 60  [0x100e0b16c]  contact_solver.c:1314
+        + ! :   |   + 1 b3ScatterBodies  (in benchmark) + 116  [0x100e0b1a4]  contact_solver.c:1322
+        + ! :   |   + 1 b3ScatterBodies  (in benchmark) + 136  [0x100e0b1b8]  contact_solver.c:1327
+        + ! :   |   + 1 b3ScatterBodies  (in benchmark) + 164  [0x100e0b1d4]  contact_solver.c:1332
+        + ! :   |   + 1 b3ScatterBodies  (in benchmark) + 236  [0x100e0b21c]  contact_solver.c:1346
+        + ! :   |   7 b3RelVelocityW  (in benchmark) + 368,448,...  [0x100e0f6dc,0x100e0f72c,...]  contact_solver.c:1009
+        + ! :   |   7 b3RelVelocityW  (in benchmark) + 796,772  [0x100e0f888,0x100e0f870]  contact_solver.c:1016
+        + ! :   |   7 b3SolveContacts_Convex  (in benchmark) + 4208  [0x100e0c294]  contact_solver.c:1823
+        + ! :   |   + 7 b3MulMV3W  (in benchmark) + 20,0  [0x100e0f264,0x100e0f250]  contact_solver.c:1175
+        + ! :   |   7 b3SolveContacts_Convex  (in benchmark) + 5720,5680,...  [0x100e0c87c,0x100e0c854,...]  contact_solver.c:1852
+        + ! :   |   6 b3GatherBodies  (in benchmark) + 588,592,...  [0x100e0a928,0x100e0a92c,...]  contact_solver.c:1290
+        + ! :   |   6 b3MakeMatrixFromQuatW  (in benchmark) + 1860  [0x100e0f248]  contact_solver.c:1171
+        + ! :   |   6 b3RelVelocityW  (in benchmark) + 200,184,...  [0x100e0f634,0x100e0f624,...]  contact_solver.c:1007
+        + ! :   |   6 b3SolveContacts_Convex  (in benchmark) + 5648,5700  [0x100e0c834,0x100e0c868]  contact_solver.c:1851
+        + ! :   |   5 b3GatherBodies  (in benchmark) + 244  [0x100e0a7d0]  contact_solver.c:1278
+        + ! :   |   5 b3GatherBodies  (in benchmark) + 564,560  [0x100e0a910,0x100e0a90c]  contact_solver.c:1288
+        + ! :   |   5 b3SolveContacts_Convex  (in benchmark) + 5196,5220  [0x100e0c670,0x100e0c688]  contact_solver.c:1838
+        + ! :   |   4 b3GatherBodies  (in benchmark) + 128,72,...  [0x100e0a75c,0x100e0a724,...]  contact_solver.c:0
+        + ! :   |   4 b3GatherBodies  (in benchmark) + 612,600,...  [0x100e0a940,0x100e0a934,...]  contact_solver.c:1291
+        + ! :   |   4 b3GatherBodies  (in benchmark) + 644,632,...  [0x100e0a960,0x100e0a954,...]  contact_solver.c:1293
+        + ! :   |   4 b3RelVelocityW  (in benchmark) + 396  [0x100e0f6f8]  contact_solver.c:1010
+        + ! :   |   4 b3RelVelocityW  (in benchmark) + 860,812,...  [0x100e0f8c8,0x100e0f898,...]  contact_solver.c:1015
+        + ! :   |   3 b3GatherBodies  (in benchmark) + 288  [0x100e0a7fc]  contact_solver.c:1279
+        + ! :   |   3 b3GatherBodies  (in benchmark) + 540,544  [0x100e0a8f8,0x100e0a8fc]  contact_solver.c:1287
+        + ! :   |   3 b3GatherBodies  (in benchmark) + 616,628  [0x100e0a944,0x100e0a950]  contact_solver.c:1292
+        + ! :   |   3 b3MakeMatrixFromQuatW  (in benchmark) + 40,44  [0x100e0eb2c,0x100e0eb30]  contact_solver.c:1163
+        + ! :   |   3 b3SolveContacts_Convex  (in benchmark) + 5132,5180,...  [0x100e0c630,0x100e0c660,...]  contact_solver.c:1835
+        + ! :   |   2 b3GatherBodies  (in benchmark) + 488,496  [0x100e0a8c4,0x100e0a8cc]  contact_solver.c:1284
+        + ! :   |   2 b3GatherBodies  (in benchmark) + 508  [0x100e0a8d8]  contact_solver.c:1285
+        + ! :   |   2 b3GatherBodies  (in benchmark) + 648  [0x100e0a964]  contact_solver.c:1294
+        + ! :   |   2 b3SolveContacts_Convex  (in benchmark) + 3752,3792  [0x100e0c0cc,0x100e0c0f4]  contact_solver.c:1792
+        + ! :   |   2 b3SolveContacts_Convex  (in benchmark) + 4224  [0x100e0c2a4]  contact_solver.c:1824
+        + ! :   |   + 2 b3MulMV3W  (in benchmark) + 28  [0x100e0f26c]  contact_solver.c:1177
+        + ! :   |   2 b3SolveContacts_Convex  (in benchmark) + 5140,5188  [0x100e0c638,0x100e0c668]  contact_solver.c:1837
+        + ! :   |   1 b3GatherBodies  (in benchmark) + 468  [0x100e0a8b0]  contact_solver.c:1283
+        + ! :   |   1 b3MakeMatrixFromQuatW  (in benchmark) + 292  [0x100e0ec28]  contact_solver.c:1161
+        + ! :   |   1 b3MakeMatrixFromQuatW  (in benchmark) + 36  [0x100e0eb28]  contact_solver.c:1162
+        + ! :   |   1 b3SolveContacts_Convex  (in benchmark) + 4  [0x100e0b228]  contact_solver.c:1772
+        + ! :   |   1 b3SolveContacts_Convex  (in benchmark) + 3684  [0x100e0c088]  contact_solver.c:1782
+        + ! :   |   1 b3SolveContacts_Convex  (in benchmark) + 3728  [0x100e0c0b4]  contact_solver.c:1786
+        + ! :   |   + 1 b3GatherBodies  (in benchmark) + 24  [0x100e0a6f4]  contact_solver.c:1273
+        + ! :   |   1 b3SolveContacts_Convex  (in benchmark) + 3744  [0x100e0c0c4]  contact_solver.c:1787
+        + ! :   |   + 1 b3GatherBodies  (in benchmark) + 28  [0x100e0a6f8]  contact_solver.c:1276
+        + ! :   |   1 b3SolveContacts_Convex  (in benchmark) + 3900  [0x100e0c160]  contact_solver.c:1794
+        + ! :   974 b3SolverTask  (in benchmark) + 440  [0x100e93580]  solver.c:1217
+        + ! :   | 974 b3ExecuteMainStage  (in benchmark) + 272  [0x100e94f8c]  solver.c:1142
+        + ! :   |   103 b3PrepareContacts_Convex  (in benchmark) + 2884,2932,...  [0x100e079a4,0x100e079d4,...]  contact_solver.c:1546
+        + ! :   |   72 b3PrepareContacts_Convex  (in benchmark) + 3256,3280,...  [0x100e07b18,0x100e07b30,...]  contact_solver.c:1548
+        + ! :   |   70 b3PrepareContacts_Convex  (in benchmark) + 3688,3620,...  [0x100e07cc8,0x100e07c84,...]  contact_solver.c:1550
+        + ! :   |   48 b3PrepareContacts_Convex  (in benchmark) + 5332,5408,...  [0x100e08334,0x100e08380,...]  contact_solver.c:1623
+        + ! :   |   46 b3PrepareContacts_Convex  (in benchmark) + 3392,3416,...  [0x100e07ba0,0x100e07bb8,...]  contact_solver.c:1549
+        + ! :   |   43 b3PrepareContacts_Convex  (in benchmark) + 3128,3100,...  [0x100e07a98,0x100e07a7c,...]  contact_solver.c:1547
+        + ! :   |   38 b3PrepareContacts_Convex  (in benchmark) + 5972,6012,...  [0x100e085b4,0x100e085dc,...]  contact_solver.c:1624
+        + ! :   |   37 b3PrepareContacts_Convex  (in benchmark) + 2844,1532,...  [0x100e0797c,0x100e0745c,...]  contact_solver.c:0
+        + ! :   |   37 b3PrepareContacts_Convex  (in benchmark) + 1660  [0x100e074dc]  contact_solver.c:1497
+        + ! :   |   + 23 b3Perp  (in benchmark) + 64,48  [0x100e02e24,0x100e02e14]  math_functions.h:0
+        + ! :   |   + 10 b3Perp  (in benchmark) + 104,96,...  [0x100e02e4c,0x100e02e44,...]  math_functions.h:323
+        + ! :   |   + 4 b3Perp  (in benchmark) + 20  [0x100e02df8]  math_functions.h:314
+        + ! :   |   36 b3PrepareContacts_Convex  (in benchmark) + 1596,1592  [0x100e0749c,0x100e07498]  contact_solver.c:1492
+        + ! :   |   36 b3PrepareContacts_Convex  (in benchmark) + 2456,2500,...  [0x100e077f8,0x100e07824,...]  contact_solver.c:1569
+        + ! :   |   31 b3PrepareContacts_Convex  (in benchmark) + 1564,1544  [0x100e0747c,0x100e07468]  contact_solver.c:1490
+        + ! :   |   28 b3PrepareContacts_Convex  (in benchmark) + 4228,4144,...  [0x100e07ee4,0x100e07e90,...]  contact_solver.c:1588
+        + ! :   |   27 b3PrepareContacts_Convex  (in benchmark) + 2692,2552,...  [0x100e078e4,0x100e07858,...]  contact_solver.c:1570
+        + ! :   |   22 b3PrepareContacts_Convex  (in benchmark) + 2392,2408,...  [0x100e077b8,0x100e077c8,...]  contact_solver.c:1568
+        + ! :   |   18 b3PrepareContacts_Convex  (in benchmark) + 7340,7120,...  [0x100e08b0c,0x100e08a30,...]  contact_solver.c:1640
+        + ! :   |   16 __divti3  (in libcompiler_rt.dylib) + 64  [0x191f94980]
+        + ! :   |   + 16 __udivmodti4  (in libcompiler_rt.dylib) + 240,280,...  [0x191f94818,0x191f94840,...]
+        + ! :   |   16 b3PrepareContacts_Convex  (in benchmark) + 7544,7412,...  [0x100e08bd8,0x100e08b54,...]  contact_solver.c:1641
+        + ! :   |   15 b3PrepareContacts_Convex  (in benchmark) + 4868,4820,...  [0x100e08164,0x100e08134,...]  contact_solver.c:1594
+        + ! :   |   13 b3PrepareContacts_Convex  (in benchmark) + 1460  [0x100e07414]  contact_solver.c:1479
+        + ! :   |   13 b3PrepareContacts_Convex  (in benchmark) + 1612  [0x100e074ac]  contact_solver.c:1494
+        + ! :   |   13 b3PrepareContacts_Convex  (in benchmark) + 2860,3756,...  [0x100e0798c,0x100e07d0c,...]  contact_solver.c:1543
+        + ! :   |   11 b3PrepareContacts_Convex  (in benchmark) + 4952,4976,...  [0x100e081b8,0x100e081d0,...]  contact_solver.c:1595
+        + ! :   |   11 b3PrepareContacts_Convex  (in benchmark) + 7724,7616,...  [0x100e08c8c,0x100e08c20,...]  contact_solver.c:1649
+        + ! :   |   9 b3PrepareContacts_Convex  (in benchmark) + 6664,6640,...  [0x100e08868,0x100e08850,...]  contact_solver.c:1625
+        + ! :   |   8 b3PrepareContacts_Convex  (in benchmark) + 1996,2044,...  [0x100e0762c,0x100e0765c,...]  contact_solver.c:1512
+        + ! :   |   8 b3PrepareContacts_Convex  (in benchmark) + 2784,2828,...  [0x100e07940,0x100e0796c,...]  contact_solver.c:1540
+        + ! :   |   8 b3PrepareContacts_Convex  (in benchmark) + 4620,4652,...  [0x100e0806c,0x100e0808c,...]  contact_solver.c:1592
+        + ! :   |   7 b3PrepareContacts_Convex  (in benchmark) + 3836  [0x100e07d5c]  contact_solver.c:1544
+        + ! :   |   7 b3PrepareContacts_Convex  (in benchmark) + 4572,4500,...  [0x100e0803c,0x100e07ff4,...]  contact_solver.c:1591
+        + ! :   |   6 b3PrepareContacts_Convex  (in benchmark) + 3788,3772,...  [0x100e07d2c,0x100e07d1c,...]  contact_solver.c:1529
+        + ! :   |   6 b3PrepareContacts_Convex  (in benchmark) + 5172,5156  [0x100e08294,0x100e08284]  contact_solver.c:1613
+        + ! :   |   5 b3PrepareContacts_Convex  (in benchmark) + 6560  [0x100e08800]  contact_solver.c:1604
+        + ! :   |   4 b3PrepareContacts_Convex  (in benchmark) + 1496  [0x100e07438]  contact_solver.c:1483
+        + ! :   |   4 b3PrepareContacts_Convex  (in benchmark) + 1580  [0x100e0748c]  contact_solver.c:1487
+        + ! :   |   4 b3PrepareContacts_Convex  (in benchmark) + 1944,1896,...  [0x100e075f8,0x100e075c8,...]  contact_solver.c:1511
+        + ! :   |   4 b3PrepareContacts_Convex  (in benchmark) + 2252  [0x100e0772c]  contact_solver.c:1560
+        + ! :   |   4 b3PrepareContacts_Convex  (in benchmark) + 6692  [0x100e08884]  contact_solver.c:1626
+        + ! :   |   4 b3PrepareContacts_Convex  (in benchmark) + 6868  [0x100e08934]  contact_solver.c:1630
+        + ! :   |   3 __divti3  (in libcompiler_rt.dylib) + 84  [0x191f94994]
+        + ! :   |   3 b3PrepareContacts_Convex  (in benchmark) + 1424  [0x100e073f0]  contact_solver.c:1476
+        + ! :   |   3 b3PrepareContacts_Convex  (in benchmark) + 1512  [0x100e07448]  contact_solver.c:1484
+        + ! :   |   3 b3PrepareContacts_Convex  (in benchmark) + 1632  [0x100e074c0]  contact_solver.c:1495
+        + ! :   |   3 b3PrepareContacts_Convex  (in benchmark) + 1692,1812  [0x100e074fc,0x100e07574]  contact_solver.c:1502
+        + ! :   |   3 b3PrepareContacts_Convex  (in benchmark) + 2116  [0x100e076a4]  contact_solver.c:1518
+        + ! :   |   3 b3PrepareContacts_Convex  (in benchmark) + 3812,3824  [0x100e07d44,0x100e07d50]  contact_solver.c:1530
+        + ! :   |   3 b3PrepareContacts_Convex  (in benchmark) + 2776  [0x100e07938]  contact_solver.c:1538
+        + ! :   |   3 b3PrepareContacts_Convex  (in benchmark) + 4028,4052  [0x100e07e1c,0x100e07e34]  contact_solver.c:1575
+        + ! :   |   3 b3PrepareContacts_Convex  (in benchmark) + 5068,5084,...  [0x100e0822c,0x100e0823c,...]  contact_solver.c:1612
+        + ! :   |   2 b3PrepareContacts_Convex  (in benchmark) + 988  [0x100e0723c]  contact_solver.c:1422
+        + ! :   |   2 b3PrepareContacts_Convex  (in benchmark) + 1640  [0x100e074c8]  contact_solver.c:1497
+        + ! :   |   2 b3PrepareContacts_Convex  (in benchmark) + 1824  [0x100e07580]  contact_solver.c:1503
+        + ! :   |   2 b3PrepareContacts_Convex  (in benchmark) + 2104  [0x100e07698]  contact_solver.c:1515
+        + ! :   |   2 b3PrepareContacts_Convex  (in benchmark) + 2712  [0x100e078f8]  contact_solver.c:1527
+        + ! :   |   2 b3PrepareContacts_Convex  (in benchmark) + 2836  [0x100e07974]  contact_solver.c:1541
+        + ! :   |   2 b3PrepareContacts_Convex  (in benchmark) + 2248  [0x100e07728]  contact_solver.c:1559
+        + ! :   |   2 b3PrepareContacts_Convex  (in benchmark) + 4080  [0x100e07e50]  contact_solver.c:1577
+        + ! :   |   2 b3PrepareContacts_Convex  (in benchmark) + 4108  [0x100e07e6c]  contact_solver.c:1582
+        + ! :   |   2 b3PrepareContacts_Convex  (in benchmark) + 6776  [0x100e088d8]  contact_solver.c:1626
+        + ! :   |   + 2 DYLD-STUB$$__divti3  (in benchmark) + 4  [0x100eb9ec4]
+        + ! :   |   2 b3PrepareContacts_Convex  (in benchmark) + 6804  [0x100e088f4]  contact_solver.c:1626
+        + ! :   |   + 2 DYLD-STUB$$__divti3  (in benchmark) + 4  [0x100eb9ec4]
+        + ! :   |   2 b3PrepareContacts_Convex  (in benchmark) + 7016,7040  [0x100e089c8,0x100e089e0]  contact_solver.c:1635
+        + ! :   |   2 b3PrepareContacts_Convex  (in benchmark) + 7696  [0x100e08c70]  contact_solver.c:1647
+        + ! :   |   2 b3PrepareContacts_Convex  (in benchmark) + 7756  [0x100e08cac]  contact_solver.c:1650
+        + ! :   |   1 b3Perp  (in benchmark) + 736  [0x100e030c4]  math_functions.h:324
+        + ! :   |   1 b3PrepareContacts_Convex  (in benchmark) + 904  [0x100e071e8]  contact_solver.c:1394
+        + ! :   |   1 b3PrepareContacts_Convex  (in benchmark) + 996  [0x100e07244]  contact_solver.c:1423
+        + ! :   |   1 b3PrepareContacts_Convex  (in benchmark) + 1232  [0x100e07330]  contact_solver.c:1442
+        + ! :   |   1 b3PrepareContacts_Convex  (in benchmark) + 1276  [0x100e0735c]  contact_solver.c:1444
+        + ! :   |   1 b3PrepareContacts_Convex  (in benchmark) + 1092  [0x100e072a4]  contact_solver.c:1466
+        + ! :   |   1 b3PrepareContacts_Convex  (in benchmark) + 1416  [0x100e073e8]  contact_solver.c:1474
+        + ! :   |   1 b3PrepareContacts_Convex  (in benchmark) + 1440  [0x100e07400]  contact_solver.c:1477
+        + ! :   |   1 b3PrepareContacts_Convex  (in benchmark) + 1476  [0x100e07424]  contact_solver.c:1480
+        + ! :   |   1 b3PrepareContacts_Convex  (in benchmark) + 1556  [0x100e07474]  contact_solver.c:1486
+        + ! :   |   1 b3PrepareContacts_Convex  (in benchmark) + 1604  [0x100e074a4]  contact_solver.c:1493
+        + ! :   |   1 b3PrepareContacts_Convex  (in benchmark) + 1844  [0x100e07594]  contact_solver.c:1505
+        + ! :   |   1 b3PrepareContacts_Convex  (in benchmark) + 1880  [0x100e075b8]  contact_solver.c:1509
+        + ! :   |   1 b3PrepareContacts_Convex  (in benchmark) + 2096  [0x100e07690]  contact_solver.c:1514
+        + ! :   |   1 b3PrepareContacts_Convex  (in benchmark) + 2196  [0x100e076f4]  contact_solver.c:1522
+        + ! :   |   1 b3PrepareContacts_Convex  (in benchmark) + 2732  [0x100e0790c]  contact_solver.c:1528
+        + ! :   |   1 b3PrepareContacts_Convex  (in benchmark) + 2756  [0x100e07924]  contact_solver.c:1534
+        + ! :   |   1 b3PrepareContacts_Convex  (in benchmark) + 2276  [0x100e07744]  contact_solver.c:1565
+        + ! :   |   1 b3PrepareContacts_Convex  (in benchmark) + 3980  [0x100e07dec]  contact_solver.c:1574
+        + ! :   |   1 b3PrepareContacts_Convex  (in benchmark) + 4092  [0x100e07e5c]  contact_solver.c:1579
+        + ! :   |   1 b3PrepareContacts_Convex  (in benchmark) + 4104  [0x100e07e68]  contact_solver.c:1581
+        + ! :   |   1 b3PrepareContacts_Convex  (in benchmark) + 6504  [0x100e087c8]  contact_solver.c:1599
+        + ! :   |   1 b3PrepareContacts_Convex  (in benchmark) + 5032  [0x100e08208]  contact_solver.c:1601
+        + ! :   |   1 b3PrepareContacts_Convex  (in benchmark) + 6392  [0x100e08758]  contact_solver.c:1609
+        + ! :   |   1 b3PrepareContacts_Convex  (in benchmark) + 6836  [0x100e08914]  contact_solver.c:1626
+        + ! :   |   + 1 DYLD-STUB$$__divti3  (in benchmark) + 4  [0x100eb9ec4]
+        + ! :   |   1 b3PrepareContacts_Convex  (in benchmark) + 7092  [0x100e08a14]  contact_solver.c:1634
+        + ! :   |   1 b3PrepareContacts_Convex  (in benchmark) + 7592  [0x100e08c08]  contact_solver.c:1645
+        + ! :   |   1 b3PrepareContacts_Convex  (in benchmark) + 7820  [0x100e08cec]  contact_solver.c:1657
+        + ! :   942 b3SolverTask  (in benchmark) + 712  [0x100e93690]  solver.c:1260
+        + ! :   | 942 b3ExecuteMainStage  (in benchmark) + 272  [0x100e94f8c]  solver.c:1142
+        + ! :   |   236 b3WarmStartContacts_Convex  (in benchmark) + 876,872,...  [0x100e09228,0x100e09224,...]  contact_solver.c:1729
+        + ! :   |   115 b3WarmStartContacts_Convex  (in benchmark) + 376,176,...  [0x100e09034,0x100e08f6c,...]  contact_solver.c:1728
+        + ! :   |   96 b3WarmStartContacts_Convex  (in benchmark) + 1668,1816,...  [0x100e09540,0x100e095d4,...]  contact_solver.c:1731
+        + ! :   |   88 b3WarmStartContacts_Convex  (in benchmark) + 1320,1108,...  [0x100e093e4,0x100e09310,...]  contact_solver.c:1730
+        + ! :   |   25 b3MulSubMVW  (in benchmark) + 476,552,...  [0x100e0ab68,0x100e0abb4,...]  contact_solver.c:1095
+        + ! :   |   25 b3WarmStartContacts_Convex  (in benchmark) + 2488,2464,...  [0x100e09874,0x100e0985c,...]  contact_solver.c:1737
+        + ! :   |   24 b3MulSubMVW  (in benchmark) + 672,712,...  [0x100e0ac2c,0x100e0ac54,...]  contact_solver.c:1096
+        + ! :   |   22 b3MulAddMVW  (in benchmark) + 48,196,...  [0x100e0ad74,0x100e0ae08,...]  contact_solver.c:1104
+        + ! :   |   22 b3WarmStartContacts_Convex  (in benchmark) + 2880,2904,...  [0x100e099fc,0x100e09a14,...]  contact_solver.c:1741
+        + ! :   |   22 b3WarmStartContacts_Convex  (in benchmark) + 5572,5692,...  [0x100e0a480,0x100e0a4f8,...]  contact_solver.c:1754
+        + ! :   |   20 b3MulAddMVW  (in benchmark) + 644,416,...  [0x100e0afc8,0x100e0aee4,...]  contact_solver.c:1105
+        + ! :   |   19 b3WarmStartContacts_Convex  (in benchmark) + 3528,3500,...  [0x100e09c84,0x100e09c68,...]  contact_solver.c:1743
+        + ! :   |   18 b3MulAddMVW  (in benchmark) + 852,892,...  [0x100e0b098,0x100e0b0c0,...]  contact_solver.c:1106
+        + ! :   |   16 b3MulSubMVW  (in benchmark) + 232,36,...  [0x100e0aa74,0x100e0a9b0,...]  contact_solver.c:1094
+        + ! :   |   14 b3WarmStartContacts_Convex  (in benchmark) + 1832,2068,...  [0x100e095e4,0x100e096d0,...]  contact_solver.c:1736
+        + ! :   |   13 b3WarmStartContacts_Convex  (in benchmark) + 6116  [0x100e0a6a0]  contact_solver.c:1765
+        + ! :   |   + 3 b3ScatterBodies  (in benchmark) + 120  [0x100e0b1a8]  contact_solver.c:1326
+        + ! :   |   + 2 b3ScatterBodies  (in benchmark) + 16,20  [0x100e0b140,0x100e0b144]  contact_solver.c:1303
+        + ! :   |   + 2 b3ScatterBodies  (in benchmark) + 60  [0x100e0b16c]  contact_solver.c:1314
+        + ! :   |   + 2 b3ScatterBodies  (in benchmark) + 136  [0x100e0b1b8]  contact_solver.c:1327
+        + ! :   |   + 1 b3ScatterBodies  (in benchmark) + 0  [0x100e0b130]  contact_solver.c:1302
+        + ! :   |   + 1 b3ScatterBodies  (in benchmark) + 40  [0x100e0b158]  contact_solver.c:1309
+        + ! :   |   + 1 b3ScatterBodies  (in benchmark) + 176  [0x100e0b1e0]  contact_solver.c:1334
+        + ! :   |   + 1 b3ScatterBodies  (in benchmark) + 236  [0x100e0b21c]  contact_solver.c:1346
+        + ! :   |   12 b3WarmStartContacts_Convex  (in benchmark) + 4192,4132,...  [0x100e09f1c,0x100e09ee0,...]  contact_solver.c:1746
+        + ! :   |   12 b3WarmStartContacts_Convex  (in benchmark) + 5228,4992,...  [0x100e0a328,0x100e0a23c,...]  contact_solver.c:1753
+        + ! :   |   11 b3WarmStartContacts_Convex  (in benchmark) + 6100  [0x100e0a690]  contact_solver.c:1764
+        + ! :   |   + 2 b3ScatterBodies  (in benchmark) + 120  [0x100e0b1a8]  contact_solver.c:1326
+        + ! :   |   + 2 b3ScatterBodies  (in benchmark) + 196  [0x100e0b1f4]  contact_solver.c:1339
+        + ! :   |   + 1 b3ScatterBodies  (in benchmark) + 0  [0x100e0b130]  contact_solver.c:1302
+        + ! :   |   + 1 b3ScatterBodies  (in benchmark) + 48  [0x100e0b160]  contact_solver.c:1310
+        + ! :   |   + 1 b3ScatterBodies  (in benchmark) + 60  [0x100e0b16c]  contact_solver.c:1314
+        + ! :   |   + 1 b3ScatterBodies  (in benchmark) + 76  [0x100e0b17c]  contact_solver.c:1315
+        + ! :   |   + 1 b3ScatterBodies  (in benchmark) + 108  [0x100e0b19c]  contact_solver.c:1322
+        + ! :   |   + 1 b3ScatterBodies  (in benchmark) + 136  [0x100e0b1b8]  contact_solver.c:1327
+        + ! :   |   + 1 b3ScatterBodies  (in benchmark) + 180  [0x100e0b1e4]  contact_solver.c:1338
+        + ! :   |   10 b3WarmStartContacts_Convex  (in benchmark) + 4816,4652,...  [0x100e0a18c,0x100e0a0e8,...]  contact_solver.c:1748
+        + ! :   |   9 b3GatherBodies  (in benchmark) + 580,568,...  [0x100e0a920,0x100e0a914,...]  contact_solver.c:1289
+        + ! :   |   9 b3GatherBodies  (in benchmark) + 676,664,...  [0x100e0a980,0x100e0a974,...]  contact_solver.c:1297
+        + ! :   |   9 b3WarmStartContacts_Convex  (in benchmark) + 2796,2820,...  [0x100e099a8,0x100e099c0,...]  contact_solver.c:1740
+        + ! :   |   7 b3GatherBodies  (in benchmark) + 596,584,...  [0x100e0a930,0x100e0a924,...]  contact_solver.c:1290
+        + ! :   |   7 b3WarmStartContacts_Convex  (in benchmark) + 3304,3452,...  [0x100e09ba4,0x100e09c38,...]  contact_solver.c:1742
+        + ! :   |   6 b3GatherBodies  (in benchmark) + 612,600,...  [0x100e0a940,0x100e0a934,...]  contact_solver.c:1291
+        + ! :   |   6 b3GatherBodies  (in benchmark) + 616,620,...  [0x100e0a944,0x100e0a948,...]  contact_solver.c:1292
+        + ! :   |   5 b3GatherBodies  (in benchmark) + 72,204,...  [0x100e0a724,0x100e0a7a8,...]  contact_solver.c:0
+        + ! :   |   5 b3GatherBodies  (in benchmark) + 288  [0x100e0a7fc]  contact_solver.c:1279
+        + ! :   |   5 b3MulAddMVW  (in benchmark) + 992,976,...  [0x100e0b124,0x100e0b114,...]  contact_solver.c:1103
+        + ! :   |   4 b3GatherBodies  (in benchmark) + 176,132,...  [0x100e0a78c,0x100e0a760,...]  contact_solver.c:1277
+        + ! :   |   4 b3GatherBodies  (in benchmark) + 540,536,...  [0x100e0a8f8,0x100e0a8f4,...]  contact_solver.c:1287
+        + ! :   |   4 b3GatherBodies  (in benchmark) + 560,552,...  [0x100e0a90c,0x100e0a904,...]  contact_solver.c:1288
+        + ! :   |   4 b3MulSubMVW  (in benchmark) + 940  [0x100e0ad38]  contact_solver.c:1093
+        + ! :   |   4 b3WarmStartContacts_Convex  (in benchmark) + 4472,92,...  [0x100e0a034,0x100e08f18,...]  contact_solver.c:0
+        + ! :   |   4 b3WarmStartContacts_Convex  (in benchmark) + 4576,4460,...  [0x100e0a09c,0x100e0a028,...]  contact_solver.c:1747
+        + ! :   |   3 b3GatherBodies  (in benchmark) + 244,276,...  [0x100e0a7d0,0x100e0a7f0,...]  contact_solver.c:1278
+        + ! :   |   3 b3GatherBodies  (in benchmark) + 636,632  [0x100e0a958,0x100e0a954]  contact_solver.c:1293
+        + ! :   |   3 b3MulSubMVW  (in benchmark) + 644  [0x100e0ac10]  contact_solver.c:0
+        + ! :   |   2 b3GatherBodies  (in benchmark) + 456,460  [0x100e0a8a4,0x100e0a8a8]  contact_solver.c:1282
+        + ! :   |   2 b3GatherBodies  (in benchmark) + 472,480  [0x100e0a8b4,0x100e0a8bc]  contact_solver.c:1283
+        + ! :   |   2 b3GatherBodies  (in benchmark) + 488,492  [0x100e0a8c4,0x100e0a8c8]  contact_solver.c:1284
+        + ! :   |   2 b3GatherBodies  (in benchmark) + 512,516  [0x100e0a8dc,0x100e0a8e0]  contact_solver.c:1285
+        + ! :   |   2 b3WarmStartContacts_Convex  (in benchmark) + 136  [0x100e08f44]  contact_solver.c:1721
+        + ! :   |   + 2 b3GatherBodies  (in benchmark) + 28  [0x100e0a6f8]  contact_solver.c:1276
+        + ! :   |   2 b3WarmStartContacts_Convex  (in benchmark) + 3932,4008  [0x100e09e18,0x100e09e64]  contact_solver.c:1745
+        + ! :   |   2 b3WarmStartContacts_Convex  (in benchmark) + 5896,5900  [0x100e0a5c4,0x100e0a5c8]  contact_solver.c:1759
+        + ! :   |   1 b3GatherBodies  (in benchmark) + 44  [0x100e0a708]  contact_solver.c:1276
+        + ! :   |   1 b3GatherBodies  (in benchmark) + 532  [0x100e0a8f0]  contact_solver.c:1286
+        + ! :   |   1 b3MulAddMVW  (in benchmark) + 684  [0x100e0aff0]  contact_solver.c:0
+        + ! :   |   1 b3WarmStartContacts_Convex  (in benchmark) + 6132  [0x100e0a6b0]  contact_solver.c:1717
+        + ! :   |   1 b3WarmStartContacts_Convex  (in benchmark) + 3960  [0x100e09e34]  contact_solver.c:1745
+        + ! :   |   + 1 b3MulSubMVW  (in benchmark) + 24  [0x100e0a9a4]  contact_solver.c:1092
+        + ! :   |   1 b3WarmStartContacts_Convex  (in benchmark) + 4528  [0x100e0a06c]  contact_solver.c:1747
+        + ! :   |   + 1 b3MulAddMVW  (in benchmark) + 20  [0x100e0ad58]  contact_solver.c:1102
+        + ! :   |   1 b3WarmStartContacts_Convex  (in benchmark) + 5928  [0x100e0a5e4]  contact_solver.c:1760
+        + ! :   |     1 b3MulSubMVW  (in benchmark) + 32  [0x100e0a9ac]  contact_solver.c:1094
+        + ! :   441 b3SolverTask  (in benchmark) + 636  [0x100e93644]  solver.c:1246
+        + ! :   | 441 b3ExecuteMainStage  (in benchmark) + 272  [0x100e94f8c]  solver.c:1142
+        + ! :   |   273 b3ExecuteBlock  (in benchmark) + 1892,2372,...  [0x100e9574c,0x100e9592c,...]  solver.c:988
+        + ! :   |   141 b3ExecuteBlock  (in benchmark) + 2416  [0x100e95958]  solver.c:988
+        + ! :   |   + 71 __divti3  (in libcompiler_rt.dylib) + 64  [0x191f94980]
+        + ! :   |   + ! 71 __udivmodti4  (in libcompiler_rt.dylib) + 0,4,...  [0x191f94728,0x191f9472c,...]
+        + ! :   |   + 15 b3InvertMatrix  (in benchmark) + 52,80  [0x100e029e0,0x100e029fc]  math_functions.h:869
+        + ! :   |   + 11 __divti3  (in libcompiler_rt.dylib) + 84  [0x191f94994]
+        + ! :   |   + 10 b3InvertMatrix  (in benchmark) + 320,292,...  [0x100e02aec,0x100e02ad0,...]  math_functions.h:879
+        + ! :   |   + 9 b3InvertMatrix  (in benchmark) + 156,176  [0x100e02a48,0x100e02a5c]  math_functions.h:872
+        + ! :   |   + 4 b3InvertMatrix  (in benchmark) + 104  [0x100e02a14]  math_functions.h:870
+        + ! :   |   + 4 b3InvertMatrix  (in benchmark) + 264  [0x100e02ab4]  math_functions.h:876
+        + ! :   |   + 4 b3InvertMatrix  (in benchmark) + 472  [0x100e02b84]  math_functions.h:887
+        + ! :   |   + ! 4 DYLD-STUB$$__divti3  (in benchmark) + 4  [0x100eb9ec4]
+        + ! :   |   + 3 b3InvertMatrix  (in benchmark) + 204  [0x100e02a78]  math_functions.h:874
+        + ! :   |   + 3 b3InvertMatrix  (in benchmark) + 408  [0x100e02b44]  math_functions.h:882
+        + ! :   |   + 3 b3InvertMatrix  (in benchmark) + 644  [0x100e02c30]  math_functions.h:891
+        + ! :   |   + ! 3 DYLD-STUB$$__divti3  (in benchmark) + 4  [0x100eb9ec4]
+        + ! :   |   + 1 b3InvertMatrix  (in benchmark) + 24  [0x100e029c4]  math_functions.h:865
+        + ! :   |   + 1 b3InvertMatrix  (in benchmark) + 556  [0x100e02bd8]  math_functions.h:889
+        + ! :   |   + ! 1 DYLD-STUB$$__divti3  (in benchmark) + 4  [0x100eb9ec4]
+        + ! :   |   + 1 b3InvertMatrix  (in benchmark) + 584  [0x100e02bf4]  math_functions.h:889
+        + ! :   |   + ! 1 DYLD-STUB$$__divti3  (in benchmark) + 4  [0x100eb9ec4]
+        + ! :   |   + 1 b3InvertMatrix  (in benchmark) + 672  [0x100e02c4c]  math_functions.h:891
+        + ! :   |   +   1 DYLD-STUB$$__divti3  (in benchmark) + 4  [0x100eb9ec4]
+        + ! :   |   13 __divti3  (in libcompiler_rt.dylib) + 64  [0x191f94980]
+        + ! :   |   + 13 __udivmodti4  (in libcompiler_rt.dylib) + 0,164,...  [0x191f94728,0x191f947cc,...]
+        + ! :   |   4 b3ExecuteBlock  (in benchmark) + 4172  [0x100e96034]  solver.c:988
+        + ! :   |   + 4 DYLD-STUB$$__divti3  (in benchmark) + 4  [0x100eb9ec4]
+        + ! :   |   4 b3InvertMatrix  (in benchmark) + 1068  [0x100e02dd8]  math_functions.h:915
+        + ! :   |   3 __divti3  (in libcompiler_rt.dylib) + 84  [0x191f94994]
+        + ! :   |   2 b3ExecuteBlock  (in benchmark) + 4204  [0x100e96054]  solver.c:988
+        + ! :   |   + 2 DYLD-STUB$$__divti3  (in benchmark) + 4  [0x100eb9ec4]
+        + ! :   |   1 b3ExecuteBlock  (in benchmark) + 4232  [0x100e96070]  solver.c:988
+        + ! :   |     1 DYLD-STUB$$__divti3  (in benchmark) + 4  [0x100eb9ec4]
+        + ! :   136 b3SolverTask  (in benchmark) + 896  [0x100e93748]  solver.c:1290
+        + ! :   | 136 b3ExecuteMainStage  (in benchmark) + 272  [0x100e94f8c]  solver.c:1142
+        + ! :   |   82 b3ExecuteBlock  (in benchmark) + 4984,5468,...  [0x100e96360,0x100e96544,...]  solver.c:1025
+        + ! :   |   43 __divti3  (in libcompiler_rt.dylib) + 64  [0x191f94980]
+        + ! :   |   + 43 __udivmodti4  (in libcompiler_rt.dylib) + 36,16,...  [0x191f9474c,0x191f94738,...]
+        + ! :   |   5 b3ExecuteBlock  (in benchmark) + 4736  [0x100e96268]  solver.c:1025
+        + ! :   |   + 5 DYLD-STUB$$__divti3  (in benchmark) + 4  [0x100eb9ec4]
+        + ! :   |   3 __divti3  (in libcompiler_rt.dylib) + 84  [0x191f94994]
+        + ! :   |   2 b3ExecuteBlock  (in benchmark) + 4808  [0x100e962b0]  solver.c:1025
+        + ! :   |   + 2 DYLD-STUB$$__divti3  (in benchmark) + 4  [0x100eb9ec4]
+        + ! :   |   1 b3ExecuteBlock  (in benchmark) + 4760  [0x100e96280]  solver.c:1025
+        + ! :   |     1 DYLD-STUB$$__divti3  (in benchmark) + 4  [0x100eb9ec4]
+        + ! :   126 b3SolverTask  (in benchmark) + 1156  [0x100e9384c]  solver.c:1343
+        + ! :   | 44 b3StoreImpulses_Convex  (in benchmark) + 488,464,...  [0x100e10900,0x100e108e8,...]  contact_solver.c:2104
+        + ! :   | 18 b3StoreImpulses_Convex  (in benchmark) + 436,460,...  [0x100e108cc,0x100e108e4,...]  contact_solver.c:2103
+        + ! :   | 17 b3StoreImpulses_Convex  (in benchmark) + 652,616,...  [0x100e109a4,0x100e10980,...]  contact_solver.c:2115
+        + ! :   | 11 b3StoreImpulses_Convex  (in benchmark) + 540,516,...  [0x100e10934,0x100e1091c,...]  contact_solver.c:2105
+        + ! :   | 10 b3StoreImpulses_Convex  (in benchmark) + 604  [0x100e10974]  contact_solver.c:2114
+        + ! :   | 5 b3StoreImpulses_Convex  (in benchmark) + 592  [0x100e10968]  contact_solver.c:2111
+        + ! :   | 4 b3StoreImpulses_Convex  (in benchmark) + 576,580  [0x100e10958,0x100e1095c]  contact_solver.c:2107
+        + ! :   | 3 b3StoreImpulses_Convex  (in benchmark) + 568  [0x100e10950]  contact_solver.c:2102
+        + ! :   | 3 b3StoreImpulses_Convex  (in benchmark) + 596,600  [0x100e1096c,0x100e10970]  contact_solver.c:2108
+        + ! :   | 3 b3StoreImpulses_Convex  (in benchmark) + 628,632  [0x100e1098c,0x100e10990]  contact_solver.c:2123
+        + ! :   | 2 b3StoreImpulses_Convex  (in benchmark) + 584  [0x100e10960]  contact_solver.c:2109
+        + ! :   | 2 b3StoreImpulses_Convex  (in benchmark) + 588  [0x100e10964]  contact_solver.c:2110
+        + ! :   | 1 b3StoreImpulses_Convex  (in benchmark) + 384  [0x100e10898]  contact_solver.c:2088
+        + ! :   | 1 b3StoreImpulses_Convex  (in benchmark) + 404  [0x100e108ac]  contact_solver.c:2100
+        + ! :   | 1 b3StoreImpulses_Convex  (in benchmark) + 408  [0x100e108b0]  contact_solver.c:2101
+        + ! :   | 1 b3StoreImpulses_Convex  (in benchmark) + 664  [0x100e109b0]  contact_solver.c:2128
+        + ! :   3 b3SolverTask  (in benchmark) + 1076  [0x100e937fc]  solver.c:1329
+        + ! :     3 b3ExecuteMainStage  (in benchmark) + 272  [0x100e94f8c]  solver.c:1142
+        + ! :       2 b3ApplyRestitution_Convex  (in benchmark) + 100,108  [0x100e0fd6c,0x100e0fd74]  contact_solver.c:1984
+        + ! :       1 b3ApplyRestitution_Convex  (in benchmark) + 156  [0x100e0fda4]  contact_solver.c:1988
+        + ! 163 b3Solve  (in benchmark) + 3936  [0x100e92434]  solver.c:1889
+        + ! : 163 b3ParallelFor  (in benchmark) + 172  [0x100e58624]  parallel_for.c:118
+        + ! :   163 b3DefaultAddTaskFcn  (in benchmark) + 20  [0x100e5bfc8]  physics_world.c:140
+        + ! :     163 b3ParallelForTrampoline  (in benchmark) + 88  [0x100e5875c]  parallel_for.c:60
+        + ! :       30 b3FinalizeBodiesTask  (in benchmark) + 5344  [0x100e94d80]  solver.c:841
+        + ! :       | 30 b3ComputeFatShapeAABB  (in benchmark) + 60  [0x100e871e8]  shape.c:608
+        + ! :       |   28 b3ComputeShapeAABB  (in benchmark) + 224  [0x100e87118]  shape.c:578
+        + ! :       |   + 12 b3AABB_Transform  (in benchmark) + 216,360,...  [0x100e3a374,0x100e3a404,...]  math_functions.h:1095
+        + ! :       |   + 10 b3AABB_Transform  (in benchmark) + 964,840,...  [0x100e3a660,0x100e3a5e4,...]  math_functions.h:1097
+        + ! :       |   + 6 b3AABB_Transform  (in benchmark) + 708,492,...  [0x100e3a560,0x100e3a488,...]  math_functions.h:1096
+        + ! :       |   2 b3ComputeShapeAABB  (in benchmark) + 360  [0x100e871a0]  shape.c:593
+        + ! :       23 __divti3  (in libcompiler_rt.dylib) + 64  [0x191f94980]
+        + ! :       | 23 __udivmodti4  (in libcompiler_rt.dylib) + 16,0,...  [0x191f94738,0x191f94728,...]
+        + ! :       18 b3FinalizeBodiesTask  (in benchmark) + 4952  [0x100e94bf8]  solver.c:798
+        + ! :       | 6 b3MulMM  (in benchmark) + 68,152,...  [0x100df0af0,0x100df0b44,...]  math_functions.h:846
+        + ! :       | 4 b3MulMM  (in benchmark) + 384,312,...  [0x100df0c2c,0x100df0be4,...]  math_functions.h:847
+        + ! :       | 4 b3MulMM  (in benchmark) + 548,564,...  [0x100df0cd0,0x100df0ce0,...]  math_functions.h:848
+        + ! :       | 3 b3MulMM  (in benchmark) + 684  [0x100df0d58]  math_functions.h:849
+        + ! :       | 1 b3MulMM  (in benchmark) + 4  [0x100df0ab0]  math_functions.h:844
+        + ! :       14 b3FinalizeBodiesTask  (in benchmark) + 1328,2156,...  [0x100e93dd0,0x100e9410c,...]  solver.c:711
+        + ! :       11 b3FinalizeBodiesTask  (in benchmark) + 4908  [0x100e94bcc]  solver.c:798
+        + ! :       | 5 b3MulMM  (in benchmark) + 56,100,...  [0x100df0ae4,0x100df0b10,...]  math_functions.h:846
+        + ! :       | 3 b3MulMM  (in benchmark) + 544,560,...  [0x100df0ccc,0x100df0cdc,...]  math_functions.h:848
+        + ! :       | 2 b3MulMM  (in benchmark) + 336,408  [0x100df0bfc,0x100df0c44]  math_functions.h:847
+        + ! :       | 1 b3MulMM  (in benchmark) + 684  [0x100df0d58]  math_functions.h:849
+        + ! :       10 b3FinalizeBodiesTask  (in benchmark) + 2612,2628,...  [0x100e942d4,0x100e942e4,...]  solver.c:715
+        + ! :       9 b3FinalizeBodiesTask  (in benchmark) + 3820,3832,...  [0x100e9478c,0x100e94798,...]  solver.c:731
+        + ! :       6 __divti3  (in libcompiler_rt.dylib) + 84,88  [0x191f94994,0x191f94998]
+        + ! :       6 b3FinalizeBodiesTask  (in benchmark) + 3144,3484,...  [0x100e944e8,0x100e9463c,...]  solver.c:721
+        + ! :       5 b3FinalizeBodiesTask  (in benchmark) + 4756,4688,...  [0x100e94b34,0x100e94af0,...]  solver.c:797
+        + ! :       4 b3FinalizeBodiesTask  (in benchmark) + 2928,2568,...  [0x100e94410,0x100e942a8,...]  fixed.h:0
+        + ! :       4 b3FinalizeBodiesTask  (in benchmark) + 2976,2980  [0x100e94440,0x100e94444]  solver.c:0
+        + ! :       4 b3FinalizeBodiesTask  (in benchmark) + 704,848,...  [0x100e93b60,0x100e93bf0,...]  solver.c:699
+        + ! :       3 b3FinalizeBodiesTask  (in benchmark) + 1012,1032  [0x100e93c94,0x100e93ca8]  solver.c:701
+        + ! :       2 b3FinalizeBodiesTask  (in benchmark) + 472,508  [0x100e93a78,0x100e93a9c]  solver.c:698
+        + ! :       2 b3FinalizeBodiesTask  (in benchmark) + 1932  [0x100e9402c]  solver.c:711
+        + ! :       | 2 DYLD-STUB$$__divti3  (in benchmark) + 4  [0x100eb9ec4]
+        + ! :       2 b3FinalizeBodiesTask  (in benchmark) + 5180  [0x100e94cdc]  solver.c:826
+        + ! :       2 b3FinalizeBodiesTask  (in benchmark) + 5208  [0x100e94cf8]  solver.c:848
+        + ! :       1 b3FinalizeBodiesTask  (in benchmark) + 1032  [0x100e93ca8]  solver.c:701
+        + ! :       | 1 b3IsValidVec3  (in benchmark) + 36  [0x100e464ec]  math_functions.c:22
+        + ! :       1 b3FinalizeBodiesTask  (in benchmark) + 4176  [0x100e948f0]  solver.c:734
+        + ! :       1 b3FinalizeBodiesTask  (in benchmark) + 4204  [0x100e9490c]  solver.c:738
+        + ! :       1 b3FinalizeBodiesTask  (in benchmark) + 4244  [0x100e94934]  solver.c:739
+        + ! :       1 b3FinalizeBodiesTask  (in benchmark) + 4324  [0x100e94984]  solver.c:753
+        + ! :       1 b3FinalizeBodiesTask  (in benchmark) + 4452  [0x100e94a04]  solver.c:764
+        + ! :       1 b3FinalizeBodiesTask  (in benchmark) + 4872  [0x100e94ba8]  solver.c:798
+        + ! :       1 b3FinalizeBodiesTask  (in benchmark) + 5392  [0x100e94db0]  solver.c:846
+        + ! 7 b3Solve  (in benchmark) + 5988  [0x100e92c38]  solver.c:2150
+        + ! : 7 b3BroadPhase_EnlargeProxy  (in benchmark) + 76  [0x100df6518]  broad_phase.c:126
+        + ! :   6 b3DynamicTree_EnlargeProxy  (in benchmark) + 32,96,...  [0x100e2dd78,0x100e2ddb8,...]  dynamic_tree.c:826
+        + ! :   1 b3DynamicTree_EnlargeProxy  (in benchmark) + 276  [0x100e2de6c]  dynamic_tree.c:851
+        + ! 1 b3Solve  (in benchmark) + 3552  [0x100e922b4]  solver.c:1830
+        + !   1 snprintf  (in libsystem_c.dylib) + 68  [0x1820004d8]
+        + !     1 _vsnprintf  (in libsystem_c.dylib) + 212  [0x1820211d0]
+        + !       1 __vfprintf  (in libsystem_c.dylib) + 11568  [0x181ff8778]
+        + !         1 __sfvwrite  (in libsystem_c.dylib) + 348  [0x181ff8d38]
+        + !           1 _platform_memmove  (in libsystem_platform.dylib) + 428  [0x18216f50c]
+        + 672 b3World_Step  (in benchmark) + 2340  [0x100e5d1cc]  physics_world.c:1128
+        + ! 672 b3ParallelFor  (in benchmark) + 172  [0x100e58624]  parallel_for.c:118
+        + !   672 b3DefaultAddTaskFcn  (in benchmark) + 20  [0x100e5bfc8]  physics_world.c:140
+        + !     672 b3ParallelForTrampoline  (in benchmark) + 88  [0x100e5875c]  parallel_for.c:60
+        + !       173 b3CollideTask  (in benchmark) + 1124  [0x100e63f8c]  physics_world.c:661
+        + !       : 112 b3InvMulWorldTransforms  (in benchmark) + 256,280,...  [0x100e650ec,0x100e65104,...]  math_functions.h:723
+        + !       : 55 b3InvMulWorldTransforms  (in benchmark) + 528,440,...  [0x100e651fc,0x100e651a4,...]  math_functions.h:725
+        + !       : 5 b3InvMulWorldTransforms  (in benchmark) + 416,412  [0x100e6518c,0x100e65188]  math_functions.h:724
+        + !       : 1 b3InvMulWorldTransforms  (in benchmark) + 0  [0x100e64fec]  math_functions.h:721
+        + !       91 b3CollideTask  (in benchmark) + 4232,4180,...  [0x100e64bb0,0x100e64b7c,...]  physics_world.c:709
+        + !       82 b3CollideTask  (in benchmark) + 3944,3996,...  [0x100e64a90,0x100e64ac4,...]  physics_world.c:710
+        + !       55 b3CollideTask  (in benchmark) + 4284,4304,...  [0x100e64be4,0x100e64bf8,...]  physics_world.c:712
+        + !       49 b3CollideTask  (in benchmark) + 4272,4252,...  [0x100e64bd8,0x100e64bc4,...]  physics_world.c:711
+        + !       37 b3CollideTask  (in benchmark) + 2584,2356,...  [0x100e64540,0x100e6445c,...]  physics_world.c:691
+        + !       36 b3CollideTask  (in benchmark) + 2548,2704,...  [0x100e6451c,0x100e645b8,...]  physics_world.c:693
+        + !       26 b3CollideTask  (in benchmark) + 3164,3252,...  [0x100e64784,0x100e647dc,...]  physics_world.c:690
+        + !       12 b3CollideTask  (in benchmark) + 1672,1724,...  [0x100e641b0,0x100e641e4,...]  physics_world.c:684
+        + !       12 b3CollideTask  (in benchmark) + 4372  [0x100e64c3c]  physics_world.c:713
+        + !       11 b3CollideTask  (in benchmark) + 4208,4156,...  [0x100e64b98,0x100e64b64,...]  physics_world.c:696
+        + !       10 b3CollideTask  (in benchmark) + 892,916,...  [0x100e63ea4,0x100e63ebc,...]  physics_world.c:658
+        + !       10 b3CollideTask  (in benchmark) + 1924,2028,...  [0x100e642ac,0x100e64314,...]  physics_world.c:685
+        + !       9 b3CollideTask  (in benchmark) + 3324,3140,...  [0x100e64824,0x100e6476c,...]  physics_world.c:692
+        + !       8 b3CollideTask  (in benchmark) + 708,504,...  [0x100e63dec,0x100e63d20,...]  physics_world.c:0
+        + !       8 b3CollideTask  (in benchmark) + 1456,1360,...  [0x100e640d8,0x100e64078,...]  physics_world.c:674
+        + !       8 b3CollideTask  (in benchmark) + 2124,2076,...  [0x100e64374,0x100e64344,...]  physics_world.c:687
+        + !       4 b3CollideTask  (in benchmark) + 432,364,...  [0x100e63cd8,0x100e63c94,...]  physics_world.c:598
+        + !       4 b3CollideTask  (in benchmark) + 828,768,...  [0x100e63e64,0x100e63e28,...]  physics_world.c:657
+        + !       3 b3CollideTask  (in benchmark) + 1172  [0x100e63fbc]  physics_world.c:664
+        + !       3 b3CollideTask  (in benchmark) + 1284  [0x100e6402c]  physics_world.c:670
+        + !       3 b3CollideTask  (in benchmark) + 1344,1328  [0x100e64068,0x100e64058]  physics_world.c:672
+        + !       3 b3CollideTask  (in benchmark) + 2148  [0x100e6438c]  physics_world.c:688
+        + !       2 b3CollideTask  (in benchmark) + 1200  [0x100e63fd8]  physics_world.c:665
+        + !       2 b3CollideTask  (in benchmark) + 2172  [0x100e643a4]  physics_world.c:698
+        + !       2 b3CollideTask  (in benchmark) + 3556,3588  [0x100e6490c,0x100e6492c]  physics_world.c:699
+        + !       2 b3CollideTask  (in benchmark) + 3624  [0x100e64950]  physics_world.c:705
+        + !       1 b3CollideTask  (in benchmark) + 288  [0x100e63c48]  physics_world.c:581
+        + !       1 b3CollideTask  (in benchmark) + 336  [0x100e63c78]  physics_world.c:588
+        + !       1 b3CollideTask  (in benchmark) + 608  [0x100e63d88]  physics_world.c:639
+        + !       1 b3CollideTask  (in benchmark) + 632  [0x100e63da0]  physics_world.c:642
+        + !       1 b3CollideTask  (in benchmark) + 740  [0x100e63e0c]  physics_world.c:654
+        + !       1 b3CollideTask  (in benchmark) + 1052  [0x100e63f44]  physics_world.c:659
+        + !       1 b3CollideTask  (in benchmark) + 1016  [0x100e63f20]  physics_world.c:661
+        + 40 b3World_Step  (in benchmark) + 520  [0x100e5cab0]  physics_world.c:1088
+        +   33 b3UpdateBroadPhasePairs  (in benchmark) + 128  [0x100df6654]  broad_phase.c:426
+        +   : 33 b3ParallelFor  (in benchmark) + 172  [0x100e58624]  parallel_for.c:118
+        +   :   33 b3DefaultAddTaskFcn  (in benchmark) + 20  [0x100e5bfc8]  physics_world.c:140
+        +   :     33 b3ParallelForTrampoline  (in benchmark) + 88  [0x100e5875c]  parallel_for.c:60
+        +   :       33 b3FindPairsTask  (in benchmark) + 164  [0x100df6aa0]  broad_phase.c:380
+        +   :         18 b3DynamicTree_Query  (in benchmark) + 152  [0x100e2e1a0]  dynamic_tree.c:0
+        +   :         6 b3DynamicTree_Query  (in benchmark) + 144  [0x100e2e198]  dynamic_tree.c:1128
+        +   :         | 6 b3PairQueryCallback  (in benchmark) + 1888  [0x100df7404]  broad_phase.c:244
+        +   :         |   6 b3ContainsKey  (in benchmark) + 100  [0x100ea215c]  table.c:138
+        +   :         5 b3DynamicTree_Query  (in benchmark) + 292,260,...  [0x100e2e22c,0x100e2e20c,...]  dynamic_tree.c:1123
+        +   :         1 b3DynamicTree_Query  (in benchmark) + 192  [0x100e2e1c8]  dynamic_tree.c:1121
+        +   :         1 b3DynamicTree_Query  (in benchmark) + 308  [0x100e2e23c]  dynamic_tree.c:1125
+        +   :         1 b3DynamicTree_Query  (in benchmark) + 132  [0x100e2e18c]  dynamic_tree.c:1128
+        +   :         1 b3DynamicTree_Query  (in benchmark) + 316  [0x100e2e244]  dynamic_tree.c:1139
+        +   7 b3UpdateBroadPhasePairs  (in benchmark) + 172  [0x100df6680]  broad_phase.c:434
+        +     7 b3DefaultAddTaskFcn  (in benchmark) + 20  [0x100e5bfc8]  physics_world.c:140
+        +       7 b3UpdateTreesTask  (in benchmark) + 28  [0x100df6bac]  broad_phase.c:392
+        +         5 b3DynamicTree_Rebuild  (in benchmark) + 676  [0x100e2f5b0]  dynamic_tree.c:2077
+        +         | 2 b3PartitionMid  (in benchmark) + 212  [0x100e2fb20]  dynamic_tree.c:1490
+        +         | 1 b3PartitionMid  (in benchmark) + 720  [0x100e2fd1c]  dynamic_tree.c:0
+        +         | 1 b3PartitionMid  (in benchmark) + 1080  [0x100e2fe84]  dynamic_tree.c:1545
+        +         | 1 b3PartitionMid  (in benchmark) + 1112  [0x100e2fea4]  dynamic_tree.c:1548
+        +         1 b3DynamicTree_Rebuild  (in benchmark) + 256  [0x100e2f40c]  dynamic_tree.c:2023
+        +         1 b3DynamicTree_Rebuild  (in benchmark) + 636  [0x100e2f588]  dynamic_tree.c:2077
+        +           1 b3AllocateNode  (in benchmark) + 20  [0x100e2c508]  dynamic_tree.c:102
+        43 main  (in benchmark) + 1672  [0x100ded0f0]  main.c:348
+        + 24 b3World_Step  (in benchmark) + 3560  [0x100e5d690]  physics_world.c:1136
+        + ! 23 b3Solve  (in benchmark) + 3576  [0x100e922cc]  solver.c:1832
+        + ! : 23 b3DefaultAddTaskFcn  (in benchmark) + 20  [0x100e5bfc8]  physics_world.c:140
+        + ! :   7 b3SolverTask  (in benchmark) + 992  [0x100e937a8]  solver.c:1307
+        + ! :   | 7 b3ExecuteMainStage  (in benchmark) + 272  [0x100e94f8c]  solver.c:1142
+        + ! :   |   1 b3GatherBodies  (in benchmark) + 176  [0x100e0a78c]  contact_solver.c:1277
+        + ! :   |   1 b3MakeMatrixFromQuatW  (in benchmark) + 1856  [0x100e0f244]  contact_solver.c:1171
+        + ! :   |   1 b3MulSubMVW  (in benchmark) + 320  [0x100e0aacc]  contact_solver.c:1094
+        + ! :   |   1 b3RelVelocityW  (in benchmark) + 264  [0x100e0f674]  contact_solver.c:1005
+        + ! :   |   1 b3RelVelocityW  (in benchmark) + 200  [0x100e0f634]  contact_solver.c:1007
+        + ! :   |   1 b3SolveContacts_Convex  (in benchmark) + 13296  [0x100e0e614]  contact_solver.c:1928
+        + ! :   |   1 b3SolveContacts_Convex  (in benchmark) + 3652  [0x100e0c068]  contact_solver.c:1968
+        + ! :   |     1 b3ScatterBodies  (in benchmark) + 0  [0x100e0b130]  contact_solver.c:1302
+        + ! :   6 b3SolverTask  (in benchmark) + 828  [0x100e93704]  solver.c:1279
+        + ! :   | 6 b3ExecuteMainStage  (in benchmark) + 272  [0x100e94f8c]  solver.c:1142
+        + ! :   |   1 b3MulMV3W  (in benchmark) + 176  [0x100e0f300]  contact_solver.c:1177
+        + ! :   |   1 b3MulMV3W  (in benchmark) + 384  [0x100e0f3d0]  contact_solver.c:1178
+        + ! :   |   1 b3MulMV3W  (in benchmark) + 624  [0x100e0f4c0]  contact_solver.c:1179
+        + ! :   |   1 b3RelVelocityW  (in benchmark) + 684  [0x100e0f818]  contact_solver.c:1011
+        + ! :   |   1 b3SolveContacts_Convex  (in benchmark) + 5236  [0x100e0c698]  contact_solver.c:0
+        + ! :   |   1 b3SolveContacts_Convex  (in benchmark) + 6524  [0x100e0cba0]  contact_solver.c:1859
+        + ! :   5 b3SolverTask  (in benchmark) + 712  [0x100e93690]  solver.c:1260
+        + ! :   | 5 b3ExecuteMainStage  (in benchmark) + 272  [0x100e94f8c]  solver.c:1142
+        + ! :   |   1 b3GatherBodies  (in benchmark) + 132  [0x100e0a760]  contact_solver.c:1277
+        + ! :   |   1 b3WarmStartContacts_Convex  (in benchmark) + 436  [0x100e09070]  contact_solver.c:1728
+        + ! :   |   1 b3WarmStartContacts_Convex  (in benchmark) + 1816  [0x100e095d4]  contact_solver.c:1731
+        + ! :   |   1 b3WarmStartContacts_Convex  (in benchmark) + 2104  [0x100e096f4]  contact_solver.c:1736
+        + ! :   |   1 b3WarmStartContacts_Convex  (in benchmark) + 6100  [0x100e0a690]  contact_solver.c:1764
+        + ! :   |     1 b3ScatterBodies  (in benchmark) + 64  [0x100e0b170]  contact_solver.c:1315
+        + ! :   4 b3SolverTask  (in benchmark) + 440  [0x100e93580]  solver.c:1217
+        + ! :   | 4 b3ExecuteMainStage  (in benchmark) + 272  [0x100e94f8c]  solver.c:1142
+        + ! :   |   1 b3PrepareContacts_Convex  (in benchmark) + 1460  [0x100e07414]  contact_solver.c:1479
+        + ! :   |   1 b3PrepareContacts_Convex  (in benchmark) + 1596  [0x100e0749c]  contact_solver.c:1492
+        + ! :   |   1 b3PrepareContacts_Convex  (in benchmark) + 1716  [0x100e07514]  contact_solver.c:1502
+        + ! :   |   1 b3PrepareContacts_Convex  (in benchmark) + 6296  [0x100e086f8]  contact_solver.c:1624
+        + ! :   1 b3SolverTask  (in benchmark) + 636  [0x100e93644]  solver.c:1246
+        + ! :     1 b3ExecuteMainStage  (in benchmark) + 272  [0x100e94f8c]  solver.c:1142
+        + ! :       1 b3ExecuteBlock  (in benchmark) + 3880  [0x100e95f10]  solver.c:988
+        + ! 1 b3Solve  (in benchmark) + 3936  [0x100e92434]  solver.c:1889
+        + !   1 b3ParallelFor  (in benchmark) + 172  [0x100e58624]  parallel_for.c:118
+        + !     1 b3DefaultAddTaskFcn  (in benchmark) + 20  [0x100e5bfc8]  physics_world.c:140
+        + !       1 b3ParallelForTrampoline  (in benchmark) + 88  [0x100e5875c]  parallel_for.c:60
+        + !         1 b3FinalizeBodiesTask  (in benchmark) + 3432  [0x100e94608]  fixed.h:0
+        + 16 b3World_Step  (in benchmark) + 2340  [0x100e5d1cc]  physics_world.c:1128
+        + ! 16 b3ParallelFor  (in benchmark) + 172  [0x100e58624]  parallel_for.c:118
+        + !   16 b3DefaultAddTaskFcn  (in benchmark) + 20  [0x100e5bfc8]  physics_world.c:140
+        + !     16 b3ParallelForTrampoline  (in benchmark) + 88  [0x100e5875c]  parallel_for.c:60
+        + !       16 b3CollideTask  (in benchmark) + 4740  [0x100e64dac]  physics_world.c:739
+        + !         16 b3UpdateContact  (in benchmark) + 460  [0x100dff47c]  contact.c:845
+        + !           15 b3UpdateConvexContact  (in benchmark) + 3908  [0x100e00b30]  contact.c:619
+        + !           : 9 b3CollideHulls  (in benchmark) + 6036  [0x100e164d0]  convex_manifold.c:1590
+        + !           : | 6 b3QueryEdgeDirections  (in benchmark) + 1820,1796,...  [0x100e1928c,0x100e19274,...]  convex_manifold.c:299
+        + !           : | 1 b3QueryEdgeDirections  (in benchmark) + 1304  [0x100e19088]  convex_manifold.c:271
+        + !           : | 1 b3QueryEdgeDirections  (in benchmark) + 1032  [0x100e18f78]  convex_manifold.c:274
+        + !           : | 1 b3QueryEdgeDirections  (in benchmark) + 696  [0x100e18e28]  convex_manifold.c:275
+        + !           : 6 b3CollideHulls  (in benchmark) + 6232  [0x100e16594]  convex_manifold.c:1614
+        + !           :   3 b3BuildFaceAContact  (in benchmark) + 1804  [0x100e16d8c]  convex_manifold.c:1202
+        + !           :   + 3 ???  (in <unknown binary>)  [0x1]
+        + !           :   +   2 b3ClipPolygon  (in benchmark) + 336,360  [0x100e46150,0x100e46168]  manifold.c:140
+        + !           :   +   1 b3ClipPolygon  (in benchmark) + 384  [0x100e46180]  manifold.c:149
+        + !           :   1 b3BuildFaceAContact  (in benchmark) + 5396  [0x100e17b94]  convex_manifold.c:0
+        + !           :   1 b3BuildFaceAContact  (in benchmark) + 564  [0x100e168b4]  convex_manifold.c:1177
+        + !           :   + 1 b3FindIncidentFace  (in benchmark) + 860  [0x100e45e4c]  manifold.c:41
+        + !           :   1 b3BuildFaceAContact  (in benchmark) + 1712  [0x100e16d30]  convex_manifold.c:1200
+        + !           1 b3UpdateConvexContact  (in benchmark) + 112  [0x100dffc5c]  contact.c:619
+        + 2 b3World_Step  (in benchmark) + 520  [0x100e5cab0]  physics_world.c:1088
+        + ! 1 b3UpdateBroadPhasePairs  (in benchmark) + 128  [0x100df6654]  broad_phase.c:426
+        + ! : 1 b3ParallelFor  (in benchmark) + 172  [0x100e58624]  parallel_for.c:118
+        + ! :   1 b3DefaultAddTaskFcn  (in benchmark) + 20  [0x100e5bfc8]  physics_world.c:140
+        + ! :     1 b3ParallelForTrampoline  (in benchmark) + 88  [0x100e5875c]  parallel_for.c:60
+        + ! :       1 b3FindPairsTask  (in benchmark) + 164  [0x100df6aa0]  broad_phase.c:380
+        + ! :         1 b3DynamicTree_Query  (in benchmark) + 292  [0x100e2e22c]  dynamic_tree.c:1123
+        + ! 1 b3UpdateBroadPhasePairs  (in benchmark) + 348  [0x100df6730]  broad_phase.c:460
+        + !   1 b3AddKey  (in benchmark) + 516  [0x100ea23a4]  table.c:170
+        + 1 b3World_Step  (in benchmark) + 3416  [0x100e5d600]  physics_world.c:1128
+        +   1 b3LinkContact  (in benchmark) + 132  [0x100e3e024]  island.c:227
+        +     1 b3MergeIslands  (in benchmark) + 140  [0x100e3e13c]  island.c:120
+        +       1 b3GrowAlloc  (in benchmark) + 132  [0x100e197f8]  core.c:219
+        +         1 _platform_memmove  (in libsystem_platform.dylib) + 180  [0x18216f414]
+        3 main  (in benchmark) + 1608  [0x100ded0b0]  main.c:335
+          2 CreateLargePyramid  (in benchmark) + 256  [0x100eb5544]  benchmarks.c:139
+          ! 2 b3CreateHullShape  (in benchmark) + 68  [0x100e86784]  shape.c:356
+          !   1 b3CreateShape  (in benchmark) + 1376  [0x100e862d0]  shape.c:287
+          !   : 1 b3BroadPhase_CreateProxy  (in benchmark) + 80  [0x100df6240]  broad_phase.c:89
+          !   :   1 b3DynamicTree_CreateProxy  (in benchmark) + 100  [0x100e2c4d0]  dynamic_tree.c:771
+          !   :     1 b3InsertLeaf  (in benchmark) + 820  [0x100e2c958]  dynamic_tree.c:623
+          !   1 b3CreateShape  (in benchmark) + 1668  [0x100e863f4]  shape.c:297
+          !     1 b3UpdateBodyMassData  (in benchmark) + 1068  [0x100df0128]  body.c:905
+          !       1 b3InvertT  (in benchmark) + 804  [0x100df0990]  math_functions.h:964
+          !         1 DYLD-STUB$$__divti3  (in benchmark) + 4  [0x100eb9ec4]
+          1 CreateLargePyramid  (in benchmark) + 244  [0x100eb5538]  benchmarks.c:138
+            1 b3CreateBody  (in benchmark) + 412  [0x100dee814]  body.c:222
+              1 b3GrowAlloc  (in benchmark) + 132  [0x100e197f8]  core.c:219
+                1 _platform_memmove  (in libsystem_platform.dylib) + 88  [0x18216f3b8]
 
 Total number in stack (recursive counted multiple, when >=5):
-        14       DYLD-STUB$$__divti3  (in benchmark) + 0  [0x100b32a48]
-        6       b3ExecuteMainStage  (in benchmark) + 272  [0x100b0db14]  solver.c:1142
-        6       b3GatherBodies  (in benchmark) + 0  [0x100a823b8]  contact_solver.c:1208
-        6       b3MulAddMVW  (in benchmark) + 0  [0x100a82a20]  contact_solver.c:1092
+        16       DYLD-STUB$$__divti3  (in benchmark) + 0  [0x100eb9ec0]
+        12       b3ExecuteMainStage  (in benchmark) + 272  [0x100e94f8c]  solver.c:1142
+        9       b3DefaultAddTaskFcn  (in benchmark) + 20  [0x100e5bfc8]  physics_world.c:140
+        6       b3ParallelFor  (in benchmark) + 172  [0x100e58624]  parallel_for.c:118
+        6       b3ParallelForTrampoline  (in benchmark) + 88  [0x100e5875c]  parallel_for.c:60
+        6       b3ScatterBodies  (in benchmark) + 0  [0x100e0b130]  contact_solver.c:1327
         5       __divti3  (in libcompiler_rt.dylib) + 0  [0x191f94940]
         5       __divti3  (in libcompiler_rt.dylib) + 64  [0x191f94980]
         5       __udivmodti4  (in libcompiler_rt.dylib) + 0  [0x191f94728]
-        5       b3DefaultAddTaskFcn  (in benchmark) + 20  [0x100ad4b50]  physics_world.c:140
+        5       b3GatherBodies  (in benchmark) + 0  [0x100e0a6dc]  contact_solver.c:1276
+        5       b3GatherBodies  (in benchmark) + 0  [0x100e0a6dc]  contact_solver.c:1277
+        5       b3MulMV3W  (in benchmark) + 0  [0x100e0f250]  contact_solver.c:1177
+        5       b3ScatterBodies  (in benchmark) + 0  [0x100e0b130]  contact_solver.c:1314
 
 Sort by top of stack, same collapsed (when >= 5):
-        b3SolveContacts_Convex  (in benchmark)        1314
-        b3RotateVectorW  (in benchmark)        835
-        b3PrepareContacts_Convex  (in benchmark)        489
-        b3MulAddMVW  (in benchmark)        427
-        b3MulSubMVW  (in benchmark)        426
-        b3WarmStartContacts_Convex  (in benchmark)        377
-        b3CollideTask  (in benchmark)        277
-        b3ExecuteBlock  (in benchmark)        215
-        b3GatherBodies  (in benchmark)        129
-        __udivmodti4  (in libcompiler_rt.dylib)        91
-        b3InvMulWorldTransforms  (in benchmark)        91
-        b3StoreImpulses_Convex  (in benchmark)        81
-        b3ScatterBodies  (in benchmark)        35
-        b3FinalizeBodiesTask  (in benchmark)        31
-        b3MulMM  (in benchmark)        21
-        b3InvertMatrix  (in benchmark)        20
-        DYLD-STUB$$__divti3  (in benchmark)        15
-        b3Perp  (in benchmark)        15
-        __divti3  (in libcompiler_rt.dylib)        13
-        b3DynamicTree_Query  (in benchmark)        11
-        b3AABB_Transform  (in benchmark)        8
-        b3SqrtW  (in benchmark)        7
+        b3SolveContacts_Convex  (in benchmark)        1522
+        b3PrepareContacts_Convex  (in benchmark)        916
+        b3WarmStartContacts_Convex  (in benchmark)        703
+        b3MulMV3W  (in benchmark)        677
+        b3CollideTask  (in benchmark)        499
+        b3RelVelocityW  (in benchmark)        381
+        b3ExecuteBlock  (in benchmark)        356
+        b3MakeMatrixFromQuatW  (in benchmark)        322
+        b3GatherBodies  (in benchmark)        237
+        b3InvMulWorldTransforms  (in benchmark)        173
+        __udivmodti4  (in libcompiler_rt.dylib)        166
+        b3StoreImpulses_Convex  (in benchmark)        126
+        b3MulSubMVW  (in benchmark)        122
+        b3MulAddMVW  (in benchmark)        102
+        b3FinalizeBodiesTask  (in benchmark)        73
+        b3ScatterBodies  (in benchmark)        67
+        b3InvertMatrix  (in benchmark)        53
+        b3Perp  (in benchmark)        38
+        DYLD-STUB$$__divti3  (in benchmark)        33
+        b3MulMM  (in benchmark)        29
+        b3AABB_Transform  (in benchmark)        28
+        b3DynamicTree_Query  (in benchmark)        28
+        __divti3  (in libcompiler_rt.dylib)        26
+        b3SqrtW  (in benchmark)        14
+        b3QueryEdgeDirections  (in benchmark)        9
+        b3DynamicTree_EnlargeProxy  (in benchmark)        7
+        b3ContainsKey  (in benchmark)        6
+        b3PartitionMid  (in benchmark)        5
 
 Binary Images:
-       0x100a64000 -        0x100b36207 +benchmark (0) <402B8465-44A4-37CA-ABA5-4B618E62E378> /Users/*/benchmark
+       0x100dec000 -        0x100ebd6f7 +benchmark (0) <4BA3D700-EDB0-3E6D-9D5F-40C10015344C> /Users/*/benchmark
        0x181d00000 -        0x181d52b4b  libobjc.A.dylib (951.7) <FF1D8AE4-ABEF-35F1-A30A-1183B9CB414F> /usr/lib/libobjc.A.dylib
        0x181d53000 -        0x181d87d07  libdyld.dylib (1378) <B147D877-D0C2-388F-B38D-D3132E39905F> /usr/lib/system/libdyld.dylib
        0x181d88000 -        0x181e2e217  dyld (1.0.0 - 1378) <A237EF81-B68B-37BA-A165-92C965529534> /usr/lib/dyld

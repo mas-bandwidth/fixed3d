@@ -36,31 +36,48 @@ Session-3 performance work (all on top of 98b9889's fixed.h fast paths):
 - Normalize component divides routed through `b3FixDiv` (picks up its 64-bit fast
   path; identical truncating quotient).
 
-Benchmarks (4 workers, this machine, min of 2 runs; "before" = the CSVs from the
-morning run, "98b9889" = that commit alone; full A/B vs float rerun at ab2d210 —
+Solver pass (after ab2d210, contact_solver.c only):
+
+- **Anchor rotation via matrices** (Erin's todo): `bA.dq/bB.dq` are constant per
+  wide constraint, so they become `b3Matrix3W` (rows; entries are fused raw-128
+  reductions with the doubling as an exact shift) built once per constraint, and
+  each anchor rotate is three `b3Dot3W` rows. `b3RotateVectorW` is gone.
+- **Precomputed contact Jacobians**: prepare stores `cross(r, n)` and
+  `invI*cross(r, n)` per point, plus `invMass*n`, `invI*n` (twist), and
+  `cross(origin, tangent)` per constraint. The solve/warm-start/restitution
+  impulse applications collapse to scalar*vector ops, and relative velocities
+  project through `b3RelVelocityW` (nine products, one rounding). Trade-off:
+  the wide constraint is fatter, so prepare/warm start pay more bandwidth —
+  light scenes (joint_grid, trees50) gave back ~5-7%, solver-bound scenes
+  gained 10-16%.
+
+Benchmarks (4 workers, this machine, min of 2 runs; run-to-run variance ±2-5%;
 CSVs and sample profiles in benchmark/apple_m3_ultra_fixed|_float/):
 
-| benchmark      | before | 98b9889 | now (ab2d210) | float | ratio |
-|----------------|--------|---------|---------------|-------|-------|
-| convex_pile    | 46779  | 27279   | 20708         | 13626 | 1.52x |
-| joint_grid     | 1555   | 809     | 810           | 271   | 2.99x |
-| large_pyramid  | 4444   | 2295    | 2072          | 508   | 4.08x |
-| large_world    | 162    | 92      | 85            | 14    | 5.99x |
-| many_pyramids  | 4263   | 2246    | 2031          | 490   | 4.15x |
-| rain           | 2637   | 1747    | 1356          | 582   | 2.33x |
-| trees50        | 419    | 226     | 203           | 116   | 1.74x |
-| washer         | 28767  | 18976   | 15305         | 6577  | 2.33x |
+| benchmark      | before | 98b9889 | ab2d210 | solver pass | float | ratio |
+|----------------|--------|---------|---------|-------------|-------|-------|
+| convex_pile    | 46779  | 27279   | 20708   | 21055       | 13626 | 1.55x |
+| joint_grid     | 1555   | 809     | 810     | 855         | 271   | 3.16x |
+| large_pyramid  | 4444   | 2295    | 2072    | 1735        | 508   | 3.41x |
+| large_world    | 162    | 92      | 85      | 72          | 14    | 5.12x |
+| many_pyramids  | 4263   | 2246    | 2031    | 1699        | 490   | 3.47x |
+| rain           | 2637   | 1747    | 1356    | 1380        | 582   | 2.37x |
+| trees50        | 419    | 226     | 203     | 217         | 116   | 1.87x |
+| washer         | 28767  | 18976   | 15305   | 13840       | 6577  | 2.10x |
 
-**Geomean ~2.85x of float** (was 5.4x pre-optimization, 3.2x after 98b9889).
-~2.3x over the morning state. The sentinel-audit SAH fix was itself a perf win
-for rebuild-heavy scenes (rain −22%, washer −13%). Profile is dominated by the
-contact solver inner iteration (b3SolveContacts_Convex 27%, b3RotateVectorW 17%,
-b3MulSub/AddMVW 17%) — narrow phase is ~6%. Float on the same workload is also
-solver-bound but pays ~20% in SIMD gather/scatter that the scalar int64 lanes
-don't; the residual gap is the 64x64->128 lane multiplies vs float FMA. Next
-levers, in order: (1) NEON int64 2-lane vectorization of the wide solver (big
-project), (2) `b3RotateVectorW` restructure (two crosses → matrix form per
-body), (3) the remaining `__udivmodti4` calls (~2%).
+**Geomean ~2.7x of float** (5.4x pre-optimization → 3.2x after 98b9889 → 2.85x
+after session 3 → 2.7x after the solver pass). The sentinel-audit SAH fix was
+itself a perf win for rebuild-heavy scenes (rain −22%, washer −13%). Profile
+(large_pyramid, 1 worker) is flatter now: b3SolveContacts_Convex ~24%, anchor
+rotation (b3MulMV3W + b3MakeMatrixFromQuatW) ~15%, prepare ~14% and warm start
+~11% (both now memory-bound on the fatter constraint), b3RelVelocityW ~6%.
+Float on the same workload is also solver-bound but pays ~20% in SIMD
+gather/scatter that the scalar int64 lanes don't; the residual gap is the
+64x64->128 lane multiplies vs float FMA. NEON is NOT a lever on this hardware
+(no 64-bit lane multiply without SVE2, which Apple doesn't expose). Remaining
+ideas: Q16.16 32-bit-lane solver experiment (SMULL 4-wide; needs impulse range
+analysis — density-100 stacks may not fit), trimming constraint memory, the
+`__udivmodti4` calls (~2%).
 
 **Benchmark CLI gotcha**: flags need the equals form (`-b=large_pyramid -w=4 -t=4
 -r=2`). Space-separated flags are silently ignored and the FULL suite runs (looks
@@ -194,11 +211,11 @@ Fixes landed in session 2 (beyond the session-1 list):
   `b3Sin`/`b3Cos` (the deterministic approximations carry ~1e-3 error and were
   never meant as references — see `ExactQuat` in test_manifold.c, the cylinder
   expectations in test_hull.c, and the trig comparisons in test_math.c).
-- Determinism goldens (`test/test_determinism.c`): `EXPECTED_SLEEP_STEP 305`,
-  `EXPECTED_HASH 0x1C6FD0EA` (updated in session 3 after the single-rounding
-  reduction changes; verified bit-identical across 1-4 workers). Any
-  solver-affecting change invalidates these: rerun, take the printed values,
-  confirm they're identical for all worker counts before updating.
+- Determinism goldens (`test/test_determinism.c`): `EXPECTED_SLEEP_STEP 304`,
+  `EXPECTED_HASH 0xF743C3A4` (updated for the solver pass; verified
+  bit-identical across 1-4 workers). Any solver-affecting change invalidates
+  these: rerun, take the printed values, confirm they're identical for all
+  worker counts before updating.
 - `ATAN_TOL` in test_math.c is `B3_FIX(0.0001f)` (poly error + output quantization).
 
 ## Conversion tooling (copies in `tools/fixed-point/`, originals were in a

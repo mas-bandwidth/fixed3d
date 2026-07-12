@@ -952,17 +952,6 @@ static inline b3FloatW b3BlendW( b3FloatW a, b3FloatW b, b3FloatW mask )
 // Cheaper than chaining b3FixMul (one rounding and saturation check instead of
 // one per product) and sub-resolution products don't quantize to zero.
 
-// a*b - c*d
-static inline b3FloatW b3MulMulSubW( b3FloatW a, b3FloatW b, b3FloatW c, b3FloatW d )
-{
-	return (b3FloatW){
-		b3FixFromDotRaw( (b3Int128)a.x * b.x - (b3Int128)c.x * d.x ),
-		b3FixFromDotRaw( (b3Int128)a.y * b.y - (b3Int128)c.y * d.y ),
-		b3FixFromDotRaw( (b3Int128)a.z * b.z - (b3Int128)c.z * d.z ),
-		b3FixFromDotRaw( (b3Int128)a.w * b.w - (b3Int128)c.w * d.w ),
-	};
-}
-
 // a*b + c*d
 static inline b3FloatW b3Dot2W( b3FloatW a, b3FloatW b, b3FloatW c, b3FloatW d )
 {
@@ -1004,6 +993,27 @@ static inline b3FloatW b3SubDot3W( b3FloatW acc, b3FloatW a, b3FloatW b, b3Float
 		b3FixFromDotRaw( ( (b3Int128)acc.y << B3_FIXED_FRACTION_BITS ) - (b3Int128)a.y * b.y - (b3Int128)c.y * d.y - (b3Int128)e.y * f.y ),
 		b3FixFromDotRaw( ( (b3Int128)acc.z << B3_FIXED_FRACTION_BITS ) - (b3Int128)a.z * b.z - (b3Int128)c.z * d.z - (b3Int128)e.z * f.z ),
 		b3FixFromDotRaw( ( (b3Int128)acc.w << B3_FIXED_FRACTION_BITS ) - (b3Int128)a.w * b.w - (b3Int128)c.w * d.w - (b3Int128)e.w * f.w ),
+	};
+}
+
+// Relative velocity along an axis using precomputed cross(r, axis) rows:
+// dot(dv, axis) + dot(wB, rbxa) - dot(wA, raxa), nine products accumulated
+// at 128 bits with a single rounding.
+static inline b3FloatW b3RelVelocityW( b3Vec3W dv, b3Vec3W axis, b3Vec3W wB, b3Vec3W rbxa, b3Vec3W wA, b3Vec3W raxa )
+{
+	return (b3FloatW){
+		b3FixFromDotRaw( (b3Int128)dv.X.x * axis.X.x + (b3Int128)dv.Y.x * axis.Y.x + (b3Int128)dv.Z.x * axis.Z.x +
+						 (b3Int128)wB.X.x * rbxa.X.x + (b3Int128)wB.Y.x * rbxa.Y.x + (b3Int128)wB.Z.x * rbxa.Z.x -
+						 (b3Int128)wA.X.x * raxa.X.x - (b3Int128)wA.Y.x * raxa.Y.x - (b3Int128)wA.Z.x * raxa.Z.x ),
+		b3FixFromDotRaw( (b3Int128)dv.X.y * axis.X.y + (b3Int128)dv.Y.y * axis.Y.y + (b3Int128)dv.Z.y * axis.Z.y +
+						 (b3Int128)wB.X.y * rbxa.X.y + (b3Int128)wB.Y.y * rbxa.Y.y + (b3Int128)wB.Z.y * rbxa.Z.y -
+						 (b3Int128)wA.X.y * raxa.X.y - (b3Int128)wA.Y.y * raxa.Y.y - (b3Int128)wA.Z.y * raxa.Z.y ),
+		b3FixFromDotRaw( (b3Int128)dv.X.z * axis.X.z + (b3Int128)dv.Y.z * axis.Y.z + (b3Int128)dv.Z.z * axis.Z.z +
+						 (b3Int128)wB.X.z * rbxa.X.z + (b3Int128)wB.Y.z * rbxa.Y.z + (b3Int128)wB.Z.z * rbxa.Z.z -
+						 (b3Int128)wA.X.z * raxa.X.z - (b3Int128)wA.Y.z * raxa.Y.z - (b3Int128)wA.Z.z * raxa.Z.z ),
+		b3FixFromDotRaw( (b3Int128)dv.X.w * axis.X.w + (b3Int128)dv.Y.w * axis.Y.w + (b3Int128)dv.Z.w * axis.Z.w +
+						 (b3Int128)wB.X.w * rbxa.X.w + (b3Int128)wB.Y.w * rbxa.Y.w + (b3Int128)wB.Z.w * rbxa.Z.w -
+						 (b3Int128)wA.X.w * raxa.X.w - (b3Int128)wA.Y.w * raxa.Y.w - (b3Int128)wA.Z.w * raxa.Z.w ),
 	};
 }
 
@@ -1102,29 +1112,72 @@ static inline b3FloatW b3DotW( b3Vec3W a, b3Vec3W b )
 	return b3Dot3W( a.X, b.X, a.Y, b.Y, a.Z, b.Z );
 }
 
-static inline b3Vec3W b3CrossW( b3Vec3W a, b3Vec3W b )
+// Wide 3x3 rotation matrix stored as rows so a rotate is three b3Dot3W reductions
+typedef struct b3Matrix3W
 {
-	b3Vec3W c;
-	c.X = b3MulMulSubW( a.Y, b.Z, a.Z, b.Y );
-	c.Y = b3MulMulSubW( a.Z, b.X, a.X, b.Z );
-	c.Z = b3MulMulSubW( a.X, b.Y, a.Y, b.X );
-	return c;
+	b3Vec3W rx, ry, rz;
+} b3Matrix3W;
+
+// Rotation matrix entries as fused 128-bit reductions with one rounding each.
+// The doubling is an exact shift on the raw sum, not a fixed-point multiply.
+
+// 1 - 2*(a*b + c*d)
+static inline b3FloatW b3RotDiagW( b3FloatW a, b3FloatW b, b3FloatW c, b3FloatW d )
+{
+	const b3Int128 one = (b3Int128)B3_FIXED_ONE << B3_FIXED_FRACTION_BITS;
+	return (b3FloatW){
+		b3FixFromDotRaw( one - ( ( (b3Int128)a.x * b.x + (b3Int128)c.x * d.x ) << 1 ) ),
+		b3FixFromDotRaw( one - ( ( (b3Int128)a.y * b.y + (b3Int128)c.y * d.y ) << 1 ) ),
+		b3FixFromDotRaw( one - ( ( (b3Int128)a.z * b.z + (b3Int128)c.z * d.z ) << 1 ) ),
+		b3FixFromDotRaw( one - ( ( (b3Int128)a.w * b.w + (b3Int128)c.w * d.w ) << 1 ) ),
+	};
 }
 
-static inline b3Vec3W b3RotateVectorW( b3QuatW q, b3Vec3W a )
+// 2*(a*b + c*d)
+static inline b3FloatW b3RotAddW( b3FloatW a, b3FloatW b, b3FloatW c, b3FloatW d )
 {
-	b3Vec3W t1 = b3CrossW( q.V, a );
-	b3Vec3W t2;
-	t2.X = b3MulAddW( t1.X, q.S, a.X );
-	t2.Y = b3MulAddW( t1.Y, q.S, a.Y );
-	t2.Z = b3MulAddW( t1.Z, q.S, a.Z );
-	b3Vec3W t3 = b3CrossW( q.V, t2 );
-	b3FloatW two = b3SplatW( B3_FIX( 2.0f ) );
-	b3Vec3W b;
-	b.X = b3MulAddW( a.X, two, t3.X );
-	b.Y = b3MulAddW( a.Y, two, t3.Y );
-	b.Z = b3MulAddW( a.Z, two, t3.Z );
-	return b;
+	return (b3FloatW){
+		b3FixFromDotRaw( ( (b3Int128)a.x * b.x + (b3Int128)c.x * d.x ) << 1 ),
+		b3FixFromDotRaw( ( (b3Int128)a.y * b.y + (b3Int128)c.y * d.y ) << 1 ),
+		b3FixFromDotRaw( ( (b3Int128)a.z * b.z + (b3Int128)c.z * d.z ) << 1 ),
+		b3FixFromDotRaw( ( (b3Int128)a.w * b.w + (b3Int128)c.w * d.w ) << 1 ),
+	};
+}
+
+// 2*(a*b - c*d)
+static inline b3FloatW b3RotSubW( b3FloatW a, b3FloatW b, b3FloatW c, b3FloatW d )
+{
+	return (b3FloatW){
+		b3FixFromDotRaw( ( (b3Int128)a.x * b.x - (b3Int128)c.x * d.x ) << 1 ),
+		b3FixFromDotRaw( ( (b3Int128)a.y * b.y - (b3Int128)c.y * d.y ) << 1 ),
+		b3FixFromDotRaw( ( (b3Int128)a.z * b.z - (b3Int128)c.z * d.z ) << 1 ),
+		b3FixFromDotRaw( ( (b3Int128)a.w * b.w - (b3Int128)c.w * d.w ) << 1 ),
+	};
+}
+
+// Same element layout as the scalar b3MakeMatrixFromQuat, stored as rows
+static inline b3Matrix3W b3MakeMatrixFromQuatW( b3QuatW q )
+{
+	b3FloatW x = q.V.X;
+	b3FloatW y = q.V.Y;
+	b3FloatW z = q.V.Z;
+	b3FloatW s = q.S;
+
+	b3Matrix3W m;
+	m.rx = (b3Vec3W){ b3RotDiagW( y, y, z, z ), b3RotSubW( x, y, z, s ), b3RotAddW( x, z, y, s ) };
+	m.ry = (b3Vec3W){ b3RotAddW( x, y, z, s ), b3RotDiagW( x, x, z, z ), b3RotSubW( y, z, x, s ) };
+	m.rz = (b3Vec3W){ b3RotSubW( x, z, y, s ), b3RotAddW( y, z, x, s ), b3RotDiagW( x, x, y, y ) };
+	return m;
+}
+
+// m * v, one rounding per row
+static inline b3Vec3W b3MulMV3W( b3Matrix3W m, b3Vec3W v )
+{
+	return (b3Vec3W){
+		b3Dot3W( m.rx.X, v.X, m.rx.Y, v.Y, m.rx.Z, v.Z ),
+		b3Dot3W( m.ry.X, v.X, m.ry.Y, v.Y, m.ry.Z, v.Z ),
+		b3Dot3W( m.rz.X, v.X, m.rz.Y, v.Y, m.rz.Z, v.Z ),
+	};
 }
 
 // Soft contact constraints with sub-stepping support
@@ -1135,6 +1188,14 @@ static inline b3Vec3W b3RotateVectorW( b3QuatW q, b3Vec3W a )
 typedef struct b3ContactConstraintPointWide
 {
 	b3Vec3W anchorAs, anchorBs;
+
+	// Precomputed normal Jacobian rows: cross(r, normal) for the velocity
+	// projection and invI * cross(r, normal) for the impulse application.
+	// Each 128-bit fixed multiply costs several ops, so trading memory for
+	// multiplies pays here (unlike the float SIMD solver).
+	b3Vec3W rnAs, rnBs;
+	b3Vec3W iRnAs, iRnBs;
+
 	b3FloatW baseSeparations;
 	b3FloatW normalImpulses;
 	b3FloatW totalNormalImpulses;
@@ -1153,6 +1214,13 @@ typedef struct b3ContactConstraintWide
 	b3FloatW invMassA, invMassB;
 	b3SymMatrix3W invIA, invIB;
 	b3Vec3W normal;
+
+	// Precomputed per-constraint Jacobian terms: invMass * normal for the
+	// linear impulse, invI * normal for the twist impulse, and
+	// cross(origin, tangent) for central friction
+	b3Vec3W mNormalA, mNormalB;
+	b3Vec3W iNormalA, iNormalB;
+	b3Vec3W rtA1s, rtA2s, rtB1s, rtB2s;
 
 	// todo test computing the tangents on the fly, at least tangent2
 	b3Vec3W tangent1;
@@ -1477,8 +1545,24 @@ void b3PrepareContacts_Convex( b3SolverBlock block, b3StepContext* context )
 
 					b3Vec3 rnA = b3Cross( rA, normal );
 					b3Vec3 rnB = b3Cross( rB, normal );
-					b3Fixed kNormal = mA + mB + b3Dot( rnA, b3MulMV( iA, rnA ) ) + b3Dot( rnB, b3MulMV( iB, rnB ) );
+					b3Vec3 iRnA = b3MulMV( iA, rnA );
+					b3Vec3 iRnB = b3MulMV( iB, rnB );
+					b3Fixed kNormal = mA + mB + b3Dot( rnA, iRnA ) + b3Dot( rnB, iRnB );
 					( (b3Fixed*)&cp->normalMasses )[lane] = kNormal > B3_FIX( 0.0f ) ? b3FixDiv( B3_FIX( 1.0f ) , kNormal ) : B3_FIX( 0.0f );
+
+					// Precomputed normal Jacobian rows for the solve and warm start
+					( (b3Fixed*)&cp->rnAs.X )[lane] = rnA.x;
+					( (b3Fixed*)&cp->rnAs.Y )[lane] = rnA.y;
+					( (b3Fixed*)&cp->rnAs.Z )[lane] = rnA.z;
+					( (b3Fixed*)&cp->rnBs.X )[lane] = rnB.x;
+					( (b3Fixed*)&cp->rnBs.Y )[lane] = rnB.y;
+					( (b3Fixed*)&cp->rnBs.Z )[lane] = rnB.z;
+					( (b3Fixed*)&cp->iRnAs.X )[lane] = iRnA.x;
+					( (b3Fixed*)&cp->iRnAs.Y )[lane] = iRnA.y;
+					( (b3Fixed*)&cp->iRnAs.Z )[lane] = iRnA.z;
+					( (b3Fixed*)&cp->iRnBs.X )[lane] = iRnB.x;
+					( (b3Fixed*)&cp->iRnBs.Y )[lane] = iRnB.y;
+					( (b3Fixed*)&cp->iRnBs.Z )[lane] = iRnB.z;
 
 					// Save relative velocity for restitution
 					b3Vec3 vrA = b3Add( vA, b3Cross( wA, rA ) );
@@ -1510,6 +1594,30 @@ void b3PrepareContacts_Convex( b3SolverBlock block, b3StepContext* context )
 				b3Vec3 rtB1 = b3Cross( originB, tangent1 );
 				b3Vec3 rtB2 = b3Cross( originB, tangent2 );
 
+				// Precomputed friction Jacobian rows
+				( (b3Fixed*)&constraint->rtA1s.X )[lane] = rtA1.x;
+				( (b3Fixed*)&constraint->rtA1s.Y )[lane] = rtA1.y;
+				( (b3Fixed*)&constraint->rtA1s.Z )[lane] = rtA1.z;
+				( (b3Fixed*)&constraint->rtA2s.X )[lane] = rtA2.x;
+				( (b3Fixed*)&constraint->rtA2s.Y )[lane] = rtA2.y;
+				( (b3Fixed*)&constraint->rtA2s.Z )[lane] = rtA2.z;
+				( (b3Fixed*)&constraint->rtB1s.X )[lane] = rtB1.x;
+				( (b3Fixed*)&constraint->rtB1s.Y )[lane] = rtB1.y;
+				( (b3Fixed*)&constraint->rtB1s.Z )[lane] = rtB1.z;
+				( (b3Fixed*)&constraint->rtB2s.X )[lane] = rtB2.x;
+				( (b3Fixed*)&constraint->rtB2s.Y )[lane] = rtB2.y;
+				( (b3Fixed*)&constraint->rtB2s.Z )[lane] = rtB2.z;
+
+				// Precomputed linear normal Jacobian
+				b3Vec3 mNormalA = b3MulSV( mA, normal );
+				b3Vec3 mNormalB = b3MulSV( mB, normal );
+				( (b3Fixed*)&constraint->mNormalA.X )[lane] = mNormalA.x;
+				( (b3Fixed*)&constraint->mNormalA.Y )[lane] = mNormalA.y;
+				( (b3Fixed*)&constraint->mNormalA.Z )[lane] = mNormalA.z;
+				( (b3Fixed*)&constraint->mNormalB.X )[lane] = mNormalB.x;
+				( (b3Fixed*)&constraint->mNormalB.Y )[lane] = mNormalB.y;
+				( (b3Fixed*)&constraint->mNormalB.Z )[lane] = mNormalB.z;
+
 				{
 					b3Matrix2 k;
 					k.cx.x = mA + mB + b3Dot( rtA1, b3MulMV( iA, rtA1 ) ) + b3Dot( rtB1, b3MulMV( iB, rtB1 ) );
@@ -1528,7 +1636,17 @@ void b3PrepareContacts_Convex( b3SolverBlock block, b3StepContext* context )
 				}
 
 				{
-					b3Fixed k = b3Dot( normal, b3MulMV( b3AddMM( iA, iB ), normal ) );
+					// Precomputed angular normal Jacobian, also used for the twist mass
+					b3Vec3 iNormalA = b3MulMV( iA, normal );
+					b3Vec3 iNormalB = b3MulMV( iB, normal );
+					( (b3Fixed*)&constraint->iNormalA.X )[lane] = iNormalA.x;
+					( (b3Fixed*)&constraint->iNormalA.Y )[lane] = iNormalA.y;
+					( (b3Fixed*)&constraint->iNormalA.Z )[lane] = iNormalA.z;
+					( (b3Fixed*)&constraint->iNormalB.X )[lane] = iNormalB.x;
+					( (b3Fixed*)&constraint->iNormalB.Y )[lane] = iNormalB.y;
+					( (b3Fixed*)&constraint->iNormalB.Z )[lane] = iNormalB.z;
+
+					b3Fixed k = b3Dot( normal, iNormalA ) + b3Dot( normal, iNormalB );
 					( (b3Fixed*)&constraint->twistMass )[lane] = k > B3_FIX( 0.0f ) ? b3FixDiv( B3_FIX( 1.0f ) , k ) : B3_FIX( 0.0f );
 					( (b3Fixed*)&constraint->twistImpulse )[lane] = b3FixMul( warmStartScale , manifold->twistImpulse );
 				}
@@ -1560,6 +1678,18 @@ void b3PrepareContacts_Convex( b3SolverBlock block, b3StepContext* context )
 					( (b3Fixed*)&cp->anchorBs.X )[lane] = B3_FIX( 0.0f );
 					( (b3Fixed*)&cp->anchorBs.Y )[lane] = B3_FIX( 0.0f );
 					( (b3Fixed*)&cp->anchorBs.Z )[lane] = B3_FIX( 0.0f );
+					( (b3Fixed*)&cp->rnAs.X )[lane] = B3_FIX( 0.0f );
+					( (b3Fixed*)&cp->rnAs.Y )[lane] = B3_FIX( 0.0f );
+					( (b3Fixed*)&cp->rnAs.Z )[lane] = B3_FIX( 0.0f );
+					( (b3Fixed*)&cp->rnBs.X )[lane] = B3_FIX( 0.0f );
+					( (b3Fixed*)&cp->rnBs.Y )[lane] = B3_FIX( 0.0f );
+					( (b3Fixed*)&cp->rnBs.Z )[lane] = B3_FIX( 0.0f );
+					( (b3Fixed*)&cp->iRnAs.X )[lane] = B3_FIX( 0.0f );
+					( (b3Fixed*)&cp->iRnAs.Y )[lane] = B3_FIX( 0.0f );
+					( (b3Fixed*)&cp->iRnAs.Z )[lane] = B3_FIX( 0.0f );
+					( (b3Fixed*)&cp->iRnBs.X )[lane] = B3_FIX( 0.0f );
+					( (b3Fixed*)&cp->iRnBs.Y )[lane] = B3_FIX( 0.0f );
+					( (b3Fixed*)&cp->iRnBs.Z )[lane] = B3_FIX( 0.0f );
 					( (b3Fixed*)&cp->baseSeparations )[lane] = B3_FIX( 0.0f );
 					( (b3Fixed*)&cp->normalImpulses )[lane] = B3_FIX( 0.0f );
 					( (b3Fixed*)&cp->totalNormalImpulses )[lane] = B3_FIX( 0.0f );
@@ -1590,43 +1720,38 @@ void b3WarmStartContacts_Convex( b3SolverBlock block, b3StepContext* context )
 		b3BodyStateW bA = b3GatherBodies( states, c->indexA );
 		b3BodyStateW bB = b3GatherBodies( states, c->indexB );
 
-		// Normal impulses
+		// Normal impulses, applied through the precomputed Jacobian rows
 		for ( int j = 0; j < B3_MAX_MANIFOLD_POINTS; ++j )
 		{
 			b3ContactConstraintPointWide* cp = c->points + j;
 
-			b3Vec3W rA = cp->anchorAs;
-			b3Vec3W rB = cp->anchorBs;
-
-			b3Vec3W impulse;
-			impulse.X = b3MulW( cp->normalImpulses, c->normal.X );
-			impulse.Y = b3MulW( cp->normalImpulses, c->normal.Y );
-			impulse.Z = b3MulW( cp->normalImpulses, c->normal.Z );
-
-			bA.w = b3MulSubMVW( bA.w, c->invIA, b3CrossW( rA, impulse ) );
-			bA.v = b3MulSubSVW( bA.v, c->invMassA, impulse );
-			bB.w = b3MulAddMVW( bB.w, c->invIB, b3CrossW( rB, impulse ) );
-			bB.v = b3MulAddSVW( bB.v, c->invMassB, impulse );
+			bA.v = b3MulSubSVW( bA.v, cp->normalImpulses, c->mNormalA );
+			bA.w = b3MulSubSVW( bA.w, cp->normalImpulses, cp->iRnAs );
+			bB.v = b3MulAddSVW( bB.v, cp->normalImpulses, c->mNormalB );
+			bB.w = b3MulAddSVW( bB.w, cp->normalImpulses, cp->iRnBs );
 		}
 
 		// Central friction
 		{
-			b3Vec3W rA = c->originA;
-			b3Vec3W rB = c->originB;
 			b3Vec3W impulse = b3MulSVW( c->frictionImpulse.x, c->tangent1 );
 			impulse = b3MulAddSVW( impulse, c->frictionImpulse.y, c->tangent2 );
 
-			bA.w = b3MulSubMVW( bA.w, c->invIA, b3CrossW( rA, impulse ) );
+			// cross(origin, P) expanded over the precomputed tangent rows
+			b3Vec3W LA = b3MulSVW( c->frictionImpulse.x, c->rtA1s );
+			LA = b3MulAddSVW( LA, c->frictionImpulse.y, c->rtA2s );
+			b3Vec3W LB = b3MulSVW( c->frictionImpulse.x, c->rtB1s );
+			LB = b3MulAddSVW( LB, c->frictionImpulse.y, c->rtB2s );
+
+			bA.w = b3MulSubMVW( bA.w, c->invIA, LA );
 			bA.v = b3MulSubSVW( bA.v, c->invMassA, impulse );
-			bB.w = b3MulAddMVW( bB.w, c->invIB, b3CrossW( rB, impulse ) );
+			bB.w = b3MulAddMVW( bB.w, c->invIB, LB );
 			bB.v = b3MulAddSVW( bB.v, c->invMassB, impulse );
 		}
 
 		// Central twist friction
 		{
-			b3Vec3W impulse = b3MulSVW( c->twistImpulse, c->normal );
-			bA.w = b3MulSubMVW( bA.w, c->invIA, impulse );
-			bB.w = b3MulAddMVW( bB.w, c->invIB, impulse );
+			bA.w = b3MulSubSVW( bA.w, c->twistImpulse, c->iNormalA );
+			bB.w = b3MulAddSVW( bB.w, c->twistImpulse, c->iNormalB );
 		}
 
 		// Rolling resistance
@@ -1677,6 +1802,11 @@ void b3SolveContacts_Convex( b3SolverBlock block, b3StepContext* context, bool u
 
 		b3Vec3W dp = b3SubVW( bB.dp, bA.dp );
 
+		// The delta rotations are constant across the four manifold points, so build
+		// them as matrices once and rotate each anchor with three fused reductions
+		b3Matrix3W rotA = b3MakeMatrixFromQuatW( bA.dq );
+		b3Matrix3W rotB = b3MakeMatrixFromQuatW( bB.dq );
+
 		b3FloatW totalNormalImpulse = b3ZeroW();
 		b3FloatW totalTwistLimit = b3ZeroW();
 
@@ -1690,9 +1820,8 @@ void b3SolveContacts_Convex( b3SolverBlock block, b3StepContext* context, bool u
 			b3Vec3W rB = cp->anchorBs;
 
 			// Moving anchors for current separation
-			// todo speed this up using matrices
-			b3Vec3W rsA = b3RotateVectorW( bA.dq, rA );
-			b3Vec3W rsB = b3RotateVectorW( bB.dq, rB );
+			b3Vec3W rsA = b3MulMV3W( rotA, rA );
+			b3Vec3W rsB = b3MulMV3W( rotB, rB );
 
 			// compute current separation
 			// this is subject to round-off error if the anchor is far from the body center of mass
@@ -1708,10 +1837,9 @@ void b3SolveContacts_Convex( b3SolverBlock block, b3StepContext* context, bool u
 			b3FloatW pointMassScale = b3BlendW( massScale, oneW, mask );
 			b3FloatW pointImpulseScale = b3BlendW( impulseScale, b3ZeroW(), mask );
 
-			// Relative velocity at contact
-			b3Vec3W vrA = b3AddVW( bA.v, b3CrossW( bA.w, rA ) );
-			b3Vec3W vrB = b3AddVW( bB.v, b3CrossW( bB.w, rB ) );
-			b3FloatW vn = b3DotW( b3SubVW( vrB, vrA ), c->normal );
+			// Relative velocity at contact, projected on the normal through the
+			// precomputed cross(r, normal) rows with a single rounding
+			b3FloatW vn = b3RelVelocityW( b3SubVW( bB.v, bA.v ), c->normal, bB.w, cp->rnBs, bA.w, cp->rnAs );
 
 			// Compute normal impulse
 			b3FloatW negImpulse = b3AddW( b3MulW( cp->normalMasses, b3AddW( b3MulW( pointMassScale, vn ), bias ) ),
@@ -1726,12 +1854,11 @@ void b3SolveContacts_Convex( b3SolverBlock block, b3StepContext* context, bool u
 			totalNormalImpulse = b3AddW( totalNormalImpulse, newImpulse );
 			totalTwistLimit = b3AddW( totalTwistLimit, b3MulW( cp->leverArms, newImpulse ) );
 
-			// Apply contact impulse
-			b3Vec3W P = b3MulSVW( deltaImpulse, c->normal );
-			bA.w = b3MulSubMVW( bA.w, c->invIA, b3CrossW( rA, P ) );
-			bA.v = b3MulSubSVW( bA.v, c->invMassA, P );
-			bB.w = b3MulAddMVW( bB.w, c->invIB, b3CrossW( rB, P ) );
-			bB.v = b3MulAddSVW( bB.v, c->invMassB, P );
+			// Apply contact impulse through the precomputed Jacobian rows
+			bA.v = b3MulSubSVW( bA.v, deltaImpulse, c->mNormalA );
+			bA.w = b3MulSubSVW( bA.w, deltaImpulse, cp->iRnAs );
+			bB.v = b3MulAddSVW( bB.v, deltaImpulse, c->mNormalB );
+			bB.w = b3MulAddSVW( bB.w, deltaImpulse, cp->iRnBs );
 		}
 
 		// No friction when applying bias
@@ -1780,9 +1907,8 @@ void b3SolveContacts_Convex( b3SolverBlock block, b3StepContext* context, bool u
 				c->twistImpulse = b3SymClampW( b3AddW( oldImpulse, deltaImpulse ), maxLambda );
 				deltaImpulse = b3SubW( c->twistImpulse, oldImpulse );
 
-				b3Vec3W L = b3MulSVW( deltaImpulse, c->normal );
-				bA.w = b3MulSubMVW( bA.w, c->invIA, L );
-				bB.w = b3MulAddMVW( bB.w, c->invIB, L );
+				bA.w = b3MulSubSVW( bA.w, deltaImpulse, c->iNormalA );
+				bB.w = b3MulAddSVW( bB.w, deltaImpulse, c->iNormalB );
 			}
 
 			// Central friction
@@ -1790,17 +1916,12 @@ void b3SolveContacts_Convex( b3SolverBlock block, b3StepContext* context, bool u
 				b3Vec3W tangent1 = c->tangent1;
 				b3Vec3W tangent2 = c->tangent2;
 
-				// Fixed anchor points for applying impulses
-				b3Vec3W rA = c->originA;
-				b3Vec3W rB = c->originB;
-
-				// Relative tangent velocity at contact
-				b3Vec3W vrA = b3AddVW( bA.v, b3CrossW( bA.w, rA ) );
-				b3Vec3W vrB = b3AddVW( bB.v, b3CrossW( bB.w, rB ) );
-				b3Vec3W vr = b3SubVW( vrB, vrA );
+				// Relative tangent velocity at contact through the precomputed
+				// cross(origin, tangent) rows, one rounding per axis
+				b3Vec3W dv = b3SubVW( bB.v, bA.v );
 				b3Vec2W vt = {
-					b3SubW( b3DotW( vr, tangent1 ), c->tangentVelocity1 ),
-					b3SubW( b3DotW( vr, tangent2 ), c->tangentVelocity2 ),
+					b3SubW( b3RelVelocityW( dv, tangent1, bB.w, c->rtB1s, bA.w, c->rtA1s ), c->tangentVelocity1 ),
+					b3SubW( b3RelVelocityW( dv, tangent2, bB.w, c->rtB2s, bA.w, c->rtA2s ), c->tangentVelocity2 ),
 				};
 
 				// Incremental tangent impulse
@@ -1833,11 +1954,13 @@ void b3SolveContacts_Convex( b3SolverBlock block, b3StepContext* context, bool u
 
 				c->frictionImpulse = newImpulse;
 
-				// Apply delta impulse
+				// Apply delta impulse; cross(origin, P) expands over the tangent rows
 				b3Vec3W P = b3AddVW( b3MulSVW( deltaImpulse.x, tangent1 ), b3MulSVW( deltaImpulse.y, tangent2 ) );
-				bA.w = b3MulSubMVW( bA.w, c->invIA, b3CrossW( rA, P ) );
+				b3Vec3W LA = b3AddVW( b3MulSVW( deltaImpulse.x, c->rtA1s ), b3MulSVW( deltaImpulse.y, c->rtA2s ) );
+				b3Vec3W LB = b3AddVW( b3MulSVW( deltaImpulse.x, c->rtB1s ), b3MulSVW( deltaImpulse.y, c->rtB2s ) );
+				bA.w = b3MulSubMVW( bA.w, c->invIA, LA );
 				bA.v = b3MulSubSVW( bA.v, c->invMassA, P );
-				bB.w = b3MulAddMVW( bB.w, c->invIB, b3CrossW( rB, P ) );
+				bB.w = b3MulAddMVW( bB.w, c->invIB, LB );
 				bB.v = b3MulAddSVW( bB.v, c->invMassB, P );
 			}
 		}
@@ -1886,14 +2009,8 @@ void b3ApplyRestitution_Convex( b3SolverBlock block, b3StepContext* context )
 			b3FloatW mask = b3OrW( b3OrW( mask1, mask2 ), restitutionMask );
 			b3FloatW mass = b3BlendW( cp->normalMasses, zero, mask );
 
-			// Fixed anchors for impulses
-			b3Vec3W rA = cp->anchorAs;
-			b3Vec3W rB = cp->anchorBs;
-
-			// Relative velocity at contact
-			b3Vec3W vrA = b3AddVW( bA.v, b3CrossW( bA.w, rA ) );
-			b3Vec3W vrB = b3AddVW( bB.v, b3CrossW( bB.w, rB ) );
-			b3FloatW vn = b3DotW( b3SubVW( vrB, vrA ), c->normal );
+			// Relative velocity at contact through the precomputed Jacobian rows
+			b3FloatW vn = b3RelVelocityW( b3SubVW( bB.v, bA.v ), c->normal, bB.w, cp->rnBs, bA.w, cp->rnAs );
 
 			// Compute normal impulse
 			b3FloatW negImpulse = b3MulW( mass, b3AddW( vn, b3MulW( c->restitution, cp->relativeVelocities ) ) );
@@ -1904,12 +2021,11 @@ void b3ApplyRestitution_Convex( b3SolverBlock block, b3StepContext* context )
 			cp->normalImpulses = newImpulse;
 			cp->totalNormalImpulses = b3AddW( cp->totalNormalImpulses, deltaImpulse );
 
-			// Apply contact impulse
-			b3Vec3W P = b3MulSVW( deltaImpulse, c->normal );
-			bA.w = b3MulSubMVW( bA.w, c->invIA, b3CrossW( rA, P ) );
-			bA.v = b3MulSubSVW( bA.v, c->invMassA, P );
-			bB.w = b3MulAddMVW( bB.w, c->invIB, b3CrossW( rB, P ) );
-			bB.v = b3MulAddSVW( bB.v, c->invMassB, P );
+			// Apply contact impulse through the precomputed Jacobian rows
+			bA.v = b3MulSubSVW( bA.v, deltaImpulse, c->mNormalA );
+			bA.w = b3MulSubSVW( bA.w, deltaImpulse, cp->iRnAs );
+			bB.v = b3MulAddSVW( bB.v, deltaImpulse, c->mNormalB );
+			bB.w = b3MulAddSVW( bB.w, deltaImpulse, cp->iRnBs );
 		}
 
 		b3ScatterBodies( states, c->indexA, &bA );

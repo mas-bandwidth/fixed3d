@@ -718,7 +718,7 @@ static void b3FinalizeBodiesTask( int startIndex, int endIndex, int workerIndex,
 		// q = [sin(theta/2) * v, cos(theta/2)]
 		// for small angles abs(theta) ~= 2 * length(sin(theta/2) * v)
 		b3Vec3 rotationArc = b3ModifiedCross( b3Abs( localDeltaRotation ), sim->maxExtent );
-		b3Fixed maxDeltaPosition = b3Length( state->deltaPosition ) + b3FixMul( B3_FIX( 2.0f ) , b3Length( rotationArc ) );
+		b3Fixed maxDeltaPosition = b3Length( state->deltaPosition ) + 2 * b3Length( rotationArc );
 
 		// Position correction is not as important for sleep as true velocity.
 		b3Fixed positionSleepFactor = B3_FIX( 0.5f );
