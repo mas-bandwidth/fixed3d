@@ -382,6 +382,29 @@ static b3EdgeQuery b3QueryEdgeDirections( const b3HullData* hullA, const b3HullD
 		eAz[pair] = eA.z;
 	}
 
+	// Hull A's adjacent face normals per edge pair, SoA, for the wide second
+	// Minkowski test, and their magnitude bound for its exactness gate
+	b3Fixed uAx[B3_MAX_HULL_EDGE_PAIRS], uAy[B3_MAX_HULL_EDGE_PAIRS], uAz[B3_MAX_HULL_EDGE_PAIRS];
+	b3Fixed vAx[B3_MAX_HULL_EDGE_PAIRS], vAy[B3_MAX_HULL_EDGE_PAIRS], vAz[B3_MAX_HULL_EDGE_PAIRS];
+	uint64_t normalBoundA = 0;
+	for ( int pair = 0; pair < pairCountA; ++pair )
+	{
+		b3Vec3 uA = planesA[edgesA[2 * pair].face].normal;
+		b3Vec3 vA = planesA[edgesA[2 * pair + 1].face].normal;
+		uAx[pair] = uA.x;
+		uAy[pair] = uA.y;
+		uAz[pair] = uA.z;
+		vAx[pair] = vA.x;
+		vAy[pair] = vA.y;
+		vAz[pair] = vA.z;
+		uint64_t candidates[6] = { b3EdgeAbsBoundU64( uA.x ), b3EdgeAbsBoundU64( uA.y ), b3EdgeAbsBoundU64( uA.z ),
+								   b3EdgeAbsBoundU64( vA.x ), b3EdgeAbsBoundU64( vA.y ), b3EdgeAbsBoundU64( vA.z ) };
+		for ( int i = 0; i < 6; ++i )
+		{
+			normalBoundA = candidates[i] > normalBoundA ? candidates[i] : normalBoundA;
+		}
+	}
+
 	// |edge component| <= |aabb.lower| + |aabb.upper| for a difference of two
 	// hull points, so the int64 dot bound below is sound for valid hull data
 	uint64_t edgeBound = 0;
@@ -425,10 +448,21 @@ static b3EdgeQuery b3QueryEdgeDirections( const b3HullData* hullA, const b3HullD
 			}
 		}
 
-		// The 3 * uvMax guard keeps the 128-bit product from wrapping when
-		// edgeBound approaches 2^64 (it is a sum of two 63-bit magnitudes)
+		// The wide second test needs the dots of hull A's normals with eB to
+		// stay exact as well
+		uint64_t eBMax = b3EdgeAbsBoundU64( eB.x );
+		{
+			uint64_t candidates[2] = { b3EdgeAbsBoundU64( eB.y ), b3EdgeAbsBoundU64( eB.z ) };
+			eBMax = candidates[0] > eBMax ? candidates[0] : eBMax;
+			eBMax = candidates[1] > eBMax ? candidates[1] : eBMax;
+		}
+
+		// The 3 * bound guards keep the 128-bit products from wrapping when
+		// the operand bounds approach 2^64 (edgeBound is a sum of two 63-bit
+		// magnitudes)
 		if ( pairCountA >= 4 && uvMax <= UINT64_MAX / 3 &&
-			 (b3UInt128)( 3 * uvMax ) * edgeBound < ( (b3UInt128)1 << 63 ) )
+			 (b3UInt128)( 3 * uvMax ) * edgeBound < ( (b3UInt128)1 << 63 ) && normalBoundA <= UINT64_MAX / 3 &&
+			 (b3UInt128)( 3 * normalBoundA ) * eBMax < ( (b3UInt128)1 << 63 ) )
 		{
 			__m256i ubx = _mm256_set1_epi64x( uB.x );
 			__m256i uby = _mm256_set1_epi64x( uB.y );
@@ -436,6 +470,9 @@ static b3EdgeQuery b3QueryEdgeDirections( const b3HullData* hullA, const b3HullD
 			__m256i vbx = _mm256_set1_epi64x( vB.x );
 			__m256i vby = _mm256_set1_epi64x( vB.y );
 			__m256i vbz = _mm256_set1_epi64x( vB.z );
+			__m256i ebx = _mm256_set1_epi64x( eB.x );
+			__m256i eby = _mm256_set1_epi64x( eB.y );
+			__m256i ebz = _mm256_set1_epi64x( eB.z );
 			__m256i zero = _mm256_setzero_si256();
 
 			int pair = 0;
@@ -452,11 +489,37 @@ static b3EdgeQuery b3QueryEdgeDirections( const b3HullData* hullA, const b3HullD
 					_mm256_add_epi64( _mm256_mullo_epi64( vbx, ex ), _mm256_mullo_epi64( vby, ey ) ),
 					_mm256_mullo_epi64( vbz, ez ) );
 
-				// Survive when cba != 0 and dba != 0 and signs differ
+				// First Minkowski test: survive when cba != 0 and dba != 0
+				// and signs differ
 				__mmask8 nzc = _mm256_test_epi64_mask( cba, cba );
 				__mmask8 nzd = _mm256_test_epi64_mask( dba, dba );
 				__mmask8 opposite = _mm256_cmpgt_epi64_mask( zero, _mm256_xor_si256( cba, dba ) );
-				unsigned survivors = (unsigned)( nzc & nzd & opposite ) & 0xF;
+
+				// Second test on the un-negated dots: with dA = dot(uA, eB)
+				// and dB = dot(vA, eB), the scalar adc = -dA / bdc = -dB
+				// conditions become dA != 0, dB != 0, (dA ^ dB) < 0, and
+				// (cba ^ dB) < 0 (bdc flips dB's sign, so "same sign as cba"
+				// becomes "opposite sign")
+				__m256i nax = _mm256_loadu_si256( (const __m256i*)( uAx + pair ) );
+				__m256i nay = _mm256_loadu_si256( (const __m256i*)( uAy + pair ) );
+				__m256i naz = _mm256_loadu_si256( (const __m256i*)( uAz + pair ) );
+				__m256i nbx = _mm256_loadu_si256( (const __m256i*)( vAx + pair ) );
+				__m256i nby = _mm256_loadu_si256( (const __m256i*)( vAy + pair ) );
+				__m256i nbz = _mm256_loadu_si256( (const __m256i*)( vAz + pair ) );
+
+				__m256i dA = _mm256_add_epi64(
+					_mm256_add_epi64( _mm256_mullo_epi64( nax, ebx ), _mm256_mullo_epi64( nay, eby ) ),
+					_mm256_mullo_epi64( naz, ebz ) );
+				__m256i dB = _mm256_add_epi64(
+					_mm256_add_epi64( _mm256_mullo_epi64( nbx, ebx ), _mm256_mullo_epi64( nby, eby ) ),
+					_mm256_mullo_epi64( nbz, ebz ) );
+
+				__mmask8 nzA = _mm256_test_epi64_mask( dA, dA );
+				__mmask8 nzB = _mm256_test_epi64_mask( dB, dB );
+				__mmask8 oppositeAB = _mm256_cmpgt_epi64_mask( zero, _mm256_xor_si256( dA, dB ) );
+				__mmask8 cbaOppB = _mm256_cmpgt_epi64_mask( zero, _mm256_xor_si256( cba, dB ) );
+
+				unsigned survivors = (unsigned)( nzc & nzd & opposite & nzA & nzB & oppositeAB & cbaOppB ) & 0xF;
 
 				while ( survivors != 0 )
 				{
