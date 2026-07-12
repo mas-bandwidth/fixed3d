@@ -20,6 +20,16 @@ message(STATUS "CMake host system processor: ${CMAKE_HOST_SYSTEM_PROCESSOR}")
 # static link to make leak checking easier (_crtBreakAlloc)
 set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 
+# clang-cl provides __int128 arithmetic but does not implicitly link the
+# compiler runtime with the 128-bit division helpers (__divti3 and friends)
+if (MSVC AND CMAKE_C_COMPILER_ID MATCHES "Clang")
+	if (CMAKE_GENERATOR_PLATFORM MATCHES "[Aa][Rr][Mm]64" OR CMAKE_SYSTEM_PROCESSOR MATCHES "ARM64|aarch64")
+		add_link_options(clang_rt.builtins-aarch64.lib)
+	else()
+		add_link_options(clang_rt.builtins-x86_64.lib)
+	endif()
+endif()
+
 if (MSVC OR APPLE OR UNIX)
 	option(BOX3D_SANITIZE "Enable sanitizers for some builds" OFF)
 	set(BOX3D_SANITIZER_TYPE "address" CACHE STRING "Type of sanitizer to use (address, thread, undefined, memory)")

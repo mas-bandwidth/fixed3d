@@ -53,7 +53,8 @@ jobs:
             test: ./bin/Debug/test
           - name: windows-arm64
             os: windows-11-arm
-            args: -A arm64 -T ClangCL -DBOX3D_DISABLE_SIMD=TRUE -DBOX3D_SANITIZE=ON
+            # No ASan here: arm64 clang-cl rejects /MTd with -fsanitize=address
+            args: -A arm64 -T ClangCL -DBOX3D_DISABLE_SIMD=TRUE
             test: ./bin/Debug/test
     steps:
     - uses: actions/checkout@v6
@@ -148,11 +149,11 @@ jobs:
           - name: samples-windows-static
             os: windows-latest
             msvc: true
-            args: -DBUILD_SHARED_LIBS=OFF
+            args: -T ClangCL -DBUILD_SHARED_LIBS=OFF
           - name: samples-windows-dynamic
             os: windows-latest
             msvc: true
-            args: -DBUILD_SHARED_LIBS=ON
+            args: -T ClangCL -DBUILD_SHARED_LIBS=ON
     steps:
     - uses: actions/checkout@v6
 

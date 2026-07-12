@@ -1671,6 +1671,13 @@ b3MeshData* b3CreateMesh( const b3MeshDef* def, int* degenerateTriangleIndices, 
 	b3Array( b3MeshNode ) tempNodes;
 	b3Array_CreateN( tempNodes, 2 * triangleCount - 1 );
 
+	// The BVH build writes node fields individually and b3MeshNode has alignment
+	// padding in fixed point (24-byte b3Vec3 bounds around 4-byte metadata). The
+	// nodes are memcpy'd into the mesh blob and swept by the content hash, so the
+	// padding must be deterministic. The capacity is the exact worst case (2n - 1),
+	// so the array never reallocates and one clear covers every node.
+	memset( tempNodes.data, 0, ( 2 * triangleCount - 1 ) * sizeof( b3MeshNode ) );
+
 	int treeHeight = 0;
 	b3BuildRecursive( &tempNodes, triangleCount, primitives.data, primitives.data, def->useMedianSplit, &treeHeight );
 
