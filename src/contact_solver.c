@@ -1795,6 +1795,548 @@ static void b3ScatterBodies( b3BodyState* states, int* indices, const b3BodyStat
 	}
 }
 
+#if defined( B3_SIMD_AVX512 )
+
+// ---- wide prepare helpers -------------------------------------------------
+
+// Wide b3StoreNarrow: same assert, same clamp to +/-INT32_MAX, same truncation,
+// four lanes per store.
+static inline void b3StoreNarrowW( b3FloatWN* target, b3FloatW value )
+{
+	B3_ASSERT( -INT32_MAX <= value.x && value.x <= INT32_MAX );
+	B3_ASSERT( -INT32_MAX <= value.y && value.y <= INT32_MAX );
+	B3_ASSERT( -INT32_MAX <= value.z && value.z <= INT32_MAX );
+	B3_ASSERT( -INT32_MAX <= value.w && value.w <= INT32_MAX );
+	__m256i clamped = _mm256_max_epi64( value.v, _mm256_set1_epi64x( -(int64_t)INT32_MAX ) );
+	clamped = _mm256_min_epi64( clamped, _mm256_set1_epi64x( INT32_MAX ) );
+	_mm_storeu_si128( (__m128i*)target, _mm256_cvtepi64_epi32( clamped ) );
+}
+
+static inline void b3StoreNarrowVW( b3Vec3WN* target, b3Vec3W value )
+{
+	b3StoreNarrowW( &target->X, value.X );
+	b3StoreNarrowW( &target->Y, value.Y );
+	b3StoreNarrowW( &target->Z, value.Z );
+}
+
+// Wide cross product with the scalar b3Cross rounding: per-product rounding,
+// then the difference (deliberately NOT fused, see the round-3 notes).
+static inline b3Vec3W b3CrossUnfusedW( b3Vec3W a, b3Vec3W b )
+{
+	return (b3Vec3W){
+		b3SubW( b3MulW( a.Y, b.Z ), b3MulW( a.Z, b.Y ) ),
+		b3SubW( b3MulW( a.Z, b.X ), b3MulW( a.X, b.Z ) ),
+		b3SubW( b3MulW( a.X, b.Y ), b3MulW( a.Y, b.X ) ),
+	};
+}
+
+// Full 3x3 matrix, four lanes per entry. invInertiaWorld = (R*I)*R^T rounds
+// each entry independently, so it is NOT guaranteed bitwise symmetric; the
+// scalar prepare multiplies through all nine entries and the wide version
+// must do the same (the symmetric 6-entry projection happens only at the
+// constraint store, exactly like the scalar path).
+typedef struct b3Matrix3FullW
+{
+	b3FloatW cxx, cxy, cxz; // column x
+	b3FloatW cyx, cyy, cyz; // column y
+	b3FloatW czx, czy, czz; // column z
+} b3Matrix3FullW;
+
+// Wide m * v with the scalar b3MulMV rounding: per-product rounding, plain
+// adds (deliberately NOT fused, see the round-3 notes).
+static inline b3Vec3W b3MulMVFullW( const b3Matrix3FullW* m, b3Vec3W a )
+{
+	return (b3Vec3W){
+		b3AddW( b3AddW( b3MulW( m->cxx, a.X ), b3MulW( m->cyx, a.Y ) ), b3MulW( m->czx, a.Z ) ),
+		b3AddW( b3AddW( b3MulW( m->cxy, a.X ), b3MulW( m->cyy, a.Y ) ), b3MulW( m->czy, a.Z ) ),
+		b3AddW( b3AddW( b3MulW( m->cxz, a.X ), b3MulW( m->cyz, a.Y ) ), b3MulW( m->czz, a.Z ) ),
+	};
+}
+
+// value where the mask is set, zero elsewhere
+static inline b3FloatW b3MaskKeepW( __mmask8 k, b3FloatW value )
+{
+	return (b3FloatW){ .v = _mm256_maskz_mov_epi64( k, value.v ) };
+}
+
+// b3FixClamp per lane: max then min gives identical results for lower <= upper
+static inline b3FloatW b3ClampW( b3FloatW value, b3FloatW lower, b3FloatW upper )
+{
+	return (b3FloatW){ .v = _mm256_min_epi64( _mm256_max_epi64( value.v, lower.v ), upper.v ) };
+}
+
+static inline b3Vec3W b3ZeroVW( void )
+{
+	return (b3Vec3W){ b3ZeroW(), b3ZeroW(), b3ZeroW() };
+}
+
+// Prepare convex contact constraints, wide-math variant of the scalar version
+// below. The per-lane pass gathers inputs and keeps the branchy or iterative
+// pieces scalar (b3Perp, the 2x2/3x3 inversions, lever-arm square roots);
+// everything else runs four lanes at a time. Every operation reproduces the
+// exact rounding pattern of its scalar counterpart (unfused crosses and
+// matrix products, fused raw-128 dots, divides through b3FixDiv), and
+// inactive (lane, point) slots are fed zeros or masked so the stored bytes
+// match the scalar zero-fill and the solver-setup memset bit for bit.
+void b3PrepareContacts_Convex( b3SolverBlock block, b3StepContext* context )
+{
+	b3TracyCZoneNC( prepare_contact, "Prepare Contact", b3_colorYellow, true );
+	b3World* world = context->world;
+	b3BodySim* sims = context->sims;
+	b3BodyState* states = context->states;
+#if B3_ENABLE_VALIDATION
+	b3Body* bodies = world->bodies.data;
+#endif
+	b3WidePrepareSpan* spans = context->widePrepareSpans;
+	b3ContactConstraintWide* wideBase = context->wideConstraints;
+
+	// Stiffer for static contacts to avoid bodies getting pushed through the ground
+	b3Softness contactSoftness = context->contactSoftness;
+	b3Softness staticSoftness = context->staticSoftness;
+
+	b3FloatW warmStartScaleW = b3SplatW( world->enableWarmStarting ? B3_FIX( 1.0f ) : B3_FIX( 0.0f ) );
+
+	// Used for friction center weighting.
+	b3FloatW speculativeDistanceW = b3SplatW( B3_SPECULATIVE_DISTANCE );
+	b3FloatW minFrictionWeightW = b3SplatW( B3_MIN_FRICTION_WEIGHT );
+	b3FloatW oneW = b3SplatW( B3_FIX( 1.0f ) );
+	b3FloatW twoW = b3SplatW( B3_FIX( 2.0f ) );
+
+	int wideIndex = block.startIndex;
+	int endWideIndex = block.startIndex + block.count;
+
+	// Find color for start index. Linear search but fast.
+	int colorIndex = 0;
+	while ( spans[colorIndex + 1].start <= wideIndex )
+	{
+		colorIndex += 1;
+	}
+
+	// Loop over block
+	while ( wideIndex < endWideIndex )
+	{
+		int colorWideStart = spans[colorIndex].start;
+		int colorWideEndIndex = b3MinInt( spans[colorIndex + 1].start, endWideIndex );
+		int colorContactCount = spans[colorIndex].count;
+		int* contactIds = spans[colorIndex].contacts;
+
+		// Loop over color
+		for ( ; wideIndex < colorWideEndIndex; ++wideIndex )
+		{
+			b3ContactConstraintWide* constraint = wideBase + wideIndex;
+			int localWideIndex = wideIndex - colorWideStart;
+
+			// Wide staging, zeroed so inactive lanes and point slots compute
+			// benign zeros that match the scalar zero-fill exactly.
+			b3FloatW mAW = b3ZeroW(), mBW = b3ZeroW();
+			b3Matrix3FullW iAW, iBW;
+			memset( &iAW, 0, sizeof( iAW ) );
+			memset( &iBW, 0, sizeof( iBW ) );
+			b3Vec3W normalW = b3ZeroVW(), tangent1W = b3ZeroVW();
+			b3Vec3W vAW = b3ZeroVW(), wAW = b3ZeroVW(), vBW = b3ZeroVW(), wBW = b3ZeroVW();
+			b3Vec3W tangentVelocityW = b3ZeroVW(), frictionImpulseW = b3ZeroVW(), rollingImpulseW = b3ZeroVW();
+			b3FloatW twistImpulseW = b3ZeroW();
+			b3Vec3W anchorAW[B3_MAX_MANIFOLD_POINTS], anchorBW[B3_MAX_MANIFOLD_POINTS];
+			b3FloatW separationW[B3_MAX_MANIFOLD_POINTS], normalImpulseW[B3_MAX_MANIFOLD_POINTS];
+			for ( int pointIndex = 0; pointIndex < B3_MAX_MANIFOLD_POINTS; ++pointIndex )
+			{
+				anchorAW[pointIndex] = b3ZeroVW();
+				anchorBW[pointIndex] = b3ZeroVW();
+				separationW[pointIndex] = b3ZeroW();
+				normalImpulseW[pointIndex] = b3ZeroW();
+			}
+			int64_t laneCounts[B3_SIMD_WIDTH] = { 0 };
+			b3Matrix3 iAFull[B3_SIMD_WIDTH], iBFull[B3_SIMD_WIDTH];
+			b3Fixed laneRollingResistance[B3_SIMD_WIDTH] = { 0 };
+			int laneCount = 0;
+
+			for ( int lane = 0; lane < B3_SIMD_WIDTH; ++lane )
+			{
+				int contactIndex = B3_SIMD_WIDTH * localWideIndex + lane;
+				if ( contactIndex >= colorContactCount )
+				{
+					// Remainder lanes were zeroed in solver setup.
+					break;
+				}
+
+				laneCount = lane + 1;
+
+				int contactId = contactIds[contactIndex];
+				b3Contact* contact = b3Array_Get( world->contacts, contactId );
+				B3_ASSERT( contact->manifoldCount == 1 );
+				b3Manifold* manifold = contact->manifolds + 0;
+
+				int indexA = contact->bodySimIndexA;
+				int indexB = contact->bodySimIndexB;
+
+#if B3_ENABLE_VALIDATION
+				b3Body* bodyA = bodies + contact->edges[0].bodyId;
+				int validIndexA = bodyA->setIndex == b3_awakeSet ? bodyA->localIndex : B3_NULL_INDEX;
+				b3Body* bodyB = bodies + contact->edges[1].bodyId;
+				int validIndexB = bodyB->setIndex == b3_awakeSet ? bodyB->localIndex : B3_NULL_INDEX;
+				B3_ASSERT( indexA == validIndexA );
+				B3_ASSERT( indexB == validIndexB );
+#endif
+
+				// 0 for null
+				constraint->indexA[lane] = indexA + 1;
+				constraint->indexB[lane] = indexB + 1;
+				constraint->manifolds[lane] = manifold;
+
+				// Body A data
+				b3Fixed mA;
+				b3Matrix3 iA;
+				b3Vec3 vA;
+				b3Vec3 wA;
+
+				if ( indexA == B3_NULL_INDEX )
+				{
+					mA = B3_FIX( 0.0f );
+					iA = b3Mat3_zero;
+					vA = b3Vec3_zero;
+					wA = b3Vec3_zero;
+				}
+				else
+				{
+					b3BodySim* simA = sims + indexA;
+					mA = simA->invMass;
+					iA = simA->invInertiaWorld;
+
+					b3BodyState* stateA = states + indexA;
+					vA = stateA->linearVelocity;
+					wA = stateA->angularVelocity;
+				}
+
+				// Body B data
+				b3Fixed mB;
+				b3Matrix3 iB;
+				b3Vec3 vB;
+				b3Vec3 wB;
+
+				if ( indexB == B3_NULL_INDEX )
+				{
+					mB = B3_FIX( 0.0f );
+					iB = b3Mat3_zero;
+					vB = b3Vec3_zero;
+					wB = b3Vec3_zero;
+				}
+				else
+				{
+					b3BodySim* simB = sims + indexB;
+					mB = simB->invMass;
+					iB = simB->invInertiaWorld;
+
+					b3BodyState* stateB = states + indexB;
+					vB = stateB->linearVelocity;
+					wB = stateB->angularVelocity;
+				}
+
+				( (b3Fixed*)&constraint->invMassA )[lane] = mA;
+				( (b3Fixed*)&constraint->invMassB )[lane] = mB;
+
+				( (b3Fixed*)&constraint->invIA.cxx )[lane] = iA.cx.x;
+				( (b3Fixed*)&constraint->invIA.cxy )[lane] = iA.cx.y;
+				( (b3Fixed*)&constraint->invIA.cxz )[lane] = iA.cx.z;
+				( (b3Fixed*)&constraint->invIA.cyy )[lane] = iA.cy.y;
+				( (b3Fixed*)&constraint->invIA.cyz )[lane] = iA.cy.z;
+				( (b3Fixed*)&constraint->invIA.czz )[lane] = iA.cz.z;
+
+				( (b3Fixed*)&constraint->invIB.cxx )[lane] = iB.cx.x;
+				( (b3Fixed*)&constraint->invIB.cxy )[lane] = iB.cx.y;
+				( (b3Fixed*)&constraint->invIB.cxz )[lane] = iB.cx.z;
+				( (b3Fixed*)&constraint->invIB.cyy )[lane] = iB.cy.y;
+				( (b3Fixed*)&constraint->invIB.cyz )[lane] = iB.cy.z;
+				( (b3Fixed*)&constraint->invIB.czz )[lane] = iB.cz.z;
+
+				// Stage the wide math inputs
+				( (b3Fixed*)&mAW )[lane] = mA;
+				( (b3Fixed*)&mBW )[lane] = mB;
+
+				( (b3Fixed*)&iAW.cxx )[lane] = iA.cx.x;
+				( (b3Fixed*)&iAW.cxy )[lane] = iA.cx.y;
+				( (b3Fixed*)&iAW.cxz )[lane] = iA.cx.z;
+				( (b3Fixed*)&iAW.cyx )[lane] = iA.cy.x;
+				( (b3Fixed*)&iAW.cyy )[lane] = iA.cy.y;
+				( (b3Fixed*)&iAW.cyz )[lane] = iA.cy.z;
+				( (b3Fixed*)&iAW.czx )[lane] = iA.cz.x;
+				( (b3Fixed*)&iAW.czy )[lane] = iA.cz.y;
+				( (b3Fixed*)&iAW.czz )[lane] = iA.cz.z;
+
+				( (b3Fixed*)&iBW.cxx )[lane] = iB.cx.x;
+				( (b3Fixed*)&iBW.cxy )[lane] = iB.cx.y;
+				( (b3Fixed*)&iBW.cxz )[lane] = iB.cx.z;
+				( (b3Fixed*)&iBW.cyx )[lane] = iB.cy.x;
+				( (b3Fixed*)&iBW.cyy )[lane] = iB.cy.y;
+				( (b3Fixed*)&iBW.cyz )[lane] = iB.cy.z;
+				( (b3Fixed*)&iBW.czx )[lane] = iB.cz.x;
+				( (b3Fixed*)&iBW.czy )[lane] = iB.cz.y;
+				( (b3Fixed*)&iBW.czz )[lane] = iB.cz.z;
+
+				iAFull[lane] = iA;
+				iBFull[lane] = iB;
+
+				( (b3Fixed*)&vAW.X )[lane] = vA.x;
+				( (b3Fixed*)&vAW.Y )[lane] = vA.y;
+				( (b3Fixed*)&vAW.Z )[lane] = vA.z;
+				( (b3Fixed*)&wAW.X )[lane] = wA.x;
+				( (b3Fixed*)&wAW.Y )[lane] = wA.y;
+				( (b3Fixed*)&wAW.Z )[lane] = wA.z;
+				( (b3Fixed*)&vBW.X )[lane] = vB.x;
+				( (b3Fixed*)&vBW.Y )[lane] = vB.y;
+				( (b3Fixed*)&vBW.Z )[lane] = vB.z;
+				( (b3Fixed*)&wBW.X )[lane] = wB.x;
+				( (b3Fixed*)&wBW.Y )[lane] = wB.y;
+				( (b3Fixed*)&wBW.Z )[lane] = wB.z;
+
+				b3Softness soft = ( indexA == B3_NULL_INDEX || indexB == B3_NULL_INDEX ) ? staticSoftness : contactSoftness;
+
+				b3Vec3 normal = manifold->normal;
+				b3StoreNarrow( &constraint->normal.X, lane, normal.x );
+				b3StoreNarrow( &constraint->normal.Y, lane, normal.y );
+				b3StoreNarrow( &constraint->normal.Z, lane, normal.z );
+				( (b3Fixed*)&normalW.X )[lane] = normal.x;
+				( (b3Fixed*)&normalW.Y )[lane] = normal.y;
+				( (b3Fixed*)&normalW.Z )[lane] = normal.z;
+
+				// Branchy axis selection stays scalar
+				b3Vec3 tangent1 = b3Perp( normal );
+				b3StoreNarrow( &constraint->tangent1.X, lane, tangent1.x );
+				b3StoreNarrow( &constraint->tangent1.Y, lane, tangent1.y );
+				b3StoreNarrow( &constraint->tangent1.Z, lane, tangent1.z );
+				( (b3Fixed*)&tangent1W.X )[lane] = tangent1.x;
+				( (b3Fixed*)&tangent1W.Y )[lane] = tangent1.y;
+				( (b3Fixed*)&tangent1W.Z )[lane] = tangent1.z;
+
+				( (b3Fixed*)&constraint->friction )[lane] = contact->friction;
+				( (b3Fixed*)&constraint->restitution )[lane] = contact->restitution;
+				( (b3Fixed*)&constraint->rollingResistance )[lane] = contact->rollingResistance;
+				laneRollingResistance[lane] = contact->rollingResistance;
+
+				( (b3Fixed*)&tangentVelocityW.X )[lane] = contact->tangentVelocity.x;
+				( (b3Fixed*)&tangentVelocityW.Y )[lane] = contact->tangentVelocity.y;
+				( (b3Fixed*)&tangentVelocityW.Z )[lane] = contact->tangentVelocity.z;
+
+				( (b3Fixed*)&constraint->biasRate )[lane] = soft.biasRate;
+				( (b3Fixed*)&constraint->massScale )[lane] = soft.massScale;
+				( (b3Fixed*)&constraint->impulseScale )[lane] = soft.impulseScale;
+
+				( (b3Fixed*)&frictionImpulseW.X )[lane] = manifold->frictionImpulse.x;
+				( (b3Fixed*)&frictionImpulseW.Y )[lane] = manifold->frictionImpulse.y;
+				( (b3Fixed*)&frictionImpulseW.Z )[lane] = manifold->frictionImpulse.z;
+				( (b3Fixed*)&twistImpulseW )[lane] = manifold->twistImpulse;
+				( (b3Fixed*)&rollingImpulseW.X )[lane] = manifold->rollingImpulse.x;
+				( (b3Fixed*)&rollingImpulseW.Y )[lane] = manifold->rollingImpulse.y;
+				( (b3Fixed*)&rollingImpulseW.Z )[lane] = manifold->rollingImpulse.z;
+
+				int pointCount = manifold->pointCount;
+				laneCounts[lane] = pointCount;
+				for ( int pointIndex = 0; pointIndex < pointCount; ++pointIndex )
+				{
+					const b3ManifoldPoint* mp = manifold->points + pointIndex;
+					( (b3Fixed*)&anchorAW[pointIndex].X )[lane] = mp->anchorA.x;
+					( (b3Fixed*)&anchorAW[pointIndex].Y )[lane] = mp->anchorA.y;
+					( (b3Fixed*)&anchorAW[pointIndex].Z )[lane] = mp->anchorA.z;
+					( (b3Fixed*)&anchorBW[pointIndex].X )[lane] = mp->anchorB.x;
+					( (b3Fixed*)&anchorBW[pointIndex].Y )[lane] = mp->anchorB.y;
+					( (b3Fixed*)&anchorBW[pointIndex].Z )[lane] = mp->anchorB.z;
+					( (b3Fixed*)&separationW[pointIndex] )[lane] = mp->separation;
+					( (b3Fixed*)&normalImpulseW[pointIndex] )[lane] = mp->normalImpulse;
+				}
+
+				B3_AUDIT_FIX( b3_auditInvMass, mA );
+				B3_AUDIT_FIX( b3_auditInvMass, mB );
+				B3_AUDIT_M3( b3_auditInvInertia, iA );
+				B3_AUDIT_M3( b3_auditInvInertia, iB );
+			}
+
+			// ---- wide math ----
+
+			__m256i pointCountsV = _mm256_loadu_si256( (const __m256i*)laneCounts );
+
+			b3Vec3W tangent2W = b3CrossUnfusedW( tangent1W, normalW );
+			b3StoreNarrowVW( &constraint->tangent2, tangent2W );
+
+			constraint->tangentVelocity1 = b3DotW( tangentVelocityW, tangent1W );
+			constraint->tangentVelocity2 = b3DotW( tangentVelocityW, tangent2W );
+
+			b3Vec3W centerAW = b3ZeroVW();
+			b3Vec3W centerBW = b3ZeroVW();
+			b3FloatW totalFrictionWeightW = b3ZeroW();
+
+			for ( int pointIndex = 0; pointIndex < B3_MAX_MANIFOLD_POINTS; ++pointIndex )
+			{
+				b3ContactConstraintPointWide* cp = constraint->points + pointIndex;
+				__mmask8 laneValid = _mm256_cmpgt_epi64_mask( pointCountsV, _mm256_set1_epi64x( pointIndex ) );
+
+				b3Vec3W rA = anchorAW[pointIndex];
+				b3Vec3W rB = anchorBW[pointIndex];
+				b3FloatW s = separationW[pointIndex];
+
+				// C0 friction center decay, masked so only real points
+				// contribute (the scalar loop simply does not visit the rest)
+				b3FloatW weight = b3ClampW( b3SubW( twoW, b3DivW( s, speculativeDistanceW ) ), minFrictionWeightW, oneW );
+				weight = b3MaskKeepW( laneValid, weight );
+				centerAW = b3MulAddSVW( centerAW, weight, rA );
+				centerBW = b3MulAddSVW( centerBW, weight, rB );
+				totalFrictionWeightW = b3AddW( totalFrictionWeightW, weight );
+
+				b3StoreNarrowVW( &cp->anchorAs, rA );
+				b3StoreNarrowVW( &cp->anchorBs, rB );
+
+				cp->baseSeparations = b3SubW( s, b3DotW( b3SubVW( rB, rA ), normalW ) );
+
+				cp->normalImpulses = b3MulW( warmStartScaleW, normalImpulseW[pointIndex] );
+				cp->totalNormalImpulses = b3ZeroW();
+
+				b3Vec3W rnA = b3CrossUnfusedW( rA, normalW );
+				b3Vec3W rnB = b3CrossUnfusedW( rB, normalW );
+				b3Vec3W iRnA = b3MulMVFullW( &iAW, rnA );
+				b3Vec3W iRnB = b3MulMVFullW( &iBW, rnB );
+				b3FloatW kNormal = b3AddW( b3AddW( mAW, mBW ), b3AddW( b3DotW( rnA, iRnA ), b3DotW( rnB, iRnB ) ) );
+				__mmask8 kPositive = _mm256_cmpgt_epi64_mask( kNormal.v, _mm256_setzero_si256() );
+				cp->normalMasses = b3MaskKeepW( laneValid & kPositive, b3DivW( oneW, kNormal ) );
+
+				B3_AUDIT_V3W( b3_auditAnchor, rA );
+				B3_AUDIT_V3W( b3_auditAnchor, rB );
+				B3_AUDIT_V3W( b3_auditRn, rnA );
+				B3_AUDIT_V3W( b3_auditRn, rnB );
+				B3_AUDIT_V3W( b3_auditIRn, iRnA );
+				B3_AUDIT_V3W( b3_auditIRn, iRnB );
+				B3_AUDIT_W( b3_auditNormalMass, cp->normalMasses );
+
+				// Precomputed normal Jacobian rows for the solve and warm start
+				b3StoreNarrowVW( &cp->rnAs, rnA );
+				b3StoreNarrowVW( &cp->rnBs, rnB );
+				b3StoreNarrowVW( &cp->iRnAs, iRnA );
+				b3StoreNarrowVW( &cp->iRnBs, iRnB );
+
+				// Save relative velocity for restitution
+				b3Vec3W vrA = b3AddVW( vAW, b3CrossUnfusedW( wAW, rA ) );
+				b3Vec3W vrB = b3AddVW( vBW, b3CrossUnfusedW( wBW, rB ) );
+				cp->relativeVelocities = b3MaskKeepW( laneValid, b3DotW( normalW, b3SubVW( vrB, vrA ) ) );
+			}
+
+			b3FloatW invWeightW = b3DivW( oneW, totalFrictionWeightW );
+			centerAW = b3MulSVW( invWeightW, centerAW );
+			centerBW = b3MulSVW( invWeightW, centerBW );
+
+			// Lever arms need a square root per (lane, point): scalar
+			for ( int lane = 0; lane < laneCount; ++lane )
+			{
+				b3Vec3 centerA = { ( (b3Fixed*)&centerAW.X )[lane], ( (b3Fixed*)&centerAW.Y )[lane],
+								   ( (b3Fixed*)&centerAW.Z )[lane] };
+				int pointCount = (int)laneCounts[lane];
+				for ( int pointIndex = 0; pointIndex < pointCount; ++pointIndex )
+				{
+					b3Vec3 anchorA = { ( (b3Fixed*)&anchorAW[pointIndex].X )[lane], ( (b3Fixed*)&anchorAW[pointIndex].Y )[lane],
+									   ( (b3Fixed*)&anchorAW[pointIndex].Z )[lane] };
+					( (b3Fixed*)&constraint->points[pointIndex].leverArms )[lane] = b3Distance( anchorA, centerA );
+				}
+				for ( int pointIndex = pointCount; pointIndex < B3_MAX_MANIFOLD_POINTS; ++pointIndex )
+				{
+					( (b3Fixed*)&constraint->points[pointIndex].leverArms )[lane] = B3_FIX( 0.0f );
+				}
+			}
+
+			b3Vec3W rtA1W = b3CrossUnfusedW( centerAW, tangent1W );
+			b3Vec3W rtA2W = b3CrossUnfusedW( centerAW, tangent2W );
+			b3Vec3W rtB1W = b3CrossUnfusedW( centerBW, tangent1W );
+			b3Vec3W rtB2W = b3CrossUnfusedW( centerBW, tangent2W );
+
+			// Precomputed friction Jacobian rows
+			b3StoreNarrowVW( &constraint->rtA1s, rtA1W );
+			b3StoreNarrowVW( &constraint->rtA2s, rtA2W );
+			b3StoreNarrowVW( &constraint->rtB1s, rtB1W );
+			b3StoreNarrowVW( &constraint->rtB2s, rtB2W );
+
+			// Precomputed linear normal Jacobian
+			b3Vec3W mNormalAW = b3MulSVW( mAW, normalW );
+			b3Vec3W mNormalBW = b3MulSVW( mBW, normalW );
+			b3StoreNarrowVW( &constraint->mNormalA, mNormalAW );
+			b3StoreNarrowVW( &constraint->mNormalB, mNormalBW );
+
+			B3_AUDIT_V3W( b3_auditMNormal, mNormalAW );
+			B3_AUDIT_V3W( b3_auditMNormal, mNormalBW );
+			B3_AUDIT_V3W( b3_auditRt, rtA1W );
+			B3_AUDIT_V3W( b3_auditRt, rtA2W );
+			B3_AUDIT_V3W( b3_auditRt, rtB1W );
+			B3_AUDIT_V3W( b3_auditRt, rtB2W );
+
+			{
+				b3FloatW mSumW = b3AddW( mAW, mBW );
+				b3FloatW kxx = b3AddW(
+					mSumW, b3AddW( b3DotW( rtA1W, b3MulMVFullW( &iAW, rtA1W ) ), b3DotW( rtB1W, b3MulMVFullW( &iBW, rtB1W ) ) ) );
+				b3FloatW kyy = b3AddW(
+					mSumW, b3AddW( b3DotW( rtA2W, b3MulMVFullW( &iAW, rtA2W ) ), b3DotW( rtB2W, b3MulMVFullW( &iBW, rtB2W ) ) ) );
+				b3FloatW kxy =
+					b3AddW( b3DotW( rtA1W, b3MulMVFullW( &iAW, rtA2W ) ), b3DotW( rtB1W, b3MulMVFullW( &iBW, rtB2W ) ) );
+
+				// 2x2 inversion divides through 128-bit determinants: scalar
+				for ( int lane = 0; lane < laneCount; ++lane )
+				{
+					b3Matrix2 k;
+					k.cx.x = ( (b3Fixed*)&kxx )[lane];
+					k.cy.y = ( (b3Fixed*)&kyy )[lane];
+					k.cx.y = k.cy.x = ( (b3Fixed*)&kxy )[lane];
+					b3Matrix2 tangentMass = b3Invert2( k );
+
+					( (b3Fixed*)&constraint->tangentMass.cxx )[lane] = tangentMass.cx.x;
+					( (b3Fixed*)&constraint->tangentMass.cxy )[lane] = tangentMass.cx.y;
+					( (b3Fixed*)&constraint->tangentMass.cyy )[lane] = tangentMass.cy.y;
+				}
+
+				constraint->frictionImpulse.x = b3MulW( warmStartScaleW, b3DotW( frictionImpulseW, tangent1W ) );
+				constraint->frictionImpulse.y = b3MulW( warmStartScaleW, b3DotW( frictionImpulseW, tangent2W ) );
+			}
+
+			{
+				// Precomputed angular normal Jacobian, also used for the twist mass
+				b3Vec3W iNormalAW = b3MulMVFullW( &iAW, normalW );
+				b3Vec3W iNormalBW = b3MulMVFullW( &iBW, normalW );
+				b3StoreNarrowVW( &constraint->iNormalA, iNormalAW );
+				b3StoreNarrowVW( &constraint->iNormalB, iNormalBW );
+
+				b3FloatW kTwist = b3AddW( b3DotW( normalW, iNormalAW ), b3DotW( normalW, iNormalBW ) );
+				__mmask8 kPositive = _mm256_cmpgt_epi64_mask( kTwist.v, _mm256_setzero_si256() );
+				constraint->twistMass = b3MaskKeepW( kPositive, b3DivW( oneW, kTwist ) );
+				constraint->twistImpulse = b3MulW( warmStartScaleW, twistImpulseW );
+
+				B3_AUDIT_V3W( b3_auditINormal, iNormalAW );
+				B3_AUDIT_V3W( b3_auditINormal, iNormalBW );
+				B3_AUDIT_W( b3_auditTwistMass, constraint->twistMass );
+			}
+
+			{
+				// The 128-bit matrix inversion is only needed when rolling resistance is active
+				for ( int lane = 0; lane < laneCount; ++lane )
+				{
+					b3Matrix3 rollingMass = laneRollingResistance[lane] > B3_FIX( 0.0f )
+												? b3InvertMatrix( b3AddMM( iAFull[lane], iBFull[lane] ) )
+												: b3Mat3_zero;
+
+					( (b3Fixed*)&constraint->rollingMass.cxx )[lane] = rollingMass.cx.x;
+					( (b3Fixed*)&constraint->rollingMass.cxy )[lane] = rollingMass.cx.y;
+					( (b3Fixed*)&constraint->rollingMass.cxz )[lane] = rollingMass.cx.z;
+					( (b3Fixed*)&constraint->rollingMass.cyy )[lane] = rollingMass.cy.y;
+					( (b3Fixed*)&constraint->rollingMass.cyz )[lane] = rollingMass.cy.z;
+					( (b3Fixed*)&constraint->rollingMass.czz )[lane] = rollingMass.cz.z;
+				}
+
+				constraint->rollingImpulse.X = b3MulW( warmStartScaleW, rollingImpulseW.X );
+				constraint->rollingImpulse.Y = b3MulW( warmStartScaleW, rollingImpulseW.Y );
+				constraint->rollingImpulse.Z = b3MulW( warmStartScaleW, rollingImpulseW.Z );
+			}
+		}
+
+		// Advance to next color
+		colorIndex += 1;
+	}
+
+	b3TracyCZoneEnd( prepare_contact );
+}
+
+#else
+
 // Prepare convex contact constraints
 void b3PrepareContacts_Convex( b3SolverBlock block, b3StepContext* context )
 {
@@ -2180,6 +2722,8 @@ void b3PrepareContacts_Convex( b3SolverBlock block, b3StepContext* context )
 
 	b3TracyCZoneEnd( prepare_contact );
 }
+
+#endif // B3_SIMD_AVX512
 
 void b3WarmStartContacts_Convex( b3SolverBlock block, b3StepContext* context )
 {
