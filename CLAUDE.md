@@ -12,9 +12,14 @@ there is no pending working-tree state.
 - **CI: fully green** — 13 jobs (ubuntu gcc / clang-TSan / clang-MSan, macos
   sanitized, windows-clang-cl, windows-arm64, windows-mingw, emscripten, six
   samples jobs). See the CI section for the rules that keep it green.
-- **Performance: ~2.3x of vanilla float** geomean over all 11 benchmarks (was
-  5.4x at the first conversion commit). Full optimization log with per-pass
-  numbers and profiles: benchmark/apple_m3_ultra_fixed/README.md.
+- **Performance vs vanilla float (geomean, all 11 benchmarks, post
+  large_world scene fix)**: M3 Ultra 2.09x scalar / 1.94x with BOX3D_NEON;
+  EPYC Zen 4 3.36x scalar / 2.27x with BOX3D_AVX512. **convex_pile BEATS
+  float on both**: 0.74x on M3, 0.83x on Zen 4 (the README taunt is scoped to
+  this and to the honest mechanics: Erin's float SIMD stops at his solver,
+  our narrow phase is vectorized). The old M3-only optimization log lives in
+  benchmark/apple_m3_ultra_fixed/README.md; the current cross-platform tables
+  are in the README.
 - **Samples build and run** (the float→fixed sample pass is done, including the
   newly re-enabled GyroscopicPrecession sample from e961bfb).
 - **Determinism goldens**: sleepStep=287, hash=0x6FA8A4C5, verified bit-identical
@@ -30,7 +35,20 @@ there is no pending working-tree state.
 - History (main): e9f6f1d float baseline → 45078b4 + 98b9889 conversion →
   d29ef7d..a40134f optimization passes → 924cd56 narrow storage → ea684c7..632ff0d
   CI/samples → 973acd1 bug-hunt hardening → 1f1c941 friction center weighted
-  average (ports box3d e961bfb).
+  average (ports box3d e961bfb) → a9f4dc8 AVX-512 wide solver + 2fdc189 timer
+  fix → 45f5313/f0ffbf5 wide prepare → a501dfc point-slot skip + cd2b1b8
+  gather transpose + eaf90ce support scans + d70126d/a9d1ecf SAT edge query
+  (convex_pile beats float on Zen 4) → 5aca95a BOX3D_NEON (beats float on M3)
+  → 8d32da5 gitignore build*/ → 6855c97/78ce3a0 large_world scene fix.
+  NOTE: main's history was force-push rewritten ONCE on 2026-07-12 (with
+  Glenn's explicit approval) to purge 50MB of accidentally committed build
+  dirs; any clone made in the ~30 minutes before that needs a reset.
+- **Box clone state (ssh space)**: ~/fixed3d is checked out on the deleted
+  branch large-world-fix (content == main 78ce3a0) with build/ (scalar) and
+  build-avx2/ (AVX on); ~/fixed3d-avx is a WORKTREE of ~/fixed3d stuck on the
+  deleted neon branch (main is checked out in the parent, so it cannot
+  checkout main — use a fresh branch or detached HEAD there). Start any new
+  box session with git fetch origin main.
 
 ## AVX-512 wide solver path (landed on main 2026-07-12)
 
