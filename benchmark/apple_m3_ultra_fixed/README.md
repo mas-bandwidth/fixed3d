@@ -18,35 +18,41 @@ benchmark), minimum over 2 repeats, at 4 workers.
 
 ## Fixed vs float (ms, 4 workers, min of 2 runs)
 
-| benchmark      | fixed (solver pass) | float (e9f6f1d) | fixed / float |
-|----------------|---------------------|-----------------|---------------|
-| convex_pile    | 21055               | 13626           | 1.55x         |
-| joint_grid     | 855                 | 271             | 3.16x         |
-| large_pyramid  | 1735                | 508             | 3.41x         |
-| large_world    | 72                  | 14              | 5.12x         |
-| many_pyramids  | 1699                | 490             | 3.47x         |
-| rain           | 1380                | 582             | 2.37x         |
-| trees50        | 217                 | 116             | 1.87x         |
-| washer         | 13840               | 6577            | 2.10x         |
+| benchmark      | fixed (round 3) | float (e9f6f1d) | fixed / float |
+|----------------|-----------------|-----------------|---------------|
+| convex_pile    | 20917           | 13626           | 1.53x         |
+| joint_grid     | 783             | 271             | 2.89x         |
+| large_pyramid  | 1638            | 508             | 3.22x         |
+| large_world    | 66              | 14              | 4.68x         |
+| many_pyramids  | 1669            | 490             | 3.41x         |
+| rain           | 1238            | 582             | 2.13x         |
+| trees50        | 205             | 116             | 1.77x         |
+| washer         | 14093           | 6577            | 2.14x         |
 
-**Geomean: ~2.7x of float** (was ~5.4x before any optimization, ~3.2x after
-98b9889 alone, ~2.85x before the solver pass). Session run-to-run variance is
-roughly +/-2-5%; the solver pass trades a small prepare/warm-start bandwidth
-cost (joint_grid and trees50 gave back ~5-7%) for 10-16% on solver-bound
-scenes.
+**Geomean: ~2.56x of float** (was ~5.4x before any optimization, ~3.2x after
+98b9889 alone, ~2.85x before the solver pass, ~2.7x before round 3). Session
+run-to-run variance is roughly +/-2-5% (washer up to +/-10%).
+
+Round 3 fused the scalar quaternion/dot operations (b3Dot, b3LengthSquared,
+b3DistanceSquared, b3DotQuat, b3MulQuat, b3InvMulQuat) into single-rounding
+128-bit reductions and routed b3NormalizeQuat divides through the b3FixDiv
+fast path. b3Cross, b3MulMV, b3RotateVector, and b3Lerp are DELIBERATELY kept
+at per-product rounding: fusing each was bisected to either a TestMeshDrop
+sleep limit cycle or a convex_pile SAT cache-miss regime (+40%). See the
+round-3 notes in CLAUDE.md before touching scalar rounding.
 
 ## Optimization timeline (ms, 4 workers)
 
-| benchmark      | before | 98b9889 | session 3 | + SAH fix | solver pass | float |
-|----------------|--------|---------|-----------|-----------|-------------|-------|
-| convex_pile    | 46779  | 27279   | 21117     | 20708     | 21055       | 13626 |
-| joint_grid     | 1555   | 809     | 814       | 810       | 855         | 271   |
-| large_pyramid  | 4444   | 2295    | 2078      | 2072      | 1735        | 508   |
-| large_world    | 162    | 92      | 84        | 85        | 72          | 14    |
-| many_pyramids  | 4263   | 2246    | 2039      | 2031      | 1699        | 490   |
-| rain           | 2637   | 1747    | 1733      | 1356      | 1380        | 582   |
-| trees50        | 419    | 226     | 209       | 203       | 217         | 116   |
-| washer         | 28767  | 18976   | 17575     | 15305     | 13840       | 6577  |
+| benchmark      | before | 98b9889 | session 3 | + SAH fix | solver pass | round 3 | float |
+|----------------|--------|---------|-----------|-----------|-------------|---------|-------|
+| convex_pile    | 46779  | 27279   | 21117     | 20708     | 21055       | 20917   | 13626 |
+| joint_grid     | 1555   | 809     | 814       | 810       | 855         | 783     | 271   |
+| large_pyramid  | 4444   | 2295    | 2078      | 2072      | 1735        | 1638    | 508   |
+| large_world    | 162    | 92      | 84        | 85        | 72          | 66      | 14    |
+| many_pyramids  | 4263   | 2246    | 2039      | 2031      | 1699        | 1669    | 490   |
+| rain           | 2637   | 1747    | 1733      | 1356      | 1380        | 1238    | 582   |
+| trees50        | 419    | 226     | 209       | 203       | 217         | 205     | 116   |
+| washer         | 28767  | 18976   | 17575     | 15305     | 13840       | 14093   | 6577  |
 
 "before" numbers are from the morning benchmark run predating both the 98b9889
 fixed.h fast paths and the session-3 pass. The sentinel-audit fix to the

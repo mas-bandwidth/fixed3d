@@ -51,32 +51,57 @@ Solver pass (after ab2d210, contact_solver.c only):
   light scenes (joint_grid, trees50) gave back ~5-7%, solver-bound scenes
   gained 10-16%.
 
-Benchmarks (4 workers, this machine, min of 2 runs; run-to-run variance ±2-5%;
-CSVs and sample profiles in benchmark/apple_m3_ultra_fixed|_float/):
+Round 3 (scalar math fusion — PARTIAL, read this before touching rounding):
 
-| benchmark      | before | 98b9889 | ab2d210 | solver pass | float | ratio |
-|----------------|--------|---------|---------|-------------|-------|-------|
-| convex_pile    | 46779  | 27279   | 20708   | 21055       | 13626 | 1.55x |
-| joint_grid     | 1555   | 809     | 810     | 855         | 271   | 3.16x |
-| large_pyramid  | 4444   | 2295    | 2072    | 1735        | 508   | 3.41x |
-| large_world    | 162    | 92      | 85      | 72          | 14    | 5.12x |
-| many_pyramids  | 4263   | 2246    | 2031    | 1699        | 490   | 3.47x |
-| rain           | 2637   | 1747    | 1356    | 1380        | 582   | 2.37x |
-| trees50        | 419    | 226     | 203     | 217         | 116   | 1.87x |
-| washer         | 28767  | 18976   | 15305   | 13840       | 6577  | 2.10x |
+- **Kept fused** (single rounding on raw-128 reductions): `b3Dot`,
+  `b3LengthSquared`, `b3DistanceSquared`, `b3DotQuat`, `b3MulQuat`,
+  `b3InvMulQuat`, plus `b3NormalizeQuat` component divides routed through
+  `b3FixDiv` (bit-identical, picks up the 64-bit fast path). Wins: joint_grid
+  −10%, rain −10%, trees50 −6% (quat ops feed joints, b3InvMulWorldTransforms,
+  integration).
+- **Deliberately NOT fused — do not "clean these up"** (each was bisected):
+  - `b3Cross`: the single-rounding product difference carries a tie bias that
+    acted as a phantom half-ulp torque; TestMeshDrop never slept (limit cycle
+    at 4000 steps).
+  - `b3MulMV`: shifting the SAT edge-query frame transform by an ulp put
+    convex_pile into a persistent narrow-phase cache-miss regime, +40% wall
+    time at identical contact counts.
+  - `b3RotateVector`/`b3InvRotateVector` and `b3Lerp`: each independently
+    re-rolled the TestMeshDrop sleep equilibrium into a limit cycle (b3Lerp
+    via CCD sweep interpolation). Two configs that individually passed
+    combined into failures — the equilibrium is a knife edge.
+- **Lesson**: global rounding changes to scalar primitives are a lottery
+  against equilibrium-sensitive scenes. Prefer call-site fusion in hot
+  non-equilibrium code (the wide solver approach) over changing shared
+  primitives. If a primitive must change, gate on TestMeshDrop AND a
+  convex_pile wall-time check, not just the unit suites.
 
-**Geomean ~2.7x of float** (5.4x pre-optimization → 3.2x after 98b9889 → 2.85x
-after session 3 → 2.7x after the solver pass). The sentinel-audit SAH fix was
-itself a perf win for rebuild-heavy scenes (rain −22%, washer −13%). Profile
-(large_pyramid, 1 worker) is flatter now: b3SolveContacts_Convex ~24%, anchor
-rotation (b3MulMV3W + b3MakeMatrixFromQuatW) ~15%, prepare ~14% and warm start
-~11% (both now memory-bound on the fatter constraint), b3RelVelocityW ~6%.
-Float on the same workload is also solver-bound but pays ~20% in SIMD
-gather/scatter that the scalar int64 lanes don't; the residual gap is the
-64x64->128 lane multiplies vs float FMA. NEON is NOT a lever on this hardware
-(no 64-bit lane multiply without SVE2, which Apple doesn't expose). Remaining
-ideas: Q16.16 32-bit-lane solver experiment (SMULL 4-wide; needs impulse range
-analysis — density-100 stacks may not fit), trimming constraint memory, the
+Benchmarks (4 workers, this machine, min of 2 runs; run-to-run variance ±2-5%,
+washer up to ±10%; CSVs and sample profiles in benchmark/apple_m3_ultra_fixed|_float/):
+
+| benchmark      | before | 98b9889 | ab2d210 | solver pass | round 3 | float | ratio |
+|----------------|--------|---------|---------|-------------|---------|-------|-------|
+| convex_pile    | 46779  | 27279   | 20708   | 21055       | 20917   | 13626 | 1.53x |
+| joint_grid     | 1555   | 809     | 810     | 855         | 783     | 271   | 2.89x |
+| large_pyramid  | 4444   | 2295    | 2072    | 1735        | 1638    | 508   | 3.22x |
+| large_world    | 162    | 92      | 85      | 72          | 66      | 14    | 4.68x |
+| many_pyramids  | 4263   | 2246    | 2031    | 1699        | 1669    | 490   | 3.41x |
+| rain           | 2637   | 1747    | 1356    | 1380        | 1238    | 582   | 2.13x |
+| trees50        | 419    | 226     | 203     | 217         | 205     | 116   | 1.77x |
+| washer         | 28767  | 18976   | 15305   | 13840       | 14093   | 6577  | 2.14x |
+
+**Geomean ~2.56x of float** (5.4x pre-optimization → 3.2x after 98b9889 →
+2.85x after session 3 → 2.7x after the solver pass → 2.56x after round 3).
+The sentinel-audit SAH fix was itself a perf win for rebuild-heavy scenes
+(rain −22%, washer −13%). Profile (large_pyramid, 1 worker) is flat:
+b3SolveContacts_Convex ~24%, anchor rotation ~15%, prepare ~14%, warm start
+~11% (memory-bound on the fatter constraint), b3RelVelocityW ~6%. Float on
+the same workload is also solver-bound but pays ~20% in SIMD gather/scatter
+that the scalar int64 lanes don't; the residual gap is the 64x64->128 lane
+multiplies vs float FMA. NEON is NOT a lever on this hardware (no 64-bit lane
+multiply without SVE2, which Apple doesn't expose). Remaining ideas: Q16.16
+32-bit-lane solver experiment (SMULL 4-wide; needs impulse range analysis —
+density-100 stacks may not fit), trimming constraint memory, the
 `__udivmodti4` calls (~2%).
 
 **Benchmark CLI gotcha**: flags need the equals form (`-b=large_pyramid -w=4 -t=4
@@ -211,11 +236,11 @@ Fixes landed in session 2 (beyond the session-1 list):
   `b3Sin`/`b3Cos` (the deterministic approximations carry ~1e-3 error and were
   never meant as references — see `ExactQuat` in test_manifold.c, the cylinder
   expectations in test_hull.c, and the trig comparisons in test_math.c).
-- Determinism goldens (`test/test_determinism.c`): `EXPECTED_SLEEP_STEP 304`,
-  `EXPECTED_HASH 0xF743C3A4` (updated for the solver pass; verified
-  bit-identical across 1-4 workers). Any solver-affecting change invalidates
-  these: rerun, take the printed values, confirm they're identical for all
-  worker counts before updating.
+- Determinism goldens (`test/test_determinism.c`): `EXPECTED_SLEEP_STEP 286`,
+  `EXPECTED_HASH 0xFF09131D` (updated for round 3; verified bit-identical
+  across 1-4 workers). Any solver-affecting change invalidates these: rerun,
+  take the printed values, confirm they're identical for all worker counts
+  before updating.
 - `ATAN_TOL` in test_math.c is `B3_FIX(0.0001f)` (poly error + output quantization).
 
 ## Conversion tooling (copies in `tools/fixed-point/`, originals were in a

@@ -204,12 +204,6 @@ B3_INLINE b3Vec3 b3Neg( b3Vec3 a )
 	return B3_LITERAL( b3Vec3 ){ -a.x, -a.y, -a.z };
 }
 
-/// Vector dot product.
-B3_INLINE b3Fixed b3Dot( b3Vec3 a, b3Vec3 b )
-{
-	return b3FixMul( a.x , b.x ) + b3FixMul( a.y , b.y ) + b3FixMul( a.z , b.z );
-}
-
 /// Exact dot product accumulated at 128 bits, scaled by 2^(2*B3_FIXED_FRACTION_BITS).
 /// No per-component rounding or saturation, so sign tests and comparisons on the
 /// raw value are exact even for sub-resolution results.
@@ -236,6 +230,12 @@ B3_INLINE b3Fixed b3FixFromDotRaw( b3Int128 raw )
 	return (b3Fixed)r;
 }
 
+/// Vector dot product. Accumulated at 128 bits with a single rounding (divide last).
+B3_INLINE b3Fixed b3Dot( b3Vec3 a, b3Vec3 b )
+{
+	return b3FixFromDotRaw( b3DotRaw( a, b ) );
+}
+
 /// Vector length. Computed from the exact 128-bit sum of squared components, so
 /// it is accurate even for vectors far below unit length.
 B3_INLINE b3Fixed b3Length( b3Vec3 v )
@@ -244,10 +244,10 @@ B3_INLINE b3Fixed b3Length( b3Vec3 v )
 	return (b3Fixed)b3ISqrt128High( (uint64_t)( (unsigned __int128)ls >> 64 ), (uint64_t)ls );
 }
 
-/// Vector length squared.
+/// Vector length squared. One rounding on the exact 128-bit sum of squares.
 B3_INLINE b3Fixed b3LengthSquared( b3Vec3 a )
 {
-	return b3FixMul( a.x , a.x ) + b3FixMul( a.y , a.y ) + b3FixMul( a.z , a.z );
+	return b3FixFromDotRaw( b3DotRaw( a, a ) );
 }
 
 /// Distance between two points.
@@ -257,11 +257,11 @@ B3_INLINE b3Fixed b3Distance( b3Vec3 a, b3Vec3 b )
 	return b3Length( dv );
 }
 
-/// Squared distance between two points.
+/// Squared distance between two points. One rounding on the exact 128-bit sum.
 B3_INLINE b3Fixed b3DistanceSquared( b3Vec3 a, b3Vec3 b )
 {
 	b3Vec3 dv = { b.x - a.x, b.y - a.y, b.z - a.z };
-	return b3FixMul( dv.x , dv.x ) + b3FixMul( dv.y , dv.y ) + b3FixMul( dv.z , dv.z );
+	return b3FixFromDotRaw( b3DotRaw( dv, dv ) );
 }
 
 /// Normalize a vector. Returns a zero vector if the input vector is zero.
@@ -450,6 +450,9 @@ B3_INLINE bool b3IsNormalizedQuat( b3Quat q )
 }
 
 /// Rotate a vector.
+/// Kept in the two-cross form: fused single-rounding variants of this and
+/// b3Lerp/b3MulMV/b3Cross perturb knife-edge equilibria (mesh-drop sleep,
+/// convex pile SAT cache). See the round-3 notes in CLAUDE.md.
 B3_INLINE b3Vec3 b3RotateVector( b3Quat q, b3Vec3 v )
 {
 	// v + 2 * cross(q.v, cross(q.v, v) + q.s * v)
@@ -472,18 +475,31 @@ B3_INLINE b3Vec3 b3InvRotateVector( b3Quat q, b3Vec3 v )
 }
 
 /// Compute dot product of two quaternions. Useful for polarity tests.
+/// One rounding on the exact 128-bit sum.
 B3_INLINE b3Fixed b3DotQuat( b3Quat a, b3Quat b )
 {
-	return b3FixMul( a.v.x , b.v.x ) + b3FixMul( a.v.y , b.v.y ) + b3FixMul( a.v.z , b.v.z ) + b3FixMul( a.s , b.s );
+	return b3FixFromDotRaw( (b3Int128)a.v.x * b.v.x + (b3Int128)a.v.y * b.v.y + (b3Int128)a.v.z * b.v.z +
+							(b3Int128)a.s * b.s );
 }
 
-/// Multiply two quaternions.
+/// Multiply two quaternions. Each component is a fused 128-bit reduction with
+/// a single rounding.
 B3_INLINE b3Quat b3MulQuat( b3Quat q1, b3Quat q2 )
 {
-	b3Vec3 t1 = b3Cross( q1.v, q2.v );
-	b3Vec3 t2 = b3MulAdd( t1, q1.s, q2.v );
-	b3Vec3 t3 = b3MulAdd( t2, q2.s, q1.v );
-	b3Quat q = { t3, b3FixMul( q1.s , q2.s ) - b3Dot( q1.v, q2.v ) };
+	// v = cross(q1.v, q2.v) + q1.s * q2.v + q2.s * q1.v
+	// s = q1.s * q2.s - dot(q1.v, q2.v)
+	b3Quat q = {
+		{
+			b3FixFromDotRaw( (b3Int128)q1.v.y * q2.v.z - (b3Int128)q1.v.z * q2.v.y + (b3Int128)q1.s * q2.v.x +
+							 (b3Int128)q2.s * q1.v.x ),
+			b3FixFromDotRaw( (b3Int128)q1.v.z * q2.v.x - (b3Int128)q1.v.x * q2.v.z + (b3Int128)q1.s * q2.v.y +
+							 (b3Int128)q2.s * q1.v.y ),
+			b3FixFromDotRaw( (b3Int128)q1.v.x * q2.v.y - (b3Int128)q1.v.y * q2.v.x + (b3Int128)q1.s * q2.v.z +
+							 (b3Int128)q2.s * q1.v.z ),
+		},
+		b3FixFromDotRaw( (b3Int128)q1.s * q2.s - (b3Int128)q1.v.x * q2.v.x - (b3Int128)q1.v.y * q2.v.y -
+						 (b3Int128)q1.v.z * q2.v.z ),
+	};
 	return q;
 }
 
@@ -491,10 +507,20 @@ B3_INLINE b3Quat b3MulQuat( b3Quat q1, b3Quat q2 )
 /// inv(q1) * q2
 B3_INLINE b3Quat b3InvMulQuat( b3Quat q1, b3Quat q2 )
 {
-	b3Vec3 t1 = b3Cross( q2.v, q1.v );
-	b3Vec3 t2 = b3MulAdd( t1, q1.s, q2.v );
-	b3Vec3 t3 = b3MulSub( t2, q2.s, q1.v );
-	b3Quat q = { t3, b3FixMul( q1.s , q2.s ) + b3Dot( q1.v, q2.v ) };
+	// v = cross(q2.v, q1.v) + q1.s * q2.v - q2.s * q1.v
+	// s = q1.s * q2.s + dot(q1.v, q2.v)
+	b3Quat q = {
+		{
+			b3FixFromDotRaw( (b3Int128)q2.v.y * q1.v.z - (b3Int128)q2.v.z * q1.v.y + (b3Int128)q1.s * q2.v.x -
+							 (b3Int128)q2.s * q1.v.x ),
+			b3FixFromDotRaw( (b3Int128)q2.v.z * q1.v.x - (b3Int128)q2.v.x * q1.v.z + (b3Int128)q1.s * q2.v.y -
+							 (b3Int128)q2.s * q1.v.y ),
+			b3FixFromDotRaw( (b3Int128)q2.v.x * q1.v.y - (b3Int128)q2.v.y * q1.v.x + (b3Int128)q1.s * q2.v.z -
+							 (b3Int128)q2.s * q1.v.z ),
+		},
+		b3FixFromDotRaw( (b3Int128)q1.s * q2.s + (b3Int128)q1.v.x * q2.v.x + (b3Int128)q1.v.y * q2.v.y +
+						 (b3Int128)q1.v.z * q2.v.z ),
+	};
 	return q;
 }
 
@@ -517,13 +543,15 @@ B3_INLINE b3Quat b3NormalizeQuat( b3Quat q )
 	if ( ls > 0 )
 	{
 		b3Fixed length = (b3Fixed)b3ISqrt128High( (uint64_t)( (unsigned __int128)ls >> 64 ), (uint64_t)ls );
+		// b3FixDiv computes the same truncating quotient, with a single hardware
+		// divide for the near-unit components this always sees
 		b3Quat qn = {
 			{
-				(b3Fixed)( ( (b3Int128)q.v.x << 16 ) / length ),
-				(b3Fixed)( ( (b3Int128)q.v.y << 16 ) / length ),
-				(b3Fixed)( ( (b3Int128)q.v.z << 16 ) / length ),
+				b3FixDiv( q.v.x, length ),
+				b3FixDiv( q.v.y, length ),
+				b3FixDiv( q.v.z, length ),
 			},
-			(b3Fixed)( ( (b3Int128)q.s << 16 ) / length ),
+			b3FixDiv( q.s, length ),
 		};
 		return qn;
 	}
@@ -788,6 +816,9 @@ B3_INLINE b3Int128 b3Cofactor128( b3Fixed a, b3Fixed b, b3Fixed c, b3Fixed d )
 /// Multiply a matrix times a column vector.
 B3_INLINE b3Vec3 b3MulMV( b3Matrix3 m, b3Vec3 a )
 {
+	// Kept as per-product rounding: the single-rounding form shifted the SAT
+	// edge-query geometry by an ulp and put convex hull piles into a persistent
+	// cache-miss regime (convex_pile +40%). See the round-3 notes in CLAUDE.md.
 	b3Vec3 b = {
 		b3FixMul( m.cx.x , a.x ) + b3FixMul( m.cy.x , a.y ) + b3FixMul( m.cz.x , a.z ),
 		b3FixMul( m.cx.y , a.x ) + b3FixMul( m.cy.y , a.y ) + b3FixMul( m.cz.y , a.z ),
