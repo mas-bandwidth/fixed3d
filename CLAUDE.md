@@ -287,25 +287,52 @@ session scratchpad that may be gone)
   paren placed after the macro *name* token (grep for `B3_FIX )(` afterwards).
   Rerun after any large edit or merge from upstream float code.
 
+## CI (all green as of 2026-07-12)
+
+The full matrix passes: ubuntu gcc/clang(TSan)/clang(MSan), macos (ASan+UBSan),
+windows-clang-cl, windows-arm64 (clang-cl), windows-mingw, emscripten, and six
+samples jobs. Hard-won CI knowledge:
+
+- **__int128 is required**: pure MSVC cannot build the core; every Windows job
+  uses `-T ClangCL`, and clang-cl needs `clang_rt.builtins-<arch>.lib` linked
+  for `__divti3` (done in CMakeLists). The double-precision jobs are gone (the
+  mode is deleted by design). No Windows ASan (clang-cl rejects /MTd with it).
+- **UBSan**: never left-shift a signed value; use `b3FixShiftLeft` /
+  `b3Int128ShiftLeft` (unsigned round-trip, same bits).
+- **gcc -Wpedantic**: only mention __int128 through the `__extension__`
+  typedefs (b3Int128/b3UInt128) in fixed.h.
+- **Content hashes sweep raw bytes**: any struct memcpy'd into a hashed blob
+  must have deterministic padding. Fixed point changed layouts — b3MeshNode
+  grew 8 pad bytes that broke mesh dedup on gcc and tripped MSan until the
+  temp node array was cleared. Blob allocations (mesh/hull/height field) are
+  memset; keep it that way.
+- `{ 0 }` is the universal zero initializer — `{ b3FixFromInt( 0 ) }` loses
+  clang's missing-field-initializer exemption (157 sites were converted back).
+- `b3IsValidFixed` accepts everything except INT64_MIN: the saturation values
+  are legal (FLT_MAX-analog defaults in joint thresholds and spring limits).
+- The TOI conservative-advancement failure path is a legitimate fixed-point
+  outcome (quantized separations); its debug canary was removed.
+
+## Samples (converted, build and run)
+
+The dedicated float→fixed pass is done (~3800 sites): braced-init narrowing
+wrapped with B3_FIX/b3FixFromFloat, 445 silently-truncating float literal
+arguments wrapped with B3_FIX, 50 varargs %f holes wrapped with b3FixToDouble,
+cast callbacks and their contexts converted to b3Fixed, `samples/fixed_ui.h`
+provides SliderFixed/SliderFixed3/InputFixed for editing fixed fields, and the
+debug-draw adapter converts at the render boundary. The C++11-narrowing error
+plus -Wliteral-conversion and -Wformat warnings are the tools for auditing any
+new sample code — keep them clean.
+
 ## Known leftovers / follow-ups
 
-- Run `./build-fixed/bin/benchmark`; `shared/benchmarks.c` is converted but
-  never executed. Also check `data/dumps/single_box` — if anything replays
-  recorded float-era data, it is format-incompatible (recording major version
-  was bumped for this).
-- Debug-config test run (asserts + B3_VALIDATE active) has not been done;
-  expect a few asserts to need ulp slack.
 - Quickhull (`b3HullBuilder_ConnectFaces`) has no iteration guard; a degenerate
   input hangs instead of failing. Consider a bounded walk + failure return.
-- Samples: excluded. `include/box3d/math_functions.h` C++ operator overloads
-  are converted, but sample .cpp files still contain float literals feeding
-  `b3Fixed` params (silent truncation in C++) — needs a dedicated pass.
-- Performance: correctness-first choices worth revisiting — bit-by-bit 128-bit
-  sqrt (could seed from hardware sqrt + integer fixup), saturation branches in
-  `b3FixMul`, 128-bit divides in normalize on hot paths. Benchmark before/after.
-- Docs: README still describes float/SIMD/large-world features.
 - `verstable.h` (vendored hash table) intentionally keeps internal floats
   (load factors only); excluded from conversion.
 - A few sub-resolution guards were mapped `1000*FLT_MIN → 0` comparisons and
   `FLT_EPSILON → B3_FIXED_EPSILON`; `b3IsNormalized` uses 100 ULP,
   `b3IsNormalizedQuat` 100 ULP — tuned to pass, revisit if quat drift shows up.
+- `data/dumps/single_box` float-era literals are quantized via B3_FIX for the
+  sample; regenerate the dump with the fixed build when the recording flow is
+  exercised next.
