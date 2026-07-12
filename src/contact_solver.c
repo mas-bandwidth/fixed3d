@@ -1268,6 +1268,123 @@ typedef struct b3BodyStateW
 	b3QuatW dq;
 } b3BodyStateW;
 
+#if defined( BOX3D_RANGE_AUDIT )
+
+// Range audit for the Q16.16 32-bit lane feasibility study: tracks the maximum
+// |value| of each quantity flowing through the wide contact solver. Build with
+// -DBOX3D_RANGE_AUDIT, run the benchmarks, and a report prints at process exit.
+// A 32-bit Q16.16 lane holds |value| < 32768 with the same 1/65536 resolution.
+
+#include <stdatomic.h>
+#include <stdio.h>
+#include <stdlib.h>
+
+enum
+{
+	b3_auditBodyV,
+	b3_auditBodyW,
+	b3_auditDeltaPos,
+	b3_auditAnchor,
+	b3_auditRn,
+	b3_auditIRn,
+	b3_auditInvMass,
+	b3_auditInvInertia,
+	b3_auditNormalMass,
+	b3_auditTangentMass,
+	b3_auditTwistMass,
+	b3_auditMNormal,
+	b3_auditINormal,
+	b3_auditRt,
+	b3_auditVn,
+	b3_auditBias,
+	b3_auditNormalImpulse,
+	b3_auditTotalNormalImpulse,
+	b3_auditFrictionImpulse,
+	b3_auditTwistImpulse,
+	b3_auditSeparation,
+	b3_auditCount
+};
+
+static const char* b3_auditNames[b3_auditCount] = {
+	"body v",		 "body w",		   "delta pos",		 "anchor",		   "cross(r,n)",	 "invI*cross(r,n)",
+	"inv mass",		 "inv inertia",	   "normal mass",	 "tangent mass",   "twist mass",	 "invMass*n",
+	"invI*n",		 "cross(o,t)",	   "vn",			 "bias",		   "normal impulse", "total normal impulse",
+	"friction impulse", "twist impulse", "separation",
+};
+
+static _Atomic int64_t b3_auditMax[b3_auditCount];
+static atomic_bool b3_auditRegistered;
+
+static void b3RangeAuditReport( void )
+{
+	fprintf( stderr, "\n=== wide solver range audit (max |value| in units, Q16.16 limit 32768) ===\n" );
+	for ( int i = 0; i < b3_auditCount; ++i )
+	{
+		double v = (double)atomic_load( b3_auditMax + i ) / 65536.0;
+		fprintf( stderr, "%22s  %16.4f%s\n", b3_auditNames[i], v, v >= 4096.0 ? "  <-- LOW HEADROOM" : "" );
+	}
+}
+
+static inline void b3AuditFix( int slot, b3Fixed value )
+{
+	if ( atomic_exchange_explicit( &b3_auditRegistered, true, memory_order_relaxed ) == false )
+	{
+		atexit( b3RangeAuditReport );
+	}
+
+	int64_t magnitude = value < 0 ? -value : value;
+	int64_t seen = atomic_load_explicit( b3_auditMax + slot, memory_order_relaxed );
+	while ( magnitude > seen && !atomic_compare_exchange_weak_explicit( b3_auditMax + slot, &seen, magnitude,
+																	    memory_order_relaxed, memory_order_relaxed ) )
+	{
+	}
+}
+
+static inline void b3AuditW( int slot, b3FloatW value )
+{
+	b3AuditFix( slot, value.x );
+	b3AuditFix( slot, value.y );
+	b3AuditFix( slot, value.z );
+	b3AuditFix( slot, value.w );
+}
+
+static inline void b3AuditV3W( int slot, b3Vec3W value )
+{
+	b3AuditW( slot, value.X );
+	b3AuditW( slot, value.Y );
+	b3AuditW( slot, value.Z );
+}
+
+static inline void b3AuditV3( int slot, b3Vec3 value )
+{
+	b3AuditFix( slot, value.x );
+	b3AuditFix( slot, value.y );
+	b3AuditFix( slot, value.z );
+}
+
+static inline void b3AuditM3( int slot, b3Matrix3 value )
+{
+	b3AuditV3( slot, value.cx );
+	b3AuditV3( slot, value.cy );
+	b3AuditV3( slot, value.cz );
+}
+
+#define B3_AUDIT_FIX( slot, value ) b3AuditFix( slot, value )
+#define B3_AUDIT_W( slot, value ) b3AuditW( slot, value )
+#define B3_AUDIT_V3W( slot, value ) b3AuditV3W( slot, value )
+#define B3_AUDIT_V3( slot, value ) b3AuditV3( slot, value )
+#define B3_AUDIT_M3( slot, value ) b3AuditM3( slot, value )
+
+#else
+
+#define B3_AUDIT_FIX( slot, value )
+#define B3_AUDIT_W( slot, value )
+#define B3_AUDIT_V3W( slot, value )
+#define B3_AUDIT_V3( slot, value )
+#define B3_AUDIT_M3( slot, value )
+
+#endif
+
 
 static b3BodyStateW b3GatherBodies( const b3BodyState* states, int* indices )
 {
@@ -1292,6 +1409,10 @@ static b3BodyStateW b3GatherBodies( const b3BodyState* states, int* indices )
 	simdBody.dq.V.Y = (b3FloatW){ s1.deltaRotation.v.y, s2.deltaRotation.v.y, s3.deltaRotation.v.y, s4.deltaRotation.v.y };
 	simdBody.dq.V.Z = (b3FloatW){ s1.deltaRotation.v.z, s2.deltaRotation.v.z, s3.deltaRotation.v.z, s4.deltaRotation.v.z };
 	simdBody.dq.S = (b3FloatW){ s1.deltaRotation.s, s2.deltaRotation.s, s3.deltaRotation.s, s4.deltaRotation.s };
+
+	B3_AUDIT_V3W( b3_auditBodyV, simdBody.v );
+	B3_AUDIT_V3W( b3_auditBodyW, simdBody.w );
+	B3_AUDIT_V3W( b3_auditDeltaPos, simdBody.dp );
 
 	return simdBody;
 }
@@ -1550,6 +1671,18 @@ void b3PrepareContacts_Convex( b3SolverBlock block, b3StepContext* context )
 					b3Fixed kNormal = mA + mB + b3Dot( rnA, iRnA ) + b3Dot( rnB, iRnB );
 					( (b3Fixed*)&cp->normalMasses )[lane] = kNormal > B3_FIX( 0.0f ) ? b3FixDiv( B3_FIX( 1.0f ) , kNormal ) : B3_FIX( 0.0f );
 
+					B3_AUDIT_V3( b3_auditAnchor, rA );
+					B3_AUDIT_V3( b3_auditAnchor, rB );
+					B3_AUDIT_V3( b3_auditRn, rnA );
+					B3_AUDIT_V3( b3_auditRn, rnB );
+					B3_AUDIT_V3( b3_auditIRn, iRnA );
+					B3_AUDIT_V3( b3_auditIRn, iRnB );
+					B3_AUDIT_FIX( b3_auditInvMass, mA );
+					B3_AUDIT_FIX( b3_auditInvMass, mB );
+					B3_AUDIT_M3( b3_auditInvInertia, iA );
+					B3_AUDIT_M3( b3_auditInvInertia, iB );
+					B3_AUDIT_FIX( b3_auditNormalMass, ( (b3Fixed*)&cp->normalMasses )[lane] );
+
 					// Precomputed normal Jacobian rows for the solve and warm start
 					( (b3Fixed*)&cp->rnAs.X )[lane] = rnA.x;
 					( (b3Fixed*)&cp->rnAs.Y )[lane] = rnA.y;
@@ -1618,6 +1751,13 @@ void b3PrepareContacts_Convex( b3SolverBlock block, b3StepContext* context )
 				( (b3Fixed*)&constraint->mNormalB.Y )[lane] = mNormalB.y;
 				( (b3Fixed*)&constraint->mNormalB.Z )[lane] = mNormalB.z;
 
+				B3_AUDIT_V3( b3_auditMNormal, mNormalA );
+				B3_AUDIT_V3( b3_auditMNormal, mNormalB );
+				B3_AUDIT_V3( b3_auditRt, rtA1 );
+				B3_AUDIT_V3( b3_auditRt, rtA2 );
+				B3_AUDIT_V3( b3_auditRt, rtB1 );
+				B3_AUDIT_V3( b3_auditRt, rtB2 );
+
 				{
 					b3Matrix2 k;
 					k.cx.x = mA + mB + b3Dot( rtA1, b3MulMV( iA, rtA1 ) ) + b3Dot( rtB1, b3MulMV( iB, rtB1 ) );
@@ -1649,6 +1789,10 @@ void b3PrepareContacts_Convex( b3SolverBlock block, b3StepContext* context )
 					b3Fixed k = b3Dot( normal, iNormalA ) + b3Dot( normal, iNormalB );
 					( (b3Fixed*)&constraint->twistMass )[lane] = k > B3_FIX( 0.0f ) ? b3FixDiv( B3_FIX( 1.0f ) , k ) : B3_FIX( 0.0f );
 					( (b3Fixed*)&constraint->twistImpulse )[lane] = b3FixMul( warmStartScale , manifold->twistImpulse );
+
+					B3_AUDIT_V3( b3_auditINormal, iNormalA );
+					B3_AUDIT_V3( b3_auditINormal, iNormalB );
+					B3_AUDIT_FIX( b3_auditTwistMass, ( (b3Fixed*)&constraint->twistMass )[lane] );
 				}
 
 				{
@@ -1834,6 +1978,9 @@ void b3SolveContacts_Convex( b3SolverBlock block, b3StepContext* context, bool u
 			b3FloatW softBias = b3MaxW( b3MulW( biasRate, s ), contactSpeed );
 			b3FloatW bias = b3BlendW( softBias, specBias, mask );
 
+			B3_AUDIT_W( b3_auditSeparation, s );
+			B3_AUDIT_W( b3_auditBias, bias );
+
 			b3FloatW pointMassScale = b3BlendW( massScale, oneW, mask );
 			b3FloatW pointImpulseScale = b3BlendW( impulseScale, b3ZeroW(), mask );
 
@@ -1853,6 +2000,10 @@ void b3SolveContacts_Convex( b3SolverBlock block, b3StepContext* context, bool u
 
 			totalNormalImpulse = b3AddW( totalNormalImpulse, newImpulse );
 			totalTwistLimit = b3AddW( totalTwistLimit, b3MulW( cp->leverArms, newImpulse ) );
+
+			B3_AUDIT_W( b3_auditVn, vn );
+			B3_AUDIT_W( b3_auditNormalImpulse, newImpulse );
+			B3_AUDIT_W( b3_auditTotalNormalImpulse, cp->totalNormalImpulses );
 
 			// Apply contact impulse through the precomputed Jacobian rows
 			bA.v = b3MulSubSVW( bA.v, deltaImpulse, c->mNormalA );
@@ -1953,6 +2104,12 @@ void b3SolveContacts_Convex( b3SolverBlock block, b3StepContext* context, bool u
 				};
 
 				c->frictionImpulse = newImpulse;
+
+				B3_AUDIT_W( b3_auditFrictionImpulse, newImpulse.x );
+				B3_AUDIT_W( b3_auditFrictionImpulse, newImpulse.y );
+				B3_AUDIT_W( b3_auditTwistImpulse, c->twistImpulse );
+				B3_AUDIT_W( b3_auditTangentMass, c->tangentMass.cxx );
+				B3_AUDIT_W( b3_auditTangentMass, c->tangentMass.cyy );
 
 				// Apply delta impulse; cross(origin, P) expands over the tangent rows
 				b3Vec3W P = b3AddVW( b3MulSVW( deltaImpulse.x, tangent1 ), b3MulSVW( deltaImpulse.y, tangent2 ) );

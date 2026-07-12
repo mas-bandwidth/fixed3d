@@ -99,10 +99,19 @@ b3SolveContacts_Convex ~24%, anchor rotation ~15%, prepare ~14%, warm start
 the same workload is also solver-bound but pays ~20% in SIMD gather/scatter
 that the scalar int64 lanes don't; the residual gap is the 64x64->128 lane
 multiplies vs float FMA. NEON is NOT a lever on this hardware (no 64-bit lane
-multiply without SVE2, which Apple doesn't expose). Remaining ideas: Q16.16
-32-bit-lane solver experiment (SMULL 4-wide; needs impulse range analysis —
-density-100 stacks may not fit), trimming constraint memory, the
-`__udivmodti4` calls (~2%).
+multiply without SVE2, which Apple doesn't expose).
+
+**Q16.16 32-bit lanes are RULED OUT by measurement** (range audit 2026-07-12,
+`-DBOX3D_RANGE_AUDIT` in contact_solver.c — reusable, prints a max-|value|
+table at exit): convex_pile reaches normal impulses of ~946k units and total
+normal impulses of ~5.8M (177x over the ±32768 Q16.16 limit), with masses
+saturating 32k-65k. Don't revisit without a redesigned impulse representation.
+The same audit shows all GEOMETRY/JACOBIAN fields (anchors, cross(r,n),
+invI*cross(r,n), invMass*n, invI*n, cross(o,t)) stay under 225 units — they
+fit int32 Q16.16 storage losslessly (values that fit round-trip bit-exactly),
+which is the basis for the narrow-storage constraint layout. Remaining ideas:
+narrow (int32) storage for constraint geometry fields, the `__udivmodti4`
+calls (~2%).
 
 **Benchmark CLI gotcha**: flags need the equals form (`-b=large_pyramid -w=4 -t=4
 -r=2`). Space-separated flags are silently ignored and the FULL suite runs (looks
