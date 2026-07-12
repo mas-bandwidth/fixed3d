@@ -1690,9 +1690,7 @@ static b3HullHalfEdge* b3GetHullEdgesWrite( b3HullData* hull )
 	return (b3HullHalfEdge*)( (intptr_t)hull + hull->edgeOffset );
 }
 
-#if defined( B3_SIMD_AVX512 )
-
-#include <immintrin.h>
+#if defined( B3_SIMD_AVX512 ) || defined( B3_SIMD_NEON )
 
 // Wide support scans. The scalar loops compare exact raw 128-bit dots; the
 // wide path is taken only when a conservative bound proves every dot fits in
@@ -1705,25 +1703,41 @@ static b3HullHalfEdge* b3GetHullEdgesWrite( b3HullData* hull )
 // running (value, index) argmax pairs per index residue class; the reduction
 // breaks value ties on the smaller index and the tail continues on the exact
 // 128-bit compare, together matching the scalar first-wins semantics.
+//
+// NEON has no 64-bit lane multiply, so its variant additionally requires
+// every operand to fit in int32 and uses the native smull/smlal 32x32->64
+// widening multiplies; the admission check below encodes the per-ISA rule.
 
 static inline uint64_t b3AbsBoundU64( b3Fixed a )
 {
 	return a < 0 ? ( 0 - (uint64_t)a ) : (uint64_t)a;
 }
 
-static inline bool b3DotFitsInt64( b3Vec3 direction, uint64_t operandBound )
+static inline bool b3WideScanAdmissible( b3Vec3 direction, uint64_t operandBound )
 {
 	uint64_t dMax = b3AbsBoundU64( direction.x );
 	uint64_t dy = b3AbsBoundU64( direction.y );
 	uint64_t dz = b3AbsBoundU64( direction.z );
 	dMax = dy > dMax ? dy : dMax;
 	dMax = dz > dMax ? dz : dMax;
+#if defined( B3_SIMD_NEON )
+	if ( dMax >= ( (uint64_t)1 << 31 ) || operandBound >= ( (uint64_t)1 << 31 ) )
+	{
+		return false;
+	}
+#endif
 	return (b3UInt128)3 * dMax * operandBound < ( (b3UInt128)1 << 63 );
 }
 
+#endif
+
+#if defined( B3_SIMD_AVX512 )
+
+#include <immintrin.h>
+
 // Argmax of dot(direction, points[i]) over an array with 3-field (24 byte)
 // stride, int64-exact under the caller's bound
-static int b3FindSupportVertexAVX( const b3Vec3* points, int count, b3Vec3 direction )
+static int b3FindSupportVertexWide( const b3Vec3* points, int count, b3Vec3 direction )
 {
 	__m256i dirX = _mm256_set1_epi64x( direction.x );
 	__m256i dirY = _mm256_set1_epi64x( direction.y );
@@ -1810,7 +1824,7 @@ static int b3FindSupportVertexAVX( const b3Vec3* points, int count, b3Vec3 direc
 
 // Argmax of dot(direction, planes[i].normal) over the 4-field (32 byte)
 // plane stride: a straight 4x4 transpose per group
-static int b3FindSupportFaceAVX( const b3Plane* planes, int count, b3Vec3 direction )
+static int b3FindSupportFaceWide( const b3Plane* planes, int count, b3Vec3 direction )
 {
 	__m256i dirX = _mm256_set1_epi64x( direction.x );
 	__m256i dirY = _mm256_set1_epi64x( direction.y );
@@ -1884,12 +1898,221 @@ static int b3FindSupportFaceAVX( const b3Plane* planes, int count, b3Vec3 direct
 
 #endif // B3_SIMD_AVX512
 
+#if defined( B3_SIMD_NEON )
+
+#include <arm_neon.h>
+
+// The NEON variants process four elements per iteration with smull/smlal
+// 32x32->64 widening multiplies. The admission check proved every operand
+// fits in int32 and every dot fits in int64, so the low 32-bit words of the
+// stored 64-bit fields ARE the values and the widened products summed in
+// int64 lanes are the exact dots.
+
+// Byte-index tables gathering x/y/z lanes of four consecutive 3-field points
+// from the three 128-bit rows after 64->32 narrowing (twelve 32-bit fields)
+static const uint8_t b3_pickX[16] = { 0, 1, 2, 3, 12, 13, 14, 15, 24, 25, 26, 27, 36, 37, 38, 39 };
+static const uint8_t b3_pickY[16] = { 4, 5, 6, 7, 16, 17, 18, 19, 28, 29, 30, 31, 40, 41, 42, 43 };
+static const uint8_t b3_pickZ[16] = { 8, 9, 10, 11, 20, 21, 22, 23, 32, 33, 34, 35, 44, 45, 46, 47 };
+
+// Running (value, index) argmax over int64x2 lane pairs, first-wins exactly
+// like the scalar scan: strict greater-than per lane, then a reduction that
+// breaks value ties on the smaller index, then a 128-bit scalar tail.
+typedef struct b3ArgmaxNEON
+{
+	int64x2_t bestLo, bestHi;
+	int64x2_t idxLo, idxHi;
+} b3ArgmaxNEON;
+
+static inline void b3ArgmaxStepNEON( b3ArgmaxNEON* state, int64x2_t dotLo, int64x2_t dotHi, int64x2_t curLo,
+									 int64x2_t curHi )
+{
+	uint64x2_t gtLo = vcgtq_s64( dotLo, state->bestLo );
+	uint64x2_t gtHi = vcgtq_s64( dotHi, state->bestHi );
+	state->bestLo = vbslq_s64( gtLo, dotLo, state->bestLo );
+	state->bestHi = vbslq_s64( gtHi, dotHi, state->bestHi );
+	state->idxLo = vbslq_s64( gtLo, curLo, state->idxLo );
+	state->idxHi = vbslq_s64( gtHi, curHi, state->idxHi );
+}
+
+static inline int b3ArgmaxReduceNEON( const b3ArgmaxNEON* state, b3Int128* bestDotOut )
+{
+	int64_t vals[4] = { vgetq_lane_s64( state->bestLo, 0 ), vgetq_lane_s64( state->bestLo, 1 ),
+						vgetq_lane_s64( state->bestHi, 0 ), vgetq_lane_s64( state->bestHi, 1 ) };
+	int64_t idxs[4] = { vgetq_lane_s64( state->idxLo, 0 ), vgetq_lane_s64( state->idxLo, 1 ),
+						vgetq_lane_s64( state->idxHi, 0 ), vgetq_lane_s64( state->idxHi, 1 ) };
+	int bestIndex = (int)idxs[0];
+	b3Int128 bestDot = vals[0];
+	for ( int lane = 1; lane < 4; ++lane )
+	{
+		if ( vals[lane] > bestDot || ( vals[lane] == bestDot && idxs[lane] < bestIndex ) )
+		{
+			bestDot = vals[lane];
+			bestIndex = (int)idxs[lane];
+		}
+	}
+	*bestDotOut = bestDot;
+	return bestIndex;
+}
+
+static int b3FindSupportVertexWide( const b3Vec3* points, int count, b3Vec3 direction )
+{
+	int32x2_t dirX2 = vdup_n_s32( (int32_t)direction.x );
+	int32x2_t dirY2 = vdup_n_s32( (int32_t)direction.y );
+	int32x2_t dirZ2 = vdup_n_s32( (int32_t)direction.z );
+	int32x4_t dirX4 = vdupq_n_s32( (int32_t)direction.x );
+	int32x4_t dirY4 = vdupq_n_s32( (int32_t)direction.y );
+	int32x4_t dirZ4 = vdupq_n_s32( (int32_t)direction.z );
+
+	uint8x16_t pickX = vld1q_u8( b3_pickX );
+	uint8x16_t pickY = vld1q_u8( b3_pickY );
+	uint8x16_t pickZ = vld1q_u8( b3_pickZ );
+
+	b3ArgmaxNEON state;
+	const int64_t initLo[2] = { 0, 1 };
+	const int64_t initHi[2] = { 2, 3 };
+	int64x2_t curLo = vld1q_s64( initLo );
+	int64x2_t curHi = vld1q_s64( initHi );
+	int64x2_t four = vdupq_n_s64( 4 );
+
+	int groupCount = count / 4;
+	const b3Fixed* fields = (const b3Fixed*)points;
+	for ( int group = 0; group < groupCount; ++group )
+	{
+		const b3Fixed* f = fields + 12 * group;
+		int32x4_t c01 = vuzp1q_s32( vreinterpretq_s32_s64( vld1q_s64( f + 0 ) ), vreinterpretq_s32_s64( vld1q_s64( f + 2 ) ) );
+		int32x4_t c23 = vuzp1q_s32( vreinterpretq_s32_s64( vld1q_s64( f + 4 ) ), vreinterpretq_s32_s64( vld1q_s64( f + 6 ) ) );
+		int32x4_t c45 =
+			vuzp1q_s32( vreinterpretq_s32_s64( vld1q_s64( f + 8 ) ), vreinterpretq_s32_s64( vld1q_s64( f + 10 ) ) );
+
+		uint8x16x3_t table;
+		table.val[0] = vreinterpretq_u8_s32( c01 );
+		table.val[1] = vreinterpretq_u8_s32( c23 );
+		table.val[2] = vreinterpretq_u8_s32( c45 );
+
+		int32x4_t px = vreinterpretq_s32_u8( vqtbl3q_u8( table, pickX ) );
+		int32x4_t py = vreinterpretq_s32_u8( vqtbl3q_u8( table, pickY ) );
+		int32x4_t pz = vreinterpretq_s32_u8( vqtbl3q_u8( table, pickZ ) );
+
+		int64x2_t dotLo = vmull_s32( vget_low_s32( px ), dirX2 );
+		dotLo = vmlal_s32( dotLo, vget_low_s32( py ), dirY2 );
+		dotLo = vmlal_s32( dotLo, vget_low_s32( pz ), dirZ2 );
+		int64x2_t dotHi = vmull_high_s32( px, dirX4 );
+		dotHi = vmlal_high_s32( dotHi, py, dirY4 );
+		dotHi = vmlal_high_s32( dotHi, pz, dirZ4 );
+
+		if ( group == 0 )
+		{
+			state.bestLo = dotLo;
+			state.bestHi = dotHi;
+			state.idxLo = curLo;
+			state.idxHi = curHi;
+		}
+		else
+		{
+			b3ArgmaxStepNEON( &state, dotLo, dotHi, curLo, curHi );
+		}
+		curLo = vaddq_s64( curLo, four );
+		curHi = vaddq_s64( curHi, four );
+	}
+
+	b3Int128 bestDot;
+	int bestIndex = b3ArgmaxReduceNEON( &state, &bestDot );
+
+	for ( int index = 4 * groupCount; index < count; ++index )
+	{
+		b3Int128 dot = b3DotRaw( direction, points[index] );
+		if ( dot > bestDot )
+		{
+			bestDot = dot;
+			bestIndex = index;
+		}
+	}
+
+	return bestIndex;
+}
+
+static int b3FindSupportFaceWide( const b3Plane* planes, int count, b3Vec3 direction )
+{
+	int32x2_t dirX2 = vdup_n_s32( (int32_t)direction.x );
+	int32x2_t dirY2 = vdup_n_s32( (int32_t)direction.y );
+	int32x2_t dirZ2 = vdup_n_s32( (int32_t)direction.z );
+	int32x4_t dirX4 = vdupq_n_s32( (int32_t)direction.x );
+	int32x4_t dirY4 = vdupq_n_s32( (int32_t)direction.y );
+	int32x4_t dirZ4 = vdupq_n_s32( (int32_t)direction.z );
+
+	b3ArgmaxNEON state;
+	const int64_t initLo[2] = { 0, 1 };
+	const int64_t initHi[2] = { 2, 3 };
+	int64x2_t curLo = vld1q_s64( initLo );
+	int64x2_t curHi = vld1q_s64( initHi );
+	int64x2_t four = vdupq_n_s64( 4 );
+
+	int groupCount = count / 4;
+	for ( int group = 0; group < groupCount; ++group )
+	{
+		const b3Fixed* f = (const b3Fixed*)( planes + 4 * group );
+		// Narrow each plane's four fields to [nx ny nz off]32, then a 4x4
+		// 32-bit transpose; the offset column is discarded
+		int32x4_t q0 = vuzp1q_s32( vreinterpretq_s32_s64( vld1q_s64( f + 0 ) ), vreinterpretq_s32_s64( vld1q_s64( f + 2 ) ) );
+		int32x4_t q1 = vuzp1q_s32( vreinterpretq_s32_s64( vld1q_s64( f + 4 ) ), vreinterpretq_s32_s64( vld1q_s64( f + 6 ) ) );
+		int32x4_t q2 = vuzp1q_s32( vreinterpretq_s32_s64( vld1q_s64( f + 8 ) ), vreinterpretq_s32_s64( vld1q_s64( f + 10 ) ) );
+		int32x4_t q3 =
+			vuzp1q_s32( vreinterpretq_s32_s64( vld1q_s64( f + 12 ) ), vreinterpretq_s32_s64( vld1q_s64( f + 14 ) ) );
+
+		int32x4_t t0 = vtrn1q_s32( q0, q1 );
+		int32x4_t t1 = vtrn2q_s32( q0, q1 );
+		int32x4_t t2 = vtrn1q_s32( q2, q3 );
+		int32x4_t t3 = vtrn2q_s32( q2, q3 );
+		int32x4_t nx = vreinterpretq_s32_s64( vtrn1q_s64( vreinterpretq_s64_s32( t0 ), vreinterpretq_s64_s32( t2 ) ) );
+		int32x4_t ny = vreinterpretq_s32_s64( vtrn1q_s64( vreinterpretq_s64_s32( t1 ), vreinterpretq_s64_s32( t3 ) ) );
+		int32x4_t nz = vreinterpretq_s32_s64( vtrn2q_s64( vreinterpretq_s64_s32( t0 ), vreinterpretq_s64_s32( t2 ) ) );
+
+		int64x2_t dotLo = vmull_s32( vget_low_s32( nx ), dirX2 );
+		dotLo = vmlal_s32( dotLo, vget_low_s32( ny ), dirY2 );
+		dotLo = vmlal_s32( dotLo, vget_low_s32( nz ), dirZ2 );
+		int64x2_t dotHi = vmull_high_s32( nx, dirX4 );
+		dotHi = vmlal_high_s32( dotHi, ny, dirY4 );
+		dotHi = vmlal_high_s32( dotHi, nz, dirZ4 );
+
+		if ( group == 0 )
+		{
+			state.bestLo = dotLo;
+			state.bestHi = dotHi;
+			state.idxLo = curLo;
+			state.idxHi = curHi;
+		}
+		else
+		{
+			b3ArgmaxStepNEON( &state, dotLo, dotHi, curLo, curHi );
+		}
+		curLo = vaddq_s64( curLo, four );
+		curHi = vaddq_s64( curHi, four );
+	}
+
+	b3Int128 bestDot;
+	int bestIndex = b3ArgmaxReduceNEON( &state, &bestDot );
+
+	for ( int index = 4 * groupCount; index < count; ++index )
+	{
+		b3Int128 dot = b3DotRaw( planes[index].normal, direction );
+		if ( dot > bestDot )
+		{
+			bestDot = dot;
+			bestIndex = index;
+		}
+	}
+
+	return bestIndex;
+}
+
+#endif // B3_SIMD_NEON
+
 int b3FindHullSupportVertex( const b3HullData* hull, b3Vec3 direction )
 {
 	int vertexCount = hull->vertexCount;
 	const b3Vec3* points = b3GetHullPoints( hull );
 
-#if defined( B3_SIMD_AVX512 )
+#if defined( B3_SIMD_AVX512 ) || defined( B3_SIMD_NEON )
 	if ( vertexCount >= 4 )
 	{
 		// Every |vertex component| is bounded by the hull's local AABB
@@ -1901,9 +2124,9 @@ int b3FindHullSupportVertex( const b3HullData* hull, b3Vec3 direction )
 		{
 			bound = candidates[i] > bound ? candidates[i] : bound;
 		}
-		if ( b3DotFitsInt64( direction, bound ) )
+		if ( b3WideScanAdmissible( direction, bound ) )
 		{
-			int bestIndex = b3FindSupportVertexAVX( points, vertexCount, direction );
+			int bestIndex = b3FindSupportVertexWide( points, vertexCount, direction );
 			B3_ASSERT( bestIndex >= 0 );
 			return bestIndex;
 		}
@@ -1935,11 +2158,11 @@ int b3FindHullSupportFace( const b3HullData* hull, b3Vec3 direction )
 	int faceCount = hull->faceCount;
 	const b3Plane* planes = b3GetHullPlanes( hull );
 
-#if defined( B3_SIMD_AVX512 )
+#if defined( B3_SIMD_AVX512 ) || defined( B3_SIMD_NEON )
 	// Face normals are validated unit vectors; bound them with a 4x margin
-	if ( faceCount >= 4 && b3DotFitsInt64( direction, (uint64_t)( 4 * B3_FIXED_ONE ) ) )
+	if ( faceCount >= 4 && b3WideScanAdmissible( direction, (uint64_t)( 4 * B3_FIXED_ONE ) ) )
 	{
-		int bestIndex = b3FindSupportFaceAVX( planes, faceCount, direction );
+		int bestIndex = b3FindSupportFaceWide( planes, faceCount, direction );
 		B3_ASSERT( bestIndex >= 0 );
 		return bestIndex;
 	}

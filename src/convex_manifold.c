@@ -326,9 +326,19 @@ static inline void b3TestEdgePair( const b3HullHalfEdge* edgesA, const b3Vec3* p
 	}
 }
 
-#if defined( B3_SIMD_AVX512 )
+#if defined( B3_SIMD_AVX512 ) || defined( B3_SIMD_NEON )
 
+#if defined( B3_SIMD_AVX512 )
 #include <immintrin.h>
+// AVX-512 multiplies 64-bit lanes directly
+typedef b3Fixed b3EdgeLane;
+#else
+#include <arm_neon.h>
+// NEON has only 32x32->64 widening multiplies, so the SoA staging narrows to
+// int32; the admission check below rejects anything that would not fit and
+// the truncated values are then never read
+typedef int32_t b3EdgeLane;
+#endif
 
 // Hulls index edges with uint8_t, so at most 256 half-edges = 128 edge pairs
 #define B3_MAX_HULL_EDGE_PAIRS 128
@@ -336,6 +346,23 @@ static inline void b3TestEdgePair( const b3HullHalfEdge* edgesA, const b3Vec3* p
 static inline uint64_t b3EdgeAbsBoundU64( b3Fixed a )
 {
 	return a < 0 ? ( 0 - (uint64_t)a ) : (uint64_t)a;
+}
+
+// The wide reject is exact only when every dot stays inside int64: the
+// 3 * bound guards keep the 128-bit products from wrapping when the operand
+// bounds approach 2^64 (edgeBound is a sum of two 63-bit magnitudes). NEON
+// additionally requires every operand to fit in int32 for smull/smlal.
+static inline bool b3EdgeWideAdmissible( uint64_t uvMax, uint64_t edgeBound, uint64_t normalBoundA, uint64_t eBMax )
+{
+#if defined( B3_SIMD_NEON )
+	const uint64_t int32Limit = (uint64_t)1 << 31;
+	if ( uvMax >= int32Limit || edgeBound >= int32Limit || normalBoundA >= int32Limit || eBMax >= int32Limit )
+	{
+		return false;
+	}
+#endif
+	return uvMax <= UINT64_MAX / 3 && (b3UInt128)( 3 * uvMax ) * edgeBound < ( (b3UInt128)1 << 63 ) &&
+		   normalBoundA <= UINT64_MAX / 3 && (b3UInt128)( 3 * normalBoundA ) * eBMax < ( (b3UInt128)1 << 63 );
 }
 
 #endif
@@ -362,7 +389,7 @@ static b3EdgeQuery b3QueryEdgeDirections( const b3HullData* hullA, const b3HullD
 
 	b3Fixed squaredTolerance = b3FixMul( B3_FIX( 0.005f ) , B3_FIX( 0.005f ) );
 
-#if defined( B3_SIMD_AVX512 )
+#if defined( B3_SIMD_AVX512 ) || defined( B3_SIMD_NEON )
 	// Precompute hull A's edge vectors once, SoA: they are reused for every
 	// edge of B and four pairs get the Minkowski reject test per iteration.
 	// Nearly every pair dies on that first sign test, so the wide loop only
@@ -371,32 +398,32 @@ static b3EdgeQuery b3QueryEdgeDirections( const b3HullData* hullA, const b3HullD
 	// updates in the same order as the scalar scan.
 	int pairCountA = hullA->edgeCount / 2;
 	B3_ASSERT( pairCountA <= B3_MAX_HULL_EDGE_PAIRS );
-	b3Fixed eAx[B3_MAX_HULL_EDGE_PAIRS], eAy[B3_MAX_HULL_EDGE_PAIRS], eAz[B3_MAX_HULL_EDGE_PAIRS];
+	b3EdgeLane eAx[B3_MAX_HULL_EDGE_PAIRS], eAy[B3_MAX_HULL_EDGE_PAIRS], eAz[B3_MAX_HULL_EDGE_PAIRS];
 	for ( int pair = 0; pair < pairCountA; ++pair )
 	{
 		const b3HullHalfEdge* edgeA = edgesA + 2 * pair;
 		const b3HullHalfEdge* twinA = edgesA + 2 * pair + 1;
 		b3Vec3 eA = b3Sub( pointsA[twinA->origin], pointsA[edgeA->origin] );
-		eAx[pair] = eA.x;
-		eAy[pair] = eA.y;
-		eAz[pair] = eA.z;
+		eAx[pair] = (b3EdgeLane)eA.x;
+		eAy[pair] = (b3EdgeLane)eA.y;
+		eAz[pair] = (b3EdgeLane)eA.z;
 	}
 
 	// Hull A's adjacent face normals per edge pair, SoA, for the wide second
 	// Minkowski test, and their magnitude bound for its exactness gate
-	b3Fixed uAx[B3_MAX_HULL_EDGE_PAIRS], uAy[B3_MAX_HULL_EDGE_PAIRS], uAz[B3_MAX_HULL_EDGE_PAIRS];
-	b3Fixed vAx[B3_MAX_HULL_EDGE_PAIRS], vAy[B3_MAX_HULL_EDGE_PAIRS], vAz[B3_MAX_HULL_EDGE_PAIRS];
+	b3EdgeLane uAx[B3_MAX_HULL_EDGE_PAIRS], uAy[B3_MAX_HULL_EDGE_PAIRS], uAz[B3_MAX_HULL_EDGE_PAIRS];
+	b3EdgeLane vAx[B3_MAX_HULL_EDGE_PAIRS], vAy[B3_MAX_HULL_EDGE_PAIRS], vAz[B3_MAX_HULL_EDGE_PAIRS];
 	uint64_t normalBoundA = 0;
 	for ( int pair = 0; pair < pairCountA; ++pair )
 	{
 		b3Vec3 uA = planesA[edgesA[2 * pair].face].normal;
 		b3Vec3 vA = planesA[edgesA[2 * pair + 1].face].normal;
-		uAx[pair] = uA.x;
-		uAy[pair] = uA.y;
-		uAz[pair] = uA.z;
-		vAx[pair] = vA.x;
-		vAy[pair] = vA.y;
-		vAz[pair] = vA.z;
+		uAx[pair] = (b3EdgeLane)uA.x;
+		uAy[pair] = (b3EdgeLane)uA.y;
+		uAz[pair] = (b3EdgeLane)uA.z;
+		vAx[pair] = (b3EdgeLane)vA.x;
+		vAy[pair] = (b3EdgeLane)vA.y;
+		vAz[pair] = (b3EdgeLane)vA.z;
 		uint64_t candidates[6] = { b3EdgeAbsBoundU64( uA.x ), b3EdgeAbsBoundU64( uA.y ), b3EdgeAbsBoundU64( uA.z ),
 								   b3EdgeAbsBoundU64( vA.x ), b3EdgeAbsBoundU64( vA.y ), b3EdgeAbsBoundU64( vA.z ) };
 		for ( int i = 0; i < 6; ++i )
@@ -435,9 +462,8 @@ static b3EdgeQuery b3QueryEdgeDirections( const b3HullData* hullA, const b3HullD
 		b3Vec3 uB = b3MulMV( matrix, planesB[edgeB->face].normal );
 		b3Vec3 vB = b3MulMV( matrix, planesB[twinB->face].normal );
 
-#if defined( B3_SIMD_AVX512 )
-		// The wide reject is exact only when the dots cannot leave int64;
-		// gate on the actual rotated normals against the edge bound
+#if defined( B3_SIMD_AVX512 ) || defined( B3_SIMD_NEON )
+		// Gate on the actual rotated normals against the edge bound
 		uint64_t uvMax = b3EdgeAbsBoundU64( uB.x );
 		{
 			uint64_t candidates[5] = { b3EdgeAbsBoundU64( uB.y ), b3EdgeAbsBoundU64( uB.z ), b3EdgeAbsBoundU64( vB.x ),
@@ -457,13 +483,10 @@ static b3EdgeQuery b3QueryEdgeDirections( const b3HullData* hullA, const b3HullD
 			eBMax = candidates[1] > eBMax ? candidates[1] : eBMax;
 		}
 
-		// The 3 * bound guards keep the 128-bit products from wrapping when
-		// the operand bounds approach 2^64 (edgeBound is a sum of two 63-bit
-		// magnitudes)
-		if ( pairCountA >= 4 && uvMax <= UINT64_MAX / 3 &&
-			 (b3UInt128)( 3 * uvMax ) * edgeBound < ( (b3UInt128)1 << 63 ) && normalBoundA <= UINT64_MAX / 3 &&
-			 (b3UInt128)( 3 * normalBoundA ) * eBMax < ( (b3UInt128)1 << 63 ) )
+		if ( pairCountA >= 4 && b3EdgeWideAdmissible( uvMax, edgeBound, normalBoundA, eBMax ) )
 		{
+			int pair = 0;
+#if defined( B3_SIMD_AVX512 )
 			__m256i ubx = _mm256_set1_epi64x( uB.x );
 			__m256i uby = _mm256_set1_epi64x( uB.y );
 			__m256i ubz = _mm256_set1_epi64x( uB.z );
@@ -475,7 +498,6 @@ static b3EdgeQuery b3QueryEdgeDirections( const b3HullData* hullA, const b3HullD
 			__m256i ebz = _mm256_set1_epi64x( eB.z );
 			__m256i zero = _mm256_setzero_si256();
 
-			int pair = 0;
 			for ( ; pair + 4 <= pairCountA; pair += 4 )
 			{
 				__m256i ex = _mm256_loadu_si256( (const __m256i*)( eAx + pair ) );
@@ -529,6 +551,107 @@ static b3EdgeQuery b3QueryEdgeDirections( const b3HullData* hullA, const b3HullD
 									indexB, &best );
 				}
 			}
+#else
+			// NEON: four pairs per iteration with smull/smlal widening
+			// multiplies over the int32 SoA staging; the admission check
+			// proved every dot is int64-exact, so both Minkowski sign tests
+			// resolve identically to the scalar 128-bit dots
+			int32x4_t ubx4 = vdupq_n_s32( (int32_t)uB.x );
+			int32x4_t uby4 = vdupq_n_s32( (int32_t)uB.y );
+			int32x4_t ubz4 = vdupq_n_s32( (int32_t)uB.z );
+			int32x4_t vbx4 = vdupq_n_s32( (int32_t)vB.x );
+			int32x4_t vby4 = vdupq_n_s32( (int32_t)vB.y );
+			int32x4_t vbz4 = vdupq_n_s32( (int32_t)vB.z );
+			int32x4_t ebx4 = vdupq_n_s32( (int32_t)eB.x );
+			int32x4_t eby4 = vdupq_n_s32( (int32_t)eB.y );
+			int32x4_t ebz4 = vdupq_n_s32( (int32_t)eB.z );
+
+			for ( ; pair + 4 <= pairCountA; pair += 4 )
+			{
+				int32x4_t ex = vld1q_s32( eAx + pair );
+				int32x4_t ey = vld1q_s32( eAy + pair );
+				int32x4_t ez = vld1q_s32( eAz + pair );
+
+				int64x2_t cbaLo = vmull_s32( vget_low_s32( ex ), vget_low_s32( ubx4 ) );
+				cbaLo = vmlal_s32( cbaLo, vget_low_s32( ey ), vget_low_s32( uby4 ) );
+				cbaLo = vmlal_s32( cbaLo, vget_low_s32( ez ), vget_low_s32( ubz4 ) );
+				int64x2_t cbaHi = vmull_high_s32( ex, ubx4 );
+				cbaHi = vmlal_high_s32( cbaHi, ey, uby4 );
+				cbaHi = vmlal_high_s32( cbaHi, ez, ubz4 );
+
+				int64x2_t dbaLo = vmull_s32( vget_low_s32( ex ), vget_low_s32( vbx4 ) );
+				dbaLo = vmlal_s32( dbaLo, vget_low_s32( ey ), vget_low_s32( vby4 ) );
+				dbaLo = vmlal_s32( dbaLo, vget_low_s32( ez ), vget_low_s32( vbz4 ) );
+				int64x2_t dbaHi = vmull_high_s32( ex, vbx4 );
+				dbaHi = vmlal_high_s32( dbaHi, ey, vby4 );
+				dbaHi = vmlal_high_s32( dbaHi, ez, vbz4 );
+
+				int32x4_t nax = vld1q_s32( uAx + pair );
+				int32x4_t nay = vld1q_s32( uAy + pair );
+				int32x4_t naz = vld1q_s32( uAz + pair );
+				int32x4_t nbx = vld1q_s32( vAx + pair );
+				int32x4_t nby = vld1q_s32( vAy + pair );
+				int32x4_t nbz = vld1q_s32( vAz + pair );
+
+				int64x2_t dALo = vmull_s32( vget_low_s32( nax ), vget_low_s32( ebx4 ) );
+				dALo = vmlal_s32( dALo, vget_low_s32( nay ), vget_low_s32( eby4 ) );
+				dALo = vmlal_s32( dALo, vget_low_s32( naz ), vget_low_s32( ebz4 ) );
+				int64x2_t dAHi = vmull_high_s32( nax, ebx4 );
+				dAHi = vmlal_high_s32( dAHi, nay, eby4 );
+				dAHi = vmlal_high_s32( dAHi, naz, ebz4 );
+
+				int64x2_t dBLo = vmull_s32( vget_low_s32( nbx ), vget_low_s32( ebx4 ) );
+				dBLo = vmlal_s32( dBLo, vget_low_s32( nby ), vget_low_s32( eby4 ) );
+				dBLo = vmlal_s32( dBLo, vget_low_s32( nbz ), vget_low_s32( ebz4 ) );
+				int64x2_t dBHi = vmull_high_s32( nbx, ebx4 );
+				dBHi = vmlal_high_s32( dBHi, nby, eby4 );
+				dBHi = vmlal_high_s32( dBHi, nbz, ebz4 );
+
+				// First test: cba != 0, dba != 0, opposite signs. Second test
+				// on the un-negated dots: dA != 0, dB != 0, (dA ^ dB) < 0,
+				// (cba ^ dB) < 0 (the scalar adc/bdc negation flips signs).
+				uint64x2_t sLo = vbicq_u64( vcltzq_s64( veorq_s64( cbaLo, dbaLo ) ), vceqzq_s64( cbaLo ) );
+				sLo = vbicq_u64( sLo, vceqzq_s64( dbaLo ) );
+				uint64x2_t s2Lo = vbicq_u64( vcltzq_s64( veorq_s64( dALo, dBLo ) ), vceqzq_s64( dALo ) );
+				s2Lo = vbicq_u64( s2Lo, vceqzq_s64( dBLo ) );
+				s2Lo = vandq_u64( s2Lo, vcltzq_s64( veorq_s64( cbaLo, dBLo ) ) );
+				sLo = vandq_u64( sLo, s2Lo );
+
+				uint64x2_t sHi = vbicq_u64( vcltzq_s64( veorq_s64( cbaHi, dbaHi ) ), vceqzq_s64( cbaHi ) );
+				sHi = vbicq_u64( sHi, vceqzq_s64( dbaHi ) );
+				uint64x2_t s2Hi = vbicq_u64( vcltzq_s64( veorq_s64( dAHi, dBHi ) ), vceqzq_s64( dAHi ) );
+				s2Hi = vbicq_u64( s2Hi, vceqzq_s64( dBHi ) );
+				s2Hi = vandq_u64( s2Hi, vcltzq_s64( veorq_s64( cbaHi, dBHi ) ) );
+				sHi = vandq_u64( sHi, s2Hi );
+
+				uint64x2_t any = vorrq_u64( sLo, sHi );
+				if ( ( vgetq_lane_u64( any, 0 ) | vgetq_lane_u64( any, 1 ) ) != 0 )
+				{
+					// Survivors in ascending index order, matching the scalar
+					// separation update sequence
+					if ( vgetq_lane_u64( sLo, 0 ) != 0 )
+					{
+						b3TestEdgePair( edgesA, pointsA, planesA, 2 * ( pair + 0 ), eB, qB, uB, vB, squaredTolerance,
+										indexB, &best );
+					}
+					if ( vgetq_lane_u64( sLo, 1 ) != 0 )
+					{
+						b3TestEdgePair( edgesA, pointsA, planesA, 2 * ( pair + 1 ), eB, qB, uB, vB, squaredTolerance,
+										indexB, &best );
+					}
+					if ( vgetq_lane_u64( sHi, 0 ) != 0 )
+					{
+						b3TestEdgePair( edgesA, pointsA, planesA, 2 * ( pair + 2 ), eB, qB, uB, vB, squaredTolerance,
+										indexB, &best );
+					}
+					if ( vgetq_lane_u64( sHi, 1 ) != 0 )
+					{
+						b3TestEdgePair( edgesA, pointsA, planesA, 2 * ( pair + 3 ), eB, qB, uB, vB, squaredTolerance,
+										indexB, &best );
+					}
+				}
+			}
+#endif
 
 			for ( ; pair < pairCountA; ++pair )
 			{

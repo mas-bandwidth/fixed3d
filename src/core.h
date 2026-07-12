@@ -52,11 +52,26 @@
 // four-lane layout and is bit-identical to the scalar path: exact product
 // decompositions, same round-half-up, same wrapping. It implements the default
 // wrapping b3FixMul only, so it is disabled under BOX3D_FIXED_SATURATE.
+//
+// The opt-in NEON path (BOX3D_NEON, aarch64) covers only the narrow-phase
+// scans: NEON has no 64-bit lane multiply (that is SVE2/SME territory, which
+// Apple silicon through the M3 does not expose), so the wide solver stays
+// scalar on ARM — Apple's scalar core wins the emulation trade. The SAT edge
+// query and hull support scans, however, run on values an exactness gate
+// proves fit in int32, where NEON's native smull/smlal 32x32->64 widening
+// multiplies apply. Bit-identical to the scalar path for all inputs; gated
+// values that do not fit fall back to the 128-bit scalar scans.
 #if defined( BOX3D_AVX512 ) && !defined( BOX3D_FIXED_SATURATE )
 	#if defined( __AVX512F__ ) && defined( __AVX512DQ__ ) && defined( __AVX512VL__ )
 		#define B3_SIMD_AVX512
 	#else
 		#error "BOX3D_AVX512 requires AVX512F/DQ/VL (-mavx512f -mavx512dq -mavx512vl or /arch:AVX512)"
+	#endif
+#elif defined( BOX3D_NEON )
+	#if defined( __aarch64__ ) || defined( _M_ARM64 )
+		#define B3_SIMD_NEON
+	#else
+		#error "BOX3D_NEON requires an aarch64 target"
 	#endif
 #else
 	#define B3_SIMD_NONE

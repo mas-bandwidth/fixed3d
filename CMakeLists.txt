@@ -91,6 +91,7 @@ endif()
 
 option(BOX3D_DISABLE_SIMD "Disable SIMD math (slower)" OFF)
 option(BOX3D_AVX512 "Enable AVX-512 fixed-point SIMD in the contact solver (x86-64 with AVX512F/DQ/VL, bit-identical results)" OFF)
+option(BOX3D_NEON "Enable NEON fixed-point SIMD in the narrow phase (aarch64, bit-identical results)" OFF)
 option(BOX3D_COMPILE_WARNING_AS_ERROR "Compile warnings as errors" OFF)
 option(BOX3D_DOUBLE_PRECISION "Enable double precision for large worlds" OFF)
 

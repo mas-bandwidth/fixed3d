@@ -163,6 +163,14 @@ if (BOX3D_DISABLE_SIMD)
 	target_compile_definitions(box3d PRIVATE BOX3D_DISABLE_SIMD)
 endif()
 
+if (BOX3D_NEON)
+	message(STATUS "Box3D NEON fixed-point SIMD ON")
+	# PRIVATE: narrow-phase internals only; results are bit-identical to the
+	# scalar path so there is no ABI or behavior leak. aarch64 always has NEON,
+	# so no extra compile flags are needed.
+	target_compile_definitions(box3d PRIVATE BOX3D_NEON)
+endif()
+
 if (BOX3D_AVX512)
 	message(STATUS "Box3D AVX-512 fixed-point SIMD ON")
 	# PRIVATE: the wide solver types are internal to the library; results are
