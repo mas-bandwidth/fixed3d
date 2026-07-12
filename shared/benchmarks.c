@@ -505,8 +505,15 @@ void StepLargeWorld( b3WorldId worldId, int stepCount )
 
 	b3Fixed halfSpan = b3FixMul( B3_FIX( 0.5f ) , STATIC_FLOOR_CELL_SIZE ) * STATIC_FLOOR_GRID;
 	// Confine drops to the inner 80% of the floor so spheres can't roll off the edge.
-	b3Fixed inset = b3FixMul( b3FixMul( B3_FIX( 0.1f ) , B3_FIX( 2.0f ) ) , halfSpan );
-	b3Fixed usable = b3FixMul( B3_FIX( 2.0f ) , halfSpan ) - b3FixMul( B3_FIX( 2.0f ) , inset );
+	// Exact arithmetic: the previous B3_FIX(0.1f) product chain quantized the
+	// inset to 1000.061, landing every sphere 55mm off the box seams the float
+	// build lands on exactly. The off-center impact catches the neighbor box's
+	// top edge, kicks the sphere into eternal rolling (zero rolling resistance,
+	// pure rolling defeats friction), nothing ever sleeps, and the benchmark
+	// measures an ever-growing awake set instead of the float-equivalent
+	// scenario. 20% of the half span is exact in both number systems.
+	b3Fixed inset = halfSpan / 5;
+	b3Fixed usable = 2 * halfSpan - 2 * inset;
 	b3Fixed x = -halfSpan + inset + b3FixMul( ( b3FixFromInt( gi ) + B3_FIX( 0.5f ) ) , ( b3FixDiv( usable , b3FixFromInt( side ) ) ) );
 	b3Fixed z = -halfSpan + inset + b3FixMul( ( b3FixFromInt( gj ) + B3_FIX( 0.5f ) ) , ( b3FixDiv( usable , b3FixFromInt( side ) ) ) );
 
