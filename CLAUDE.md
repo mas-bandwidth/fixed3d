@@ -1,7 +1,7 @@
 # Box3D Fixed-Point Conversion — Session Handoff
 
 Box3D converted from float to Q48.16 fixed point (internal and external API).
-Baseline float code is commit e9f6f1d. EVERYTHING below is committed and pushed;
+Baseline float code is commit e961bfb. EVERYTHING below is committed and pushed;
 there is no pending working-tree state.
 
 ## Current status (as of 2026-07-12 — all work landed)
@@ -15,12 +15,16 @@ there is no pending working-tree state.
 - **Performance: ~2.3x of vanilla float** geomean over all 11 benchmarks (was
   5.4x at the first conversion commit). Full optimization log with per-pass
   numbers and profiles: benchmark/apple_m3_ultra_fixed/README.md.
-- **Samples build and run** (the float→fixed sample pass is done).
-- **Determinism goldens**: sleepStep=286, hash=0xFF09131D, verified bit-identical
-  across 1-4 workers.
+- **Samples build and run** (the float→fixed sample pass is done, including the
+  newly re-enabled GyroscopicPrecession sample from e961bfb).
+- **Determinism goldens**: sleepStep=287, hash=0x6FA8A4C5, verified bit-identical
+  across 1-5 workers. Updated for the e961bfb friction-center weighted-average
+  port — any solver-affecting change invalidates these, see the test conventions
+  section for how to regenerate.
 - History (main): e9f6f1d float baseline → 45078b4 + 98b9889 conversion →
   d29ef7d..a40134f optimization passes → 924cd56 narrow storage → ea684c7..632ff0d
-  CI/samples → 973acd1 bug-hunt hardening.
+  CI/samples → 973acd1 bug-hunt hardening → 1f1c941 friction center weighted
+  average (ports box3d e961bfb).
 
 ## Repository and remotes (IMPORTANT)
 
@@ -279,6 +283,24 @@ Fixes landed in session 2 (beyond the session-1 list):
    fixed — check which convention a variable uses before "fixing" it.
 9. **scanf/printf holes**: varargs pointers (`%f` into a `b3Fixed*`) are
    invisible to type-based conversion. Grep for `SCAN`/`scanf` when touching I/O.
+10. **Over-tight B3_VALIDATE canaries survive from upstream too** — not every
+    B3_VALIDATE failure is a fixed-point bug. `b3CollideCapsuleAndTriangle`
+    (triangle_manifold.c) asserted `faceSeparation <= 0` after clipping the
+    capsule segment to the triangle face, but `b3BuildTriangleAndCapsuleFaceContact`
+    only bails out (pointCount stays 0) when BOTH clipped points exceed
+    `speculativeDistance + radius` — so a legitimate two-point speculative
+    contact can land with both points positive but under `speculativeDistance`,
+    which the very next comment in the file already documents ("Face contact
+    can be empty if it does not realize the axis of minimum penetration").
+    Upstream box3d has the identical `B3_VALIDATE( faceSeparation <= 0.0f )`
+    verbatim — this was always a latent gap, just never exercised by Erin's
+    own float test corpus. Only surfaced here because the e961bfb friction-center
+    port changed the DeterminismTest ragdoll trajectory enough to walk into the
+    configuration. Fix: bound the assert at `B3_SPECULATIVE_DISTANCE` instead of
+    `0`, which is the actual provable invariant given the clip function's own
+    early-return logic. Same pattern as the removed TOI conservative-advancement
+    canary in the CI section — a debug-only sanity check being wrong is not the
+    same as the algorithm being wrong.
 
 ## Test conventions after conversion
 
@@ -291,10 +313,11 @@ Fixes landed in session 2 (beyond the session-1 list):
   `b3Sin`/`b3Cos` (the deterministic approximations carry ~1e-3 error and were
   never meant as references — see `ExactQuat` in test_manifold.c, the cylinder
   expectations in test_hull.c, and the trig comparisons in test_math.c).
-- Determinism goldens (`test/test_determinism.c`): `EXPECTED_SLEEP_STEP 286`,
-  `EXPECTED_HASH 0xFF09131D` (updated for round 3; verified bit-identical
-  across 1-4 workers). Any solver-affecting change invalidates these: rerun,
-  take the printed values, confirm they're identical for all worker counts
+- Determinism goldens (`test/test_determinism.c`): `EXPECTED_SLEEP_STEP 287`,
+  `EXPECTED_HASH 0x6FA8A4C5` (updated for the e961bfb friction-center
+  weighted-average port; verified bit-identical across 1-5 workers). Any
+  solver-affecting change invalidates these: rerun, take the printed values,
+  confirm they're identical for all worker counts
   before updating.
 - `ATAN_TOL` in test_math.c is `B3_FIX(0.0001f)` (poly error + output quantization).
 
