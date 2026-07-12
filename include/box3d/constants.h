@@ -48,7 +48,15 @@ B3_API b3Fixed b3GetStallThreshold( void );
 // @warning modifying this can have a significant impact on stability
 #define B3_LINEAR_SLOP ( b3FixMul( B3_FIX( 0.005f ) , b3GetLengthUnitsPerMeter() ) )
 
+/// The minimum length of a capsules. Very short capsules should be created as spheres
+/// to avoid numerical problems.
 #define B3_MIN_CAPSULE_LENGTH ( B3_LINEAR_SLOP )
+
+/// Minimum contact point friction weight, lower bound for speculative points. This is the
+/// smallest representable positive b3Fixed value (1 ULP) so a contact's friction weight is
+/// never exactly zero (which would make the weighted average a 0/0), while still being
+/// small enough to be washed away by weights that hit B3_FIX( 1.0f ).
+#define B3_MIN_FRICTION_WEIGHT B3_FIXED_EPSILON
 
 /// The distance between shapes where they are considered overlapped. This is needed
 /// because GJK may return small positive values for overlapped shapes in degenerate

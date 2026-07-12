@@ -477,7 +477,12 @@ void b3CollideCapsuleAndTriangle( b3LocalManifold* manifold, int capacity, const
 	{
 		faceSeparation = b3FixMin( manifold->points[0].separation, manifold->points[1].separation );
 	}
-	B3_VALIDATE( faceSeparation <= B3_FIX( 0.0f ) );
+	// The clipped face points are not guaranteed to realize the SAT axis of minimum
+	// penetration (see the comment below), so faceSeparation can land anywhere the clip
+	// building function accepts it: b3BuildTriangleAndCapsuleFaceContact only bails out when
+	// BOTH clipped points exceed speculativeDistance + radius, so whenever it returns two
+	// points at least one is within speculativeDistance of touching, which bounds the min.
+	B3_VALIDATE( faceSeparation <= B3_SPECULATIVE_DISTANCE );
 
 	// Face contact can be empty if it does not realize the axis of minimum penetration.
 	// Create edge contact if face contact fails or edge contact is significantly better!

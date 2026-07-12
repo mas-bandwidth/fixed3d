@@ -3036,9 +3036,6 @@ typedef struct b3DebugDraw
 	/// Option to draw contact normal forces
 	bool drawContactForces;
 
-	/// Option to draw contact friction forces
-	bool drawFrictionForces;
-
 	/// Option to draw islands as bounding boxes
 	bool drawIslands;
 

@@ -1523,7 +1523,8 @@ void b3World_Draw( b3WorldId worldId, b3DebugDraw* draw, uint64_t maskBits )
 
 							// Average the anchors not the world points so the friction center stays exact far from the origin
 							b3Pos contactCenter = draw->drawAnchorA == 1 ? bodySimA->center : bodySimB->center;
-							b3Vec3 anchorSum = b3Vec3_zero;
+							b3Vec3 frictionAnchor = b3Vec3_zero;
+							b3Fixed totalWeight = B3_FIX( 0.0f );
 
 							const b3ManifoldPoint* points = manifold->points;
 							for ( int pointIndex = 0; pointIndex < manifold->pointCount; ++pointIndex )
@@ -1535,7 +1536,11 @@ void b3World_Draw( b3WorldId worldId, b3DebugDraw* draw, uint64_t maskBits )
 								b3Vec3 anchor = draw->drawAnchorA == 1 ? mp->anchorA : mp->anchorB;
 								b3Pos p = b3OffsetPos( contactCenter, anchor );
 
-								anchorSum = b3Add( anchorSum, anchor );
+								// See similar friction anchor weights in b3PrepareContacts_Mesh.
+								b3Fixed weight = b3FixClamp( B3_FIX( 2.0f ) - b3FixDiv( mp->separation, speculativeDistance ),
+															  B3_MIN_FRICTION_WEIGHT, B3_FIX( 1.0f ) );
+								frictionAnchor = b3MulAdd( frictionAnchor, weight, anchor );
+								totalWeight += weight;
 
 								if ( draw->drawContactNormals )
 								{
@@ -1599,8 +1604,8 @@ void b3World_Draw( b3WorldId worldId, b3DebugDraw* draw, uint64_t maskBits )
 								// Hack inv_dt for single step debugging
 								b3Fixed inv_dt = world->inv_dt > B3_FIX( 0.0f ) ? world->inv_dt : B3_FIX( 60.0f );
 
-								b3Vec3 avgAnchor = b3MulSV( b3FixDiv( B3_FIX( 1.0f ) , b3FixFromInt( manifold->pointCount ) ), anchorSum );
-								b3Pos p1 = b3OffsetPos( contactCenter, avgAnchor );
+								frictionAnchor = b3MulSV( b3FixDiv( B3_FIX( 1.0f ) , totalWeight ), frictionAnchor );
+								b3Pos p1 = b3OffsetPos( contactCenter, frictionAnchor );
 								b3Vec3 frictionForce = b3MulSV( b3FixMul( B3_FIX( 0.5f ) , inv_dt ), manifold->frictionImpulse );
 								b3Pos p2 = b3OffsetPos( p1, b3MulSV( draw->forceScale, frictionForce ) );
 								draw->DrawSegmentFcn( p1, p2, frictionColor, draw->context );

@@ -372,8 +372,6 @@ static int sampleGyroscopicTorque = RegisterSample( "Bodies", "Gyroscopic Torque
 // Spinning tops. Ported from PEEL.
 // Each top is tilted and spun about the world up axis. Offsetting the spin axis from the
 // symmetry axis is what makes them precess under gravity instead of spinning true.
-// todo disabling this until issue #65 is fixed
-#if 0
 class GyroscopicPrecession : public Sample
 {
 public:
@@ -382,7 +380,7 @@ public:
 	{
 		if ( context->restart == false )
 		{
-			m_camera->SetView( 40.0f, 30.0f, 75.0f, { 0.0f, 2.0f, 0.0f } );
+			m_camera->SetView( 40.0f, 30.0f, 75.0f, { B3_FIX( 0.0f ), B3_FIX( 2.0f ), B3_FIX( 0.0f ) } );
 		}
 
 		AddGroundBox( 40.0f );
@@ -392,10 +390,10 @@ public:
 		constexpr float r = 2.0f;
 		constexpr float h = 2.0f;
 		b3Vec3 hullPoints[numSegs + 1];
-		const float dphi = 2.0f * B3_PI / numSegs;
+		const float dphi = 2.0f * 3.14159265359f / numSegs;
 		for ( int i = 0; i < numSegs; ++i )
 		{
-			hullPoints[i] = { r * cosf( i * dphi ), h, r * sinf( i * dphi ) };
+			hullPoints[i] = { b3FixFromFloat( r * cosf( i * dphi ) ), B3_FIX( h ), b3FixFromFloat( r * sinf( i * dphi ) ) };
 		}
 		hullPoints[numSegs] = b3Vec3_zero;
 		b3HullData* hull = b3CreateHull( hullPoints, numSegs + 1, numSegs + 1 );
@@ -404,7 +402,7 @@ public:
 
 		// Tilt the symmetry axis, then spin about the world up axis so the offset drives precession.
 		b3Quat rotation = b3MakeQuatFromAxisAngle( b3Vec3_axisZ, 15.0f * B3_PI / 180.0f );
-		b3Vec3 angularVelocity = b3RotateVector( rotation, { 0.0f, 75.0f, 0.0f } );
+		b3Vec3 angularVelocity = b3RotateVector( rotation, { B3_FIX( 0.0f ), B3_FIX( 75.0f ), B3_FIX( 0.0f ) } );
 
 		constexpr int count = 8;
 		constexpr float separation = 6.0f;
@@ -414,7 +412,8 @@ public:
 			{
 				b3BodyDef bodyDef = b3DefaultBodyDef();
 				bodyDef.type = b3_dynamicBody;
-				bodyDef.position = { ( x - count / 2 ) * separation, h, ( z - count / 2 ) * separation };
+				bodyDef.position = { b3FixFromFloat( ( x - count / 2 ) * separation ), B3_FIX( h ),
+									  b3FixFromFloat( ( z - count / 2 ) * separation ) };
 				bodyDef.rotation = rotation;
 
 				// The spin rate exceeds the default cap, so bypass it as the test intends.
@@ -437,7 +436,6 @@ public:
 };
 
 static int sampleGyroscopicPrecession = RegisterSample( "Bodies", "Gyroscopic Precession", GyroscopicPrecession::Create );
-#endif
 
 class Weeble : public Sample
 {
