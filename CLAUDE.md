@@ -90,8 +90,14 @@ washer up to ±10%; CSVs and sample profiles in benchmark/apple_m3_ultra_fixed|_
 | trees50        | 419    | 226     | 203     | 217         | 205     | 116   | 1.77x |
 | washer         | 28767  | 18976   | 15305   | 13840       | 14093   | 6577  | 2.14x |
 
-**Geomean ~2.56x of float** (5.4x pre-optimization → 3.2x after 98b9889 →
-2.85x after session 3 → 2.7x after the solver pass → 2.56x after round 3).
+**Geomean ~2.51x of float** (5.4x pre-optimization → 3.2x after 98b9889 →
+2.85x after session 3 → 2.7x after the solver pass → 2.56x after round 3 →
+2.51x after narrow constraint storage). Narrow storage keeps all constraint
+geometry (anchors, normals, tangents, Jacobian rows) as int32 Q16.16
+(`b3Vec3WN`, widened exactly on load — bit-identical simulation, goldens
+unchanged) and shrinks the wide constraint ~30%; the numbers in the table
+below are the round-3 column of benchmark/apple_m3_ultra_fixed/README.md,
+see there for the narrow column.
 The sentinel-audit SAH fix was itself a perf win for rebuild-heavy scenes
 (rain −22%, washer −13%). Profile (large_pyramid, 1 worker) is flat:
 b3SolveContacts_Convex ~24%, anchor rotation ~15%, prepare ~14%, warm start
