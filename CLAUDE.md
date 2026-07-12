@@ -37,25 +37,30 @@ Session-3 performance work (all on top of 98b9889's fixed.h fast paths):
   path; identical truncating quotient).
 
 Benchmarks (4 workers, this machine, min of 2 runs; "before" = the CSVs from the
-morning run, "98b9889" = that commit alone):
+morning run, "98b9889" = that commit alone; full A/B vs float rerun at ab2d210 —
+CSVs and sample profiles in benchmark/apple_m3_ultra_fixed|_float/):
 
-| benchmark      | before | 98b9889 | now    | float |
-|----------------|--------|---------|--------|-------|
-| convex_pile    | 46779  | 27279   | 21117  | 13645 |
-| joint_grid     | 1555   | 809     | 814    |       |
-| large_pyramid  | 4444   | 2295    | 2078   | 518   |
-| large_world    | 162    | 92      | 84     |       |
-| many_pyramids  | 4263   | 2246    | 2039   |       |
-| rain           | 2637   | 1747    | 1733   |       |
-| trees50        | 419    | 226     | 209    |       |
-| washer         | 28767  | 18976   | 17575  |       |
+| benchmark      | before | 98b9889 | now (ab2d210) | float | ratio |
+|----------------|--------|---------|---------------|-------|-------|
+| convex_pile    | 46779  | 27279   | 20708         | 13626 | 1.52x |
+| joint_grid     | 1555   | 809     | 810           | 271   | 2.99x |
+| large_pyramid  | 4444   | 2295    | 2072          | 508   | 4.08x |
+| large_world    | 162    | 92      | 85            | 14    | 5.99x |
+| many_pyramids  | 4263   | 2246    | 2031          | 490   | 4.15x |
+| rain           | 2637   | 1747    | 1356          | 582   | 2.33x |
+| trees50        | 419    | 226     | 203           | 116   | 1.74x |
+| washer         | 28767  | 18976   | 15305         | 6577  | 2.33x |
 
-Geomean ~9% over 98b9889 (convex_pile −23%); ~1.9x over the morning state. Profile
-is now dominated by the contact solver inner iteration (b3SolveContacts_Convex,
-b3RotateVectorW, b3MulSub/AddMVW) — narrow phase is a sliver. Next levers, in
-order: (1) NEON int64 2-lane vectorization of the wide solver (big project),
-(2) `b3RotateVectorW` restructure (two crosses → matrix form per body), (3) the
-remaining `__udivmodti4` calls (~1%).
+**Geomean ~2.85x of float** (was 5.4x pre-optimization, 3.2x after 98b9889).
+~2.3x over the morning state. The sentinel-audit SAH fix was itself a perf win
+for rebuild-heavy scenes (rain −22%, washer −13%). Profile is dominated by the
+contact solver inner iteration (b3SolveContacts_Convex 27%, b3RotateVectorW 17%,
+b3MulSub/AddMVW 17%) — narrow phase is ~6%. Float on the same workload is also
+solver-bound but pays ~20% in SIMD gather/scatter that the scalar int64 lanes
+don't; the residual gap is the 64x64->128 lane multiplies vs float FMA. Next
+levers, in order: (1) NEON int64 2-lane vectorization of the wide solver (big
+project), (2) `b3RotateVectorW` restructure (two crosses → matrix form per
+body), (3) the remaining `__udivmodti4` calls (~2%).
 
 **Benchmark CLI gotcha**: flags need the equals form (`-b=large_pyramid -w=4 -t=4
 -r=2`). Space-separated flags are silently ignored and the FULL suite runs (looks
