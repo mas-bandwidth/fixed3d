@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 #include "algorithm.h"
+#include "ctz.h"
 #include "manifold.h"
 #include "shape.h"
 
@@ -240,13 +241,114 @@ static b3EdgeQuery b3QueryEdgeDirectionHullAndCapsule( const b3HullData* hull, c
 	};
 }
 
+// Test one candidate edge pair. Shared by the scalar scan and the wide reject
+// path's survivors so the admission criteria and separation update cannot
+// diverge between them.
+static inline void b3TestEdgePair( const b3HullHalfEdge* edgesA, const b3Vec3* pointsA, const b3Plane* planesA, int indexA,
+								   b3Vec3 eB, b3Vec3 qB, b3Vec3 uB, b3Vec3 vB, b3Fixed squaredTolerance, int indexB,
+								   b3EdgeQuery* best )
+{
+	const b3HullHalfEdge* edgeA = edgesA + indexA;
+	const b3HullHalfEdge* twinA = edgesA + indexA + 1;
+	B3_ASSERT( edgeA->twin == indexA + 1 && twinA->twin == indexA );
+
+	b3Vec3 qA = pointsA[twinA->origin];
+	b3Vec3 eA = b3Sub( qA, pointsA[edgeA->origin] );
+
+	// See "Collision Detection of Convex Polyhedra Based on Duality Transformation"
+	// Two edges build a face on the Minkowski sum if the associated arcs AB and CD intersect on the Gauss map.
+	// The associated arcs are defined by the adjacent face normals of each edge.
+
+	// These are signed volumes with an edge optimization to avoid cross products
+	// eA parallel to cross(vA, uA)
+	// eB parallel to cross(vB, uB)
+	// Since only signs are tested, length doesn't matter.
+
+	// The Minkowski sign tests run on raw 128-bit dots: exact signs with no
+	// rounding, no saturation, and no fixed-point product just to test a sign.
+	// cba * dba < 0 means strictly opposite signs and both non-zero.
+	b3Int128 cbaRaw = b3DotRaw( uB, eA );
+	b3Int128 dbaRaw = b3DotRaw( vB, eA );
+	if ( cbaRaw == 0 || dbaRaw == 0 || ( cbaRaw ^ dbaRaw ) >= 0 )
+	{
+		return;
+	}
+
+	b3Vec3 uA = planesA[edgeA->face].normal;
+	b3Vec3 vA = planesA[twinA->face].normal;
+	b3Int128 adcRaw = -b3DotRaw( uA, eB );
+	b3Int128 bdcRaw = -b3DotRaw( vA, eB );
+
+	// adc * bdc < 0 and cba * bdc > 0
+	if ( adcRaw == 0 || bdcRaw == 0 || ( adcRaw ^ bdcRaw ) >= 0 || ( cbaRaw ^ bdcRaw ) < 0 )
+	{
+		return;
+	}
+
+	b3Fixed cba = b3FixFromDotRaw( cbaRaw );
+	b3Fixed dba = b3FixFromDotRaw( dbaRaw );
+
+	// Avoid nearly parallel edges that may lead to invalid separation values at the noise floor.
+	if ( b3FixMax( b3FixMul( cba , cba ), b3FixMul( dba , dba ) ) < b3FixMul( squaredTolerance , b3LengthSquared( eA ) ) )
+	{
+		return;
+	}
+
+	// The intersection of the arcs on the Gauss map is the edge pair axis. Cast the
+	// arc of hull B (from uB to vB) against the plane containing the arc of hull A:
+	// dot(uB + t * (vB - uB), eA) == 0
+	// then
+	// t = cba / (cba - dba)
+	//
+	// The signs of cba and dba differ (Minkowski test), so the division is safe.
+	// Computed from the raw dots so the quotient keeps full precision (divide last).
+	//
+	// The axis generated points from B to A by construction since it lands between
+	// two face normals on B. This removes the need to orient the separation axis
+	// using the hull centers.
+	//
+	// The axis is perpendicular to both edges so I can use qA and qB as arbitrary
+	// points on edgeA and edgeB to measure the separation.
+	b3Fixed t = (b3Fixed)( b3Int128ShiftLeft( cbaRaw, B3_FIXED_FRACTION_BITS ) / ( cbaRaw - dbaRaw ) );
+	b3Vec3 axis = b3Lerp( uB, vB, t );
+	B3_VALIDATE( b3LengthSquared( axis ) > 0 );
+	axis = b3Normalize( axis );
+	b3Fixed separation = b3FixFromDotRaw( b3DotRaw( axis, b3Sub( qA, qB ) ) );
+
+	if ( separation > best->separation )
+	{
+		// Continues to find the maximum separating axis
+		// Flip normal so it points from A to B
+		best->normal = b3Neg( axis );
+		best->separation = separation;
+		best->indexA = indexA;
+		best->indexB = indexB;
+	}
+}
+
+#if defined( B3_SIMD_AVX512 )
+
+#include <immintrin.h>
+
+// Hulls index edges with uint8_t, so at most 256 half-edges = 128 edge pairs
+#define B3_MAX_HULL_EDGE_PAIRS 128
+
+static inline uint64_t b3EdgeAbsBoundU64( b3Fixed a )
+{
+	return a < 0 ? ( 0 - (uint64_t)a ) : (uint64_t)a;
+}
+
+#endif
+
 static b3EdgeQuery b3QueryEdgeDirections( const b3HullData* hullA, const b3HullData* hullB, b3Transform transformBtoA )
 {
 	// Find axis of minimum penetration
-	b3Vec3 maxNormal = b3Vec3_zero;
-	b3Fixed maxSeparation = -B3_FIXED_MAX;
-	int maxIndexA = B3_NULL_INDEX;
-	int maxIndexB = B3_NULL_INDEX;
+	b3EdgeQuery best = {
+		.normal = b3Vec3_zero,
+		.separation = -B3_FIXED_MAX,
+		.indexA = B3_NULL_INDEX,
+		.indexB = B3_NULL_INDEX,
+	};
 
 	const b3HullHalfEdge* edgesA = b3GetHullEdges( hullA );
 	const b3Vec3* pointsA = b3GetHullPoints( hullA );
@@ -259,6 +361,42 @@ static b3EdgeQuery b3QueryEdgeDirections( const b3HullData* hullA, const b3HullD
 	b3Matrix3 matrix = b3MakeMatrixFromQuat( transformBtoA.q );
 
 	b3Fixed squaredTolerance = b3FixMul( B3_FIX( 0.005f ) , B3_FIX( 0.005f ) );
+
+#if defined( B3_SIMD_AVX512 )
+	// Precompute hull A's edge vectors once, SoA: they are reused for every
+	// edge of B and four pairs get the Minkowski reject test per iteration.
+	// Nearly every pair dies on that first sign test, so the wide loop only
+	// computes the two dots and a mask; the rare survivors take the exact
+	// scalar path above in ascending index order, which keeps the separation
+	// updates in the same order as the scalar scan.
+	int pairCountA = hullA->edgeCount / 2;
+	B3_ASSERT( pairCountA <= B3_MAX_HULL_EDGE_PAIRS );
+	b3Fixed eAx[B3_MAX_HULL_EDGE_PAIRS], eAy[B3_MAX_HULL_EDGE_PAIRS], eAz[B3_MAX_HULL_EDGE_PAIRS];
+	for ( int pair = 0; pair < pairCountA; ++pair )
+	{
+		const b3HullHalfEdge* edgeA = edgesA + 2 * pair;
+		const b3HullHalfEdge* twinA = edgesA + 2 * pair + 1;
+		b3Vec3 eA = b3Sub( pointsA[twinA->origin], pointsA[edgeA->origin] );
+		eAx[pair] = eA.x;
+		eAy[pair] = eA.y;
+		eAz[pair] = eA.z;
+	}
+
+	// |edge component| <= |aabb.lower| + |aabb.upper| for a difference of two
+	// hull points, so the int64 dot bound below is sound for valid hull data
+	uint64_t edgeBound = 0;
+	{
+		uint64_t candidates[3] = {
+			b3EdgeAbsBoundU64( hullA->aabb.lowerBound.x ) + b3EdgeAbsBoundU64( hullA->aabb.upperBound.x ),
+			b3EdgeAbsBoundU64( hullA->aabb.lowerBound.y ) + b3EdgeAbsBoundU64( hullA->aabb.upperBound.y ),
+			b3EdgeAbsBoundU64( hullA->aabb.lowerBound.z ) + b3EdgeAbsBoundU64( hullA->aabb.upperBound.z ),
+		};
+		for ( int i = 0; i < 3; ++i )
+		{
+			edgeBound = candidates[i] > edgeBound ? candidates[i] : edgeBound;
+		}
+	}
+#endif
 
 	// Arranged to minimize transform operations
 	for ( int indexB = 0; indexB < hullB->edgeCount; indexB += 2 )
@@ -274,95 +412,77 @@ static b3EdgeQuery b3QueryEdgeDirections( const b3HullData* hullA, const b3HullD
 		b3Vec3 uB = b3MulMV( matrix, planesB[edgeB->face].normal );
 		b3Vec3 vB = b3MulMV( matrix, planesB[twinB->face].normal );
 
+#if defined( B3_SIMD_AVX512 )
+		// The wide reject is exact only when the dots cannot leave int64;
+		// gate on the actual rotated normals against the edge bound
+		uint64_t uvMax = b3EdgeAbsBoundU64( uB.x );
+		{
+			uint64_t candidates[5] = { b3EdgeAbsBoundU64( uB.y ), b3EdgeAbsBoundU64( uB.z ), b3EdgeAbsBoundU64( vB.x ),
+									   b3EdgeAbsBoundU64( vB.y ), b3EdgeAbsBoundU64( vB.z ) };
+			for ( int i = 0; i < 5; ++i )
+			{
+				uvMax = candidates[i] > uvMax ? candidates[i] : uvMax;
+			}
+		}
+
+		// The 3 * uvMax guard keeps the 128-bit product from wrapping when
+		// edgeBound approaches 2^64 (it is a sum of two 63-bit magnitudes)
+		if ( pairCountA >= 4 && uvMax <= UINT64_MAX / 3 &&
+			 (b3UInt128)( 3 * uvMax ) * edgeBound < ( (b3UInt128)1 << 63 ) )
+		{
+			__m256i ubx = _mm256_set1_epi64x( uB.x );
+			__m256i uby = _mm256_set1_epi64x( uB.y );
+			__m256i ubz = _mm256_set1_epi64x( uB.z );
+			__m256i vbx = _mm256_set1_epi64x( vB.x );
+			__m256i vby = _mm256_set1_epi64x( vB.y );
+			__m256i vbz = _mm256_set1_epi64x( vB.z );
+			__m256i zero = _mm256_setzero_si256();
+
+			int pair = 0;
+			for ( ; pair + 4 <= pairCountA; pair += 4 )
+			{
+				__m256i ex = _mm256_loadu_si256( (const __m256i*)( eAx + pair ) );
+				__m256i ey = _mm256_loadu_si256( (const __m256i*)( eAy + pair ) );
+				__m256i ez = _mm256_loadu_si256( (const __m256i*)( eAz + pair ) );
+
+				__m256i cba = _mm256_add_epi64(
+					_mm256_add_epi64( _mm256_mullo_epi64( ubx, ex ), _mm256_mullo_epi64( uby, ey ) ),
+					_mm256_mullo_epi64( ubz, ez ) );
+				__m256i dba = _mm256_add_epi64(
+					_mm256_add_epi64( _mm256_mullo_epi64( vbx, ex ), _mm256_mullo_epi64( vby, ey ) ),
+					_mm256_mullo_epi64( vbz, ez ) );
+
+				// Survive when cba != 0 and dba != 0 and signs differ
+				__mmask8 nzc = _mm256_test_epi64_mask( cba, cba );
+				__mmask8 nzd = _mm256_test_epi64_mask( dba, dba );
+				__mmask8 opposite = _mm256_cmpgt_epi64_mask( zero, _mm256_xor_si256( cba, dba ) );
+				unsigned survivors = (unsigned)( nzc & nzd & opposite ) & 0xF;
+
+				while ( survivors != 0 )
+				{
+					int lane = (int)b3CTZ32( survivors );
+					survivors &= survivors - 1;
+					b3TestEdgePair( edgesA, pointsA, planesA, 2 * ( pair + lane ), eB, qB, uB, vB, squaredTolerance,
+									indexB, &best );
+				}
+			}
+
+			for ( ; pair < pairCountA; ++pair )
+			{
+				b3TestEdgePair( edgesA, pointsA, planesA, 2 * pair, eB, qB, uB, vB, squaredTolerance, indexB, &best );
+			}
+
+			continue;
+		}
+#endif
+
 		for ( int indexA = 0; indexA < hullA->edgeCount; indexA += 2 )
 		{
-			const b3HullHalfEdge* edgeA = edgesA + indexA;
-			const b3HullHalfEdge* twinA = edgesA + indexA + 1;
-			B3_ASSERT( edgeA->twin == indexA + 1 && twinA->twin == indexA );
-
-			b3Vec3 qA = pointsA[twinA->origin];
-			b3Vec3 eA = b3Sub( qA, pointsA[edgeA->origin] );
-
-			// See "Collision Detection of Convex Polyhedra Based on Duality Transformation"
-			// Two edges build a face on the Minkowski sum if the associated arcs AB and CD intersect on the Gauss map.
-			// The associated arcs are defined by the adjacent face normals of each edge.
-
-			// These are signed volumes with an edge optimization to avoid cross products
-			// eA parallel to cross(vA, uA)
-			// eB parallel to cross(vB, uB)
-			// Since only signs are tested, length doesn't matter.
-
-			// The Minkowski sign tests run on raw 128-bit dots: exact signs with no
-			// rounding, no saturation, and no fixed-point product just to test a sign.
-			// cba * dba < 0 means strictly opposite signs and both non-zero.
-			b3Int128 cbaRaw = b3DotRaw( uB, eA );
-			b3Int128 dbaRaw = b3DotRaw( vB, eA );
-			if ( cbaRaw == 0 || dbaRaw == 0 || ( cbaRaw ^ dbaRaw ) >= 0 )
-			{
-				continue;
-			}
-
-			b3Vec3 uA = planesA[edgeA->face].normal;
-			b3Vec3 vA = planesA[twinA->face].normal;
-			b3Int128 adcRaw = -b3DotRaw( uA, eB );
-			b3Int128 bdcRaw = -b3DotRaw( vA, eB );
-
-			// adc * bdc < 0 and cba * bdc > 0
-			if ( adcRaw == 0 || bdcRaw == 0 || ( adcRaw ^ bdcRaw ) >= 0 || ( cbaRaw ^ bdcRaw ) < 0 )
-			{
-				continue;
-			}
-
-			{
-				b3Fixed cba = b3FixFromDotRaw( cbaRaw );
-				b3Fixed dba = b3FixFromDotRaw( dbaRaw );
-
-				// Avoid nearly parallel edges that may lead to invalid separation values at the noise floor.
-				if ( b3FixMax( b3FixMul( cba , cba ), b3FixMul( dba , dba ) ) < b3FixMul( squaredTolerance , b3LengthSquared( eA ) ) )
-				{
-					continue;
-				}
-
-				// The intersection of the arcs on the Gauss map is the edge pair axis. Cast the
-				// arc of hull B (from uB to vB) against the plane containing the arc of hull A:
-				// dot(uB + t * (vB - uB), eA) == 0
-				// then
-				// t = cba / (cba - dba)
-				//
-				// The signs of cba and dba differ (Minkowski test), so the division is safe.
-				// Computed from the raw dots so the quotient keeps full precision (divide last).
-				//
-				// The axis generated points from B to A by construction since it lands between
-				// two face normals on B. This removes the need to orient the separation axis
-				// using the hull centers.
-				//
-				// The axis is perpendicular to both edges so I can use qA and qB as arbitrary
-				// points on edgeA and edgeB to measure the separation.
-				b3Fixed t = (b3Fixed)( b3Int128ShiftLeft( cbaRaw, B3_FIXED_FRACTION_BITS ) / ( cbaRaw - dbaRaw ) );
-				b3Vec3 axis = b3Lerp( uB, vB, t );
-				B3_VALIDATE( b3LengthSquared( axis ) > 0 );
-				axis = b3Normalize( axis );
-				b3Fixed separation = b3FixFromDotRaw( b3DotRaw( axis, b3Sub( qA, qB ) ) );
-
-				if ( separation > maxSeparation )
-				{
-					// Continues to find the maximum separating axis
-					// Flip normal so it points from A to B
-					maxNormal = b3Neg( axis );
-					maxSeparation = separation;
-					maxIndexA = indexA;
-					maxIndexB = indexB;
-				}
-			}
+			b3TestEdgePair( edgesA, pointsA, planesA, indexA, eB, qB, uB, vB, squaredTolerance, indexB, &best );
 		}
 	}
 
-	return (b3EdgeQuery){
-		.normal = maxNormal,
-		.separation = maxSeparation,
-		.indexA = maxIndexA,
-		.indexB = maxIndexB,
-	};
+	return best;
 }
 
 // Reduce the manifold points to a maximum of 4 points.
