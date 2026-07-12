@@ -115,9 +115,22 @@ saturating 32k-65k. Don't revisit without a redesigned impulse representation.
 The same audit shows all GEOMETRY/JACOBIAN fields (anchors, cross(r,n),
 invI*cross(r,n), invMass*n, invI*n, cross(o,t)) stay under 225 units — they
 fit int32 Q16.16 storage losslessly (values that fit round-trip bit-exactly),
-which is the basis for the narrow-storage constraint layout. Remaining ideas:
-narrow (int32) storage for constraint geometry fields, the `__udivmodti4`
-calls (~2%).
+which is the basis for the narrow-storage constraint layout (landed: `b3Vec3WN`,
+bit-identical, ~30% smaller constraint). Remaining ideas: the `__udivmodti4`
+calls (~2%), and not much else — see the branch audit below.
+
+**Branchless is a dead end here too** (audited 2026-07-12): the compiled
+b3SolveContacts_Convex has 56 csel against 33 conditional branches — clang
+already lowers every lane ternary (Max/Blend/SymClamp/GreaterThan) to csel.
+The 33 branches are loop control, the coherent useBias/rollingResistance
+gates, and the b3FixDiv/b3FixSqrt internals inside the friction cone
+projection. Gather/scatter compile nearly branch-free (warm start: 3 branches
+total). The obvious counter-move — skip the friction sqrt+div when no lane
+exceeds the cone — measured neutral-to-worse (large_pyramid within noise to
++4%): in never-sleeping benchmark scenes the saturation mask is per-lane
+noisy, so the guard branch mispredicts, and the out-of-order core was already
+absorbing the sqrt/div latency across the four independent lanes. Reverted;
+don't re-add data-dependent guards to the wide solve loop.
 
 **Benchmark CLI gotcha**: flags need the equals form (`-b=large_pyramid -w=4 -t=4
 -r=2`). Space-separated flags are silently ignored and the FULL suite runs (looks
