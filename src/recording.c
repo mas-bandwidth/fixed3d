@@ -1090,7 +1090,7 @@ void b3StopRecordingInternal( b3World* world )
 	world->recording = NULL;
 
 	// Write accumulated bounds so a viewer can frame the whole recorded motion
-	b3RecArgs_RecordingBounds rb = { b3FixFromInt( 0 ) };
+	b3RecArgs_RecordingBounds rb = { 0 };
 	if ( rec->haveBounds )
 	{
 		rb.bounds = rec->accumulatedBounds;

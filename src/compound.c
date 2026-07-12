@@ -66,7 +66,7 @@ b3CompoundCapsule b3GetCompoundCapsule( const b3CompoundData* compound, int inde
 {
 	B3_ASSERT( 0 <= index && index < compound->capsuleCount && compound->capsuleOffset > 0 );
 
-	b3CompoundCapsule result = { b3FixFromInt( 0 ) };
+	b3CompoundCapsule result = { 0 };
 	if ( compound->capsuleOffset == 0 )
 	{
 		return result;
@@ -122,7 +122,7 @@ b3CompoundSphere b3GetCompoundSphere( const b3CompoundData* compound, int index 
 {
 	B3_ASSERT( 0 <= index && index < compound->sphereCount && compound->sphereOffset > 0 );
 
-	b3CompoundSphere result = { b3FixFromInt( 0 ) };
+	b3CompoundSphere result = { 0 };
 	if ( compound->sphereOffset == 0 )
 	{
 		return result;
@@ -778,7 +778,7 @@ static b3Fixed b3CompoundRayCastCallback( const b3RayCastInput* input, int proxy
 	localInput.origin = b3InvTransformPoint( child.transform, input->origin );
 	localInput.translation = b3InvRotateVector( child.transform.q, input->translation );
 
-	b3CastOutput output = { b3FixFromInt( 0 ) };
+	b3CastOutput output = { 0 };
 
 	switch ( child.type )
 	{
@@ -825,7 +825,7 @@ static b3Fixed b3CompoundRayCastCallback( const b3RayCastInput* input, int proxy
 
 b3CastOutput b3RayCastCompound( const b3CompoundData* shape, const b3RayCastInput* input )
 {
-	b3CastOutput result = { b3FixFromInt( 0 ) };
+	b3CastOutput result = { 0 };
 
 	struct b3CompoundCastContext context = {
 		.compound = shape,
@@ -865,7 +865,7 @@ static b3Fixed b3CompoundShapeCastCallback( const b3BoxCastInput* input, int pro
 	localInput.proxy.points = localPoints;
 	localInput.translation = b3MulMV( R, shapeInput->translation );
 
-	b3CastOutput output = { b3FixFromInt( 0 ) };
+	b3CastOutput output = { 0 };
 
 	switch ( child.type )
 	{
@@ -912,7 +912,7 @@ static b3Fixed b3CompoundShapeCastCallback( const b3BoxCastInput* input, int pro
 
 b3CastOutput b3ShapeCastCompound( const b3CompoundData* shape, const b3ShapeCastInput* input )
 {
-	b3CastOutput result = { b3FixFromInt( 0 ) };
+	b3CastOutput result = { 0 };
 
 	if ( input->proxy.count == 0 )
 	{

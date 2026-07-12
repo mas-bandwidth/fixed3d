@@ -11,7 +11,7 @@ b3WorldDef b3DefaultWorldDef( void )
 {
 	b3Fixed lengthUnits = b3GetLengthUnitsPerMeter();
 
-	b3WorldDef def = { b3FixFromInt( 0 ) };
+	b3WorldDef def = { 0 };
 	def.gravity.x = B3_FIX( 0.0f );
 	def.gravity.y = -B3_FIX( 10.0f );
 	def.hitEventThreshold = b3FixMul( B3_FIX( 1.0f ) , lengthUnits );
@@ -58,7 +58,7 @@ b3QueryFilter b3DefaultQueryFilter( void )
 
 b3SurfaceMaterial b3DefaultSurfaceMaterial( void )
 {
-	b3SurfaceMaterial surfaceMaterial = { b3FixFromInt( 0 ) };
+	b3SurfaceMaterial surfaceMaterial = { 0 };
 	surfaceMaterial.friction = B3_FIX( 0.6f );
 	return surfaceMaterial;
 }

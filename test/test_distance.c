@@ -44,7 +44,7 @@ static int ShapeDistanceTest( void )
 	input.transform = b3Transform_identity;
 	input.useRadii = false;
 
-	b3SimplexCache cache = { b3FixFromInt( 0 ) };
+	b3SimplexCache cache = { 0 };
 	b3DistanceOutput output = b3ShapeDistance( &input, &cache, NULL, 0 );
 
 	ENSURE_SMALL( output.distance - B3_FIX( 1.0f ), 8 * B3_FIXED_EPSILON );

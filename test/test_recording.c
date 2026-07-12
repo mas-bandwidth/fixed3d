@@ -1818,9 +1818,9 @@ static int StagedStepCreationPose( void )
 	b3BodyId stagedId = b3RecPlayer_GetBodyId( staged, 0 );
 	ENSURE( b3Body_IsValid( stagedId ) );
 	b3Pos parkPose = b3Body_GetPosition( stagedId );
-	ENSURE_SMALL( parkPose.x - spawn.x, 1.0e-4 );
-	ENSURE_SMALL( parkPose.y - spawn.y, 1.0e-4 );
-	ENSURE_SMALL( parkPose.z - spawn.z, 1.0e-4 );
+	ENSURE_SMALL( parkPose.x - spawn.x, 8 * B3_FIXED_EPSILON );
+	ENSURE_SMALL( parkPose.y - spawn.y, 8 * B3_FIXED_EPSILON );
+	ENSURE_SMALL( parkPose.z - spawn.z, 8 * B3_FIXED_EPSILON );
 
 	// Finishing the frame integrates the body, so it leaves the spawn pose on the next advance.
 	b3RecPlayer_SubStepFrame( staged );

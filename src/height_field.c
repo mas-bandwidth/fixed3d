@@ -613,7 +613,7 @@ b3CastOutput b3ShapeCastHeightField( const b3HeightFieldData* heightField, const
 	b3Vec3 shapeDelta = b3MulSV( input->maxFraction, shapeTranslation );
 	b3Vec3 shapeEnd = b3Add( shapeStart, shapeDelta );
 
-	b3CastOutput result = { b3FixFromInt( 0 ) };
+	b3CastOutput result = { 0 };
 
 	b3Vec3 shapeExtents = b3AABB_Extents( shapeBounds );
 	b3Vec3 margin = { B3_MAX_AABB_MARGIN, B3_MAX_AABB_MARGIN, B3_MAX_AABB_MARGIN };
@@ -1054,7 +1054,7 @@ bool b3OverlapHeightField( const b3HeightFieldData* shape, b3Transform shapeTran
 	input.transform = b3Transform_identity;
 	input.useRadii = true;
 
-	b3SimplexCache cache = { b3FixFromInt( 0 ) };
+	b3SimplexCache cache = { 0 };
 
 	// Outer loop on rows and inner loop on columns so that triangle indices
 	// increase monotonically.
@@ -1208,7 +1208,7 @@ int b3CollideMoverAndHeightField( b3PlaneResult* planes, int capacity, const b3H
 	distanceInput.transform = b3Transform_identity;
 	distanceInput.useRadii = false;
 
-	b3SimplexCache cache = { b3FixFromInt( 0 ) };
+	b3SimplexCache cache = { 0 };
 
 	b3Fixed radius = mover->radius;
 	b3V32 center1 = b3LoadV( &mover->center1.x );

@@ -634,7 +634,7 @@ static b3EdgeQuery b3QueryTriangleAndHullEdges( const b3TriangleData* triangle, 
 			// dot(hullNormal1 + t * (hullNormal2 - hullNormal1), triEdge) = 0
 			// Normal points out of hull by construction.
 			// Computed from the raw dots so the quotient keeps full precision (divide last).
-			b3Fixed t = (b3Fixed)( ( cabRaw << B3_FIXED_FRACTION_BITS ) / ( cabRaw - dabRaw ) );
+			b3Fixed t = (b3Fixed)( b3Int128ShiftLeft( cabRaw, B3_FIXED_FRACTION_BITS ) / ( cabRaw - dabRaw ) );
 			b3Vec3 axis = b3Lerp( hullNormal1, hullNormal2, t );
 			B3_VALIDATE( b3LengthSquared( axis ) > 0 );
 			axis = b3Normalize( axis );
@@ -713,7 +713,7 @@ static b3Fixed b3CollideHullFace( b3LocalManifold* manifold, int pointCapacity, 
 		if ( pointCount < 3 )
 		{
 			// Using a stale cache
-			*cache = (b3SATCache){ b3FixFromInt( 0 ) };
+			*cache = (b3SATCache){ 0 };
 			return query.separation;
 		}
 
@@ -753,7 +753,7 @@ static b3Fixed b3CollideHullFace( b3LocalManifold* manifold, int pointCapacity, 
 	{
 		// This can occur with a stale SAT cache
 		manifold->pointCount = 0;
-		*cache = (b3SATCache){ b3FixFromInt( 0 ) };
+		*cache = (b3SATCache){ 0 };
 		return minSeparation;
 	}
 
@@ -834,7 +834,7 @@ static b3Fixed b3CollideTriangleFace( b3LocalManifold* manifold, int pointCapaci
 		// Triangle face clipped away. Invalidate cache.
 		// Callers must check manifold->pointCount before doing arithmetic on this
 		// sentinel: B3_FIXED_MAX +/- anything wraps (float's FLT_MAX stayed inf).
-		*cache = (b3SATCache){ b3FixFromInt( 0 ) };
+		*cache = (b3SATCache){ 0 };
 		return B3_FIXED_MAX;
 	}
 
@@ -869,7 +869,7 @@ static b3Fixed b3CollideTriangleFace( b3LocalManifold* manifold, int pointCapaci
 	if ( minSeparation >= speculativeDistance )
 	{
 		// This can happens if the objects move a part while re-using a cached axis
-		*cache = (b3SATCache){ b3FixFromInt( 0 ) };
+		*cache = (b3SATCache){ 0 };
 		return minSeparation;
 	}
 
@@ -911,7 +911,7 @@ static void b3CollideHullAndTriangleEdges( b3LocalManifold* manifold, int capaci
 	{
 		// Invalid edge pair, no points generated
 		B3_ASSERT( manifold->pointCount == 0 );
-		*cache = (b3SATCache){ b3FixFromInt( 0 ) };
+		*cache = (b3SATCache){ 0 };
 		return;
 	}
 
@@ -1032,7 +1032,7 @@ void b3CollideHullAndTriangle( b3LocalManifold* manifold, int capacity, const b3
 
 			// Invalidate cache and fall through
 			manifold->pointCount = 0;
-			*cache = (b3SATCache){ b3FixFromInt( 0 ) };
+			*cache = (b3SATCache){ 0 };
 		}
 		break;
 
@@ -1093,7 +1093,7 @@ void b3CollideHullAndTriangle( b3LocalManifold* manifold, int capacity, const b3
 
 			// Invalidate cache and fall through
 			manifold->pointCount = 0;
-			*cache = (b3SATCache){ b3FixFromInt( 0 ) };
+			*cache = (b3SATCache){ 0 };
 		}
 		break;
 
@@ -1139,7 +1139,7 @@ void b3CollideHullAndTriangle( b3LocalManifold* manifold, int capacity, const b3
 					// dot(hullNormal1 + t * (hullNormal2 - hullNormal1), triEdge) = 0
 					// Normal points out of hull by construction.
 					// Computed from the raw dots so the quotient keeps full precision (divide last).
-					b3Fixed t = (b3Fixed)( ( cabRaw << B3_FIXED_FRACTION_BITS ) / ( cabRaw - dabRaw ) );
+					b3Fixed t = (b3Fixed)( b3Int128ShiftLeft( cabRaw, B3_FIXED_FRACTION_BITS ) / ( cabRaw - dabRaw ) );
 					b3Vec3 axis = b3Lerp( hullNormal1, hullNormal2, t );
 					B3_VALIDATE( b3LengthSquared( axis ) > 0 );
 					axis = b3Normalize( axis );
@@ -1174,7 +1174,7 @@ void b3CollideHullAndTriangle( b3LocalManifold* manifold, int capacity, const b3
 			}
 
 			// Invalidate cache and fall through
-			*cache = (b3SATCache){ b3FixFromInt( 0 ) };
+			*cache = (b3SATCache){ 0 };
 		}
 		break;
 
@@ -1299,7 +1299,7 @@ void b3CollideHullAndTriangle( b3LocalManifold* manifold, int capacity, const b3
 		input.transform = b3Transform_identity;
 		input.useRadii = false;
 
-		b3SimplexCache simplexCache = { b3FixFromInt( 0 ) };
+		b3SimplexCache simplexCache = { 0 };
 		b3DistanceOutput output = b3ShapeDistance( &input, &simplexCache, NULL, 0 );
 
 		if ( output.distance > B3_FIX( 0.0f ) )

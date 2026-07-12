@@ -89,7 +89,7 @@ bool b3OverlapCapsule( const b3Capsule* shape, b3Transform shapeTransform, const
 	input.transform = b3InvMulTransforms( shapeTransform, b3Transform_identity );
 	input.useRadii = true;
 
-	b3SimplexCache cache = { b3FixFromInt( 0 ) };
+	b3SimplexCache cache = { 0 };
 	b3DistanceOutput output = b3ShapeDistance( &input, &cache, NULL, 0 );
 	return output.distance < B3_OVERLAP_SLOP;
 }
@@ -105,7 +105,7 @@ b3CastOutput b3RayCastCapsule( const b3Capsule* shape, const b3RayCastInput* inp
 	b3Fixed r = shape->radius;
 
 	// Initialize result structure
-	b3CastOutput output = { b3FixFromInt( 0 ) };
+	b3CastOutput output = { 0 };
 
 	b3Vec3 d = b3Sub( c2, c1 );
 
@@ -285,7 +285,7 @@ b3CastOutput b3RayCastCapsule( const b3Capsule* shape, const b3RayCastInput* inp
 		// Q32.32 raw products at 128 bits
 		b3Int128 perp2 = (b3Int128)w.x * w.x + (b3Int128)w.y * w.y + (b3Int128)w.z * w.z;
 		b3Int128 beta = (b3Int128)sc.x * w.x + (b3Int128)sc.y * w.y + (b3Int128)sc.z * w.z;
-		b3Int128 gamma = ( (b3Int128)( sc2 - b3FixMul( r, r ) ) ) << 16; // Q32.32
+		b3Int128 gamma = b3Int128ShiftLeft( sc2 - b3FixMul( r, r ), 16 ); // Q32.32
 
 		// Casting away from the axis, or no perpendicular motion at all. The ray
 		// origin is outside the infinite cylinder here, so there is no hit.
@@ -317,7 +317,7 @@ b3CastOutput b3RayCastCapsule( const b3Capsule* shape, const b3RayCastInput* inp
 			return output;
 		}
 
-		int64_t sqrtDisc = (int64_t)b3ISqrt128High( (uint64_t)( (unsigned __int128)disc >> 64 ), (uint64_t)disc );
+		int64_t sqrtDisc = (int64_t)b3ISqrt128High( (uint64_t)( (b3UInt128)disc >> 64 ), (uint64_t)disc );
 
 		// Quadratic near root as a fraction of the translation. Expressed in an
 		// alternate form to avoid the (-beta - sqrt) cancellation for near-parallel rays.
@@ -327,7 +327,7 @@ b3CastOutput b3RayCastCapsule( const b3Capsule* shape, const b3RayCastInput* inp
 			return output;
 		}
 
-		b3Int128 tFraction = ( gamma << 32 ) / denom; // Q32.32 fraction of dr, shift-independent
+		b3Int128 tFraction = b3Int128ShiftLeft( gamma, 32 ) / denom; // Q32.32 fraction of dr, shift-independent
 
 		// Convert to length units along the normalized ray for the shared code below
 		tr = (b3Fixed)( ( tFraction * rayLength ) >> 32 );

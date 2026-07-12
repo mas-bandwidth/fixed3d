@@ -677,7 +677,7 @@ static int CompoundMover( void )
 	// Small capsule mover sitting on top of the boxes, low enough to penetrate both.
 	b3Capsule mover = { { -B3_FIX( 1.0f ), B3_FIX( 0.6f ), b3FixFromInt( 0 ) }, { B3_FIX( 1.0f ), B3_FIX( 0.6f ), b3FixFromInt( 0 ) }, B3_FIX( 0.2f ) };
 
-	b3PlaneResult planes[8] = { b3FixFromInt( 0 ) };
+	b3PlaneResult planes[8] = { 0 };
 	int planeCount = b3CollideMoverAndCompound( planes, 8, c, &mover );
 
 	// Both boxes contribute at least one plane each; the +Y face of each box
@@ -695,7 +695,7 @@ static int CompoundMover( void )
 	ENSURE( upPlanes >= 2 );
 
 	// Capacity cap is honored: ask for 1 and the call must not exceed it.
-	b3PlaneResult one[1] = { b3FixFromInt( 0 ) };
+	b3PlaneResult one[1] = { 0 };
 	int capped = b3CollideMoverAndCompound( one, 1, c, &mover );
 	ENSURE( capped <= 1 );
 

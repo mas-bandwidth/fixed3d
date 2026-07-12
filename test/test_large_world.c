@@ -48,7 +48,7 @@ static StackResult RunStack( b3Fixed baseX )
 		b3CreateHullShape( bodies[i], &shapeDef, &box.base );
 	}
 
-	StackResult result = { b3FixFromInt( 0 ) };
+	StackResult result = { 0 };
 	result.sleepStep = -1;
 
 	for ( int step = 0; step < MAX_STEPS; ++step )

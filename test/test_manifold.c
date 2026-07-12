@@ -73,9 +73,9 @@ static int CrossedEdgeTest( void )
 		b3Fixed expected = d - kRoot2;
 
 		b3LocalManifoldPoint points[8];
-		b3LocalManifold manifold = { b3FixFromInt( 0 ) };
+		b3LocalManifold manifold = { 0 };
 		manifold.points = points;
-		b3SATCache cache = { b3FixFromInt( 0 ) };
+		b3SATCache cache = { 0 };
 		b3CollideHulls( &manifold, 8, &hullA.base, &hullB.base, SlideX( d ), &cache );
 
 		ENSURE( manifold.pointCount == 1 );
@@ -89,7 +89,7 @@ static int CrossedEdgeTest( void )
 		ENSURE_SMALL( manifold.points[0].point.z, 8 * B3_FIXED_EPSILON );
 
 		// The forced edge query must agree with what the full solver chose
-		b3LocalManifold manual = { b3FixFromInt( 0 ) };
+		b3LocalManifold manual = { 0 };
 		manual.points = points;
 		b3SATCache manualCache = { .type = b3_manualEdgePairAxis };
 		b3CollideHulls( &manual, 8, &hullA.base, &hullB.base, SlideX( d ), &manualCache );
@@ -102,9 +102,9 @@ static int CrossedEdgeTest( void )
 	// The axis carries its own orientation now, so a sign error here would read as deep overlap.
 	{
 		b3LocalManifoldPoint points[8];
-		b3LocalManifold manifold = { b3FixFromInt( 0 ) };
+		b3LocalManifold manifold = { 0 };
 		manifold.points = points;
-		b3SATCache cache = { b3FixFromInt( 0 ) };
+		b3SATCache cache = { 0 };
 		b3CollideHulls( &manifold, 8, &hullA.base, &hullB.base, SlideX( B3_FIX( 1.5f ) ), &cache );
 
 		ENSURE( manifold.pointCount == 0 );
@@ -131,9 +131,9 @@ static int EdgeAxisScaleTest( void )
 		b3Fixed d = b3FixMul( s , kRoot2 ) + expected;
 
 		b3LocalManifoldPoint points[8];
-		b3LocalManifold manifold = { b3FixFromInt( 0 ) };
+		b3LocalManifold manifold = { 0 };
 		manifold.points = points;
-		b3SATCache cache = { b3FixFromInt( 0 ) };
+		b3SATCache cache = { 0 };
 		b3CollideHulls( &manifold, 8, &hullA.base, &hullB.base, SlideX( d ), &cache );
 
 		// Differencing coordinates of magnitude d costs precision proportional to the scale
@@ -159,9 +159,9 @@ static int EdgeCacheTest( void )
 	MakeCrossedEdgeHulls( &hullA, &hullB, B3_FIX( 0.5f ) );
 
 	b3LocalManifoldPoint points[8];
-	b3LocalManifold manifold = { b3FixFromInt( 0 ) };
+	b3LocalManifold manifold = { 0 };
 	manifold.points = points;
-	b3SATCache cache = { b3FixFromInt( 0 ) };
+	b3SATCache cache = { 0 };
 
 	b3CollideHulls( &manifold, 8, &hullA.base, &hullB.base, SlideX( B3_FIX( 1.41f ) ), &cache );
 	ENSURE( manifold.pointCount == 1 );
@@ -201,7 +201,7 @@ static int EdgeEndpointTest( void )
 	{
 		b3Transform transform = { { d, B3_FIX( 0.49f ), B3_FIX( 0.0f ) }, b3Quat_identity };
 		b3LocalManifoldPoint points[8];
-		b3LocalManifold manifold = { b3FixFromInt( 0 ) };
+		b3LocalManifold manifold = { 0 };
 		manifold.points = points;
 		b3SATCache cache = { .type = b3_manualEdgePairAxis };
 		b3CollideHulls( &manifold, 8, &hullA.base, &hullB.base, transform, &cache );
@@ -216,7 +216,7 @@ static int EdgeEndpointTest( void )
 	{
 		b3Transform transform = { { d, B3_FIX( 0.55f ), B3_FIX( 0.0f ) }, b3Quat_identity };
 		b3LocalManifoldPoint points[8];
-		b3LocalManifold manifold = { b3FixFromInt( 0 ) };
+		b3LocalManifold manifold = { 0 };
 		manifold.points = points;
 		b3SATCache cache = { .type = b3_manualEdgePairAxis };
 		b3CollideHulls( &manifold, 8, &hullA.base, &hullB.base, transform, &cache );
@@ -225,7 +225,7 @@ static int EdgeEndpointTest( void )
 		ENSURE( cache.type == b3_invalidAxis );
 
 		// The true gap is a vertex to edge distance well past the speculative distance
-		b3SATCache freshCache = { b3FixFromInt( 0 ) };
+		b3SATCache freshCache = { 0 };
 		b3CollideHulls( &manifold, 8, &hullA.base, &hullB.base, transform, &freshCache );
 		ENSURE( manifold.pointCount == 0 );
 		ENSURE( freshCache.separation > B3_FIX( 0.0f ) );
@@ -265,9 +265,9 @@ static int ParallelEdgeTest( void )
 			b3Transform transform = { { B3_FIX( 0.0f ), B3_FIX( 1.0f ) - overlap, B3_FIX( 0.0f ) }, ExactQuat( kTiltAxes[i], angle ) };
 
 			b3LocalManifoldPoint points[8];
-			b3LocalManifold manifold = { b3FixFromInt( 0 ) };
+			b3LocalManifold manifold = { 0 };
 			manifold.points = points;
-			b3SATCache cache = { b3FixFromInt( 0 ) };
+			b3SATCache cache = { 0 };
 			b3CollideHulls( &manifold, 8, &hullA.base, &hullB.base, transform, &cache );
 
 			ENSURE( manifold.pointCount == 4 );
@@ -304,7 +304,7 @@ static int ParallelEdgeManualTest( void )
 			b3Transform transform = { { B3_FIX( 0.0f ), B3_FIX( 1.0f ) - overlap, B3_FIX( 0.0f ) }, ExactQuat( kTiltAxes[i], angle ) };
 
 			b3LocalManifoldPoint points[8];
-			b3LocalManifold manifold = { b3FixFromInt( 0 ) };
+			b3LocalManifold manifold = { 0 };
 			manifold.points = points;
 			b3SATCache cache = { .type = b3_manualEdgePairAxis };
 			b3CollideHulls( &manifold, 8, &hullA.base, &hullB.base, transform, &cache );
@@ -370,9 +370,9 @@ static int OverlapNeverEmptyTest( void )
 		b3Transform transform = { offset, ExactQuat( axis, angle ) };
 
 		b3LocalManifoldPoint points[8];
-		b3LocalManifold manifold = { b3FixFromInt( 0 ) };
+		b3LocalManifold manifold = { 0 };
 		manifold.points = points;
-		b3SATCache cache = { b3FixFromInt( 0 ) };
+		b3SATCache cache = { 0 };
 		b3CollideHulls( &manifold, 8, &hullA.base, &hullB.base, transform, &cache );
 
 		ENSURE( manifold.pointCount > 0 );
@@ -417,7 +417,7 @@ static int TriangleEdgeTest( void )
 		b3Vec3 v3 = b3MulAdd( v1, B3_FIX( 1.5f ), b3Cross( triNormal, triEdge ) );
 
 		b3LocalManifoldPoint points[8];
-		b3LocalManifold manifold = { b3FixFromInt( 0 ) };
+		b3LocalManifold manifold = { 0 };
 		manifold.points = points;
 		b3SATCache cache = { .type = b3_manualEdgePairAxis };
 		b3CollideHullAndTriangle( &manifold, 8, &hull.base, v1, v2, v3, 0, &cache, true );
@@ -450,9 +450,9 @@ static int TriangleEdgeTest( void )
 		b3Vec3 v3 = b3MulAdd( v1, B3_FIX( 1.5f ), b3Cross( triNormal, triEdge ) );
 
 		b3LocalManifoldPoint points[8];
-		b3LocalManifold manifold = { b3FixFromInt( 0 ) };
+		b3LocalManifold manifold = { 0 };
 		manifold.points = points;
-		b3SATCache cache = { b3FixFromInt( 0 ) };
+		b3SATCache cache = { 0 };
 		b3CollideHullAndTriangle( &manifold, 8, &hull.base, v1, v2, v3, 0, &cache, true );
 
 		ENSURE( manifold.pointCount == 0 );
@@ -483,9 +483,9 @@ static int TriangleParallelEdgeTest( void )
 			b3Vec3 v3 = b3RotateVector( q, ( b3Vec3 ){ B3_FIX( 2.0f ), y, -B3_FIX( 1.0f ) } );
 
 			b3LocalManifoldPoint points[8];
-			b3LocalManifold manifold = { b3FixFromInt( 0 ) };
+			b3LocalManifold manifold = { 0 };
 			manifold.points = points;
-			b3SATCache cache = { b3FixFromInt( 0 ) };
+			b3SATCache cache = { 0 };
 			b3CollideHullAndTriangle( &manifold, 8, &hull.base, v1, v2, v3, 0, &cache, true );
 
 			ENSURE( manifold.pointCount == 4 );
@@ -522,9 +522,9 @@ static int RidgeCrossingTest( void )
 		b3Transform transform = { { B3_FIX( 0.0f ), lift, B3_FIX( 0.0f ) }, ExactQuat( kAxisY, crossingAngles[i] ) };
 
 		b3LocalManifoldPoint points[8];
-		b3LocalManifold manifold = { b3FixFromInt( 0 ) };
+		b3LocalManifold manifold = { 0 };
 		manifold.points = points;
-		b3SATCache cache = { b3FixFromInt( 0 ) };
+		b3SATCache cache = { 0 };
 		b3CollideHulls( &manifold, 8, &hullA.base, &hullB.base, transform, &cache );
 
 		ENSURE( manifold.pointCount == 1 );
@@ -551,9 +551,9 @@ static int RidgeCrossingTest( void )
 		b3Transform transform = { { B3_FIX( 0.0f ), lift, B3_FIX( 0.0f ) }, ExactQuat( kAxisY, shallowAngles[i] ) };
 
 		b3LocalManifoldPoint points[8];
-		b3LocalManifold manifold = { b3FixFromInt( 0 ) };
+		b3LocalManifold manifold = { 0 };
 		manifold.points = points;
-		b3SATCache cache = { b3FixFromInt( 0 ) };
+		b3SATCache cache = { 0 };
 		b3CollideHulls( &manifold, 8, &hullA.base, &hullB.base, transform, &cache );
 
 		ENSURE( manifold.pointCount == 4 );
@@ -645,9 +645,9 @@ static int EdgeAxisOracleTest( void )
 				b3Transform transform = { { distances[k], B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, ExactQuat( kAxisY, yaws[j] ) };
 
 				b3LocalManifoldPoint points[8];
-				b3LocalManifold manifold = { b3FixFromInt( 0 ) };
+				b3LocalManifold manifold = { 0 };
 				manifold.points = points;
-				b3SATCache cache = { b3FixFromInt( 0 ) };
+				b3SATCache cache = { 0 };
 				b3CollideHulls( &manifold, 8, &hullA.base, &hullB.base, transform, &cache );
 
 				if ( cache.type != b3_edgePairAxis || manifold.pointCount != 1 )
@@ -699,9 +699,9 @@ static int EdgeAxisRandomOracleTest( void )
 		b3Transform transform = { b3MulSV( d, NextDirection() ), ExactQuat( NextDirection(), angleB ) };
 
 		b3LocalManifoldPoint points[8];
-		b3LocalManifold manifold = { b3FixFromInt( 0 ) };
+		b3LocalManifold manifold = { 0 };
 		manifold.points = points;
-		b3SATCache cache = { b3FixFromInt( 0 ) };
+		b3SATCache cache = { 0 };
 		b3CollideHulls( &manifold, 8, &hullA.base, &hullB.base, transform, &cache );
 
 		if ( cache.type != b3_edgePairAxis || manifold.pointCount != 1 )
@@ -770,9 +770,9 @@ static int HullCapsuleEdgeDeepTest( void )
 				b3Capsule capsule = { c1, c2, radii[j] };
 
 				b3LocalManifoldPoint points[8];
-				b3LocalManifold manifold = { b3FixFromInt( 0 ) };
+				b3LocalManifold manifold = { 0 };
 				manifold.points = points;
-				b3SimplexCache cache = { b3FixFromInt( 0 ) };
+				b3SimplexCache cache = { 0 };
 				b3CollideHullAndCapsule( &manifold, 8, &hull.base, &capsule, b3Transform_identity, &cache );
 
 				ENSURE( manifold.pointCount == 1 );
@@ -838,7 +838,7 @@ static int TriangleHullEdgeSweepTest( void )
 				b3Vec3 triangleCenter = b3MulSV( b3FixDiv( B3_FIX( 1.0f ) , B3_FIX( 3.0f ) ), b3Add( v1, b3Add( v2, v3 ) ) );
 
 				b3LocalManifoldPoint points[8];
-				b3LocalManifold manifold = { b3FixFromInt( 0 ) };
+				b3LocalManifold manifold = { 0 };
 				manifold.points = points;
 				b3SATCache cache = { .type = b3_manualEdgePairAxis };
 				b3CollideHullAndTriangle( &manifold, 8, &hull.base, v1, v2, v3, 0, &cache, true );
@@ -909,9 +909,9 @@ static int CapsuleTriangleEdgeDeepTest( void )
 					b3Capsule capsule = { c1, c2, radii[r] };
 
 					b3LocalManifoldPoint points[8];
-					b3LocalManifold manifold = { b3FixFromInt( 0 ) };
+					b3LocalManifold manifold = { 0 };
 					manifold.points = points;
-					b3SimplexCache cache = { b3FixFromInt( 0 ) };
+					b3SimplexCache cache = { 0 };
 					b3CollideCapsuleAndTriangle( &manifold, 8, &capsule, triangle, &cache );
 
 					// Only the edge contacts exercise the new axis. Face contacts are handled elsewhere.
@@ -970,9 +970,9 @@ static int SphereHullSeamTest( void )
 		b3Sphere sphere = { { B3_FIX( 0.0f ), y, B3_FIX( 0.0f ) }, radius };
 
 		b3LocalManifoldPoint points[8];
-		b3LocalManifold manifold = { b3FixFromInt( 0 ) };
+		b3LocalManifold manifold = { 0 };
 		manifold.points = points;
-		b3SimplexCache cache = { b3FixFromInt( 0 ) };
+		b3SimplexCache cache = { 0 };
 		b3CollideHullAndSphere( &manifold, 8, &hull.base, &sphere, b3Transform_identity, &cache );
 
 		ENSURE( manifold.pointCount == 1 );
@@ -1035,9 +1035,9 @@ static int CapsuleHullSeamTest( void )
 		b3Capsule capsule = { { -halfLength, y, B3_FIX( 0.0f ) }, { halfLength, y, B3_FIX( 0.0f ) }, radius };
 
 		b3LocalManifoldPoint points[8];
-		b3LocalManifold manifold = { b3FixFromInt( 0 ) };
+		b3LocalManifold manifold = { 0 };
 		manifold.points = points;
-		b3SimplexCache cache = { b3FixFromInt( 0 ) };
+		b3SimplexCache cache = { 0 };
 		b3CollideHullAndCapsule( &manifold, 8, &hull.base, &capsule, b3Transform_identity, &cache );
 
 		ENSURE( manifold.pointCount >= 1 );

@@ -241,7 +241,7 @@ B3_INLINE b3Fixed b3Dot( b3Vec3 a, b3Vec3 b )
 B3_INLINE b3Fixed b3Length( b3Vec3 v )
 {
 	b3Int128 ls = (b3Int128)v.x * v.x + (b3Int128)v.y * v.y + (b3Int128)v.z * v.z; // Q32.32 in 128 bits
-	return (b3Fixed)b3ISqrt128High( (uint64_t)( (unsigned __int128)ls >> 64 ), (uint64_t)ls );
+	return (b3Fixed)b3ISqrt128High( (uint64_t)( (b3UInt128)ls >> 64 ), (uint64_t)ls );
 }
 
 /// Vector length squared. One rounding on the exact 128-bit sum of squares.
@@ -272,7 +272,7 @@ B3_INLINE b3Vec3 b3Normalize( b3Vec3 a )
 	b3Int128 ls = (b3Int128)a.x * a.x + (b3Int128)a.y * a.y + (b3Int128)a.z * a.z; // Q32.32 in 128 bits
 	if ( ls > 0 )
 	{
-		b3Fixed length = (b3Fixed)b3ISqrt128High( (uint64_t)( (unsigned __int128)ls >> 64 ), (uint64_t)ls );
+		b3Fixed length = (b3Fixed)b3ISqrt128High( (uint64_t)( (b3UInt128)ls >> 64 ), (uint64_t)ls );
 		// b3FixDiv computes the same truncating 128-bit quotient, with a single
 		// hardware divide when the component fits in 47 bits (the common case)
 		b3Vec3 u = {
@@ -542,7 +542,7 @@ B3_INLINE b3Quat b3NormalizeQuat( b3Quat q )
 	b3Int128 ls = (b3Int128)q.v.x * q.v.x + (b3Int128)q.v.y * q.v.y + (b3Int128)q.v.z * q.v.z + (b3Int128)q.s * q.s;
 	if ( ls > 0 )
 	{
-		b3Fixed length = (b3Fixed)b3ISqrt128High( (uint64_t)( (unsigned __int128)ls >> 64 ), (uint64_t)ls );
+		b3Fixed length = (b3Fixed)b3ISqrt128High( (uint64_t)( (b3UInt128)ls >> 64 ), (uint64_t)ls );
 		// b3FixDiv computes the same truncating quotient, with a single hardware
 		// divide for the near-unit components this always sees
 		b3Quat qn = {
@@ -915,12 +915,12 @@ B3_INLINE b3Matrix3 b3InvertMatrix( b3Matrix3 m )
 		{
 			// inverse_ij = cofactor_ji / det: (Q32.32 << 32) / Q16.48 -> Q48.16
 			b3Matrix3 out;
-			out.cx = B3_LITERAL( b3Vec3 ){ (b3Fixed)( ( c00 << 32 ) / det ), (b3Fixed)( ( c10 << 32 ) / det ),
-										   (b3Fixed)( ( c20 << 32 ) / det ) };
-			out.cy = B3_LITERAL( b3Vec3 ){ (b3Fixed)( ( c01 << 32 ) / det ), (b3Fixed)( ( c11 << 32 ) / det ),
-										   (b3Fixed)( ( c21 << 32 ) / det ) };
-			out.cz = B3_LITERAL( b3Vec3 ){ (b3Fixed)( ( c02 << 32 ) / det ), (b3Fixed)( ( c12 << 32 ) / det ),
-										   (b3Fixed)( ( c22 << 32 ) / det ) };
+			out.cx = B3_LITERAL( b3Vec3 ){ (b3Fixed)( b3Int128ShiftLeft( c00, 32 ) / det ), (b3Fixed)( b3Int128ShiftLeft( c10, 32 ) / det ),
+										   (b3Fixed)( b3Int128ShiftLeft( c20, 32 ) / det ) };
+			out.cy = B3_LITERAL( b3Vec3 ){ (b3Fixed)( b3Int128ShiftLeft( c01, 32 ) / det ), (b3Fixed)( b3Int128ShiftLeft( c11, 32 ) / det ),
+										   (b3Fixed)( b3Int128ShiftLeft( c21, 32 ) / det ) };
+			out.cz = B3_LITERAL( b3Vec3 ){ (b3Fixed)( b3Int128ShiftLeft( c02, 32 ) / det ), (b3Fixed)( b3Int128ShiftLeft( c12, 32 ) / det ),
+										   (b3Fixed)( b3Int128ShiftLeft( c22, 32 ) / det ) };
 			return out;
 		}
 		return b3Mat3_zero;
@@ -974,9 +974,9 @@ B3_INLINE b3Vec3 b3Solve3( b3Matrix3 m, b3Vec3 a )
 			b3Int128 nz = (b3Int128)(int64_t)c20 * a.x + (b3Int128)(int64_t)c21 * a.y + (b3Int128)(int64_t)c22 * a.z;
 
 			b3Vec3 b = {
-				(b3Fixed)( ( nx << 16 ) / det ),
-				(b3Fixed)( ( ny << 16 ) / det ),
-				(b3Fixed)( ( nz << 16 ) / det ),
+				(b3Fixed)( b3Int128ShiftLeft( nx, 16 ) / det ),
+				(b3Fixed)( b3Int128ShiftLeft( ny, 16 ) / det ),
+				(b3Fixed)( b3Int128ShiftLeft( nz, 16 ) / det ),
 			};
 			return b;
 		}

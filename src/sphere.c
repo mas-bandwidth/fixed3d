@@ -52,7 +52,7 @@ bool b3OverlapSphere( const b3Sphere* shape, b3Transform shapeTransform, const b
 	input.transform = b3InvMulTransforms( shapeTransform, b3Transform_identity );
 	input.useRadii = true;
 
-	b3SimplexCache cache = { b3FixFromInt( 0 ) };
+	b3SimplexCache cache = { 0 };
 	b3DistanceOutput output = b3ShapeDistance( &input, &cache, NULL, 0 );
 	return output.distance < B3_OVERLAP_SLOP;
 }
@@ -62,7 +62,7 @@ bool b3OverlapSphere( const b3Sphere* shape, b3Transform shapeTransform, const b
 b3CastOutput b3RayCastSphere(const b3Sphere* shape, const b3RayCastInput* input )
 {
 	B3_ASSERT( b3IsValidRay( input ) );
-	b3CastOutput output = { b3FixFromInt( 0 ) };
+	b3CastOutput output = { 0 };
 
 	b3Vec3 p = shape->center;
 
@@ -70,7 +70,6 @@ b3CastOutput b3RayCastSphere(const b3Sphere* shape, const b3RayCastInput* input 
 	b3Vec3 s = b3Sub( input->origin, p );
 
 	b3Fixed r = shape->radius;
-	b3Fixed rr = b3FixMul( r , r );
 
 	// Quadratic on the raw (unnormalized) translation at 128 bits. Normalizing the
 	// ray first quantizes away sub-resolution direction components, which loses
@@ -111,7 +110,7 @@ b3CastOutput b3RayCastSphere(const b3Sphere* shape, const b3RayCastInput* input 
 		return output;
 	}
 
-	int64_t sqrtDisc = (int64_t)b3ISqrt128High( (uint64_t)( (unsigned __int128)disc >> 64 ), (uint64_t)disc );
+	int64_t sqrtDisc = (int64_t)b3ISqrt128High( (uint64_t)( (b3UInt128)disc >> 64 ), (uint64_t)disc );
 
 	// Near root in the cancellation-safe form: t = c / (-b + sqrt(disc))
 	b3Int128 denom = -qb + sqrtDisc;
@@ -120,9 +119,9 @@ b3CastOutput b3RayCastSphere(const b3Sphere* shape, const b3RayCastInput* input 
 		return output;
 	}
 
-	b3Int128 tq32 = ( qc << 32 ) / denom; // Q32.32 fraction of the translation
+	b3Int128 tq32 = b3Int128ShiftLeft( qc, 32 ) / denom; // Q32.32 fraction of the translation
 
-	if ( tq32 > ( (b3Int128)input->maxFraction << 16 ) )
+	if ( tq32 > b3Int128ShiftLeft( input->maxFraction, 16 ) )
 	{
 		// intersection is outside the range of the ray segment (origin is outside)
 		return output;
@@ -148,7 +147,7 @@ b3CastOutput b3RayCastHollowSphere( const b3Sphere* sphere, const b3RayCastInput
 {
 	b3Vec3 p = sphere->center;
 
-	b3CastOutput output = { b3FixFromInt( 0 ) };
+	b3CastOutput output = { 0 };
 
 	// Shift ray so sphere center is the origin
 	b3Vec3 s = b3Sub( input->origin, p );

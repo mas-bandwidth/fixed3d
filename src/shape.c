@@ -725,13 +725,13 @@ b3MassData b3ComputeShapeMass( const b3Shape* shape )
 			return b3ComputeSphereMass( &shape->sphere, shape->density );
 
 		default:
-			return (b3MassData){ b3FixFromInt( 0 ) };
+			return (b3MassData){ 0 };
 	}
 }
 
 b3ShapeExtent b3ComputeShapeExtent( const b3Shape* shape, b3Vec3 localCenter )
 {
-	b3ShapeExtent extent = { b3FixFromInt( 0 ) };
+	b3ShapeExtent extent = { 0 };
 
 	switch ( shape->type )
 	{
@@ -797,7 +797,7 @@ b3CastOutput b3RayCastShape( const b3Shape* shape, b3Transform transform, const 
 	localInput.origin = b3InvTransformPoint( transform, input->origin );
 	localInput.translation = b3InvRotateVector( transform.q, input->translation );
 
-	b3CastOutput output = { b3FixFromInt( 0 ) };
+	b3CastOutput output = { 0 };
 	switch ( shape->type )
 	{
 		case b3_capsuleShape:
@@ -841,7 +841,7 @@ b3CastOutput b3ShapeCastShape( const b3Shape* shape, b3Transform transform, cons
 	localInput.proxy.points = localPoints;
 	localInput.translation = b3InvRotateVector( transform.q, input->translation );
 
-	b3CastOutput output = { b3FixFromInt( 0 ) };
+	b3CastOutput output = { 0 };
 	switch ( shape->type )
 	{
 		case b3_capsuleShape:
@@ -1779,7 +1779,7 @@ b3AABB b3Shape_GetAABB( b3ShapeId shapeId )
 	b3World* world = b3GetWorld( shapeId.world0 );
 	if ( world == NULL )
 	{
-		return (b3AABB){ b3FixFromInt( 0 ) };
+		return (b3AABB){ 0 };
 	}
 
 	b3Shape* shape = b3GetShape( world, shapeId );
@@ -1791,7 +1791,7 @@ b3MassData b3Shape_ComputeMassData( b3ShapeId shapeId )
 	b3World* world = b3GetWorld( shapeId.world0 );
 	if ( world == NULL )
 	{
-		return (b3MassData){ b3FixFromInt( 0 ) };
+		return (b3MassData){ 0 };
 	}
 
 	b3Shape* shape = b3GetShape( world, shapeId );
@@ -1817,7 +1817,7 @@ b3Vec3 b3Shape_GetClosestPoint( b3ShapeId shapeId, b3Vec3 target )
 	input.transform = b3InvMulTransforms( transform, b3Transform_identity );
 	input.useRadii = true;
 
-	b3SimplexCache cache = { b3FixFromInt( 0 ) };
+	b3SimplexCache cache = { 0 };
 	b3DistanceOutput output = b3ShapeDistance( &input, &cache, NULL, 0 );
 
 	// Witness point comes back in frame A, lift it back to the query frame
@@ -1884,8 +1884,8 @@ void b3Shape_ApplyWind( b3ShapeId shapeId, b3Vec3 wind, b3Fixed drag, b3Fixed li
 
 	b3Fixed airDensity = b3FixDiv( B3_FIX( 1.2250f ) , ( volumeUnits ) );
 
-	b3Vec3 force = { b3FixFromInt( 0 ) };
-	b3Vec3 torque = { b3FixFromInt( 0 ) };
+	b3Vec3 force = { 0 };
+	b3Vec3 torque = { 0 };
 
 	switch ( shape->type )
 	{

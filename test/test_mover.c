@@ -10,7 +10,7 @@
 
 static int ParallelPlanes( void )
 {
-	b3CollisionPlane planes[3] = { b3FixFromInt( 0 ) };
+	b3CollisionPlane planes[3] = { 0 };
 	planes[0].plane.normal = (b3Vec3){ B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 1.0f ) };
 	planes[0].plane.offset = B3_FIX( 0.5f );
 	planes[0].pushLimit = B3_FIXED_MAX;
@@ -33,7 +33,7 @@ static int ParallelPlanes( void )
 static int GamePlanes( void )
 {
 	// This scenario takes many iterations because the target is deep into the plane.
-	b3CollisionPlane planes[3] = { b3FixFromInt( 0 ) };
+	b3CollisionPlane planes[3] = { 0 };
 	planes[0].plane.normal = (b3Vec3){ B3_FIX( 0.0f ), -B3_FIX( 0.23941046f ), B3_FIX( 0.970918416f ) };
 	planes[0].plane.offset = B3_FIX( 0.390724182f );
 	planes[0].pushLimit = B3_FIXED_MAX;
@@ -68,7 +68,7 @@ static int MoverSphereSeparated( void )
 	b3Sphere shape = { { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, B3_FIX( 0.5f ) };
 	b3Capsule mover = { { B3_FIX( 4.0f ), B3_FIX( 3.0f ), B3_FIX( 0.0f ) }, { B3_FIX( 6.0f ), B3_FIX( 3.0f ), B3_FIX( 0.0f ) }, B3_FIX( 0.2f ) };
 
-	b3PlaneResult result = { b3FixFromInt( 0 ) };
+	b3PlaneResult result = { 0 };
 	int count = b3CollideMoverAndSphere( &result, &shape, &mover );
 	ENSURE( count == 0 );
 
@@ -83,7 +83,7 @@ static int MoverSphereTouching( void )
 	// 0.7 combined radius.
 	b3Capsule mover = { { -B3_FIX( 1.0f ), B3_FIX( 0.6f ), B3_FIX( 0.0f ) }, { B3_FIX( 1.0f ), B3_FIX( 0.6f ), B3_FIX( 0.0f ) }, B3_FIX( 0.2f ) };
 
-	b3PlaneResult result = { b3FixFromInt( 0 ) };
+	b3PlaneResult result = { 0 };
 	int count = b3CollideMoverAndSphere( &result, &shape, &mover );
 	ENSURE( count == 1 );
 	ENSURE( b3IsNormalized( result.plane.normal ) );
@@ -103,7 +103,7 @@ static int MoverSphereDeepOverlap( void )
 	// GJK reports a zero normal.
 	b3Capsule mover = { { -B3_FIX( 1.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, { B3_FIX( 1.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, B3_FIX( 0.2f ) };
 
-	b3PlaneResult result = { b3FixFromInt( 0 ) };
+	b3PlaneResult result = { 0 };
 	int count = b3CollideMoverAndSphere( &result, &shape, &mover );
 	ENSURE( count == 1 );
 
@@ -124,7 +124,7 @@ static int MoverCapsuleSeparated( void )
 	b3Capsule shape = { { -B3_FIX( 1.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, { B3_FIX( 1.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, B3_FIX( 0.3f ) };
 	b3Capsule mover = { { -B3_FIX( 1.0f ), B3_FIX( 5.0f ), B3_FIX( 0.0f ) }, { B3_FIX( 1.0f ), B3_FIX( 5.0f ), B3_FIX( 0.0f ) }, B3_FIX( 0.2f ) };
 
-	b3PlaneResult result = { b3FixFromInt( 0 ) };
+	b3PlaneResult result = { 0 };
 	int count = b3CollideMoverAndCapsule( &result, &shape, &mover );
 	ENSURE( count == 0 );
 
@@ -138,7 +138,7 @@ static int MoverCapsuleTouching( void )
 	// Parallel mover 0.4 above, leaving it 0.1 inside the 0.5 combined radius.
 	b3Capsule mover = { { -B3_FIX( 1.0f ), B3_FIX( 0.4f ), B3_FIX( 0.0f ) }, { B3_FIX( 1.0f ), B3_FIX( 0.4f ), B3_FIX( 0.0f ) }, B3_FIX( 0.2f ) };
 
-	b3PlaneResult result = { b3FixFromInt( 0 ) };
+	b3PlaneResult result = { 0 };
 	int count = b3CollideMoverAndCapsule( &result, &shape, &mover );
 	ENSURE( count == 1 );
 	ENSURE( b3IsNormalized( result.plane.normal ) );
@@ -155,7 +155,7 @@ static int MoverCapsuleDeepOverlap( void )
 	b3Capsule shape = { { -B3_FIX( 1.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, { B3_FIX( 1.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, B3_FIX( 0.3f ) };
 	b3Capsule mover = { { B3_FIX( 0.0f ), B3_FIX( 0.0f ), -B3_FIX( 1.0f ) }, { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 1.0f ) }, B3_FIX( 0.2f ) };
 
-	b3PlaneResult result = { b3FixFromInt( 0 ) };
+	b3PlaneResult result = { 0 };
 	int count = b3CollideMoverAndCapsule( &result, &shape, &mover );
 	ENSURE( count == 1 );
 	ENSURE( b3IsNormalized( result.plane.normal ) );
@@ -175,7 +175,7 @@ static int MoverCapsuleParallelOverlap( void )
 	b3Capsule shape = { { -B3_FIX( 1.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, { B3_FIX( 1.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, B3_FIX( 0.3f ) };
 	b3Capsule mover = { { -B3_FIX( 1.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, { B3_FIX( 1.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, B3_FIX( 0.2f ) };
 
-	b3PlaneResult result = { b3FixFromInt( 0 ) };
+	b3PlaneResult result = { 0 };
 	int count = b3CollideMoverAndCapsule( &result, &shape, &mover );
 	ENSURE( count == 1 );
 	ENSURE( b3IsNormalized( result.plane.normal ) );
@@ -192,7 +192,7 @@ static int MoverHullSeparated( void )
 	b3BoxHull box = b3MakeBoxHull( B3_FIX( 0.5f ), B3_FIX( 0.5f ), B3_FIX( 0.5f ) );
 	b3Capsule mover = { { -B3_FIX( 0.3f ), B3_FIX( 5.0f ), B3_FIX( 0.0f ) }, { B3_FIX( 0.3f ), B3_FIX( 5.0f ), B3_FIX( 0.0f ) }, B3_FIX( 0.2f ) };
 
-	b3PlaneResult result = { b3FixFromInt( 0 ) };
+	b3PlaneResult result = { 0 };
 	int count = b3CollideMoverAndHull( &result, &box.base, &mover );
 	ENSURE( count == 0 );
 
@@ -206,7 +206,7 @@ static int MoverHullTouching( void )
 	// Mover core segment above the +Y face; the 0.2 radius reaches 0.1 into it.
 	b3Capsule mover = { { -B3_FIX( 0.3f ), B3_FIX( 0.6f ), B3_FIX( 0.0f ) }, { B3_FIX( 0.3f ), B3_FIX( 0.6f ), B3_FIX( 0.0f ) }, B3_FIX( 0.2f ) };
 
-	b3PlaneResult result = { b3FixFromInt( 0 ) };
+	b3PlaneResult result = { 0 };
 	int count = b3CollideMoverAndHull( &result, &box.base, &mover );
 	ENSURE( count == 1 );
 	ENSURE( b3IsNormalized( result.plane.normal ) );
@@ -223,7 +223,7 @@ static int MoverHullDeepOverlap( void )
 	// Mover core segment lies entirely inside the box, so GJK reports overlap.
 	b3Capsule mover = { { -B3_FIX( 0.2f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, { B3_FIX( 0.2f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, B3_FIX( 0.1f ) };
 
-	b3PlaneResult result = { b3FixFromInt( 0 ) };
+	b3PlaneResult result = { 0 };
 	int count = b3CollideMoverAndHull( &result, &box.base, &mover );
 
 	// The overlap guard drops the plane rather than emit a zero normal.

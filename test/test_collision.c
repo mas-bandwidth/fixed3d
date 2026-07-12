@@ -204,12 +204,12 @@ static int LargeWorldManifoldTest( void )
 	b3Vec3 sep = { B3_FIX( 0.9f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
 
 	b3LocalManifoldPoint pointsOrigin[8];
-	b3LocalManifold mOrigin = { b3FixFromInt( 0 ) };
+	b3LocalManifold mOrigin = { 0 };
 	mOrigin.points = pointsOrigin;
 
 	b3WorldTransform xfAo = b3WorldTransform_identity;
 	b3WorldTransform xfBo = { b3OffsetPos( b3Pos_zero, sep ), b3Quat_identity };
-	b3SATCache cacheOrigin = { b3FixFromInt( 0 ) };
+	b3SATCache cacheOrigin = { 0 };
 	b3CollideHulls( &mOrigin, 8, &boxA.base, &boxB.base, b3InvMulWorldTransforms( xfAo, xfBo ), &cacheOrigin );
 
 	// Two cube faces overlap, so the clipped manifold has four points

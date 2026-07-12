@@ -1054,7 +1054,7 @@ void b3World_Step( b3WorldId worldId, b3Fixed timeStep, int subStepCount )
 	b3Array_Clear( world->contactHitEvents );
 	b3Array_Clear( world->jointEvents );
 
-	world->profile = (b3Profile){ b3FixFromInt( 0 ) };
+	world->profile = (b3Profile){ 0 };
 
 	world->activeTaskCount = 0;
 	world->taskCount = 0;
@@ -1091,7 +1091,7 @@ void b3World_Step( b3WorldId worldId, b3Fixed timeStep, int subStepCount )
 
 	b3SolverSet* awakeSet = b3Array_Get( world->solverSets, b3_awakeSet );
 
-	b3StepContext context = { b3FixFromInt( 0 ) };
+	b3StepContext context = { 0 };
 	context.world = world;
 	context.states = awakeSet->bodyStates.data;
 	context.dt = timeStep;
@@ -1175,7 +1175,7 @@ void b3World_Step( b3WorldId worldId, b3Fixed timeStep, int subStepCount )
 		b3RecWrite_StateHash( world->recording, &stateHash );
 
 		// Fold this step's world bounds into the recording so a viewer can frame the whole motion.
-		b3AABB worldBounds = { b3FixFromInt( 0 ) };
+		b3AABB worldBounds = { 0 };
 		bool haveBounds = false;
 		for ( int i = 0; i < b3_bodyTypeCount; ++i )
 		{
@@ -1703,10 +1703,10 @@ b3AABB b3World_GetBounds( b3WorldId worldId )
 	b3World* world = b3GetUnlockedWorldFromId( worldId );
 	if ( world == NULL )
 	{
-		return (b3AABB){ b3FixFromInt( 0 ) };
+		return (b3AABB){ 0 };
 	}
 
-	b3AABB worldBounds = { b3FixFromInt( 0 ) };
+	b3AABB worldBounds = { 0 };
 	bool haveBounds = false;
 
 	for ( int i = 0; i < b3_bodyTypeCount; ++i )
@@ -2147,7 +2147,7 @@ b3Profile b3World_GetProfile( b3WorldId worldId )
 	b3World* world = b3GetUnlockedWorldFromId( worldId );
 	if ( world == NULL )
 	{
-		return (b3Profile){ b3FixFromInt( 0 ) };
+		return (b3Profile){ 0 };
 	}
 	return world->profile;
 }
@@ -3358,7 +3358,7 @@ static bool ExplosionCallback( int proxyId, uint64_t userData, void* context )
 	input.transform = b3Transform_identity;
 	input.useRadii = true;
 
-	b3SimplexCache cache = { b3FixFromInt( 0 ) };
+	b3SimplexCache cache = { 0 };
 	b3DistanceOutput output = b3ShapeDistance( &input, &cache, NULL, 0 );
 
 	b3Fixed radius = explosionContext->radius;

@@ -13,8 +13,11 @@
 
 bool b3IsValidFixed( b3Fixed a )
 {
-	// Fixed point has no NaN. Saturated values play the role of infinity.
-	return B3_FIXED_MIN < a && a < B3_FIXED_MAX;
+	// Fixed point has no NaN, and the saturation values are legal quantities:
+	// B3_FIXED_MAX plays the role float's FLT_MAX did (joint thresholds and
+	// spring force limits default to it, mirroring isfinite( FLT_MAX ) == true).
+	// Only INT64_MIN is unrepresentable (reserved so negation cannot overflow).
+	return a != INT64_MIN;
 }
 
 bool b3IsValidVec3( b3Vec3 a )
@@ -144,7 +147,7 @@ static inline int64_t b3Q32Mul( int64_t a, int64_t b )
 
 static inline int64_t b3Q32Div( int64_t a, int64_t b )
 {
-	return (int64_t)( ( (b3Int128)a << 32 ) / b );
+	return (int64_t)( b3Int128ShiftLeft( a, 32 ) / b );
 }
 
 #else
@@ -241,7 +244,7 @@ b3CosSin b3ComputeCosSin( b3Fixed radians )
 	const int64_t fivePi2 = 211948140636LL; // 5*pi^2 in Q32.32
 
 	// The unwound angle is in [-pi, pi] to within an ulp; promote to Q32.32
-	int64_t x = (int64_t)b3UnwindAngle( radians ) << 16;
+	int64_t x = b3FixShiftLeft( b3UnwindAngle( radians ), 16 );
 	x = x < -pi ? -pi : ( x > pi ? pi : x );
 
 	// cosine needs angle in [-pi/2, pi/2]

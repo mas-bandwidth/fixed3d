@@ -1011,10 +1011,10 @@ static inline b3FloatW b3Dot3W( b3FloatW a, b3FloatW b, b3FloatW c, b3FloatW d, 
 static inline b3FloatW b3AddDot3W( b3FloatW acc, b3FloatW a, b3FloatW b, b3FloatW c, b3FloatW d, b3FloatW e, b3FloatW f )
 {
 	return (b3FloatW){
-		b3FixFromDotRaw( ( (b3Int128)acc.x << B3_FIXED_FRACTION_BITS ) + (b3Int128)a.x * b.x + (b3Int128)c.x * d.x + (b3Int128)e.x * f.x ),
-		b3FixFromDotRaw( ( (b3Int128)acc.y << B3_FIXED_FRACTION_BITS ) + (b3Int128)a.y * b.y + (b3Int128)c.y * d.y + (b3Int128)e.y * f.y ),
-		b3FixFromDotRaw( ( (b3Int128)acc.z << B3_FIXED_FRACTION_BITS ) + (b3Int128)a.z * b.z + (b3Int128)c.z * d.z + (b3Int128)e.z * f.z ),
-		b3FixFromDotRaw( ( (b3Int128)acc.w << B3_FIXED_FRACTION_BITS ) + (b3Int128)a.w * b.w + (b3Int128)c.w * d.w + (b3Int128)e.w * f.w ),
+		b3FixFromDotRaw( b3Int128ShiftLeft( (b3Int128)acc.x, B3_FIXED_FRACTION_BITS ) + (b3Int128)a.x * b.x + (b3Int128)c.x * d.x + (b3Int128)e.x * f.x ),
+		b3FixFromDotRaw( b3Int128ShiftLeft( (b3Int128)acc.y, B3_FIXED_FRACTION_BITS ) + (b3Int128)a.y * b.y + (b3Int128)c.y * d.y + (b3Int128)e.y * f.y ),
+		b3FixFromDotRaw( b3Int128ShiftLeft( (b3Int128)acc.z, B3_FIXED_FRACTION_BITS ) + (b3Int128)a.z * b.z + (b3Int128)c.z * d.z + (b3Int128)e.z * f.z ),
+		b3FixFromDotRaw( b3Int128ShiftLeft( (b3Int128)acc.w, B3_FIXED_FRACTION_BITS ) + (b3Int128)a.w * b.w + (b3Int128)c.w * d.w + (b3Int128)e.w * f.w ),
 	};
 }
 
@@ -1022,10 +1022,10 @@ static inline b3FloatW b3AddDot3W( b3FloatW acc, b3FloatW a, b3FloatW b, b3Float
 static inline b3FloatW b3SubDot3W( b3FloatW acc, b3FloatW a, b3FloatW b, b3FloatW c, b3FloatW d, b3FloatW e, b3FloatW f )
 {
 	return (b3FloatW){
-		b3FixFromDotRaw( ( (b3Int128)acc.x << B3_FIXED_FRACTION_BITS ) - (b3Int128)a.x * b.x - (b3Int128)c.x * d.x - (b3Int128)e.x * f.x ),
-		b3FixFromDotRaw( ( (b3Int128)acc.y << B3_FIXED_FRACTION_BITS ) - (b3Int128)a.y * b.y - (b3Int128)c.y * d.y - (b3Int128)e.y * f.y ),
-		b3FixFromDotRaw( ( (b3Int128)acc.z << B3_FIXED_FRACTION_BITS ) - (b3Int128)a.z * b.z - (b3Int128)c.z * d.z - (b3Int128)e.z * f.z ),
-		b3FixFromDotRaw( ( (b3Int128)acc.w << B3_FIXED_FRACTION_BITS ) - (b3Int128)a.w * b.w - (b3Int128)c.w * d.w - (b3Int128)e.w * f.w ),
+		b3FixFromDotRaw( b3Int128ShiftLeft( (b3Int128)acc.x, B3_FIXED_FRACTION_BITS ) - (b3Int128)a.x * b.x - (b3Int128)c.x * d.x - (b3Int128)e.x * f.x ),
+		b3FixFromDotRaw( b3Int128ShiftLeft( (b3Int128)acc.y, B3_FIXED_FRACTION_BITS ) - (b3Int128)a.y * b.y - (b3Int128)c.y * d.y - (b3Int128)e.y * f.y ),
+		b3FixFromDotRaw( b3Int128ShiftLeft( (b3Int128)acc.z, B3_FIXED_FRACTION_BITS ) - (b3Int128)a.z * b.z - (b3Int128)c.z * d.z - (b3Int128)e.z * f.z ),
+		b3FixFromDotRaw( b3Int128ShiftLeft( (b3Int128)acc.w, B3_FIXED_FRACTION_BITS ) - (b3Int128)a.w * b.w - (b3Int128)c.w * d.w - (b3Int128)e.w * f.w ),
 	};
 }
 
@@ -1170,10 +1170,10 @@ static inline b3FloatW b3RotDiagW( b3FloatW a, b3FloatW b, b3FloatW c, b3FloatW 
 static inline b3FloatW b3RotAddW( b3FloatW a, b3FloatW b, b3FloatW c, b3FloatW d )
 {
 	return (b3FloatW){
-		b3FixFromDotRaw( ( (b3Int128)a.x * b.x + (b3Int128)c.x * d.x ) << 1 ),
-		b3FixFromDotRaw( ( (b3Int128)a.y * b.y + (b3Int128)c.y * d.y ) << 1 ),
-		b3FixFromDotRaw( ( (b3Int128)a.z * b.z + (b3Int128)c.z * d.z ) << 1 ),
-		b3FixFromDotRaw( ( (b3Int128)a.w * b.w + (b3Int128)c.w * d.w ) << 1 ),
+		b3FixFromDotRaw( b3Int128ShiftLeft( (b3Int128)a.x * b.x + (b3Int128)c.x * d.x, 1 ) ),
+		b3FixFromDotRaw( b3Int128ShiftLeft( (b3Int128)a.y * b.y + (b3Int128)c.y * d.y, 1 ) ),
+		b3FixFromDotRaw( b3Int128ShiftLeft( (b3Int128)a.z * b.z + (b3Int128)c.z * d.z, 1 ) ),
+		b3FixFromDotRaw( b3Int128ShiftLeft( (b3Int128)a.w * b.w + (b3Int128)c.w * d.w, 1 ) ),
 	};
 }
 
@@ -1181,10 +1181,10 @@ static inline b3FloatW b3RotAddW( b3FloatW a, b3FloatW b, b3FloatW c, b3FloatW d
 static inline b3FloatW b3RotSubW( b3FloatW a, b3FloatW b, b3FloatW c, b3FloatW d )
 {
 	return (b3FloatW){
-		b3FixFromDotRaw( ( (b3Int128)a.x * b.x - (b3Int128)c.x * d.x ) << 1 ),
-		b3FixFromDotRaw( ( (b3Int128)a.y * b.y - (b3Int128)c.y * d.y ) << 1 ),
-		b3FixFromDotRaw( ( (b3Int128)a.z * b.z - (b3Int128)c.z * d.z ) << 1 ),
-		b3FixFromDotRaw( ( (b3Int128)a.w * b.w - (b3Int128)c.w * d.w ) << 1 ),
+		b3FixFromDotRaw( b3Int128ShiftLeft( (b3Int128)a.x * b.x - (b3Int128)c.x * d.x, 1 ) ),
+		b3FixFromDotRaw( b3Int128ShiftLeft( (b3Int128)a.y * b.y - (b3Int128)c.y * d.y, 1 ) ),
+		b3FixFromDotRaw( b3Int128ShiftLeft( (b3Int128)a.z * b.z - (b3Int128)c.z * d.z, 1 ) ),
+		b3FixFromDotRaw( b3Int128ShiftLeft( (b3Int128)a.w * b.w - (b3Int128)c.w * d.w, 1 ) ),
 	};
 }
 

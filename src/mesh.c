@@ -716,7 +716,7 @@ static b3Split b3SplitMedian( int count, b3Primitive* primitives )
 	b3Vec3 d = b3Sub( upperBound, lowerBound );
 	b3Vec3 c = b3MulSV( B3_FIX( 0.5f ), b3Add( lowerBound, upperBound ) );
 
-	b3Split split = { b3FixFromInt( 0 ) };
+	b3Split split = { 0 };
 	split.index = -1;
 
 	// Partition longest axis using the Hoare partition scheme
@@ -1771,7 +1771,7 @@ void b3DestroyMesh( b3MeshData* mesh )
 bool b3OverlapMesh( const b3Mesh* shape, b3Transform shapeTransform, const b3ShapeProxy* proxy )
 {
 	B3_ASSERT( proxy->count > 0 );
-	b3SimplexCache cache = { b3FixFromInt( 0 ) };
+	b3SimplexCache cache = { 0 };
 
 	b3Vec3 buffer[B3_MAX_SHAPE_CAST_POINTS];
 	b3ShapeProxy localProxy = b3MakeLocalProxy( proxy, shapeTransform, buffer );
@@ -1881,7 +1881,7 @@ b3CastOutput b3RayCastMesh( const b3Mesh* mesh, const b3RayCastInput* input )
 	const b3MeshData* data = mesh->data;
 	b3Vec3 meshScale = mesh->scale;
 
-	b3CastOutput bestOutput = { b3FixFromInt( 0 ) };
+	b3CastOutput bestOutput = { 0 };
 	bestOutput.fraction = input->maxFraction;
 	bestOutput.triangleIndex = B3_NULL_INDEX;
 
@@ -2006,7 +2006,7 @@ b3CastOutput b3ShapeCastMesh( const b3Mesh* mesh, const b3ShapeCastInput* input 
 	const b3MeshData* data = mesh->data;
 	b3Vec3 meshScale = mesh->scale;
 
-	b3CastOutput bestOutput = { b3FixFromInt( 0 ) };
+	b3CastOutput bestOutput = { 0 };
 	bestOutput.fraction = input->maxFraction;
 	bestOutput.triangleIndex = B3_NULL_INDEX;
 
@@ -2213,7 +2213,7 @@ int b3CollideMoverAndMesh( b3PlaneResult* planes, int capacity, const b3Mesh* sh
 	distanceInput.transform = b3Transform_identity;
 	distanceInput.useRadii = false;
 
-	b3SimplexCache cache = { b3FixFromInt( 0 ) };
+	b3SimplexCache cache = { 0 };
 	b3Fixed radius = mover->radius;
 
 	b3V32 center1 = b3LoadV( &mover->center1.x );

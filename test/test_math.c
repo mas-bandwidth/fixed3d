@@ -102,7 +102,7 @@ int MathTest( void )
 		ENSURE( a1 == 0 );
 	}
 
-	b3Vec3 zero = { b3FixFromInt( 0 ) };
+	b3Vec3 zero = { 0 };
 	b3Vec3 one = { B3_FIX( 1.0f ), B3_FIX( 1.0f ), B3_FIX( 1.0f ) };
 	b3Vec3 two = { B3_FIX( 2.0f ), B3_FIX( 2.0f ), B3_FIX( 2.0f ) };
 

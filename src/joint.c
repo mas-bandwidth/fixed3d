@@ -449,7 +449,7 @@ b3JointId b3CreateDistanceJoint( b3WorldId worldId, const b3DistanceJointDef* de
 
 	b3JointSim* joint = pair.jointSim;
 
-	joint->distanceJoint = (b3DistanceJoint){ b3FixFromInt( 0 ) };
+	joint->distanceJoint = (b3DistanceJoint){ 0 };
 	joint->distanceJoint.length = b3FixMax( def->length, B3_LINEAR_SLOP );
 	joint->distanceJoint.hertz = def->hertz;
 	joint->distanceJoint.dampingRatio = def->dampingRatio;
@@ -484,7 +484,7 @@ b3JointId b3CreateMotorJoint( b3WorldId worldId, const b3MotorJointDef* def )
 	b3JointPair pair = b3CreateJoint( world, &def->base, b3_motorJoint );
 	b3JointSim* joint = pair.jointSim;
 
-	joint->motorJoint = (b3MotorJoint){ b3FixFromInt( 0 ) };
+	joint->motorJoint = (b3MotorJoint){ 0 };
 	joint->motorJoint.linearVelocity = def->linearVelocity;
 	joint->motorJoint.maxVelocityForce = def->maxVelocityForce;
 	joint->motorJoint.angularVelocity = def->angularVelocity;
@@ -536,7 +536,7 @@ b3JointId b3CreateParallelJoint( b3WorldId worldId, const b3ParallelJointDef* de
 
 	b3JointSim* joint = pair.jointSim;
 
-	joint->parallelJoint = (b3ParallelJoint){ b3FixFromInt( 0 ) };
+	joint->parallelJoint = (b3ParallelJoint){ 0 };
 	joint->parallelJoint.hertz = def->hertz;
 	joint->parallelJoint.dampingRatio = def->dampingRatio;
 	joint->parallelJoint.maxTorque = def->maxTorque;
@@ -561,7 +561,7 @@ b3JointId b3CreatePrismaticJoint( b3WorldId worldId, const b3PrismaticJointDef* 
 
 	b3JointSim* joint = pair.jointSim;
 
-	joint->prismaticJoint = (b3PrismaticJoint){ b3FixFromInt( 0 ) };
+	joint->prismaticJoint = (b3PrismaticJoint){ 0 };
 	joint->prismaticJoint.hertz = def->hertz;
 	joint->prismaticJoint.dampingRatio = def->dampingRatio;
 	joint->prismaticJoint.targetTranslation = def->targetTranslation;
@@ -592,7 +592,7 @@ b3JointId b3CreateRevoluteJoint( b3WorldId worldId, const b3RevoluteJointDef* de
 
 	b3JointSim* joint = pair.jointSim;
 
-	joint->revoluteJoint = (b3RevoluteJoint){ b3FixFromInt( 0 ) };
+	joint->revoluteJoint = (b3RevoluteJoint){ 0 };
 	joint->revoluteJoint.hertz = def->hertz;
 	joint->revoluteJoint.dampingRatio = def->dampingRatio;
 	joint->revoluteJoint.targetAngle = b3FixClamp( def->targetAngle, -B3_PI, B3_PI );
@@ -629,7 +629,7 @@ b3JointId b3CreateSphericalJoint( b3WorldId worldId, const b3SphericalJointDef* 
 
 	b3JointSim* joint = pair.jointSim;
 
-	joint->sphericalJoint = (b3SphericalJoint){ b3FixFromInt( 0 ) };
+	joint->sphericalJoint = (b3SphericalJoint){ 0 };
 	joint->sphericalJoint.hertz = def->hertz;
 	joint->sphericalJoint.dampingRatio = def->dampingRatio;
 	joint->sphericalJoint.targetRotation = def->targetRotation;
@@ -670,7 +670,7 @@ b3JointId b3CreateWeldJoint( b3WorldId worldId, const b3WeldJointDef* def )
 
 	b3JointSim* joint = pair.jointSim;
 
-	joint->weldJoint = (b3WeldJoint){ b3FixFromInt( 0 ) };
+	joint->weldJoint = (b3WeldJoint){ 0 };
 	joint->weldJoint.linearHertz = def->linearHertz;
 	joint->weldJoint.linearDampingRatio = def->linearDampingRatio;
 	joint->weldJoint.angularHertz = def->angularHertz;
@@ -696,7 +696,7 @@ b3JointId b3CreateWheelJoint( b3WorldId worldId, const b3WheelJointDef* def )
 
 	b3JointSim* joint = pair.jointSim;
 
-	joint->wheelJoint = (b3WheelJoint){ b3FixFromInt( 0 ) };
+	joint->wheelJoint = (b3WheelJoint){ 0 };
 	joint->wheelJoint.enableSuspensionSpring = def->enableSuspensionSpring;
 	joint->wheelJoint.suspensionHertz = def->suspensionHertz;
 	joint->wheelJoint.suspensionDampingRatio = def->suspensionDampingRatio;

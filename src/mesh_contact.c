@@ -139,7 +139,7 @@ static void b3RefreshCache( b3Contact* contact, const b3Shape* shapeA, b3WorldTr
 	int index2 = 0;
 	for ( int index1 = 0; index1 < triangleCount; ++index1 )
 	{
-		contactCache[index1] = (b3ContactCache){ b3FixFromInt( 0 ) };
+		contactCache[index1] = (b3ContactCache){ 0 };
 
 		while ( index2 < contact->meshContact.triangleCache.count &&
 				contact->meshContact.triangleCache.data[index2].triangleIndex < triangleIndices[index1] )
@@ -615,7 +615,7 @@ bool b3ComputeMeshManifolds( b3World* world, int workerIndex, b3Contact* contact
 				// through the triangle.
 				if ( isFast && cache->satCache.type == b3_edgePairAxis )
 				{
-					cache->satCache = (b3SATCache){ b3FixFromInt( 0 ) };
+					cache->satCache = (b3SATCache){ 0 };
 				}
 
 				b3CollideHullAndTriangle( manifold, pointCapacity, hullB, vertices[0], vertices[1], vertices[2], triangle.flags,

@@ -220,7 +220,7 @@ b3BodyId b3CreateBody( b3WorldId worldId, const b3BodyDef* def )
 
 	b3SolverSet* set = b3Array_Get( world->solverSets, setId );
 	b3BodySim* bodySim = b3Array_Emplace( set->bodySims );
-	*bodySim = (b3BodySim){ b3FixFromInt( 0 ) };
+	*bodySim = (b3BodySim){ 0 };
 	bodySim->transform.p = def->position;
 	bodySim->transform.q = def->rotation;
 	bodySim->center = def->position;
@@ -248,7 +248,7 @@ b3BodyId b3CreateBody( b3WorldId worldId, const b3BodyDef* def )
 	{
 		b3BodyState* bodyState = b3Array_Emplace( set->bodyStates );
 
-		*bodyState = (b3BodyState){ b3FixFromInt( 0 ) };
+		*bodyState = (b3BodyState){ 0 };
 		bodyState->linearVelocity = def->linearVelocity;
 		bodyState->angularVelocity = def->angularVelocity;
 		bodyState->deltaRotation = b3Quat_identity;
@@ -491,7 +491,7 @@ b3AABB b3Body_ComputeAABB( b3BodyId bodyId )
 	b3World* world = b3GetUnlockedWorld( bodyId.world0 );
 	if ( world == NULL )
 	{
-		return (b3AABB){ b3FixFromInt( 0 ) };
+		return (b3AABB){ 0 };
 	}
 
 	b3Body* body = b3GetBodyFullId( world, bodyId );
@@ -518,7 +518,7 @@ b3Fixed b3Body_GetClosestPoint( b3BodyId bodyId, b3Vec3* result, b3Vec3 target )
 	b3World* world = b3GetUnlockedWorld( bodyId.world0 );
 	if ( world == NULL )
 	{
-		*result = (b3Vec3){ b3FixFromInt( 0 ) };
+		*result = (b3Vec3){ 0 };
 		return B3_FIX( 0.0f );
 	}
 
@@ -550,7 +550,7 @@ b3Fixed b3Body_GetClosestPoint( b3BodyId bodyId, b3Vec3* result, b3Vec3 target )
 
 		input.proxyB = b3MakeShapeProxy( shape );
 
-		b3SimplexCache cache = { b3FixFromInt( 0 ) };
+		b3SimplexCache cache = { 0 };
 		b3DistanceOutput output = b3ShapeDistance( &input, &cache, NULL, 0 );
 		if ( output.distance < closestDistance )
 		{
@@ -576,7 +576,7 @@ b3BodyCastResult b3Body_CastRay( b3BodyId bodyId, b3Pos origin, b3Vec3 translati
 	b3Body* body = b3GetBodyFullId( world, bodyId );
 
 	// The consistent framing is to center on the ray origin.
-	b3RayCastInput shapeInput = { b3FixFromInt( 0 ) };
+	b3RayCastInput shapeInput = { 0 };
 	shapeInput.origin = b3Vec3_zero;
 	shapeInput.translation = translation;
 	shapeInput.maxFraction = maxFraction;
@@ -859,7 +859,7 @@ void b3UpdateBodyMassData( b3World* world, b3Body* body )
 
 		if ( s->density == B3_FIX( 0.0f ) )
 		{
-			masses[shapeIndex] = (b3MassData){ b3FixFromInt( 0 ) };
+			masses[shapeIndex] = (b3MassData){ 0 };
 			shapeIndex += 1;
 			continue;
 		}

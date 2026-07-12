@@ -83,7 +83,7 @@ static int HeightFieldWinding( void )
 {
 	// Build the same flat 3x3 field with CCW and CW winding. The cross-product
 	// normal of triangle 0 must flip sign accordingly.
-	b3Fixed heights[9] = { b3FixFromInt( 0 ) };
+	b3Fixed heights[9] = { 0 };
 	uint8_t materials[4] = { 0, 0, 0, 0 };
 
 	b3HeightFieldDef def = { 0 };
@@ -127,7 +127,7 @@ static int RayCastFlatField( void )
 	// Build a flat 4x4 field with a tight quantization range so the recovered
 	// surface stays within ~1e-5 of y=0 (b3CreateGrid uses -256..256 which
 	// blows the 1/UINT16_MAX quantum up to ~4e-3 in y).
-	b3Fixed heights[16] = { b3FixFromInt( 0 ) };
+	b3Fixed heights[16] = { 0 };
 	uint8_t materials[9] = { 0 };
 
 	b3HeightFieldDef def = { 0 };
@@ -145,7 +145,7 @@ static int RayCastFlatField( void )
 	// Origin sits clearly inside triangle 0 of cell (1, 1) — off the cell
 	// diagonal x+z = 3. The translation overshoots the surface so the hit
 	// fraction is strictly less than maxFraction.
-	b3RayCastInput input = { b3FixFromInt( 0 ) };
+	b3RayCastInput input = { 0 };
 	input.origin = (b3Vec3){ B3_FIX( 1.25f ), B3_FIX( 10.0f ), B3_FIX( 1.25f ) };
 	input.translation = (b3Vec3){ B3_FIX( 0.0f ), -B3_FIX( 20.0f ), B3_FIX( 0.0f ) };
 	input.maxFraction = B3_FIX( 1.0f );
@@ -242,7 +242,7 @@ static int ShapeCastVerticalStraddle( void )
 	// solid cell, so that cell sits on the trailing (-x / -z) side of the sweep.
 	// A cull AABB pinned to the leading box corner skips the solid cell entirely
 	// and reports a miss.
-	b3Fixed heights[9] = { b3FixFromInt( 0 ) };
+	b3Fixed heights[9] = { 0 };
 	uint8_t materials[4] = { 0, B3_HEIGHT_FIELD_HOLE, B3_HEIGHT_FIELD_HOLE, B3_HEIGHT_FIELD_HOLE };
 
 	b3HeightFieldDef def = { 0 };
@@ -312,7 +312,7 @@ static int ShapeCastVerticalStraddle( void )
 // keep the closest hit. This is the ground truth for b3ShapeCastHeightField.
 static b3CastOutput BruteForceShapeCast( const b3HeightFieldData* hf, const b3ShapeCastInput* input )
 {
-	b3CastOutput best = { b3FixFromInt( 0 ) };
+	b3CastOutput best = { 0 };
 	b3Fixed bestFraction = input->maxFraction;
 
 	int triangleCount = b3GetHeightFieldTriangleCount( hf );
@@ -433,7 +433,7 @@ static int ShapeCastBruteForce( void )
 // pure traversal/culling check — the per-triangle math is identical.
 static b3CastOutput BruteForceRayCast( const b3HeightFieldData* hf, const b3RayCastInput* input )
 {
-	b3CastOutput best = { b3FixFromInt( 0 ) };
+	b3CastOutput best = { 0 };
 	b3Fixed bestFraction = input->maxFraction;
 
 	b3V32 rayStart = b3LoadV( &input->origin.x );
@@ -496,7 +496,7 @@ static int RayCastBruteForce( void )
 
 			for ( int di = 0; di < ARRAY_COUNT( deltas ); ++di )
 			{
-				b3RayCastInput input = { b3FixFromInt( 0 ) };
+				b3RayCastInput input = { 0 };
 				input.origin = origin;
 				input.translation = deltas[di];
 				input.maxFraction = B3_FIX( 1.0f );

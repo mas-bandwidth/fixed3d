@@ -488,7 +488,7 @@ static bool b3ComputeConvexManifold( b3World* world, int workerIndex, b3Contact*
 	int pointCapacity = 32;
 	b3LocalManifoldPoint* pointBuffer = (b3LocalManifoldPoint*)b3Bump( &arena, pointCapacity * sizeof( b3LocalManifoldPoint ) );
 
-	b3LocalManifold geomManifold = { b3FixFromInt( 0 ) };
+	b3LocalManifold geomManifold = { 0 };
 	geomManifold.points = pointBuffer;
 
 	b3Transform transformBtoA = b3InvMulWorldTransforms( xfA, xfB );

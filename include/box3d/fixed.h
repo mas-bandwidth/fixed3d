@@ -65,10 +65,12 @@ typedef int64_t b3Fixed;
 	( (b3Fixed)( (double)( x ) * (double)B3_FIXED_ONE + ( (double)( x ) >= 0.0 ? 0.5 : -0.5 ) ) )
 
 // 128 bit helper layer. Clang/GCC have __int128. MSVC x64/arm64 uses intrinsics.
+// __extension__ keeps -Wpedantic quiet: __int128 is a compiler extension, not ISO C.
 #if defined( __SIZEOF_INT128__ )
 
 #define B3_HAS_INT128 1
-typedef __int128 b3Int128;
+__extension__ typedef __int128 b3Int128;
+__extension__ typedef unsigned __int128 b3UInt128;
 
 #elif defined( _MSC_VER ) && defined( _M_X64 )
 
@@ -79,6 +81,22 @@ typedef __int128 b3Int128;
 
 #error "Box3D fixed point math requires clang, gcc, or 64 bit x64 MSVC (use clang-cl on ARM64 Windows)"
 
+#endif
+
+/// Left shift that is well defined for negative values (two's complement wrap).
+/// C makes shifting a negative value undefined; routing through unsigned keeps
+/// the same bits and keeps UBSan quiet.
+B3_FIXED_INLINE b3Fixed b3FixShiftLeft( b3Fixed a, int shift )
+{
+	return (b3Fixed)( (uint64_t)a << shift );
+}
+
+#if B3_HAS_INT128
+/// 128-bit variant of b3FixShiftLeft
+B3_FIXED_INLINE b3Int128 b3Int128ShiftLeft( b3Int128 a, int shift )
+{
+	return (b3Int128)( (b3UInt128)a << shift );
+}
 #endif
 
 /// Multiply two fixed-point numbers with round-to-nearest.
@@ -134,10 +152,10 @@ B3_FIXED_INLINE b3Fixed b3FixDiv( b3Fixed a, b3Fixed b )
 	// hardware divide replaces the 128-bit library call. Bit-identical result.
 	if ( -( (int64_t)1 << 47 ) < a && a < ( (int64_t)1 << 47 ) )
 	{
-		return ( a << B3_FIXED_FRACTION_BITS ) / b;
+		return b3FixShiftLeft( a, B3_FIXED_FRACTION_BITS ) / b;
 	}
 
-	b3Int128 q = ( (b3Int128)a << B3_FIXED_FRACTION_BITS ) / b;
+	b3Int128 q = b3Int128ShiftLeft( a, B3_FIXED_FRACTION_BITS ) / b;
 	if ( q > (b3Int128)INT64_MAX )
 	{
 		return B3_FIXED_MAX;
@@ -183,11 +201,11 @@ B3_FIXED_INLINE uint64_t b3ISqrt128High( uint64_t hi, uint64_t lo )
 		{
 			r = 0xFFFFFFFFu;
 		}
-		while ( r > 0 && (unsigned __int128)r * r > lo )
+		while ( r > 0 && (b3UInt128)r * r > lo )
 		{
 			r -= 1;
 		}
-		while ( (unsigned __int128)( r + 1 ) * ( r + 1 ) <= lo )
+		while ( (b3UInt128)( r + 1 ) * ( r + 1 ) <= lo )
 		{
 			r += 1;
 		}
@@ -195,10 +213,10 @@ B3_FIXED_INLINE uint64_t b3ISqrt128High( uint64_t hi, uint64_t lo )
 	}
 
 	// Rare 128 bit case: restoring shift-subtract square root
-	unsigned __int128 n = ( (unsigned __int128)hi << 64 ) | lo;
-	unsigned __int128 x = n;
-	unsigned __int128 c = 0;
-	unsigned __int128 d = (unsigned __int128)1 << 126;
+	b3UInt128 n = ( (b3UInt128)hi << 64 ) | lo;
+	b3UInt128 x = n;
+	b3UInt128 c = 0;
+	b3UInt128 d = (b3UInt128)1 << 126;
 	while ( d > n )
 	{
 		d >>= 2;
@@ -310,7 +328,7 @@ B3_FIXED_INLINE b3Fixed b3FixClamp( b3Fixed a, b3Fixed lower, b3Fixed upper )
 /// Convert an integer to fixed point
 B3_FIXED_INLINE b3Fixed b3FixFromInt( int64_t i )
 {
-	return (b3Fixed)i << B3_FIXED_FRACTION_BITS;
+	return b3FixShiftLeft( (b3Fixed)i, B3_FIXED_FRACTION_BITS );
 }
 
 /// Convert fixed point to an integer, truncating toward zero (C float-to-int semantics)

@@ -2463,7 +2463,7 @@ bool b3OverlapHull( const b3HullData* shape, b3Transform shapeTransform, const b
 	input.transform = b3InvMulTransforms( shapeTransform, b3Transform_identity );
 	input.useRadii = true;
 
-	b3SimplexCache cache = { b3FixFromInt( 0 ) };
+	b3SimplexCache cache = { 0 };
 	b3DistanceOutput output = b3ShapeDistance( &input, &cache, NULL, 0 );
 	return output.distance < B3_OVERLAP_SLOP;
 }
@@ -2471,7 +2471,7 @@ bool b3OverlapHull( const b3HullData* shape, b3Transform shapeTransform, const b
 b3CastOutput b3RayCastHull( const b3HullData* shape, const b3RayCastInput* input )
 {
 	B3_ASSERT( b3IsValidRay( input ) );
-	b3CastOutput output = { b3FixFromInt( 0 ) };
+	b3CastOutput output = { 0 };
 
 	b3Fixed lower = B3_FIX( 0.0f );
 	b3Fixed upper = input->maxFraction;
@@ -2563,7 +2563,7 @@ int b3CollideMoverAndHull( b3PlaneResult* result, const b3HullData* shape, const
 
 	b3Fixed totalRadius = mover->radius;
 
-	b3SimplexCache cache = { b3FixFromInt( 0 ) };
+	b3SimplexCache cache = { 0 };
 	b3DistanceOutput distanceOutput = b3ShapeDistance( &distanceInput, &cache, NULL, 0 );
 
 	if ( distanceOutput.distance == B3_FIX( 0.0f ) )

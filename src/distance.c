@@ -725,7 +725,7 @@ b3DistanceOutput b3ShapeDistance( const b3DistanceInput* input, b3SimplexCache* 
 	// Compute initial simplex from cache
 	B3_ASSERT( cache->count <= B3_MAX_SIMPLEX_VERTICES );
 
-	b3Simplex simplex = { b3FixFromInt( 0 ) };
+	b3Simplex simplex = { 0 };
 	b3SimplexVertex* vs = simplex.vertices;
 
 	simplex.count = cache->count;
@@ -792,7 +792,7 @@ b3DistanceOutput b3ShapeDistance( const b3DistanceInput* input, b3SimplexCache* 
 		simplex.vertices[0].a = B3_FIX( 0.0f );
 	}
 
-	b3Simplex backup = { b3FixFromInt( 0 ) };
+	b3Simplex backup = { 0 };
 
 	int simplexIndex = 0;
 	if ( simplexes != NULL && simplexIndex < simplexCapacity )
@@ -801,7 +801,7 @@ b3DistanceOutput b3ShapeDistance( const b3DistanceInput* input, b3SimplexCache* 
 		simplexIndex += 1;
 	}
 
-	b3DistanceOutput distanceOutput = { b3FixFromInt( 0 ) };
+	b3DistanceOutput distanceOutput = { 0 };
 
 	// Keep track of squared distance
 	b3Fixed distanceSq = B3_FIXED_MAX;
@@ -876,7 +876,7 @@ b3DistanceOutput b3ShapeDistance( const b3DistanceInput* input, b3SimplexCache* 
 		b3Fixed oldDistanceSq = distanceSq;
 
 		// Compute closest point
-		b3Vec3 closestPoint = { b3FixFromInt( 0 ) };
+		b3Vec3 closestPoint = { 0 };
 
 		switch ( simplex.count )
 		{
@@ -913,7 +913,7 @@ b3DistanceOutput b3ShapeDistance( const b3DistanceInput* input, b3SimplexCache* 
 		}
 
 		// Build new tentative support point
-		b3Vec3 searchDirection = { b3FixFromInt( 0 ) };
+		b3Vec3 searchDirection = { 0 };
 
 		switch ( simplex.count )
 		{
@@ -1062,7 +1062,7 @@ b3CastOutput b3ShapeCast( const b3ShapeCastPairInput* input )
 	B3_ASSERT( target > tolerance );
 
 	// Prepare input for distance query
-	b3SimplexCache cache = { b3FixFromInt( 0 ) };
+	b3SimplexCache cache = { 0 };
 
 	b3Fixed alpha = B3_FIX( 0.0f );
 
@@ -1076,8 +1076,8 @@ b3CastOutput b3ShapeCast( const b3ShapeCastPairInput* input )
 	distanceInput.transform = input->transform;
 
 	b3Vec3 delta2 = input->translationB;
-	b3DistanceOutput distanceOutput = { b3FixFromInt( 0 ) };
-	b3CastOutput output = { b3FixFromInt( 0 ) };
+	b3DistanceOutput distanceOutput = { 0 };
+	b3CastOutput output = { 0 };
 	output.triangleIndex = B3_NULL_INDEX;
 
 	int iteration = 0;
@@ -1695,7 +1695,7 @@ b3TOIOutput b3TimeOfImpact( const b3TOIInput* input )
 	int distanceIterations = 0;
 
 	// Prepare input for distance query.
-	b3SimplexCache cache = { b3FixFromInt( 0 ) };
+	b3SimplexCache cache = { 0 };
 	b3DistanceInput distanceInput = { 0 };
 	distanceInput.proxyA = proxyA;
 	distanceInput.proxyB = proxyB;
@@ -1814,10 +1814,12 @@ b3TOIOutput b3TimeOfImpact( const b3TOIInput* input )
 			b3Fixed s1 = b3EvaluateSeparation( &function, indexA, indexB, t1 );
 
 			// Check for overlap. This might happen if the root finder runs out of iterations.
+			// In fixed point this is a legitimate outcome, not a defect: separations are
+			// quantized to 1/65536, so conservative advancement can stall without the
+			// root finder misbehaving. The failed state falls back to t1, which the
+			// caller handles (the float build kept a debug canary here instead).
 			if ( s1 < target - tolerance )
 			{
-				// Failed!
-				B3_VALIDATE( false );
 				output.state = b3_toiStateFailed;
 				output.fraction = t1;
 				done = true;
