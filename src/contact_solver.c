@@ -789,11 +789,45 @@ void b3StoreImpulses_Mesh( b3SolverBlock block, b3StepContext* context, int work
 }
 
 
+#if defined( B3_SIMD_AVX512 )
+
+#include <immintrin.h>
+
+// Four Q48.16 lanes in one 256-bit register. The anonymous struct keeps all
+// per-lane member access (gather/scatter, lane stores, div/sqrt) working
+// unchanged; union member punning is the sanctioned C way to view the lanes
+// both ways. Requires B3_ALIGNMENT >= 32 (see core.h) because wide constraint
+// blocks are accessed with aligned vector loads and stores.
+typedef union b3FloatW
+{
+	struct
+	{
+		b3Fixed x, y, z, w;
+	};
+	__m256i v;
+} b3FloatW;
+
+#else
+
 // scalar math
 typedef struct b3FloatW
 {
 	b3Fixed x, y, z, w;
 } b3FloatW;
+
+#endif
+
+// Build from four lanes. Member assignment instead of a compound literal so
+// the same code initializes both the struct and the union form warning-free.
+static inline b3FloatW b3MakeW( b3Fixed x, b3Fixed y, b3Fixed z, b3Fixed w )
+{
+	b3FloatW r;
+	r.x = x;
+	r.y = y;
+	r.z = z;
+	r.w = w;
+	return r;
+}
 
 
 // Wide vec2
@@ -844,7 +878,11 @@ typedef struct b3Vec3WN
 
 static inline b3FloatW b3WidenW( b3FloatWN a )
 {
+#if defined( B3_SIMD_AVX512 )
+	return (b3FloatW){ .v = _mm256_cvtepi32_epi64( _mm_loadu_si128( (const __m128i*)&a ) ) };
+#else
 	return (b3FloatW){ a.x, a.y, a.z, a.w };
+#endif
 }
 
 static inline b3Vec3W b3WidenVW( b3Vec3WN a )
@@ -861,49 +899,198 @@ static inline void b3StoreNarrow( b3FloatWN* target, int lane, b3Fixed value )
 }
 
 
+#if defined( B3_SIMD_AVX512 )
+
+// ---- AVX-512 exact Q48.16 lane arithmetic ---------------------------------
+//
+// Bit-identical to the scalar helpers for ALL inputs: exact intermediates, one
+// round-half-up on the final shift, results truncated mod 2^64 exactly like
+// the scalar int128-then-cast paths. This implements the default wrapping
+// b3FixMul only; core.h keeps this path off under BOX3D_FIXED_SATURATE.
+//
+// The key identity, with bh = b >> 16 (arithmetic) and bl = b & 0xffff:
+//
+//     a * b == ((a * bh) << 16) + a * bl
+//
+// vpmullq gives a * bh mod 2^64 (wrap-consistent under the final shifts), and
+// a * bl is made exact by splitting a into 32-bit halves:
+//
+//     a * bl == ((ahi * bl) << 32) + alo * bl
+//
+// where |ahi * bl| < 2^47 (vpmuldq) and alo * bl < 2^48 (vpmuludq) are exact
+// in 64-bit lanes. Zen 4 executes vpmullq as a single fast uop, so a full
+// four-lane fixed multiply costs three hardware multiplies plus shifts/adds.
+
+// (a * b + B3_FIXED_HALF) >> B3_FIXED_FRACTION_BITS per lane; == b3FixMul.
+// (a * bl + half) >> 16 == ((ahi * bl) << 16) + ((alo * bl + half) >> 16)
+// because the first addend is a multiple of 2^16 and alo * bl + half >= 0.
+static inline __m256i b3MulLanesAVX( __m256i a, __m256i b )
+{
+	__m256i bh = _mm256_srai_epi64( b, B3_FIXED_FRACTION_BITS );
+	__m256i bl = _mm256_and_si256( b, _mm256_set1_epi64x( 0xFFFF ) );
+	__m256i ahi = _mm256_srai_epi64( a, 32 );
+	__m256i t = _mm256_mullo_epi64( a, bh );
+	__m256i p1 = _mm256_mul_epu32( a, bl );	  // alo * bl
+	__m256i p2 = _mm256_mul_epi32( ahi, bl ); // ahi * bl
+	__m256i low = _mm256_srli_epi64( _mm256_add_epi64( p1, _mm256_set1_epi64x( B3_FIXED_HALF ) ), B3_FIXED_FRACTION_BITS );
+	return _mm256_add_epi64( t, _mm256_add_epi64( _mm256_slli_epi64( p2, B3_FIXED_FRACTION_BITS ), low ) );
+}
+
+// Reduction accumulator for the raw-128 dot helpers. A sum of products is
+// carried as three 64-bit lanes per element with no carry propagation:
+//
+//     sum(+-a_i * b_i) == (K << 16) + (P2 << 32) + M   (mod 2^80)
+//
+// K accumulates the wrapped a * bh terms (2^16 * (x mod 2^64) is congruent to
+// 2^16 * x mod 2^80), while P2 (|term| < 2^47) and M (term < 2^48) stay exact
+// for up to nine products plus a doubling: |P2| < 2^51, |M| < 2^53, both far
+// below the 2^63 lane limit. The final rounded shift needs only bits 16..79
+// of the sum, which these three parts determine.
+typedef struct b3DotAccAVX
+{
+	__m256i K, P2, M;
+} b3DotAccAVX;
+
+static inline b3DotAccAVX b3DotBeginAVX( __m256i a, __m256i b )
+{
+	b3DotAccAVX acc;
+	__m256i bh = _mm256_srai_epi64( b, B3_FIXED_FRACTION_BITS );
+	__m256i bl = _mm256_and_si256( b, _mm256_set1_epi64x( 0xFFFF ) );
+	__m256i ahi = _mm256_srai_epi64( a, 32 );
+	acc.K = _mm256_mullo_epi64( a, bh );
+	acc.P2 = _mm256_mul_epi32( ahi, bl );
+	acc.M = _mm256_mul_epu32( a, bl );
+	return acc;
+}
+
+static inline b3DotAccAVX b3DotAddAVX( b3DotAccAVX acc, __m256i a, __m256i b )
+{
+	b3DotAccAVX t = b3DotBeginAVX( a, b );
+	acc.K = _mm256_add_epi64( acc.K, t.K );
+	acc.P2 = _mm256_add_epi64( acc.P2, t.P2 );
+	acc.M = _mm256_add_epi64( acc.M, t.M );
+	return acc;
+}
+
+static inline b3DotAccAVX b3DotSubAVX( b3DotAccAVX acc, __m256i a, __m256i b )
+{
+	b3DotAccAVX t = b3DotBeginAVX( a, b );
+	acc.K = _mm256_sub_epi64( acc.K, t.K );
+	acc.P2 = _mm256_sub_epi64( acc.P2, t.P2 );
+	acc.M = _mm256_sub_epi64( acc.M, t.M );
+	return acc;
+}
+
+// Doubling for the 2*(a*b +- c*d) rotation matrix entries: exact on P2 and M,
+// wrap-consistent on K. Matches the scalar << 1 on the raw 128-bit sum.
+static inline b3DotAccAVX b3DotDoubleAVX( b3DotAccAVX acc )
+{
+	acc.K = _mm256_slli_epi64( acc.K, 1 );
+	acc.P2 = _mm256_slli_epi64( acc.P2, 1 );
+	acc.M = _mm256_slli_epi64( acc.M, 1 );
+	return acc;
+}
+
+static inline b3DotAccAVX b3DotNegAVX( b3DotAccAVX acc )
+{
+	__m256i zero = _mm256_setzero_si256();
+	acc.K = _mm256_sub_epi64( zero, acc.K );
+	acc.P2 = _mm256_sub_epi64( zero, acc.P2 );
+	acc.M = _mm256_sub_epi64( zero, acc.M );
+	return acc;
+}
+
+// == b3FixFromDotRaw of the accumulated sum: one round-half-up, mod 2^64.
+// (M + half) >> 16 must be an arithmetic shift; M can be negative.
+static inline __m256i b3DotFinishAVX( b3DotAccAVX acc )
+{
+	__m256i low = _mm256_srai_epi64( _mm256_add_epi64( acc.M, _mm256_set1_epi64x( B3_FIXED_HALF ) ), B3_FIXED_FRACTION_BITS );
+	__m256i hi = _mm256_add_epi64( acc.K, _mm256_slli_epi64( acc.P2, B3_FIXED_FRACTION_BITS ) );
+	return _mm256_add_epi64( hi, low );
+}
+
+// 0 for false lanes, B3_FIXED_ONE for true lanes, matching the scalar masks
+static inline b3FloatW b3MaskW( __mmask8 k )
+{
+	return (b3FloatW){ .v = _mm256_maskz_mov_epi64( k, _mm256_set1_epi64x( B3_FIXED_ONE ) ) };
+}
+
+#endif
+
+
 static inline b3FloatW b3ZeroW( void )
 {
+#if defined( B3_SIMD_AVX512 )
+	return (b3FloatW){ .v = _mm256_setzero_si256() };
+#else
 	return (b3FloatW){ B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
+#endif
 }
 
 static inline b3FloatW b3SplatW( b3Fixed scalar )
 {
+#if defined( B3_SIMD_AVX512 )
+	return (b3FloatW){ .v = _mm256_set1_epi64x( scalar ) };
+#else
 	return (b3FloatW){ scalar, scalar, scalar, scalar };
+#endif
 }
 
 static inline b3FloatW b3NegW( b3FloatW a )
 {
+#if defined( B3_SIMD_AVX512 )
+	return (b3FloatW){ .v = _mm256_sub_epi64( _mm256_setzero_si256(), a.v ) };
+#else
 	return (b3FloatW){ -a.x, -a.y, -a.z, -a.w };
+#endif
 }
 
 static inline b3FloatW b3AddW( b3FloatW a, b3FloatW b )
 {
+#if defined( B3_SIMD_AVX512 )
+	return (b3FloatW){ .v = _mm256_add_epi64( a.v, b.v ) };
+#else
 	return (b3FloatW){ a.x + b.x, a.y + b.y, a.z + b.z, a.w + b.w };
+#endif
 }
 
 static inline b3FloatW b3SubW( b3FloatW a, b3FloatW b )
 {
+#if defined( B3_SIMD_AVX512 )
+	return (b3FloatW){ .v = _mm256_sub_epi64( a.v, b.v ) };
+#else
 	return (b3FloatW){ a.x - b.x, a.y - b.y, a.z - b.z, a.w - b.w };
+#endif
 }
 
 static inline b3FloatW b3MulW( b3FloatW a, b3FloatW b )
 {
+#if defined( B3_SIMD_AVX512 )
+	return (b3FloatW){ .v = b3MulLanesAVX( a.v, b.v ) };
+#else
 	return (b3FloatW){ b3FixMul( a.x , b.x ), b3FixMul( a.y , b.y ), b3FixMul( a.z , b.z ), b3FixMul( a.w , b.w ) };
+#endif
 }
 
+// Division and square root stay per-lane scalar in both paths: they are
+// data-dependent iterative operations with no exact SIMD equivalent.
 static inline b3FloatW b3DivW( b3FloatW a, b3FloatW b )
 {
-	return (b3FloatW){ b3FixDiv( a.x , b.x ), b3FixDiv( a.y , b.y ), b3FixDiv( a.z , b.z ), b3FixDiv( a.w , b.w ) };
+	return b3MakeW( b3FixDiv( a.x , b.x ), b3FixDiv( a.y , b.y ), b3FixDiv( a.z , b.z ), b3FixDiv( a.w , b.w ) );
 }
 
 static inline b3FloatW b3SqrtW( b3FloatW a )
 {
-	return (b3FloatW){ b3FixSqrt( a.x ), b3FixSqrt( a.y ), b3FixSqrt( a.z ), b3FixSqrt( a.w ) };
+	return b3MakeW( b3FixSqrt( a.x ), b3FixSqrt( a.y ), b3FixSqrt( a.z ), b3FixSqrt( a.w ) );
 }
 
 static inline b3FloatW b3MulAddW( b3FloatW a, b3FloatW b, b3FloatW c )
 {
+#if defined( B3_SIMD_AVX512 )
+	return (b3FloatW){ .v = _mm256_add_epi64( a.v, b3MulLanesAVX( b.v, c.v ) ) };
+#else
 	return (b3FloatW){ a.x + b3FixMul( b.x , c.x ), a.y + b3FixMul( b.y , c.y ), a.z + b3FixMul( b.z , c.z ), a.w + b3FixMul( b.w , c.w ) };
+#endif
 }
 
 // static inline b3FloatW b3MulSubW( b3FloatW a, b3FloatW b, b3FloatW c )
@@ -923,17 +1110,26 @@ static inline b3FloatW b3MulAddW( b3FloatW a, b3FloatW b, b3FloatW c )
 
 static inline b3FloatW b3MaxW( b3FloatW a, b3FloatW b )
 {
+#if defined( B3_SIMD_AVX512 )
+	return (b3FloatW){ .v = _mm256_max_epi64( a.v, b.v ) };
+#else
 	b3FloatW r;
 	r.x = a.x >= b.x ? a.x : b.x;
 	r.y = a.y >= b.y ? a.y : b.y;
 	r.z = a.z >= b.z ? a.z : b.z;
 	r.w = a.w >= b.w ? a.w : b.w;
 	return r;
+#endif
 }
 
 // clamp a to [-b, b]
 static inline b3FloatW b3SymClampW( b3FloatW a, b3FloatW b )
 {
+#if defined( B3_SIMD_AVX512 )
+	__m256i r = _mm256_min_epi64( a.v, b.v );
+	r = _mm256_max_epi64( r, _mm256_sub_epi64( _mm256_setzero_si256(), b.v ) );
+	return (b3FloatW){ .v = r };
+#else
 	b3FloatW r;
 	r.x = a.x <= b.x ? a.x : b.x;
 	r.y = a.y <= b.y ? a.y : b.y;
@@ -944,52 +1140,75 @@ static inline b3FloatW b3SymClampW( b3FloatW a, b3FloatW b )
 	r.z = r.z <= -b.z ? -b.z : r.z;
 	r.w = r.w <= -b.w ? -b.w : r.w;
 	return r;
+#endif
 }
 
 static inline b3FloatW b3OrW( b3FloatW a, b3FloatW b )
 {
+#if defined( B3_SIMD_AVX512 )
+	__m256i o = _mm256_or_si256( a.v, b.v );
+	return b3MaskW( _mm256_test_epi64_mask( o, o ) );
+#else
 	b3FloatW r;
 	r.x = a.x != B3_FIX( 0.0f ) || b.x != B3_FIX( 0.0f ) ? B3_FIX( 1.0f ) : B3_FIX( 0.0f );
 	r.y = a.y != B3_FIX( 0.0f ) || b.y != B3_FIX( 0.0f ) ? B3_FIX( 1.0f ) : B3_FIX( 0.0f );
 	r.z = a.z != B3_FIX( 0.0f ) || b.z != B3_FIX( 0.0f ) ? B3_FIX( 1.0f ) : B3_FIX( 0.0f );
 	r.w = a.w != B3_FIX( 0.0f ) || b.w != B3_FIX( 0.0f ) ? B3_FIX( 1.0f ) : B3_FIX( 0.0f );
 	return r;
+#endif
 }
 
 static inline b3FloatW b3GreaterThanW( b3FloatW a, b3FloatW b )
 {
+#if defined( B3_SIMD_AVX512 )
+	return b3MaskW( _mm256_cmpgt_epi64_mask( a.v, b.v ) );
+#else
 	b3FloatW r;
 	r.x = a.x > b.x ? B3_FIX( 1.0f ) : B3_FIX( 0.0f );
 	r.y = a.y > b.y ? B3_FIX( 1.0f ) : B3_FIX( 0.0f );
 	r.z = a.z > b.z ? B3_FIX( 1.0f ) : B3_FIX( 0.0f );
 	r.w = a.w > b.w ? B3_FIX( 1.0f ) : B3_FIX( 0.0f );
 	return r;
+#endif
 }
 
 static inline b3FloatW b3EqualsW( b3FloatW a, b3FloatW b )
 {
+#if defined( B3_SIMD_AVX512 )
+	return b3MaskW( _mm256_cmpeq_epi64_mask( a.v, b.v ) );
+#else
 	b3FloatW r;
 	r.x = a.x == b.x ? B3_FIX( 1.0f ) : B3_FIX( 0.0f );
 	r.y = a.y == b.y ? B3_FIX( 1.0f ) : B3_FIX( 0.0f );
 	r.z = a.z == b.z ? B3_FIX( 1.0f ) : B3_FIX( 0.0f );
 	r.w = a.w == b.w ? B3_FIX( 1.0f ) : B3_FIX( 0.0f );
 	return r;
+#endif
 }
 
 static inline bool b3AllZeroW( b3FloatW a )
 {
+#if defined( B3_SIMD_AVX512 )
+	return _mm256_testz_si256( a.v, a.v ) != 0;
+#else
 	return a.x == B3_FIX( 0.0f ) && a.y == B3_FIX( 0.0f ) && a.z == B3_FIX( 0.0f ) && a.w == B3_FIX( 0.0f );
+#endif
 }
 
 // component-wise returns mask ? b : a
 static inline b3FloatW b3BlendW( b3FloatW a, b3FloatW b, b3FloatW mask )
 {
+#if defined( B3_SIMD_AVX512 )
+	__mmask8 k = _mm256_test_epi64_mask( mask.v, mask.v );
+	return (b3FloatW){ .v = _mm256_mask_blend_epi64( k, a.v, b.v ) };
+#else
 	b3FloatW r;
 	r.x = mask.x != B3_FIX( 0.0f ) ? b.x : a.x;
 	r.y = mask.y != B3_FIX( 0.0f ) ? b.y : a.y;
 	r.z = mask.z != B3_FIX( 0.0f ) ? b.z : a.z;
 	r.w = mask.w != B3_FIX( 0.0f ) ? b.w : a.w;
 	return r;
+#endif
 }
 
 
@@ -1000,45 +1219,73 @@ static inline b3FloatW b3BlendW( b3FloatW a, b3FloatW b, b3FloatW mask )
 // a*b + c*d
 static inline b3FloatW b3Dot2W( b3FloatW a, b3FloatW b, b3FloatW c, b3FloatW d )
 {
+#if defined( B3_SIMD_AVX512 )
+	b3DotAccAVX sum = b3DotBeginAVX( a.v, b.v );
+	sum = b3DotAddAVX( sum, c.v, d.v );
+	return (b3FloatW){ .v = b3DotFinishAVX( sum ) };
+#else
 	return (b3FloatW){
 		b3FixFromDotRaw( (b3Int128)a.x * b.x + (b3Int128)c.x * d.x ),
 		b3FixFromDotRaw( (b3Int128)a.y * b.y + (b3Int128)c.y * d.y ),
 		b3FixFromDotRaw( (b3Int128)a.z * b.z + (b3Int128)c.z * d.z ),
 		b3FixFromDotRaw( (b3Int128)a.w * b.w + (b3Int128)c.w * d.w ),
 	};
+#endif
 }
 
 // a*b + c*d + e*f
 static inline b3FloatW b3Dot3W( b3FloatW a, b3FloatW b, b3FloatW c, b3FloatW d, b3FloatW e, b3FloatW f )
 {
+#if defined( B3_SIMD_AVX512 )
+	b3DotAccAVX sum = b3DotBeginAVX( a.v, b.v );
+	sum = b3DotAddAVX( sum, c.v, d.v );
+	sum = b3DotAddAVX( sum, e.v, f.v );
+	return (b3FloatW){ .v = b3DotFinishAVX( sum ) };
+#else
 	return (b3FloatW){
 		b3FixFromDotRaw( (b3Int128)a.x * b.x + (b3Int128)c.x * d.x + (b3Int128)e.x * f.x ),
 		b3FixFromDotRaw( (b3Int128)a.y * b.y + (b3Int128)c.y * d.y + (b3Int128)e.y * f.y ),
 		b3FixFromDotRaw( (b3Int128)a.z * b.z + (b3Int128)c.z * d.z + (b3Int128)e.z * f.z ),
 		b3FixFromDotRaw( (b3Int128)a.w * b.w + (b3Int128)c.w * d.w + (b3Int128)e.w * f.w ),
 	};
+#endif
 }
 
 // acc + a*b + c*d + e*f
 static inline b3FloatW b3AddDot3W( b3FloatW acc, b3FloatW a, b3FloatW b, b3FloatW c, b3FloatW d, b3FloatW e, b3FloatW f )
 {
+#if defined( B3_SIMD_AVX512 )
+	// (acc << 16) is a multiple of 2^16, so the single rounded shift splits
+	// exactly: b3FixFromDotRaw((acc << 16) + S) == acc + b3FixFromDotRaw(S)
+	return b3AddW( acc, b3Dot3W( a, b, c, d, e, f ) );
+#else
 	return (b3FloatW){
 		b3FixFromDotRaw( b3Int128ShiftLeft( (b3Int128)acc.x, B3_FIXED_FRACTION_BITS ) + (b3Int128)a.x * b.x + (b3Int128)c.x * d.x + (b3Int128)e.x * f.x ),
 		b3FixFromDotRaw( b3Int128ShiftLeft( (b3Int128)acc.y, B3_FIXED_FRACTION_BITS ) + (b3Int128)a.y * b.y + (b3Int128)c.y * d.y + (b3Int128)e.y * f.y ),
 		b3FixFromDotRaw( b3Int128ShiftLeft( (b3Int128)acc.z, B3_FIXED_FRACTION_BITS ) + (b3Int128)a.z * b.z + (b3Int128)c.z * d.z + (b3Int128)e.z * f.z ),
 		b3FixFromDotRaw( b3Int128ShiftLeft( (b3Int128)acc.w, B3_FIXED_FRACTION_BITS ) + (b3Int128)a.w * b.w + (b3Int128)c.w * d.w + (b3Int128)e.w * f.w ),
 	};
+#endif
 }
 
 // acc - (a*b + c*d + e*f)
 static inline b3FloatW b3SubDot3W( b3FloatW acc, b3FloatW a, b3FloatW b, b3FloatW c, b3FloatW d, b3FloatW e, b3FloatW f )
 {
+#if defined( B3_SIMD_AVX512 )
+	// Round-half-up is not odd-symmetric, so accumulate the negated sum and
+	// round that, exactly like the scalar (acc << 16) - ab - cd - ef.
+	b3DotAccAVX sum = b3DotBeginAVX( a.v, b.v );
+	sum = b3DotAddAVX( sum, c.v, d.v );
+	sum = b3DotAddAVX( sum, e.v, f.v );
+	return b3AddW( acc, (b3FloatW){ .v = b3DotFinishAVX( b3DotNegAVX( sum ) ) } );
+#else
 	return (b3FloatW){
 		b3FixFromDotRaw( b3Int128ShiftLeft( (b3Int128)acc.x, B3_FIXED_FRACTION_BITS ) - (b3Int128)a.x * b.x - (b3Int128)c.x * d.x - (b3Int128)e.x * f.x ),
 		b3FixFromDotRaw( b3Int128ShiftLeft( (b3Int128)acc.y, B3_FIXED_FRACTION_BITS ) - (b3Int128)a.y * b.y - (b3Int128)c.y * d.y - (b3Int128)e.y * f.y ),
 		b3FixFromDotRaw( b3Int128ShiftLeft( (b3Int128)acc.z, B3_FIXED_FRACTION_BITS ) - (b3Int128)a.z * b.z - (b3Int128)c.z * d.z - (b3Int128)e.z * f.z ),
 		b3FixFromDotRaw( b3Int128ShiftLeft( (b3Int128)acc.w, B3_FIXED_FRACTION_BITS ) - (b3Int128)a.w * b.w - (b3Int128)c.w * d.w - (b3Int128)e.w * f.w ),
 	};
+#endif
 }
 
 // Relative velocity along an axis using precomputed cross(r, axis) rows:
@@ -1046,6 +1293,18 @@ static inline b3FloatW b3SubDot3W( b3FloatW acc, b3FloatW a, b3FloatW b, b3Float
 // at 128 bits with a single rounding.
 static inline b3FloatW b3RelVelocityW( b3Vec3W dv, b3Vec3W axis, b3Vec3W wB, b3Vec3W rbxa, b3Vec3W wA, b3Vec3W raxa )
 {
+#if defined( B3_SIMD_AVX512 )
+	b3DotAccAVX sum = b3DotBeginAVX( dv.X.v, axis.X.v );
+	sum = b3DotAddAVX( sum, dv.Y.v, axis.Y.v );
+	sum = b3DotAddAVX( sum, dv.Z.v, axis.Z.v );
+	sum = b3DotAddAVX( sum, wB.X.v, rbxa.X.v );
+	sum = b3DotAddAVX( sum, wB.Y.v, rbxa.Y.v );
+	sum = b3DotAddAVX( sum, wB.Z.v, rbxa.Z.v );
+	sum = b3DotSubAVX( sum, wA.X.v, raxa.X.v );
+	sum = b3DotSubAVX( sum, wA.Y.v, raxa.Y.v );
+	sum = b3DotSubAVX( sum, wA.Z.v, raxa.Z.v );
+	return (b3FloatW){ .v = b3DotFinishAVX( sum ) };
+#else
 	return (b3FloatW){
 		b3FixFromDotRaw( (b3Int128)dv.X.x * axis.X.x + (b3Int128)dv.Y.x * axis.Y.x + (b3Int128)dv.Z.x * axis.Z.x +
 						 (b3Int128)wB.X.x * rbxa.X.x + (b3Int128)wB.Y.x * rbxa.Y.x + (b3Int128)wB.Z.x * rbxa.Z.x -
@@ -1060,6 +1319,7 @@ static inline b3FloatW b3RelVelocityW( b3Vec3W dv, b3Vec3W axis, b3Vec3W wB, b3V
 						 (b3Int128)wB.X.w * rbxa.X.w + (b3Int128)wB.Y.w * rbxa.Y.w + (b3Int128)wB.Z.w * rbxa.Z.w -
 						 (b3Int128)wA.X.w * raxa.X.w - (b3Int128)wA.Y.w * raxa.Y.w - (b3Int128)wA.Z.w * raxa.Z.w ),
 	};
+#endif
 }
 
 // s * a
@@ -1169,6 +1429,14 @@ typedef struct b3Matrix3W
 // 1 - 2*(a*b + c*d)
 static inline b3FloatW b3RotDiagW( b3FloatW a, b3FloatW b, b3FloatW c, b3FloatW d )
 {
+#if defined( B3_SIMD_AVX512 )
+	// one == 2^16 << 16, a multiple of 2^16, so it splits out of the rounded
+	// shift exactly: result == 2^16 + b3FixFromDotRaw( -2 * (ab + cd) )
+	b3DotAccAVX sum = b3DotBeginAVX( a.v, b.v );
+	sum = b3DotAddAVX( sum, c.v, d.v );
+	sum = b3DotNegAVX( b3DotDoubleAVX( sum ) );
+	return (b3FloatW){ .v = _mm256_add_epi64( _mm256_set1_epi64x( B3_FIXED_ONE ), b3DotFinishAVX( sum ) ) };
+#else
 	const b3Int128 one = (b3Int128)B3_FIXED_ONE << B3_FIXED_FRACTION_BITS;
 	return (b3FloatW){
 		b3FixFromDotRaw( one - ( ( (b3Int128)a.x * b.x + (b3Int128)c.x * d.x ) << 1 ) ),
@@ -1176,28 +1444,41 @@ static inline b3FloatW b3RotDiagW( b3FloatW a, b3FloatW b, b3FloatW c, b3FloatW 
 		b3FixFromDotRaw( one - ( ( (b3Int128)a.z * b.z + (b3Int128)c.z * d.z ) << 1 ) ),
 		b3FixFromDotRaw( one - ( ( (b3Int128)a.w * b.w + (b3Int128)c.w * d.w ) << 1 ) ),
 	};
+#endif
 }
 
 // 2*(a*b + c*d)
 static inline b3FloatW b3RotAddW( b3FloatW a, b3FloatW b, b3FloatW c, b3FloatW d )
 {
+#if defined( B3_SIMD_AVX512 )
+	b3DotAccAVX sum = b3DotBeginAVX( a.v, b.v );
+	sum = b3DotAddAVX( sum, c.v, d.v );
+	return (b3FloatW){ .v = b3DotFinishAVX( b3DotDoubleAVX( sum ) ) };
+#else
 	return (b3FloatW){
 		b3FixFromDotRaw( b3Int128ShiftLeft( (b3Int128)a.x * b.x + (b3Int128)c.x * d.x, 1 ) ),
 		b3FixFromDotRaw( b3Int128ShiftLeft( (b3Int128)a.y * b.y + (b3Int128)c.y * d.y, 1 ) ),
 		b3FixFromDotRaw( b3Int128ShiftLeft( (b3Int128)a.z * b.z + (b3Int128)c.z * d.z, 1 ) ),
 		b3FixFromDotRaw( b3Int128ShiftLeft( (b3Int128)a.w * b.w + (b3Int128)c.w * d.w, 1 ) ),
 	};
+#endif
 }
 
 // 2*(a*b - c*d)
 static inline b3FloatW b3RotSubW( b3FloatW a, b3FloatW b, b3FloatW c, b3FloatW d )
 {
+#if defined( B3_SIMD_AVX512 )
+	b3DotAccAVX sum = b3DotBeginAVX( a.v, b.v );
+	sum = b3DotSubAVX( sum, c.v, d.v );
+	return (b3FloatW){ .v = b3DotFinishAVX( b3DotDoubleAVX( sum ) ) };
+#else
 	return (b3FloatW){
 		b3FixFromDotRaw( b3Int128ShiftLeft( (b3Int128)a.x * b.x - (b3Int128)c.x * d.x, 1 ) ),
 		b3FixFromDotRaw( b3Int128ShiftLeft( (b3Int128)a.y * b.y - (b3Int128)c.y * d.y, 1 ) ),
 		b3FixFromDotRaw( b3Int128ShiftLeft( (b3Int128)a.z * b.z - (b3Int128)c.z * d.z, 1 ) ),
 		b3FixFromDotRaw( b3Int128ShiftLeft( (b3Int128)a.w * b.w - (b3Int128)c.w * d.w, 1 ) ),
 	};
+#endif
 }
 
 // Same element layout as the scalar b3MakeMatrixFromQuat, stored as rows
@@ -1441,19 +1722,19 @@ static b3BodyStateW b3GatherBodies( const b3BodyState* states, int* indices )
 	b3BodyState s4 = indices[3] == 0 ? identity : states[indices[3] - 1];
 
 	b3BodyStateW simdBody;
-	simdBody.v.X = (b3FloatW){ s1.linearVelocity.x, s2.linearVelocity.x, s3.linearVelocity.x, s4.linearVelocity.x };
-	simdBody.v.Y = (b3FloatW){ s1.linearVelocity.y, s2.linearVelocity.y, s3.linearVelocity.y, s4.linearVelocity.y };
-	simdBody.v.Z = (b3FloatW){ s1.linearVelocity.z, s2.linearVelocity.z, s3.linearVelocity.z, s4.linearVelocity.z };
-	simdBody.w.X = (b3FloatW){ s1.angularVelocity.x, s2.angularVelocity.x, s3.angularVelocity.x, s4.angularVelocity.x };
-	simdBody.w.Y = (b3FloatW){ s1.angularVelocity.y, s2.angularVelocity.y, s3.angularVelocity.y, s4.angularVelocity.y };
-	simdBody.w.Z = (b3FloatW){ s1.angularVelocity.z, s2.angularVelocity.z, s3.angularVelocity.z, s4.angularVelocity.z };
-	simdBody.dp.X = (b3FloatW){ s1.deltaPosition.x, s2.deltaPosition.x, s3.deltaPosition.x, s4.deltaPosition.x };
-	simdBody.dp.Y = (b3FloatW){ s1.deltaPosition.y, s2.deltaPosition.y, s3.deltaPosition.y, s4.deltaPosition.y };
-	simdBody.dp.Z = (b3FloatW){ s1.deltaPosition.z, s2.deltaPosition.z, s3.deltaPosition.z, s4.deltaPosition.z };
-	simdBody.dq.V.X = (b3FloatW){ s1.deltaRotation.v.x, s2.deltaRotation.v.x, s3.deltaRotation.v.x, s4.deltaRotation.v.x };
-	simdBody.dq.V.Y = (b3FloatW){ s1.deltaRotation.v.y, s2.deltaRotation.v.y, s3.deltaRotation.v.y, s4.deltaRotation.v.y };
-	simdBody.dq.V.Z = (b3FloatW){ s1.deltaRotation.v.z, s2.deltaRotation.v.z, s3.deltaRotation.v.z, s4.deltaRotation.v.z };
-	simdBody.dq.S = (b3FloatW){ s1.deltaRotation.s, s2.deltaRotation.s, s3.deltaRotation.s, s4.deltaRotation.s };
+	simdBody.v.X = b3MakeW( s1.linearVelocity.x, s2.linearVelocity.x, s3.linearVelocity.x, s4.linearVelocity.x );
+	simdBody.v.Y = b3MakeW( s1.linearVelocity.y, s2.linearVelocity.y, s3.linearVelocity.y, s4.linearVelocity.y );
+	simdBody.v.Z = b3MakeW( s1.linearVelocity.z, s2.linearVelocity.z, s3.linearVelocity.z, s4.linearVelocity.z );
+	simdBody.w.X = b3MakeW( s1.angularVelocity.x, s2.angularVelocity.x, s3.angularVelocity.x, s4.angularVelocity.x );
+	simdBody.w.Y = b3MakeW( s1.angularVelocity.y, s2.angularVelocity.y, s3.angularVelocity.y, s4.angularVelocity.y );
+	simdBody.w.Z = b3MakeW( s1.angularVelocity.z, s2.angularVelocity.z, s3.angularVelocity.z, s4.angularVelocity.z );
+	simdBody.dp.X = b3MakeW( s1.deltaPosition.x, s2.deltaPosition.x, s3.deltaPosition.x, s4.deltaPosition.x );
+	simdBody.dp.Y = b3MakeW( s1.deltaPosition.y, s2.deltaPosition.y, s3.deltaPosition.y, s4.deltaPosition.y );
+	simdBody.dp.Z = b3MakeW( s1.deltaPosition.z, s2.deltaPosition.z, s3.deltaPosition.z, s4.deltaPosition.z );
+	simdBody.dq.V.X = b3MakeW( s1.deltaRotation.v.x, s2.deltaRotation.v.x, s3.deltaRotation.v.x, s4.deltaRotation.v.x );
+	simdBody.dq.V.Y = b3MakeW( s1.deltaRotation.v.y, s2.deltaRotation.v.y, s3.deltaRotation.v.y, s4.deltaRotation.v.y );
+	simdBody.dq.V.Z = b3MakeW( s1.deltaRotation.v.z, s2.deltaRotation.v.z, s3.deltaRotation.v.z, s4.deltaRotation.v.z );
+	simdBody.dq.S = b3MakeW( s1.deltaRotation.s, s2.deltaRotation.s, s3.deltaRotation.s, s4.deltaRotation.s );
 
 	B3_AUDIT_V3W( b3_auditBodyV, simdBody.v );
 	B3_AUDIT_V3W( b3_auditBodyW, simdBody.w );

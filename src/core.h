@@ -47,9 +47,20 @@
 #endif
 
 // Define SIMD. Fixed-point math uses 64 bit integer lanes with 128 bit
-// intermediates, which do not map onto the old float SSE2/NEON paths, so the
-// scalar implementation is always used.
-#define B3_SIMD_NONE
+// intermediates, which do not map onto the old float SSE2/NEON paths. The
+// opt-in AVX-512 path (BOX3D_AVX512, x86-64 with AVX512F/DQ/VL) keeps the same
+// four-lane layout and is bit-identical to the scalar path: exact product
+// decompositions, same round-half-up, same wrapping. It implements the default
+// wrapping b3FixMul only, so it is disabled under BOX3D_FIXED_SATURATE.
+#if defined( BOX3D_AVX512 ) && !defined( BOX3D_FIXED_SATURATE )
+	#if defined( __AVX512F__ ) && defined( __AVX512DQ__ ) && defined( __AVX512VL__ )
+		#define B3_SIMD_AVX512
+	#else
+		#error "BOX3D_AVX512 requires AVX512F/DQ/VL (-mavx512f -mavx512dq -mavx512vl or /arch:AVX512)"
+	#endif
+#else
+	#define B3_SIMD_NONE
+#endif
 #define B3_SIMD_WIDTH 4
 
 // Define compiler
@@ -88,8 +99,14 @@ typedef struct b3AtomicU32
 	uint32_t value;
 } b3AtomicU32;
 
-// Minimum memory alignment used for all allocations
-#define B3_ALIGNMENT 16
+// Minimum memory alignment used for all allocations. The AVX-512 solver path
+// stores wide constraint lanes as __m256i, so allocations must be 32-byte
+// aligned for its aligned vector loads and stores.
+#if defined( B3_SIMD_AVX512 )
+	#define B3_ALIGNMENT 32
+#else
+	#define B3_ALIGNMENT 16
+#endif
 
 // Returns the number of elements of an array
 #define B3_ARRAY_COUNT( A ) (int)( sizeof( A ) / sizeof( A[0] ) )

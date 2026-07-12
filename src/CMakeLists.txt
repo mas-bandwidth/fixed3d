@@ -163,6 +163,18 @@ if (BOX3D_DISABLE_SIMD)
 	target_compile_definitions(box3d PRIVATE BOX3D_DISABLE_SIMD)
 endif()
 
+if (BOX3D_AVX512)
+	message(STATUS "Box3D AVX-512 fixed-point SIMD ON")
+	# PRIVATE: the wide solver types are internal to the library; results are
+	# bit-identical to the scalar path so there is no ABI or behavior leak
+	target_compile_definitions(box3d PRIVATE BOX3D_AVX512)
+	if (MSVC)
+		target_compile_options(box3d PRIVATE /arch:AVX512)
+	else()
+		target_compile_options(box3d PRIVATE -mavx512f -mavx512dq -mavx512vl)
+	endif()
+endif()
+
 if (BOX3D_DOUBLE_PRECISION)
 	message(STATUS "Box3D double precision ON")
 	# PUBLIC: consumers must see the same precision mode in the headers or they cannot match the ABI
