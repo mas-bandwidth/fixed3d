@@ -53,15 +53,45 @@ there is no pending working-tree state.
   edge-pair multiplies, 8M x 8 reduction forms, full-range int64) zero
   mismatches; full suite + DeterminismTest (same 287/0x6FA8A4C5 goldens) in
   Release AND Debug+VALIDATE+ASan/UBSan with AVX on, on Zen 4.
-- **Perf (AMD EPYC 9124, ssh space, 4 workers, min of 2)**: geomean 1.41x
-  over scalar fixed across all 11 benchmarks — large_world 2.60x,
-  large_pyramid 2.06x, many_pyramids 1.83x, washer 1.76x, junkyard 1.58x;
-  joint/tree scenes flat (not wide-solver bound). vs float e961bfb (SSE2) on
-  the same box: geomean 3.91x scalar → 2.78x AVX. Benchmark dirs on the box:
-  ~/fixed3d (main, scalar; build-avx2 = main with AVX on), ~/fixed3d-avx
-  (branch, AVX on), ~/box3d-float (upstream e961bfb float; e961bfb..e9f6f1d
-  changed nothing in benchmark/, so scenes and step counts are identical
-  across all three).
+- **Perf (AMD EPYC 9124, ssh space, 4 workers, min of 2)**: geomean 1.62x
+  over scalar fixed across all 11 benchmarks; vs float e961bfb (SSE2) on the
+  same box: geomean 3.91x scalar → 2.41x AVX, and **convex_pile BEATS float
+  at 0.83x** (53,092 ms vs 63,943 — the README taunt is scoped to this; the
+  honest story is Erin's float SIMD stops at the solver while our narrow
+  phase is vectorized too). Per-scene speedups over scalar fixed:
+  large_world 5.4x, convex_pile 2.39x, large_pyramid 2.16x, many_pyramids
+  1.93x, washer 1.89x, junkyard 1.71x; joint/tree scenes flat. LTO
+  (CMAKE_INTERPROCEDURAL_OPTIMIZATION) adds a further 1-3%, measured but not
+  made default. B3_SIMD_WIDTH=8 zmm remains unexplored (Zen 4 double-pumps
+  512-bit; expected small). Benchmark dirs on the box: ~/fixed3d (main,
+  scalar; build-avx2 = main with AVX on), ~/fixed3d-avx (branch, AVX on;
+  bench-final has the published numbers), ~/box3d-float (upstream e961bfb
+  float; e961bfb..e9f6f1d changed nothing in benchmark/, so scenes and step
+  counts are identical across all three).
+- **Round 2 (the narrow phase and the leftovers)**:
+  (1) maxPointCount on the wide constraint (Erin's todo): prepare stores the
+  widest manifold across the four lanes; warm start/solve/restitution loop
+  only that far — slots past it are exact zeros, skipping is bit-identical,
+  benefits scalar builds too. (2) b3GatherBodies/b3ScatterBodies: three 4x4
+  int64 transposes over the 13 contiguous b3BodyState fields (dq.s scalar —
+  a fourth row load would overread the array end; offsets pinned by
+  _Static_assert). (3) b3FindHullSupportVertex/Face: four elements per
+  iteration behind an int64-exactness gate (3 * max|dir| * bound < 2^63;
+  vertex bound from hull->aabb, face bound 4*ONE for validated unit
+  normals); exact values mean identical comparisons and ties; first-wins
+  preserved via per-lane runs + value-then-smaller-index reduction + 128-bit
+  tail. (4) b3QueryEdgeDirections — THE convex_pile lever (was 63% of it):
+  inner body moved verbatim to b3TestEdgePair (shared by scalar loop and
+  wide survivors so admission criteria cannot diverge); per-call SoA prepass
+  of hull A's edge vectors AND adjacent face normals (uint8 edge indices cap
+  hulls at 128 pairs — stack arrays); BOTH Minkowski sign tests run four
+  pairs per iteration on un-negated dots ((dA^dB)<0 and (cba^dB)<0 replace
+  the scalar adc/bdc sign flips); two runtime exactness gates from actual
+  uB/vB/eB values and the AABB edge bound, each with a UINT64_MAX/3 guard so
+  the 128-bit gate product cannot wrap; survivors (genuine Gauss-map
+  intersections only) run the exact scalar body in ascending index order.
+  Every step re-verified: goldens 287/0x6FA8A4C5 + full suite in Release AND
+  Debug+VALIDATE+ASan/UBSan on Zen 4, plus scalar arm64 both configs.
 - **Wide prepare**: b3PrepareContacts_Convex has a full wide variant under
   B3_SIMD_AVX512 (scalar version kept verbatim in the #else). The per-lane
   pass gathers and keeps b3Perp, b3Invert2, b3InvertMatrix, and lever-arm

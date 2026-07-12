@@ -90,14 +90,18 @@ scalar, by decree of Cupertino, and the table above is what that costs. But
 Zen 4 ships `vpmullq` — a native, single-µop, 64-bit vector multiply — and a
 Q48.16 solver is exactly the workload it was born for.
 
-`-DBOX3D_AVX512=ON` (default OFF) packs the wide contact solver's four Q48.16
-lanes into one 256-bit register. One `vpmullq` + one `vpmuludq` + one
-`vpmuldq` reproduce the exact 128-bit fixed-point product, and the solver's
-fused 128-bit dot reductions ride along as three carry-free 64-bit partial
-sums. **Bit-identical to the scalar path for all inputs** — same determinism
-goldens, same state hash on every thread count, verified by a 25-million-case
-differential harness against the scalar reference and the full test suite
-under ASan/UBSan. It is the same simulation. It is just faster.
+`-DBOX3D_AVX512=ON` (default OFF) runs the whole hot path four lanes wide:
+the contact solver (solve, warm start, restitution, prepare), the body
+gather/scatter transposes, the hull support scans, and the SAT edge query's
+Minkowski sign tests. One `vpmullq` + one `vpmuludq` + one `vpmuldq`
+reproduce the exact 128-bit fixed-point product, dot reductions ride as
+carry-free partial sums, and the narrow-phase scans take an int64 fast path
+only when a conservative bound proves the exact dots fit (falling back to the
+128-bit scalar scan otherwise). **Bit-identical to the scalar path for all
+inputs** — same determinism goldens, same state hash on every thread count,
+verified by a 25-million-case differential harness against the scalar
+reference and the full test suite under ASan/UBSan. It is the same
+simulation. It is just faster.
 
 `benchmark -t=4 -w=4 -r=2` (4 workers, min of 2 runs, continuous collision
 on), AMD EPYC 9124 (Zen 4), Ubuntu 24.04, clang 18, RelWithDebInfo.
@@ -108,36 +112,42 @@ on), AMD EPYC 9124 (Zen 4), Ubuntu 24.04, clang 18, RelWithDebInfo.
 
 | Benchmark     | float (ms) | fixed (ms) | fixed+AVX (ms) | fixed/float | AVX/float | AVX speedup |
 |---------------|-----------:|-----------:|---------------:|------------:|----------:|------------:|
-| convex_pile   |   63,942.9 |  126,761.0 |      102,083.0 |       2.0× |     1.6× |       1.24× |
-| joint_grid    |    5,470.8 |   18,353.0 |       18,277.6 |       3.4× |     3.3× |       1.00× |
-| junkyard      |   50,846.1 |  184,930.1 |      117,152.0 |       3.6× |     2.3× |       1.58× |
-| large_pyramid |    8,582.3 |   56,672.0 |       27,559.1 |       6.6× |     3.2× |       2.06× |
-| large_world   |       26.2 |      526.0 |          202.6 |      20.1× |     7.7× |       2.60× |
-| many_pyramids |   11,843.7 |   53,265.0 |       29,166.7 |       4.5× |     2.5× |       1.83× |
-| rain          |    6,659.8 |   24,157.0 |       21,649.2 |       3.6× |     3.3× |       1.12× |
-| trees100      |      407.5 |      974.0 |          949.6 |       2.4× |     2.3× |       1.03× |
-| trees25       |    1,020.4 |    2,382.0 |        2,323.7 |       2.3× |     2.3× |       1.03× |
-| trees50       |      465.1 |    1,152.0 |        1,067.2 |       2.5× |     2.3× |       1.08× |
-| washer        |   70,407.1 |  313,886.0 |      178,370.0 |       4.5× |     2.5× |       1.76× |
+| convex_pile   |   63,942.9 |  126,761.0 |       53,091.8 |       2.0× | **0.83×** |       2.39× |
+| joint_grid    |    5,470.8 |   18,353.0 |       18,439.9 |       3.4× |     3.4× |       1.00× |
+| junkyard      |   50,846.1 |  184,930.1 |      108,090.0 |       3.6× |     2.1× |       1.71× |
+| large_pyramid |    8,582.3 |   56,672.0 |       26,282.7 |       6.6× |     3.1× |       2.16× |
+| large_world   |       26.2 |      526.0 |           98.0 |      20.1× |     3.7× |       5.37× |
+| many_pyramids |   11,843.7 |   53,265.0 |       27,587.2 |       4.5× |     2.3× |       1.93× |
+| rain          |    6,659.8 |   24,157.0 |       20,874.7 |       3.6× |     3.1× |       1.16× |
+| trees100      |      407.5 |      974.0 |          990.2 |       2.4× |     2.4× |       0.98× |
+| trees25       |    1,020.4 |    2,382.0 |        2,359.6 |       2.3× |     2.3× |       1.01× |
+| trees50       |      465.1 |    1,152.0 |        1,123.6 |       2.5× |     2.4× |       1.03× |
+| washer        |   70,407.1 |  313,886.0 |      166,511.0 |       4.5× |     2.4× |       1.89× |
 
-**Geomean: 3.9× of float scalar, 2.8× with AVX-512 — a 1.41× overall speedup,
-and the solver-bound scenes halve or better** (large_pyramid 6.6× → 3.2×,
-washer 4.5× → 2.5×, junkyard 3.6× → 2.3×; up to 2.6× faster per scene). Both
-the solve loop and the contact prepare run wide: `b3SolveContacts_Convex`
-alone is 1.96× faster with the anchor-rotation helpers vanishing into it, and
-`b3PrepareContacts_Convex` is 1.6× faster on its own (one-point-manifold
-scenes like the trees keep a small staging tax, measured −1% on rain and −6%
-on the one-second trees100 run). The tiny scenes don't move because their
-steps are dominated by joints and the narrow phase, which stay scalar. Note
-the scalar gap is wider on Zen 4 than on the M3 to begin with — the floats
-get SSE2 on x86 while scalar int64 gets nothing, and 128-bit multiply chains
-sting more at 3 GHz — which is exactly why this is the machine where the SIMD
-had to grow back.
+**Geomean: 3.9× of float scalar, 2.4× with AVX-512 — a 1.62× overall
+speedup.** The solver-bound scenes land at 2.1–3.1× (large_pyramid
+6.6× → 3.1×, washer 4.5× → 2.4×, junkyard 3.6× → 2.1×), the joint and tree
+scenes are joint/mesh-bound and barely move, and convex_pile — the hull pile,
+the most collision-bound scene in the suite — comes in **under the float
+build**. The heavy lifting, in order: the wide solver, the wide contact
+prepare, and finally the SAT edge query, which was 63% of convex_pile until
+both of its Gauss-map sign tests went four-pairs-per-iteration over
+precomputed edge vectors (survivors take the exact scalar path, so admission
+is unchanged bit for bit). LTO adds another 1–3% on top if you want it
+(`-DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON`); the table is without it.
 
 House rule: taunting Erin is only permitted once fixed point is close to or
-beating his single-precision floats. At 2.8× we have not earned it, so there
-will be no taunting today. But convex_pile is at 1.6× and the narrow phase
-has not even been vectorized yet. Getting warmer. Preparing the nya.
+beating his single-precision floats.
+
+**convex_pile: fixed point 53,092 ms, float 63,943 ms. The bit-exact integer
+physics engine beats the floats by 17% on the hull pile.** nya nya nya.
+
+Full disclosure, so the taunt stays legal: we did not out-multiply the FPU —
+we out-vectorized it. Erin's float SIMD stops at the contact solver; his SAT
+edge query is scalar. Ours tests four edge pairs per iteration with exact
+integer sign tests. Your floats could do this too, Erin. That is the taunt:
+they don't. The geomean is still 2.4×, so the nya is scoped to where we won.
+For now.
 
 ## Should I use this?
 
