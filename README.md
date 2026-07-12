@@ -34,42 +34,49 @@ Apple M3 Ultra, macOS 26.5.1, Apple clang 21, RelWithDebInfo, Ninja.
 
 | Benchmark     | float (ms) | fixed (ms) | fixed / float |
 |---------------|-----------:|-----------:|--------------:|
-| convex_pile   |   13,733.1 |   27,075.7 |         2.0× |
-| joint_grid    |      275.4 |      808.1 |         2.9× |
-| junkyard      |    4,733.1 |   11,778.5 |         2.5× |
-| large_pyramid |      521.9 |    2,293.7 |         4.4× |
-| large_world   |       13.2 |       90.8 |         6.9× |
-| many_pyramids |      501.7 |    2,246.8 |         4.5× |
-| rain          |      586.1 |    1,956.1 |         3.3× |
-| trees25       |      227.2 |      464.4 |         2.0× |
-| trees50       |      113.6 |      228.0 |         2.0× |
-| trees100      |       80.7 |      170.2 |         2.1× |
-| washer        |    6,630.4 |   20,212.2 |         3.0× |
+| convex_pile   |   13,733.1 |   21,039.6 |         1.5× |
+| joint_grid    |      275.4 |      776.1 |         2.8× |
+| junkyard      |    4,733.1 |    9,517.8 |         2.0× |
+| large_pyramid |      521.9 |    1,588.4 |         3.0× |
+| large_world   |       13.2 |       63.2 |         4.8× |
+| many_pyramids |      501.7 |    1,666.1 |         3.3× |
+| rain          |      586.1 |    1,235.5 |         2.1× |
+| trees25       |      227.2 |      390.2 |         1.7× |
+| trees50       |      113.6 |      198.0 |         1.7× |
+| trees100      |       80.7 |      144.1 |         1.8× |
+| washer        |    6,630.4 |   13,545.4 |         2.0× |
 
-**Geometric mean: 3.0× slower.** Worst case (large_world): 6.9× slower. The
-unit test suite runs in ~1.9 s vs 0.39 s for the float baseline (~5×).
+**Geometric mean: 2.3× slower** (down from 3.0× at the first commit; the
+optimization log with per-pass numbers and sample profiles lives in
+[benchmark/apple_m3_ultra_fixed](benchmark/apple_m3_ultra_fixed/README.md)).
+Worst case (large_world): 4.8× slower. The unit test suite runs in ~0.9 s vs
+0.39 s for the float baseline (~2.2×).
 
 ### Where the time goes
 
-Both builds spend most of their time in the same place —
-`b3QueryEdgeDirections`, the hull–hull edge-edge SAT query inside
-`b3CollideHulls` — so the gap is mostly arithmetic, not algorithm:
+Both builds are now solver-bound in the same functions, so the gap is pure
+arithmetic: a fixed-point multiply is `mul + smulh + add + shift` against a
+single float FMA, and no 64-bit NEON multiply exists to vectorize it away.
+The narrow phase — once 60% of a step — is a sliver after exact raw 128-bit
+sign tests replaced per-product rounding in the SAT queries. The contact
+solver runs on per-step precomputed Jacobian rows stored as 32-bit lanes
+(they fit losslessly; the impulses that don't fit stay 64-bit — a pile of
+dense hulls was measured carrying 5.8 million units of accumulated impulse,
+177× past what 32-bit lanes would hold).
 
-- `b3FixMul`/`b3FixDiv` go through 128-bit intermediates with saturation
-  checks; `__divti3`/`__udivmodti4` (software 128-bit division) show up
-  directly in the fixed-point sample profiles.
-- Square roots are exact bit-by-bit integer sqrt. Normalization does 128-bit
-  component divides. Correctness first; none of it is vectorized.
-- During this benchmark run the fixed-point build printed **12,858,880
-  "CCD stall" warnings** (the time-of-impact solver making zero progress on
-  quantized geometry). Some of the slowdown above is the physics; some of it
-  is the physics complaining about itself at millions of lines per second.
+The earlier edition of this README reported **12,858,880 "CCD stall"
+warnings** during a benchmark run. That turned out to be the stall *report*
+threshold, not the stall: the float code disables it with
+`1000 * FLT_MAX = inf`, and the fixed-point translation of that idiom wraps
+to roughly −0.015 ms, so every single time-of-impact query "exceeded" it.
+The physics was fine. The physics was being slandered.
 
-### What you get for the 3×
+### What you get for the 2.3×
 
 - Cross-platform, cross-compiler, bit-exact determinism by construction —
   no FP contraction flags, no `-ffloat-store`, no x87 anxiety, no per-platform
-  golden files.
+  golden files. The determinism test hashes 200 steps of ragdoll piles and
+  gets the same answer on 1, 2, 3, and 4 threads, every time.
 - Uniform 1.5×10⁻⁵ resolution at the origin and at 100 km from the origin.
   Large-world mode deleted because every world is a large world now.
 
