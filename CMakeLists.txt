@@ -114,6 +114,26 @@ if (EMSCRIPTEN AND PROJECT_IS_TOP_LEVEL)
 	string(APPEND CMAKE_EXE_LINKER_FLAGS " ${EMSCRIPTEN_PTHREADS_LINKER_FLAGS}")
 endif()
 
+# Link-time optimization: measured +1-3% on the fixed-point benchmarks (Zen 4,
+# 2026-07-12). Default ON for optimized top-level builds where the toolchain
+# supports it. Debug builds skip it (per-config properties below) to keep
+# compile/debug cycles fast, sanitized builds skip it to keep instrumentation
+# predictable, and FetchContent consumers keep control of their own IPO policy.
+if(PROJECT_IS_TOP_LEVEL)
+	option(BOX3D_LTO "Enable link-time optimization for optimized builds" ON)
+	if(BOX3D_LTO AND NOT BOX3D_SANITIZE)
+		include(CheckIPOSupported)
+		check_ipo_supported(RESULT BOX3D_IPO_SUPPORTED OUTPUT BOX3D_IPO_ERROR)
+		if(BOX3D_IPO_SUPPORTED)
+			set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
+			set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELWITHDEBINFO ON)
+			set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_MINSIZEREL ON)
+		else()
+			message(STATUS "Box3D LTO unsupported on this toolchain: ${BOX3D_IPO_ERROR}")
+		endif()
+	endif()
+endif()
+
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 set(CMAKE_VERBOSE_MAKEFILE ON)

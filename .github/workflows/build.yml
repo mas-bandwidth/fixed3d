@@ -52,6 +52,15 @@ jobs:
             # No ASan here: arm64 clang-cl rejects /MTd with -fsanitize=address
             args: -A arm64 -T ClangCL -DBOX3D_DISABLE_SIMD=TRUE
             test: ./bin/Debug/test
+          # GitHub runners are not guaranteed AVX-512 hardware, so this job
+          # promises compile coverage only and runs the suite opportunistically
+          # when the runner happens to support the ISA. RelWithDebInfo (the
+          # trailing -D wins over the env BUILD_TYPE) also exercises the LTO
+          # default on clang.
+          - name: ubuntu-clang-avx512
+            os: ubuntu-latest
+            args: '-DCMAKE_CXX_COMPILER=clang++-18 -DCMAKE_C_COMPILER=clang-18 -DBOX3D_AVX512=ON -DCMAKE_BUILD_TYPE=RelWithDebInfo'
+            test: 'sh -c "if grep -q avx512dq /proc/cpuinfo; then ./bin/test; else echo runner lacks AVX-512, compile-only; fi"'
     steps:
     - uses: actions/checkout@v6
 
