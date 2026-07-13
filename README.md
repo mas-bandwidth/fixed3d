@@ -62,18 +62,20 @@ The optimization log with per-pass numbers and sample profiles lives in
 Probably not. Check what you actually need against what vanilla Box3D
 already does:
 
-- **Determinism?** Vanilla Box3D is already deterministic across platforms,
-  in floating point. Fixed point changes how that is achieved (by
-  construction rather than by FP discipline), not whether.
+- **Determinism?** Vanilla Box3D is already deterministic across platforms in floating point.
+
 - **A big world?** Vanilla Box3D already handles a 20,000 km cubed world
-  with just ±1M of broadphase padding at 10,000km from origin, and its large
+  with just ~1M of broadphase padding at 10,000km from origin, and its double
   position support costs just 3% over standard float positions.
+  
 - **Uniform resolution over a truly enormous range?** The same 1/65536
   everywhere in a ±1.4×10¹⁴ m world, with zero precision falloff away from
   the origin — this is the one thing this tree does that vanilla Box3D does
-  not. If your world genuinely outruns what large positions plus broadphase
-  padding cover, this library is the answer to your problem. Be sure that is
-  your problem before paying 2× for it.
+  not.
+
+If your world genuinely outruns what large positions plus broadphase
+padding cover, this library is the answer to your problem. Be sure that is
+your problem before paying 2× for it.
 
 For everything else, vanilla Box3D almost certainly does what you need: <https://github.com/erincatto/box3d>
 
