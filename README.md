@@ -50,7 +50,7 @@ re-run in the same session, float included.
 | trees100      |       84.2 |      154.1 |           149.0 |       1.8× |      1.8× |        1.03× |
 | washer        |    6,896.4 |   13,599.9 |        13,606.9 |       2.0× |      2.0× |        1.00× |
 
-**Geometric mean: 2.07× slower scalar, 1.90× with NEON. I expect this to worsen to around 2.5× as any
+Geometric mean: 2.07× slower scalar, 1.90× with NEON. I expect this to worsen to around 2.5× as any
 worthwhile optimizations found during this exercise are backported to the real Box3D.
 
 ## Should I use this?
