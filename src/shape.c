@@ -193,7 +193,8 @@ static b3Shape* b3CreateShapeInternal( b3World* world, b3Body* body, b3WorldTran
 	if ( shape->type == b3_compoundShape )
 	{
 		// Own a copy of the compound materials so every shape frees its array the same way. Compounds
-		// are few, so the copy is cheap and avoids aliasing the geometry blob.
+		// are few, so the copy is cheap and avoids aliasing the geometry blob. The blob materials were
+		// staged at compound creation, so a raw copy keeps their zeroed padding.
 		int materialCount = shape->compound->materialCount;
 		shape->materialCount = materialCount;
 		shape->materials = b3Alloc( materialCount * sizeof( b3SurfaceMaterial ) );
@@ -201,15 +202,21 @@ static b3Shape* b3CreateShapeInternal( b3World* world, b3Body* body, b3WorldTran
 	}
 	else if ( def->materialCount > 1 && def->materials != NULL )
 	{
-		// Per triangle materials need a heap array.
+		// Per triangle materials need a heap array. Stage each entry: the def materials carry caller
+		// stack padding and these bytes are serialized raw into world snapshots.
 		shape->materialCount = def->materialCount;
 		shape->materials = b3Alloc( def->materialCount * sizeof( b3SurfaceMaterial ) );
-		memcpy( shape->materials, def->materials, def->materialCount * sizeof( b3SurfaceMaterial ) );
+		for ( int i = 0; i < def->materialCount; ++i )
+		{
+			b3StageMaterial( shape->materials + i, def->materials + i );
+		}
 	}
 	else
 	{
-		// The common case is one material, stored inline with no allocation.
-		shape->material = ( def->materialCount == 1 && def->materials != NULL ) ? def->materials[0] : def->baseMaterial;
+		// The common case is one material, stored inline with no allocation. Stage it: the inline
+		// material rides in the raw b3Shape image that world snapshots serialize.
+		const b3SurfaceMaterial* source = ( def->materialCount == 1 && def->materials != NULL ) ? def->materials : &def->baseMaterial;
+		b3StageMaterial( &shape->material, source );
 		shape->materialCount = 1;
 		shape->materials = NULL;
 	}
@@ -1266,7 +1273,10 @@ void b3Shape_SetSurfaceMaterial( b3ShapeId shapeId, b3SurfaceMaterial surfaceMat
 	B3_REC( world, ShapeSetSurfaceMaterial, shapeId, surfaceMaterial );
 	b3Shape* shape = b3GetShape( world, shapeId );
 	B3_ASSERT( shape->type != b3_compoundShape );
-	b3GetShapeMaterials( shape )[0] = surfaceMaterial;
+
+	// Staged: the parameter carries caller stack padding and stored material bytes are
+	// serialized raw into world snapshots.
+	b3StageMaterial( &b3GetShapeMaterials( shape )[0], &surfaceMaterial );
 }
 
 b3SurfaceMaterial b3Shape_GetSurfaceMaterial( b3ShapeId shapeId )
@@ -1296,7 +1306,10 @@ void b3Shape_SetMeshMaterial( b3ShapeId shapeId, b3SurfaceMaterial surfaceMateri
 
 	B3_ASSERT( 0 <= index && index < shape->materialCount );
 	B3_ASSERT( shape->type != b3_compoundShape );
-	b3GetShapeMaterials( shape )[index] = surfaceMaterial;
+
+	// Staged: the parameter carries caller stack padding and stored material bytes are
+	// serialized raw into world snapshots.
+	b3StageMaterial( &b3GetShapeMaterials( shape )[index], &surfaceMaterial );
 }
 
 b3SurfaceMaterial b3Shape_GetMeshSurfaceMaterial( b3ShapeId shapeId, int index )

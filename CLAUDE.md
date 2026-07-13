@@ -42,6 +42,16 @@ there is no pending working-tree state.
   across 1-5 workers. Updated for the e961bfb friction-center weighted-average
   port — any solver-affecting change invalidates these, see the test conventions
   section for how to regenerate.
+- **ERIN.md rule (from Glenn, 2026-07-13)**: ERIN.md at the repo root lists
+  everything worth backporting into vanilla float Box3D — latent upstream
+  bugs, Erin's in-code todos implemented and measured (wins AND rejections),
+  SIMD designs that transfer, test-infrastructure lessons. KEEP IT CURRENT:
+  when work lands that produces a float-applicable finding, add it to
+  ERIN.md in the same or an adjacent commit. Discipline for entries: verify
+  any claim about Erin's tree against upstream e961bfb first (cite his
+  file:line), be honest about fixed-vs-float transferability of
+  measurements (our multiplies cost ~4x his FMA), and the public-claims
+  rule below applies there too.
 - **Public-claims rule (from Glenn)**: vanilla Box3D is ALREADY deterministic
   across platforms — Erin achieves it in float with FP discipline. Never pitch
   determinism as a Fixed3D feature (README, commit messages, anywhere public);
@@ -684,9 +694,19 @@ samples jobs. Hard-won CI knowledge:
   that slot is the map key, which also keeps the compound blob's material
   bytes deterministic for b3RecInternCompound's blob hash. Whole-struct
   assignment copies padding garbage — never struct-assign into memory that
-  gets hashed or serialized raw. STILL OPEN same-class exposure (chip
-  spawned): shape.c memcpys def->materials raw into shape->materials and
-  world_snapshot.c writes those bytes raw into snapshots.
+  gets hashed or serialized raw. The same-class shape-storage exposure is
+  FIXED too (2026-07-13): b3StageMaterial moved to shape.h and every shape
+  material write stages — b3CreateShapeInternal's heap array (was raw
+  memcpy of def->materials) and inline material (was struct-assign), plus
+  b3Shape_SetSurfaceMaterial / b3Shape_SetMeshMaterial (by-value params
+  carry caller padding) — so the bytes world_snapshot.c serializes raw
+  (whole b3Shape image + materials array) are deterministic. Regression:
+  ShapeMaterialStagingTest in test_shape.c (garbage-fills padding, memcmps
+  stored bytes vs a staged reference; verified red pre-fix). height_field.c
+  and mesh.c audited clean — their blobs hold only uint8 material indices.
+  SEPARATE gap found during this fix (chip spawned): b3Shape_SetMeshMaterial
+  has no B3_REC coverage at all, so recorded sessions that call it replay
+  divergent.
 - `{ 0 }` is the universal zero initializer — `{ b3FixFromInt( 0 ) }` loses
   clang's missing-field-initializer exemption (157 sites were converted back).
 - `b3IsValidFixed` accepts everything except INT64_MIN: the saturation values
