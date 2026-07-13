@@ -9,17 +9,33 @@ there is no pending working-tree state.
 - **ALL 22 test suites pass** in Release (`./build-fixed2/bin/test`, ~1.1 s) AND
   in Debug + B3_VALIDATE + ASan/UBSan (exit 0, zero sanitizer reports). Single
   suite: `./build-fixed2/bin/test <SuiteName>`.
-- **CI: fully green** — 13 jobs (ubuntu gcc / clang-TSan / clang-MSan, macos
-  sanitized, windows-clang-cl, windows-arm64, windows-mingw, emscripten, six
-  samples jobs). See the CI section for the rules that keep it green.
-- **Performance vs vanilla float (geomean, all 11 benchmarks, post
-  large_world scene fix)**: M3 Ultra 2.09x scalar / 1.94x with BOX3D_NEON;
-  EPYC Zen 4 3.36x scalar / 2.27x with BOX3D_AVX512. **convex_pile BEATS
-  float on both**: 0.74x on M3, 0.83x on Zen 4 (the README taunt is scoped to
-  this and to the honest mechanics: Erin's float SIMD stops at his solver,
-  our narrow phase is vectorized). The old M3-only optimization log lives in
-  benchmark/apple_m3_ultra_fixed/README.md; the current cross-platform tables
-  are in the README.
+- **CI: fully green** — 14 jobs (ubuntu gcc / clang-TSan / clang-MSan, macos
+  sanitized, windows-clang-cl, windows-arm64, windows-mingw, emscripten,
+  ubuntu-clang-avx512 compile-only, six samples jobs). The avx512 job runs
+  the suite opportunistically when the runner has the ISA. See the CI
+  section for the rules that keep the matrix green.
+- **LTO is default ON** for Release-family top-level builds since 13b73cc
+  (CMAKE_INTERPROCEDURAL_OPTIMIZATION, gated by check_ipo_supported, skipped
+  when BOX3D_SANITIZE, off switch BOX3D_LTO=OFF). Measured +1-3% on Zen 4;
+  on M3 it is a wash (interleaved A/B 2026-07-13: convex_pile/washer flat,
+  large_pyramid +1.7% — kept ON for the single-knob simplicity and the Zen 4
+  win). All benchmark baselines must now be built with LTO or A/Bs conflate.
+- **Performance vs vanilla float (geomean, all 11 benchmarks)**: M3 Ultra
+  2.07x scalar / 1.90x with BOX3D_NEON (table re-measured 2026-07-13 at the
+  current defaults, float re-run the same session); Zen 4 3.4x scalar /
+  2.3x with BOX3D_AVX512 (README table kept at the clean 2026-07-12
+  measurement — see below — with a footnote for LTO/div). **convex_pile
+  BEATS float on both**: 0.75x on M3, 0.83x on Zen 4 (the README taunt is
+  scoped to this and to the honest mechanics: Erin's float SIMD stops at
+  his solver, our narrow phase is vectorized). TWO RULES learned refreshing
+  tables on 2026-07-13: (1) absolute times drift a few percent with machine
+  state, so a refresh must re-run the float reference in the same session
+  or the ratios silently lie; (2) the space box is SHARED — check
+  `pgrep -af benchmark` and the load average before benchmarking there. The
+  attempted Zen 4 refresh was aborted: a concurrent session (build-wmesh in
+  ~/fixed3d-avx, the mesh wide-ification chip) ran its own benchmarks on
+  the box mid-suite, load hit 12, and every number came out up to 2x off —
+  both sessions' data was garbage. The published Zen 4 table stands.
 - **Samples build and run** (the float→fixed sample pass is done, including the
   newly re-enabled GyroscopicPrecession sample from e961bfb).
 - **Determinism goldens**: sleepStep=287, hash=0x6FA8A4C5, verified bit-identical
@@ -43,18 +59,21 @@ there is no pending working-tree state.
   cd00cfd compile guard on the unconverted-float SAH tree branch
   (B3_TREE_HEURISTIC != 0 now #errors: those #else branches were
   preprocessed out during the conversion, the AST rewriter never saw them,
-  and they still do raw float math on b3Fixed).
+  and they still do raw float math on b3Fixed) → 13b73cc avx512 CI job +
+  LTO default → 4273c4c b3Int128Div hardware divide fast path (see the
+  division section).
   NOTE: main's history was force-push rewritten ONCE on 2026-07-12 (with
   Glenn's explicit approval) to purge 50MB of accidentally committed build
   dirs; any clone made in the ~30 minutes before that needs a reset.
-- **Box clone state (ssh space)**: ~/fixed3d is checked out on the deleted
-  branch large-world-fix (content == main 78ce3a0, engine-identical to
-  cd00cfd) with build/ (scalar) and build-avx2/ (AVX on, the A/B baseline
-  binary); ~/fixed3d-avx is a WORKTREE of ~/fixed3d, detached at main
-  cd00cfd (main is checked out in the parent, so the worktree cannot hold
-  the branch — stay detached or use a scratch branch), build/ (AVX on,
-  RelWithDebInfo) rebuilt at that commit, goldens verified. Start any new
-  box session with git fetch origin main.
+- **Box clone state (ssh space, as of 2026-07-13 late)**: ~/fixed3d parent
+  is checked out ON BRANCH main at 4273c4c with build/ (scalar) and
+  build-avx2/ (AVX on) both rebuilt there with LTO, scalar goldens
+  verified. ~/fixed3d-avx is a WORKTREE of ~/fixed3d — ANOTHER SESSION (the
+  mesh wide-ification chip) is working in it (build-wmesh/ appeared there
+  2026-07-13 ~07:30 UTC and ran benchmarks); do not touch that worktree or
+  rebuild its dirs without checking for their processes first. The box is
+  SHARED: check `pgrep -af benchmark` + load average before benchmarking.
+  Start any new box session with git fetch origin main.
 
 ## AVX-512 wide solver path (landed on main 2026-07-12)
 
@@ -358,9 +377,31 @@ else in the codebase is dead API (b3GetShapeArea has no callers), dead
 code (the guarded SAH branch), or upstream-shared design musings that
 would just create merge pain with the box3d→fixed3d ports.
 
+**b3Int128Div hardware divide fast path (landed 4273c4c, 2026-07-13)**: the
+joint solvers spend ~9% of ragdoll scenes in __divti3/__udivmodti4 via the
+128-bit cofactor divides in b3InvertMatrix/b3Solve3/b3Invert2/b3Solve2.
+b3Int128Div (fixed.h) is exact signed 128/128 division — bit-identical to
+`a / b` for EVERY input because integer division is unique — with x86-64
+fast tiers: both-fit-64 → one hardware divide; divisor-fits-64 AND
+uhi < v (proves the quotient fits, so the instruction cannot fault) → one
+`divq` via inline asm. Non-x86 keeps plain `a / b`: Apple's libcall was
+measured within 8% of a hand-written Knuth divide (fastdiv microbench:
+1.08x arm64, 3.93x Zen 4 with divq; 20M-case differential fuzz + edges,
+zero mismatches on both). Routed sites: b3FixDiv slow path, the matrix
+inverse/solve helpers, b3Q32Div, the atan2 slope. Zen 4 A/B: joint_grid
+−2.4% (3/3 passes), many_pyramids −1.0% (3/3), rain −1.2%. LESSON: the
+first version also routed the SAT edge-query t divides and the raycast
+quadratics — convex_pile went +2.3% (0/3), the always-inline tier checks
+bloat the hottest narrow-phase loop for no benefit — so the narrow-phase
+and raycast sites keep the plain `/`. Don't re-route them. MSan/TSan/gcc
+are fine with the inline asm (CI green across the matrix). Also fixed in
+passing: the huge-matrix path of b3InvertMatrix did raw `<<` on negative
+128-bit cofactors (UB, never caught because the path needs cofactors
+>= 2^62) — now b3Int128ShiftLeft.
+
 **Benchmark CLI gotcha**: flags need the equals form (`-b=large_pyramid -w=4 -t=4
 -r=2`). Space-separated flags are silently ignored and the FULL suite runs (looks
-like a hang). It writes `<name>.csv` to the CWD.
+like a hang). It writes `<name>.csv` to the CWD. Full suite = omit `-b`.
 
 Fixes landed in session 2 (beyond the session-1 list):
 
