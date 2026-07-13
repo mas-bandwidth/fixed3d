@@ -122,9 +122,16 @@ B3_FIXED_INLINE b3Int128 b3Int128Div( b3Int128 a, b3Int128 b )
 			else
 			{
 				// Hardware 128/64 divide; uhi < v proves the quotient fits in
-				// 64 bits, so the instruction cannot fault.
+				// 64 bits, so the instruction cannot fault ON THIS PATH.
+				// volatile is load-bearing: divq traps on quotient overflow,
+				// and gcc assumes a non-volatile asm is side-effect-free and
+				// safe to speculate, hoisting it ABOVE the uhi < v guard and
+				// the sign-magnitude negation (observed with gcc 13 -mavx512*:
+				// SIGFPE in ManifoldTest from a divide fed the raw negative
+				// bits of a dividend whose true quotient was -1). volatile
+				// pins the instruction to this branch.
 				uint64_t rem;
-				__asm__( "divq %[v]" : "=a"( q ), "=d"( rem ) : [v] "r"( v ), "a"( ulo ), "d"( uhi ) );
+				__asm__ volatile( "divq %[v]" : "=a"( q ), "=d"( rem ) : [v] "r"( v ), "a"( ulo ), "d"( uhi ) );
 				(void)rem;
 			}
 			return ( a < 0 ) != ( b < 0 ) ? -(b3Int128)q : (b3Int128)q;

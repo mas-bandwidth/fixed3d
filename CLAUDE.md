@@ -398,6 +398,18 @@ are fine with the inline asm (CI green across the matrix). Also fixed in
 passing: the huge-matrix path of b3InvertMatrix did raw `<<` on negative
 128-bit cofactors (UB, never caught because the path needs cofactors
 >= 2^62) — now b3Int128ShiftLeft.
+POSTSCRIPT (2026-07-13, found during the wide-mesh AVX verification): the
+divq asm MUST be `__asm__ volatile`. gcc assumes a non-volatile asm is
+side-effect-free and trap-free, so it may SPECULATE it above the uhi < v
+guard and the sign-magnitude negation — gcc 13 with -mavx512* did exactly
+that (disassembly showed back-to-back unguarded `div %r9` fed raw signed
+bits) and ManifoldTest's TriangleHullEdgeSweepTest died with SIGFPE on a
+division whose true quotient was -1. clang never speculated it, scalar
+gcc codegen happened not to, LTO irrelevant — which is why the 20M-case
+fuzz and CI (compile-only avx512 job, scalar ubuntu jobs) never caught
+it. RULE: any inline asm containing an instruction that can fault must be
+volatile; and run the AVX suite with BOTH compilers on the box before
+trusting an asm change.
 
 **Benchmark CLI gotcha**: flags need the equals form (`-b=large_pyramid -w=4 -t=4
 -r=2`). Space-separated flags are silently ignored and the FULL suite runs (looks
