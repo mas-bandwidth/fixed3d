@@ -119,7 +119,7 @@ b3CastOutput b3RayCastSphere(const b3Sphere* shape, const b3RayCastInput* input 
 		return output;
 	}
 
-	b3Int128 tq32 = b3Int128Div( b3Int128ShiftLeft( qc, 32 ), denom ); // Q32.32 fraction of the translation
+	b3Int128 tq32 = b3Int128ShiftLeft( qc, 32 ) / denom; // Q32.32 fraction of the translation
 
 	if ( tq32 > b3Int128ShiftLeft( input->maxFraction, 16 ) )
 	{

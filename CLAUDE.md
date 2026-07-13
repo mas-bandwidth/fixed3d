@@ -134,6 +134,26 @@ there is no pending working-tree state.
   scenes swing +/-10% run to run — always A/B before believing small-scene
   deltas). Remaining scalar targets: b3CollideTask (~14% of the profile),
   gather/scatter transposes (~6%), the mesh contact path.
+- **Mesh contact solver wide-ification (sized and designed 2026-07-13, NOT
+  implemented — it is a dedicated-session project)**: trees100 spends ~39%
+  in b3SolveContacts_Mesh alone (~50% in the whole mesh contact pipeline;
+  rain ~7%; M3 `sample` profiles, 1 worker). Design constraints discovered:
+  (1) lane = whole CONTACT (graph colors are body-disjoint per color, so 4
+  contacts gather/scatter safely), because the scalar solver is
+  Gauss-Seidel ACROSS manifolds within a contact — manifold j+1 sees
+  manifold j's velocity updates, so manifolds must serialize in-register
+  within a lane (Jacobi across manifold lanes would NOT be bit-identical);
+  (2) the ragged dimension is manifoldCount (unbounded-ish, histogram
+  buckets to 8+; points per manifold cap at 4) — inner loops bound by
+  max over lanes with b3MaskKeepW-style zero-feeding like maxPointCount;
+  (3) needs a wide constraint LAYOUT + wide prepare (gathering scalar
+  b3ManifoldConstraint from 4 scattered addresses per iteration would eat
+  the win), i.e. the full convex wide-prepare treatment; (4) do NOT try
+  the cheap scalar variant of replacing the per-point b3RotateVector pair
+  with dq-matrices — that changes rounding, and the round-3 notes show
+  b3RotateVector rounding changes re-rolled TestMeshDrop into a limit
+  cycle. Gates for the implementation: TestMeshDrop, goldens, trees100 +
+  rain A/B on both ISAs.
 - **NEON narrow-phase path (BOX3D_NEON, landed with the M3 work)**: the M3
   has no 64-bit vector multiply (FEAT_SME 0, no SVE2, AMX private), so the
   wide solver stays scalar on ARM (documented: Apple's scalar core wins the
