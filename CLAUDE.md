@@ -438,30 +438,30 @@ it. RULE: any inline asm containing an instruction that can fault must be
 volatile; and run the AVX suite with BOTH compilers on the box before
 trusting an asm change.
 
-**KNOWN ISSUE (found 2026-07-13 during the wide-mesh AVX verification,
-pre-existing on pure main 4273c4c — NOT from the mesh work): gcc AVX-512
-Release builds SIGFPE in ManifoldTest.** Repro on the space box:
-`~/divcheck/build/bin/test ManifoldTest` (worktree at clean 4273c4c,
-BOX3D_AVX512=ON, gcc 13) — exit 136 "trap divide error". gdb-confirmed
-site: the `divq` in b3Int128Div, inlined through b3FixDiv into
-TriangleHullEdgeSweepTest (test/test_manifold.c:821). At the fault the
-registers hold the RAW two's-complement dividend (rdx = all-ones high
-word of a = -107,944,083,456) instead of the unsigned magnitude the
-source computes, with divisor = +107,944,083,456 — the true quotient is
--1 and every source-level tier handles these values, so gcc's compiled
-path is feeding signed bits where the algorithm needs magnitudes (gcc
-codegen bug or UB-exploit around the inline asm; for the fast-path owner
-to settle). Config matrix (all at 4273c4c): gcc AVX Release faults WITH
-AND WITHOUT LTO; gcc scalar Release passes; clang-18 AVX Release passes
-the FULL suite; clang-18 AVX Debug+ASan passes; arm64 passes; 57afe1f
-(pre-fast-path) gcc AVX Release passes. CI cannot catch this: the
-avx512 job is compile-only and the ubuntu gcc jobs run scalar. Repro
-builds left on the box: ~/divcheck/build (gcc+LTO), build-nolto (gcc),
-build-clang (clang-18, green). Two lessons: (1) the buffered-stdout trap
-rule strikes again — the full-suite run APPEARS to die around JointTest
-but the lost buffer hides that ManifoldTest is the faulter; bisect
-suites individually; (2) run the AVX suite with BOTH compilers on the
-box before trusting a division/asm change.
+**gcc AVX-512 SIGFPE in b3Int128Div — found during the wide-mesh AVX
+verification, FIXED on main (cd4b9a5, 2026-07-13)**: gcc AVX-512 Release
+builds (LTO or not) trapped in ManifoldTest's TriangleHullEdgeSweepTest.
+Root cause (gdb + disassembly): gcc treats a non-volatile asm as
+side-effect-free and TRAP-FREE, so it speculated the `divq` above both
+the uhi < v quotient-fits guard and the sign-magnitude negation —
+back-to-back unguarded `div %r9` fed the raw two's-complement bits of a
+negative dividend whose true quotient was -1. Fix: `__asm__ volatile`
+(pins the instruction to its branch; values unchanged, so bit-identical
+by construction; the comment in fixed.h marks volatile as load-bearing).
+Verified at the fix: gcc AVX+LTO full suite + goldens, gcc AVX no-LTO,
+gcc scalar + goldens, clang-18 AVX, arm64; perf wash on joint_grid
+(identical-config interleaved min-of-3). See also the POSTSCRIPT in the
+division section above. Two lessons: (1) the buffered-stdout trap rule
+strikes again — the full-suite run APPEARS to die around JointTest but
+the lost buffer hides that ManifoldTest is the faulter; bisect suites
+individually; (2) run the AVX suite with BOTH compilers on the box
+before trusting a division/asm change — CI cannot (the avx512 job is
+clang compile-only, the ubuntu gcc jobs are scalar). SEPARATE issue
+found during that sweep, still open (chip spawned): CompoundTest's
+CompoundMaterialDedup fails deterministically in gcc AVX **no-LTO**
+builds at clean 4273c4c (passes with LTO/clang/scalar/arm64) — smells
+like the raw-bytes-hash bug class, unrelated to division. Repro:
+~/divcheck/build-nolto on the box.
 
 **Benchmark CLI gotcha**: flags need the equals form (`-b=large_pyramid -w=4 -t=4
 -r=2`). Space-separated flags are silently ignored and the FULL suite runs (looks
