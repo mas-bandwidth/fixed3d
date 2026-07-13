@@ -35,6 +35,10 @@ typedef struct b3World b3World;
 // Some concerns about this:
 // - manifolds don't have a strong identity, would this affect stability/jitter?
 // - this creates a lot of static graph colors and can overflow
+//
+// Update: colored mesh contacts now solve four whole contacts per wide constraint on AVX-512 builds
+// (B3_MESH_WIDE in contact_solver.h), sidestepping the re-link/coloring questions above: the lane is
+// the contact, so manifolds keep their identity and serialize in-register like the scalar loop.
 
 typedef struct b3GraphColor
 {
