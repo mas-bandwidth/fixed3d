@@ -8,6 +8,7 @@
 #include "box3d/types.h"
 
 #include <stdbool.h>
+#include <string.h>
 
 typedef struct b3BroadPhase b3BroadPhase;
 typedef struct b3World b3World;
@@ -72,6 +73,23 @@ typedef struct b3Shape
 static inline b3SurfaceMaterial* b3GetShapeMaterials( const b3Shape* shape )
 {
 	return shape->materials != NULL ? shape->materials : (b3SurfaceMaterial*)&shape->material;
+}
+
+// b3SurfaceMaterial has tail padding (its fields sum to fewer bytes than sizeof), and stored
+// material bytes land in hashed or serialized blobs: the compound dedup map and compound blob
+// hash, and world snapshots (the inline material rides in the raw b3Shape image, the heap array
+// is written directly). A material arriving from caller stack memory carries indeterminate
+// padding bytes, so it must be copied field-by-field into zeroed storage — whole-struct
+// assignment copies the padding garbage along with the fields.
+static inline void b3StageMaterial( b3SurfaceMaterial* target, const b3SurfaceMaterial* source )
+{
+	memset( target, 0, sizeof( b3SurfaceMaterial ) );
+	target->friction = source->friction;
+	target->restitution = source->restitution;
+	target->rollingResistance = source->rollingResistance;
+	target->tangentVelocity = source->tangentVelocity;
+	target->userMaterialId = source->userMaterialId;
+	target->customColor = source->customColor;
 }
 
 void b3CreateShapeProxy( b3Shape* shape, b3BroadPhase* bp, b3BodyType type, b3WorldTransform transform, bool forcePairCreation );

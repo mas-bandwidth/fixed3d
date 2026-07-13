@@ -226,6 +226,9 @@ static bool b3CompareMeshes( const b3MeshData* mesh1, const b3MeshData* mesh2 )
 #define FREE_FN b3Free
 #include "verstable.h"
 
+// Keys must be staged with b3StageMaterial (shape.h) so the padding bytes swept here are
+// zero. The staged array is also what lands in the compound blob, whose raw bytes
+// b3RecInternCompound hashes.
 static inline uint64_t b3HashMaterial( const b3SurfaceMaterial* material )
 {
 	return vt_wyhash( material, sizeof( b3SurfaceMaterial ) );
@@ -296,8 +299,11 @@ b3CompoundData* b3CreateCompound( const b3CompoundDef* def )
 		const b3CompoundCapsuleDef* capsuleDef = def->capsules + i;
 		capsuleInstances[i].capsule = capsuleDef->capsule;
 
-		// Look for an existing material
-		b3MaterialMap_itr materialItr = b3MaterialMap_get_or_insert( &materialMap, &capsuleDef->material, materialCount );
+		// Look for an existing material. The candidate is staged into the next
+		// materials slot; if it is new, that slot is already its final home.
+		b3SurfaceMaterial* candidate = materials + materialCount;
+		b3StageMaterial( candidate, &capsuleDef->material );
+		b3MaterialMap_itr materialItr = b3MaterialMap_get_or_insert( &materialMap, candidate, materialCount );
 
 		// Get the shared material index
 		int materialIndex = materialItr.data->val;
@@ -306,7 +312,6 @@ b3CompoundData* b3CreateCompound( const b3CompoundDef* def )
 		// Is this a new material?
 		if ( materialIndex == materialCount )
 		{
-			materials[materialIndex] = capsuleDef->material;
 			materialCount += 1;
 		}
 
@@ -333,8 +338,10 @@ b3CompoundData* b3CreateCompound( const b3CompoundDef* def )
 			b3DynamicTree_CreateProxy( &tree, aabb, ~0ull, childIndex );
 			childIndex += 1;
 
-			// Look for an existing material
-			b3MaterialMap_itr materialItr = b3MaterialMap_get_or_insert( &materialMap, &hullDef->material, materialCount );
+			// Look for an existing material (staged, see the capsule loop)
+			b3SurfaceMaterial* candidate = materials + materialCount;
+			b3StageMaterial( candidate, &hullDef->material );
+			b3MaterialMap_itr materialItr = b3MaterialMap_get_or_insert( &materialMap, candidate, materialCount );
 
 			// Get the shared material index
 			int materialIndex = materialItr.data->val;
@@ -343,7 +350,6 @@ b3CompoundData* b3CreateCompound( const b3CompoundDef* def )
 			// Is this a new material?
 			if ( materialIndex == materialCount )
 			{
-				materials[materialIndex] = hullDef->material;
 				materialCount += 1;
 			}
 
@@ -395,9 +401,10 @@ b3CompoundData* b3CreateCompound( const b3CompoundDef* def )
 
 			for ( int j = 0; j < meshDef->materialCount; ++j )
 			{
-				// Look for an existing material
-				b3MaterialMap_itr materialItr =
-					b3MaterialMap_get_or_insert( &materialMap, &meshDef->materials[j], materialCount );
+				// Look for an existing material (staged, see the capsule loop)
+				b3SurfaceMaterial* candidate = materials + materialCount;
+				b3StageMaterial( candidate, &meshDef->materials[j] );
+				b3MaterialMap_itr materialItr = b3MaterialMap_get_or_insert( &materialMap, candidate, materialCount );
 
 				// Get the shared material index
 				int materialIndex = materialItr.data->val;
@@ -406,7 +413,6 @@ b3CompoundData* b3CreateCompound( const b3CompoundDef* def )
 				// Is this a new material?
 				if ( materialIndex == materialCount )
 				{
-					materials[materialIndex] = meshDef->materials[j];
 					materialCount += 1;
 				}
 			}
@@ -443,8 +449,10 @@ b3CompoundData* b3CreateCompound( const b3CompoundDef* def )
 		const b3CompoundSphereDef* sphereDef = def->spheres + i;
 		sphereInstances[i].sphere = sphereDef->sphere;
 
-		// Look for an existing material
-		b3MaterialMap_itr materialItr = b3MaterialMap_get_or_insert( &materialMap, &sphereDef->material, materialCount );
+		// Look for an existing material (staged, see the capsule loop)
+		b3SurfaceMaterial* candidate = materials + materialCount;
+		b3StageMaterial( candidate, &sphereDef->material );
+		b3MaterialMap_itr materialItr = b3MaterialMap_get_or_insert( &materialMap, candidate, materialCount );
 
 		// Get the shared material index
 		int materialIndex = materialItr.data->val;
@@ -453,7 +461,6 @@ b3CompoundData* b3CreateCompound( const b3CompoundDef* def )
 		// Is this a new material?
 		if ( materialIndex == materialCount )
 		{
-			materials[materialIndex] = sphereDef->material;
 			materialCount += 1;
 		}
 
