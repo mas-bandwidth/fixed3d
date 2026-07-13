@@ -115,13 +115,11 @@ typedef struct b3AtomicU32
 } b3AtomicU32;
 
 // Minimum memory alignment used for all allocations. The AVX-512 solver path
-// stores wide constraint lanes as __m256i, so allocations must be 32-byte
-// aligned for its aligned vector loads and stores.
-#if defined( B3_SIMD_AVX512 )
-	#define B3_ALIGNMENT 32
-#else
-	#define B3_ALIGNMENT 16
-#endif
+// stores wide constraint lanes as __m256i, so allocations must be at least
+// 32-byte aligned for its aligned vector loads and stores. 64 keeps the
+// 128-byte b3BodyState array on cache-line boundaries (every state spans
+// exactly two lines) — see the padding note in body.h.
+#define B3_ALIGNMENT 64
 
 // Returns the number of elements of an array
 #define B3_ARRAY_COUNT( A ) (int)( sizeof( A ) / sizeof( A[0] ) )

@@ -155,28 +155,35 @@ typedef struct b3Body
 // according to substep progress. Contacts have reduced stability when anchors are rotated during substeps, especially for
 // round shapes.
 //
-// 56 bytes
-// todo_erin measure perf padding to 64 bytes
+// 128 bytes (fixed point: 13 contiguous b3Fixed fields + flags = 108, padded
+// to two full cache lines; with B3_ALIGNMENT 64 every state spans exactly two
+// lines instead of the 2.75-line average of the unpadded 112-byte stride).
+// This is Erin's "measure perf padding to 64 bytes" todo scaled to Q48.16.
 typedef struct b3BodyState
 {
-	b3Vec3 linearVelocity;	// 12
-	b3Vec3 angularVelocity; // 12
+	b3Vec3 linearVelocity;	// 24
+	b3Vec3 angularVelocity; // 24
 
 	// Using delta position reduces round-off error far from the origin
-	b3Vec3 deltaPosition; // 12
+	b3Vec3 deltaPosition; // 24
 
 	// Using delta rotation because I cannot access the full rotation on static bodies in
 	// the solver and must use zero delta rotation for static bodies (c,s) = (1,0)
-	b3Quat deltaRotation; // 16
+	b3Quat deltaRotation; // 32
 
 	// b3BodyFlags
 	// Important flags: locking, dynamic
 	uint32_t flags; // 4
+
+	// Cache-line padding, never read
+	uint32_t pad[5];
 } b3BodyState;
+
+_Static_assert( sizeof( b3BodyState ) == 128, "b3BodyState should be exactly two cache lines" );
 
 // Identity body state, notice the deltaRotation is identity
 static const b3BodyState b3_identityBodyState = {
-	{ B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, { { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, B3_FIX( 1.0f ) }, 0,
+	{ B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, { { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, B3_FIX( 1.0f ) }, 0, { 0, 0, 0, 0, 0 },
 };
 
 // Body simulation data used for integration of position and velocity
