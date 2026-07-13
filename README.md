@@ -53,7 +53,8 @@ re-run in the same session, float included.
 **Geometric mean: 2.07× slower scalar, 1.90× with NEON — and convex_pile, the
 most collision-bound scene in the suite, comes in at 0.75× of float: fixed
 point beats the floats on Apple silicon.** (That one win is likely
-temporary — see [below](#where-fixed-point-wins--and-why-thats-not-the-flex-it-looks-like).)
+temporary).
+
 The optimization log with per-pass numbers and sample profiles lives in
 [benchmark/apple_m3_ultra_fixed](benchmark/apple_m3_ultra_fixed/README.md).
 
