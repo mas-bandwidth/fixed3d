@@ -226,10 +226,14 @@ asserts pinning the field offsets saved us twice during refactors.
   the whole wide-constraint array, with a small per-color span table
   consulted inside the task, parallelizes better than per-color loops.
 - **Hashed blobs and padding:** any struct that gets memcpy'd into a
-  content hash needs deterministic padding bytes — memset the staging
-  memory. Layout changes grew pad bytes inside a node struct and silently
-  broke mesh deduplication for us; we currently suspect the same class in
-  a material-dedup path. Cheap rule, annoying bug.
+  content hash needs deterministic padding bytes — memset or fully stage
+  the memory before hashing. This class bit us twice: layout changes grew
+  pad bytes inside a mesh node struct and silently broke mesh
+  deduplication, and the compound material dedup hashed structs with
+  uninitialized padding — deterministic failure, but only under one
+  compiler configuration, which is the nasty part. If your material or
+  node structs ever grow padding, the dedup breaks silently. Cheap rule,
+  annoying bug.
 - **Benchmark harness papercut:** unrecognized arguments are silently
   ignored, so `-b large_pyramid` (space instead of `=`) runs the full
   suite and looks like a hang. Erroring on unknown args would have saved
