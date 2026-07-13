@@ -29,6 +29,8 @@ below), and all 22 unit test suites still pass.
 
 `benchmark -t=4 -w=4 -r=2` (4 workers, min of 2 runs, continuous collision on),
 Apple M3 Ultra, macOS 26.5.1, Apple clang 21, RelWithDebInfo, Ninja.
+Measured 2026-07-13 at the current build defaults; all three columns were
+re-run in the same session, float included.
 
 - **float** = vanilla Box3D at `e961bfb` (single precision, NEON SIMD)
 - **fixed** = this tree, scalar int64 lanes
@@ -36,20 +38,20 @@ Apple M3 Ultra, macOS 26.5.1, Apple clang 21, RelWithDebInfo, Ninja.
 
 | Benchmark     | float (ms) | fixed (ms) | fixed+NEON (ms) | fixed/float | NEON/float | NEON speedup |
 |---------------|-----------:|-----------:|----------------:|------------:|-----------:|-------------:|
-| convex_pile   |   13,821.5 |   20,558.5 |        10,187.9 |       1.5× |  **0.74×** |        2.02× |
-| joint_grid    |      267.9 |      774.8 |           768.4 |       2.9× |      2.9× |        1.01× |
-| junkyard      |    4,713.5 |    9,676.6 |         8,596.0 |       2.1× |      1.8× |        1.13× |
-| large_pyramid |      506.1 |    1,592.4 |         1,593.3 |       3.1× |      3.1× |        1.00× |
-| large_world   |       13.4 |       22.6 |            22.7 |       1.7× |      1.7× |        1.00× |
-| many_pyramids |      484.5 |    1,575.0 |         1,573.7 |       3.3× |      3.3× |        1.00× |
-| rain          |      571.5 |    1,245.5 |         1,247.3 |       2.2× |      2.2× |        1.00× |
-| trees25       |      209.0 |      351.1 |           342.5 |       1.7× |      1.6× |        1.03× |
-| trees50       |      111.7 |      192.0 |           188.0 |       1.7× |      1.7× |        1.02× |
-| trees100      |       86.5 |      145.7 |           149.9 |       1.7× |      1.7× |        0.97× |
-| washer        |    6,365.3 |   13,089.4 |        13,064.5 |       2.1× |      2.1× |        1.00× |
+| convex_pile   |   13,725.4 |   21,391.2 |        10,316.8 |       1.6× |  **0.75×** |        2.07× |
+| joint_grid    |      276.7 |      789.1 |           785.3 |       2.9× |      2.8× |        1.00× |
+| junkyard      |    4,875.1 |    9,859.1 |         8,750.3 |       2.0× |      1.8× |        1.13× |
+| large_pyramid |      547.8 |    1,676.9 |         1,625.0 |       3.1× |      3.0× |        1.03× |
+| large_world   |       13.4 |       23.5 |            23.9 |       1.8× |      1.8× |        0.98× |
+| many_pyramids |      518.0 |    1,681.5 |         1,651.8 |       3.2× |      3.2× |        1.02× |
+| rain          |      610.5 |    1,289.0 |         1,286.1 |       2.1× |      2.1× |        1.00× |
+| trees25       |      234.5 |      358.7 |           348.4 |       1.5× |      1.5× |        1.03× |
+| trees50       |      117.5 |      196.5 |           195.0 |       1.7× |      1.7× |        1.01× |
+| trees100      |       84.2 |      154.1 |           149.0 |       1.8× |      1.8× |        1.03× |
+| washer        |    6,896.4 |   13,599.9 |        13,606.9 |       2.0× |      2.0× |        1.00× |
 
-**Geometric mean: 2.09× slower scalar, 1.94× with NEON — and convex_pile, the
-most collision-bound scene in the suite, comes in at 0.74× of float: fixed
+**Geometric mean: 2.07× slower scalar, 1.90× with NEON — and convex_pile, the
+most collision-bound scene in the suite, comes in at 0.75× of float: fixed
 point beats the floats on Apple silicon too.** The optimization log with
 per-pass numbers and sample profiles lives in
 [benchmark/apple_m3_ultra_fixed](benchmark/apple_m3_ultra_fixed/README.md).
@@ -112,6 +114,11 @@ on), AMD EPYC 9124 (Zen 4), Ubuntu 24.04, clang 18, RelWithDebInfo.
 - **float** = vanilla Box3D at `e961bfb` (single precision, SSE2 SIMD)
 - **fixed** = this tree, scalar int64 lanes
 - **fixed+AVX** = this tree with `-DBOX3D_AVX512=ON`
+
+*(Table measured 2026-07-12, before link-time optimization became the build
+default and before the hardware-divide fast path landed; those were A/B
+measured at +1–3% and ~1–2.5% on the joint-heavy scenes respectively, so
+current builds run slightly faster than the numbers below.)*
 
 | Benchmark     | float (ms) | fixed (ms) | fixed+AVX (ms) | fixed/float | AVX/float | AVX speedup |
 |---------------|-----------:|-----------:|---------------:|------------:|----------:|------------:|
