@@ -25,9 +25,10 @@ there is no pending working-tree state.
   current defaults, float re-run the same session); Zen 4 3.4x scalar /
   2.3x with BOX3D_AVX512 (README table kept at the clean 2026-07-12
   measurement — see below — with a footnote for LTO/div). **convex_pile
-  BEATS float on both**: 0.75x on M3, 0.83x on Zen 4 (the README taunt is
-  scoped to this and to the honest mechanics: Erin's float SIMD stops at
-  his solver, our narrow phase is vectorized). TWO RULES learned refreshing
+  BEATS float on both**: 0.75x on M3, 0.83x on Zen 4 (the README's "where
+  fixed point wins" section covers this with the honest mechanics: Erin's
+  float SIMD stops at his solver, our narrow phase is vectorized — we
+  out-vectorized, not out-multiplied). TWO RULES learned refreshing
   tables on 2026-07-13: (1) absolute times drift a few percent with machine
   state, so a refresh must re-run the float reference in the same session
   or the ratios silently lie; (2) the space box is SHARED — check
@@ -52,12 +53,25 @@ there is no pending working-tree state.
   file:line), be honest about fixed-vs-float transferability of
   measurements (our multiplies cost ~4x his FMA), and the public-claims
   rule below applies there too.
-- **Public-claims rule (from Glenn)**: vanilla Box3D is ALREADY deterministic
-  across platforms — Erin achieves it in float with FP discipline. Never pitch
-  determinism as a Fixed3D feature (README, commit messages, anywhere public);
-  the honest differentiators are uniform resolution in an enormous world
-  (large-world mode deleted) and making Erin mad. Fixed point only changes HOW
-  determinism is achieved (by construction, no FP flags to police).
+- **Public-claims rule (from Glenn; reframed 2026-07-13)**: the "make Erin
+  mad" joke is RETIRED from all public framing (README, ERIN.md, commit
+  messages) — do not reintroduce it. The repo's framing is now the honest
+  experiment: it answers "What would Box3D look like if it was fixed
+  point?" and "Exactly how much slower would it be?" (answer: ~2x geomean).
+  The ONLY benefit is a truly huge world with uniform precision. Vanilla
+  Box3D is ALREADY deterministic across platforms — Erin achieves it in
+  float with FP discipline — so never pitch determinism as a Fixed3D
+  feature; fixed point only changes HOW determinism is achieved (by
+  construction, no FP flags to police). Vanilla also already handles a
+  20,000 km cubed world with just +/-1M of broadphase padding, with large
+  position support only ~3% slower than float positions (numbers from
+  Glenn), and the README now says plainly that most users should keep
+  using vanilla Box3D. The convex_pile win is framed as LIKELY TEMPORARY
+  (also from Glenn): the vectorized narrow phase is a technique, not a
+  fixed-point advantage, ERIN.md documents it for backporting, and once
+  vanilla picks it up convex_pile should flip back and fixed point return
+  to ~2x everywhere — keep that caveat attached wherever the win is
+  claimed publicly.
 - History (main): e9f6f1d float baseline → 45078b4 + 98b9889 conversion →
   d29ef7d..a40134f optimization passes → 924cd56 narrow storage → ea684c7..632ff0d
   CI/samples → 973acd1 bug-hunt hardening → 1f1c941 friction center weighted
@@ -126,9 +140,9 @@ there is no pending working-tree state.
   over scalar fixed across all 11 benchmarks; vs float e961bfb (SSE2) on the
   same box: geomean 3.36x scalar → 2.27x AVX (post large_world scene fix),
   and **convex_pile BEATS float
-  at 0.83x** (53,092 ms vs 63,943 — the README taunt is scoped to this; the
-  honest story is Erin's float SIMD stops at the solver while our narrow
-  phase is vectorized too). Per-scene speedups over scalar fixed:
+  at 0.83x** (53,092 ms vs 63,943 — the honest story, told in the README's
+  "where fixed point wins" section: Erin's float SIMD stops at the solver
+  while our narrow phase is vectorized too). Per-scene speedups over scalar fixed:
   large_world 5.4x, convex_pile 2.39x, large_pyramid 2.16x, many_pyramids
   1.93x, washer 1.89x, junkyard 1.71x; joint/tree scenes flat. LTO
   (CMAKE_INTERPROCEDURAL_OPTIMIZATION) adds a further 1-3%, measured but not

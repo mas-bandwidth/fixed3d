@@ -1,10 +1,10 @@
 # Notes for Erin
 
-Hi Erin. We know you're mad. While we were tearing the floats out of your
-engine we spent a lot of time staring at your code, implementing your todos,
-and stress-testing paths your test corpus doesn't reach. This file is the
-useful residue: everything we found or built that applies to **vanilla
-float Box3D**, with the fixed-point parts filtered out.
+While converting Box3D to fixed point we spent a lot of time staring at your
+code, implementing your todos, and stress-testing paths your test corpus
+doesn't reach. This file is the useful residue: everything we found or built
+that applies to **vanilla float Box3D**, with the fixed-point parts filtered
+out.
 
 Line numbers reference your tree at `e961bfb`. Performance numbers were
 measured in the fixed-point tree (Apple M3 Ultra and AMD EPYC 9124 Zen 4,
@@ -175,8 +175,8 @@ there.
 
 ## SIMD your floats are leaving on the table
 
-This is the part the README taunts you about, so here it is in earnest.
-Your SIMD stops at the contact solver. The narrow phase is scalar on every
+This is where the fixed-point build wins its head-to-head benchmarks, so
+here it is in earnest. Your SIMD stops at the contact solver. The narrow phase is scalar on every
 platform, and it doesn't have to be. None of this needs fixed point — in
 float it's *easier*, because we needed exactness gates and you just need
 dot products.
@@ -267,5 +267,3 @@ x86-64. That harness catches a one-ulp change anywhere in the solver — we
 can recommend the setup regardless of what your numbers are made of.
 Vanilla Box3D was already deterministic when we got here; that part was
 always yours.
-
-nya nya nya.

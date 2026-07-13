@@ -1,29 +1,29 @@
-# Box3D, but it's fixed point to make Erin mad
+# Fixed3D: Box3D in Q48.16 fixed point
 
-> # ⚠️ DO NOT USE THIS LIBRARY ⚠️
->
-> **This is a joke.** The entire purpose of this fork is to make Erin mad.
->
-> It is not supported. It is not maintained. It is not endorsed by Erin Catto,
-> and if he has seen it, he is mad about it, which was the point.
->
-> Use the real [Box3D](https://github.com/erincatto/box3d).
->
-> **DO NOT USE THIS LIBRARY.**
+This fork exists to answer two questions:
+
+1. **What would [Box3D](https://github.com/erincatto/box3d) look like if it
+   was fixed point?**
+2. **Exactly how much slower would it be?**
+
+The answers: it looks like the code in this repository, and it is about
+**2× slower** (geometric mean over the full benchmark suite, measured on
+Apple silicon and on Zen 4 — full tables below). What you get in exchange is
+one thing: a truly huge world with uniform precision everywhere.
+
+That trade is narrower than it sounds, and **you should probably keep using
+vanilla Box3D** — see [Should I use this?](#should-i-use-this) for the honest
+comparison.
 
 ## What is this
 
 Box3D with every `float` torn out of the simulation and replaced with **Q48.16
 fixed point** in an `int64_t`. All of it: the solver, GJK, the trig, the ray
-casts, the mass properties, the recording format. The SIMD is gone (it grew
-back on AVX-512 and NEON — same bits, just faster; see below). In exchange,
-resolution is a uniform 1/65536 everywhere in a ±1.4×10¹⁴ meter world, every
-step is still bit-exact on every platform (vanilla Box3D already was — see
-below), and all 22 unit test suites still pass.
-
-```
-45078b4 there i fixed it for you
-```
+casts, the mass properties, the recording format. The float SIMD is gone (it
+grew back on AVX-512 and NEON — same bits, just faster; see below). In
+exchange, resolution is a uniform 1/65536 everywhere in a ±1.4×10¹⁴ meter
+world, every step is still bit-exact on every platform (vanilla Box3D already
+was — see below), and all 22 unit test suites still pass.
 
 ## Profile results: fixed point vs. vanilla single precision
 
@@ -52,8 +52,9 @@ re-run in the same session, float included.
 
 **Geometric mean: 2.07× slower scalar, 1.90× with NEON — and convex_pile, the
 most collision-bound scene in the suite, comes in at 0.75× of float: fixed
-point beats the floats on Apple silicon too.** The optimization log with
-per-pass numbers and sample profiles lives in
+point beats the floats on Apple silicon.** (That one win is likely
+temporary — see [below](#where-fixed-point-wins--and-why-thats-not-the-flex-it-looks-like).)
+The optimization log with per-pass numbers and sample profiles lives in
 [benchmark/apple_m3_ultra_fixed](benchmark/apple_m3_ultra_fixed/README.md).
 
 ### Where the time goes
@@ -74,26 +75,26 @@ dense hulls was measured carrying 5.8 million units of accumulated impulse,
 
 To be clear: **vanilla Box3D is already deterministic across platforms.**
 Erin did that work in floating point — pinned contraction, no fast-math, the
-discipline. Determinism is not a Fixed3D feature; it came with the library we
-vandalized. Fixed point merely gets it by construction instead of by
-vigilance: no FP contraction flags, no `-ffloat-store`, no x87 anxiety —
-integers wrap the same everywhere, so there is nothing to hold carefully.
+discipline. Determinism is not a Fixed3D feature; vanilla already has it.
+Fixed point merely gets it by construction instead of by vigilance: no FP
+contraction flags, no `-ffloat-store`, no x87 anxiety — integers wrap the
+same everywhere, so there is nothing to hold carefully.
 
-What you actually get for the 2×:
-
-- Uniform 1.5×10⁻⁵ resolution at the origin and at 100 km from the origin,
-  in a ±1.4×10¹⁴ meter world. Large-world mode deleted because every world
-  is a large world now.
-- Erin, mad.
+What you actually get for the 2× is uniform 1.5×10⁻⁵ resolution at the
+origin and at 100 km from the origin, in a ±1.4×10¹⁴ meter world. There is
+no large-world mode in this tree because every world is a large world now.
+Whether that is worth 2× is the question the
+[Should I use this?](#should-i-use-this) section answers (short version:
+probably not).
 
 ## The SIMD grew back: AVX-512 results
 
 NEON was never supposed to have a chance: fixed point needs 64×64-bit lane
 multiplies, ARM keeps those in SVE2/SME, and Apple exposes neither on the M3
 (`FEAT_SME: 0`; AMX is private). So the wide solver runs scalar on Apple
-silicon, by decree of Cupertino. But Zen 4 ships `vpmullq` — a native,
-single-µop, 64-bit vector multiply — and a Q48.16 solver is exactly the
-workload it was born for. (NEON found a side door anyway — see below.)
+silicon. But Zen 4 ships `vpmullq` — a native, single-µop, 64-bit vector
+multiply — and a Q48.16 solver is exactly the workload it was born for.
+(NEON found a side door anyway — see below.)
 
 `-DBOX3D_AVX512=ON` (default OFF) runs the whole hot path four lanes wide:
 the convex contact solver (solve, warm start, restitution, prepare), the
@@ -169,23 +170,30 @@ scalar lanes on ARM: Apple's very wide scalar core wins that emulation trade,
 and the table above shows the solver-bound scenes unmoved. The
 collision-bound ones are a different story: convex_pile 21,391 → 10,317 ms.
 
-## The taunt section
+## Where fixed point wins — and why that's not the flex it looks like
 
-House rule: taunting Erin is only permitted once fixed point is close to or
-beating his single-precision floats.
+convex_pile — a pile of convex hulls, the most collision-bound scene in the
+suite — runs faster in this tree than in the float build on both instruction
+sets: 53,092 ms vs 63,943 ms on Zen 4 (17% faster), 10,317 ms vs 13,725 ms
+on the M3 Ultra (25% faster).
 
-**convex_pile, AMD Zen 4: fixed point 53,092 ms, float 63,943 ms — 17%
-faster. convex_pile, Apple M3 Ultra: fixed point 10,317 ms, float 13,725 ms —
-25% faster. The bit-exact integer physics engine beats the floats on both
-instruction sets.** nya nya nya.
+Full disclosure on the mechanics: the integer build did not out-multiply the
+FPU — it out-vectorized it. Upstream's float SIMD stops at the contact
+solver; its SAT edge query is scalar on every platform. This tree tests four
+edge pairs per iteration with exact integer sign tests, on AVX-512 and on
+NEON. Nothing about that requires fixed point — a float build could do the
+same thing, more easily (no exactness gates needed). Everything we found
+that transfers back to vanilla float Box3D — this included — is written up
+in [ERIN.md](ERIN.md). The geomeans are still 2.3× (Zen 4) and 1.9× (M3);
+the win is scoped to the collision-bound scenes.
 
-Full disclosure, so the taunt stays legal: we did not out-multiply the FPU —
-we out-vectorized it. Erin's float SIMD stops at the contact solver; his SAT
-edge query is scalar on every platform. Ours tests four edge pairs per
-iteration with exact integer sign tests, on AVX-512 and on NEON. Your floats
-could do this too, Erin. That is the taunt: they don't. The geomeans are
-still 2.3× (Zen 4) and 1.9× (M3), so the nya is scoped to where we won. For
-now.
+Which means **the win is almost certainly temporary**. The vectorized narrow
+phase is a technique, not a fixed-point advantage, and it is documented in
+ERIN.md precisely so it can be backported to vanilla Box3D. Once it is,
+float gets the same narrow-phase speedup on top of its faster arithmetic,
+convex_pile flips back, and fixed point most likely returns to its natural
+place: about 2× the cost, everywhere. Treat the row in bold as a snapshot
+of an unfair comparison that time will correct.
 
 Post-script for the archaeologists: large_world used to report fixed point
 4–20× slower. That wasn't the engine — the scene's drop placement went
@@ -199,9 +207,26 @@ is exact in both number systems.
 
 ## Should I use this?
 
-No. **DO NOT USE THIS LIBRARY.** It exists to make one specific person mad.
+Probably not. Check what you actually need against what vanilla Box3D
+already does:
+
+- **Determinism?** Vanilla Box3D is already deterministic across platforms,
+  in floating point. Fixed point changes how that is achieved (by
+  construction rather than by FP discipline), not whether.
+- **A big world?** Vanilla Box3D already handles a 20,000 km cubed world
+  with just ±1M of broadphase padding, and its large position support costs
+  about 3% over standard float positions — against the ~2× this library
+  costs.
+- **Uniform resolution over a truly enormous range?** The same 1/65536
+  everywhere in a ±1.4×10¹⁴ m world, with zero precision falloff away from
+  the origin — this is the one thing this tree does that vanilla Box3D does
+  not. If your world genuinely outruns what large positions plus broadphase
+  padding cover, this library is the answer to your problem. Be sure that is
+  your problem before paying 2× for it.
+
+For everything else, vanilla Box3D almost certainly does what you need — and
+it is the supported, maintained one: <https://github.com/erincatto/box3d>
 
 ## License
 
-MIT, same as the real Box3D, which — once more — you should use instead:
-<https://github.com/erincatto/box3d>
+MIT, same as Box3D.
