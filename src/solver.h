@@ -59,6 +59,8 @@ typedef struct b3BodySim b3BodySim;
 typedef struct b3BodyState b3BodyState;
 typedef struct b3ContactConstraint b3ContactConstraint;
 typedef struct b3ContactConstraintWide b3ContactConstraintWide;
+typedef struct b3ContactConstraintMeshWide b3ContactConstraintMeshWide;
+typedef struct b3ManifoldConstraintMeshWide b3ManifoldConstraintMeshWide;
 typedef struct b3ContactSpec b3ContactSpec;
 typedef struct b3JointSim b3JointSim;
 typedef struct b3Manifold b3Manifold;
@@ -164,6 +166,16 @@ typedef struct b3ContactPrepareSpan
 	b3ContactSpec* contacts;
 } b3ContactPrepareSpan;
 
+// Span for the wide mesh contact prepare/store parallel-for. start indexes the
+// flat wide-slot range (four contacts per slot); count is the color's CONTACT
+// count so workers can bound the lanes of the last slot.
+typedef struct b3MeshWidePrepareSpan
+{
+	int start;
+	int count;
+	b3ContactSpec* contacts;
+} b3MeshWidePrepareSpan;
+
 typedef struct b3JointPrepareSpan
 {
 	int start;
@@ -221,12 +233,24 @@ typedef struct b3StepContext
 	b3WidePrepareSpan* widePrepareSpans;
 	int wideContactCount;
 
-	// Similar for mesh/overflow contact constraints
+	// Similar for mesh/overflow contact constraints. The scalar colored arrays
+	// (manifoldConstraints/contactConstraints) are NULL now that the colored
+	// mesh path is wide; the overflow color keeps its own scalar arrays.
 	struct b3ManifoldConstraint* manifoldConstraints;
 	struct b3ContactConstraint* contactConstraints;
 	b3ContactPrepareSpan* contactPrepareSpans;
 	b3ContactPrepareSpan* overflowSpans;
 	b3JointPrepareSpan* jointPrepareSpans;
+
+	// Wide mesh contact constraints: one header per four contacts plus a flat
+	// array of wide manifold slots. meshWideManifoldStarts[wideIndex] is the
+	// first manifold slot of that wide constraint (the ragged dimension is the
+	// widest manifold count across the four lanes).
+	struct b3ContactConstraintMeshWide* meshWideConstraints;
+	struct b3ManifoldConstraintMeshWide* meshWideManifolds;
+	int* meshWideManifoldStarts;
+	b3MeshWidePrepareSpan* meshWidePrepareSpans;
+	int meshWideCount;
 
 	int activeColorCount;
 	int workerCount;

@@ -70,7 +70,7 @@ solver runs on per-step precomputed Jacobian rows stored as 32-bit lanes
 dense hulls was measured carrying 5.8 million units of accumulated impulse,
 177× past what 32-bit lanes would hold).
 
-### What you get for the 2.3×
+### What you get for the 2×
 
 To be clear: **vanilla Box3D is already deterministic across platforms.**
 Erin did that work in floating point — pinned contraction, no fast-math, the
@@ -79,7 +79,7 @@ vandalized. Fixed point merely gets it by construction instead of by
 vigilance: no FP contraction flags, no `-ffloat-store`, no x87 anxiety —
 integers wrap the same everywhere, so there is nothing to hold carefully.
 
-What you actually get for the 2.3×:
+What you actually get for the 2×:
 
 - Uniform 1.5×10⁻⁵ resolution at the origin and at 100 km from the origin,
   in a ±1.4×10¹⁴ meter world. Large-world mode deleted because every world
@@ -96,7 +96,9 @@ single-µop, 64-bit vector multiply — and a Q48.16 solver is exactly the
 workload it was born for. (NEON found a side door anyway — see below.)
 
 `-DBOX3D_AVX512=ON` (default OFF) runs the whole hot path four lanes wide:
-the contact solver (solve, warm start, restitution, prepare), the body
+the convex contact solver (solve, warm start, restitution, prepare), the
+mesh contact solver (four whole contacts per constraint, manifolds
+serialized in-register to keep the scalar solve order), the body
 gather/scatter transposes, the hull support scans, and the SAT edge query's
 Minkowski sign tests. One `vpmullq` + one `vpmuludq` + one `vpmuldq`
 reproduce the exact 128-bit fixed-point product, dot reductions ride as
@@ -115,10 +117,12 @@ on), AMD EPYC 9124 (Zen 4), Ubuntu 24.04, clang 18, RelWithDebInfo.
 - **fixed** = this tree, scalar int64 lanes
 - **fixed+AVX** = this tree with `-DBOX3D_AVX512=ON`
 
-*(Table measured 2026-07-12, before link-time optimization became the build
-default and before the hardware-divide fast path landed; those were A/B
-measured at +1–3% and ~1–2.5% on the joint-heavy scenes respectively, so
-current builds run slightly faster than the numbers below.)*
+*(Table measured 2026-07-12, before three later changes: link-time
+optimization became the build default (+1–3%), the hardware-divide fast
+path landed (+1–2.5% on the joint-heavy scenes), and the mesh contact
+solver went four-wide (trees100/trees50 measured 21–22% faster with
+AVX-512, rain ~2% slower). Current builds run faster than the numbers
+below.)*
 
 | Benchmark     | float (ms) | fixed (ms) | fixed+AVX (ms) | fixed/float | AVX/float | AVX speedup |
 |---------------|-----------:|-----------:|---------------:|------------:|----------:|------------:|
@@ -136,10 +140,12 @@ current builds run slightly faster than the numbers below.)*
 
 **Geomean: 3.4× of float scalar, 2.3× with AVX-512 — a 1.48× overall
 speedup.** The solver-bound scenes land at 2.1–3.1× (large_pyramid
-6.6× → 3.1×, washer 4.5× → 2.4×, junkyard 3.6× → 2.1×), the joint and tree
-scenes are joint/mesh-bound and barely move, and convex_pile — the hull pile,
-the most collision-bound scene in the suite — comes in **under the float
-build**. The heavy lifting, in order: the wide solver, the wide contact
+6.6× → 3.1×, washer 4.5× → 2.4×, junkyard 3.6× → 2.1×), the joint scenes
+are joint-bound and barely move, the mesh-bound tree scenes moved once the
+mesh contact solver went wide (21–22% faster than this table — see the
+note above), and convex_pile — the hull pile, the most collision-bound
+scene in the suite — comes in **under the float build**. The heavy
+lifting, in order: the wide solver, the wide contact
 prepare, and finally the SAT edge query, which was 63% of convex_pile until
 both of its Gauss-map sign tests went four-pairs-per-iteration over
 precomputed edge vectors (survivors take the exact scalar path, so admission
@@ -161,7 +167,7 @@ falls back to the 128-bit scalar scan, so results stay **bit-identical for
 all inputs** — same goldens, verified under ASan/UBSan. The solver keeps its
 scalar lanes on ARM: Apple's very wide scalar core wins that emulation trade,
 and the table above shows the solver-bound scenes unmoved. The
-collision-bound ones are a different story: convex_pile 20,559 → 10,188 ms.
+collision-bound ones are a different story: convex_pile 21,391 → 10,317 ms.
 
 ## The taunt section
 
@@ -169,8 +175,8 @@ House rule: taunting Erin is only permitted once fixed point is close to or
 beating his single-precision floats.
 
 **convex_pile, AMD Zen 4: fixed point 53,092 ms, float 63,943 ms — 17%
-faster. convex_pile, Apple M3 Ultra: fixed point 10,188 ms, float 13,822 ms —
-26% faster. The bit-exact integer physics engine beats the floats on both
+faster. convex_pile, Apple M3 Ultra: fixed point 10,317 ms, float 13,725 ms —
+25% faster. The bit-exact integer physics engine beats the floats on both
 instruction sets.** nya nya nya.
 
 Full disclosure, so the taunt stays legal: we did not out-multiply the FPU —

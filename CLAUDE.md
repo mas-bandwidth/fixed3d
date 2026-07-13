@@ -61,19 +61,27 @@ there is no pending working-tree state.
   preprocessed out during the conversion, the AST rewriter never saw them,
   and they still do raw float math on b3Fixed) → 13b73cc avx512 CI job +
   LTO default → 4273c4c b3Int128Div hardware divide fast path (see the
-  division section).
+  division section) → cd4b9a5 divq asm made volatile (gcc speculated it,
+  see the known-issue bullet) → b218eb6..ede0457 wide mesh contact solver
+  + B3_MESH_WIDE gate + README/doc refresh + repo sweep cleanups.
   NOTE: main's history was force-push rewritten ONCE on 2026-07-12 (with
   Glenn's explicit approval) to purge 50MB of accidentally committed build
   dirs; any clone made in the ~30 minutes before that needs a reset.
 - **Box clone state (ssh space, as of 2026-07-13 late)**: ~/fixed3d parent
   is checked out ON BRANCH main at 4273c4c with build/ (scalar) and
   build-avx2/ (AVX on) both rebuilt there with LTO, scalar goldens
-  verified. ~/fixed3d-avx is a WORKTREE of ~/fixed3d — ANOTHER SESSION (the
-  mesh wide-ification chip) is working in it (build-wmesh/ appeared there
-  2026-07-13 ~07:30 UTC and ran benchmarks); do not touch that worktree or
-  rebuild its dirs without checking for their processes first. The box is
-  SHARED: check `pgrep -af benchmark` + load average before benchmarking.
-  Start any new box session with git fetch origin main.
+  verified. ~/fixed3d-avx is a WORKTREE of ~/fixed3d, detached at the
+  wide-mesh branch tip, with build-wmesh/ (AVX on, RelWithDebInfo, LTO)
+  and build-wmesh-san/ (clang-18 Debug+VALIDATE+ASan/UBSan+AVX; plain
+  `cmake` there picks gcc, which fails on a pre-existing
+  -Wformat-truncation in scheduler.c under -Werror — use CC=clang-18);
+  ~/wmesh-base is one more worktree at 57afe1f with build/ (AVX on, LTO),
+  the baseline the wide-mesh A/B was measured against. The box is SHARED
+  between sessions: check `pgrep -af benchmark` + load average before
+  benchmarking (a standing root `/app/launcher server` process eats ~3.5
+  cores, so absolute numbers run hot vs the published tables — trust
+  interleaved A/B ratios only). Start any new box session with git fetch
+  origin main.
 
 ## AVX-512 wide solver path (landed on main 2026-07-12)
 
@@ -152,27 +160,48 @@ there is no pending working-tree state.
   measured -1% rain / -6% trees100 (min-of-3 interleaved A/B; the trees
   scenes swing +/-10% run to run — always A/B before believing small-scene
   deltas). Remaining scalar targets: b3CollideTask (~14% of the profile),
-  gather/scatter transposes (~6%), the mesh contact path.
-- **Mesh contact solver wide-ification (sized and designed 2026-07-13, NOT
-  implemented — it is a dedicated-session project)**: trees100 spends ~39%
-  in b3SolveContacts_Mesh alone (~50% in the whole mesh contact pipeline;
-  rain ~7%; M3 `sample` profiles, 1 worker). Design constraints discovered:
-  (1) lane = whole CONTACT (graph colors are body-disjoint per color, so 4
-  contacts gather/scatter safely), because the scalar solver is
-  Gauss-Seidel ACROSS manifolds within a contact — manifold j+1 sees
-  manifold j's velocity updates, so manifolds must serialize in-register
-  within a lane (Jacobi across manifold lanes would NOT be bit-identical);
-  (2) the ragged dimension is manifoldCount (unbounded-ish, histogram
-  buckets to 8+; points per manifold cap at 4) — inner loops bound by
-  max over lanes with b3MaskKeepW-style zero-feeding like maxPointCount;
-  (3) needs a wide constraint LAYOUT + wide prepare (gathering scalar
-  b3ManifoldConstraint from 4 scattered addresses per iteration would eat
-  the win), i.e. the full convex wide-prepare treatment; (4) do NOT try
-  the cheap scalar variant of replacing the per-point b3RotateVector pair
-  with dq-matrices — that changes rounding, and the round-3 notes show
-  b3RotateVector rounding changes re-rolled TestMeshDrop into a limit
-  cycle. Gates for the implementation: TestMeshDrop, goldens, trees100 +
-  rain A/B on both ISAs.
+  gather/scatter transposes (~6%).
+- **Wide mesh contact solver (landed 2026-07-13; implements the wide-ification
+  design that was sized in this doc — trees100 spent ~39% in
+  b3SolveContacts_Mesh alone, ~50% in the whole mesh pipeline, rain ~7%, M3
+  `sample` profiles at 1 worker)**: colored mesh contacts
+  solve four contacts per b3ContactConstraintMeshWide (lane = whole contact;
+  coloring keeps the eight gathered bodies disjoint), manifolds serialize
+  in-register to preserve the scalar Gauss-Seidel order, and the ragged
+  dimension (manifoldCount) is sized per group of four as the widest lane
+  (flat slot array + per-slot start table built in solver setup). EVERY lane
+  is bit-identical to b3SolveContacts_Mesh by construction: unfused crosses,
+  full nine-entry b3MulMV with per-product rounding (invIA/invIB/rollingMass
+  are NOT bitwise symmetric), unfused 2x2 tangent-mass products (scalar
+  b3MulMV2/b3Dot2 are unfused, unlike the fused convex b3MulMV2W), the
+  FixMul(-mass, x) forms multiply by the NEGATED mass (round-half-up is not
+  odd-symmetric), and the anchor rotation is the exact unfused two-cross
+  b3RotateVectorW — the fused b3Matrix3W rotation trick was differential
+  tested and is NOT bit-identical to b3RotateVector (20M/20M random inputs
+  mismatch), and DeterminismTest drops ragdolls onto meshes, so using it
+  would break the goldens. Inactive (lane, manifold/point) slots hold exact
+  zeros and compute exact zero deltas; the ONE non-self-neutralizing spot is
+  rolling resistance (per-contact rolling mass), whose stored impulse is
+  blended per lane (manifoldCounts mask AND rr > 0). Goldens 287/0x6FA8A4C5
+  verified with the wide path running on BOTH arm64 scalar-emulated lanes
+  (commit b218eb6, pre-gate) and Zen 4 AVX-512; overflow keeps the scalar
+  functions (b3PrepareContacts_Mesh and friends stay).
+  **B3_MESH_WIDE gates the path to AVX-512 builds**: on M3 the emulated
+  lanes measured 32-46% SLOWER than the scalar colored path (min-of-3
+  interleaved: trees100 143.9 -> 210.3 ms, trees50 184.6 -> 243.6, rain a
+  wash) — same no-64-bit-vector-multiply trade as the wide solver, so
+  scalar/NEON builds keep the scalar colored path (bit-identical either
+  way; solver setup computes both count families and the branch constant
+  folds). Zen 4 AVX-512 (min-of-3 interleaved, 4 workers, vs main 57afe1f,
+  both LTO ON): trees100 1884.6 -> 1465.1 ms (-22%), trees50 2419.2 ->
+  1901.1 (-21%), rain 57.4 s -> 58.4 s (+1.8%, all of it in the solve
+  phase). The rain tax is NOT lane raggedness — rain's mesh contacts are
+  all 1-manifold (waste ratio 1.00) while trees100 carries 49% wasted lane
+  slots and still wins big — it is fixed per-slot/per-point overhead on
+  tiny manifolds. Follow-up if it ever matters: a per-color indirection
+  sorted by manifoldCount would homogenize groups (contact order within a
+  color cannot affect results — bodies are disjoint), or a 1-manifold fast
+  path.
 - **NEON narrow-phase path (BOX3D_NEON, landed with the M3 work)**: the M3
   has no 64-bit vector multiply (FEAT_SME 0, no SVE2, AMX private), so the
   wide solver stays scalar on ARM (documented: Apple's scalar core wins the
@@ -216,10 +245,10 @@ there is no pending working-tree state.
   `sudo sysctl kernel.perf_event_paranoid=1` (default 4; restore after).
   GitHub is reachable over https; the fixed3d clone there has upstream main
   fetched (e961bfb resolves).
-- Follow-ups: no CI job yet (GitHub runners aren't guaranteed AVX-512 —
-  a compile-only job would work); B3_SIMD_WIDTH=8 zmm variant unexplored
-  (Zen 4 double-pumps 512-bit, expect small gains at best); prepare/warm
-  start gather-scatter and the mesh contact path are still scalar.
+- Follow-ups: B3_SIMD_WIDTH=8 zmm variant unexplored (Zen 4 double-pumps
+  512-bit, expect small gains at best); prepare/warm start gather-scatter
+  is still scalar; the mesh contact path is wide as of 2026-07-13 (see the
+  wide mesh bullet above; scalar remains for overflow and non-AVX builds).
 
 ## Repository and remotes (IMPORTANT)
 
@@ -410,6 +439,31 @@ fuzz and CI (compile-only avx512 job, scalar ubuntu jobs) never caught
 it. RULE: any inline asm containing an instruction that can fault must be
 volatile; and run the AVX suite with BOTH compilers on the box before
 trusting an asm change.
+
+**gcc AVX-512 SIGFPE in b3Int128Div — found during the wide-mesh AVX
+verification, FIXED on main (cd4b9a5, 2026-07-13)**: gcc AVX-512 Release
+builds (LTO or not) trapped in ManifoldTest's TriangleHullEdgeSweepTest.
+Root cause (gdb + disassembly): gcc treats a non-volatile asm as
+side-effect-free and TRAP-FREE, so it speculated the `divq` above both
+the uhi < v quotient-fits guard and the sign-magnitude negation —
+back-to-back unguarded `div %r9` fed the raw two's-complement bits of a
+negative dividend whose true quotient was -1. Fix: `__asm__ volatile`
+(pins the instruction to its branch; values unchanged, so bit-identical
+by construction; the comment in fixed.h marks volatile as load-bearing).
+Verified at the fix: gcc AVX+LTO full suite + goldens, gcc AVX no-LTO,
+gcc scalar + goldens, clang-18 AVX, arm64; perf wash on joint_grid
+(identical-config interleaved min-of-3). See also the POSTSCRIPT in the
+division section above. Two lessons: (1) the buffered-stdout trap rule
+strikes again — the full-suite run APPEARS to die around JointTest but
+the lost buffer hides that ManifoldTest is the faulter; bisect suites
+individually; (2) run the AVX suite with BOTH compilers on the box
+before trusting a division/asm change — CI cannot (the avx512 job is
+clang compile-only, the ubuntu gcc jobs are scalar). SEPARATE issue
+found during that sweep, still open (chip spawned): CompoundTest's
+CompoundMaterialDedup fails deterministically in gcc AVX **no-LTO**
+builds at clean 4273c4c (passes with LTO/clang/scalar/arm64) — smells
+like the raw-bytes-hash bug class, unrelated to division. Repro:
+~/divcheck/build-nolto on the box.
 
 **Benchmark CLI gotcha**: flags need the equals form (`-b=large_pyramid -w=4 -t=4
 -r=2`). Space-separated flags are silently ignored and the FULL suite runs (looks

@@ -52,6 +52,8 @@ typedef struct b3ContactConstraint
 } b3ContactConstraint;
 
 int b3GetWideContactConstraintByteCount( void );
+int b3GetMeshWideContactConstraintByteCount( void );
+int b3GetMeshWideManifoldConstraintByteCount( void );
 
 // Overflow contacts don't fit into the constraint graph coloring
 void b3PrepareContacts_Overflow( b3StepContext* context );
@@ -60,11 +62,32 @@ void b3SolveContacts_Overflow( b3StepContext* context, bool useBias );
 void b3ApplyRestitution_Overflow( b3StepContext* context );
 void b3StoreImpulses_Overflow( b3StepContext* context );
 
+// Scalar mesh solver. Used for the overflow color; the colored mesh path runs
+// the wide variants below, which are bit-identical per lane by construction.
 void b3PrepareContacts_Mesh( b3SolverBlock block, b3StepContext* context );
 void b3WarmStartContacts_Mesh( b3SolverBlock block, b3StepContext* context );
 void b3SolveContacts_Mesh( b3SolverBlock block, b3StepContext* context, bool useBias );
 void b3ApplyRestitution_Mesh( b3SolverBlock block, b3StepContext* context );
 void b3StoreImpulses_Mesh( b3SolverBlock block, b3StepContext* context, int workerIndex );
+
+// The wide mesh path pays off where four int64 lanes have hardware (AVX-512).
+// On scalar/NEON builds the emulated lanes plus the ragged manifold dimension
+// measured 32-46% slower than the scalar mesh solver on M3 (trees scenes,
+// min-of-3 interleaved A/B), so those builds keep the scalar colored path.
+// Both paths are bit-identical per lane, so this cannot affect determinism.
+#if defined( B3_SIMD_AVX512 )
+#define B3_MESH_WIDE 1
+#else
+#define B3_MESH_WIDE 0
+#endif
+
+// Four-lane wide mesh solver: lane = whole contact, manifolds serialize
+// in-register (Gauss-Seidel across manifolds, like the scalar loop).
+void b3PrepareContacts_MeshWide( b3SolverBlock block, b3StepContext* context );
+void b3WarmStartContacts_MeshWide( b3SolverBlock block, b3StepContext* context );
+void b3SolveContacts_MeshWide( b3SolverBlock block, b3StepContext* context, bool useBias );
+void b3ApplyRestitution_MeshWide( b3SolverBlock block, b3StepContext* context );
+void b3StoreImpulses_MeshWide( b3SolverBlock block, b3StepContext* context, int workerIndex );
 
 void b3PrepareContacts_Convex( b3SolverBlock block, b3StepContext* context );
 void b3WarmStartContacts_Convex( b3SolverBlock block, b3StepContext* context );

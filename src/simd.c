@@ -5,49 +5,9 @@
 
 #include "simd.h"
 
-#if defined( B3_SIMD_SSE2 )
-
-#define B3_TRANSPOSE3( C1, C2, C3 )                                                                                              \
-	{                                                                                                                            \
-		b3V32 T1 = _mm_unpacklo_ps( ( C1 ), ( C2 ) );                                                                            \
-		b3V32 T2 = _mm_unpackhi_ps( ( C1 ), ( C2 ) );                                                                            \
-		( C1 ) = _mm_shuffle_ps( ( T1 ), ( C3 ), _MM_SHUFFLE( 0, 0, 1, 0 ) );                                                    \
-		( C2 ) = _mm_shuffle_ps( ( T1 ), ( C3 ), _MM_SHUFFLE( 1, 1, 3, 2 ) );                                                    \
-		( C3 ) = _mm_shuffle_ps( ( T2 ), ( C3 ), _MM_SHUFFLE( 2, 2, 1, 0 ) );                                                    \
-	}
-
-static inline b3V32 b3SplatXV( b3V32 v )
-{
-	return _mm_shuffle_ps( v, v, _MM_SHUFFLE( 0, 0, 0, 0 ) );
-}
-
-static inline b3V32 b3SplatYV( b3V32 v )
-{
-	return _mm_shuffle_ps( v, v, _MM_SHUFFLE( 1, 1, 1, 1 ) );
-}
-
-static inline b3V32 b3SplatZV( b3V32 v )
-{
-	return _mm_shuffle_ps( v, v, _MM_SHUFFLE( 2, 2, 2, 2 ) );
-}
-
-static inline bool b3AnyGreaterEq3V( b3V32 a, b3V32 b )
-{
-	b3V32 v = _mm_cmpge_ps( a, b );
-	return ( _mm_movemask_ps( v ) & 0x07 ) != 0;
-}
-
-static inline b3V32 b3Dot3V( b3V32 a, b3V32 b )
-{
-	b3V32 m = _mm_mul_ps( a, b );
-	b3V32 x = _mm_shuffle_ps( m, m, _MM_SHUFFLE( 0, 0, 0, 0 ) );
-	b3V32 y = _mm_shuffle_ps( m, m, _MM_SHUFFLE( 1, 1, 1, 1 ) );
-	b3V32 z = _mm_shuffle_ps( m, m, _MM_SHUFFLE( 2, 2, 2, 2 ) );
-
-	return _mm_add_ps( _mm_add_ps( x, y ), z );
-}
-
-#else
+// The float SSE2 variant of these helpers was removed with the rest of the
+// float SIMD: simd.h only defines the scalar fixed-point b3V32 now, so the
+// intrinsic branch could never compile again.
 
 #define B3_TRANSPOSE3( C1, C2, C3 )                                                                                              \
 	{                                                                                                                            \
@@ -89,8 +49,6 @@ static inline b3V32 b3Dot3V( b3V32 a, b3V32 b )
 	b3Fixed d = b3FixMul( a.x , b.x ) + b3FixMul( a.y , b.y ) + b3FixMul( a.z , b.z );
 	return B3_LITERAL( b3V32 ){ d, d, d };
 }
-
-#endif
 
 bool b3TestBoundsTriangleOverlap( b3V32 nodeCenter, b3V32 nodeExtent, b3V32 vertex1, b3V32 vertex2, b3V32 vertex3 )
 {

@@ -184,8 +184,9 @@ b3Fixed b3Atan2( b3Fixed y, b3Fixed x )
 	b3Fixed mx = b3FixMax( ay, ax );
 	b3Fixed mn = b3FixMin( ay, ax );
 
-	// a = mn / mx in [0, 1], evaluated in Q32.32
-	int64_t a = (int64_t)b3Int128Div( ( (b3Int128)mn << 32 ), mx );
+	// a = mn / mx in [0, 1], evaluated in Q32.32. mn >= 0 so the raw shift
+	// would be fine, but the helper is the convention for signed shifts.
+	int64_t a = (int64_t)b3Int128Div( b3Int128ShiftLeft( (b3Int128)mn, 32 ), mx );
 
 	// Minimax polynomial approximation to atan(a) on [0,1]
 	int64_t s = b3Q32Mul( a, a );
