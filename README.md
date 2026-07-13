@@ -58,7 +58,9 @@ worthwhile optimizations found during this exercise are backported to the real B
 Probably not. Check what you actually need against what vanilla Box3D
 already does:
 
-- **Determinism?** Vanilla Box3D is already deterministic across platforms in floating point.
+- **Determinism?** Vanilla Box3D is already deterministic across platforms in floating point, although
+  it can be argued that Fixed3D has a *stable equilibrium* determinism across platforms while floating
+  point determinism is an unstable equilibrium across platforms maintained with constant vigilance.
 
 - **A big world?** Vanilla Box3D already handles a 20,000 km cubed world
   with just ~1M of broadphase padding at 10,000km from origin, and its double
