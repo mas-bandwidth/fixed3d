@@ -23,12 +23,14 @@ there is no pending working-tree state.
 - **Performance vs vanilla float (geomean, all 11 benchmarks)**: M3 Ultra
   2.07x scalar / 1.90x with BOX3D_NEON (table re-measured 2026-07-13 at the
   current defaults, float re-run the same session); Zen 4 3.4x scalar /
-  2.3x with BOX3D_AVX512 (README table kept at the clean 2026-07-12
-  measurement — see below — with a footnote for LTO/div). **convex_pile
-  BEATS float on both**: 0.75x on M3, 0.83x on Zen 4 (the README's "where
-  fixed point wins" section covers this with the honest mechanics: Erin's
-  float SIMD stops at his solver, our narrow phase is vectorized — we
-  out-vectorized, not out-multiplied). TWO RULES learned refreshing
+  2.3x with BOX3D_AVX512 (clean 2026-07-12 measurement). NOTE: Glenn
+  slimmed the README on 2026-07-13 — it now carries ONLY the M3 table; the
+  Zen 4 table, the AVX-512/NEON sections, and the convex_pile-win section
+  were removed from it (the Zen 4 numbers live here and in git history).
+  **convex_pile BEATS float on both**: 0.75x on M3, 0.83x on Zen 4 — no
+  longer claimed in the README; the mechanics (Erin's float SIMD stops at
+  his solver, our narrow phase is vectorized — we out-vectorized, not
+  out-multiplied) are in ERIN.md item 14. TWO RULES learned refreshing
   tables on 2026-07-13: (1) absolute times drift a few percent with machine
   state, so a refresh must re-run the float reference in the same session
   or the ratios silently lie; (2) the space box is SHARED — check
@@ -39,6 +41,22 @@ there is no pending working-tree state.
   both sessions' data was garbage. The published Zen 4 table stands.
 - **Samples build and run** (the float→fixed sample pass is done, including the
   newly re-enabled GyroscopicPrecession sample from e961bfb).
+- **Docs consistency pass (2026-07-13, after Glenn's README slim-down)**:
+  docs/ was still the vanilla float manual. All ~114 float literals in
+  example code are now B3_FIX-wrapped (plus float→b3Fixed declarations,
+  sqrtf/cosf/b3MaxFloat → b3FixSqrt/b3Cos/b3FixMax, printf args through
+  b3FixToDouble, FLT_MAX → B3_FIXED_MAX); large_worlds.md rewritten for
+  fixed point (BOX3D_DOUBLE_PRECISION #errors, b3Pos permanently aliases
+  b3Vec3, float-renderer draw-origin caveat kept); the FAQ's "Box3D does
+  not support fixed-point math" answer and BOTH determinism sections
+  (faq.md, simulation.md) rewritten — determinism by construction, vanilla
+  stays credited as deterministic per the public-claims rule;
+  raycast_capsule_parallel.md got a historical banner (it documents the
+  float algorithm the capsule-raycast rewrite replaced); loose_ends.md
+  default gravity corrected (-9.8 → -10, matching b3DefaultWorldDef);
+  foundation.md gained a b3Fixed primer section; overview.md gained a
+  fork note up top. hello.md and simulation.md explain the two B3_FIX
+  traps inline (bare literal truncates 65536x; %f on a b3Fixed is UB).
 - **Determinism goldens**: sleepStep=287, hash=0x6FA8A4C5, verified bit-identical
   across 1-5 workers. Updated for the e961bfb friction-center weighted-average
   port — any solver-affecting change invalidates these, see the test conventions
@@ -66,12 +84,13 @@ there is no pending working-tree state.
   20,000 km cubed world with just +/-1M of broadphase padding, with large
   position support only ~3% slower than float positions (numbers from
   Glenn), and the README now says plainly that most users should keep
-  using vanilla Box3D. The convex_pile win is framed as LIKELY TEMPORARY
-  (also from Glenn): the vectorized narrow phase is a technique, not a
-  fixed-point advantage, ERIN.md documents it for backporting, and once
-  vanilla picks it up convex_pile should flip back and fixed point return
-  to ~2x everywhere — keep that caveat attached wherever the win is
-  claimed publicly.
+  using vanilla Box3D. Glenn's 2026-07-13 README slim-down removed the
+  convex_pile win claim entirely; his standing framing is "I expect this
+  to worsen to around 2.5x as any worthwhile optimizations found during
+  this exercise are backported to the real Box3D" (the vectorized narrow phase
+  is a technique, not a fixed-point advantage — ERIN.md documents it for
+  backporting). If the win is ever claimed publicly again, attach the
+  likely-temporary caveat.
 - History (main): e9f6f1d float baseline → 45078b4 + 98b9889 conversion →
   d29ef7d..a40134f optimization passes → 924cd56 narrow storage → ea684c7..632ff0d
   CI/samples → 973acd1 bug-hunt hardening → 1f1c941 friction center weighted
@@ -140,9 +159,10 @@ there is no pending working-tree state.
   over scalar fixed across all 11 benchmarks; vs float e961bfb (SSE2) on the
   same box: geomean 3.36x scalar → 2.27x AVX (post large_world scene fix),
   and **convex_pile BEATS float
-  at 0.83x** (53,092 ms vs 63,943 — the honest story, told in the README's
-  "where fixed point wins" section: Erin's float SIMD stops at the solver
-  while our narrow phase is vectorized too). Per-scene speedups over scalar fixed:
+  at 0.83x** (53,092 ms vs 63,943 — not claimed in the README since the
+  2026-07-13 slim-down; the honest mechanics are in ERIN.md item 14:
+  Erin's float SIMD stops at the solver while our narrow phase is
+  vectorized too). Per-scene speedups over scalar fixed:
   large_world 5.4x, convex_pile 2.39x, large_pyramid 2.16x, many_pyramids
   1.93x, washer 1.89x, junkyard 1.71x; joint/tree scenes flat. LTO
   (CMAKE_INTERPROCEDURAL_OPTIMIZATION) adds a further 1-3%, measured but not

@@ -37,14 +37,14 @@ Spheres have a center and radius. Spheres are solid.
 
 ```c
 b3Sphere sphere;
-sphere.center = (b3Vec3){2.0f, 3.0f, 0.0f};
-sphere.radius = 0.5f;
+sphere.center = (b3Vec3){B3_FIX( 2.0f ), B3_FIX( 3.0f ), B3_FIX( 0.0f )};
+sphere.radius = B3_FIX( 0.5f );
 ```
 
 You can also initialize a sphere inline:
 
 ```c
-b3Sphere sphere = {{2.0f, 3.0f, 0.0f}, 0.5f};
+b3Sphere sphere = {{B3_FIX( 2.0f ), B3_FIX( 3.0f ), B3_FIX( 0.0f )}, B3_FIX( 0.5f )};
 ```
 
 ### Capsules
@@ -56,9 +56,9 @@ hemispheres connected by a cylinder.
 
 ```c
 b3Capsule capsule;
-capsule.center1 = (b3Vec3){0.0f, -1.0f, 0.0f};
-capsule.center2 = (b3Vec3){0.0f,  1.0f, 0.0f};
-capsule.radius = 0.25f;
+capsule.center1 = (b3Vec3){B3_FIX( 0.0f ), B3_FIX( -1.0f ), B3_FIX( 0.0f )};
+capsule.center2 = (b3Vec3){B3_FIX( 0.0f ), B3_FIX(  1.0f ), B3_FIX( 0.0f )};
+capsule.radius = B3_FIX( 0.25f );
 ```
 
 ### Convex Hulls
@@ -74,8 +74,8 @@ The most common hull is a box. Use `b3MakeBoxHull` for an axis-aligned box and
 `b3MakeCubeHull` for a cube. The values are half-extents (half-widths):
 
 ```c
-b3BoxHull box = b3MakeBoxHull(0.5f, 1.0f, 0.5f);   // half-widths hx, hy, hz
-b3BoxHull cube = b3MakeCubeHull(0.5f);              // uniform half-width
+b3BoxHull box = b3MakeBoxHull(B3_FIX( 0.5f ), B3_FIX( 1.0f ), B3_FIX( 0.5f ));   // half-widths hx, hy, hz
+b3BoxHull cube = b3MakeCubeHull(B3_FIX( 0.5f ));                                  // uniform half-width
 ```
 
 `b3BoxHull` stores everything inline — do not call `b3DestroyHull` on one.
@@ -89,7 +89,7 @@ For a box that is offset or rotated from the body origin:
 
 ```c
 b3Transform localTransform = { offset, rotation };
-b3BoxHull rotatedBox = b3MakeTransformedBoxHull(0.5f, 1.0f, 0.5f, localTransform);
+b3BoxHull rotatedBox = b3MakeTransformedBoxHull(B3_FIX( 0.5f ), B3_FIX( 1.0f ), B3_FIX( 0.5f ), localTransform);
 ```
 
 For arbitrary convex geometry, provide a point cloud and let Box3D compute the hull:
@@ -152,7 +152,7 @@ The `b3Mesh` struct pairs a `b3MeshData` pointer with a scale vector:
 ```c
 b3Mesh meshShape;
 meshShape.data  = mesh;
-meshShape.scale = (b3Vec3){1.0f, 1.0f, 1.0f};
+meshShape.scale = (b3Vec3){B3_FIX( 1.0f ), B3_FIX( 1.0f ), B3_FIX( 1.0f )};
 ```
 
 Scale may be non-uniform and may have negative components, but no component may
@@ -189,12 +189,12 @@ they are only valid on static bodies.
 
 ```c
 b3HeightFieldDef def = {0};
-def.heights    = heightSamples;   // float[countX * countZ]
+def.heights    = heightSamples;   // b3Fixed[countX * countZ]
 def.countX     = 256;
 def.countZ     = 256;
-def.scale      = (b3Vec3){1.0f, 1.0f, 1.0f};
-def.globalMinimumHeight = -10.0f;
-def.globalMaximumHeight =  50.0f;
+def.scale      = (b3Vec3){B3_FIX( 1.0f ), B3_FIX( 1.0f ), B3_FIX( 1.0f )};
+def.globalMinimumHeight = B3_FIX( -10.0f );
+def.globalMaximumHeight = B3_FIX(  50.0f );
 
 b3HeightFieldData* hf = b3CreateHeightField(&def);
 b3ShapeId id = b3CreateHeightFieldShape(bodyId, &shapeDef, hf);
@@ -230,11 +230,11 @@ expressed through the `b3ShapeProxy` abstraction that GJK uses. A degenerate
 proxy — a single point with zero radius — serves as a point test:
 
 ```c
-b3Vec3 queryPoint = {5.0f, 2.0f, 1.0f};
+b3Vec3 queryPoint = {B3_FIX( 5.0f ), B3_FIX( 2.0f ), B3_FIX( 1.0f )};
 b3ShapeProxy proxy;
 proxy.points = &queryPoint;
 proxy.count  = 1;
-proxy.radius = 0.0f;
+proxy.radius = 0;
 
 b3Transform shapeTransform = b3Transform_identity;
 bool hit = b3OverlapHull(&myHull, shapeTransform, &proxy);
@@ -254,9 +254,9 @@ Cast a ray at a shape to get the point of first intersection and the surface nor
 
 ```c
 b3RayCastInput input = {0};
-input.origin      = (b3Vec3){0.0f, 10.0f, 0.0f};
-input.translation = (b3Vec3){0.0f, -20.0f, 0.0f};
-input.maxFraction = 1.0f;
+input.origin      = (b3Vec3){B3_FIX( 0.0f ), B3_FIX( 10.0f ), B3_FIX( 0.0f )};
+input.translation = (b3Vec3){B3_FIX( 0.0f ), B3_FIX( -20.0f ), B3_FIX( 0.0f )};
+input.maxFraction = B3_FIX( 1.0f );
 
 b3CastOutput output = b3RayCastHull(&myHull, &input);
 if (output.hit)
@@ -281,14 +281,15 @@ a non-zero radius; a capsule is two points with a radius; a box is eight points
 with zero radius.
 
 ```c
-b3Vec3 proxyPoints[] = {{-0.5f, -0.5f, -0.5f}, {0.5f, 0.5f, 0.5f}};
+b3Vec3 proxyPoints[] = {{B3_FIX( -0.5f ), B3_FIX( -0.5f ), B3_FIX( -0.5f )},
+                        {B3_FIX(  0.5f ), B3_FIX(  0.5f ), B3_FIX(  0.5f )}};
 
 b3ShapeCastInput input = {0};
 input.proxy.points      = proxyPoints;
 input.proxy.count       = 2;
-input.proxy.radius      = 0.1f;
-input.translation       = (b3Vec3){0.0f, -5.0f, 0.0f};
-input.maxFraction       = 1.0f;
+input.proxy.radius      = B3_FIX( 0.1f );
+input.translation       = (b3Vec3){B3_FIX( 0.0f ), B3_FIX( -5.0f ), B3_FIX( 0.0f )};
+input.maxFraction       = B3_FIX( 1.0f );
 
 b3CastOutput output = b3ShapeCastHull(&myHull, &input);
 if (output.hit)
@@ -356,7 +357,7 @@ input.proxyA    = proxyA;
 input.proxyB    = proxyB;
 input.sweepA    = sweepA;   // b3Sweep: localCenter, c1, c2, q1, q2
 input.sweepB    = sweepB;
-input.maxFraction = 1.0f;
+input.maxFraction = B3_FIX( 1.0f );
 
 b3TOIOutput output = b3TimeOfImpact(&input);
 if (output.state == b3_toiStateHit)
@@ -468,7 +469,7 @@ The callback receives `proxyId` and `userData` and returns `true` to continue.
 Find the proxy closest to a point:
 
 ```c
-float minDistSqr = FLT_MAX;
+b3Fixed minDistSqr = B3_FIXED_MAX;
 b3TreeStats stats = b3DynamicTree_QueryClosest(
     &tree, point, maskBits, requireAllBits,
     myClosestCallback, context, &minDistSqr);

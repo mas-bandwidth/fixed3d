@@ -86,7 +86,7 @@ The world definition has lots of options, but for most you will use the defaults
 
 ```c
 // +Y is up; default is {0, -10, 0}
-worldDef.gravity = (b3Vec3){0.0f, -10.0f, 0.0f};
+worldDef.gravity = (b3Vec3){B3_FIX( 0.0f ), B3_FIX( -10.0f ), B3_FIX( 0.0f )};
 ```
 
 Box3D has no built-in concept of an up direction. Gravity is simply a `b3Vec3` applied to every
@@ -133,7 +133,7 @@ The world is used to drive the simulation. You specify a time step
 and a sub-step count. For example:
 
 ```c
-float timeStep = 1.0f / 60.0f;
+b3Fixed timeStep = B3_FIX( 1.0f / 60.0f );
 int subStepCount = 4;
 b3World_Step(myWorldId, timeStep, subStepCount);
 ```
@@ -261,18 +261,19 @@ shapes and joints do not move.
 
 ```c
 b3BodyDef bodyDef = b3DefaultBodyDef();
-bodyDef.position = (b3Vec3){0.0f, 2.0f, 0.0f};
+bodyDef.position = (b3Vec3){B3_FIX( 0.0f ), B3_FIX( 2.0f ), B3_FIX( 0.0f )};
 
-// Rotate 45 degrees about the Y axis
-b3Vec3 axis = {0.0f, 1.0f, 0.0f};
-bodyDef.rotation = b3MakeQuatFromAxisAngle(axis, 0.25f * B3_PI);
+// Rotate 45 degrees about the Y axis. B3_PI is a b3Fixed, so integer
+// scaling (a native operation on fixed point) expresses the fraction.
+b3Vec3 axis = {B3_FIX( 0.0f ), B3_FIX( 1.0f ), B3_FIX( 0.0f )};
+bodyDef.rotation = b3MakeQuatFromAxisAngle(axis, B3_PI / 4);
 ```
 
 To read the axis and angle back from a quaternion:
 
 ```c
 b3Quat q = b3Body_GetRotation(myBodyId);
-float radians;
+b3Fixed radians;
 b3Vec3 axis = b3GetAxisAngle(&radians, q);
 ```
 
@@ -291,8 +292,8 @@ damping value between 0 and 1. Linear damping is generally undesirable
 because it makes bodies look like they are floating.
 
 ```c
-bodyDef.linearDamping = 0.0f;
-bodyDef.angularDamping = 0.1f;
+bodyDef.linearDamping = B3_FIX( 0.0f );
+bodyDef.angularDamping = B3_FIX( 0.1f );
 ```
 
 Damping is approximated to improve performance. At small damping
@@ -306,7 +307,7 @@ careful though, a large gravity magnitude can decrease stability.
 
 ```c
 // Set the gravity scale to zero so this body will float
-bodyDef.gravityScale = 0.0f;
+bodyDef.gravityScale = B3_FIX( 0.0f );
 ```
 
 ### Sleep Parameters
@@ -472,8 +473,8 @@ scenarios that require altering the mass.
 
 ```c
 b3MassData myMassData;
-myMassData.mass = 10.0f;
-myMassData.center = (b3Vec3){0.0f, 0.0f, 0.0f};
+myMassData.mass = B3_FIX( 10.0f );
+myMassData.center = (b3Vec3){B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f )};
 myMassData.inertia = b3Mat3_identity; // b3Matrix3 inertia tensor
 b3Body_SetMassData(myBodyId, myMassData);
 ```
@@ -488,7 +489,7 @@ b3Body_ApplyMassFromShapes(myBodyId);
 The body's mass data is available through the following functions:
 
 ```c
-float mass = b3Body_GetMass(myBodyId);
+b3Fixed mass = b3Body_GetMass(myBodyId);
 b3Matrix3 inertia = b3Body_GetLocalRotationalInertia(myBodyId);
 b3Vec3 localCenter = b3Body_GetLocalCenter(myBodyId);
 b3MassData massData = b3Body_GetMassData(myBodyId);
@@ -554,10 +555,10 @@ b3Vec3 angularVelocity = b3Body_GetAngularVelocity(myBodyId);
 You can drive a body to a specific transform. This is useful for kinematic bodies.
 
 ```c
-b3Pos targetPosition = {42.0f, 0.0f, -100.0f};
+b3Pos targetPosition = {B3_FIX( 42.0f ), B3_FIX( 0.0f ), B3_FIX( -100.0f )};
 b3Quat targetRotation = b3MakeQuatFromAxisAngle(b3Vec3_axisY, B3_PI);
 b3WorldTransform target = {targetPosition, targetRotation};
-float timeStep = 1.0f / 60.0f;
+b3Fixed timeStep = B3_FIX( 1.0f / 60.0f );
 b3Body_SetTargetTransform(myBodyId, target, timeStep, true);
 ```
 
@@ -675,10 +676,10 @@ These are passed to a creation function specific to each shape type.
 
 ```c
 b3ShapeDef shapeDef = b3DefaultShapeDef();
-shapeDef.density = 10.0f;
-shapeDef.baseMaterial.friction = 0.7f;
+shapeDef.density = B3_FIX( 10.0f );
+shapeDef.baseMaterial.friction = B3_FIX( 0.7f );
 
-b3BoxHull box = b3MakeBoxHull(0.5f, 0.5f, 1.0f);
+b3BoxHull box = b3MakeBoxHull(B3_FIX( 0.5f ), B3_FIX( 0.5f ), B3_FIX( 1.0f ));
 b3ShapeId myShapeId = b3CreateHullShape(myBodyId, &shapeDef, &box.base);
 ```
 
@@ -718,7 +719,7 @@ especially on a body with many shapes.
 
 ```c
 bool updateMass = false;
-b3Shape_SetDensity(myShapeId, 5.0f, updateMass);
+b3Shape_SetDensity(myShapeId, B3_FIX( 5.0f ), updateMass);
 b3Body_ApplyMassFromShapes(myBodyId);
 ```
 
@@ -737,7 +738,7 @@ of the two parent shapes. This is done with the
 [geometric mean](https://en.wikipedia.org/wiki/Geometric_mean):
 
 ```c
-float mixedFriction = sqrtf(b3Shape_GetFriction(shapeIdA) * b3Shape_GetFriction(shapeIdB));
+b3Fixed mixedFriction = b3FixSqrt(b3FixMul(b3Shape_GetFriction(shapeIdA), b3Shape_GetFriction(shapeIdB)));
 ```
 
 If one shape has zero friction then the mixed friction will be zero.
@@ -745,7 +746,7 @@ If one shape has zero friction then the mixed friction will be zero.
 Friction is stored as part of the shape's base surface material:
 
 ```c
-shapeDef.baseMaterial.friction = 0.5f;
+shapeDef.baseMaterial.friction = B3_FIX( 0.5f );
 ```
 
 ### Restitution
@@ -759,7 +760,7 @@ exactly reflected. This is called a *perfectly elastic* collision.
 Restitution is combined using the following formula.
 
 ```c
-float mixedRestitution = b3MaxFloat(b3Shape_GetRestitution(shapeIdA), b3Shape_GetRestitution(shapeIdB));
+b3Fixed mixedRestitution = b3FixMax(b3Shape_GetRestitution(shapeIdA), b3Shape_GetRestitution(shapeIdB));
 ```
 
 Restitution is combined this way so that you can have a bouncy super
@@ -773,7 +774,7 @@ This is done to prevent jitter. See `b3WorldDef::restitutionThreshold`.
 Restitution is stored as part of the shape's base surface material:
 
 ```c
-shapeDef.baseMaterial.restitution = 0.3f;
+shapeDef.baseMaterial.restitution = B3_FIX( 0.3f );
 ```
 
 ### Friction and Restitution Callbacks
@@ -784,8 +785,8 @@ are called frequently. The callbacks receive the two friction (or restitution) v
 and the user material ids from each shape's surface material.
 
 ```c
-float MyFrictionCallback(float frictionA, uint64_t userMaterialIdA,
-                         float frictionB, uint64_t userMaterialIdB)
+b3Fixed MyFrictionCallback(b3Fixed frictionA, uint64_t userMaterialIdA,
+                           b3Fixed frictionB, uint64_t userMaterialIdB)
 {
     if (userMaterialIdA > userMaterialIdB)
     {
@@ -1156,7 +1157,7 @@ events are the answer for this.
 for (int i = 0; i < contactEvents.hitCount; ++i)
 {
     b3ContactHitEvent* hitEvent = contactEvents.hitEvents + i;
-    if (hitEvent->approachSpeed > 10.0f)
+    if (hitEvent->approachSpeed > B3_FIX( 10.0f ))
     {
         // play sound
     }
@@ -1371,8 +1372,8 @@ Hertz and damping ratio.
 
 ```c
 jointDef.enableSpring = true;
-jointDef.hertz = 2.0f;
-jointDef.dampingRatio = 0.5f;
+jointDef.hertz = B3_FIX( 2.0f );
+jointDef.dampingRatio = B3_FIX( 0.5f );
 ```
 
 The hertz is the frequency of a [harmonic oscillator](https://en.wikipedia.org/wiki/Harmonic_oscillator) (like a
@@ -1439,27 +1440,27 @@ joint friction.
 ```c
 jointDef.base.localFrameA.p = b3Body_GetLocalPoint(myBodyIdA, worldPivot);
 jointDef.base.localFrameB.p = b3Body_GetLocalPoint(myBodyIdB, worldPivot);
-jointDef.lowerAngle  = -0.5f * B3_PI; // -90 degrees
-jointDef.upperAngle  =  0.25f * B3_PI; //  45 degrees
+jointDef.lowerAngle  = -B3_PI / 2; // -90 degrees
+jointDef.upperAngle  =  B3_PI / 4; //  45 degrees
 jointDef.enableLimit = true;
-jointDef.maxMotorTorque = 10.0f;
-jointDef.motorSpeed  = 0.0f;
+jointDef.maxMotorTorque = B3_FIX( 10.0f );
+jointDef.motorSpeed  = B3_FIX( 0.0f );
 jointDef.enableMotor = true;
 ```
 
 You can access a revolute joint's angle, speed, and motor torque.
 
 ```c
-float angleInRadians = b3RevoluteJoint_GetAngle(myJointId);
-float speed          = b3RevoluteJoint_GetMotorSpeed(myJointId);
-float currentTorque  = b3RevoluteJoint_GetMotorTorque(myJointId);
+b3Fixed angleInRadians = b3RevoluteJoint_GetAngle(myJointId);
+b3Fixed speed          = b3RevoluteJoint_GetMotorSpeed(myJointId);
+b3Fixed currentTorque  = b3RevoluteJoint_GetMotorTorque(myJointId);
 ```
 
 You can also update the motor parameters each step.
 
 ```c
-b3RevoluteJoint_SetMotorSpeed(myJointId, 20.0f);
-b3RevoluteJoint_SetMaxMotorTorque(myJointId, 100.0f);
+b3RevoluteJoint_SetMotorSpeed(myJointId, B3_FIX( 20.0f ));
+b3RevoluteJoint_SetMaxMotorTorque(myJointId, B3_FIX( 100.0f ));
 ```
 
 Joint motors have some interesting abilities. You can update the joint
@@ -1468,7 +1469,7 @@ a sine-wave or according to whatever function you want.
 
 ```c
 // ... Game Loop Begin ...
-b3RevoluteJoint_SetMotorSpeed(myJointId, cosf(0.5f * time));
+b3RevoluteJoint_SetMotorSpeed(myJointId, b3Cos(time / 2));
 // ... Game Loop End ...
 ```
 
@@ -1490,11 +1491,11 @@ jointDef.base.bodyIdA = myBodyIdA;
 jointDef.base.bodyIdB = myBodyIdB;
 jointDef.base.localFrameA.p = b3Body_GetLocalPoint(myBodyIdA, worldPivot);
 jointDef.base.localFrameB.p = b3Body_GetLocalPoint(myBodyIdB, worldPivot);
-jointDef.lowerTranslation = -5.0f;
-jointDef.upperTranslation =  2.5f;
+jointDef.lowerTranslation = B3_FIX( -5.0f );
+jointDef.upperTranslation = B3_FIX(  2.5f );
 jointDef.enableLimit   = true;
-jointDef.maxMotorForce = 1.0f;
-jointDef.motorSpeed    = 0.0f;
+jointDef.maxMotorForce = B3_FIX( 1.0f );
+jointDef.motorSpeed    = B3_FIX( 0.0f );
 jointDef.enableMotor   = true;
 
 b3JointId myJointId = b3CreatePrismaticJoint(myWorldId, &jointDef);
@@ -1508,9 +1509,9 @@ Using a prismatic joint is similar to using a revolute joint. Here are
 the relevant functions:
 
 ```c
-float translation    = b3PrismaticJoint_GetTranslation(myJointId);
-float speed          = b3PrismaticJoint_GetSpeed(myJointId);
-float motorForce     = b3PrismaticJoint_GetMotorForce(myJointId);
+b3Fixed translation    = b3PrismaticJoint_GetTranslation(myJointId);
+b3Fixed speed          = b3PrismaticJoint_GetSpeed(myJointId);
+b3Fixed motorForce     = b3PrismaticJoint_GetMotorForce(myJointId);
 b3PrismaticJoint_SetMotorSpeed(myJointId, speed);
 b3PrismaticJoint_SetMaxMotorForce(myJointId, force);
 ```
@@ -1529,10 +1530,10 @@ joints may flex.
 b3WeldJointDef jointDef = b3DefaultWeldJointDef();
 jointDef.base.bodyIdA    = myBodyIdA;
 jointDef.base.bodyIdB    = myBodyIdB;
-jointDef.linearHertz     = 0.0f;   // 0 = rigid
-jointDef.angularHertz    = 0.0f;   // 0 = rigid
-jointDef.linearDampingRatio  = 1.0f;
-jointDef.angularDampingRatio = 1.0f;
+jointDef.linearHertz     = B3_FIX( 0.0f );   // 0 = rigid
+jointDef.angularHertz    = B3_FIX( 0.0f );   // 0 = rigid
+jointDef.linearDampingRatio  = B3_FIX( 1.0f );
+jointDef.angularDampingRatio = B3_FIX( 1.0f );
 
 b3JointId myJointId = b3CreateWeldJoint(myWorldId, &jointDef);
 ```
@@ -1551,10 +1552,10 @@ the `MotorJoint` sample for details.
 b3MotorJointDef jointDef = b3DefaultMotorJointDef();
 jointDef.base.bodyIdA     = myBodyIdA;
 jointDef.base.bodyIdB     = myBodyIdB;
-jointDef.linearVelocity   = (b3Vec3){0.0f, 0.0f, 0.0f};
-jointDef.maxVelocityForce = 1000.0f;
-jointDef.angularVelocity  = (b3Vec3){0.0f, 1.0f, 0.0f};
-jointDef.maxVelocityTorque = 500.0f;
+jointDef.linearVelocity   = (b3Vec3){B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f )};
+jointDef.maxVelocityForce = B3_FIX( 1000.0f );
+jointDef.angularVelocity  = (b3Vec3){B3_FIX( 0.0f ), B3_FIX( 1.0f ), B3_FIX( 0.0f )};
+jointDef.maxVelocityTorque = B3_FIX( 500.0f );
 
 b3JointId myJointId = b3CreateMotorJoint(myWorldId, &jointDef);
 ```
@@ -1578,14 +1579,14 @@ b3WheelJointDef jointDef = b3DefaultWheelJointDef();
 jointDef.base.bodyIdA = chassisBodyId;
 jointDef.base.bodyIdB = wheelBodyId;
 jointDef.enableSuspensionSpring = true;
-jointDef.suspensionHertz        = 4.0f;
-jointDef.suspensionDampingRatio = 0.7f;
+jointDef.suspensionHertz        = B3_FIX( 4.0f );
+jointDef.suspensionDampingRatio = B3_FIX( 0.7f );
 jointDef.enableSpinMotor        = true;
-jointDef.maxSpinTorque          = 300.0f;
-jointDef.spinSpeed              = 0.0f;
+jointDef.maxSpinTorque          = B3_FIX( 300.0f );
+jointDef.spinSpeed              = B3_FIX( 0.0f );
 jointDef.enableSteering         = true;
-jointDef.steeringHertz          = 5.0f;
-jointDef.steeringDampingRatio   = 0.7f;
+jointDef.steeringHertz          = B3_FIX( 5.0f );
+jointDef.steeringDampingRatio   = B3_FIX( 0.7f );
 
 b3JointId myJointId = b3CreateWheelJoint(myWorldId, &jointDef);
 ```
@@ -1607,12 +1608,12 @@ jointDef.base.bodyIdB = myBodyIdB;
 
 // Cone limit: allows ±45 degrees of swing
 jointDef.enableConeLimit = true;
-jointDef.coneAngle = 0.25f * B3_PI;   // half-angle, radians
+jointDef.coneAngle = B3_PI / 4;   // half-angle, radians
 
 // Twist limit: ±30 degrees of twist about z
 jointDef.enableTwistLimit  = true;
-jointDef.lowerTwistAngle   = -B3_PI / 6.0f;
-jointDef.upperTwistAngle   =  B3_PI / 6.0f;
+jointDef.lowerTwistAngle   = -B3_PI / 6;
+jointDef.upperTwistAngle   =  B3_PI / 6;
 
 b3JointId myJointId = b3CreateSphericalJoint(myWorldId, &jointDef);
 ```
@@ -1621,12 +1622,12 @@ At runtime you can query and adjust the limits:
 
 ```c
 b3SphericalJoint_EnableConeLimit(myJointId, true);
-b3SphericalJoint_SetConeLimit(myJointId, 0.3f);
-float currentConeAngle = b3SphericalJoint_GetConeAngle(myJointId);
+b3SphericalJoint_SetConeLimit(myJointId, B3_FIX( 0.3f ));
+b3Fixed currentConeAngle = b3SphericalJoint_GetConeAngle(myJointId);
 
 b3SphericalJoint_EnableTwistLimit(myJointId, true);
-b3SphericalJoint_SetTwistLimits(myJointId, -0.5f, 0.5f);
-float twistAngle = b3SphericalJoint_GetTwistAngle(myJointId);
+b3SphericalJoint_SetTwistLimits(myJointId, B3_FIX( -0.5f ), B3_FIX( 0.5f ));
+b3Fixed twistAngle = b3SphericalJoint_GetTwistAngle(myJointId);
 ```
 
 The spherical joint also supports an optional alignment spring. When enabled it drives
@@ -1634,8 +1635,8 @@ the relative orientation toward a target quaternion using a spring-damper:
 
 ```c
 jointDef.enableSpring    = true;
-jointDef.hertz           = 5.0f;
-jointDef.dampingRatio    = 0.7f;
+jointDef.hertz           = B3_FIX( 5.0f );
+jointDef.dampingRatio    = B3_FIX( 0.7f );
 jointDef.targetRotation  = b3Quat_identity;
 ```
 
@@ -1643,8 +1644,8 @@ And an angular velocity motor:
 
 ```c
 jointDef.enableMotor      = true;
-jointDef.motorVelocity    = (b3Vec3){0.0f, 1.0f, 0.0f};
-jointDef.maxMotorTorque   = 100.0f;
+jointDef.motorVelocity    = (b3Vec3){B3_FIX( 0.0f ), B3_FIX( 1.0f ), B3_FIX( 0.0f )};
+jointDef.maxMotorTorque   = B3_FIX( 100.0f );
 ```
 
 ### Parallel Joint
@@ -1658,9 +1659,9 @@ fixing its translation or other rotation axes.
 b3ParallelJointDef jointDef = b3DefaultParallelJointDef();
 jointDef.base.bodyIdA = myBodyIdA;
 jointDef.base.bodyIdB = myBodyIdB;
-jointDef.hertz        = 5.0f;
-jointDef.dampingRatio = 0.7f;
-jointDef.maxTorque    = 200.0f;
+jointDef.hertz        = B3_FIX( 5.0f );
+jointDef.dampingRatio = B3_FIX( 0.7f );
+jointDef.maxTorque    = B3_FIX( 200.0f );
 
 b3JointId myJointId = b3CreateParallelJoint(myWorldId, &jointDef);
 ```
@@ -1668,9 +1669,9 @@ b3JointId myJointId = b3CreateParallelJoint(myWorldId, &jointDef);
 You can also adjust the spring and torque limit at runtime:
 
 ```c
-b3ParallelJoint_SetSpringHertz(myJointId, 8.0f);
-b3ParallelJoint_SetSpringDampingRatio(myJointId, 0.5f);
-b3ParallelJoint_SetMaxTorque(myJointId, 500.0f);
+b3ParallelJoint_SetSpringHertz(myJointId, B3_FIX( 8.0f ));
+b3ParallelJoint_SetSpringDampingRatio(myJointId, B3_FIX( 0.5f ));
+b3ParallelJoint_SetMaxTorque(myJointId, B3_FIX( 500.0f ));
 ```
 
 ### Filter Joint
@@ -1756,8 +1757,8 @@ bool MyOverlapCallback(b3ShapeId shapeId, void* context)
 
 // Elsewhere ...
 b3AABB aabb;
-aabb.lowerBound = (b3Vec3){-1.0f, -1.0f, -1.0f};
-aabb.upperBound = (b3Vec3){ 1.0f,  1.0f,  1.0f};
+aabb.lowerBound = (b3Vec3){B3_FIX( -1.0f ), B3_FIX( -1.0f ), B3_FIX( -1.0f )};
+aabb.upperBound = (b3Vec3){B3_FIX(  1.0f ), B3_FIX(  1.0f ), B3_FIX(  1.0f )};
 b3QueryFilter filter = b3DefaultQueryFilter();
 b3World_OverlapAABB(myWorldId, aabb, filter, MyOverlapCallback, &myGame);
 ```
@@ -1779,7 +1780,7 @@ In this example, I'm creating a shape proxy from a sphere and then calling `b3Wo
 This takes a `b3OverlapResultFcn()` to receive results and control the search progress.
 
 ```c
-b3Sphere sphere = {{0.0f, 0.0f, 0.0f}, 0.2f};
+b3Sphere sphere = {{B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f )}, B3_FIX( 0.2f )};
 b3ShapeProxy proxy;
 proxy.points = &sphere.center;
 proxy.count  = 1;
@@ -1819,12 +1820,12 @@ struct MyRayCastContext
     b3ShapeId shapeId;
     b3Vec3 point;
     b3Vec3 normal;
-    float fraction;
+    b3Fixed fraction;
 };
 
-float MyCastCallback(b3ShapeId shapeId, b3Vec3 point, b3Vec3 normal,
-                     float fraction, uint64_t userMaterialId,
-                     int triangleIndex, int childIndex, void* context)
+b3Fixed MyCastCallback(b3ShapeId shapeId, b3Vec3 point, b3Vec3 normal,
+                       b3Fixed fraction, uint64_t userMaterialId,
+                       int triangleIndex, int childIndex, void* context)
 {
     MyRayCastContext* myContext = context;
     myContext->shapeId  = shapeId;
@@ -1836,8 +1837,8 @@ float MyCastCallback(b3ShapeId shapeId, b3Vec3 point, b3Vec3 normal,
 
 // Elsewhere ...
 MyRayCastContext context = {0};
-b3Vec3 origin      = {-1.0f, 0.0f, 0.0f};
-b3Vec3 translation = { 4.0f, 1.0f, 0.0f};
+b3Vec3 origin      = {B3_FIX( -1.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f )};
+b3Vec3 translation = {B3_FIX(  4.0f ), B3_FIX( 1.0f ), B3_FIX( 0.0f )};
 b3World_CastRay(myWorldId, origin, translation, viewFilter, MyCastCallback, &context);
 ```
 
@@ -1865,12 +1866,12 @@ struct MyRayCastContext
     b3ShapeId shapeId;
     b3Vec3 point;
     b3Vec3 normal;
-    float fraction;
+    b3Fixed fraction;
 };
 
-float MyCastCallback(b3ShapeId shapeId, b3Vec3 point, b3Vec3 normal,
-                     float fraction, uint64_t userMaterialId,
-                     int triangleIndex, int childIndex, void* context)
+b3Fixed MyCastCallback(b3ShapeId shapeId, b3Vec3 point, b3Vec3 normal,
+                       b3Fixed fraction, uint64_t userMaterialId,
+                       int triangleIndex, int childIndex, void* context)
 {
     MyRayCastContext* myContext = context;
     myContext->shapeId  = shapeId;
@@ -1882,12 +1883,12 @@ float MyCastCallback(b3ShapeId shapeId, b3Vec3 point, b3Vec3 normal,
 
 // Elsewhere ...
 MyRayCastContext context = {0};
-b3Sphere sphere = {{-1.0f, 0.0f, 0.0f}, 0.05f};
+b3Sphere sphere = {{B3_FIX( -1.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f )}, B3_FIX( 0.05f )};
 b3ShapeProxy proxy;
 proxy.points = &sphere.center;
 proxy.count  = 1;
 proxy.radius = sphere.radius;
-b3Vec3 translation = {10.0f, -5.0f, 0.0f};
+b3Vec3 translation = {B3_FIX( 10.0f ), B3_FIX( -5.0f ), B3_FIX( 0.0f )};
 b3World_CastShape(myWorldId, b3Pos_zero, &proxy, translation, grenadeFilter, MyCastCallback, &context);
 ```
 
@@ -1997,12 +1998,14 @@ Box3D is designed to be deterministic across thread counts and platforms. This i
 
 Multithreaded determinism is achieved by basing simulation order on creation order. This includes bodies, shapes, and joint creation order. Determinism includes results reported to users (events). These events must be in deterministic order.
 
-Cross-platform determinism is achieved on 64-bit platforms by using compiler flags and by avoiding non-deterministic library functions.
-- Precise math is used on MSVC.
-- Floating point contraction is disabled on Clang and GCC via `-ffp-contract=off`.
-- Box3D has custom implementations of atan2, cosine, and sine.
+Cross-platform determinism is achieved by construction: the simulation is pure integer math (Q48.16 fixed point), which
+behaves identically on every conforming platform.
+- There are no floating-point compiler flags to configure or police.
+- Box3D has custom integer implementations of atan2, cosine, and sine (Q32.32 intermediates).
 
-Determinism is on by default and there is no explicit option to disable it. However, you can break determinism by choosing different compiler flags. Box3D was designed to provide determinism with minimal cost. So there is no advantage to attempting to disable determinism.
+Determinism is on by default and there is no option to disable it; in fixed point no compiler flag can break it.
+(Vanilla float Box3D is also cross-platform deterministic — it uses floating-point discipline to get there: precise
+math on MSVC, `-ffp-contract=off` on clang and gcc.)
 
 A unit test for determinism is run for every pull request. Determinism is easy to break, so it is important to have regular validation.
 

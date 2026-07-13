@@ -200,7 +200,7 @@ the most recently replayed frame through `b3RecPlayer_GetFrameQueryCount`,
 
 - **Recordings require a matching struct layout.** A recording is seeded by a raw struct-image
   snapshot gated on an exact layout hash, so it will not load into a build whose internal layout
-  changed, even if the float environment and architecture match.
+  changed, even if the architecture matches.
 - **User data is not preserved.** `userData` pointers are host addresses with no meaning in the
   replay process, so they are written as zero. Code that keys off user data during replay will
   not see the original pointers.

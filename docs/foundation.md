@@ -41,26 +41,48 @@ b3Version version = b3GetVersion();
 printf("Box3D version %d.%d.%d\n", version.major, version.minor, version.revision);
 ```
 
+## Fixed-Point Math
+Every scalar in the Fixed3D simulation is a `b3Fixed`: Q48.16 fixed point stored in an
+`int64_t`, with a resolution of 1/65536 everywhere. The essentials:
+
+```c
+b3Fixed a = B3_FIX( 1.5f );        // compile-time literal conversion
+b3Fixed b = b3FixFromInt( 3 );     // integer -> fixed
+b3Fixed c = a + b;                 // add/subtract/compare are plain int64 ops
+b3Fixed d = 2 * a;                 // integer scaling is a native op
+b3Fixed e = a / 4;                 // so is integer division
+b3Fixed f = b3FixMul(a, b);        // fixed * fixed needs b3FixMul
+b3Fixed g = b3FixDiv(a, b);        // fixed / fixed needs b3FixDiv
+b3Fixed h = b3FixSqrt(a);          // exact integer square root
+double  x = b3FixToDouble(a);      // convert at print/render boundaries
+```
+
+The two rules that matter: wrap float literals in `B3_FIX` (a bare `1.5f` assigned to a
+`b3Fixed` silently becomes the raw integer 1, off by 65536×), and never multiply or
+divide two `b3Fixed` values with the native `*` and `/` operators — that is integer
+math on the raw representation, and it compiles without warning.
+
 ## Vector Math
 Box3D includes a vector math library covering types `b3Vec3`, `b3Quat`, `b3Transform`,
 `b3Matrix3`, and `b3AABB`. The library is designed to suit the internal needs of Box3D
 and its interface. All members are exposed, so you can use them freely in your application.
 
 ### b3Vec3
-Three-component float vector with fields `x`, `y`, `z`. Useful constants and operations:
+Three-component fixed-point vector with `b3Fixed` fields `x`, `y`, `z`. Useful constants
+and operations:
 
 ```c
-b3Vec3 a = {1.0f, 0.0f, 0.0f};    // inline init
+b3Vec3 a = {B3_FIX( 1.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f )};  // inline init
 b3Vec3 z = b3Vec3_zero;            // {0,0,0}
 b3Vec3 c = b3Add(a, b);            // component-wise add
 b3Vec3 d = b3Sub(a, b);            // subtract
-b3Vec3 e = b3MulSV(2.0f, a);       // scalar * vector
-float  f = b3Dot(a, b);            // dot product
+b3Vec3 e = b3MulSV(B3_FIX( 2.0f ), a); // scalar * vector
+b3Fixed f = b3Dot(a, b);           // dot product
 b3Vec3 g = b3Cross(a, b);          // cross product
-float  h = b3Length(a);            // Euclidean length
+b3Fixed h = b3Length(a);           // Euclidean length
 b3Vec3 n = b3Normalize(a);         // unit vector
 b3Vec3 p = b3Perp(a);              // any perpendicular unit vector
-b3Vec3 q = b3Lerp(a, b, 0.5f);     // linear interpolation
+b3Vec3 q = b3Lerp(a, b, B3_FIX( 0.5f )); // linear interpolation
 ```
 
 ### b3Quat
@@ -86,11 +108,11 @@ b3Quat qc = b3MulQuat(q1, q2);
 b3Quat qi = b3Conjugate(q);
 
 // Extract axis-angle
-float angle;
+b3Fixed angle;
 b3Vec3 axis = b3GetAxisAngle(&angle, q);
 
 // Total rotation angle (ignoring axis)
-float totalAngle = b3GetQuatAngle(q);
+b3Fixed totalAngle = b3GetQuatAngle(q);
 
 // Convert to rotation matrix
 b3Matrix3 m = b3MakeMatrixFromQuat(q);

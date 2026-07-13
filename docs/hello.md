@@ -26,8 +26,14 @@ any direction. Convention in Box3D examples uses +Y as the up axis. The default 
 is already `{0, -10, 0}`, but it can be set explicitly:
 
 ```c
-worldDef.gravity = (b3Vec3){ 0.0f, -10.0f, 0.0f };
+worldDef.gravity = (b3Vec3){ B3_FIX( 0.0f ), B3_FIX( -10.0f ), B3_FIX( 0.0f ) };
 ```
+
+Fixed3D stores every scalar quantity — positions, velocities, densities, time
+steps — as `b3Fixed` (Q48.16 fixed point in an `int64_t`). The `B3_FIX` macro
+converts a float literal at compile time. Assigning a bare float literal like
+`-10.0f` to a `b3Fixed` field compiles but truncates to the integer `-10` raw —
+off by a factor of 65536 — so always wrap literals in `B3_FIX`.
 
 Now create the world:
 
@@ -49,7 +55,7 @@ For step 1, create the ground body definition and set its initial position:
 
 ```c
 b3BodyDef groundBodyDef = b3DefaultBodyDef();
-groundBodyDef.position = (b3Vec3){ 0.0f, -10.0f, 0.0f };
+groundBodyDef.position = (b3Vec3){ B3_FIX( 0.0f ), B3_FIX( -10.0f ), B3_FIX( 0.0f ) };
 ```
 
 For step 2, use the world id to create the ground body. Bodies are static by default,
@@ -67,7 +73,7 @@ shapes. The `b3MakeBoxHull` helper takes three **half-extents** (hx, hy, hz), so
 ground slab below is 100 units wide in X, 20 units tall in Y, and 100 units deep in Z:
 
 ```c
-b3BoxHull groundBox = b3MakeBoxHull(50.0f, 10.0f, 50.0f);
+b3BoxHull groundBox = b3MakeBoxHull(B3_FIX( 50.0f ), B3_FIX( 10.0f ), B3_FIX( 50.0f ));
 
 b3ShapeDef groundShapeDef = b3DefaultShapeDef();
 b3CreateHullShape(groundId, &groundShapeDef, &groundBox.base);
@@ -79,8 +85,8 @@ the call. Do not call `b3DestroyHull` on a `b3BoxHull`; it is stack-allocated.
 
 Box3D is tuned for meters, kilograms, and seconds, so the extents above are in meters.
 The engine works best when objects are sized like real-world objects (a barrel is roughly
-1 m tall). Simulating glaciers or dust particles would push the limits of single-precision
-floating point.
+1 m tall). Simulating glaciers or dust particles would push the limits of the fixed-point
+resolution (1/65536 of a meter).
 
 Every shape must have a parent body, even static shapes. You can attach multiple shapes
 to one body. A shape's world transform is inherited from its parent body; there is no
@@ -93,7 +99,7 @@ type to `b3_dynamicBody` and giving the shape a non-zero density.
 ```c
 b3BodyDef bodyDef = b3DefaultBodyDef();
 bodyDef.type = b3_dynamicBody;
-bodyDef.position = (b3Vec3){ 0.0f, 4.0f, 0.0f };
+bodyDef.position = (b3Vec3){ B3_FIX( 0.0f ), B3_FIX( 4.0f ), B3_FIX( 0.0f ) };
 b3BodyId bodyId = b3CreateBody(worldId, &bodyDef);
 ```
 
@@ -104,11 +110,11 @@ b3BodyId bodyId = b3CreateBody(worldId, &bodyDef);
 Create a unit cube hull and a shape definition with density and friction:
 
 ```c
-b3BoxHull dynamicBox = b3MakeCubeHull(1.0f);
+b3BoxHull dynamicBox = b3MakeCubeHull(B3_FIX( 1.0f ));
 
 b3ShapeDef shapeDef = b3DefaultShapeDef();
-shapeDef.density = 1.0f;
-shapeDef.baseMaterial.friction = 0.3f;
+shapeDef.density = B3_FIX( 1.0f );
+shapeDef.baseMaterial.friction = B3_FIX( 0.3f );
 
 b3CreateHullShape(bodyId, &shapeDef, &dynamicBox.base);
 ```
@@ -129,7 +135,7 @@ the time step to your frame rate; a variable time step produces variable results
 are hard to debug.
 
 ```c
-float timeStep = 1.0f / 60.0f;
+b3Fixed timeStep = B3_FIX( 1.0f / 60.0f );
 ```
 
 In addition to integration, Box3D uses a constraint solver. Box3D advances through the
@@ -154,10 +160,15 @@ for (int i = 0; i < 90; ++i)
     b3Quat rotation = b3Body_GetRotation(bodyId);
 
     printf("%4.2f %4.2f %4.2f %4.2f %4.2f %4.2f %4.2f\n",
-           position.x, position.y, position.z,
-           rotation.v.x, rotation.v.y, rotation.v.z, rotation.s);
+           b3FixToDouble(position.x), b3FixToDouble(position.y), b3FixToDouble(position.z),
+           b3FixToDouble(rotation.v.x), b3FixToDouble(rotation.v.y), b3FixToDouble(rotation.v.z),
+           b3FixToDouble(rotation.s));
 }
 ```
+
+Note the `b3FixToDouble` conversions: a `b3Fixed` is an `int64_t`, so passing
+one straight to a `%f` format specifier is undefined behavior. Convert at the
+printing (or rendering) boundary.
 
 `b3Body_GetPosition` returns a `b3Vec3` with the body origin in world space.
 `b3Body_GetRotation` returns a `b3Quat` — a unit quaternion stored as a vector part
@@ -166,7 +177,7 @@ was in 2D; orientation in 3D requires the full quaternion. To convert to an axis
 representation use `b3GetAxisAngle`:
 
 ```c
-float angle;
+b3Fixed angle;
 b3Vec3 axis = b3GetAxisAngle(&angle, rotation);
 ```
 

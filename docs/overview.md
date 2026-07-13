@@ -5,6 +5,15 @@
 > It will be updated as v1.0 approaches.
 > The reference section should be complete and accurate.
 
+This is the manual for **Fixed3D**, a fork of
+[Box3D](https://github.com/erincatto/box3d) with the entire simulation
+converted to Q48.16 fixed-point math (the `b3Fixed` type). The API and
+behavior match Box3D except where fixed point is called out — most visibly,
+scalar quantities are `b3Fixed` rather than `float`, and float literals in
+your code must be wrapped with `B3_FIX`. See the repository README for what
+this fork is and whether you should use it (short answer: you probably want
+vanilla Box3D).
+
 Box3D is a 3D rigid body simulation library for games. Programmers can
 use it in their games to make objects move in realistic ways and make
 the game world more interactive. From the game engine's point of view,
@@ -227,7 +236,7 @@ Here is an example of body creation:
 
 ```c
 b3BodyDef bodyDef = b3DefaultBodyDef();
-bodyDef.position = (b3Vec3){10.0f, 0.0f, 5.0f};
+bodyDef.position = (b3Vec3){B3_FIX( 10.0f ), B3_FIX( 0.0f ), B3_FIX( 5.0f )};
 b3BodyId myBodyId = b3CreateBody(myWorldId, &bodyDef);
 ```
 
@@ -253,8 +262,8 @@ Shapes are created in a similar way. For example, here is how a box shape is cre
 
 ```c
 b3ShapeDef shapeDef = b3DefaultShapeDef();
-shapeDef.baseMaterial.friction = 0.42f;
-b3BoxHull boxHull = b3MakeBoxHull(0.5f, 0.25f, 0.5f);
+shapeDef.baseMaterial.friction = B3_FIX( 0.42f );
+b3BoxHull boxHull = b3MakeBoxHull(B3_FIX( 0.5f ), B3_FIX( 0.25f ), B3_FIX( 0.5f ));
 b3ShapeId myShapeId = b3CreateHullShape(myBodyId, &shapeDef, &boxHull.base);
 ```
 

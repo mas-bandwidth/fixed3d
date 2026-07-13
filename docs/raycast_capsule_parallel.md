@@ -1,8 +1,17 @@
 # Ray vs capsule: the near-parallel branch
 
-This note explains the `det < FLT_EPSILON` block inside `b3RayCastCapsule`
-(`src/capsule.c`). That block is the fallback used when the ray is almost parallel
-to the capsule axis, where the normal closest-point solve falls apart numerically.
+> **Historical note**: this describes the *vanilla float* implementation of
+> `b3RayCastCapsule`. The fixed-point tree replaced the two-branch
+> (Cramer + near-parallel) cylinder intersection with a single 128-bit
+> perpendicular-plane quadratic that is valid for all ray directions, so the
+> code below no longer exists in `src/capsule.c` here. The geometric
+> derivation is kept because it explains why near-parallel rays are hard and
+> what the replacement had to solve.
+
+This note explains the `det < FLT_EPSILON` block inside vanilla Box3D's
+`b3RayCastCapsule` (`src/capsule.c` at upstream `e961bfb`). That block is the
+fallback used when the ray is almost parallel to the capsule axis, where the
+normal closest-point solve falls apart numerically.
 
 ```c
 float det = 1.0f - a12 * a12;

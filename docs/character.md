@@ -19,9 +19,9 @@ capsule behaves poorly with the encroachment handling described below.
 
 ```c
 b3Capsule mover;
-mover.center1 = (b3Vec3){ 0.0f, 0.35f, 0.0f };  // bottom sphere center
-mover.center2 = (b3Vec3){ 0.0f, 1.45f, 0.0f };  // top sphere center
-mover.radius  = 0.35f;
+mover.center1 = (b3Vec3){ B3_FIX( 0.0f ), B3_FIX( 0.35f ), B3_FIX( 0.0f ) };  // bottom sphere center
+mover.center2 = (b3Vec3){ B3_FIX( 0.0f ), B3_FIX( 1.45f ), B3_FIX( 0.0f ) };  // top sphere center
+mover.radius  = B3_FIX( 0.35f );
 ```
 
 The mover has no explicit rotation handling. Slow rotation can be made to work
@@ -43,7 +43,7 @@ Each frame:
 ## Swept Motion: b3World_CastMover
 
 ```c
-float b3World_CastMover(
+b3Fixed b3World_CastMover(
     b3WorldId           worldId,
     b3Pos               origin,   // world position the mover is relative to
     const b3Capsule*    mover,
@@ -141,8 +141,8 @@ Convert the raw `b3PlaneResult` values from `b3World_CollideMover` into
 ```c
 typedef struct b3CollisionPlane {
     b3Plane plane;
-    float   pushLimit;    // FLT_MAX for rigid; smaller values allow soft penetration
-    float   push;         // output: how much the solver pushed along this plane
+    b3Fixed pushLimit;    // B3_FIXED_MAX for rigid; smaller values allow soft penetration
+    b3Fixed push;         // output: how much the solver pushed along this plane
     bool    clipVelocity; // set true to clip velocity against this plane
 } b3CollisionPlane;
 
@@ -156,7 +156,7 @@ b3PlaneSolverResult b3SolvePlanes(
 `b3SolvePlanes` finds the position delta closest to `targetDelta` that satisfies
 all planes. The result contains the corrected `delta` and an `iterationCount`.
 
-`pushLimit` controls softness. `FLT_MAX` gives a rigid surface. A smaller value
+`pushLimit` controls softness. `B3_FIXED_MAX` gives a rigid surface. A smaller value
 allows the mover to push through — useful for other players, enemies, or doors
 that should yield but not fully block.
 
@@ -184,7 +184,7 @@ b3Pos origin = b3Pos_zero;
 b3Vec3 translation = b3MulSV(timeStep, velocity);
 
 // 2. Swept cast
-float fraction = b3World_CastMover(worldId, origin, &mover, translation, filter, NULL, NULL);
+b3Fixed fraction = b3World_CastMover(worldId, origin, &mover, translation, filter, NULL, NULL);
 b3Vec3 safeDelta = b3MulSV(fraction, translation);
 
 // 3. Move the capsule

@@ -49,9 +49,9 @@ void* ptr = b3World_GetUserData(worldId);
 
 Box3D uses a right-handed coordinate system. Positive Y is up by default,
 meaning the default gravity vector points in the negative Y direction
-(`{0, -9.8f, 0}`). Nothing in the engine hard-codes this — gravity is just a
-`b3Vec3` set on the world and you can orient it however your application
-requires.
+(`{0, B3_FIX( -10.0f ), 0}`). Nothing in the engine hard-codes this — gravity
+is just a `b3Vec3` set on the world and you can orient it however your
+application requires.
 
 Use MKS units: meters, kilograms, seconds, and radians. The solver is tuned for
 objects in the range of roughly 0.1 to 10 meters. Very small or very large

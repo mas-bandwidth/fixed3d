@@ -121,16 +121,20 @@ on random events (such as timers, etc).
 
 Box3D is also deterministic under multithreading. A simulation using two threads will give the same result as eight threads.
 
-Box3D inherits cross-platform determinism from its design: floating-point contraction is disabled (`-ffp-contract=off`)
-and IEEE 754 arithmetic is relied upon consistently.
+Fixed3D is cross-platform deterministic by construction: the simulation is pure integer math (Q48.16 fixed point), so
+there are no floating-point flags to police. Note that vanilla float Box3D is *also* cross-platform deterministic — it
+achieves this with floating-point discipline (`-ffp-contract=off`, consistent IEEE 754 arithmetic). Fixed point changes
+how determinism is achieved, not whether.
 
 However, Box3D does not have rollback determinism. There is no mechanism to set a world back to a prior state and then
 resume simulation expecting identical results. Box3D caches a lot of internal state to improve simulation stability and
 performance.
 
-### But I really want determinism
-This naturally leads to the question of fixed-point math. Box3D does not support fixed-point math. Fixed-point math is
-slower and more tedious to develop, and I have chosen not to use it.
+### But I really want fixed point
+Vanilla Box3D does not support fixed-point math — upstream's FAQ notes that it is slower and more tedious to develop,
+which is why Erin chose not to use it. This fork exists to measure exactly that: the entire simulation is Q48.16 fixed
+point, and it comes out about 2× slower (see the README). He was right on both counts. If determinism is all you want,
+vanilla float Box3D already provides it.
 
 ## What are the common mistakes made by new users?
 * Using non-metric units instead of meters

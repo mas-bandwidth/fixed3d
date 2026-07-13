@@ -6,8 +6,8 @@ This fork exists to answer two questions:
    was fixed point?**
 2. **Exactly how much slower would it be?**
 
-The answer: **2× slower** (geometric mean over the full benchmark suite, 
-measured on Apple silicon and on AMD Zen 4.
+The answer: **2× slower** (geometric mean over the full benchmark suite,
+measured on Apple silicon and on AMD Zen 4).
 
 What you get in exchange is one thing: a truly huge world with uniform precision everywhere.
 
@@ -20,7 +20,7 @@ comparison.
 Box3D with every `float` torn out of the simulation and replaced with **Q48.16
 fixed point** in an `int64_t`. All of it: the solver, GJK, the trig, the ray
 casts, the mass properties, the recording format. The float SIMD is gone (it
-grew back on AVX-512 and NEON — same bits, just faster; see below). In
+grew back on AVX-512 and NEON — same bits, just faster). In
 exchange, resolution is a uniform 1/65536 everywhere in a ±1.4×10¹⁴ meter
 world, every step is still bit-exact on every platform (vanilla Box3D already
 was — see below), and all 22 unit test suites still pass.
@@ -34,7 +34,7 @@ re-run in the same session, float included.
 
 - **float** = vanilla Box3D at `e961bfb` (single precision, NEON SIMD)
 - **fixed** = this tree, scalar int64 lanes
-- **fixed+NEON** = this tree with `-DBOX3D_NEON=ON` (narrow phase only — see below)
+- **fixed+NEON** = this tree with `-DBOX3D_NEON=ON` (narrow phase only)
 
 | Benchmark     | float (ms) | fixed (ms) | fixed+NEON (ms) | fixed/float | NEON/float | NEON speedup |
 |---------------|-----------:|-----------:|----------------:|------------:|-----------:|-------------:|
