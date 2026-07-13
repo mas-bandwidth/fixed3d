@@ -345,8 +345,10 @@ static inline b3Matrix2 b3Invert2( b3Matrix2 m )
 	if ( det != 0 )
 	{
 		return B3_LITERAL( b3Matrix2 ){
-			{ (b3Fixed)( b3Int128ShiftLeft( (b3Int128)m.cy.y, 32 ) / det ), (b3Fixed)( b3Int128ShiftLeft( -(b3Int128)m.cx.y, 32 ) / det ) },
-			{ (b3Fixed)( b3Int128ShiftLeft( -(b3Int128)m.cy.x, 32 ) / det ), (b3Fixed)( b3Int128ShiftLeft( (b3Int128)m.cx.x, 32 ) / det ) },
+			{ (b3Fixed)b3Int128Div( b3Int128ShiftLeft( (b3Int128)m.cy.y, 32 ), det ),
+			  (b3Fixed)b3Int128Div( b3Int128ShiftLeft( -(b3Int128)m.cx.y, 32 ), det ) },
+			{ (b3Fixed)b3Int128Div( b3Int128ShiftLeft( -(b3Int128)m.cy.x, 32 ), det ),
+			  (b3Fixed)b3Int128Div( b3Int128ShiftLeft( (b3Int128)m.cx.x, 32 ), det ) },
 		};
 	}
 
@@ -363,8 +365,8 @@ static inline b3Vec2 b3Solve2( b3Matrix2 m, b3Vec2 b )
 		b3Int128 nx = (b3Int128)m.cy.y * b.x - (b3Int128)m.cy.x * b.y; // Q32.32
 		b3Int128 ny = (b3Int128)m.cx.x * b.y - (b3Int128)m.cx.y * b.x;
 		return B3_LITERAL( b3Vec2 ){
-			(b3Fixed)( b3Int128ShiftLeft( nx, 16 ) / det ),
-			(b3Fixed)( b3Int128ShiftLeft( ny, 16 ) / det ),
+			(b3Fixed)b3Int128Div( b3Int128ShiftLeft( nx, 16 ), det ),
+			(b3Fixed)b3Int128Div( b3Int128ShiftLeft( ny, 16 ), det ),
 		};
 	}
 

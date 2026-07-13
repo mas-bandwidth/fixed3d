@@ -940,12 +940,15 @@ B3_INLINE b3Matrix3 b3InvertMatrix( b3Matrix3 m )
 		{
 			// inverse_ij = cofactor_ji / det: (Q32.32 << 32) / Q16.48 -> Q48.16
 			b3Matrix3 out;
-			out.cx = B3_LITERAL( b3Vec3 ){ (b3Fixed)( b3Int128ShiftLeft( c00, 32 ) / det ), (b3Fixed)( b3Int128ShiftLeft( c10, 32 ) / det ),
-										   (b3Fixed)( b3Int128ShiftLeft( c20, 32 ) / det ) };
-			out.cy = B3_LITERAL( b3Vec3 ){ (b3Fixed)( b3Int128ShiftLeft( c01, 32 ) / det ), (b3Fixed)( b3Int128ShiftLeft( c11, 32 ) / det ),
-										   (b3Fixed)( b3Int128ShiftLeft( c21, 32 ) / det ) };
-			out.cz = B3_LITERAL( b3Vec3 ){ (b3Fixed)( b3Int128ShiftLeft( c02, 32 ) / det ), (b3Fixed)( b3Int128ShiftLeft( c12, 32 ) / det ),
-										   (b3Fixed)( b3Int128ShiftLeft( c22, 32 ) / det ) };
+			out.cx = B3_LITERAL( b3Vec3 ){ (b3Fixed)b3Int128Div( b3Int128ShiftLeft( c00, 32 ), det ),
+										   (b3Fixed)b3Int128Div( b3Int128ShiftLeft( c10, 32 ), det ),
+										   (b3Fixed)b3Int128Div( b3Int128ShiftLeft( c20, 32 ), det ) };
+			out.cy = B3_LITERAL( b3Vec3 ){ (b3Fixed)b3Int128Div( b3Int128ShiftLeft( c01, 32 ), det ),
+										   (b3Fixed)b3Int128Div( b3Int128ShiftLeft( c11, 32 ), det ),
+										   (b3Fixed)b3Int128Div( b3Int128ShiftLeft( c21, 32 ), det ) };
+			out.cz = B3_LITERAL( b3Vec3 ){ (b3Fixed)b3Int128Div( b3Int128ShiftLeft( c02, 32 ), det ),
+										   (b3Fixed)b3Int128Div( b3Int128ShiftLeft( c12, 32 ), det ),
+										   (b3Fixed)b3Int128Div( b3Int128ShiftLeft( c22, 32 ), det ) };
 			return out;
 		}
 		return b3Mat3_zero;
@@ -957,13 +960,18 @@ B3_INLINE b3Matrix3 b3InvertMatrix( b3Matrix3 m )
 				   (b3Int128)m.cz.x * (int64_t)( c20 >> 16 ); // ~Q16.32
 	if ( det != 0 )
 	{
+		// b3Int128ShiftLeft: the raw << the float era used here is UB for the
+		// negative cofactors this path exists for (same bits, defined behavior)
 		b3Matrix3 out;
-		out.cx = B3_LITERAL( b3Vec3 ){ (b3Fixed)( ( c00 << 16 ) / det ), (b3Fixed)( ( c10 << 16 ) / det ),
-									   (b3Fixed)( ( c20 << 16 ) / det ) };
-		out.cy = B3_LITERAL( b3Vec3 ){ (b3Fixed)( ( c01 << 16 ) / det ), (b3Fixed)( ( c11 << 16 ) / det ),
-									   (b3Fixed)( ( c21 << 16 ) / det ) };
-		out.cz = B3_LITERAL( b3Vec3 ){ (b3Fixed)( ( c02 << 16 ) / det ), (b3Fixed)( ( c12 << 16 ) / det ),
-									   (b3Fixed)( ( c22 << 16 ) / det ) };
+		out.cx = B3_LITERAL( b3Vec3 ){ (b3Fixed)b3Int128Div( b3Int128ShiftLeft( c00, 16 ), det ),
+									   (b3Fixed)b3Int128Div( b3Int128ShiftLeft( c10, 16 ), det ),
+									   (b3Fixed)b3Int128Div( b3Int128ShiftLeft( c20, 16 ), det ) };
+		out.cy = B3_LITERAL( b3Vec3 ){ (b3Fixed)b3Int128Div( b3Int128ShiftLeft( c01, 16 ), det ),
+									   (b3Fixed)b3Int128Div( b3Int128ShiftLeft( c11, 16 ), det ),
+									   (b3Fixed)b3Int128Div( b3Int128ShiftLeft( c21, 16 ), det ) };
+		out.cz = B3_LITERAL( b3Vec3 ){ (b3Fixed)b3Int128Div( b3Int128ShiftLeft( c02, 16 ), det ),
+									   (b3Fixed)b3Int128Div( b3Int128ShiftLeft( c12, 16 ), det ),
+									   (b3Fixed)b3Int128Div( b3Int128ShiftLeft( c22, 16 ), det ) };
 		return out;
 	}
 
@@ -999,9 +1007,9 @@ B3_INLINE b3Vec3 b3Solve3( b3Matrix3 m, b3Vec3 a )
 			b3Int128 nz = (b3Int128)(int64_t)c20 * a.x + (b3Int128)(int64_t)c21 * a.y + (b3Int128)(int64_t)c22 * a.z;
 
 			b3Vec3 b = {
-				(b3Fixed)( b3Int128ShiftLeft( nx, 16 ) / det ),
-				(b3Fixed)( b3Int128ShiftLeft( ny, 16 ) / det ),
-				(b3Fixed)( b3Int128ShiftLeft( nz, 16 ) / det ),
+				(b3Fixed)b3Int128Div( b3Int128ShiftLeft( nx, 16 ), det ),
+				(b3Fixed)b3Int128Div( b3Int128ShiftLeft( ny, 16 ), det ),
+				(b3Fixed)b3Int128Div( b3Int128ShiftLeft( nz, 16 ), det ),
 			};
 			return b;
 		}

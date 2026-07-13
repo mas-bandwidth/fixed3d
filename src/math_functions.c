@@ -146,7 +146,7 @@ static inline int64_t b3Q32Mul( int64_t a, int64_t b )
 
 static inline int64_t b3Q32Div( int64_t a, int64_t b )
 {
-	return (int64_t)( b3Int128ShiftLeft( a, 32 ) / b );
+	return (int64_t)b3Int128Div( b3Int128ShiftLeft( a, 32 ), b );
 }
 
 
@@ -185,7 +185,7 @@ b3Fixed b3Atan2( b3Fixed y, b3Fixed x )
 	b3Fixed mn = b3FixMin( ay, ax );
 
 	// a = mn / mx in [0, 1], evaluated in Q32.32
-	int64_t a = (int64_t)( ( (b3Int128)mn << 32 ) / mx );
+	int64_t a = (int64_t)b3Int128Div( ( (b3Int128)mn << 32 ), mx );
 
 	// Minimax polynomial approximation to atan(a) on [0,1]
 	int64_t s = b3Q32Mul( a, a );

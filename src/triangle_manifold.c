@@ -639,7 +639,7 @@ static b3EdgeQuery b3QueryTriangleAndHullEdges( const b3TriangleData* triangle, 
 			// dot(hullNormal1 + t * (hullNormal2 - hullNormal1), triEdge) = 0
 			// Normal points out of hull by construction.
 			// Computed from the raw dots so the quotient keeps full precision (divide last).
-			b3Fixed t = (b3Fixed)( b3Int128ShiftLeft( cabRaw, B3_FIXED_FRACTION_BITS ) / ( cabRaw - dabRaw ) );
+			b3Fixed t = (b3Fixed)b3Int128Div( b3Int128ShiftLeft( cabRaw, B3_FIXED_FRACTION_BITS ), cabRaw - dabRaw );
 			b3Vec3 axis = b3Lerp( hullNormal1, hullNormal2, t );
 			B3_VALIDATE( b3LengthSquared( axis ) > 0 );
 			axis = b3Normalize( axis );
@@ -1144,7 +1144,7 @@ void b3CollideHullAndTriangle( b3LocalManifold* manifold, int capacity, const b3
 					// dot(hullNormal1 + t * (hullNormal2 - hullNormal1), triEdge) = 0
 					// Normal points out of hull by construction.
 					// Computed from the raw dots so the quotient keeps full precision (divide last).
-					b3Fixed t = (b3Fixed)( b3Int128ShiftLeft( cabRaw, B3_FIXED_FRACTION_BITS ) / ( cabRaw - dabRaw ) );
+					b3Fixed t = (b3Fixed)b3Int128Div( b3Int128ShiftLeft( cabRaw, B3_FIXED_FRACTION_BITS ), cabRaw - dabRaw );
 					b3Vec3 axis = b3Lerp( hullNormal1, hullNormal2, t );
 					B3_VALIDATE( b3LengthSquared( axis ) > 0 );
 					axis = b3Normalize( axis );

@@ -327,7 +327,7 @@ b3CastOutput b3RayCastCapsule( const b3Capsule* shape, const b3RayCastInput* inp
 			return output;
 		}
 
-		b3Int128 tFraction = b3Int128ShiftLeft( gamma, 32 ) / denom; // Q32.32 fraction of dr, shift-independent
+		b3Int128 tFraction = b3Int128Div( b3Int128ShiftLeft( gamma, 32 ), denom ); // Q32.32 fraction of dr, shift-independent
 
 		// Convert to length units along the normalized ray for the shared code below
 		tr = (b3Fixed)( ( tFraction * rayLength ) >> 32 );

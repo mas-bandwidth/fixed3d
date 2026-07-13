@@ -214,7 +214,7 @@ static b3EdgeQuery b3QueryEdgeDirectionHullAndCapsule( const b3HullData* hull, c
 			// The axis is perpendicular to both edges so I can use qA and qB as arbitrary
 			// points on edgeA and edgeB to measure the separation.
 
-			b3Fixed t = (b3Fixed)( b3Int128ShiftLeft( cbaRaw, B3_FIXED_FRACTION_BITS ) / ( cbaRaw - dbaRaw ) );
+			b3Fixed t = (b3Fixed)b3Int128Div( b3Int128ShiftLeft( cbaRaw, B3_FIXED_FRACTION_BITS ), cbaRaw - dbaRaw );
 			b3Vec3 axis = b3Lerp( uB, vB, t );
 			B3_VALIDATE( b3LengthSquared( axis ) > 0 );
 			axis = b3Normalize( axis );
@@ -309,7 +309,7 @@ static inline void b3TestEdgePair( const b3HullHalfEdge* edgesA, const b3Vec3* p
 	//
 	// The axis is perpendicular to both edges so I can use qA and qB as arbitrary
 	// points on edgeA and edgeB to measure the separation.
-	b3Fixed t = (b3Fixed)( b3Int128ShiftLeft( cbaRaw, B3_FIXED_FRACTION_BITS ) / ( cbaRaw - dbaRaw ) );
+	b3Fixed t = (b3Fixed)b3Int128Div( b3Int128ShiftLeft( cbaRaw, B3_FIXED_FRACTION_BITS ), cbaRaw - dbaRaw );
 	b3Vec3 axis = b3Lerp( uB, vB, t );
 	B3_VALIDATE( b3LengthSquared( axis ) > 0 );
 	axis = b3Normalize( axis );
@@ -1798,7 +1798,7 @@ void b3CollideHulls( b3LocalManifold* manifold, int capacity, const b3HullData* 
 				if ( b3FixMax( b3FixMul( cba , cba ), b3FixMul( dba , dba ) ) >= b3FixMul( squaredTolerance , b3LengthSquared( eA ) ) )
 				{
 					// Transform reference center of the first hull into local space of the second hull
-					b3Fixed t = (b3Fixed)( b3Int128ShiftLeft( cbaRaw, B3_FIXED_FRACTION_BITS ) / ( cbaRaw - dbaRaw ) );
+					b3Fixed t = (b3Fixed)b3Int128Div( b3Int128ShiftLeft( cbaRaw, B3_FIXED_FRACTION_BITS ), cbaRaw - dbaRaw );
 					b3Vec3 axis = b3Lerp( uB, vB, t );
 					B3_VALIDATE( b3LengthSquared( axis ) > 0 );
 					axis = b3Normalize( axis );
