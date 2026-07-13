@@ -4,7 +4,7 @@ Box3D converted from float to Q48.16 fixed point (internal and external API).
 Baseline float code is commit e961bfb. EVERYTHING below is committed and pushed;
 there is no pending working-tree state.
 
-## Current status (as of 2026-07-12 — all work landed)
+## Current status (as of 2026-07-13 — all work landed)
 
 - **ALL 22 test suites pass** in Release (`./build-fixed2/bin/test`, ~1.1 s) AND
   in Debug + B3_VALIDATE + ASan/UBSan (exit 0, zero sanitizer reports). Single
@@ -39,15 +39,21 @@ there is no pending working-tree state.
   fix → 45f5313/f0ffbf5 wide prepare → a501dfc point-slot skip + cd2b1b8
   gather transpose + eaf90ce support scans + d70126d/a9d1ecf SAT edge query
   (convex_pile beats float on Zen 4) → 5aca95a BOX3D_NEON (beats float on M3)
-  → 8d32da5 gitignore build*/ → 6855c97/78ce3a0 large_world scene fix.
+  → 8d32da5 gitignore build*/ → 6855c97/78ce3a0 large_world scene fix →
+  cd00cfd compile guard on the unconverted-float SAH tree branch
+  (B3_TREE_HEURISTIC != 0 now #errors: those #else branches were
+  preprocessed out during the conversion, the AST rewriter never saw them,
+  and they still do raw float math on b3Fixed).
   NOTE: main's history was force-push rewritten ONCE on 2026-07-12 (with
   Glenn's explicit approval) to purge 50MB of accidentally committed build
   dirs; any clone made in the ~30 minutes before that needs a reset.
 - **Box clone state (ssh space)**: ~/fixed3d is checked out on the deleted
-  branch large-world-fix (content == main 78ce3a0) with build/ (scalar) and
-  build-avx2/ (AVX on); ~/fixed3d-avx is a WORKTREE of ~/fixed3d stuck on the
-  deleted neon branch (main is checked out in the parent, so it cannot
-  checkout main — use a fresh branch or detached HEAD there). Start any new
+  branch large-world-fix (content == main 78ce3a0, engine-identical to
+  cd00cfd) with build/ (scalar) and build-avx2/ (AVX on, the A/B baseline
+  binary); ~/fixed3d-avx is a WORKTREE of ~/fixed3d, detached at main
+  cd00cfd (main is checked out in the parent, so the worktree cannot hold
+  the branch — stay detached or use a scratch branch), build/ (AVX on,
+  RelWithDebInfo) rebuilt at that commit, goldens verified. Start any new
   box session with git fetch origin main.
 
 ## AVX-512 wide solver path (landed on main 2026-07-12)
@@ -304,6 +310,26 @@ exceeds the cone — measured neutral-to-worse (large_pyramid within noise to
 noisy, so the guard branch mispredicts, and the out-of-order core was already
 absorbing the sqrt/div latency across the four independent lanes. Reverted;
 don't re-add data-dependent guards to the wide solve loop.
+
+**Erin's tangent2-on-the-fly todo is measured and rejected** (2026-07-13,
+branch `tangent2-on-the-fly` on origin, NOT merged): dropping the stored
+`b3Vec3WN tangent2` (48 bytes off the wide constraint) and recomputing
+cross(tangent1, normal) at warm start/solve/store-impulses with prepare's
+unfused rounding IS bit-identical by construction (narrow unit vectors
+round-trip losslessly; goldens and full suites passed on both ISAs) — but
+it does not pay: interleaved min-of-3 A/B geomean +0.7% (slower) on M3
+scalar (washer +1.8%, the int64 lanes pay 24 extra 128-bit multiplies per
+constraint per pass) and +0.1% (wash, 9/18 pairwise wins each) on Zen 4
+AVX-512 (washer −0.5% consistently was the only real signal). The 48-byte
+load it saves is ~1.3% of a ~3.7KB constraint that streams anyway. Don't
+redo this; the same math says don't chase the rtA2s/rtB2s rows either
+(recomputing those needs the friction centers stored back, a wash on
+bytes). The remaining Erin todos in the codebase were triaged the same
+day: the only other one worth an experiment is padding b3BodyState
+(112 bytes in fixed point) to 128 for cache-line alignment (body.h
+todo_erin) — everything else is dead API (b3GetShapeArea has no callers),
+dead code (the guarded SAH branch), or upstream-shared design musings
+that would just create merge pain with the box3d→fixed3d ports.
 
 **Benchmark CLI gotcha**: flags need the equals form (`-b=large_pyramid -w=4 -t=4
 -r=2`). Space-separated flags are silently ignored and the FULL suite runs (looks
