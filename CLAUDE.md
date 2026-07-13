@@ -49,12 +49,15 @@ there is no pending working-tree state.
   dirs; any clone made in the ~30 minutes before that needs a reset.
 - **Box clone state (ssh space)**: ~/fixed3d is checked out on the deleted
   branch large-world-fix (content == main 78ce3a0, engine-identical to
-  cd00cfd) with build/ (scalar) and build-avx2/ (AVX on, the A/B baseline
-  binary); ~/fixed3d-avx is a WORKTREE of ~/fixed3d, detached at main
-  cd00cfd (main is checked out in the parent, so the worktree cannot hold
-  the branch — stay detached or use a scratch branch), build/ (AVX on,
-  RelWithDebInfo) rebuilt at that commit, goldens verified. Start any new
-  box session with git fetch origin main.
+  cd00cfd) with build/ (scalar) and build-avx2/ (AVX on, PRE-LTO-default —
+  do not use as an A/B baseline anymore); ~/fixed3d-avx is a WORKTREE of
+  ~/fixed3d, detached at the wide-mesh branch tip (5d2feb9), with
+  build-wmesh/ (AVX on, RelWithDebInfo, LTO) and build-wmesh-san/ (clang-18
+  Debug+VALIDATE+ASan/UBSan+AVX; plain `cmake` there picks gcc, which fails
+  on a pre-existing -Wformat-truncation in scheduler.c under
+  -Werror — use CC=clang-18); ~/wmesh-base is another worktree at main
+  57afe1f with build/ (AVX on, LTO) — the current-baseline benchmark
+  binary. Start any new box session with git fetch origin main.
 
 ## AVX-512 wide solver path (landed on main 2026-07-12)
 
@@ -133,7 +136,45 @@ there is no pending working-tree state.
   measured -1% rain / -6% trees100 (min-of-3 interleaved A/B; the trees
   scenes swing +/-10% run to run — always A/B before believing small-scene
   deltas). Remaining scalar targets: b3CollideTask (~14% of the profile),
-  gather/scatter transposes (~6%), the mesh contact path.
+  gather/scatter transposes (~6%).
+- **Wide mesh contact solver (landed 2026-07-13)**: colored mesh contacts
+  solve four contacts per b3ContactConstraintMeshWide (lane = whole contact;
+  coloring keeps the eight gathered bodies disjoint), manifolds serialize
+  in-register to preserve the scalar Gauss-Seidel order, and the ragged
+  dimension (manifoldCount) is sized per group of four as the widest lane
+  (flat slot array + per-slot start table built in solver setup). EVERY lane
+  is bit-identical to b3SolveContacts_Mesh by construction: unfused crosses,
+  full nine-entry b3MulMV with per-product rounding (invIA/invIB/rollingMass
+  are NOT bitwise symmetric), unfused 2x2 tangent-mass products (scalar
+  b3MulMV2/b3Dot2 are unfused, unlike the fused convex b3MulMV2W), the
+  FixMul(-mass, x) forms multiply by the NEGATED mass (round-half-up is not
+  odd-symmetric), and the anchor rotation is the exact unfused two-cross
+  b3RotateVectorW — the fused b3Matrix3W rotation trick was differential
+  tested and is NOT bit-identical to b3RotateVector (20M/20M random inputs
+  mismatch), and DeterminismTest drops ragdolls onto meshes, so using it
+  would break the goldens. Inactive (lane, manifold/point) slots hold exact
+  zeros and compute exact zero deltas; the ONE non-self-neutralizing spot is
+  rolling resistance (per-contact rolling mass), whose stored impulse is
+  blended per lane (manifoldCounts mask AND rr > 0). Goldens 287/0x6FA8A4C5
+  verified with the wide path running on BOTH arm64 scalar-emulated lanes
+  (commit b218eb6, pre-gate) and Zen 4 AVX-512; overflow keeps the scalar
+  functions (b3PrepareContacts_Mesh and friends stay).
+  **B3_MESH_WIDE gates the path to AVX-512 builds**: on M3 the emulated
+  lanes measured 32-46% SLOWER than the scalar colored path (min-of-3
+  interleaved: trees100 143.9 -> 210.3 ms, trees50 184.6 -> 243.6, rain a
+  wash) — same no-64-bit-vector-multiply trade as the wide solver, so
+  scalar/NEON builds keep the scalar colored path (bit-identical either
+  way; solver setup computes both count families and the branch constant
+  folds). Zen 4 AVX-512 (min-of-3 interleaved, 4 workers, vs main 57afe1f,
+  both LTO ON): trees100 1884.6 -> 1465.1 ms (-22%), trees50 2419.2 ->
+  1901.1 (-21%), rain 57.4 s -> 58.4 s (+1.8%, all of it in the solve
+  phase). The rain tax is NOT lane raggedness — rain's mesh contacts are
+  all 1-manifold (waste ratio 1.00) while trees100 carries 49% wasted lane
+  slots and still wins big — it is fixed per-slot/per-point overhead on
+  tiny manifolds. Follow-up if it ever matters: a per-color indirection
+  sorted by manifoldCount would homogenize groups (contact order within a
+  color cannot affect results — bodies are disjoint), or a 1-manifold fast
+  path.
 - **NEON narrow-phase path (BOX3D_NEON, landed with the M3 work)**: the M3
   has no 64-bit vector multiply (FEAT_SME 0, no SVE2, AMX private), so the
   wide solver stays scalar on ARM (documented: Apple's scalar core wins the
@@ -177,10 +218,10 @@ there is no pending working-tree state.
   `sudo sysctl kernel.perf_event_paranoid=1` (default 4; restore after).
   GitHub is reachable over https; the fixed3d clone there has upstream main
   fetched (e961bfb resolves).
-- Follow-ups: no CI job yet (GitHub runners aren't guaranteed AVX-512 —
-  a compile-only job would work); B3_SIMD_WIDTH=8 zmm variant unexplored
-  (Zen 4 double-pumps 512-bit, expect small gains at best); prepare/warm
-  start gather-scatter and the mesh contact path are still scalar.
+- Follow-ups: B3_SIMD_WIDTH=8 zmm variant unexplored (Zen 4 double-pumps
+  512-bit, expect small gains at best); prepare/warm start gather-scatter
+  is still scalar; the mesh contact path is wide as of 2026-07-13 (see the
+  wide mesh bullet above; scalar remains for overflow and non-AVX builds).
 
 ## Repository and remotes (IMPORTANT)
 
