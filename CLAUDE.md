@@ -426,6 +426,31 @@ passing: the huge-matrix path of b3InvertMatrix did raw `<<` on negative
 128-bit cofactors (UB, never caught because the path needs cofactors
 >= 2^62) — now b3Int128ShiftLeft.
 
+**KNOWN ISSUE (found 2026-07-13 during the wide-mesh AVX verification,
+pre-existing on pure main 4273c4c — NOT from the mesh work): gcc AVX-512
+Release builds SIGFPE in ManifoldTest.** Repro on the space box:
+`~/divcheck/build/bin/test ManifoldTest` (worktree at clean 4273c4c,
+BOX3D_AVX512=ON, gcc 13) — exit 136 "trap divide error". gdb-confirmed
+site: the `divq` in b3Int128Div, inlined through b3FixDiv into
+TriangleHullEdgeSweepTest (test/test_manifold.c:821). At the fault the
+registers hold the RAW two's-complement dividend (rdx = all-ones high
+word of a = -107,944,083,456) instead of the unsigned magnitude the
+source computes, with divisor = +107,944,083,456 — the true quotient is
+-1 and every source-level tier handles these values, so gcc's compiled
+path is feeding signed bits where the algorithm needs magnitudes (gcc
+codegen bug or UB-exploit around the inline asm; for the fast-path owner
+to settle). Config matrix (all at 4273c4c): gcc AVX Release faults WITH
+AND WITHOUT LTO; gcc scalar Release passes; clang-18 AVX Release passes
+the FULL suite; clang-18 AVX Debug+ASan passes; arm64 passes; 57afe1f
+(pre-fast-path) gcc AVX Release passes. CI cannot catch this: the
+avx512 job is compile-only and the ubuntu gcc jobs run scalar. Repro
+builds left on the box: ~/divcheck/build (gcc+LTO), build-nolto (gcc),
+build-clang (clang-18, green). Two lessons: (1) the buffered-stdout trap
+rule strikes again — the full-suite run APPEARS to die around JointTest
+but the lost buffer hides that ManifoldTest is the faulter; bisect
+suites individually; (2) run the AVX suite with BOTH compilers on the
+box before trusting a division/asm change.
+
 **Benchmark CLI gotcha**: flags need the equals form (`-b=large_pyramid -w=4 -t=4
 -r=2`). Space-separated flags are silently ignored and the FULL suite runs (looks
 like a hang). It writes `<name>.csv` to the CWD. Full suite = omit `-b`.
