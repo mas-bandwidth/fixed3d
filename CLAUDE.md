@@ -410,12 +410,15 @@ Fixes landed in session 2 (beyond the session-1 list):
   cross-platform deterministic. cos/sin ≤ 0.0017 abs err; atan2 ≤ 3.5e-5.
 - `BOX3D_DOUBLE_PRECISION` (large-world mode) is **removed** (`#error`); fixed
   point has uniform precision so `b3Pos == b3Vec3` always.
-- Float SIMD (SSE2/NEON) is **removed**; `core.h` hard-defines `B3_SIMD_NONE`
-  and the scalar `b3V32`/`b3FloatW` lanes are fixed-point. `B3_SIMD_WIDTH` is
-  still 4 (wide constraint blocks work, four int64 lanes).
-- MSVC x64 paths exist in fixed.h (`_mul128`/`_div128`/`__shiftright128`) but
-  are **untested** (this machine is arm64 clang). ARM64 MSVC is `#error`'d
-  (use clang-cl).
+- Float SIMD (SSE2/NEON) is **removed**; `core.h` selects `B3_SIMD_NONE`
+  unless the opt-in BOX3D_AVX512/BOX3D_NEON fixed-point paths are enabled,
+  and the scalar `b3V32`/`b3FloatW` lanes are fixed-point. `B3_SIMD_WIDTH`
+  is still 4 (wide constraint blocks work, four int64 lanes).
+- Pure MSVC is **unsupported by design**: fixed.h `#error`s without
+  `__SIZEOF_INT128__` ("use clang, gcc, or clang-cl on Windows"). The old
+  `_mul128`/`_div128` MSVC intrinsic fallbacks are gone (audited 2026-07-13;
+  the only `_umul128` left is in vendored verstable.h hash mixing). ARM64
+  MSVC is likewise `#error`'d (use clang-cl).
 - Floats/doubles remain ONLY at non-simulation boundaries: `src/timer.c`
   (wall-clock), height field file load (`%lf` scan → `b3FixFromDouble`),
   test reference math vs libm, `b3FixToFloat/Double` converters for
@@ -599,6 +602,11 @@ new sample code — keep them clean.
 - A few sub-resolution guards were mapped `1000*FLT_MIN → 0` comparisons and
   `FLT_EPSILON → B3_FIXED_EPSILON`; `b3IsNormalized` uses 100 ULP,
   `b3IsNormalizedQuat` 100 ULP — tuned to pass, revisit if quat drift shows up.
-- `data/dumps/single_box` float-era literals are quantized via B3_FIX for the
-  sample; regenerate the dump with the fixed build when the recording flow is
-  exercised next.
+- `data/dumps/single_box/box3d_dump.inl` CANNOT be regenerated and does not
+  need to be (resolved 2026-07-13): it is generated C code shipped as data by
+  upstream box3d — the world→C generator is Erin's offline tooling and is not
+  in either repo. The B3_FIX-wrapped literals ARE the fixed-point port:
+  quantization happens deterministically at compile time, the samples CI jobs
+  compile the .inl, and the sample ran in the samples pass. The binary
+  recording flow (b3CreateRecording / b3SaveRecordingToFile in sample.cpp) is
+  a separate system, already fixed (64-bit wire) and covered by RecordingTest.
