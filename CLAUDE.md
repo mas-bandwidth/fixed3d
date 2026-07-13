@@ -61,7 +61,9 @@ there is no pending working-tree state.
   preprocessed out during the conversion, the AST rewriter never saw them,
   and they still do raw float math on b3Fixed) → 13b73cc avx512 CI job +
   LTO default → 4273c4c b3Int128Div hardware divide fast path (see the
-  division section).
+  division section) → cd4b9a5 divq asm made volatile (gcc speculated it,
+  see the known-issue bullet) → b218eb6..ede0457 wide mesh contact solver
+  + B3_MESH_WIDE gate + README/doc refresh + repo sweep cleanups.
   NOTE: main's history was force-push rewritten ONCE on 2026-07-12 (with
   Glenn's explicit approval) to purge 50MB of accidentally committed build
   dirs; any clone made in the ~30 minutes before that needs a reset.
