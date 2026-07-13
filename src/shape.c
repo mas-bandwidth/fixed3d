@@ -1291,6 +1291,7 @@ void b3Shape_SetMeshMaterial( b3ShapeId shapeId, b3SurfaceMaterial surfaceMateri
 	B3_ASSERT( b3IsValidVec3( surfaceMaterial.tangentVelocity ) );
 
 	b3World* world = b3GetWorld( shapeId.world0 );
+	B3_REC( world, ShapeSetMeshMaterial, shapeId, surfaceMaterial, index );
 	b3Shape* shape = b3GetShape( world, shapeId );
 
 	B3_ASSERT( 0 <= index && index < shape->materialCount );

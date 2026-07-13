@@ -93,6 +93,7 @@ B3_REC_OP( 0x5A, ShapeSetCapsule, RET_NONE, ARG( SHAPEID, shape ) ARG( CAPSULE, 
 B3_REC_OP( 0x5B, ShapeApplyWind, RET_NONE,
 		   ARG( SHAPEID, shape ) ARG( VEC3, wind ) ARG( F32, drag ) ARG( F32, lift ) ARG( F32, maxSpeed ) ARG( BOOL, wake ) )
 B3_REC_OP( 0x5C, ShapeSetName, RET_NONE, ARG( SHAPEID, shape ) ARG( STR, name ) )
+B3_REC_OP( 0x5D, ShapeSetMeshMaterial, RET_NONE, ARG( SHAPEID, shape ) ARG( MATERIAL, material ) ARG( I32, index ) )
 
 // Joint create and destroy
 B3_REC_OP( 0x90, CreateParallelJoint, RET_JOINTID, ARG( WORLDID, world ) ARG( PARALLELJOINTDEF, def ) )

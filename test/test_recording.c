@@ -1119,7 +1119,9 @@ static int AllOps( void )
 	b3MeshData* meshData = b3CreateGridMesh( 3, 3, B3_FIX( 2.0f ), 0, false );
 	ENSURE( meshData != NULL );
 	b3ShapeDef meshShapeDef = b3DefaultShapeDef();
-	b3CreateMeshShape( meshBodyId, &meshShapeDef, meshData, (b3Vec3){ B3_FIX( 1.0f ), B3_FIX( 1.0f ), B3_FIX( 1.0f ) } );
+	b3ShapeId meshShapeId =
+		b3CreateMeshShape( meshBodyId, &meshShapeDef, meshData, (b3Vec3){ B3_FIX( 1.0f ), B3_FIX( 1.0f ), B3_FIX( 1.0f ) } );
+	ENSURE( b3Shape_IsValid( meshShapeId ) );
 
 	b3BodyDef hfBodyDef = b3DefaultBodyDef();
 	hfBodyDef.type = b3_staticBody;
@@ -1151,9 +1153,9 @@ static int AllOps( void )
 	b3ShapeId tmpShapeId = b3CreateSphereShape( capsuleBodyId, &capsuleShapeDef, &tmpSphere );
 	b3DestroyShape( tmpShapeId, true );
 
-	// Shape mutators: SetFriction, SetRestitution, SetDensity, SetSurfaceMaterial, SetFilter,
-	// EnableSensorEvents, EnableContactEvents, EnableHitEvents, EnablePreSolveEvents, ApplyWind,
-	// SetSphere, SetCapsule, SetName
+	// Shape mutators: SetFriction, SetRestitution, SetDensity, SetSurfaceMaterial, SetMeshMaterial,
+	// SetFilter, EnableSensorEvents, EnableContactEvents, EnableHitEvents, EnablePreSolveEvents,
+	// ApplyWind, SetSphere, SetCapsule, SetName
 	b3Shape_SetFriction( boxShapeId, B3_FIX( 0.3f ) );
 	b3Shape_SetRestitution( capsuleShapeId, B3_FIX( 0.5f ) );
 	b3Shape_SetDensity( boxShapeId, B3_FIX( 3.0f ), true );
@@ -1161,6 +1163,9 @@ static int AllOps( void )
 	surfMat.friction = B3_FIX( 0.7f );
 	surfMat.restitution = B3_FIX( 0.1f );
 	b3Shape_SetSurfaceMaterial( capsuleShapeId, surfMat );
+	b3SurfaceMaterial meshMat = b3DefaultSurfaceMaterial();
+	meshMat.friction = B3_FIX( 0.55f );
+	b3Shape_SetMeshMaterial( meshShapeId, meshMat, 0 );
 	b3Filter shapeFilter = b3DefaultFilter();
 	shapeFilter.categoryBits = 0x2;
 	b3Shape_SetFilter( boxShapeId, shapeFilter, false );
@@ -1925,10 +1930,120 @@ static int ShapeNameReplay( void )
 	return 0;
 }
 
+// b3Shape_SetMeshMaterial targets one slot of a multi-material mesh. Set both slots mid-recording so
+// the sphere's landing depends on the op regardless of which triangle stripe it hits, then validate
+// the hash gate and read the slots back through the player to prove index and material round-trip.
+static int MeshMaterialReplay( void )
+{
+	b3Recording* rec = b3CreateRecording( 0 );
+	ENSURE( rec != NULL );
+
+	b3WorldDef worldDef = b3DefaultWorldDef();
+	b3WorldId worldId = b3CreateWorld( &worldDef );
+	b3World_StartRecording( worldId, rec );
+
+	// Static grid mesh with two materials striped across the triangles
+	b3BodyDef meshBodyDef = b3DefaultBodyDef();
+	meshBodyDef.type = b3_staticBody;
+	b3BodyId meshBodyId = b3CreateBody( worldId, &meshBodyDef );
+	b3MeshData* meshData = b3CreateGridMesh( 4, 4, B3_FIX( 1.0f ), 2, false );
+	ENSURE( meshData != NULL );
+
+	b3SurfaceMaterial defMats[2] = { b3DefaultSurfaceMaterial(), b3DefaultSurfaceMaterial() };
+	b3ShapeDef meshShapeDef = b3DefaultShapeDef();
+	meshShapeDef.materials = defMats;
+	meshShapeDef.materialCount = 2;
+	b3ShapeId meshShapeId =
+		b3CreateMeshShape( meshBodyId, &meshShapeDef, meshData, (b3Vec3){ B3_FIX( 1.0f ), B3_FIX( 1.0f ), B3_FIX( 1.0f ) } );
+	ENSURE( b3Shape_IsValid( meshShapeId ) );
+	ENSURE( b3Shape_GetMeshMaterialCount( meshShapeId ) == 2 );
+
+	// Dynamic sphere dropped onto the mesh so the material change alters the trajectory
+	b3BodyDef sphereBodyDef = b3DefaultBodyDef();
+	sphereBodyDef.type = b3_dynamicBody;
+	sphereBodyDef.position = (b3Pos){ B3_FIX( 0.25f ), B3_FIX( 1.0f ), B3_FIX( 0.25f ) };
+	b3BodyId sphereBodyId = b3CreateBody( worldId, &sphereBodyDef );
+	b3ShapeDef sphereShapeDef = b3DefaultShapeDef();
+	sphereShapeDef.density = B3_FIX( 1.0f );
+	b3Sphere sphere = { { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, B3_FIX( 0.25f ) };
+	b3CreateSphereShape( sphereBodyId, &sphereShapeDef, &sphere );
+
+	b3Fixed dt = b3FixDiv( B3_FIX( 1.0f ), B3_FIX( 60.0f ) );
+	for ( int i = 0; i < 10; ++i )
+	{
+		b3World_Step( worldId, dt, 4 );
+	}
+
+	// Mid-recording per-slot changes with distinctive values in every field
+	b3SurfaceMaterial mat0 = b3DefaultSurfaceMaterial();
+	mat0.friction = B3_FIX( 0.15f );
+	mat0.restitution = B3_FIX( 0.7f );
+	mat0.userMaterialId = 41;
+	b3Shape_SetMeshMaterial( meshShapeId, mat0, 0 );
+
+	b3SurfaceMaterial mat1 = b3DefaultSurfaceMaterial();
+	mat1.friction = B3_FIX( 0.9f );
+	mat1.restitution = B3_FIX( 0.4f );
+	mat1.rollingResistance = B3_FIX( 0.05f );
+	mat1.userMaterialId = 77;
+	mat1.customColor = 0xABCD1234;
+	b3Shape_SetMeshMaterial( meshShapeId, mat1, 1 );
+
+	for ( int i = 0; i < 30; ++i )
+	{
+		b3World_Step( worldId, dt, 4 );
+	}
+
+	b3World_StopRecording( worldId );
+	b3DestroyWorld( worldId );
+	b3DestroyMesh( meshData );
+
+	const uint8_t* data = b3Recording_GetData( rec );
+	int sz = b3Recording_GetSize( rec );
+	ENSURE( b3ValidateReplay( data, sz, 1 ) );
+
+	// Replay through the player and read both slots back
+	b3RecPlayer* player = b3RecPlayer_Create( data, sz, 1 );
+	ENSURE( player != NULL );
+	while ( b3RecPlayer_StepFrame( player ) )
+	{
+	}
+	ENSURE( b3RecPlayer_HasDiverged( player ) == false );
+
+	// The mesh body was created first, so it is ordinal 0 in the replayed world.
+	b3BodyId replayBody = b3RecPlayer_GetBodyId( player, 0 );
+	ENSURE( b3Body_IsValid( replayBody ) );
+	b3ShapeId replayShape;
+	ENSURE( b3Body_GetShapes( replayBody, &replayShape, 1 ) == 1 );
+	ENSURE( b3Shape_GetMeshMaterialCount( replayShape ) == 2 );
+
+	b3SurfaceMaterial got0 = b3Shape_GetMeshSurfaceMaterial( replayShape, 0 );
+	ENSURE( got0.friction == mat0.friction );
+	ENSURE( got0.restitution == mat0.restitution );
+	ENSURE( got0.rollingResistance == mat0.rollingResistance );
+	ENSURE( got0.userMaterialId == mat0.userMaterialId );
+	ENSURE( got0.customColor == mat0.customColor );
+
+	b3SurfaceMaterial got1 = b3Shape_GetMeshSurfaceMaterial( replayShape, 1 );
+	ENSURE( got1.friction == mat1.friction );
+	ENSURE( got1.restitution == mat1.restitution );
+	ENSURE( got1.rollingResistance == mat1.rollingResistance );
+	ENSURE( got1.tangentVelocity.x == mat1.tangentVelocity.x );
+	ENSURE( got1.tangentVelocity.y == mat1.tangentVelocity.y );
+	ENSURE( got1.tangentVelocity.z == mat1.tangentVelocity.z );
+	ENSURE( got1.userMaterialId == mat1.userMaterialId );
+	ENSURE( got1.customColor == mat1.customColor );
+
+	b3RecPlayer_Destroy( player );
+	b3DestroyRecording( rec );
+	return 0;
+}
+
 int RecordingTest( void )
 {
 	RUN_SUBTEST( GeometryHashCollision );
 	RUN_SUBTEST( ShapeNameReplay );
+	RUN_SUBTEST( MeshMaterialReplay );
 	RUN_SUBTEST( SphereRoundTrip );
 	RUN_SUBTEST( EmptyWorldRoundTrip );
 	RUN_SUBTEST( HullDedup );
