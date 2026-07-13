@@ -684,9 +684,19 @@ samples jobs. Hard-won CI knowledge:
   that slot is the map key, which also keeps the compound blob's material
   bytes deterministic for b3RecInternCompound's blob hash. Whole-struct
   assignment copies padding garbage — never struct-assign into memory that
-  gets hashed or serialized raw. STILL OPEN same-class exposure (chip
-  spawned): shape.c memcpys def->materials raw into shape->materials and
-  world_snapshot.c writes those bytes raw into snapshots.
+  gets hashed or serialized raw. The same-class shape-storage exposure is
+  FIXED too (2026-07-13): b3StageMaterial moved to shape.h and every shape
+  material write stages — b3CreateShapeInternal's heap array (was raw
+  memcpy of def->materials) and inline material (was struct-assign), plus
+  b3Shape_SetSurfaceMaterial / b3Shape_SetMeshMaterial (by-value params
+  carry caller padding) — so the bytes world_snapshot.c serializes raw
+  (whole b3Shape image + materials array) are deterministic. Regression:
+  ShapeMaterialStagingTest in test_shape.c (garbage-fills padding, memcmps
+  stored bytes vs a staged reference; verified red pre-fix). height_field.c
+  and mesh.c audited clean — their blobs hold only uint8 material indices.
+  SEPARATE gap found during this fix (chip spawned): b3Shape_SetMeshMaterial
+  has no B3_REC coverage at all, so recorded sessions that call it replay
+  divergent.
 - `{ 0 }` is the universal zero initializer — `{ b3FixFromInt( 0 ) }` loses
   clang's missing-field-initializer exemption (157 sites were converted back).
 - `b3IsValidFixed` accepts everything except INT64_MIN: the saturation values

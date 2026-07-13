@@ -3,11 +3,16 @@
 
 #include "test_macros.h"
 
+// b3GetWorldFromId and the shape material storage internals are needed to inspect stored bytes
+#include "physics_world.h"
+#include "shape.h"
+
 #include "box3d/box3d.h"
 #include "box3d/collision.h"
 #include "box3d/math_functions.h"
 
 #include <math.h>
+#include <stdint.h>
 #include <string.h>
 
 static b3Capsule capsule = { { -B3_FIX( 1.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, { B3_FIX( 1.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, B3_FIX( 1.0f ) };
@@ -974,6 +979,96 @@ static int ShapeFlagsTest( void )
 	return 0;
 }
 
+// b3SurfaceMaterial has tail padding and stored shape materials are serialized raw into world
+// snapshots, so material storage must be staged with zeroed padding (b3StageMaterial) or two
+// identically-defined worlds produce byte-different snapshots. Fill the def materials' padding
+// with a different garbage pattern each pass and require the stored bytes to equal a staged
+// reference exactly, through both creation paths (inline single material, multi-material heap
+// array) and both setters.
+static int ShapeMaterialStagingTest( void )
+{
+	const uint8_t fills[2] = { 0xAA, 0x55 };
+	for ( int pass = 0; pass < 2; ++pass )
+	{
+		uint8_t fill = fills[pass];
+
+		b3SurfaceMaterial single;
+		memset( &single, fill, sizeof( single ) );
+		single.friction = B3_FIX( 0.3f );
+		single.restitution = B3_FIX( 0.1f );
+		single.rollingResistance = B3_FIX( 0.0f );
+		single.tangentVelocity = (b3Vec3){ B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
+		single.userMaterialId = 7;
+		single.customColor = 0;
+
+		b3SurfaceMaterial multi[2];
+		memset( multi, fill, sizeof( multi ) );
+		for ( int i = 0; i < 2; ++i )
+		{
+			multi[i].friction = B3_FIX( 0.5f );
+			multi[i].restitution = B3_FIX( 0.0f );
+			multi[i].rollingResistance = B3_FIX( 0.0f );
+			multi[i].tangentVelocity = (b3Vec3){ B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
+			multi[i].userMaterialId = (uint64_t)( 10 + i );
+			multi[i].customColor = 0;
+		}
+
+		b3WorldDef worldDef = b3DefaultWorldDef();
+		b3WorldId worldId = b3CreateWorld( &worldDef );
+		b3BodyDef bodyDef = b3DefaultBodyDef();
+		b3BodyId bodyId = b3CreateBody( worldId, &bodyDef );
+
+		b3ShapeDef singleShapeDef = b3DefaultShapeDef();
+		singleShapeDef.materials = &single;
+		singleShapeDef.materialCount = 1;
+		b3ShapeId singleId = b3CreateSphereShape( bodyId, &singleShapeDef, &sphere );
+
+		b3ShapeDef multiShapeDef = b3DefaultShapeDef();
+		multiShapeDef.materials = multi;
+		multiShapeDef.materialCount = 2;
+		b3ShapeId multiId = b3CreateCapsuleShape( bodyId, &multiShapeDef, &capsule );
+
+		b3World* world = b3GetWorldFromId( worldId );
+		const b3Shape* singleShape = world->shapes.data + ( singleId.index1 - 1 );
+		const b3Shape* multiShape = world->shapes.data + ( multiId.index1 - 1 );
+
+		b3SurfaceMaterial expected;
+		b3StageMaterial( &expected, &single );
+		ENSURE( singleShape->materials == NULL && singleShape->materialCount == 1 );
+		ENSURE( memcmp( &singleShape->material, &expected, sizeof( expected ) ) == 0 );
+
+		ENSURE( multiShape->materials != NULL && multiShape->materialCount == 2 );
+		for ( int i = 0; i < 2; ++i )
+		{
+			b3StageMaterial( &expected, multi + i );
+			ENSURE( memcmp( multiShape->materials + i, &expected, sizeof( expected ) ) == 0 );
+		}
+
+		// The setters take the material by value, so the copy's padding is stack garbage too.
+		b3SurfaceMaterial set;
+		memset( &set, fill, sizeof( set ) );
+		set.friction = B3_FIX( 0.6f );
+		set.restitution = B3_FIX( 0.2f );
+		set.rollingResistance = B3_FIX( 0.0f );
+		set.tangentVelocity = (b3Vec3){ B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
+		set.userMaterialId = 20;
+		set.customColor = 0;
+
+		b3Shape_SetSurfaceMaterial( singleId, set );
+		b3StageMaterial( &expected, &set );
+		ENSURE( memcmp( &singleShape->material, &expected, sizeof( expected ) ) == 0 );
+
+		set.userMaterialId = 21;
+		b3Shape_SetMeshMaterial( multiId, set, 1 );
+		b3StageMaterial( &expected, &set );
+		ENSURE( memcmp( multiShape->materials + 1, &expected, sizeof( expected ) ) == 0 );
+
+		b3DestroyWorld( worldId );
+	}
+
+	return 0;
+}
+
 int ShapeTest( void )
 {
 	box = b3MakeBoxHull( B3_FIX( 1.0f ), B3_FIX( 1.0f ), B3_FIX( 1.0f ) );
@@ -982,6 +1077,7 @@ int ShapeTest( void )
 	RUN_SUBTEST( ShapeAABBTest );
 	RUN_SUBTEST( ShapeNameTest );
 	RUN_SUBTEST( ShapeFlagsTest );
+	RUN_SUBTEST( ShapeMaterialStagingTest );
 	// RUN_SUBTEST( PointInShapeTest );
 	RUN_SUBTEST( RayCastShapeTest );
 

@@ -226,24 +226,9 @@ static bool b3CompareMeshes( const b3MeshData* mesh1, const b3MeshData* mesh2 )
 #define FREE_FN b3Free
 #include "verstable.h"
 
-// b3SurfaceMaterial has tail padding (its fields sum to fewer bytes than sizeof),
-// and the map below hashes and memcmps whole structs. A def material arriving from
-// caller stack memory carries indeterminate padding bytes, so it must be staged into
-// zeroed storage field-by-field before it is used as a map key — whole-struct
-// assignment copies the padding garbage along with the fields. The staged array is
-// also what lands in the compound blob, whose raw bytes b3RecInternCompound hashes.
-static void b3StageMaterial( b3SurfaceMaterial* target, const b3SurfaceMaterial* source )
-{
-	memset( target, 0, sizeof( b3SurfaceMaterial ) );
-	target->friction = source->friction;
-	target->restitution = source->restitution;
-	target->rollingResistance = source->rollingResistance;
-	target->tangentVelocity = source->tangentVelocity;
-	target->userMaterialId = source->userMaterialId;
-	target->customColor = source->customColor;
-}
-
-// Keys must be staged with b3StageMaterial so the padding bytes swept here are zero.
+// Keys must be staged with b3StageMaterial (shape.h) so the padding bytes swept here are
+// zero. The staged array is also what lands in the compound blob, whose raw bytes
+// b3RecInternCompound hashes.
 static inline uint64_t b3HashMaterial( const b3SurfaceMaterial* material )
 {
 	return vt_wyhash( material, sizeof( b3SurfaceMaterial ) );
