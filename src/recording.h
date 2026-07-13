@@ -51,7 +51,8 @@ typedef struct b3World b3World;
 
 // Minor tracks op-stream additions that keep the 48 byte header shape.
 // Minor version 3 added name cache.
-#define B3_REC_VERSION_MINOR 3
+// Minor version 4 added ShapeSetMeshMaterial.
+#define B3_REC_VERSION_MINOR 4
 
 // File header, fixed 48 bytes, little-endian. Contains the registry locator so the player
 // can load geometry before replaying any ops.
