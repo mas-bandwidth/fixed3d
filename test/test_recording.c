@@ -1155,7 +1155,7 @@ static int AllOps( void )
 
 	// Shape mutators: SetFriction, SetRestitution, SetDensity, SetSurfaceMaterial, SetMeshMaterial,
 	// SetFilter, EnableSensorEvents, EnableContactEvents, EnableHitEvents, EnablePreSolveEvents,
-	// ApplyWind, SetSphere, SetCapsule, SetName
+	// ApplyWind, SetSphere, SetCapsule, SetHull, SetMesh, SetName
 	b3Shape_SetFriction( boxShapeId, B3_FIX( 0.3f ) );
 	b3Shape_SetRestitution( capsuleShapeId, B3_FIX( 0.5f ) );
 	b3Shape_SetDensity( boxShapeId, B3_FIX( 3.0f ), true );
@@ -1178,6 +1178,11 @@ static int AllOps( void )
 	b3Shape_SetSphere( sphereShapeId, &newSphere );
 	b3Capsule newCapsule = { { B3_FIX( 0.0f ), -B3_FIX( 0.3f ), B3_FIX( 0.0f ) }, { B3_FIX( 0.0f ), B3_FIX( 0.3f ), B3_FIX( 0.0f ) }, B3_FIX( 0.3f ) };
 	b3Shape_SetCapsule( capsuleShapeId, &newCapsule );
+	b3BoxHull swapHull = b3MakeBoxHull( B3_FIX( 0.4f ), B3_FIX( 0.6f ), B3_FIX( 0.4f ) );
+	b3Shape_SetHull( boxShapeId, &swapHull.base );
+	b3MeshData* swapMeshData = b3CreateGridMesh( 3, 3, B3_FIX( 1.5f ), 0, false );
+	ENSURE( swapMeshData != NULL );
+	b3Shape_SetMesh( meshShapeId, swapMeshData, (b3Vec3){ B3_FIX( 1.0f ), B3_FIX( 1.0f ), B3_FIX( 2.0f ) } );
 	b3Shape_SetName( boxShapeId, "box" );
 
 	// Body mutators: SetTransform, SetLinearVelocity/AngularVelocity (Vec3), SetName,
@@ -1459,6 +1464,7 @@ static int AllOps( void )
 	// Free geometry allocated for this subtest
 	b3DestroyHull( customHull );
 	b3DestroyMesh( meshData );
+	b3DestroyMesh( swapMeshData );
 	b3DestroyHeightField( hf );
 	b3DestroyCompound( compound );
 
@@ -2039,11 +2045,134 @@ static int MeshMaterialReplay( void )
 	return 0;
 }
 
+// b3Shape_SetHull and b3Shape_SetMesh swap a shape's collision geometry through the interned
+// registry. Swap both mid-recording under dynamic bodies resting on them, so a missing op moves
+// the support surfaces and diverges the hash gate, then read the geometry back through the
+// player to prove the registry ids resolve to the new hull and mesh.
+static int HullMeshSwapReplay( void )
+{
+	b3Recording* rec = b3CreateRecording( 0 );
+	ENSURE( rec != NULL );
+
+	b3WorldDef worldDef = b3DefaultWorldDef();
+	b3WorldId worldId = b3CreateWorld( &worldDef );
+	b3World_StartRecording( worldId, rec );
+
+	// Static hull platform with a dynamic box resting on top
+	b3BodyDef platformBodyDef = b3DefaultBodyDef();
+	platformBodyDef.type = b3_staticBody;
+	b3BodyId platformBodyId = b3CreateBody( worldId, &platformBodyDef );
+	b3BoxHull platformHull = b3MakeBoxHull( B3_FIX( 2.0f ), B3_FIX( 0.5f ), B3_FIX( 2.0f ) );
+	b3ShapeDef platformShapeDef = b3DefaultShapeDef();
+	b3ShapeId platformShapeId = b3CreateHullShape( platformBodyId, &platformShapeDef, &platformHull.base );
+	ENSURE( b3Shape_IsValid( platformShapeId ) );
+
+	b3BodyDef boxBodyDef = b3DefaultBodyDef();
+	boxBodyDef.type = b3_dynamicBody;
+	boxBodyDef.position = (b3Pos){ B3_FIX( 0.5f ), B3_FIX( 1.0f ), B3_FIX( 0.0f ) };
+	b3BodyId boxBodyId = b3CreateBody( worldId, &boxBodyDef );
+	b3ShapeDef boxShapeDef = b3DefaultShapeDef();
+	boxShapeDef.density = B3_FIX( 1.0f );
+	b3BoxHull box = b3MakeBoxHull( B3_FIX( 0.25f ), B3_FIX( 0.25f ), B3_FIX( 0.25f ) );
+	b3CreateHullShape( boxBodyId, &boxShapeDef, &box.base );
+
+	// Static grid mesh with a dynamic sphere resting on it
+	b3BodyDef meshBodyDef = b3DefaultBodyDef();
+	meshBodyDef.type = b3_staticBody;
+	meshBodyDef.position = (b3Pos){ B3_FIX( 10.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
+	b3BodyId meshBodyId = b3CreateBody( worldId, &meshBodyDef );
+	b3MeshData* meshData = b3CreateGridMesh( 4, 4, B3_FIX( 1.0f ), 0, false );
+	ENSURE( meshData != NULL );
+	b3ShapeDef meshShapeDef = b3DefaultShapeDef();
+	b3ShapeId meshShapeId =
+		b3CreateMeshShape( meshBodyId, &meshShapeDef, meshData, (b3Vec3){ B3_FIX( 1.0f ), B3_FIX( 1.0f ), B3_FIX( 1.0f ) } );
+	ENSURE( b3Shape_IsValid( meshShapeId ) );
+
+	b3BodyDef sphereBodyDef = b3DefaultBodyDef();
+	sphereBodyDef.type = b3_dynamicBody;
+	sphereBodyDef.position = (b3Pos){ B3_FIX( 10.25f ), B3_FIX( 1.0f ), B3_FIX( 0.25f ) };
+	b3BodyId sphereBodyId = b3CreateBody( worldId, &sphereBodyDef );
+	b3ShapeDef sphereShapeDef = b3DefaultShapeDef();
+	sphereShapeDef.density = B3_FIX( 1.0f );
+	b3Sphere sphere = { { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, B3_FIX( 0.25f ) };
+	b3CreateSphereShape( sphereBodyId, &sphereShapeDef, &sphere );
+
+	b3Fixed dt = b3FixDiv( B3_FIX( 1.0f ), B3_FIX( 60.0f ) );
+	for ( int i = 0; i < 10; ++i )
+	{
+		b3World_Step( worldId, dt, 4 );
+	}
+
+	// Mid-recording geometry swaps: the thinner platform drops its top surface out from under the
+	// resting box, and the wave mesh re-lands the sphere on a bumpy surface.
+	b3BoxHull swapHull = b3MakeBoxHull( B3_FIX( 2.0f ), B3_FIX( 0.25f ), B3_FIX( 2.0f ) );
+	b3Shape_SetHull( platformShapeId, &swapHull.base );
+
+	b3MeshData* swapMeshData = b3CreateWaveMesh( 5, 5, B3_FIX( 0.75f ), B3_FIX( 0.2f ), B3_FIX( 1.0f ), B3_FIX( 1.0f ) );
+	ENSURE( swapMeshData != NULL );
+	b3Vec3 swapScale = { B3_FIX( 1.0f ), B3_FIX( 0.5f ), B3_FIX( 1.5f ) };
+	b3Shape_SetMesh( meshShapeId, swapMeshData, swapScale );
+
+	for ( int i = 0; i < 30; ++i )
+	{
+		b3World_Step( worldId, dt, 4 );
+	}
+
+	b3World_StopRecording( worldId );
+	b3DestroyWorld( worldId );
+
+	// Destroy the source geometry before replaying to prove the recording is self-contained:
+	// the ops resolve against the interned registry copies, never the caller's data.
+	uint32_t swapMeshHash = swapMeshData->hash;
+	b3DestroyMesh( meshData );
+	b3DestroyMesh( swapMeshData );
+
+	const uint8_t* data = b3Recording_GetData( rec );
+	int sz = b3Recording_GetSize( rec );
+	ENSURE( b3ValidateReplay( data, sz, 1 ) );
+
+	// Replay through the player and read the swapped geometry back
+	b3RecPlayer* player = b3RecPlayer_Create( data, sz, 1 );
+	ENSURE( player != NULL );
+	while ( b3RecPlayer_StepFrame( player ) )
+	{
+	}
+	ENSURE( b3RecPlayer_HasDiverged( player ) == false );
+
+	// Creation order: platform body 0, box 1, mesh body 2, sphere 3
+	b3BodyId replayPlatform = b3RecPlayer_GetBodyId( player, 0 );
+	ENSURE( b3Body_IsValid( replayPlatform ) );
+	b3ShapeId replayHullShape;
+	ENSURE( b3Body_GetShapes( replayPlatform, &replayHullShape, 1 ) == 1 );
+	ENSURE( b3Shape_GetType( replayHullShape ) == b3_hullShape );
+	const b3HullData* gotHull = b3Shape_GetHull( replayHullShape );
+	ENSURE( gotHull != NULL );
+	ENSURE( gotHull->hash == swapHull.base.hash );
+	ENSURE( gotHull->aabb.upperBound.y == swapHull.base.aabb.upperBound.y );
+
+	b3BodyId replayMeshBody = b3RecPlayer_GetBodyId( player, 2 );
+	ENSURE( b3Body_IsValid( replayMeshBody ) );
+	b3ShapeId replayMeshShape;
+	ENSURE( b3Body_GetShapes( replayMeshBody, &replayMeshShape, 1 ) == 1 );
+	ENSURE( b3Shape_GetType( replayMeshShape ) == b3_meshShape );
+	b3Mesh gotMesh = b3Shape_GetMesh( replayMeshShape );
+	ENSURE( gotMesh.data != NULL );
+	ENSURE( gotMesh.data->hash == swapMeshHash );
+	ENSURE( gotMesh.scale.x == swapScale.x );
+	ENSURE( gotMesh.scale.y == swapScale.y );
+	ENSURE( gotMesh.scale.z == swapScale.z );
+
+	b3RecPlayer_Destroy( player );
+	b3DestroyRecording( rec );
+	return 0;
+}
+
 int RecordingTest( void )
 {
 	RUN_SUBTEST( GeometryHashCollision );
 	RUN_SUBTEST( ShapeNameReplay );
 	RUN_SUBTEST( MeshMaterialReplay );
+	RUN_SUBTEST( HullMeshSwapReplay );
 	RUN_SUBTEST( SphereRoundTrip );
 	RUN_SUBTEST( EmptyWorldRoundTrip );
 	RUN_SUBTEST( HullDedup );

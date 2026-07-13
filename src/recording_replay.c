@@ -1146,6 +1146,34 @@ static void b3RecDispatch_ShapeSetCapsule( const b3RecArgs_ShapeSetCapsule* a, b
 	b3Shape_SetCapsule( b3RecMakeShapeId( rdr, a->shape ), &a->capsule );
 }
 
+static void b3RecDispatch_ShapeSetHull( const b3RecArgs_ShapeSetHull* a, b3RecReader* rdr )
+{
+	uint32_t id = a->geometryId;
+	if ( id >= (uint32_t)rdr->slotCount )
+	{
+		printf( "b3ReplayFile: hull geometryId %u out of range\n", id );
+		rdr->ok = false;
+		return;
+	}
+	b3RegistrySlot* slot = rdr->slots + id;
+	// Hull is cloned by b3Shape_SetHull into the world DB; no caching needed.
+	b3Shape_SetHull( b3RecMakeShapeId( rdr, a->shape ), (const b3HullData*)slot->bytes );
+}
+
+static void b3RecDispatch_ShapeSetMesh( const b3RecArgs_ShapeSetMesh* a, b3RecReader* rdr )
+{
+	uint32_t id = a->geometryId;
+	if ( id >= (uint32_t)rdr->slotCount )
+	{
+		printf( "b3ReplayFile: mesh geometryId %u out of range\n", id );
+		rdr->ok = false;
+		return;
+	}
+	b3RegistrySlot* slot = rdr->slots + id;
+	const b3MeshData* mesh = (const b3MeshData*)b3RecGetLiveMesh( slot );
+	b3Shape_SetMesh( b3RecMakeShapeId( rdr, a->shape ), mesh, a->scale );
+}
+
 static void b3RecDispatch_ShapeApplyWind( const b3RecArgs_ShapeApplyWind* a, b3RecReader* rdr )
 {
 	b3Shape_ApplyWind( b3RecMakeShapeId( rdr, a->shape ), a->wind, a->drag, a->lift, a->maxSpeed, a->wake );

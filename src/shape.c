@@ -1627,6 +1627,14 @@ void b3Shape_SetHull( b3ShapeId shapeId, const b3HullData* hull )
 		return;
 	}
 
+	// Record after the dedup short-circuit so the stream carries only mutations that proceed
+	if ( world->recording != NULL )
+	{
+		uint32_t geometryId = b3RecInternHull( world->recording, hull );
+		b3RecArgs_ShapeSetHull recArgs = { shapeId, geometryId };
+		b3RecWrite_ShapeSetHull( world->recording, &recArgs );
+	}
+
 	b3DestroyShapeAllocationForShapeChange( world, shape );
 
 	shape->hull = data;
@@ -1650,6 +1658,13 @@ void b3Shape_SetMesh( b3ShapeId shapeId, const b3MeshData* meshData, b3Vec3 scal
 	if ( world == NULL )
 	{
 		return;
+	}
+
+	if ( world->recording != NULL )
+	{
+		uint32_t geometryId = b3RecInternMesh( world->recording, meshData );
+		b3RecArgs_ShapeSetMesh recArgs = { shapeId, geometryId, scale };
+		b3RecWrite_ShapeSetMesh( world->recording, &recArgs );
 	}
 
 	world->locked = true;

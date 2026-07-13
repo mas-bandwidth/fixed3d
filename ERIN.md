@@ -98,11 +98,30 @@ math in benchmark scenes wants to be robust to that (we switched shared
 scenes to arithmetic that is exact in both number systems; for you, exact
 binary-representable spacings would do it).
 
+### 8. Three shape mutators don't record: SetHull, SetMesh, SetMeshMaterial
+
+Your recording manifest covers the shape mutators through `ShapeSetName`
+(0x5C), but `b3Shape_SetHull` (shape.c:1589), `b3Shape_SetMesh`
+(shape.c:1630), and `b3Shape_SetMeshMaterial` (shape.c:1286) have no
+`B3_REC` call and no op — a recorded session that swaps a shape's
+geometry or retunes a per-triangle material replays divergent, because
+the replayed world keeps the old hull/mesh/material. The material op is
+a one-liner next to `ShapeSetSurfaceMaterial`. The geometry pair needs
+interning like your create ops: intern the hull/mesh into the registry
+at the record site and carry a GEOMID the dispatch resolves the way
+`CreateHullShape`/`CreateMeshShape` do. One placement subtlety:
+`b3Shape_SetHull`'s shared-hull dedup short-circuit returns without
+mutating, so record after it, or the stream (and the registry) carries
+geometry for calls that changed nothing. We shipped these as ops
+0x5D/0x5E/0x5F with a minor version bump; the negative test — delete
+the `B3_REC` call, watch the replay hash gate trip — is cheap and worth
+keeping.
+
 ## Your todos, implemented and measured
 
 We did your homework. Some of it was worth doing.
 
-### 8. `todo_erin use the max point count of the four manifolds` — DO THIS
+### 9. `todo_erin use the max point count of the four manifolds` — DO THIS
 
 contact_solver.c:2032. Prepare stores the widest manifold across the four
 lanes; warm start, solve, and restitution loop only that far. Slots past a
@@ -110,7 +129,7 @@ lane's own count hold exact zeros and apply nothing, so skipping them
 changes no results. One-point-manifold scenes (spheres, rain) stop paying
 for four point slots. Pure win, no downside, benefits scalar tails too.
 
-### 9. `todo speed this up using matrices` (anchor rotation) — worked
+### 10. `todo speed this up using matrices` (anchor rotation) — worked
 
 contact_solver.c:2042. The delta rotations are constant across a wide
 constraint, so build rotation matrices once per constraint and rotate each
@@ -124,7 +143,7 @@ against float FMA the memory-for-multiplies trade may not clear, so
 measure the two halves separately. The matrix rotation half should
 transfer as-is.
 
-### 10. `todo test computing the tangents on the fly, at least tangent2` — measured, rejected (for us)
+### 11. `todo test computing the tangents on the fly, at least tangent2` — measured, rejected (for us)
 
 contact_solver.c:1360. Dropping the stored tangent2 and recomputing
 cross(tangent1, normal) at each use is correct and saves 48 bytes per wide
@@ -134,7 +153,7 @@ per pass, and 48 bytes is ~1.3% of a constraint that streams anyway. Your
 float cross is cheap enough that this could flip for you, but don't expect
 much: the bytes just don't matter.
 
-### 11. `todo_erin measure perf padding to 64 bytes` (b3BodyState) — an alignment lottery
+### 12. `todo_erin measure perf padding to 64 bytes` (b3BodyState) — an alignment lottery
 
 body.h:159. Measured on two microarchitectures with interleaved min-of-3
 A/Bs: geomean −0.4% on one machine, +0.3% on the other, and the per-scene
@@ -143,7 +162,7 @@ in OPPOSITE directions, consistently, on the same machine. That's
 reshuffled cache-set conflicts, not a systematic effect. Not worth the
 memory.
 
-### 12. Branchless friction-cone guard — measured, rejected
+### 13. Branchless friction-cone guard — measured, rejected
 
 Skipping the sqrt+div when no lane exceeds the friction cone sounds free.
 It measured neutral-to-worse: in never-sleeping benchmark scenes the
@@ -162,7 +181,7 @@ platform, and it doesn't have to be. None of this needs fixed point — in
 float it's *easier*, because we needed exactness gates and you just need
 dot products.
 
-### 13. The SAT edge query, four edge pairs at a time — the big one
+### 14. The SAT edge query, four edge pairs at a time — the big one
 
 `b3QueryEdgeDirections` was 63% of convex_pile for us before this. The
 structure: a per-call SoA prepass over hull A's edge vectors and adjacent
@@ -177,7 +196,7 @@ float ops directly. Whole-benchmark effect for us: convex_pile 21.4 s →
 10.3 s on M3 (NEON), 126.8 s → 53.1 s on Zen 4 (AVX-512). This one change
 is most of why the integer build beats your float build on the hull pile.
 
-### 14. A wide mesh contact solver — answers your constraint_graph.h todo
+### 15. A wide mesh contact solver — answers your constraint_graph.h todo
 
 Your comment block muses about lumping mesh contacts with convex wide
 constraints (re-linking when manifold counts change) or Dirk's
@@ -200,7 +219,7 @@ waste. Two free mitigations if that matters: a 1-manifold fast path, or
 sorting each color's contacts by manifoldCount through an indirection
 (order within a color cannot affect results — the bodies are disjoint).
 
-### 15. Hull support scans, four elements at a time
+### 16. Hull support scans, four elements at a time
 
 `b3FindHullSupportVertex/Face` vectorize with one subtlety worth stealing
 even if you don't vectorize: tie order. The scalar scan is first-wins; a
@@ -209,7 +228,7 @@ per-lane runs and a value-then-smaller-index reduction, which keeps the
 vectorized scan's result identical to the scalar one — the kind of thing
 your cross-platform determinism story needs if these ever go wide.
 
-### 16. Body gather/scatter as 4×4 transposes, and an overread trap
+### 17. Body gather/scatter as 4×4 transposes, and an overread trap
 
 Gathering four bodies' states as three 4×4 transposes over the contiguous
 fields beats per-lane member loads. The trap: transposing ALL the fields
