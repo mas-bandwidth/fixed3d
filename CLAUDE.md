@@ -704,9 +704,17 @@ samples jobs. Hard-won CI knowledge:
   ShapeMaterialStagingTest in test_shape.c (garbage-fills padding, memcmps
   stored bytes vs a staged reference; verified red pre-fix). height_field.c
   and mesh.c audited clean — their blobs hold only uint8 material indices.
-  SEPARATE gap found during this fix (chip spawned): b3Shape_SetMeshMaterial
-  has no B3_REC coverage at all, so recorded sessions that call it replay
-  divergent.
+  SEPARATE gap found during this fix (chip spawned), now FIXED: three shape
+  mutators had no B3_REC coverage, so recorded sessions that called them
+  replayed divergent — b3Shape_SetMeshMaterial (op 0x5D, ed19fbe) and
+  b3Shape_SetHull / b3Shape_SetMesh (ops 0x5E/0x5F, b49b899;
+  B3_REC_VERSION_MINOR now 5). The geometry pair interns via
+  b3RecInternHull/Mesh like the create ops, and b3Shape_SetHull records
+  AFTER its shared-hull dedup short-circuit so the stream carries only
+  mutations that proceed. Upstream e961bfb has the identical gap
+  (ERIN.md entry 8). Regression subtests: MeshMaterialReplay and
+  HullMeshSwapReplay in test_recording.c, both verified red without
+  their B3_REC calls.
 - `{ 0 }` is the universal zero initializer — `{ b3FixFromInt( 0 ) }` loses
   clang's missing-field-initializer exemption (157 sites were converted back).
 - `b3IsValidFixed` accepts everything except INT64_MIN: the saturation values
