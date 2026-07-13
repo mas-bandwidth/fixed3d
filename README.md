@@ -6,10 +6,10 @@ This fork exists to answer two questions:
    was fixed point?**
 2. **Exactly how much slower would it be?**
 
-The answers: it looks like the code in this repository, and it is about
-**2× slower** (geometric mean over the full benchmark suite, measured on
-Apple silicon and on Zen 4 — full tables below). What you get in exchange is
-one thing: a truly huge world with uniform precision everywhere.
+The answer: **2× slower** (geometric mean over the full benchmark suite, 
+measured on Apple silicon and on Zen 4 — full tables below). 
+
+What you get in exchange is one thing: a truly huge world with uniform precision everywhere.
 
 That trade is narrower than it sounds, and **you should probably keep using
 vanilla Box3D** — see [Should I use this?](#should-i-use-this) for the honest
