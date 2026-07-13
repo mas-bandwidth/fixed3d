@@ -50,13 +50,8 @@ re-run in the same session, float included.
 | trees100      |       84.2 |      154.1 |           149.0 |       1.8× |      1.8× |        1.03× |
 | washer        |    6,896.4 |   13,599.9 |        13,606.9 |       2.0× |      2.0× |        1.00× |
 
-**Geometric mean: 2.07× slower scalar, 1.90× with NEON — and convex_pile, the
-most collision-bound scene in the suite, comes in at 0.75× of float: fixed
-point beats the floats on Apple silicon.** (That one win is likely
-temporary).
-
-The optimization log with per-pass numbers and sample profiles lives in
-[benchmark/apple_m3_ultra_fixed](benchmark/apple_m3_ultra_fixed/README.md).
+**Geometric mean: 2.07× slower scalar, 1.90× with NEON. This is expected to worsen to 2-3× as any
+worthwhile optimizations found during this exercise are backported to the real Box3D.
 
 ## Should I use this?
 
