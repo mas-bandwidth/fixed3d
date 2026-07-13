@@ -3,7 +3,7 @@
 This fork exists to answer two questions:
 
 1. **What would [Box3D](https://github.com/erincatto/box3d) look like if it
-   was entirely fixed point?**
+   was *entirely* fixed point?**
 2. **Exactly how much slower would it be?**
 
 The answer: **2× slower** (geometric mean over the full benchmark suite,
