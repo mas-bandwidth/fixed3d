@@ -42,6 +42,16 @@ there is no pending working-tree state.
   across 1-5 workers. Updated for the e961bfb friction-center weighted-average
   port — any solver-affecting change invalidates these, see the test conventions
   section for how to regenerate.
+- **ERIN.md rule (from Glenn, 2026-07-13)**: ERIN.md at the repo root lists
+  everything worth backporting into vanilla float Box3D — latent upstream
+  bugs, Erin's in-code todos implemented and measured (wins AND rejections),
+  SIMD designs that transfer, test-infrastructure lessons. KEEP IT CURRENT:
+  when work lands that produces a float-applicable finding, add it to
+  ERIN.md in the same or an adjacent commit. Discipline for entries: verify
+  any claim about Erin's tree against upstream e961bfb first (cite his
+  file:line), be honest about fixed-vs-float transferability of
+  measurements (our multiplies cost ~4x his FMA), and the public-claims
+  rule below applies there too.
 - **Public-claims rule (from Glenn)**: vanilla Box3D is ALREADY deterministic
   across platforms — Erin achieves it in float with FP discipline. Never pitch
   determinism as a Fixed3D feature (README, commit messages, anywhere public);
