@@ -2,9 +2,9 @@
 include(CMakeDependentOption)
 
 project(box3d
-	VERSION 0.1.0
-	DESCRIPTION "A 3D physics engine for games"
-	HOMEPAGE_URL "https://box2d.org"
+	VERSION 1.0.0
+	DESCRIPTION "Box3D in Q48.16 fixed point"
+	HOMEPAGE_URL "https://github.com/mas-bandwidth/fixed3d"
 	LANGUAGES C CXX
 )
 
