@@ -63,7 +63,9 @@ there is no pending working-tree state.
   LTO default → 4273c4c b3Int128Div hardware divide fast path (see the
   division section) → cd4b9a5 divq asm made volatile (gcc speculated it,
   see the known-issue bullet) → b218eb6..ede0457 wide mesh contact solver
-  + B3_MESH_WIDE gate + README/doc refresh + repo sweep cleanups.
+  + B3_MESH_WIDE gate + README/doc refresh + repo sweep cleanups →
+  67fa9e7/011f758 compound material dedup padding fix (b3StageMaterial,
+  see the content-hashes rule).
   NOTE: main's history was force-push rewritten ONCE on 2026-07-12 (with
   Glenn's explicit approval) to purge 50MB of accidentally committed build
   dirs; any clone made in the ~30 minutes before that needs a reset.
@@ -76,7 +78,13 @@ there is no pending working-tree state.
   `cmake` there picks gcc, which fails on a pre-existing
   -Wformat-truncation in scheduler.c under -Werror — use CC=clang-18);
   ~/wmesh-base is one more worktree at 57afe1f with build/ (AVX on, LTO),
-  the baseline the wide-mesh A/B was measured against. The box is SHARED
+  the baseline the wide-mesh A/B was measured against. ~/divcheck is a
+  worktree on branch fixpad at 011f758 with test configs build-nolto (gcc
+  AVX no-LTO — the CompoundMaterialDedup repro config), build-lto (gcc
+  AVX+LTO), build-clang (clang-18 AVX+LTO), build-scalar (gcc scalar+LTO),
+  plus build-bench/-base benchmark dirs (no test binary; also samples are
+  OFF in the test dirs — a plain top-level configure there dies on a stale
+  .fetchcontent-cache nfd, delete it or pass -DBOX3D_SAMPLES=OFF). The box is SHARED
   between sessions: check `pgrep -af benchmark` + load average before
   benchmarking (a standing root `/app/launcher server` process eats ~3.5
   cores, so absolute numbers run hot vs the published tables — trust
@@ -459,11 +467,10 @@ the lost buffer hides that ManifoldTest is the faulter; bisect suites
 individually; (2) run the AVX suite with BOTH compilers on the box
 before trusting a division/asm change — CI cannot (the avx512 job is
 clang compile-only, the ubuntu gcc jobs are scalar). SEPARATE issue
-found during that sweep, still open (chip spawned): CompoundTest's
-CompoundMaterialDedup fails deterministically in gcc AVX **no-LTO**
-builds at clean 4273c4c (passes with LTO/clang/scalar/arm64) — smells
-like the raw-bytes-hash bug class, unrelated to division. Repro:
-~/divcheck/build-nolto on the box.
+found during that sweep, FIXED on main (67fa9e7, merged 011f758):
+CompoundTest's CompoundMaterialDedup failed deterministically in gcc
+AVX **no-LTO** builds — it WAS the raw-bytes-hash bug class, see the
+content-hashes rule bullet for the mechanism and fix.
 
 **Benchmark CLI gotcha**: flags need the equals form (`-b=large_pyramid -w=4 -t=4
 -r=2`). Space-separated flags are silently ignored and the FULL suite runs (looks
@@ -668,7 +675,18 @@ samples jobs. Hard-won CI knowledge:
   must have deterministic padding. Fixed point changed layouts — b3MeshNode
   grew 8 pad bytes that broke mesh dedup on gcc and tripped MSan until the
   temp node array was cleared. Blob allocations (mesh/hull/height field) are
-  memset; keep it that way.
+  memset; keep it that way. Second instance (fixed 67fa9e7, 2026-07-13):
+  b3SurfaceMaterial has 4 tail pad bytes and the compound material dedup map
+  hashed/memcmp'd whole structs whose key pointers aimed straight into the
+  CALLER's defs — gcc-13 AVX-512 no-LTO left different stack garbage in the
+  padding and dedup broke (CompoundMaterialDedup). Fix: b3StageMaterial in
+  compound.c copies field-by-field into the pre-zeroed materials slot and
+  that slot is the map key, which also keeps the compound blob's material
+  bytes deterministic for b3RecInternCompound's blob hash. Whole-struct
+  assignment copies padding garbage — never struct-assign into memory that
+  gets hashed or serialized raw. STILL OPEN same-class exposure (chip
+  spawned): shape.c memcpys def->materials raw into shape->materials and
+  world_snapshot.c writes those bytes raw into snapshots.
 - `{ 0 }` is the universal zero initializer — `{ b3FixFromInt( 0 ) }` loses
   clang's missing-field-initializer exemption (157 sites were converted back).
 - `b3IsValidFixed` accepts everything except INT64_MIN: the saturation values
