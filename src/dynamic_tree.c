@@ -1470,6 +1470,15 @@ b3TreeStats b3DynamicTree_BoxCast( const b3DynamicTree* tree, const b3BoxCastInp
 // Median split == 0, Surface area heuristic == 1
 #define B3_TREE_HEURISTIC 0
 
+#if B3_TREE_HEURISTIC != 0
+// The SAH branches below were preprocessed out when the tree was converted to
+// fixed point, so the AST-based rewriter never touched them: they still do raw
+// float math on b3Fixed values (e.g. 1.0f / invD) and initialize 3D vectors
+// with two components. Convert them (see tools/fixed-point/) and delete this
+// guard before enabling the heuristic.
+#error "B3_TREE_HEURISTIC != 0 selects the unconverted float SAH code path"
+#endif
+
 #if B3_TREE_HEURISTIC == 0
 
 // Median split heuristic
