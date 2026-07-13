@@ -324,12 +324,19 @@ AVX-512 (washer −0.5% consistently was the only real signal). The 48-byte
 load it saves is ~1.3% of a ~3.7KB constraint that streams anyway. Don't
 redo this; the same math says don't chase the rtA2s/rtB2s rows either
 (recomputing those needs the friction centers stored back, a wash on
-bytes). The remaining Erin todos in the codebase were triaged the same
-day: the only other one worth an experiment is padding b3BodyState
-(112 bytes in fixed point) to 128 for cache-line alignment (body.h
-todo_erin) — everything else is dead API (b3GetShapeArea has no callers),
-dead code (the guarded SAH branch), or upstream-shared design musings
-that would just create merge pain with the box3d→fixed3d ports.
+bytes). The companion experiment — Erin's body.h todo_erin, padding
+b3BodyState (112 bytes in fixed point) to 128 = two exact cache lines
+with B3_ALIGNMENT raised to 64 (branch `bodystate-pad-128` on origin,
+NOT merged) — is ALSO measured and rejected: M3 scalar geomean −0.4%
+(faster), Zen 4 AVX-512 geomean +0.3% (slower), and the per-scene signs
+expose it as an alignment lottery, not a systematic win (on Zen 4,
+large_pyramid was −2.6% in all three passes while the nearly identical
+many_pyramids workload was +2.9% in all three — reshuffled cache-set
+conflicts, both well inside the swing such a change can produce by
+accident). That completes the Erin-todo triage of 2026-07-13: everything
+else in the codebase is dead API (b3GetShapeArea has no callers), dead
+code (the guarded SAH branch), or upstream-shared design musings that
+would just create merge pain with the box3d→fixed3d ports.
 
 **Benchmark CLI gotcha**: flags need the equals form (`-b=large_pyramid -w=4 -t=4
 -r=2`). Space-separated flags are silently ignored and the FULL suite runs (looks
