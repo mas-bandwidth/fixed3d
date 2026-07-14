@@ -59,12 +59,22 @@ there is no pending working-tree state.
   truncated float in both trees' history (the samples GUI never simulated
   until 2026-07-14 — both sessions fixed it, main's b3FixFromFloat wrap
   won); the -Wfloat-conversion/-Wimplicit-int-float-conversion audit
-  (recipe also in the renderer bullet below) has two blind spots — clang
-  SUPPRESSES these warnings inside braced initializers, and exact-integer
-  float literals (2.0f) convert warning-free — both need eyeballing; raw
-  b3Fixed*b3Fixed int multiplies are invisible to the flags entirely and
-  need the AST audit (tools/fixed-point/ast_audit.py pointed at the
-  samples compile db with .cpp enabled; the only real C++ hit was a
+  (recipe also in the renderer bullet below) has blind spots — clang
+  SUPPRESSES these warnings inside braced initializers, exact-integer
+  float literals (2.0f) convert warning-free, and small raw b3Fixed
+  values (< 2^24) convert to float exactly, also warning-free. ALL THREE
+  are now CLOSED by tools/fixed-point/conversion_audit.py (2026-07-14):
+  a type-aware clang-AST audit that flags EVERY implicit or explicit
+  conversion between b3Fixed and float/double in both directions,
+  regardless of value preservation or syntactic context (it filters out
+  the sanctioned converter machinery by spelling location, so B3_FIX /
+  b3FixToFloat uses don't fire). Run it after any merge of float-era
+  code: `python3 tools/fixed-point/conversion_audit.py` (defaults to
+  build-samples/compile_commands.json, covers src+shared+samples+gfx+
+  host; exits 1 on findings, so it's CI-able). Verified 2026-07-14: the
+  full tree audits CLEAN, and all three seeded blind-spot bug classes
+  are detected. Raw b3Fixed*b3Fixed int multiplies remain
+  ast_audit.py's job (the only real C++ hit was a
   GetAngle*B3_RAD_TO_DEG in sample_replay, fixed). VERIFIED post-merge on
   this branch: Release + Debug+VALIDATE samples builds green, sample
   logic at zero 'long long' conversion warnings and zero -Wformat
