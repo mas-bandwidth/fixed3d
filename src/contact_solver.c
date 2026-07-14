@@ -373,6 +373,209 @@ void b3WarmStartContacts_Mesh( b3SolverBlock block, b3StepContext* context )
 	}
 }
 
+// ---------------------------------------------------------------------------
+// Impulse-cap clamp guards
+//
+// The friction and rolling-resistance clamps compare a squared impulse length
+// against b3FixMul( maxImpulse, maxImpulse ). These caps are physical values
+// (friction * normal impulse sum), and the 64-bit squared forms wrap int64
+// once an operand reaches 2^23.5 ~ 1.19e7 units. A wrapped compare can fire
+// the clamp against a wrapped squared length whose b3FixSqrt is tiny or zero,
+// so the "clamp" SCALES THE IMPULSE UP - energy injection, the same failure
+// class as the joint sentinel caps (b3ImpulseOverCap in joint.h) except these
+// operands are reachable by heavy high-friction content instead of sentinels
+// (convex_pile at friction 0.6 already measures caps within 12x of the wrap;
+// the multipliers - friction, density, body scale - are all linear).
+//
+// Every clamp gates its compare operands on B3_IMPULSE_CAP_GATE: below it no
+// 64-bit intermediate can wrap (bound proof at the constant) and the
+// historical code runs unchanged, so all existing content is bit-identical.
+// The cold path mirrors each site's exact 64-bit rounding at 128 bits - any
+// input the 64-bit forms handle without wrapping clamps identically, and
+// inputs that would have wrapped clamp correctly instead. The gate also makes
+// the hot path's int64 additions unreachable for operands that could overflow
+// them (signed overflow is UB). The central-twist caps are plain symmetric
+// clamps with no squaring and stay unguarded: b3FixMul( friction,
+// totalTwistLimit ) cannot wrap before the impulses feeding it wrap first.
+
+// 2^38 raw = 4.19e6 units. With every operand |q| < 2^38: a rounded square
+// ( q*q + half ) >> 16 stays below 2^60, the unfused two-term sum below 2^61,
+// and the fused three-term raw dot below 3 * 2^76 so its rounded form stays
+// below 2^62 - nothing reaches 2^63.
+#define B3_IMPULSE_CAP_GATE ( (b3Fixed)1 << 38 )
+
+// -B3_IMPULSE_CAP_GATE < v < B3_IMPULSE_CAP_GATE as a single unsigned compare
+static inline bool b3CapOperandSafe( b3Fixed v )
+{
+	return (uint64_t)v + (uint64_t)B3_IMPULSE_CAP_GATE < 2 * (uint64_t)B3_IMPULSE_CAP_GATE;
+}
+
+// Cold path for the 2D friction clamp. Exact over-cap test mirroring the hot
+// path's rounding (b3Dot2 is unfused: two b3FixMul roundings, then the sum);
+// when the clamp fires, the divisor length comes from the 64-bit value when
+// that value did not wrap (bit-identical to the hot path) and from the raw
+// 128-bit sum when it did. Returns true and writes *scale when the stored
+// impulse must be rescaled.
+static bool b3ClampImpulseCold2( b3Fixed x, b3Fixed y, b3Fixed maxImpulse, bool epsDivisor, b3Fixed* scale )
+{
+	b3Int128 xx = ( (b3Int128)x * x + B3_FIXED_HALF ) >> B3_FIXED_FRACTION_BITS;
+	b3Int128 yy = ( (b3Int128)y * y + B3_FIXED_HALF ) >> B3_FIXED_FRACTION_BITS;
+	b3Int128 lengthSquared = xx + yy;
+	b3Int128 cap = ( (b3Int128)maxImpulse * maxImpulse + B3_FIXED_HALF ) >> B3_FIXED_FRACTION_BITS;
+	if ( lengthSquared <= cap )
+	{
+		return false;
+	}
+
+	b3Fixed length;
+	if ( lengthSquared <= (b3Int128)INT64_MAX )
+	{
+		length = b3FixSqrt( (b3Fixed)lengthSquared );
+	}
+	else
+	{
+		b3UInt128 raw = (b3UInt128)( (b3Int128)x * x ) + (b3UInt128)( (b3Int128)y * y ); // Q32.32
+		length = (b3Fixed)b3ISqrt128High( (uint64_t)( raw >> 64 ), (uint64_t)raw );
+	}
+
+	*scale = b3FixDiv( maxImpulse, epsDivisor ? length + B3_FIXED_EPSILON : length );
+	return true;
+}
+
+// Cold path for the 3D rolling-resistance clamp (fused: one rounding on the
+// exact 128-bit dot, and the rolling sites add B3_FIXED_EPSILON to the
+// squared cap before comparing).
+static bool b3ClampImpulseCold3( b3Fixed x, b3Fixed y, b3Fixed z, b3Fixed maxImpulse, bool epsDivisor, b3Fixed* scale )
+{
+	b3Int128 raw = (b3Int128)x * x + (b3Int128)y * y + (b3Int128)z * z; // Q32.32
+	b3Int128 magSqr = ( raw + B3_FIXED_HALF ) >> B3_FIXED_FRACTION_BITS;
+	b3Int128 cap = ( ( (b3Int128)maxImpulse * maxImpulse + B3_FIXED_HALF ) >> B3_FIXED_FRACTION_BITS ) + B3_FIXED_EPSILON;
+	if ( magSqr <= cap )
+	{
+		return false;
+	}
+
+	b3Fixed length;
+	if ( magSqr <= (b3Int128)INT64_MAX )
+	{
+		length = b3FixSqrt( (b3Fixed)magSqr );
+	}
+	else
+	{
+		length = (b3Fixed)b3ISqrt128High( (uint64_t)( (b3UInt128)raw >> 64 ), (uint64_t)raw );
+	}
+
+	*scale = b3FixDiv( maxImpulse, epsDivisor ? length + B3_FIXED_EPSILON : length );
+	return true;
+}
+
+#if defined( BOX3D_RANGE_AUDIT )
+
+// Range audit for the Q16.16 32-bit lane feasibility study: tracks the maximum
+// |value| of each quantity flowing through the contact solvers. Build with
+// -DBOX3D_RANGE_AUDIT, run the benchmarks, and a report prints at process exit.
+// A 32-bit Q16.16 lane holds |value| < 32768 with the same 1/65536 resolution.
+// The impulse-cap channels compare against a different limit: the squared cap
+// compares (b3FixMul( maxImpulse, maxImpulse ) and the b3Dot/b3Dot2 length
+// forms) wrap int64 when the operand reaches 2^23.5 ~ 1.19e7 units.
+
+#include <stdatomic.h>
+#include <stdio.h>
+#include <stdlib.h>
+
+enum
+{
+	b3_auditBodyV,
+	b3_auditBodyW,
+	b3_auditDeltaPos,
+	b3_auditAnchor,
+	b3_auditRn,
+	b3_auditIRn,
+	b3_auditInvMass,
+	b3_auditInvInertia,
+	b3_auditNormalMass,
+	b3_auditTangentMass,
+	b3_auditTwistMass,
+	b3_auditMNormal,
+	b3_auditINormal,
+	b3_auditRt,
+	b3_auditVn,
+	b3_auditBias,
+	b3_auditNormalImpulse,
+	b3_auditTotalNormalImpulse,
+	b3_auditFrictionImpulse,
+	b3_auditTwistImpulse,
+	b3_auditSeparation,
+	b3_auditIterNormalSum,
+	b3_auditFrictionCap,
+	b3_auditRollingCap,
+	b3_auditTwistCap,
+	b3_auditCount
+};
+
+static const char* b3_auditNames[b3_auditCount] = {
+	"body v",		 "body w",		   "delta pos",		 "anchor",		   "cross(r,n)",	 "invI*cross(r,n)",
+	"inv mass",		 "inv inertia",	   "normal mass",	 "tangent mass",   "twist mass",	 "invMass*n",
+	"invI*n",		 "cross(o,t)",	   "vn",			 "bias",		   "normal impulse", "total normal impulse",
+	"friction impulse", "twist impulse", "separation",	 "iter normal sum", "friction cap",	 "rolling cap",
+	"twist cap",
+};
+
+static _Atomic int64_t b3_auditMax[b3_auditCount];
+static atomic_bool b3_auditRegistered;
+
+static void b3RangeAuditReport( void )
+{
+	fprintf( stderr, "\n=== contact solver range audit (max |value| in units, Q16.16 limit 32768) ===\n" );
+	fprintf( stderr, "    (squared-cap wrap limit for the *cap channels: 2^23.5 ~ 11.86e6 units)\n" );
+	for ( int i = 0; i < b3_auditCount; ++i )
+	{
+		double v = (double)atomic_load( b3_auditMax + i ) / 65536.0;
+		fprintf( stderr, "%22s  %16.4f%s\n", b3_auditNames[i], v, v >= 4096.0 ? "  <-- LOW HEADROOM" : "" );
+	}
+}
+
+static inline void b3AuditFix( int slot, b3Fixed value )
+{
+	if ( atomic_exchange_explicit( &b3_auditRegistered, true, memory_order_relaxed ) == false )
+	{
+		atexit( b3RangeAuditReport );
+	}
+
+	int64_t magnitude = value < 0 ? -value : value;
+	int64_t seen = atomic_load_explicit( b3_auditMax + slot, memory_order_relaxed );
+	while ( magnitude > seen && !atomic_compare_exchange_weak_explicit( b3_auditMax + slot, &seen, magnitude,
+																	    memory_order_relaxed, memory_order_relaxed ) )
+	{
+	}
+}
+
+static inline void b3AuditV3( int slot, b3Vec3 value )
+{
+	b3AuditFix( slot, value.x );
+	b3AuditFix( slot, value.y );
+	b3AuditFix( slot, value.z );
+}
+
+static inline void b3AuditM3( int slot, b3Matrix3 value )
+{
+	b3AuditV3( slot, value.cx );
+	b3AuditV3( slot, value.cy );
+	b3AuditV3( slot, value.cz );
+}
+
+#define B3_AUDIT_FIX( slot, value ) b3AuditFix( slot, value )
+#define B3_AUDIT_V3( slot, value ) b3AuditV3( slot, value )
+#define B3_AUDIT_M3( slot, value ) b3AuditM3( slot, value )
+
+#else
+
+#define B3_AUDIT_FIX( slot, value )
+#define B3_AUDIT_V3( slot, value )
+#define B3_AUDIT_M3( slot, value )
+
+#endif
+
 // Merged normal and friction loops. This is much more stable for the Jenga stack.
 void b3SolveContacts_Mesh( b3SolverBlock block, b3StepContext* context, bool useBias )
 {
@@ -494,6 +697,7 @@ void b3SolveContacts_Mesh( b3SolverBlock block, b3StepContext* context, bool use
 			{
 				b3Fixed twistSpeed = b3Dot( constraint->normal, b3Sub( wB, wA ) );
 				b3Fixed maxImpulse = b3FixMul( friction , totalTwistLimit );
+				B3_AUDIT_FIX( b3_auditTwistCap, maxImpulse );
 				b3Fixed deltaImpulse = b3FixMul( -constraint->twistMass , twistSpeed );
 				b3Fixed oldImpulse = constraint->twistImpulse;
 				constraint->twistImpulse = b3FixClamp( oldImpulse + deltaImpulse, -maxImpulse, maxImpulse );
@@ -511,10 +715,27 @@ void b3SolveContacts_Mesh( b3SolverBlock block, b3StepContext* context, bool use
 				constraint->rollingImpulse = b3Add( oldImpulse, deltaImpulse );
 
 				b3Fixed maxImpulse = b3FixMul( rollingResistance , totalNormalImpulse );
-				b3Fixed magSqr = b3Dot( constraint->rollingImpulse, constraint->rollingImpulse );
-				if ( magSqr > b3FixMul( maxImpulse , maxImpulse ) + B3_FIXED_EPSILON )
+				B3_AUDIT_FIX( b3_auditRollingCap, maxImpulse );
+				// The squared compare wraps int64 past B3_IMPULSE_CAP_GATE; the cold
+				// path is exact (see the cap-guard block above this function)
+				if ( b3CapOperandSafe( constraint->rollingImpulse.x ) && b3CapOperandSafe( constraint->rollingImpulse.y ) &&
+					 b3CapOperandSafe( constraint->rollingImpulse.z ) && b3CapOperandSafe( maxImpulse ) )
 				{
-					constraint->rollingImpulse = b3MulSV( b3FixDiv( maxImpulse , b3FixSqrt( magSqr ) ), constraint->rollingImpulse );
+					b3Fixed magSqr = b3Dot( constraint->rollingImpulse, constraint->rollingImpulse );
+					if ( magSqr > b3FixMul( maxImpulse , maxImpulse ) + B3_FIXED_EPSILON )
+					{
+						constraint->rollingImpulse =
+							b3MulSV( b3FixDiv( maxImpulse , b3FixSqrt( magSqr ) ), constraint->rollingImpulse );
+					}
+				}
+				else
+				{
+					b3Fixed scale;
+					if ( b3ClampImpulseCold3( constraint->rollingImpulse.x, constraint->rollingImpulse.y,
+											  constraint->rollingImpulse.z, maxImpulse, false, &scale ) )
+					{
+						constraint->rollingImpulse = b3MulSV( scale, constraint->rollingImpulse );
+					}
 				}
 
 				deltaImpulse = b3Sub( constraint->rollingImpulse, oldImpulse );
@@ -550,14 +771,30 @@ void b3SolveContacts_Mesh( b3SolverBlock block, b3StepContext* context, bool use
 				};
 
 				b3Fixed maxImpulse = b3FixMul( friction , totalNormalImpulse );
+				B3_AUDIT_FIX( b3_auditIterNormalSum, totalNormalImpulse );
+				B3_AUDIT_FIX( b3_auditFrictionCap, maxImpulse );
 
-				// Clamp the accumulated impulse
-				b3Fixed lengthSquared = b3Dot2( newImpulse, newImpulse );
-				if ( lengthSquared > b3FixMul( maxImpulse , maxImpulse ) )
+				// Clamp the accumulated impulse. The squared compare wraps int64 past
+				// B3_IMPULSE_CAP_GATE; the cold path is exact (see the cap-guard block
+				// above this function).
+				if ( b3CapOperandSafe( newImpulse.x ) && b3CapOperandSafe( newImpulse.y ) && b3CapOperandSafe( maxImpulse ) )
 				{
-					b3Fixed scale = b3FixDiv( maxImpulse , b3FixSqrt( lengthSquared ) );
-					newImpulse.x = b3FixMul( newImpulse.x, scale );
-					newImpulse.y = b3FixMul( newImpulse.y, scale );
+					b3Fixed lengthSquared = b3Dot2( newImpulse, newImpulse );
+					if ( lengthSquared > b3FixMul( maxImpulse , maxImpulse ) )
+					{
+						b3Fixed scale = b3FixDiv( maxImpulse , b3FixSqrt( lengthSquared ) );
+						newImpulse.x = b3FixMul( newImpulse.x, scale );
+						newImpulse.y = b3FixMul( newImpulse.y, scale );
+					}
+				}
+				else
+				{
+					b3Fixed scale;
+					if ( b3ClampImpulseCold2( newImpulse.x, newImpulse.y, maxImpulse, false, &scale ) )
+					{
+						newImpulse.x = b3FixMul( newImpulse.x, scale );
+						newImpulse.y = b3FixMul( newImpulse.y, scale );
+					}
 				}
 				deltaImpulse = b3Sub2( newImpulse, constraint->frictionImpulse );
 				constraint->frictionImpulse = newImpulse;
@@ -1195,6 +1432,82 @@ static inline bool b3AllZeroW( b3FloatW a )
 #endif
 }
 
+// true when every lane is inside (-B3_IMPULSE_CAP_GATE, B3_IMPULSE_CAP_GATE),
+// so the impulse-cap clamps may run their 64-bit hot path (see the cap-guard
+// block above b3SolveContacts_Mesh)
+static inline bool b3CapOperandSafeW( b3FloatW a )
+{
+#if defined( B3_SIMD_AVX512 )
+	__m256i biased = _mm256_add_epi64( a.v, _mm256_set1_epi64x( B3_IMPULSE_CAP_GATE ) );
+	return _mm256_cmp_epu64_mask( biased, _mm256_set1_epi64x( 2 * B3_IMPULSE_CAP_GATE ), _MM_CMPINT_LT ) == 0xF;
+#else
+	return b3CapOperandSafe( a.x ) && b3CapOperandSafe( a.y ) && b3CapOperandSafe( a.z ) && b3CapOperandSafe( a.w );
+#endif
+}
+
+// Cold per-lane fix-ups for the wide impulse-cap clamps: exact clamp mask
+// (B3_FIXED_ONE / 0, matching b3GreaterThanW) and rescale factor per lane.
+// Lanes that do not clamp get scale B3_FIXED_ONE, which the callers blend
+// away exactly like the hot path's unused divide results.
+static void b3ClampImpulseColdW2( b3FloatW x, b3FloatW y, b3FloatW maxImpulse, bool epsDivisor, b3FloatW* maskOut,
+								  b3FloatW* scaleOut )
+{
+	b3FloatW mask = b3ZeroW();
+	b3FloatW scale = b3SplatW( B3_FIXED_ONE );
+	b3Fixed s;
+	if ( b3ClampImpulseCold2( x.x, y.x, maxImpulse.x, epsDivisor, &s ) )
+	{
+		mask.x = B3_FIXED_ONE;
+		scale.x = s;
+	}
+	if ( b3ClampImpulseCold2( x.y, y.y, maxImpulse.y, epsDivisor, &s ) )
+	{
+		mask.y = B3_FIXED_ONE;
+		scale.y = s;
+	}
+	if ( b3ClampImpulseCold2( x.z, y.z, maxImpulse.z, epsDivisor, &s ) )
+	{
+		mask.z = B3_FIXED_ONE;
+		scale.z = s;
+	}
+	if ( b3ClampImpulseCold2( x.w, y.w, maxImpulse.w, epsDivisor, &s ) )
+	{
+		mask.w = B3_FIXED_ONE;
+		scale.w = s;
+	}
+	*maskOut = mask;
+	*scaleOut = scale;
+}
+
+static void b3ClampImpulseColdW3( b3Vec3W v, b3FloatW maxImpulse, bool epsDivisor, b3FloatW* maskOut, b3FloatW* scaleOut )
+{
+	b3FloatW mask = b3ZeroW();
+	b3FloatW scale = b3SplatW( B3_FIXED_ONE );
+	b3Fixed s;
+	if ( b3ClampImpulseCold3( v.X.x, v.Y.x, v.Z.x, maxImpulse.x, epsDivisor, &s ) )
+	{
+		mask.x = B3_FIXED_ONE;
+		scale.x = s;
+	}
+	if ( b3ClampImpulseCold3( v.X.y, v.Y.y, v.Z.y, maxImpulse.y, epsDivisor, &s ) )
+	{
+		mask.y = B3_FIXED_ONE;
+		scale.y = s;
+	}
+	if ( b3ClampImpulseCold3( v.X.z, v.Y.z, v.Z.z, maxImpulse.z, epsDivisor, &s ) )
+	{
+		mask.z = B3_FIXED_ONE;
+		scale.z = s;
+	}
+	if ( b3ClampImpulseCold3( v.X.w, v.Y.w, v.Z.w, maxImpulse.w, epsDivisor, &s ) )
+	{
+		mask.w = B3_FIXED_ONE;
+		scale.w = s;
+	}
+	*maskOut = mask;
+	*scaleOut = scale;
+}
+
 // component-wise returns mask ? b : a
 static inline b3FloatW b3BlendW( b3FloatW a, b3FloatW b, b3FloatW mask )
 {
@@ -1758,75 +2071,9 @@ typedef struct b3BodyStateW
 
 #if defined( BOX3D_RANGE_AUDIT )
 
-// Range audit for the Q16.16 32-bit lane feasibility study: tracks the maximum
-// |value| of each quantity flowing through the wide contact solver. Build with
-// -DBOX3D_RANGE_AUDIT, run the benchmarks, and a report prints at process exit.
-// A 32-bit Q16.16 lane holds |value| < 32768 with the same 1/65536 resolution.
-
-#include <stdatomic.h>
-#include <stdio.h>
-#include <stdlib.h>
-
-enum
-{
-	b3_auditBodyV,
-	b3_auditBodyW,
-	b3_auditDeltaPos,
-	b3_auditAnchor,
-	b3_auditRn,
-	b3_auditIRn,
-	b3_auditInvMass,
-	b3_auditInvInertia,
-	b3_auditNormalMass,
-	b3_auditTangentMass,
-	b3_auditTwistMass,
-	b3_auditMNormal,
-	b3_auditINormal,
-	b3_auditRt,
-	b3_auditVn,
-	b3_auditBias,
-	b3_auditNormalImpulse,
-	b3_auditTotalNormalImpulse,
-	b3_auditFrictionImpulse,
-	b3_auditTwistImpulse,
-	b3_auditSeparation,
-	b3_auditCount
-};
-
-static const char* b3_auditNames[b3_auditCount] = {
-	"body v",		 "body w",		   "delta pos",		 "anchor",		   "cross(r,n)",	 "invI*cross(r,n)",
-	"inv mass",		 "inv inertia",	   "normal mass",	 "tangent mass",   "twist mass",	 "invMass*n",
-	"invI*n",		 "cross(o,t)",	   "vn",			 "bias",		   "normal impulse", "total normal impulse",
-	"friction impulse", "twist impulse", "separation",
-};
-
-static _Atomic int64_t b3_auditMax[b3_auditCount];
-static atomic_bool b3_auditRegistered;
-
-static void b3RangeAuditReport( void )
-{
-	fprintf( stderr, "\n=== wide solver range audit (max |value| in units, Q16.16 limit 32768) ===\n" );
-	for ( int i = 0; i < b3_auditCount; ++i )
-	{
-		double v = (double)atomic_load( b3_auditMax + i ) / 65536.0;
-		fprintf( stderr, "%22s  %16.4f%s\n", b3_auditNames[i], v, v >= 4096.0 ? "  <-- LOW HEADROOM" : "" );
-	}
-}
-
-static inline void b3AuditFix( int slot, b3Fixed value )
-{
-	if ( atomic_exchange_explicit( &b3_auditRegistered, true, memory_order_relaxed ) == false )
-	{
-		atexit( b3RangeAuditReport );
-	}
-
-	int64_t magnitude = value < 0 ? -value : value;
-	int64_t seen = atomic_load_explicit( b3_auditMax + slot, memory_order_relaxed );
-	while ( magnitude > seen && !atomic_compare_exchange_weak_explicit( b3_auditMax + slot, &seen, magnitude,
-																	    memory_order_relaxed, memory_order_relaxed ) )
-	{
-	}
-}
+// Wide-lane variants of the range audit helpers defined above the mesh solver
+// (the scalar block sits up there because b3FloatW is not defined yet at that
+// point in the file).
 
 static inline void b3AuditW( int slot, b3FloatW value )
 {
@@ -1843,33 +2090,13 @@ static inline void b3AuditV3W( int slot, b3Vec3W value )
 	b3AuditW( slot, value.Z );
 }
 
-static inline void b3AuditV3( int slot, b3Vec3 value )
-{
-	b3AuditFix( slot, value.x );
-	b3AuditFix( slot, value.y );
-	b3AuditFix( slot, value.z );
-}
-
-static inline void b3AuditM3( int slot, b3Matrix3 value )
-{
-	b3AuditV3( slot, value.cx );
-	b3AuditV3( slot, value.cy );
-	b3AuditV3( slot, value.cz );
-}
-
-#define B3_AUDIT_FIX( slot, value ) b3AuditFix( slot, value )
 #define B3_AUDIT_W( slot, value ) b3AuditW( slot, value )
 #define B3_AUDIT_V3W( slot, value ) b3AuditV3W( slot, value )
-#define B3_AUDIT_V3( slot, value ) b3AuditV3( slot, value )
-#define B3_AUDIT_M3( slot, value ) b3AuditM3( slot, value )
 
 #else
 
-#define B3_AUDIT_FIX( slot, value )
 #define B3_AUDIT_W( slot, value )
 #define B3_AUDIT_V3W( slot, value )
-#define B3_AUDIT_V3( slot, value )
-#define B3_AUDIT_M3( slot, value )
 
 #endif
 
@@ -3161,17 +3388,29 @@ void b3SolveContacts_Convex( b3SolverBlock block, b3StepContext* context, bool u
 				c->rollingImpulse = b3AddVW( oldImpulse, deltaImpulse );
 
 				b3FloatW maxImpulse = b3MulW( c->rollingResistance, totalNormalImpulse );
-				b3FloatW lengthSquared = b3DotW( c->rollingImpulse, c->rollingImpulse );
+				B3_AUDIT_W( b3_auditRollingCap, maxImpulse );
 
 				// if ( magSqr > maxLambda * maxLambda + B3_FIXED_EPSILON )
 				//{
 				//	c->rollingImpulse *= maxLambda / sqrtf( magSqr );
 				// }
 
-				b3FloatW mask = b3GreaterThanW( lengthSquared, b3MulAddW( epsilonW, maxImpulse, maxImpulse ) );
+				// The squared compare wraps int64 past B3_IMPULSE_CAP_GATE; the cold
+				// path is exact (see the cap-guard block above b3SolveContacts_Mesh)
+				b3FloatW mask, normalize;
+				if ( b3CapOperandSafeW( c->rollingImpulse.X ) && b3CapOperandSafeW( c->rollingImpulse.Y ) &&
+					 b3CapOperandSafeW( c->rollingImpulse.Z ) && b3CapOperandSafeW( maxImpulse ) )
+				{
+					b3FloatW lengthSquared = b3DotW( c->rollingImpulse, c->rollingImpulse );
+					mask = b3GreaterThanW( lengthSquared, b3MulAddW( epsilonW, maxImpulse, maxImpulse ) );
 
-				// No approximate _mm_rsqrt_ps here to maintain cross-platform determinism
-				b3FloatW normalize = b3DivW( maxImpulse, b3AddW( b3SqrtW( lengthSquared ), epsilonW ) );
+					// No approximate _mm_rsqrt_ps here to maintain cross-platform determinism
+					normalize = b3DivW( maxImpulse, b3AddW( b3SqrtW( lengthSquared ), epsilonW ) );
+				}
+				else
+				{
+					b3ClampImpulseColdW3( c->rollingImpulse, maxImpulse, true, &mask, &normalize );
+				}
 				b3FloatW scale = b3BlendW( oneW, normalize, mask );
 
 				// Ensure zero rolling resistance yields no impulse
@@ -3190,6 +3429,7 @@ void b3SolveContacts_Convex( b3SolverBlock block, b3StepContext* context, bool u
 			{
 				b3FloatW twistSpeed = b3DotW( normal, b3SubVW( bB.w, bA.w ) );
 				b3FloatW maxLambda = b3MulW( c->friction, totalTwistLimit );
+				B3_AUDIT_W( b3_auditTwistCap, maxLambda );
 				b3FloatW deltaImpulse = b3NegW( b3MulW( c->twistMass, twistSpeed ) );
 				b3FloatW oldImpulse = c->twistImpulse;
 				c->twistImpulse = b3SymClampW( b3AddW( oldImpulse, deltaImpulse ), maxLambda );
@@ -3221,16 +3461,28 @@ void b3SolveContacts_Convex( b3SolverBlock block, b3StepContext* context, bool u
 
 				b3FloatW friction = c->friction;
 				b3FloatW maxImpulse = b3MulW( friction, totalNormalImpulse );
+				B3_AUDIT_W( b3_auditIterNormalSum, totalNormalImpulse );
+				B3_AUDIT_W( b3_auditFrictionCap, maxImpulse );
 
-				// Clamp the accumulated impulse
-				b3FloatW lengthSquared = b3AddW( b3MulW( newImpulse.x, newImpulse.x ), b3MulW( newImpulse.y, newImpulse.y ) );
+				// Clamp the accumulated impulse. The squared compare wraps int64 past
+				// B3_IMPULSE_CAP_GATE; the cold path is exact (see the cap-guard block
+				// above b3SolveContacts_Mesh).
+				b3FloatW mask, normalize;
+				if ( b3CapOperandSafeW( newImpulse.x ) && b3CapOperandSafeW( newImpulse.y ) && b3CapOperandSafeW( maxImpulse ) )
+				{
+					b3FloatW lengthSquared = b3AddW( b3MulW( newImpulse.x, newImpulse.x ), b3MulW( newImpulse.y, newImpulse.y ) );
 
-				// Max impulse can be zero
-				b3FloatW mask = b3GreaterThanW( lengthSquared, b3MulW( maxImpulse, maxImpulse ) );
+					// Max impulse can be zero
+					mask = b3GreaterThanW( lengthSquared, b3MulW( maxImpulse, maxImpulse ) );
 
-				// No approximate _mm_rsqrt_ps here to maintain cross-platform determinism. Add epsilon to avoid divide by
-				// zero.
-				b3FloatW normalize = b3DivW( maxImpulse, b3AddW( b3SqrtW( lengthSquared ), epsilonW ) );
+					// No approximate _mm_rsqrt_ps here to maintain cross-platform determinism. Add epsilon to avoid divide by
+					// zero.
+					normalize = b3DivW( maxImpulse, b3AddW( b3SqrtW( lengthSquared ), epsilonW ) );
+				}
+				else
+				{
+					b3ClampImpulseColdW2( newImpulse.x, newImpulse.y, maxImpulse, true, &mask, &normalize );
+				}
 				b3FloatW scale = b3BlendW( oneW, normalize, mask );
 				newImpulse = (b3Vec2W){
 					b3MulW( scale, newImpulse.x ),
@@ -3959,6 +4211,7 @@ void b3SolveContacts_MeshWide( b3SolverBlock block, b3StepContext* context, bool
 			{
 				b3FloatW twistSpeed = b3DotW( normal, b3SubVW( bB.w, bA.w ) );
 				b3FloatW maxImpulse = b3MulW( friction, totalTwistLimit );
+				B3_AUDIT_W( b3_auditTwistCap, maxImpulse );
 				b3FloatW deltaImpulse = b3MulW( b3NegW( m->twistMass ), twistSpeed );
 				b3FloatW oldImpulse = m->twistImpulse;
 				m->twistImpulse = b3SymClampW( b3AddW( oldImpulse, deltaImpulse ), maxImpulse );
@@ -3984,10 +4237,22 @@ void b3SolveContacts_MeshWide( b3SolverBlock block, b3StepContext* context, bool
 				b3Vec3W rollingImpulse = b3AddVW( oldImpulse, deltaImpulse );
 
 				b3FloatW maxImpulse = b3MulW( c->rollingResistance, totalNormalImpulse );
-				b3FloatW magSqr = b3DotW( rollingImpulse, rollingImpulse );
+				B3_AUDIT_W( b3_auditRollingCap, maxImpulse );
 
-				b3FloatW clampMask = b3GreaterThanW( magSqr, b3AddW( b3MulW( maxImpulse, maxImpulse ), epsilonW ) );
-				b3FloatW scale = b3DivW( maxImpulse, b3SqrtW( magSqr ) );
+				// The squared compare wraps int64 past B3_IMPULSE_CAP_GATE; the cold
+				// path is exact (see the cap-guard block above b3SolveContacts_Mesh)
+				b3FloatW clampMask, scale;
+				if ( b3CapOperandSafeW( rollingImpulse.X ) && b3CapOperandSafeW( rollingImpulse.Y ) &&
+					 b3CapOperandSafeW( rollingImpulse.Z ) && b3CapOperandSafeW( maxImpulse ) )
+				{
+					b3FloatW magSqr = b3DotW( rollingImpulse, rollingImpulse );
+					clampMask = b3GreaterThanW( magSqr, b3AddW( b3MulW( maxImpulse, maxImpulse ), epsilonW ) );
+					scale = b3DivW( maxImpulse, b3SqrtW( magSqr ) );
+				}
+				else
+				{
+					b3ClampImpulseColdW3( rollingImpulse, maxImpulse, false, &clampMask, &scale );
+				}
 				rollingImpulse = b3BlendVW( rollingImpulse, b3MulSVW( scale, rollingImpulse ), clampMask );
 
 				rollingImpulse = b3BlendVW( oldImpulse, rollingImpulse, active );
@@ -4023,11 +4288,23 @@ void b3SolveContacts_MeshWide( b3SolverBlock block, b3StepContext* context, bool
 				b3Vec2W newImpulse = b3AddV2W( m->frictionImpulse, deltaImpulse );
 
 				b3FloatW maxImpulse = b3MulW( friction, totalNormalImpulse );
+				B3_AUDIT_W( b3_auditIterNormalSum, totalNormalImpulse );
+				B3_AUDIT_W( b3_auditFrictionCap, maxImpulse );
 
-				// Clamp the accumulated impulse; the scalar b3Dot2 is unfused
-				b3FloatW lengthSquared = b3AddW( b3MulW( newImpulse.x, newImpulse.x ), b3MulW( newImpulse.y, newImpulse.y ) );
-				b3FloatW clampMask = b3GreaterThanW( lengthSquared, b3MulW( maxImpulse, maxImpulse ) );
-				b3FloatW scale = b3DivW( maxImpulse, b3SqrtW( lengthSquared ) );
+				// Clamp the accumulated impulse; the scalar b3Dot2 is unfused. The
+				// squared compare wraps int64 past B3_IMPULSE_CAP_GATE; the cold path
+				// is exact (see the cap-guard block above b3SolveContacts_Mesh).
+				b3FloatW clampMask, scale;
+				if ( b3CapOperandSafeW( newImpulse.x ) && b3CapOperandSafeW( newImpulse.y ) && b3CapOperandSafeW( maxImpulse ) )
+				{
+					b3FloatW lengthSquared = b3AddW( b3MulW( newImpulse.x, newImpulse.x ), b3MulW( newImpulse.y, newImpulse.y ) );
+					clampMask = b3GreaterThanW( lengthSquared, b3MulW( maxImpulse, maxImpulse ) );
+					scale = b3DivW( maxImpulse, b3SqrtW( lengthSquared ) );
+				}
+				else
+				{
+					b3ClampImpulseColdW2( newImpulse.x, newImpulse.y, maxImpulse, false, &clampMask, &scale );
+				}
 				newImpulse.x = b3BlendW( newImpulse.x, b3MulW( newImpulse.x, scale ), clampMask );
 				newImpulse.y = b3BlendW( newImpulse.y, b3MulW( newImpulse.y, scale ), clampMask );
 
