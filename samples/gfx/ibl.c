@@ -15,11 +15,12 @@
 // sokol abstracts uniformly across backends), so a direction d written
 // at (face F, uv) is recovered by sampling the cubemap with the same d.
 // Order: +X, -X, +Y, -Y, +Z, -Z.
+// Renderer-only unit directions: float end to end (Vec3, not b3Vec3).
 typedef struct
 {
-	b3Vec3 right;
-	b3Vec3 up;
-	b3Vec3 forward;
+	Vec3 right;
+	Vec3 up;
+	Vec3 forward;
 } CubeFaceBasis;
 
 // SH projection grid resolution per face. 32 -> 6 * 32^2 = 6144 sample
@@ -114,9 +115,9 @@ static struct
 
 // Rotate a sky direction into the model's Y-up frame, mirror of
 // preethamToYUp in common/preetham.glsl.
-static b3Vec3 SkyDirToYUpC( b3Vec3 v, bool zUp )
+static Vec3 SkyDirToYUpC( Vec3 v, bool zUp )
 {
-	return zUp ? ( b3Vec3 ){ v.x, v.z, -v.y } : v;
+	return zUp ? ( Vec3 ){ v.x, v.z, -v.y } : v;
 }
 
 static float PreethamPerezC( float cos_theta, float cos_gamma, float gamma, float A, float B, float C, float D, float E )
@@ -127,7 +128,7 @@ static float PreethamPerezC( float cos_theta, float cos_gamma, float gamma, floa
 	return term1 * term2;
 }
 
-static b3Vec3 PreethamSkyScaledC( b3Vec3 view_dir, b3Vec3 sun_dir, float turbidity, float fade, bool zUp )
+static Vec3 PreethamSkyScaledC( Vec3 view_dir, Vec3 sun_dir, float turbidity, float fade, bool zUp )
 {
 	const float PI = 3.14159265358979323846f;
 	const float LUMINANCE_SCALE = 0.06f; // mirrors PREETHAM_LUMINANCE_SCALE
@@ -137,7 +138,7 @@ static b3Vec3 PreethamSkyScaledC( b3Vec3 view_dir, b3Vec3 sun_dir, float turbidi
 
 	const float sun_y_clamped = ( sun_dir.y < 0.0f ) ? 0.0f : ( sun_dir.y > 1.0f ) ? 1.0f : sun_dir.y;
 
-	b3Vec3 view_clamped;
+	Vec3 view_clamped;
 	view_clamped.x = view_dir.x;
 	view_clamped.y = ( view_dir.y > 0.0f ? view_dir.y : 0.0f ) + 0.01f;
 	view_clamped.z = view_dir.z;
@@ -215,7 +216,7 @@ static b3Vec3 PreethamSkyScaledC( b3Vec3 view_dir, b3Vec3 sun_dir, float turbidi
 	const float Y_xyz = Y;
 	const float Z_xyz = Y * ( 1.0f - x - y ) / yy;
 
-	b3Vec3 rgb;
+	Vec3 rgb;
 	rgb.x = ( X_xyz * 3.2404542f ) + ( Y_xyz * -1.5371385f ) + ( Z_xyz * -0.4985314f );
 	rgb.y = ( X_xyz * -0.9692660f ) + ( Y_xyz * 1.8760108f ) + ( Z_xyz * 0.0415560f );
 	rgb.z = ( X_xyz * 0.0556434f ) + ( Y_xyz * -0.2040259f ) + ( Z_xyz * 1.0572252f );
@@ -249,10 +250,14 @@ static float cubeTexelSolidAngle( float u, float v, int n )
 // dot product against the SH basis.
 static void ProjectSkyToSh( b3Vec3 dirToSun, float turbidity, float fade, bool zUp )
 {
-	b3Vec3 coef[9];
+	// Unit sun direction, small by construction: crosses to float by value
+	// at entry. All SH math below is float end to end.
+	const Vec3 sun = { b3FixToFloat( dirToSun.x ), b3FixToFloat( dirToSun.y ), b3FixToFloat( dirToSun.z ) };
+
+	Vec3 coef[9];
 	for ( int i = 0; i < 9; ++i )
 	{
-		coef[i] = b3Vec3_zero;
+		coef[i] = ( Vec3 ){ 0.0f, 0.0f, 0.0f };
 	}
 
 	const int N = IBL_SH_SAMPLES_PER_FACE;
@@ -268,7 +273,7 @@ static void ProjectSkyToSh( b3Vec3 dirToSun, float turbidity, float fade, bool z
 				const float u = ( (float)col + 0.5f ) * pixSize - 1.0f;
 				const float v = ( (float)row + 0.5f ) * pixSize - 1.0f;
 
-				b3Vec3 dir;
+				Vec3 dir;
 				dir.x = b.forward.x + u * b.right.x + v * b.up.x;
 				dir.y = b.forward.y + u * b.right.y + v * b.up.y;
 				dir.z = b.forward.z + u * b.right.z + v * b.up.z;
@@ -284,7 +289,7 @@ static void ProjectSkyToSh( b3Vec3 dirToSun, float turbidity, float fade, bool z
 				// dir stays in sim space, it indexes the SH basis below which
 				// the lit shader evaluates at a sim-space normal. Only the
 				// Preetham color lookup rotates into the model's Y-up frame.
-				const b3Vec3 L = PreethamSkyScaledC( dir, dirToSun, turbidity, fade, zUp );
+				const Vec3 L = PreethamSkyScaledC( dir, sun, turbidity, fade, zUp );
 
 				const float x = dir.x;
 				const float y = dir.y;
@@ -315,14 +320,19 @@ static void ProjectSkyToSh( b3Vec3 dirToSun, float turbidity, float fade, bool z
 
 	// Apply Funk-Hecke / Ramamoorthi convolution weights so the shader
 	// can evaluate irradiance as a straight dot product.
+	//
+	// The SH cache is b3Vec3 (renderer.c reads it back through
+	// MakeVec4FromFixed), so the float results cross to fixed here.
+	// Coefficient magnitudes are O(0.01..10), far above the Q48.16
+	// resolution of ~1.5e-5, so the quantization is visually irrelevant.
 	const float scale[9] = {
 		SH_A0, SH_A1, SH_A1, SH_A1, SH_A2, SH_A2, SH_A2, SH_A2, SH_A2,
 	};
 	for ( int i = 0; i < 9; ++i )
 	{
-		s_ibl.shCoeffs[i].x = coef[i].x * scale[i];
-		s_ibl.shCoeffs[i].y = coef[i].y * scale[i];
-		s_ibl.shCoeffs[i].z = coef[i].z * scale[i];
+		s_ibl.shCoeffs[i].x = b3FixFromFloat( coef[i].x * scale[i] );
+		s_ibl.shCoeffs[i].y = b3FixFromFloat( coef[i].y * scale[i] );
+		s_ibl.shCoeffs[i].z = b3FixFromFloat( coef[i].z * scale[i] );
 	}
 }
 
@@ -377,7 +387,7 @@ static void GenerateSkyCube( b3Vec3 dirToSun, float turbidity, float fade, bool 
 		up.face_right = MakeVec4( b.right.x, b.right.y, b.right.z, 0.0f );
 		up.face_up = MakeVec4( b.up.x, b.up.y, b.up.z, zUp ? 1.0f : 0.0f );
 		up.face_forward = MakeVec4( b.forward.x, b.forward.y, b.forward.z, fade );
-		up.sun_dir_world = MakeVec4( dirToSun.x, dirToSun.y, dirToSun.z, turbidity );
+		up.sun_dir_world = MakeVec4FromFixed( dirToSun.x, dirToSun.y, dirToSun.z, turbidity );
 		sg_apply_uniforms( UB_sky_to_cube_ub_face, &SG_RANGE( up ) );
 
 		sg_draw( 0, 3, 1 );
@@ -642,9 +652,11 @@ void RebuildImageBasedLightingIfDirty( b3Vec3 dirToSun, float turbidity, bool zU
 		return;
 	}
 
-	// Renormalize just in case to avoid NaNs
-	float lenSq = dirToSun.x * dirToSun.x + dirToSun.y * dirToSun.y + dirToSun.z * dirToSun.z;
-	b3Vec3 sun = ( lenSq > 0.0f ) ? b3Normalize( dirToSun ) : b3Vec3_axisY;
+	// Renormalize just in case to avoid NaNs. Stays in fixed point:
+	// b3LengthSquared quantizes sub-resolution vectors to zero, which just
+	// sends them down the same fallback as a true zero vector.
+	const b3Fixed lenSq = b3LengthSquared( dirToSun );
+	b3Vec3 sun = ( lenSq > 0 ) ? b3Normalize( dirToSun ) : b3Vec3_axisY;
 	float fade = SkySunFadeWeight( sun, zUp );
 
 	sg_push_debug_group( "ibl_rebuild" );

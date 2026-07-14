@@ -11,9 +11,9 @@
 #include <stdio.h>
 
 // World position every draw demotes against. The host points it at the camera eye each
-// frame, so the shift happens in double far from the origin and the overlay and impostor
-// primitives only ever see small coordinates. Zero by default, which makes the demotion an
-// identity and matches absolute coordinates.
+// frame, so the shift happens exactly in fixed point far from the origin and the overlay and
+// impostor primitives only ever see small eye-relative coordinates. Zero by default, which
+// makes the demotion an identity and matches absolute coordinates.
 static b3Pos s_drawOrigin;
 
 // Shift a world position into the draw-origin-relative frame the primitives render in.
@@ -75,7 +75,7 @@ void DrawSolidSphere( b3WorldTransform transform, b3Sphere sphere, Vec4 color )
 {
 	b3Transform rel = ToRelativeFrame( transform );
 	b3Transform world = { b3TransformPoint( rel, sphere.center ), rel.q };
-	AppendSphere( world, sphere.radius, color, DEFAULT_METALLIC, DEFAULT_ROUGHNESS, TRANSPARENT_SHADOW_FULL );
+	AppendSphere( world, b3FixToFloat( sphere.radius ), color, DEFAULT_METALLIC, DEFAULT_ROUGHNESS, TRANSPARENT_SHADOW_FULL );
 }
 
 void DrawSolidCapsule( b3WorldTransform transform, b3Capsule capsule, Vec4 color )
@@ -87,7 +87,6 @@ void DrawSolidCapsule( b3WorldTransform transform, b3Capsule capsule, Vec4 color
 	b3Fixed length = b3Length( axis );
 
 	// Impostor cylinder runs along local +X, so align +X with the capsule axis.
-	// Normalize in fixed point: a float reciprocal truncates to 0 ULPs and zeroes the axis.
 	b3Quat q = rel.q;
 	if ( length > 0 )
 	{
@@ -95,7 +94,8 @@ void DrawSolidCapsule( b3WorldTransform transform, b3Capsule capsule, Vec4 color
 	}
 
 	b3Transform world = { b3MulSV( B3_FIX( 0.5f ), b3Add( c1, c2 ) ), q };
-	AppendCapsule( world, 0.5f * length, capsule.radius, color, DEFAULT_METALLIC, DEFAULT_ROUGHNESS, TRANSPARENT_SHADOW_FULL );
+	AppendCapsule( world, 0.5f * b3FixToFloat( length ), b3FixToFloat( capsule.radius ), color, DEFAULT_METALLIC,
+				   DEFAULT_ROUGHNESS, TRANSPARENT_SHADOW_FULL );
 }
 
 void DrawHull( b3WorldTransform transform, const b3HullData* hull, Vec4 color )
@@ -169,7 +169,6 @@ void DrawArrowEx( b3Pos a, b3Pos b, Vec4 color, float thickness, OverlayThicknes
 	{
 		return;
 	}
-	// Normalize in fixed point: per-component float division truncates the unit vector to whole ULPs.
 	b3Vec3 dir = b3Normalize( shaft );
 	b3Vec3 perp = b3Perp( dir );
 	b3Fixed headLen = b3FixMul( shaftLen, b3FixFromFloat( headLengthFrac ) );
@@ -192,7 +191,7 @@ void DrawCrossEx( b3Pos center, float size, Vec4 color, float thickness, Overlay
 				  OverlayOcclusionMode occlusionMode )
 {
 	b3Vec3 c = ToRelative( center );
-	float h = size * 0.5f;
+	b3Fixed h = b3FixFromFloat( 0.5f * size );
 	OverlayAppendLine( (b3Vec3){ c.x - h, c.y, c.z }, (b3Vec3){ c.x + h, c.y, c.z }, color, thickness, thicknessUnit,
 					   occlusionMode );
 	OverlayAppendLine( (b3Vec3){ c.x, c.y - h, c.z }, (b3Vec3){ c.x, c.y + h, c.z }, color, thickness, thicknessUnit,
@@ -209,8 +208,8 @@ void DrawCross( b3Pos center, float size, Vec4 color )
 void DrawAabbEx( b3Vec3 mn, b3Vec3 mx, Vec4 color, float thickness, OverlayThicknessUnit thicknessUnit,
 				 OverlayOcclusionMode occlusionMode )
 {
-	// The box is float world space, so promote each corner and difference against the origin in
-	// double before it demotes. Far from the origin a plain narrow could clip a corner.
+	// The corners are fixed-point world space; each one differences against the draw origin
+	// exactly before it reaches the float overlay path.
 	b3Vec3 c000 = ToRelative( b3ToPos( (b3Vec3){ mn.x, mn.y, mn.z } ) );
 	b3Vec3 c100 = ToRelative( b3ToPos( (b3Vec3){ mx.x, mn.y, mn.z } ) );
 	b3Vec3 c010 = ToRelative( b3ToPos( (b3Vec3){ mn.x, mx.y, mn.z } ) );
@@ -244,7 +243,8 @@ void DrawAabb( b3Vec3 mn, b3Vec3 mx, Vec4 color )
 
 void DrawBounds( b3AABB bounds, float extension, Vec4 color )
 {
-	b3Vec3 e = { extension, extension, extension };
+	b3Fixed ext = b3FixFromFloat( extension );
+	b3Vec3 e = { ext, ext, ext };
 	DrawAabb( b3Sub( bounds.lowerBound, e ), b3Add( bounds.upperBound, e ), color );
 }
 
@@ -254,13 +254,12 @@ void DrawAxesEx( b3WorldTransform transform, float size, float thickness, Overla
 	b3Transform rel = ToRelativeFrame( transform );
 	b3Vec3 origin = rel.p;
 	b3Matrix3 basis = b3MakeMatrixFromQuat( rel.q );
-	// The float meter size must convert to fixed; passing it raw truncates to N ULPs (invisible axes).
-	b3Fixed length = b3FixFromFloat( size );
-	OverlayAppendLine( origin, b3MulAdd( origin, length, basis.cx ), MakeVec4( 1.0f, 0.0f, 0.0f, 1.0f ), thickness,
+	b3Fixed axisLen = b3FixFromFloat( size );
+	OverlayAppendLine( origin, b3MulAdd( origin, axisLen, basis.cx ), MakeVec4( 1.0f, 0.0f, 0.0f, 1.0f ), thickness,
 					   thicknessUnit, occlusionMode );
-	OverlayAppendLine( origin, b3MulAdd( origin, length, basis.cy ), MakeVec4( 0.0f, 1.0f, 0.0f, 1.0f ), thickness,
+	OverlayAppendLine( origin, b3MulAdd( origin, axisLen, basis.cy ), MakeVec4( 0.0f, 1.0f, 0.0f, 1.0f ), thickness,
 					   thicknessUnit, occlusionMode );
-	OverlayAppendLine( origin, b3MulAdd( origin, length, basis.cz ), MakeVec4( 0.0f, 0.0f, 1.0f, 1.0f ), thickness,
+	OverlayAppendLine( origin, b3MulAdd( origin, axisLen, basis.cz ), MakeVec4( 0.0f, 0.0f, 1.0f, 1.0f ), thickness,
 					   thicknessUnit, occlusionMode );
 }
 
@@ -282,25 +281,26 @@ void DrawGrid( b3Pos center, b3Vec3 normal, float halfExtent, int divisions, Vec
 	b3Vec3 u = b3Normalize( b3Perp( n ) );
 	b3Vec3 v = b3Cross( n, u );
 
+	const b3Fixed he = b3FixFromFloat( halfExtent );
 	const float step = ( 2.0f * halfExtent ) / (float)divisions;
 	for ( int i = 0; i <= divisions; ++i )
 	{
-		const float o = -halfExtent + (float)i * step;
+		const b3Fixed o = b3FixFromFloat( -halfExtent + (float)i * step );
 		// Line spanning u at this offset along v.
-		b3Vec3 ua = b3Add( c, b3Add( b3MulSV( -halfExtent, u ), b3MulSV( o, v ) ) );
-		b3Vec3 ub = b3Add( c, b3Add( b3MulSV( halfExtent, u ), b3MulSV( o, v ) ) );
+		b3Vec3 ua = b3Add( c, b3Add( b3MulSV( -he, u ), b3MulSV( o, v ) ) );
+		b3Vec3 ub = b3Add( c, b3Add( b3MulSV( he, u ), b3MulSV( o, v ) ) );
 		OverlayAppendLine( ua, ub, color, DEFAULT_LINE_THICKNESS_PX, OVERLAY_THICKNESS_PIXELS, OVERLAY_OCCLUSION_HIDE );
 		// Line spanning v at this offset along u.
-		b3Vec3 va = b3Add( c, b3Add( b3MulSV( o, u ), b3MulSV( -halfExtent, v ) ) );
-		b3Vec3 vb = b3Add( c, b3Add( b3MulSV( o, u ), b3MulSV( halfExtent, v ) ) );
+		b3Vec3 va = b3Add( c, b3Add( b3MulSV( o, u ), b3MulSV( -he, v ) ) );
+		b3Vec3 vb = b3Add( c, b3Add( b3MulSV( o, u ), b3MulSV( he, v ) ) );
 		OverlayAppendLine( va, vb, color, DEFAULT_LINE_THICKNESS_PX, OVERLAY_THICKNESS_PIXELS, OVERLAY_OCCLUSION_HIDE );
 	}
 }
 
-void DrawGroundGrid( int size )
+void DrawGroundGrid( b3Pos origin, int size )
 {
 	Vec4 color = MakeVec4( 0.3f, 0.3f, 0.3f, 1.0f );
-	DrawGrid( b3Pos_zero, b3Vec3_axisY, (float)size, size, color );
+	DrawGrid( origin, b3Vec3_axisY, (float)size, size, color );
 }
 
 void DrawTriangle( b3WorldTransform transform, b3Vec3 a, b3Vec3 b, b3Vec3 c, Vec4 color )
@@ -322,19 +322,18 @@ static void DrawDisc( b3Vec3 center, b3Vec3 normal, float radius, int segments, 
 	b3Vec3 tangent1 = b3Perp( normal );
 	b3Vec3 tangent2 = b3Cross( normal, tangent1 );
 
-	// B3_PI is b3Fixed; convert before float trig or the angle is 65536x too large.
 	float delta = 2.0f * b3FixToFloat( B3_PI ) / segments;
 	float cosine = cosf( delta );
 	float sine = sinf( delta );
 
 	float x1 = radius, y1 = 0.0f;
-	b3Vec3 vertex1 = b3Add( center, b3Blend2( x1, tangent1, y1, tangent2 ) );
+	b3Vec3 vertex1 = b3Add( center, b3Blend2( b3FixFromFloat( x1 ), tangent1, b3FixFromFloat( y1 ), tangent2 ) );
 
 	for ( int i = 0; i < segments; ++i )
 	{
 		float x2 = cosine * x1 - sine * y1;
 		float y2 = sine * x1 + cosine * y1;
-		b3Vec3 vertex2 = b3Add( center, b3Blend2( x2, tangent1, y2, tangent2 ) );
+		b3Vec3 vertex2 = b3Add( center, b3Blend2( b3FixFromFloat( x2 ), tangent1, b3FixFromFloat( y2 ), tangent2 ) );
 
 		OverlayAppendLine( vertex1, vertex2, color, 2.0f, OVERLAY_THICKNESS_PIXELS, OVERLAY_OCCLUSION_DIM );
 
@@ -351,16 +350,18 @@ static void DrawArc( b3Vec3 center, b3Vec3 normal, float radius, b3Vec3 start, f
 	b3Vec3 tangent2 = b3Cross( normal, tangent1 );
 
 	float deltaDegrees = maxDegrees / segments;
-	b3CosSin cs = b3ComputeCosSin( B3_DEG_TO_RAD * deltaDegrees );
+	float deltaRadians = b3FixToFloat( B3_DEG_TO_RAD ) * deltaDegrees;
+	float cosine = cosf( deltaRadians );
+	float sine = sinf( deltaRadians );
 	float x1 = radius, y1 = 0.0f;
 
-	b3Vec3 vertex1 = b3Add( center, b3Blend2( x1, tangent1, y1, tangent2 ) );
+	b3Vec3 vertex1 = b3Add( center, b3Blend2( b3FixFromFloat( x1 ), tangent1, b3FixFromFloat( y1 ), tangent2 ) );
 
 	for ( float angle = 0.0f; angle < maxDegrees - 0.001f; angle += deltaDegrees )
 	{
-		float x2 = cs.cosine * x1 - cs.sine * y1;
-		float y2 = cs.sine * x1 + cs.cosine * y1;
-		b3Vec3 vertex2 = b3Add( center, b3Blend2( x2, tangent1, y2, tangent2 ) );
+		float x2 = cosine * x1 - sine * y1;
+		float y2 = sine * x1 + cosine * y1;
+		b3Vec3 vertex2 = b3Add( center, b3Blend2( b3FixFromFloat( x2 ), tangent1, b3FixFromFloat( y2 ), tangent2 ) );
 
 		OverlayAppendLine( vertex1, vertex2, color, 2.0f, OVERLAY_THICKNESS_PIXELS, OVERLAY_OCCLUSION_DASHED );
 
@@ -374,9 +375,8 @@ void DrawWireSphere( b3WorldTransform transform, const b3Sphere* sphere, int seg
 {
 	b3Transform rel = ToRelativeFrame( transform );
 	b3Vec3 center = b3TransformPoint( rel, sphere->center );
-	float radius = sphere->radius;
+	float radius = b3FixToFloat( sphere->radius );
 
-	// Unit axes must be fixed-point ONE: a bare 1.0f in a C braced init truncates to 1 ULP.
 	b3Vec3 axisX = b3RotateVector( rel.q, b3Vec3_axisX );
 	b3Vec3 axisY = b3RotateVector( rel.q, b3Vec3_axisY );
 	b3Vec3 axisZ = b3RotateVector( rel.q, b3Vec3_axisZ );
@@ -391,7 +391,8 @@ void DrawWireCapsule( b3WorldTransform transform, const b3Capsule* capsule, int 
 	b3Transform rel = ToRelativeFrame( transform );
 	b3Vec3 center1 = b3TransformPoint( rel, capsule->center1 );
 	b3Vec3 center2 = b3TransformPoint( rel, capsule->center2 );
-	float radius = capsule->radius;
+	b3Fixed radius = capsule->radius;
+	float radiusF = b3FixToFloat( radius );
 
 	b3Vec3 normal = b3Normalize( b3Sub( center2, center1 ) );
 	b3Vec3 tangent1 = b3Perp( normal );
@@ -406,13 +407,13 @@ void DrawWireCapsule( b3WorldTransform transform, const b3Capsule* capsule, int 
 	OverlayAppendLine( b3MulSub( center1, radius, tangent2 ), b3MulSub( center2, radius, tangent2 ), color, 2.0f,
 					   OVERLAY_THICKNESS_PIXELS, OVERLAY_OCCLUSION_DASHED );
 
-	DrawArc( center1, b3Neg( tangent1 ), radius, tangent2, 180.0f, segments / 2, color );
-	DrawArc( center1, tangent2, radius, tangent1, 180.0f, segments / 2, color );
-	DrawArc( center2, tangent1, radius, tangent2, 180.0f, segments / 2, color );
-	DrawArc( center2, b3Neg( tangent2 ), radius, tangent1, 180.0f, segments / 2, color );
+	DrawArc( center1, b3Neg( tangent1 ), radiusF, tangent2, 180.0f, segments / 2, color );
+	DrawArc( center1, tangent2, radiusF, tangent1, 180.0f, segments / 2, color );
+	DrawArc( center2, tangent1, radiusF, tangent2, 180.0f, segments / 2, color );
+	DrawArc( center2, b3Neg( tangent2 ), radiusF, tangent1, 180.0f, segments / 2, color );
 
-	DrawDisc( center1, normal, radius, segments, color );
-	DrawDisc( center2, normal, radius, segments, color );
+	DrawDisc( center1, normal, radiusF, segments, color );
+	DrawDisc( center2, normal, radiusF, segments, color );
 }
 
 void DrawString3D( b3Pos point, Vec4 color, const char* format, ... )

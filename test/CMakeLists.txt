@@ -1,4 +1,4 @@
-# Box3D unit test app
+# Fixed3D unit test app
 
 set(BOX3D_TEST_FILES
     main.c
@@ -35,7 +35,7 @@ set_target_properties(test PROPERTIES
     C_EXTENSIONS NO
 )
 
-# Special access to Box3D internals for testing
+# Special access to Fixed3D internals for testing
 target_include_directories(test PRIVATE ${CMAKE_SOURCE_DIR}/src)
 
 if(BOX3D_VALIDATE)

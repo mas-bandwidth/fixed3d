@@ -25,10 +25,10 @@ extern "C"
 #endif
 
 // World space draw API. Every call takes absolute world coordinates and demotes against the
-// draw origin (set to the camera focus each frame, SetDrawOrigin) before handing float
-// coordinates to the renderer. The shift happens in double far from the origin, so the
-// overlay and impostor primitives only ever see small coordinates. Identity in float mode
-// where b3Pos aliases b3Vec3 and the origin is zero.
+// draw origin (set to the camera eye each frame, SetDrawOrigin) before handing coordinates
+// to the renderer. The shift happens in fixed point (b3SubPos is exact) at any distance, so
+// downstream float conversion only ever sees small eye-relative values — this is what lets
+// the scenes live 100 km (or 1e7 m) from the origin and render crisply.
 void SetDrawOrigin( b3Pos origin );
 
 // The draw origin the host and engine debug callbacks demote against (the camera focus).
@@ -55,7 +55,7 @@ void DrawCapsule( b3WorldTransform transform, float halfLength, float radius, Ve
 void DrawCapsuleEx( b3WorldTransform transform, float halfLength, float radius, Vec4 baseColor, float metallic, float roughness,
 					TransparentShadowCast shadowCast );
 
-// Solid shape wrappers over the impostor primitives. They take Box3D shape
+// Solid shape wrappers over the impostor primitives. They take Fixed3D shape
 // types and fold the shape-local frame into the transform, so samples draw
 // straight from collision data.
 void DrawSolidSphere( b3WorldTransform transform, b3Sphere sphere, Vec4 color );
@@ -91,8 +91,8 @@ void DrawCross( b3Pos center, float size, Vec4 color );
 void DrawCrossEx( b3Pos center, float size, Vec4 color, float thickness, OverlayThicknessUnit thicknessUnit,
 				  OverlayOcclusionMode occlusionMode );
 
-// Wireframe AABB (12 edges) between world-space min and max corners. The AABB stays float
-// world space, so the corners demote against the draw origin in double before they render.
+// Wireframe AABB (12 edges) between world-space min and max corners. The corners
+// demote against the draw origin in fixed point before they render.
 void DrawAabb( b3Vec3 min, b3Vec3 max, Vec4 color );
 void DrawAabbEx( b3Vec3 min, b3Vec3 max, Vec4 color, float thickness, OverlayThicknessUnit thicknessUnit,
 				 OverlayOcclusionMode occlusionMode );
@@ -111,8 +111,9 @@ void DrawAxesEx( b3WorldTransform transform, float size, float thickness, Overla
 // basis derived from the normal, so it is not pinned to a Y-up ground plane.
 void DrawGrid( b3Pos center, b3Vec3 normal, float halfExtent, int divisions, Vec4 color );
 
-// Gray ground grid in the XZ plane, `size` meters half-extent with 1 m cells.
-void DrawGroundGrid( int size );
+// Gray ground grid in the XZ plane centered on `origin`, `size` meters
+// half-extent with 1 m cells. Samples pass SampleOrigin().
+void DrawGroundGrid( b3Pos origin, int size );
 
 // Wireframe triangle: three overlay lines a -> b -> c -> a.
 void DrawTriangle( b3WorldTransform transform, b3Vec3 a, b3Vec3 b, b3Vec3 c, Vec4 color );

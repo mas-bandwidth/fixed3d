@@ -2,7 +2,7 @@
 
 > **Caution**: The character mover API is experimental.
 
-Box3D provides a geometric character mover: a capsule that exists outside the
+Fixed3D provides a geometric character mover: a capsule that exists outside the
 rigid body simulation and is driven entirely by application code. Because it is
 not a simulated body, you have full control over movement without fighting the
 solver, at the cost of having to resolve collisions yourself. This is the style

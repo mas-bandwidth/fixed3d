@@ -239,8 +239,10 @@ void AppendHighlightSphere( b3Transform transform, float radius, HighlightKind k
 		return;
 	}
 	mask_sphere_instance_t* inst = &s_sphere.cpu[s_sphere.count++];
-	// transform's translation is the world-space center.
-	inst->center_radius = MakeVec4( transform.p.x, transform.p.y, transform.p.z, radius );
+	// transform's translation is the eye-relative center (fixed point); the
+	// caller shifts by the draw origin before appending, so the floats here
+	// are small display meters.
+	inst->center_radius = MakeVec4FromFixed( transform.p.x, transform.p.y, transform.p.z, radius );
 	inst->kind = MakeVec4( (float)kind, 0.0f, 0.0f, 0.0f );
 }
 
@@ -280,7 +282,7 @@ void AppendHighlightGeometry( MeshHandle handle, b3Transform transform, b3Vec3 s
 	inst->xform_row0 = MakeVec4( m.cx.x, m.cy.x, m.cz.x, m.cw.x );
 	inst->xform_row1 = MakeVec4( m.cx.y, m.cy.y, m.cz.y, m.cw.y );
 	inst->xform_row2 = MakeVec4( m.cx.z, m.cy.z, m.cz.z, m.cw.z );
-	inst->scale_kind = MakeVec4( scale.x, scale.y, scale.z, (float)kind );
+	inst->scale_kind = MakeVec4FromFixed( scale.x, scale.y, scale.z, (float)kind );
 	s_hull.draws[index].vbo = gb.vbo;
 	s_hull.draws[index].ibo = gb.ibo;
 	s_hull.draws[index].indexCount = gb.indexCount;
@@ -288,7 +290,7 @@ void AppendHighlightGeometry( MeshHandle handle, b3Transform transform, b3Vec3 s
 
 // Submit
 
-void SubmitHighlightMask( int width, int height, const Mat4* viewProj, b3Vec3 cameraPosWorld, sg_view maskAttachView,
+void SubmitHighlightMask( int width, int height, const Mat4* viewProj, Vec4 cameraPosWorld, sg_view maskAttachView,
 						  sg_view depthAttachView )
 {
 	if ( !s_uiInitialized )

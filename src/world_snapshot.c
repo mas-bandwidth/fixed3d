@@ -991,7 +991,7 @@ int b3SerializeWorld( b3World* world, b3RecBuffer* buf, b3Recording* rec )
 	// World scalars
 	b3SerWorldConfig( buf, world );
 
-	// 6 id pools (Box3D has no chainIdPool)
+	// 6 id pools (Fixed3D has no chainIdPool)
 	b3SerIdPool( buf, &world->bodyIdPool );
 	b3SerIdPool( buf, &world->shapeIdPool );
 	b3SerIdPool( buf, &world->contactIdPool );

@@ -3,7 +3,7 @@ include(CMakeDependentOption)
 
 project(box3d
 	VERSION 1.0.0
-	DESCRIPTION "Box3D in Q48.16 fixed point"
+	DESCRIPTION "Fixed3D: Box3D in Q48.16 fixed point"
 	HOMEPAGE_URL "https://github.com/mas-bandwidth/fixed3d"
 	LANGUAGES C CXX
 )
@@ -36,7 +36,7 @@ if (MSVC OR APPLE OR UNIX)
 	set_property(CACHE BOX3D_SANITIZER_TYPE PROPERTY STRINGS "address" "thread" "undefined" "memory")
 	
 	if(BOX3D_SANITIZE)
-		message(STATUS "Box3D Sanitize: ${BOX3D_SANITIZER_TYPE}")
+		message(STATUS "Fixed3D Sanitize: ${BOX3D_SANITIZER_TYPE}")
 		# sanitizers need to apply to all compiled libraries to work well
 		if(MSVC)
 			# address sanitizer only in the debug build
@@ -129,7 +129,7 @@ if(PROJECT_IS_TOP_LEVEL)
 			set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELWITHDEBINFO ON)
 			set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_MINSIZEREL ON)
 		else()
-			message(STATUS "Box3D LTO unsupported on this toolchain: ${BOX3D_IPO_ERROR}")
+			message(STATUS "Fixed3D LTO unsupported on this toolchain: ${BOX3D_IPO_ERROR}")
 		endif()
 	endif()
 endif()
@@ -155,12 +155,12 @@ add_subdirectory(src)
 
 # This hides samples, test, and doxygen from apps that use box3d via FetchContent
 if(PROJECT_IS_TOP_LEVEL)
-	option(BOX3D_SAMPLES "Build the Box3D samples" ON)
-	option(BOX3D_BENCHMARKS "Build the Box3D benchmarks" OFF)
-	option(BOX3D_DOCS "Build the Box3D documentation" OFF)
+	option(BOX3D_SAMPLES "Build the Fixed3D samples" ON)
+	option(BOX3D_BENCHMARKS "Build the Fixed3D benchmarks" OFF)
+	option(BOX3D_DOCS "Build the Fixed3D documentation" OFF)
 	option(BOX3D_PROFILE "Enable profiling with Tracy" OFF)
 	option(BOX3D_VALIDATE "Enable heavy validation" ON)
-	option(BOX3D_UNIT_TESTS "Build the Box3D unit tests" ON)
+	option(BOX3D_UNIT_TESTS "Build the Fixed3D unit tests" ON)
 
 	# Enable this for shader development using sokol-shdc.
 	# This can be a large download, so this is disabled by default.
@@ -172,11 +172,11 @@ if(PROJECT_IS_TOP_LEVEL)
 
 	# Tests need static linkage because they test internal Box3D functions
 	if(NOT BUILD_SHARED_LIBS AND BOX3D_UNIT_TESTS)
-		message(STATUS "Adding Box3D unit tests")
+		message(STATUS "Adding Fixed3D unit tests")
 		add_subdirectory(test)
 		set_target_properties(test PROPERTIES XCODE_GENERATE_SCHEME TRUE)
 	else()
-		message(STATUS "Skipping Box3D unit tests")
+		message(STATUS "Skipping Fixed3D unit tests")
 	endif()
 
 	if(BOX3D_SAMPLES)

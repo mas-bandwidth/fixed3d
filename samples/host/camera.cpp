@@ -6,8 +6,10 @@
 
 #include <math.h>
 
-static constexpr float HALF_PI = 0.5f * 3.14159265359f;
-static constexpr float DEG_TO_RAD = B3_PI / 180.0f;
+// B3_PI is a b3Fixed constant; the camera's angle math is float, so use a float pi.
+static constexpr float FLOAT_PI = 3.14159265358979323846f;
+static constexpr float HALF_PI = FLOAT_PI * 0.5f;
+static constexpr float DEG_TO_RAD = FLOAT_PI / 180.0f;
 static constexpr float ORBIT_SENS = 0.005f;		 // radians per pixel
 static constexpr float FLY_LOOK_SENS = 0.005f;	 // radians per pixel
 static constexpr float PAN_SENS = 0.005f;		 // meters per pixel per meter of radius
@@ -53,7 +55,8 @@ static void RebuildBasisAndView( Camera& c )
 
 	// Eye in world space is the draw origin. Building the view in that relative frame puts the eye
 	// at the origin, so the view matrix carries no translation and stays exact far from the origin.
-	c.m_worldEye = b3OffsetPos( c.m_pivot, b3MulSV( c.m_radius, forward ) );
+	// The radius is a float in meters; convert by value before the fixed multiply.
+	c.m_worldEye = b3OffsetPos( c.m_pivot, b3MulSV( b3FixFromFloat( c.m_radius ), forward ) );
 	c.m_position = b3Vec3_zero;
 	c.m_right = right;
 	c.m_up = up;
@@ -142,8 +145,8 @@ void Camera::SetRenderTransform( float lengthUnitsPerMeter, bool zUp )
 // taking the per-axis min/max recovers the display AABB exactly.
 static b3AABB TransformAABBToDisplay( const Mat4& s, b3AABB a )
 {
-	Vec4 lo = MulMV4( s, MakeVec4( a.lowerBound.x, a.lowerBound.y, a.lowerBound.z, 1.0f ) );
-	Vec4 hi = MulMV4( s, MakeVec4( a.upperBound.x, a.upperBound.y, a.upperBound.z, 1.0f ) );
+	Vec4 lo = MulMV4( s, MakeVec4FromFixed( a.lowerBound.x, a.lowerBound.y, a.lowerBound.z, 1.0f ) );
+	Vec4 hi = MulMV4( s, MakeVec4FromFixed( a.upperBound.x, a.upperBound.y, a.upperBound.z, 1.0f ) );
 	b3AABB out;
 	out.lowerBound = { b3FixFromFloat( fminf( lo.x, hi.x ) ), b3FixFromFloat( fminf( lo.y, hi.y ) ), b3FixFromFloat( fminf( lo.z, hi.z ) ) };
 	out.upperBound = { b3FixFromFloat( fmaxf( lo.x, hi.x ) ), b3FixFromFloat( fmaxf( lo.y, hi.y ) ), b3FixFromFloat( fmaxf( lo.z, hi.z ) ) };
@@ -157,13 +160,18 @@ void Camera::Frame( b3AABB aabb, float aspect, float padding )
 		return;
 	}
 
+	// The pivot feeds the fixed-point simulation-space eye, so take the center
+	// from the simulation-space bounds before the display transform.
+	m_pivot = b3ToPos( b3AABB_Center( aabb ) );
+
 	// Bounds arrive in simulation space. frame against the display-space box so the
 	// fit accounts for the render scale and up axis.
 	aabb = TransformAABBToDisplay( m_renderXform, aabb );
-	b3Vec3 center = b3AABB_Center( aabb );
-	b3Vec3 ext = b3AABB_Extents( aabb ); // half-extents
-	float r = sqrtf( ext.x * ext.x + ext.y * ext.y + ext.z * ext.z );
-	m_pivot = b3ToPos( center );
+	b3Vec3 ext = b3AABB_Extents( aabb ); // half-extents, display meters: small, convert by value
+	const float extX = b3FixToFloat( ext.x );
+	const float extY = b3FixToFloat( ext.y );
+	const float extZ = b3FixToFloat( ext.z );
+	float r = sqrtf( extX * extX + extY * extY + extZ * extZ );
 	if ( r < 1.0e-6f )
 	{
 		// Point-like. Preserve current radius, just retarget. The cached
@@ -407,7 +415,7 @@ void Camera::Update( float dt, int width, int height )
 		// (FPS) instead of around m_pivot (orbit). After rotation we
 		// back-derive m_pivot from this preserved eye so the eye stays put
 		// regardless of look angle.
-		const b3Pos eyeBefore = b3OffsetPos( m_pivot, b3MulSV( m_radius, ForwardFromAngles( m_yaw, m_pitch ) ) );
+		const b3Pos eyeBefore = b3OffsetPos( m_pivot, b3MulSV( b3FixFromFloat( m_radius ), ForwardFromAngles( m_yaw, m_pitch ) ) );
 
 		// FPS look: drag right -> yaw decreases (turn head right, scene
 		// shifts left); drag down -> pitch increases (look down).
@@ -438,27 +446,24 @@ void Camera::Update( float dt, int width, int height )
 		if ( wasdF != 0.0f || wasdR != 0.0f )
 		{
 			// Right = normalize(worldUp x forward), matching Box3D's
-			// UpdateTransform. worldUp = (0,1,0).
+			// UpdateTransform. worldUp = (0,1,0). All in fixed point: mixing
+			// the raw fixed eye through float would quantize movement far
+			// from the origin.
 			const b3Vec3 worldUp = { B3_FIX( 0.0f ), B3_FIX( 1.0f ), B3_FIX( 0.0f ) };
 			b3Vec3 right = b3Cross( worldUp, forward );
-			const float rlen = sqrtf( right.x * right.x + right.y * right.y + right.z * right.z );
-			if ( rlen > 1.0e-6f )
+			if ( b3LengthSquared( right ) > 0 )
 			{
-				right.x /= rlen;
-				right.y /= rlen;
-				right.z /= rlen;
+				right = b3Normalize( right );
 			}
 			const float step = m_speed * dt;
-			eye.x += forward.x * wasdF * step + right.x * wasdR * step;
-			eye.y += forward.y * wasdF * step + right.y * wasdR * step;
-			eye.z += forward.z * wasdF * step + right.z * wasdR * step;
+			b3Vec3 move = b3Add( b3MulSV( b3FixFromFloat( wasdF * step ), forward ),
+								 b3MulSV( b3FixFromFloat( wasdR * step ), right ) );
+			eye = b3OffsetPos( eye, move );
 		}
 
 		// Back-derive the pivot so Position() stays consistent and a return
 		// to orbit mode preserves the current look direction.
-		m_pivot.x = eye.x - forward.x * m_radius;
-		m_pivot.y = eye.y - forward.y * m_radius;
-		m_pivot.z = eye.z - forward.z * m_radius;
+		m_pivot = b3OffsetPos( eye, b3Neg( b3MulSV( b3FixFromFloat( m_radius ), forward ) ) );
 
 		if ( m_speedScrollAccum != 0.0f )
 		{
@@ -480,14 +485,12 @@ void Camera::Update( float dt, int width, int height )
 		{
 			// Move pivot along view-space right/up. m_right / m_up are still
 			// last frame's values (orbit yaw/pitch haven't been rebuilt yet),
-			// which matches the screen the user dragged against.
+			// which matches the screen the user dragged against. Fixed-point
+			// offsets so a pivot far from the origin pans without quantizing.
 			const float panScale = PAN_SENS * m_radius;
-			m_pivot.x -= m_right.x * m_panDX * panScale;
-			m_pivot.y -= m_right.y * m_panDX * panScale;
-			m_pivot.z -= m_right.z * m_panDX * panScale;
-			m_pivot.x += m_up.x * m_panDY * panScale;
-			m_pivot.y += m_up.y * m_panDY * panScale;
-			m_pivot.z += m_up.z * m_panDY * panScale;
+			b3Vec3 pan = b3Add( b3MulSV( b3FixFromFloat( -m_panDX * panScale ), m_right ),
+								b3MulSV( b3FixFromFloat( m_panDY * panScale ), m_up ) );
+			m_pivot = b3OffsetPos( m_pivot, pan );
 		}
 
 		if ( m_radialZoomDY != 0.0f )
@@ -504,8 +507,9 @@ void Camera::Update( float dt, int width, int height )
 		}
 	}
 
-	// Keep yaw bounded across long sessions. b3UnwindAngle wraps to (-pi, pi].
-	m_yaw = b3UnwindAngle( m_yaw );
+	// Keep yaw bounded across long sessions. b3UnwindAngle is fixed point and
+	// wraps to (-pi, pi]; the float yaw crosses and returns by value.
+	m_yaw = b3FixToFloat( b3UnwindAngle( b3FixFromFloat( m_yaw ) ) );
 
 	m_orbitDX = 0.0f;
 	m_orbitDY = 0.0f;

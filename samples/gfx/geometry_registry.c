@@ -473,10 +473,8 @@ static void PackMat4ToInstance( const Mat4* transform, b3Vec3 scale, Vec4 baseCo
 
 	inst->base_color = baseColor;
 
-	inst->scale.x = scale.x;
-	inst->scale.y = scale.y;
-	inst->scale.z = scale.z;
-	inst->scale.w = 0.0f;
+	// scale is a small extent, safe to convert to float by value.
+	inst->scale = MakeVec4FromFixed( scale.x, scale.y, scale.z, 0.0f );
 
 	// overload material.w with the shadow-cast bit for SOLID shapes.
 	// GROUND_GRID's gridCellSize stays put, the geom FS reads material.w
@@ -493,9 +491,12 @@ static void PackMat4ToInstance( const Mat4* transform, b3Vec3 scale, Vec4 baseCo
 	inst->material.w = isGround ? gridCellSize : ( ( shadowCast == TRANSPARENT_SHADOW_FULL ) ? 1.0f : 0.0f );
 }
 
-static b3Vec3 GetOriginFromInstance( const geom_instance_t* inst )
+// Instance origins are float eye-relative display meters (the transform
+// position was differenced against the draw origin in fixed point before it
+// crossed into the packed matrix). Sort/cull math stays in float.
+static Vec4 GetOriginFromInstance( const geom_instance_t* inst )
 {
-	return (b3Vec3){ inst->xform_row0.w, inst->xform_row1.w, inst->xform_row2.w };
+	return MakeVec4( inst->xform_row0.w, inst->xform_row1.w, inst->xform_row2.w, 1.0f );
 }
 
 void AppendMesh( MeshHandle h, b3Transform transform, b3Vec3 scale, Vec4 baseColor, float metallic, float roughness,

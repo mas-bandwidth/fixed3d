@@ -124,7 +124,6 @@ static int jsoneq( const char* json, jsmntok_t* tok, const char* s )
 
 void SampleContext::Load()
 {
-	// The context stores meters as float for the ImGui slider; convert at the API boundary.
 	recycleDistance = b3FixToFloat( B3_CONTACT_RECYCLE_DISTANCE );
 
 	int size = 0;
@@ -298,7 +297,7 @@ Sample::Sample( SampleContext* context )
 
 	m_mouseBodyId = {};
 	m_mouseJointId = {};
-	m_mouseFraction = B3_FIX( 0.0f );
+	m_mouseFraction = 0.0f;
 	m_mouseForceScale = 100.0f;
 
 	m_textLine = 0;
@@ -406,12 +405,10 @@ void Sample::Step()
 {
 	m_didStep = false;
 
-	// The step must be b3Fixed: a bare float here silently truncates to 0 ULPs
-	// at the b3World_Step boundary and the world never advances.
-	b3Fixed timeStep = B3_FIX( 0.0f );
+	float timeStep = 0.0f;
 	if ( m_context->pause == false || m_context->singleStep > 0 )
 	{
-		timeStep = m_context->hertz > 0.0f ? b3FixFromFloat( 1.0f / m_context->hertz ) : B3_FIX( 0.0f );
+		timeStep = m_context->hertz > 0.0f ? 1.0f / m_context->hertz : 0.0f;
 		m_context->singleStep = b3MaxInt( 0, m_context->singleStep - 1 );
 	}
 
@@ -427,21 +424,21 @@ void Sample::Step()
 		}
 	}
 
-	if ( B3_IS_NON_NULL( m_mouseBodyId ) && timeStep > B3_FIX( 0.0f ) )
+	if ( B3_IS_NON_NULL( m_mouseBodyId ) && timeStep > 0.0f )
 	{
-		b3Body_SetTargetTransform( m_mouseBodyId, { m_mousePoint, b3Quat_identity }, timeStep, true );
+		b3Body_SetTargetTransform( m_mouseBodyId, { m_mousePoint, b3Quat_identity }, b3FixFromFloat( timeStep ), true );
 	}
 
 	b3World_EnableSleeping( m_worldId, m_context->enableSleep );
 	b3World_EnableWarmStarting( m_worldId, m_context->enableWarmStarting );
 	b3World_EnableContinuous( m_worldId, m_context->enableContinuous );
 
-	if ( timeStep > B3_FIX( 0.0f ) || m_stepWhilePaused )
+	if ( timeStep > 0.0f || m_stepWhilePaused )
 	{
-		b3World_Step( m_worldId, timeStep, m_context->subStepCount );
+		b3World_Step( m_worldId, b3FixFromFloat( timeStep ), m_context->subStepCount );
 	}
 
-	if ( timeStep > B3_FIX( 0.0f ) )
+	if ( timeStep > 0.0f )
 	{
 		m_stepCount += 1;
 		m_didStep = true;
@@ -488,7 +485,7 @@ void Sample::Step()
 	b3DebugDraw debugDraw;
 	MakeDebugDraw( &debugDraw );
 
-	// Box3D uses this to decide which shapes enter the draw set and lazily fire
+	// Fixed3D uses this to decide which shapes enter the draw set and lazily fire
 	// createDebugShape. The camera derives it from the view distance, in length units
 	// around the simulation eye, matching the broad-phase tree and the far plane.
 	debugDraw.drawingBounds = m_camera->DrawBounds();
@@ -536,7 +533,7 @@ b3BodyId Sample::AddGroundBox( float extent )
 {
 	b3BodyDef bodyDef = b3DefaultBodyDef();
 	bodyDef.name = "ground";
-	bodyDef.position = { B3_FIX( 0.0f ), B3_FIX( -1.0f ), B3_FIX( 0.0f ) };
+	bodyDef.position = SamplePos( { B3_FIX( 0.0f ), B3_FIX( -1.0f ), B3_FIX( 0.0f ) } );
 	b3BodyId groundId = b3CreateBody( m_worldId, &bodyDef );
 
 	b3ShapeDef shapeDef = b3DefaultShapeDef();
@@ -631,28 +628,10 @@ void Sample::DrawMetrics()
 			histories[20][i] = b3FixToFloat( p.bullets );
 			histories[21][i] = b3FixToFloat( p.sensors );
 
-			totals[0] += b3FixToFloat( p.step );
-			totals[1] += b3FixToFloat( p.pairs );
-			totals[2] += b3FixToFloat( p.collide );
-			totals[3] += b3FixToFloat( p.solve );
-			totals[4] += b3FixToFloat( p.solverSetup );
-			totals[5] += b3FixToFloat( p.constraints );
-			totals[6] += b3FixToFloat( p.prepareConstraints );
-			totals[7] += b3FixToFloat( p.integrateVelocities );
-			totals[8] += b3FixToFloat( p.warmStart );
-			totals[9] += b3FixToFloat( p.solveImpulses );
-			totals[10] += b3FixToFloat( p.integratePositions );
-			totals[11] += b3FixToFloat( p.relaxImpulses );
-			totals[12] += b3FixToFloat( p.applyRestitution );
-			totals[13] += b3FixToFloat( p.storeImpulses );
-			totals[14] += b3FixToFloat( p.splitIslands );
-			totals[15] += b3FixToFloat( p.transforms );
-			totals[16] += b3FixToFloat( p.jointEvents );
-			totals[17] += b3FixToFloat( p.hitEvents );
-			totals[18] += b3FixToFloat( p.refit );
-			totals[19] += b3FixToFloat( p.sleepIslands );
-			totals[20] += b3FixToFloat( p.bullets );
-			totals[21] += b3FixToFloat( p.sensors );
+			for ( int r = 0; r < kRowCount; ++r )
+			{
+				totals[r] += histories[r][i];
+			}
 		}
 
 		// Smoothed over the last few frames so bars don't jitter visibly.
@@ -1197,7 +1176,7 @@ void Sample::MouseDown( b3Vec2 p, int button, int modifiers )
 
 			b3Body_SetAwake( bodyId, true );
 
-			m_mouseFraction = result.fraction;
+			m_mouseFraction = b3FixToFloat( result.fraction );
 		}
 	}
 	else if ( modifiers & MOD_SHIFT )
@@ -1210,7 +1189,7 @@ void Sample::MouseDown( b3Vec2 p, int button, int modifiers )
 		{
 			b3BodyDef bodyDef = b3DefaultBodyDef();
 			bodyDef.type = b3_dynamicBody;
-			bodyDef.position = pickRay.origin + B3_FIX( 2.0f ) * direction;
+			bodyDef.position = pickRay.origin + b3FixFromFloat( 2.0f ) * direction;
 			bodyDef.linearVelocity = b3FixFromFloat( 10.0f * m_launchSpeedScale ) * direction;
 			bodyDef.isBullet = true;
 			b3BodyId bodyId = b3CreateBody( m_worldId, &bodyDef );
@@ -1221,7 +1200,7 @@ void Sample::MouseDown( b3Vec2 p, int button, int modifiers )
 		}
 		else if ( modifiers & MOD_ALT )
 		{
-			b3Pos position = pickRay.origin + B3_FIX( 2.0f ) * direction;
+			b3Pos position = pickRay.origin + b3FixFromFloat( 2.0f ) * direction;
 			Human human = {};
 			CreateHuman( &human, m_worldId, position, B3_FIX( 1.0f ), B3_FIX( 1.0f ), B3_FIX( 1.0f ), 0, nullptr, true );
 			Human_SetBullet( &human, true );
@@ -1231,7 +1210,7 @@ void Sample::MouseDown( b3Vec2 p, int button, int modifiers )
 		{
 			b3BodyDef bodyDef = b3DefaultBodyDef();
 			bodyDef.type = b3_dynamicBody;
-			bodyDef.position = pickRay.origin + B3_FIX( 2.0f ) * direction;
+			bodyDef.position = pickRay.origin + b3FixFromFloat( 2.0f ) * direction;
 			bodyDef.linearVelocity = b3FixFromFloat( 20.0f * m_launchSpeedScale ) * direction;
 			bodyDef.isBullet = true;
 			b3BodyId bodyId = b3CreateBody( m_worldId, &bodyDef );
@@ -1257,7 +1236,7 @@ void Sample::MouseUp( b3Vec2 p, int button )
 
 	m_mouseJointId = b3_nullJointId;
 	m_mouseBodyId = b3_nullBodyId;
-	m_mouseFraction = B3_FIX( 0.0f );
+	m_mouseFraction = 0.0f;
 }
 
 void Sample::MouseMove( b3Vec2 p )
@@ -1268,18 +1247,17 @@ void Sample::MouseMove( b3Vec2 p )
 		// relative deltas. Camera angles are radians here (host camera).
 		m_mouseDelta = { b3FixFromFloat( m_context->mouseDX ), b3FixFromFloat( m_context->mouseDY ) };
 
-		// Camera angles are float radians; keep the look math in float end to end.
-		const float degToRad = b3FixToFloat( B3_DEG_TO_RAD );
-		const float sensitivity = 0.1f * degToRad;
-		m_camera->m_yaw -= 2.0f * sensitivity * m_context->mouseDX;
-		m_camera->m_pitch += sensitivity * m_context->mouseDY;
-		m_camera->m_pitch = b3ClampFloat( m_camera->m_pitch, -85.0f * degToRad, 85.0f * degToRad );
+		const float sensitivity = 0.1f * b3FixToFloat( B3_DEG_TO_RAD );
+		m_camera->m_yaw -= 2.0f * sensitivity * b3FixToFloat( m_mouseDelta.x );
+		m_camera->m_pitch += sensitivity * b3FixToFloat( m_mouseDelta.y );
+		m_camera->m_pitch =
+			b3ClampFloat( m_camera->m_pitch, -85.0f * b3FixToFloat( B3_DEG_TO_RAD ), 85.0f * b3FixToFloat( B3_DEG_TO_RAD ) );
 	}
 
 	PickRay pickRay = m_camera->BuildPickRay( b3FixToFloat( p.x ), b3FixToFloat( p.y ) );
 	if ( B3_IS_NON_NULL( m_mouseJointId ) )
 	{
-		m_mousePoint = pickRay.origin + m_mouseFraction * pickRay.translation;
+		m_mousePoint = pickRay.origin + b3FixFromFloat( m_mouseFraction ) * pickRay.translation;
 	}
 }
 
@@ -1357,7 +1335,7 @@ void OpenReplayFileDialog( SampleContext* context )
 
 	NFD_Init();
 	nfdu8char_t* outPath = nullptr;
-	nfdu8filteritem_t filter[1] = { { "Box3D recording", "b3rec" } };
+	nfdu8filteritem_t filter[1] = { { "Fixed3D recording", "b3rec" } };
 
 	// Start in the working directory, where recordings are saved by default.
 	std::u8string cwd = std::filesystem::current_path().u8string();
@@ -1778,7 +1756,7 @@ static void DrawMenuBar( SampleContext* context )
 			if ( ImGui::Begin( "About", &showAbout, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_AlwaysAutoResize ) )
 			{
 				b3Version version = b3GetVersion();
-				ImGui::Text( "Box3D %d.%d.%d", version.major, version.minor, version.revision );
+				ImGui::Text( "Fixed3D %d.%d.%d", version.major, version.minor, version.revision );
 				ImGui::Spacing();
 				ImGui::TextLinkOpenURL( "github.com/erincatto/box3d", "https://github.com/erincatto/box3d" );
 			}
@@ -1928,8 +1906,8 @@ static void DrawInfoPanel( SampleContext* context )
 	// regardless of the simulation's length units.
 	b3Pos p = context->camera.m_pivot;
 	ImGui::TextColored( HexColor( b3_colorSeaGreen ), "pivot m (%.1f, %.1f, %.1f)", b3FixToDouble( p.x ), b3FixToDouble( p.y ), b3FixToDouble( p.z ) );
-	float yawDeg = B3_RAD_TO_DEG * context->camera.m_yaw;
-	float pitchDeg = B3_RAD_TO_DEG * context->camera.m_pitch;
+	float yawDeg = b3FixToFloat( B3_RAD_TO_DEG ) * context->camera.m_yaw;
+	float pitchDeg = b3FixToFloat( B3_RAD_TO_DEG ) * context->camera.m_pitch;
 	ImGui::TextColored( HexColor( b3_colorSeaGreen ), "yaw/pitch (%.1f, %.1f)", yawDeg, pitchDeg );
 	ImGui::TextColored( HexColor( b3_colorSeaGreen ), "radius m %.1f, speed m/s %.1f", context->camera.m_radius,
 						context->camera.m_speed );
@@ -2116,12 +2094,15 @@ static bool PlaneResultFcn( b3ShapeId shapeId, const b3PlaneResult* planeResults
 	}
 
 	CharacterMover* self = static_cast<CharacterMover*>( context );
-	float maxPush = FLT_MAX;
+
+	// The float code used FLT_MAX as "no limit"; the fixed-point analog is B3_FIXED_MAX.
+	// b3FixFromFloat( FLT_MAX ) would overflow the int64 cast, so map huge values explicitly.
+	b3Fixed pushLimit = B3_FIXED_MAX;
 	bool clipVelocity = true;
 	MoverShapeUserData* userData = static_cast<MoverShapeUserData*>( (void*)b3Shape_GetUserData( shapeId ) );
 	if ( userData != nullptr )
 	{
-		maxPush = userData->maxPush;
+		pushLimit = userData->maxPush < FLT_MAX ? b3FixFromFloat( userData->maxPush ) : B3_FIXED_MAX;
 		clipVelocity = userData->clipVelocity;
 	}
 
@@ -2130,7 +2111,7 @@ static bool PlaneResultFcn( b3ShapeId shapeId, const b3PlaneResult* planeResults
 		assert( b3IsValidPlane( planeResults[i].plane ) );
 		self->m_planes[self->m_planeCount] = {
 			.plane = planeResults[i].plane,
-			.pushLimit = b3FixFromFloat( maxPush ),
+			.pushLimit = pushLimit,
 			.push = B3_FIX( 0.0f ),
 			.clipVelocity = clipVelocity,
 		};
@@ -2144,11 +2125,11 @@ static bool PlaneResultFcn( b3ShapeId shapeId, const b3PlaneResult* planeResults
 	return true;
 }
 
-void CharacterMover::SolveMove( b3Fixed timeStep, b3Vec3 forward, b3Vec3 right, b3Vec2 throttle, bool clipVelocity )
+void CharacterMover::SolveMove( float timeStep, b3Vec3 forward, b3Vec3 right, b3Vec2 throttle, bool clipVelocity )
 {
 	// Friction
 	b3Fixed speed = b3Length( m_velocity );
-	if ( speed < m_minSpeed )
+	if ( speed < b3FixFromFloat( m_minSpeed ) )
 	{
 		m_velocity.x = B3_FIX( 0.0f );
 		m_velocity.y = B3_FIX( 0.0f );
@@ -2156,15 +2137,16 @@ void CharacterMover::SolveMove( b3Fixed timeStep, b3Vec3 forward, b3Vec3 right, 
 	else
 	{
 		// Linear damping above stopSpeed and fixed reduction below stopSpeed
-		b3Fixed control = speed < m_stopSpeed ? m_stopSpeed : speed;
+		b3Fixed stopSpeed = b3FixFromFloat( m_stopSpeed );
+		b3Fixed control = speed < stopSpeed ? stopSpeed : speed;
 
 		// friction has units of 1/time
-		b3Fixed drop = b3FixMul( b3FixMul( control, m_friction ), timeStep );
+		b3Fixed drop = b3FixMul( control, b3FixFromFloat( m_friction * timeStep ) );
 		b3Fixed newSpeed = b3FixMax( B3_FIX( 0.0f ), speed - drop );
 		m_velocity *= b3FixDiv( newSpeed, speed );
 	}
 
-	b3Fixed maxSpeed = m_sprint ? 3 * m_maxSpeed / 2 : m_maxSpeed;
+	b3Fixed maxSpeed = b3FixFromFloat( m_sprint ? 1.5f * m_maxSpeed : m_maxSpeed );
 
 	b3Vec3 desiredVelocity = b3FixMul( maxSpeed, throttle.x ) * forward + b3FixMul( maxSpeed, throttle.y ) * right;
 	b3Fixed desiredSpeed;
@@ -2186,7 +2168,7 @@ void CharacterMover::SolveMove( b3Fixed timeStep, b3Vec3 forward, b3Vec3 right, 
 	b3Fixed addSpeed = desiredSpeed - currentSpeed;
 	if ( addSpeed > B3_FIX( 0.0f ) )
 	{
-		b3Fixed accelSpeed = b3FixMul( b3FixMul( m_accelerate, maxSpeed ), timeStep );
+		b3Fixed accelSpeed = b3FixMul( b3FixFromFloat( m_accelerate * timeStep ), maxSpeed );
 		if ( accelSpeed > addSpeed )
 		{
 			accelSpeed = addSpeed;
@@ -2195,7 +2177,7 @@ void CharacterMover::SolveMove( b3Fixed timeStep, b3Vec3 forward, b3Vec3 right, 
 		m_velocity += accelSpeed * desiredDirection;
 	}
 
-	m_velocity.y -= b3FixMul( m_gravity, timeStep );
+	m_velocity.y -= b3FixFromFloat( m_gravity * timeStep );
 
 	b3WorldId worldId = m_sample->m_worldId;
 
@@ -2210,27 +2192,28 @@ void CharacterMover::SolveMove( b3Fixed timeStep, b3Vec3 forward, b3Vec3 right, 
 	if ( rayResult.hit == false )
 	{
 		m_onGround = false;
-		m_pogoVelocity = B3_FIX( 0.0f );
+		m_pogoVelocity = 0.0f;
 
 		DrawLine( rayOrigin, b3OffsetPos( rayOrigin, rayTranslation ), MakeColor( b3_colorGray ) );
 	}
 	else
 	{
 		m_onGround = true;
-		b3Fixed pogoCurrentLength = b3FixMul( rayResult.fraction, rayLength );
+		float pogoCurrentLength = b3FixToFloat( b3FixMul( rayResult.fraction, rayLength ) );
 
-		b3Fixed zeta = B3_FIX( 0.7f );
-		// omega = 2 * pi * hertz with hertz = 4, kept as exact integer scaling.
-		b3Fixed omega = 8 * B3_PI;
-		b3Fixed omegaH = b3FixMul( omega, timeStep );
+		float zeta = 0.7f;
+		float hertz = 4.0f;
+		float omega = 2.0f * b3FixToFloat( B3_PI ) * hertz;
+		float omegaH = omega * timeStep;
 
-		m_pogoVelocity = b3FixDiv( m_pogoVelocity - b3FixMul( b3FixMul( omega, omegaH ), pogoCurrentLength - pogoRestLength ),
-								   B3_FIX( 1.0f ) + 2 * b3FixMul( zeta, omegaH ) + b3FixMul( omegaH, omegaH ) );
+		m_pogoVelocity = ( m_pogoVelocity - omega * omegaH * ( pogoCurrentLength - b3FixToFloat( pogoRestLength ) ) ) /
+						 ( 1.0f + 2.0f * zeta * omegaH + omegaH * omegaH );
 		DrawLine( rayOrigin, rayResult.point, MakeColor( b3_colorGreen ) );
 	}
 
 	b3Pos startPosition = m_transform.p;
-	b3Pos target = m_transform.p + timeStep * m_velocity + b3FixMul( timeStep, m_pogoVelocity ) * b3Vec3_axisY;
+	b3Pos target =
+		m_transform.p + b3FixFromFloat( timeStep ) * m_velocity + b3FixFromFloat( timeStep * m_pogoVelocity ) * b3Vec3_axisY;
 
 	// Want the mover to collide with allies
 	b3QueryFilter moverFilter = { .categoryBits = 1, .maskBits = ~0u, .id = 1, .name = "mover_collide" };
@@ -2296,8 +2279,9 @@ void CharacterMover::SolveMove( b3Fixed timeStep, b3Vec3 forward, b3Vec3 right, 
 		b3Vec3 omegaB = b3Body_GetAngularVelocity( bodyId );
 		b3Vec3 vrB = b3Add( vB, b3Cross( omegaB, rB ) );
 		b3Fixed vn = b3Dot( b3Sub( vrB, m_velocity ), normal );
-		// Divide last instead of forming 1/kNormal (the quantized reciprocal loses precision).
-		b3Fixed impulse = kNormal > B3_FIX( 0.0f ) ? b3FixMax( -b3FixDiv( vn, kNormal ), B3_FIX( 0.0f ) ) : B3_FIX( 0.0f );
+
+		// Divide last: -vn / kNormal instead of a quantized reciprocal mass.
+		b3Fixed impulse = kNormal > B3_FIX( 0.0f ) ? b3FixMax( b3FixDiv( -vn, kNormal ), B3_FIX( 0.0f ) ) : B3_FIX( 0.0f );
 
 		b3Vec3 P = b3MulSV( impulse, normal );
 		m_velocity = b3MulSub( m_velocity, invMassA, P );
@@ -2311,12 +2295,10 @@ void CharacterMover::SolveMove( b3Fixed timeStep, b3Vec3 forward, b3Vec3 right, 
 		// This allows the mover to avoid velocity from soft collision depenetration.
 		m_velocity = b3ClipVector( m_velocity, m_planes, m_planeCount );
 	}
-	else if ( timeStep > B3_FIX( 0.0f ) )
+	else if ( timeStep > 0.0f )
 	{
 		// Using the position delta is more holistic and intuitive in some cases.
-		// Divide last: scale the delta by 1/timeStep component-wise.
-		b3Vec3 moveDelta = m_transform.p - startPosition;
-		m_velocity = { b3FixDiv( moveDelta.x, timeStep ), b3FixDiv( moveDelta.y, timeStep ), b3FixDiv( moveDelta.z, timeStep ) };
+		m_velocity = b3FixFromFloat( 1.0f / timeStep ) * ( m_transform.p - startPosition );
 	}
 }
 
@@ -2328,7 +2310,7 @@ void CharacterMover::Step( b3ShapeId* ignoreShapes, int ignoreCount, bool clipVe
 	b3Vec2 throttle = { B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
 	b3Vec3 forward = -m_sample->m_camera->GetForward();
 	b3Vec3 right = m_sample->m_camera->GetRight();
-	forward.y = 0.0f;
+	forward.y = B3_FIX( 0.0f );
 
 	if ( m_sample->m_camera->m_thirdPerson )
 	{
@@ -2354,7 +2336,7 @@ void CharacterMover::Step( b3ShapeId* ignoreShapes, int ignoreCount, bool clipVe
 
 		if ( IsKeyDown( KEY_SPACE ) && m_onGround == true )
 		{
-			m_velocity.y = m_jumpSpeed;
+			m_velocity.y = b3FixFromFloat( m_jumpSpeed );
 			m_onGround = false;
 		}
 
@@ -2369,7 +2351,7 @@ void CharacterMover::Step( b3ShapeId* ignoreShapes, int ignoreCount, bool clipVe
 	}
 
 	float hertz = m_sample->m_context->hertz;
-	b3Fixed timeStep = hertz > 0.0f ? b3FixFromFloat( 1.0f / hertz ) : B3_FIX( 0.0f );
+	float timeStep = hertz > 0.0f ? 1.0f / hertz : 0.0f;
 
 	// throttle = { 0.0f, 0.0f, -1.0f };
 

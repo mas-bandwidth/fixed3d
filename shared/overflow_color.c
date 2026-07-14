@@ -3,6 +3,8 @@
 
 #include "overflow_color.h"
 
+#include "utils.h"
+
 #include "box3d/box3d.h"
 #include "box3d/collision.h"
 #include "box3d/math_functions.h"
@@ -20,7 +22,7 @@ OverflowColorPileData CreateOverflowColorPile( b3WorldId worldId )
 	// Static ground (top surface at y = 0)
 	{
 		b3BodyDef bodyDef = b3DefaultBodyDef();
-		bodyDef.position = (b3Pos){ B3_FIX( 0.0f ), -B3_FIX( 1.0f ), B3_FIX( 0.0f ) };
+		bodyDef.position = b3OffsetPos( GetSceneOrigin(), (b3Vec3){ B3_FIX( 0.0f ), -B3_FIX( 1.0f ), B3_FIX( 0.0f ) } );
 		b3BodyId groundId = b3CreateBody( worldId, &bodyDef );
 
 		b3BoxHull box = b3MakeBoxHull( B3_FIX( 20.0f ), B3_FIX( 1.0f ), B3_FIX( 20.0f ) );
@@ -37,7 +39,7 @@ OverflowColorPileData CreateOverflowColorPile( b3WorldId worldId )
 	{
 		b3BodyDef bodyDef = b3DefaultBodyDef();
 		bodyDef.type = b3_dynamicBody;
-		bodyDef.position = (b3Pos){ B3_FIX( 0.0f ), hubHalfY, B3_FIX( 0.0f ) };
+		bodyDef.position = b3OffsetPos( GetSceneOrigin(), (b3Vec3){ B3_FIX( 0.0f ), hubHalfY, B3_FIX( 0.0f ) } );
 		data.hubId = b3CreateBody( worldId, &bodyDef );
 
 		b3BoxHull box = b3MakeBoxHull( hubHalfX, hubHalfY, hubHalfZ );
@@ -71,7 +73,8 @@ OverflowColorPileData CreateOverflowColorPile( b3WorldId worldId )
 
 			b3BodyDef bodyDef = b3DefaultBodyDef();
 			bodyDef.type = b3_dynamicBody;
-			bodyDef.position = (b3Pos){ b3FixMul( ringRadius , b3Cos( theta ) ), y, b3FixMul( ringRadius , b3Sin( theta ) ) };
+			bodyDef.position =
+				b3OffsetPos( GetSceneOrigin(), (b3Vec3){ b3FixMul( ringRadius , b3Cos( theta ) ), y, b3FixMul( ringRadius , b3Sin( theta ) ) } );
 			b3BodyId bodyId = b3CreateBody( worldId, &bodyDef );
 
 			b3CreateHullShape( bodyId, &neighborShape, &neighborBox.base );

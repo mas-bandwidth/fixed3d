@@ -16,8 +16,13 @@
 
 // Golden values for the fixed-point build. Fixed-point math is exactly
 // reproducible across platforms and worker counts, so these hold everywhere.
+// The scene builds at GetSceneOrigin() — 100 km out on every axis — so this
+// test also enforces determinism far from the origin. The sleep step is
+// identical to the value the scene had at (0,0,0); only the hash moved,
+// because it covers the absolute transform bytes: an exactly representable
+// origin shift is a bit-exact rigid translation of the whole trajectory.
 #define EXPECTED_SLEEP_STEP 287
-#define EXPECTED_HASH 0x6FA8A4C5
+#define EXPECTED_HASH 0xE7D52285
 
 static int SingleMultithreadingTest( int workerCount )
 {

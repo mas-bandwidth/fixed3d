@@ -31,7 +31,7 @@ b3DebugDraw* GetGuiDraw( void );
 void ApplyGuiFlags( b3DebugDraw* out );
 int GetDebugShapeCount( void );
 
-// Tag a Box3D shape so the renderer draws it with the procedural ground grid.
+// Tag a Fixed3D shape so the renderer draws it with the procedural ground grid.
 void SetGroundShape( b3ShapeId shapeId );
 void SetShapeMaterial( b3ShapeId shapeId, Vec4 color, float metallic, float roughness );
 void SetTransparentDynamic( bool enabled );

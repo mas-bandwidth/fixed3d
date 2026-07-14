@@ -252,7 +252,7 @@ public:
 
 		if ( context->restart == false )
 		{
-			m_camera->SetView( 30.0f, 22.0f, 14.0f, { B3_FIX( 0.0f ), B3_FIX( 2.0f ), B3_FIX( 0.0f ) } );
+			m_camera->SetView( 30.0f, 22.0f, 14.0f, SamplePos( { B3_FIX( 0.0f ), B3_FIX( 2.0f ), B3_FIX( 0.0f ) } ) );
 		}
 
 		m_prevShowMetrics = m_context->showMetrics;
@@ -397,7 +397,7 @@ public:
 
 	// Modal shown after the Replay menu picks a file: choose the keyframe budget and min interval,
 	// then Load creates the player and pre-generates the whole ring behind a progress bar. Drawn from
-	// DrawSampleWindows, which runs inside the imgui frame (Step does not in Box3D).
+	// DrawSampleWindows, which runs inside the imgui frame (Step does not in Fixed3D).
 	void DrawLoadPopup()
 	{
 		const char* popupId = "Load Replay";

@@ -5,10 +5,10 @@
 
 #include "base.h"
 
-/// Box3D bases all length units on meters, but you may need different units for your game.
+/// Fixed3D bases all length units on meters, but you may need different units for your game.
 /// You can set this value to use different units. This should be done at application startup
 /// and only modified once. Default value is 1.
-/// @warning This must be modified before any calls to Box3D
+/// @warning This must be modified before any calls to Fixed3D
 B3_API void b3SetLengthUnitsPerMeter( b3Fixed lengthUnits );
 
 /// Get the current length units per meter.
@@ -31,7 +31,7 @@ B3_API b3Fixed b3GetStallThreshold( void );
 /// Maximum number of tasks queued per world step. b3EnqueueTaskCallback will never be called
 /// more than this per world step. This is related to B3_MAX_WORKERS. With 32 workers,
 /// the maximum observed task count is 130. This allows an external task system to use a fixed
-/// size array for Box3D task, which may help with creating stable user task pointers.
+/// size array for Fixed3D task, which may help with creating stable user task pointers.
 #define B3_MAX_TASKS 256
 
 // Maximum number of colors in the constraint graph. Constraints that cannot

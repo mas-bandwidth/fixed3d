@@ -16,7 +16,7 @@ public:
 	{
 		if ( context->restart == false )
 		{
-			m_camera->SetView( 45.0f, 30.0f, 6.0f, b3Pos_zero );
+			m_camera->SetView( 45.0f, 30.0f, 6.0f, SampleOrigin() );
 		}
 
 		AddGroundBox( 20.0f );
@@ -32,7 +32,8 @@ public:
 
 	void Spawn()
 	{
-		CreateHuman( &m_human, m_worldId, { B3_FIX( 0.0f ), B3_FIX( 2.0f ), B3_FIX( 0.0f ) }, b3FixFromFloat( m_jointFrictionTorque ), b3FixFromFloat( m_jointHertz ),
+		CreateHuman( &m_human, m_worldId, SamplePos( { B3_FIX( 0.0f ), B3_FIX( 2.0f ), B3_FIX( 0.0f ) } ),
+					 b3FixFromFloat( m_jointFrictionTorque ), b3FixFromFloat( m_jointHertz ),
 					 b3FixFromFloat( m_jointDampingRatio ), 1, nullptr, false );
 		// Human_ApplyRandomAngularImpulse( &m_human, 10.0f );
 	}
@@ -86,11 +87,12 @@ public:
 	{
 		if ( context->restart == false )
 		{
-			m_camera->SetView( 45.0f, 30.0f, 6.0f, b3Pos_zero );
+			m_camera->SetView( 45.0f, 30.0f, 6.0f, SampleOrigin() );
 		}
 
 		{
 			b3BodyDef bodyDef = b3DefaultBodyDef();
+			bodyDef.position = SampleOrigin();
 			m_groundId = b3CreateBody( m_worldId, &bodyDef );
 
 			b3ShapeDef shapeDef = b3DefaultShapeDef();
@@ -150,7 +152,8 @@ public:
 
 	void Spawn()
 	{
-		CreateHuman( &m_human, m_worldId, { B3_FIX( 0.0f ), B3_FIX( 1.0f ), B3_FIX( 0.0f ) }, b3FixFromFloat( m_jointFrictionTorque ), b3FixFromFloat( m_jointHertz ),
+		CreateHuman( &m_human, m_worldId, SamplePos( { B3_FIX( 0.0f ), B3_FIX( 1.0f ), B3_FIX( 0.0f ) } ),
+					 b3FixFromFloat( m_jointFrictionTorque ), b3FixFromFloat( m_jointHertz ),
 					 b3FixFromFloat( m_jointDampingRatio ), 1, nullptr, false );
 		// Human_AlignSpring( &m_human, m_worldId, m_groundId, 25.0f, 1.0f );
 		//  Human_ApplyRandomAngularImpulse( &m_human, 10.0f );
@@ -221,11 +224,11 @@ public:
 	{
 		if ( context->restart == false )
 		{
-			m_camera->SetView( 180.0f, 30.0f, 20.0f, b3Pos_zero );
+			m_camera->SetView( 180.0f, 30.0f, 20.0f, SampleOrigin() );
 		}
 
 		b3BodyDef bodyDef = b3DefaultBodyDef();
-		bodyDef.position = { B3_FIX( 0.0f ), B3_FIX( -1.0f ), B3_FIX( 0.0f ) };
+		bodyDef.position = SamplePos( { B3_FIX( 0.0f ), B3_FIX( -1.0f ), B3_FIX( 0.0f ) } );
 		b3BodyId groundId = b3CreateBody( m_worldId, &bodyDef );
 
 		b3ShapeDef shapeDef = b3DefaultShapeDef();
@@ -234,7 +237,7 @@ public:
 
 		for ( int i = 0; i < e_count; ++i )
 		{
-			b3Pos position = { b3FixFromFloat( 0.1f * i ), b3FixFromFloat( 2.0f + 0.5f * i ), b3FixFromFloat( -0.1f * i ) };
+			b3Pos position = SamplePos( { b3FixFromFloat( 0.1f * i ), b3FixFromFloat( 2.0f + 0.5f * i ), b3FixFromFloat( -0.1f * i ) } );
 			b3Fixed torque = B3_FIX( 10.0f );
 			b3Fixed hertz = B3_FIX( 0.5f );
 			b3Fixed damping = B3_FIX( 0.7f );
@@ -269,7 +272,7 @@ public:
 	{
 		if ( m_context->restart == false )
 		{
-			m_camera->SetView( -20.0f, 30.0f, 25.0f, b3Pos_zero );
+			m_camera->SetView( -20.0f, 30.0f, 25.0f, SampleOrigin() );
 		}
 
 		b3ShapeDef shapeDef = b3DefaultShapeDef();
@@ -277,7 +280,7 @@ public:
 
 		{
 			b3BodyDef bodyDef = b3DefaultBodyDef();
-			bodyDef.position = { B3_FIX( -10.0f ), B3_FIX( 2.0f ), B3_FIX( 0.0f ) };
+			bodyDef.position = SamplePos( { B3_FIX( -10.0f ), B3_FIX( 2.0f ), B3_FIX( 0.0f ) } );
 			bodyDef.rotation = b3MakeQuatFromAxisAngle( b3Vec3_axisZ, b3FixMul( B3_FIX( -0.2f ), B3_PI ) );
 			b3BodyId groundId = b3CreateBody( m_worldId, &bodyDef );
 			b3CreateMeshShape( groundId, &shapeDef, m_groundMesh, b3Vec3_one );
@@ -285,14 +288,14 @@ public:
 
 		{
 			b3BodyDef bodyDef = b3DefaultBodyDef();
-			bodyDef.position = { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
+			bodyDef.position = SampleOrigin();
 			b3BodyId groundId = b3CreateBody( m_worldId, &bodyDef );
 			b3Vec3 scale = { B3_FIX( 4.0f ), B3_FIX( 4.0f ), B3_FIX( 4.0f ) };
 			b3CreateMeshShape( groundId, &shapeDef, m_groundMesh, scale );
 		}
 
 		m_human = {};
-		b3Pos position = { B3_FIX( -12.0f ), B3_FIX( 6.0f ), B3_FIX( 0.0f ) };
+		b3Pos position = SamplePos( { B3_FIX( -12.0f ), B3_FIX( 6.0f ), B3_FIX( 0.0f ) } );
 		b3Fixed torque = B3_FIX( 10.0f );
 		b3Fixed hertz = B3_FIX( 2.0f );
 		b3Fixed damping = B3_FIX( 0.7f );
@@ -354,7 +357,7 @@ public:
 		}
 
 		b3BodyDef bodyDef = b3DefaultBodyDef();
-		bodyDef.position = { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
+		bodyDef.position = { 0.0f, 0.0f, 0.0f };
 		// bodyDef.rotation = b3Rotation(B3_VEC3_AXIS_Y, 0.25f * B3_PI);
 		b3BodyId groundId = m_worldId->CreateBody( &bodyDef );
 		m_ground = b3CreateGrid( 4, 2.0f, 0.0f );
@@ -362,13 +365,13 @@ public:
 		b3ShapeDef shapeDef = b3DefaultShapeDef();
 		groundId->AddMesh( &shapeDef, m_ground );
 
-		b3HullData* Hull = b3CreateOffsetBox( { { B3_FIX( -3.0f ), B3_FIX( 0.5f ), B3_FIX( 0.0f ) }, b3Quat_identity }, { B3_FIX( 0.25f ), B3_FIX( 0.5f ), B3_FIX( 3.0f ) } );
+		b3HullData* Hull = b3CreateOffsetBox( { { -3.0f, 0.5f, 0.0f }, b3Quat_identity }, { 0.25f, 0.5f, 3.0f } );
 		groundId->AddHull( &shapeDef, Hull );
 		b3DestroyHull( Hull );
 
 		m_motorized = false;
 		m_motorHertz = 1.0f;
-		m_human.Spawn( m_worldId, { B3_FIX( 0.0f ), B3_FIX( 0.1f ), B3_FIX( 0.0f ) }, m_motorHertz, m_motorized );
+		m_human.Spawn( m_worldId, { 0.0f, 0.1f, 0.0f }, m_motorHertz, m_motorized );
 
 		m_poseControl = true;
 		m_poseHertz = 2.0f;
@@ -377,10 +380,10 @@ public:
 		m_time = 0.0f;
 
 		{
-			b3HullData* Cylinder = b3CreateCylinder( B3_FIX( 0.5f ), B3_FIX( 0.5f ), B3_FIX( 0.0f ), 16 );
+			b3HullData* Cylinder = b3CreateCylinder( 0.5f, 0.5f, 0.0f, 16 );
 			bodyDef.type = b3_dynamicBody;
-			bodyDef.position = { B3_FIX( 3.0f ), B3_FIX( 0.5f ), B3_FIX( 0.0f ) };
-			bodyDef.rotation = b3MakeQuatFromAxisAngle( B3_VEC3_AXIS_Z, B3_PI / 2 );
+			bodyDef.position = { 3.0f, 0.5f, 0.0f };
+			bodyDef.rotation = b3MakeQuatFromAxisAngle( B3_VEC3_AXIS_Z, 0.5f * B3_PI );
 			b3BodyId Body = m_worldId->CreateBody( &bodyDef );
 			Body->AddHull( &shapeDef, Cylinder );
 			b3DestroyHull( Cylinder );
@@ -435,10 +438,10 @@ public:
 		if ( m_poseControl )
 		{
 			b3Transform transform = m_human.m_rootBody->GetTransform();
-			transform.p.x = b3FixFromFloat( 4.0f * sinf( 0.5f * m_time ) );
-			transform.p.y = b3FixFromFloat( 0.5f * ( cosf( 1.0f * m_time + b3FixToFloat( B3_PI ) ) + 1.0f ) );
+			transform.p.x = 4.0f * sinf( 0.5f * m_time );
+			transform.p.y = 0.5f * ( cosf( 1.0f * m_time + B3_PI ) + 1.0f );
 			m_angle += m_angularVelocity * timeStep;
-			transform.q = b3MakeQuatFromAxisAngle( B3_VEC3_AXIS_Y, b3FixFromFloat( m_angle ) );
+			transform.q = b3MakeQuatFromAxisAngle( B3_VEC3_AXIS_Y, m_angle );
 			m_human.DriveBase( transform, timeStep );
 		}
 

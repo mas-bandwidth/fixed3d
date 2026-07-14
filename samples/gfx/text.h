@@ -3,7 +3,7 @@
 
 // Text label storage, world space and screen space.
 //
-// Pure C so the box3d adapter (also C) can submit labels via DrawString, and
+// Pure C so the Fixed3D adapter (also C) can submit labels via DrawString, and
 // the unit test for the projection helper can pull this in without ImGui.
 // The renderer doesn't rasterize text itself: labels accumulate in a fixed
 // per-frame array, ResetTextArena clears the array at the start of each

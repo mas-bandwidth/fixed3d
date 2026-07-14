@@ -21,7 +21,7 @@ public:
 	{
 		if ( m_context->restart == false )
 		{
-			m_camera->SetView( 30.0f, 15.0f, 70.0f, b3Pos_zero );
+			m_camera->SetView( 30.0f, 15.0f, 70.0f, SampleOrigin() );
 			
 		}
 
@@ -47,10 +47,10 @@ public:
 						float coeff = i - 0.5f * count;
 
 						float yy = count == 1 ? y + 2.0f : y;
-						bodyDef.position = { b3FixFromFloat( 2.0f * coeff * extent + offset ), b3FixFromFloat( yy ), B3_FIX( 0.0f ) };
+						bodyDef.position = SamplePos( 2.0f * coeff * extent + offset, yy, 0.0f );
 						b3BodyId bodyId = b3CreateBody( m_worldId, &bodyDef );
 
-						shapeDef.density = count == 1 ? ( j + 1 ) * B3_FIX( 100.0f ) : B3_FIX( 1.0f );
+						shapeDef.density = count == 1 ? b3FixFromFloat( ( j + 1.0f ) * 100.0f ) : B3_FIX( 1.0f );
 						b3CreateHullShape( bodyId, &shapeDef, &box.base );
 					}
 
@@ -70,7 +70,7 @@ public:
 static int sampleHighMassRatio1 = RegisterSample( "Robustness", "HighMassRatio1", HighMassRatio1::Create );
 
 // A pyramid of 5cm boxes. Stacking tiny objects is challenging for physics engines due to rotational effects.
-// This is also challenging for Box3D because of the AABB margin and linear slop are close to the shape size. This
+// This is also challenging for Fixed3D because of the AABB margin and linear slop are close to the shape size. This
 // leads to many collision pairs and some shape overlap.
 class TinyPyramid : public Sample
 {
@@ -80,7 +80,7 @@ public:
 	{
 		if ( m_context->restart == false )
 		{
-			m_camera->SetView( -30.0f, 20.0f, 10.0f, { B3_FIX( 0.0f ), B3_FIX( 0.5f ), B3_FIX( 0.0f ) } );
+			m_camera->SetView( -30.0f, 20.0f, 10.0f, SamplePos( { B3_FIX( 0.0f ), B3_FIX( 0.5f ), B3_FIX( 0.0f ) } ) );
 		}
 
 		AddGroundBox( 20.0f );
@@ -103,7 +103,7 @@ public:
 				for ( int j = i; j < baseCount; ++j )
 				{
 					float x = ( i + 1.0f ) * m_extent + 2.0f * ( j - i ) * m_extent - baseCount * m_extent;
-					bodyDef.position = { b3FixFromFloat( x ), b3FixFromFloat( y ), B3_FIX( 0.0f ) };
+					bodyDef.position = SamplePos( x, y, 0.0f );
 
 					b3BodyId bodyId = b3CreateBody( m_worldId, &bodyDef );
 					b3CreateHullShape( bodyId, &shapeDef, &box.base );
@@ -136,7 +136,7 @@ public:
 	{
 		if ( m_context->restart == false )
 		{
-			m_camera->SetView( 45.0f, 20.0f, 15.0f, b3Pos_zero );
+			m_camera->SetView( 45.0f, 20.0f, 15.0f, SampleOrigin() );
 		}
 
 		m_bodyIds = nullptr;
@@ -165,7 +165,8 @@ public:
 			b3DestroyBody( m_bodyIds[i] );
 		}
 
-		b3World_SetContactTuning( m_worldId, b3FixFromFloat( m_hertz ), b3FixFromFloat( m_dampingRatio ), b3FixFromFloat( m_speed ) );
+		b3World_SetContactTuning( m_worldId, b3FixFromFloat( m_hertz ), b3FixFromFloat( m_dampingRatio ),
+								  b3FixFromFloat( m_speed ) );
 
 		b3BodyDef bodyDef = b3DefaultBodyDef();
 		bodyDef.type = b3_dynamicBody;
@@ -185,7 +186,7 @@ public:
 			float x = fraction * m_extent * ( i - m_baseCount );
 			for ( int j = i; j < m_baseCount; ++j )
 			{
-				bodyDef.position = { b3FixFromFloat( x ), b3FixFromFloat( y ) };
+				bodyDef.position = SamplePos( x, y, 0.0f );
 				b3BodyId bodyId = b3CreateBody( m_worldId, &bodyDef );
 
 				b3CreateHullShape( bodyId, &shapeDef, &box.base );
@@ -249,8 +250,7 @@ public:
 	{
 		if ( m_context->restart == false )
 		{
-			m_camera->SetView( 30.0f, 35.0f, 15.0f, b3Pos_zero );
-			
+			m_camera->SetView( 30.0f, 35.0f, 15.0f, SampleOrigin() );
 		}
 
 		m_data = CreateOverflowColorPile( m_worldId );

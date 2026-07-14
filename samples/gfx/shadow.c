@@ -28,9 +28,57 @@
 #define PSSM_LAMBDA_MAX 0.9f
 #define CASTER_MARGIN_M 50.0f
 
+// Float 3-vector for the cascade fitting math. Frustum corners, slice
+// centers, and the light frame all derive from the float camera matrices,
+// whose translations are already eye-relative display meters — small
+// values, so plain float math is correct end to end. The only fixed-point
+// input (the sun direction, a unit vector) crosses by value at entry via
+// b3FixToFloat.
+typedef struct FVec3
+{
+	float x, y, z;
+} FVec3;
+
+static inline FVec3 FVec3Add( FVec3 a, FVec3 b )
+{
+	return (FVec3){ a.x + b.x, a.y + b.y, a.z + b.z };
+}
+
+static inline FVec3 FVec3Sub( FVec3 a, FVec3 b )
+{
+	return (FVec3){ a.x - b.x, a.y - b.y, a.z - b.z };
+}
+
+// a + s * b
+static inline FVec3 FVec3MulAdd( FVec3 a, float s, FVec3 b )
+{
+	return (FVec3){ a.x + s * b.x, a.y + s * b.y, a.z + s * b.z };
+}
+
+static inline float FVec3Dot( FVec3 a, FVec3 b )
+{
+	return a.x * b.x + a.y * b.y + a.z * b.z;
+}
+
+static inline FVec3 FVec3Cross( FVec3 a, FVec3 b )
+{
+	return (FVec3){ a.y * b.z - a.z * b.y, a.z * b.x - a.x * b.z, a.x * b.y - a.y * b.x };
+}
+
+static inline FVec3 FVec3Normalize( FVec3 v )
+{
+	const float length = sqrtf( FVec3Dot( v, v ) );
+	if ( length > 0.0f )
+	{
+		const float inv = 1.0f / length;
+		return (FVec3){ v.x * inv, v.y * inv, v.z * inv };
+	}
+	return v;
+}
+
 static struct
 {
-	b3Vec3 sunDir;										  // world-space dir TO sun, normalized
+	b3Vec3 sunDir;										  // world-space dir TO sun, normalized (fixed point)
 	float splitNear;									  // PSSM split range near (positive view-Z)
 	float splitFar;										  // PSSM split range far (positive view-Z)
 	float splitLambda;									  // uniform/log split blend, widens with range
@@ -73,12 +121,12 @@ static inline float SplitLambdaForRange( float nearZ, float farZ )
 // column 2 is back (i.e., -forward), column 3 is eye, no inversion.
 // FovY and aspect are read from the projection matrix: mat4Perspective
 // puts proj[1][1] = 1/tan(fovY/2) and proj[0][0] = proj[1][1] / aspect.
-static void FrustumSliceCornersWorld( const Mat4* viewInv, const Mat4* proj, float nearZ, float farZ, b3Vec3 cornersOut[8] )
+static void FrustumSliceCornersWorld( const Mat4* viewInv, const Mat4* proj, float nearZ, float farZ, FVec3 cornersOut[8] )
 {
-	const b3Vec3 eye = { viewInv->cw.x, viewInv->cw.y, viewInv->cw.z };
-	const b3Vec3 right = { viewInv->cx.x, viewInv->cx.y, viewInv->cx.z };
-	const b3Vec3 up = { viewInv->cy.x, viewInv->cy.y, viewInv->cy.z };
-	const b3Vec3 forward = { -viewInv->cz.x, -viewInv->cz.y, -viewInv->cz.z };
+	const FVec3 eye = { viewInv->cw.x, viewInv->cw.y, viewInv->cw.z };
+	const FVec3 right = { viewInv->cx.x, viewInv->cx.y, viewInv->cx.z };
+	const FVec3 up = { viewInv->cy.x, viewInv->cy.y, viewInv->cy.z };
+	const FVec3 forward = { -viewInv->cz.x, -viewInv->cz.y, -viewInv->cz.z };
 
 	const float tanHalfFovY = ( proj->cy.y != 0.0f ) ? ( 1.0f / proj->cy.y ) : 1.0f;
 	const float aspect = ( proj->cx.x != 0.0f ) ? ( proj->cy.y / proj->cx.x ) : 1.0f;
@@ -89,16 +137,33 @@ static void FrustumSliceCornersWorld( const Mat4* viewInv, const Mat4* proj, flo
 		const float d = distances[s];
 		const float h = d * tanHalfFovY;
 		const float w = h * aspect;
-		const b3Vec3 center = b3MulAdd( eye, d, forward );
+		const FVec3 center = FVec3MulAdd( eye, d, forward );
 		for ( int j = 0; j < 4; ++j )
 		{
 			const float sx = ( j & 1 ) ? +w : -w;
 			const float sy = ( j & 2 ) ? +h : -h;
-			b3Vec3 c = b3MulAdd( center, sx, right );
-			c = b3MulAdd( c, sy, up );
+			FVec3 c = FVec3MulAdd( center, sx, right );
+			c = FVec3MulAdd( c, sy, up );
 			cornersOut[s * 4 + j] = c;
 		}
 	}
+}
+
+// Right-handed look-at over the file-local float vectors. Mirrors
+// utility.h's MakeLookAt, but every operand here is an eye-relative float
+// quantity — nothing crosses the fixed/float boundary.
+static Mat4 MakeLookAtFloat( FVec3 eye, FVec3 center, FVec3 up )
+{
+	const FVec3 f = FVec3Normalize( FVec3Sub( center, eye ) );
+	const FVec3 s = FVec3Normalize( FVec3Cross( f, up ) );
+	const FVec3 u = FVec3Cross( s, f );
+
+	Mat4 m;
+	m.cx = MakeVec4( s.x, u.x, -f.x, 0.0f );
+	m.cy = MakeVec4( s.y, u.y, -f.y, 0.0f );
+	m.cz = MakeVec4( s.z, u.z, -f.z, 0.0f );
+	m.cw = MakeVec4( -FVec3Dot( s, eye ), -FVec3Dot( u, eye ), FVec3Dot( f, eye ), 1.0f );
+	return m;
 }
 
 // Fit one cascade's light-space view-projection matrix to the camera
@@ -122,21 +187,25 @@ static void FrustumSliceCornersWorld( const Mat4* viewInv, const Mat4* proj, flo
 // drift relative to the casters.
 static Mat4 FitCascade( const Mat4* viewInv, const Mat4* proj, b3Vec3 dirToSun, float nearZ, float farZ, float* radiusOut )
 {
-	b3Vec3 corners[8];
+	// The sun direction is a normalized fixed-point vector; unit directions
+	// are small, so it crosses to float by value here.
+	const FVec3 sun = { b3FixToFloat( dirToSun.x ), b3FixToFloat( dirToSun.y ), b3FixToFloat( dirToSun.z ) };
+
+	FVec3 corners[8];
 	FrustumSliceCornersWorld( viewInv, proj, nearZ, farZ, corners );
 
-	b3Vec3 center = b3Vec3_zero;
+	FVec3 center = { 0.0f, 0.0f, 0.0f };
 	for ( int i = 0; i < 8; ++i )
 	{
-		center = b3Add( center, corners[i] );
+		center = FVec3Add( center, corners[i] );
 	}
-	center = b3MulSV( 1.0f / 8.0f, center );
+	center = (FVec3){ center.x * ( 1.0f / 8.0f ), center.y * ( 1.0f / 8.0f ), center.z * ( 1.0f / 8.0f ) };
 
 	float radius = 0.0f;
 	for ( int i = 0; i < 8; ++i )
 	{
-		const b3Vec3 d = b3Sub( corners[i], center );
-		const float r = sqrtf( d.x * d.x + d.y * d.y + d.z * d.z );
+		const FVec3 d = FVec3Sub( corners[i], center );
+		const float r = sqrtf( FVec3Dot( d, d ) );
 		if ( r > radius )
 		{
 			radius = r;
@@ -149,17 +218,17 @@ static Mat4 FitCascade( const Mat4* viewInv, const Mat4* proj, b3Vec3 dirToSun, 
 	*radiusOut = radius;
 
 	// Avoid a degenerate up vector when the sun is straight up/down.
-	b3Vec3 up = b3Vec3_axisY;
-	if ( b3FixAbs( dirToSun.y ) > B3_FIX( 0.999f ) )
+	FVec3 up = { 0.0f, 1.0f, 0.0f };
+	if ( fabsf( sun.y ) > 0.999f )
 	{
-		up = b3Vec3_axisZ;
+		up = (FVec3){ 0.0f, 0.0f, 1.0f };
 	}
 
 	// Place the light eye behind the sphere along +sun. Far clip extends
 	// past the sphere's back face. Near clip pulls forward by
 	// CASTER_MARGIN_M to admit casters above the slice.
-	const b3Vec3 eyeWorld = b3MulAdd( center, radius + CASTER_MARGIN_M, dirToSun );
-	const Mat4 lightView = MakeLookAt( eyeWorld, center, up );
+	const FVec3 eyeLight = FVec3MulAdd( center, radius + CASTER_MARGIN_M, sun );
+	const Mat4 lightView = MakeLookAtFloat( eyeLight, center, up );
 	const Mat4 lightProj = MakeOrthographic( -radius, radius, -radius, radius, 0.0f, 2.0f * radius + CASTER_MARGIN_M );
 	Mat4 lightVP = MulMM4( lightProj, lightView );
 
@@ -274,8 +343,9 @@ void SetShadowSplitFar( float farViewZ )
 
 void SetShadowSunDir( b3Vec3 dirToSun )
 {
-	const float lenSq = dirToSun.x * dirToSun.x + dirToSun.y * dirToSun.y + dirToSun.z * dirToSun.z;
-	if ( lenSq > 0.0f )
+	// Nonzero guard in the fixed domain. Component compares are exact;
+	// a squared length would quantize to zero for sub-resolution inputs.
+	if ( dirToSun.x != 0 || dirToSun.y != 0 || dirToSun.z != 0 )
 	{
 		s_shadow.sunDir = b3Normalize( dirToSun );
 	}

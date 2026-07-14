@@ -63,7 +63,7 @@ void OverlayAppendPoint( b3Vec3 p, Vec4 linearColor, float size, OverlayThicknes
 // depthFormat: pixel format of the pass's depth attachment, or
 // SG_PIXELFORMAT_NONE for a color-only target. Both select/build the cached pipeline pair.
 void OverlaySubmit( int width, int height, const Mat4* view, const Mat4* viewInv, const Mat4* proj, const Mat4* projInv,
-					b3Vec3 cameraPos, float time, sg_view linearDepthView, sg_sampler linearDepthSampler, sg_pixel_format colorFormat,
+					Vec4 cameraPos, float time, sg_view linearDepthView, sg_sampler linearDepthSampler, sg_pixel_format colorFormat,
 					sg_pixel_format depthFormat );
 
 // Per-frame primitive counts

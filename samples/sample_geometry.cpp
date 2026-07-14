@@ -18,7 +18,7 @@ public:
 	{
 		if ( m_context->restart == false )
 		{
-			m_camera->SetView( 0.0f, 15.0f, 5.0f, b3Pos_zero );
+			m_camera->SetView( 0.0f, 15.0f, 5.0f, SampleOrigin() );
 		}
 
 		m_hull = nullptr;
@@ -113,10 +113,11 @@ public:
 
 	void Render() override
 	{
-		DrawHull( b3WorldTransform_identity, m_hull, MakeColor( b3_colorYellow ) );
-		DrawHull( b3WorldTransform_identity, &m_box.base, MakeColor( b3_colorCyan ) );
+		b3WorldTransform originTransform = { SampleOrigin(), b3Quat_identity };
+		DrawHull( originTransform, m_hull, MakeColor( b3_colorYellow ) );
+		DrawHull( originTransform, &m_box.base, MakeColor( b3_colorCyan ) );
 
-		DrawAxes( b3WorldTransform_identity, 1.0f );
+		DrawAxes( originTransform, 1.0f );
 
 		Sample::Render();
 	}
@@ -144,7 +145,7 @@ public:
 	{
 		if ( m_context->restart == false )
 		{
-			m_camera->SetView( 0.0f, 15.0f, 5.0f, b3Pos_zero );
+			m_camera->SetView( 0.0f, 15.0f, 5.0f, SampleOrigin() );
 		}
 
 		m_hull = nullptr;
@@ -208,12 +209,13 @@ public:
 
 	void Render() override
 	{
+		b3WorldTransform originTransform = { SampleOrigin(), b3Quat_identity };
 		if ( m_hull != nullptr )
 		{
-			DrawHull( b3WorldTransform_identity, m_hull, MakeColor( b3_colorYellow ) );
+			DrawHull( originTransform, m_hull, MakeColor( b3_colorYellow ) );
 		}
 
-		DrawAxes( b3WorldTransform_identity, 1.0f );
+		DrawAxes( originTransform, 1.0f );
 
 		Sample::Render();
 	}
@@ -245,7 +247,7 @@ public:
 	{
 		if ( m_context->restart == false )
 		{
-			m_camera->SetView( 0.0f, 15.0f, 5.0f, b3Pos_zero );
+			m_camera->SetView( 0.0f, 15.0f, 5.0f, SampleOrigin() );
 		}
 
 		m_hull = nullptr;
@@ -334,14 +336,15 @@ public:
 
 	void Render() override
 	{
+		b3WorldTransform originTransform = { SampleOrigin(), b3Quat_identity };
 		if ( m_hull != nullptr )
 		{
-			DrawHull( b3WorldTransform_identity, m_hull, MakeColor( b3_colorYellow ) );
+			DrawHull( originTransform, m_hull, MakeColor( b3_colorYellow ) );
 
 			DrawTextLine( "v/f/e = %d/%d/%d", m_hull->vertexCount, m_hull->faceCount, m_hull->edgeCount / 2 );
 		}
 
-		DrawAxes( b3WorldTransform_identity, 1.0f );
+		DrawAxes( originTransform, 1.0f );
 
 		Sample::Render();
 	}
@@ -368,7 +371,7 @@ public:
 	{
 		if ( m_context->restart == false )
 		{
-			m_camera->SetView( 0.0f, 15.0f, 5.0f, b3Pos_zero );
+			m_camera->SetView( 0.0f, 15.0f, 5.0f, SampleOrigin() );
 		}
 
 		m_original = b3CreateCylinder( B3_FIX( 1.0f ), B3_FIX( 0.5f ), B3_FIX( 0.0f ), 9 );
@@ -404,12 +407,13 @@ public:
 
 	void Render() override
 	{
-		b3Transform transform1 = { { B3_FIX( -2.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, b3Quat_identity };
-		b3Transform transform2 = { { B3_FIX( 2.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, b3Quat_identity };
+		b3Transform transform1 = { SamplePos( { B3_FIX( -2.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) } ), b3Quat_identity };
+		b3Transform transform2 = { SamplePos( { B3_FIX( 2.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) } ), b3Quat_identity };
 
+		b3WorldTransform originTransform = { SampleOrigin(), b3Quat_identity };
 		DrawHull( b3MakeWorldTransform( transform1 ), m_original, MakeColor( b3_colorGreen ) );
 		DrawHull( b3MakeWorldTransform( transform2 ), m_hull, MakeColor( b3_colorYellow ) );
-		DrawAxes( b3WorldTransform_identity, 1.0f );
+		DrawAxes( originTransform, 1.0f );
 
 		DrawTextLine( "hull 1: area = %g, volume = %g, radius = %g", b3FixToDouble( m_original->surfaceArea ),
 					  b3FixToDouble( m_original->volume ), b3FixToDouble( m_original->innerRadius ) );
@@ -497,7 +501,7 @@ public:
 	{
 		if ( m_context->restart == false )
 		{
-			m_camera->SetView( 0.0f, 15.0f, 5.0f, b3Pos_zero );
+			m_camera->SetView( 0.0f, 15.0f, 5.0f, SampleOrigin() );
 		}
 
 		m_radius = 1.0f;
@@ -536,14 +540,15 @@ public:
 		}
 
 		int count = 2 * sides * sides;
-		float d = b3FixToFloat( B3_PI ) / ( sides - 1.0f );
-		float angle1 = -0.5f * b3FixToFloat( B3_PI );
+		float pi = b3FixToFloat( B3_PI );
+		float d = pi / ( sides - 1.0f );
+		float angle1 = -0.5f * pi;
 		int index = 0;
 		for ( int i = 0; i < sides; ++i )
 		{
 			float s1 = sinf( angle1 );
 			float c1 = cosf( angle1 );
-			float angle2 = -0.5f * b3FixToFloat( B3_PI );
+			float angle2 = -0.5f * pi;
 			for ( int j = 0; j < sides; ++j )
 			{
 				points[index].x = b3FixFromFloat( 1.0f + m_radius * c1 );
@@ -556,12 +561,12 @@ public:
 			angle1 += d;
 		}
 
-		angle1 = 0.5f * b3FixToFloat( B3_PI );
+		angle1 = 0.5f * pi;
 		for ( int i = 0; i < sides; ++i )
 		{
 			float s1 = sinf( angle1 );
 			float c1 = cosf( angle1 );
-			float angle2 = -0.5f * b3FixToFloat( B3_PI );
+			float angle2 = -0.5f * pi;
 			for ( int j = 0; j < sides; ++j )
 			{
 				points[index].x = b3FixFromFloat( -1.0f + m_radius * c1 );
@@ -581,15 +586,16 @@ public:
 
 	void Render() override
 	{
-		DrawSolidCapsule( b3WorldTransform_identity, m_capsule, MakeColorAlpha( b3_colorAqua, 0.8f ) );
-		DrawHull( b3WorldTransform_identity, &m_box.base, MakeColor( b3_colorBlueViolet ) );
+		b3WorldTransform originTransform = { SampleOrigin(), b3Quat_identity };
+		DrawSolidCapsule( originTransform, m_capsule, MakeColorAlpha( b3_colorAqua, 0.8f ) );
+		DrawHull( originTransform, &m_box.base, MakeColor( b3_colorBlueViolet ) );
 
 		if ( m_hull != nullptr )
 		{
-			DrawHull( b3WorldTransform_identity, m_hull, MakeColor( b3_colorYellow ) );
+			DrawHull( originTransform, m_hull, MakeColor( b3_colorYellow ) );
 		}
 
-		DrawAxes( b3WorldTransform_identity, 1.0f );
+		DrawAxes( originTransform, 1.0f );
 
 		if ( m_hull != nullptr )
 		{

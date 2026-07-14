@@ -68,7 +68,7 @@ bool HasHighlightMaskContent( void );
 // depthAttachView), clear the mask to 0, and rasterize all submitted
 // highlights. Depth-tests GREATER_EQUAL against the supplied prepass depth
 // (no write). No-op when no highlights were submitted.
-void SubmitHighlightMask( int width, int height, const Mat4* viewProj, b3Vec3 cameraPosWorld, sg_view maskAttachView,
+void SubmitHighlightMask( int width, int height, const Mat4* viewProj, Vec4 cameraPosWorld, sg_view maskAttachView,
 						  sg_view depthAttachView );
 
 #ifdef __cplusplus

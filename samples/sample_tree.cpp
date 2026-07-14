@@ -50,7 +50,7 @@ public:
 	{
 		if ( context->restart == false )
 		{
-			m_camera->SetView( 45.0f, 45.0f, 250.0f, b3Pos_zero );
+			m_camera->SetView( 45.0f, 45.0f, 250.0f, SampleOrigin() );
 		}
 
 		m_fileNames[0] = { "bounds01" };
@@ -155,7 +155,7 @@ public:
 		constexpr int bufferSize = 512;
 		char buffer[bufferSize];
 
-		b3Fixed maxArea = B3_FIX( 0.0f );
+		b3Fixed maxArea = 0;
 		int maxAreaIndex = -1;
 		uint64_t key = 0;
 
@@ -200,6 +200,9 @@ public:
 				rec.aabb.upperBound.y = b3FixFromFloat( scale * b5 );
 				rec.aabb.upperBound.z = b3FixFromFloat( scale * b6 );
 			}
+
+			// File bounds are authored local coordinates; place them at the sample origin.
+			rec.aabb = b3OffsetAABB( rec.aabb, SampleOrigin() );
 
 			b3Fixed area = b3AABB_Area( rec.aabb );
 			if ( area > maxArea )
@@ -259,7 +262,7 @@ public:
 		constexpr int bufferSize = 512;
 		char buffer[bufferSize];
 
-		b3Fixed maxArea = B3_FIX( 0.0f );
+		b3Fixed maxArea = 0;
 		int maxAreaIndex = -1;
 
 		for ( int i = 0; i < m_tree.nodeCapacity; ++i )
@@ -461,12 +464,12 @@ public:
 	{
 		Sample::Render();
 
-		DrawAxes( b3WorldTransform_identity, 2.0f );
+		b3WorldTransform originTransform = { SampleOrigin(), b3Quat_identity };
+		DrawAxes( originTransform, 2.0f );
 
 		b3Pos cp = m_camera->DrawOrigin();
 		b3TreeNode* nodes = m_tree.nodes;
-		b3Fixed dist = b3FixFromFloat( m_drawDistance * 1000.0f );
-		b3Fixed distSquared = b3FixMul( dist, dist );
+		b3Fixed distSquared = b3FixFromFloat( m_drawDistance * m_drawDistance * 1000.0f * 1000.0f );
 
 		if ( m_drawLevel >= 0 )
 		{

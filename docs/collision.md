@@ -1,6 +1,6 @@
 # Collision
 
-Box3D provides geometric types and functions. These include:
+Fixed3D provides geometric types and functions. These include:
 - primitives: spheres, capsules, and convex hulls
 - triangle meshes and height fields for static terrain
 - convex hull construction from point clouds
@@ -14,7 +14,7 @@ Box3D provides geometric types and functions. These include:
 The collision interface is designed to be usable outside of rigid body simulation.
 For example, you can use the dynamic tree for other aspects of your game besides physics.
 
-The main purpose of Box3D is rigid body simulation, so the collision module only
+The main purpose of Fixed3D is rigid body simulation, so the collision module only
 contains features that are also useful in the physics engine.
 
 ## Shape Primitives
@@ -23,7 +23,7 @@ Shape primitives describe collision geometry and may be used independently of
 physics simulation. At a minimum, you should understand how to create primitives
 that can later be attached to rigid bodies.
 
-Box3D shape primitives support several operations:
+Fixed3D shape primitives support several operations:
 - Test a point or proxy for overlap with the primitive
 - Perform a ray cast against the primitive
 - Compute the primitive's bounding box
@@ -63,7 +63,7 @@ capsule.radius = B3_FIX( 0.25f );
 
 ### Convex Hulls
 
-Box3D convex hulls are solid convex polyhedra. The geometry lives in a heavy, immutable
+Fixed3D convex hulls are solid convex polyhedra. The geometry lives in a heavy, immutable
 `b3HullData` object. The world shares identical hull data through a reference counted
 database, so many shapes built from the same data hold one copy. A shape is convex when
 all line segments connecting two interior points remain inside the shape.
@@ -92,7 +92,7 @@ b3Transform localTransform = { offset, rotation };
 b3BoxHull rotatedBox = b3MakeTransformedBoxHull(B3_FIX( 0.5f ), B3_FIX( 1.0f ), B3_FIX( 0.5f ), localTransform);
 ```
 
-For arbitrary convex geometry, provide a point cloud and let Box3D compute the hull:
+For arbitrary convex geometry, provide a point cloud and let Fixed3D compute the hull:
 
 ```c
 b3HullData* data = b3CreateHull(points, pointCount, maxVertexCount);
@@ -109,7 +109,7 @@ b3DestroyHull(data);
 to allow the full hull. `b3CreateHull` returns `NULL` on degenerate input (e.g. fewer
 than four non-coplanar points, or nearly-zero volume). Always check before using it.
 
-Box3D also provides helpers to create cylindrical and conical hulls:
+Fixed3D also provides helpers to create cylindrical and conical hulls:
 
 ```c
 b3HullData* cylinder = b3CreateCylinder(height, radius, yOffset, sides);
@@ -143,7 +143,7 @@ def.identifyEdges = true;            // adjacency info for smooth inter-triangle
 b3MeshData* mesh = b3CreateMesh(&def, NULL, 0);
 ```
 
-Pass `identifyEdges = true` when triangles share edges so Box3D can suppress
+Pass `identifyEdges = true` when triangles share edges so Fixed3D can suppress
 internal-edge collisions between adjacent triangles (the 3D equivalent of ghost
 collision handling on polygon chains).
 
@@ -179,7 +179,7 @@ been destroyed:
 b3DestroyMesh(mesh);
 ```
 
-Box3D provides factory helpers for common mesh configurations:
+Fixed3D provides factory helpers for common mesh configurations:
 `b3CreateGridMesh`, `b3CreateWaveMesh`, `b3CreateBoxMesh`, and others.
 
 ### Height Fields
@@ -225,7 +225,7 @@ designed for offline baking and open-world streaming — see the dedicated
 
 ### Shape Point Test
 
-Box3D does not expose standalone `b3PointInShape` functions. Point overlap is
+Fixed3D does not expose standalone `b3PointInShape` functions. Point overlap is
 expressed through the `b3ShapeProxy` abstraction that GJK uses. A degenerate
 proxy — a single point with zero radius — serves as a point test:
 
@@ -339,7 +339,7 @@ If two shapes move fast they may tunnel through each other in a single time step
 
 ![Tunneling](images/tunneling2.svg)
 
-`b3TimeOfImpact` finds the earliest time at which two swept shapes touch. Box3D
+`b3TimeOfImpact` finds the earliest time at which two swept shapes touch. Fixed3D
 uses this internally to prevent dynamic bodies from tunneling through static geometry.
 
 ![Captured collision](images/captured_toi.svg)
@@ -373,9 +373,9 @@ plus a quaternion rotation, interpolated from `(c1, q1)` to `(c2, q2)`. Use
 
 ### Contact Manifolds
 
-Box3D computes contact points for overlapping shapes. In 3D, hull-hull contact
+Fixed3D computes contact points for overlapping shapes. In 3D, hull-hull contact
 can produce up to `B3_MAX_MANIFOLD_POINTS` (4) points. All points share the same
-contact normal so Box3D groups them into a manifold. The contact solver uses
+contact normal so Fixed3D groups them into a manifold. The contact solver uses
 this for stable stacking.
 
 ![Contact manifold](images/manifolds.svg)
@@ -415,7 +415,7 @@ Available collide functions:
 The SAT cache in `b3CollideHulls` warm-starts the separating axis search between
 frames, the same idea as the simplex cache for GJK distance.
 
-Box3D uses speculative collision: some contact points in a `b3Manifold` may
+Fixed3D uses speculative collision: some contact points in a `b3Manifold` may
 report a positive (separated) `separation`. Check `totalNormalImpulse` to
 determine whether a speculative point actually had an interaction during the step.
 
@@ -424,7 +424,7 @@ determine whether a speculative point actually had an interaction during the ste
 ## Dynamic Tree
 
 `b3DynamicTree` organizes large numbers of AABBs into a hierarchical binary tree
-for fast ray casts and region queries. Box3D uses it internally to manage the
+for fast ray casts and region queries. Fixed3D uses it internally to manage the
 broad phase, but it is also available for organizing spatial game data unrelated
 to physics.
 

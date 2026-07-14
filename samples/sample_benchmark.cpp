@@ -27,7 +27,7 @@ public:
 	{
 		if ( context->restart == false )
 		{
-			m_camera->SetView( 40.0f, -10.0f, 110.0f, { B3_FIX( 0.0f ), B3_FIX( 40.0f ), B3_FIX( 0.0f ) } );
+			m_camera->SetView( 40.0f, -10.0f, 110.0f, SamplePos( { B3_FIX( 0.0f ), B3_FIX( 40.0f ), B3_FIX( 0.0f ) } ) );
 		}
 
 		CreateLargePyramid( m_worldId );
@@ -51,7 +51,7 @@ public:
 	{
 		if ( context->restart == false )
 		{
-			m_camera->SetView( 0.0f, 5.0f, 80.0f, { B3_FIX( 0.0f ), B3_FIX( 18.0f ), B3_FIX( 0.0f ) } );
+			m_camera->SetView( 0.0f, 5.0f, 80.0f, SamplePos( { B3_FIX( 0.0f ), B3_FIX( 18.0f ), B3_FIX( 0.0f ) } ) );
 		}
 
 		CreateWidePyramid( m_worldId );
@@ -75,7 +75,7 @@ public:
 	{
 		if ( context->restart == false )
 		{
-			m_camera->SetView( -10.0f, 10.0f, 120.0f, { B3_FIX( 0.0f ), B3_FIX( 5.0f ), B3_FIX( 0.0f ) } );
+			m_camera->SetView( -10.0f, 10.0f, 120.0f, SamplePos( { B3_FIX( 0.0f ), B3_FIX( 5.0f ), B3_FIX( 0.0f ) } ) );
 		}
 
 		CreateManyPyramids( m_worldId );
@@ -86,7 +86,7 @@ public:
 		// bool colorize = true;
 
 		// Human human = {};
-		// b3Vec3 position = m_isDebug ? b3Vec3{ 0.0f, 20.0f, 0.0f } : b3Vec3{ 5.0f, 20.0f, 53.0f };
+		// b3Pos position = m_isDebug ? SamplePos( 0.0f, 20.0f, 0.0f ) : SamplePos( 5.0f, 20.0f, 53.0f );
 		// CreateHuman( &human, m_worldId, position, frictionTorque, hertz, dampingRatio, 0, nullptr, colorize );
 
 		SetGroundShape( GetGroundShapeId() );
@@ -108,7 +108,7 @@ public:
 	{
 		if ( context->restart == false )
 		{
-			m_camera->SetView( 25.0f, 10.0f, 70.0f, b3Pos_zero );
+			m_camera->SetView( 25.0f, 10.0f, 70.0f, SampleOrigin() );
 			GetGuiDraw()->drawJoints = false;
 		}
 
@@ -141,7 +141,7 @@ public:
 	void Render() override
 	{
 		Sample::Render();
-		b3Transform t = { { B3_FIX( 0.0f ), B3_FIX( 0.1f ), B3_FIX( 0.0f ) }, b3Quat_identity };
+		b3Transform t = { SamplePos( { B3_FIX( 0.0f ), B3_FIX( 0.1f ), B3_FIX( 0.0f ) } ), b3Quat_identity };
 		DrawAxes( b3MakeWorldTransform( t ), 2.0f );
 	}
 
@@ -162,7 +162,7 @@ public:
 	{
 		if ( context->restart == false )
 		{
-			m_camera->SetView( 45.0f, 30.0f, 40.0f, b3Vec3_zero );
+			m_camera->SetView( 45.0f, 30.0f, 40.0f, SampleOrigin() );
 		}
 
 		CreateRain( m_worldId );
@@ -190,7 +190,7 @@ public:
 	void Render() override
 	{
 		Sample::Render();
-		b3Transform transform = { { 0.0f, 0.1f, 0.0f }, b3Quat_identity };
+		b3Transform transform = { SamplePos( 0.0f, 0.1f, 0.0f ), b3Quat_identity };
 		DrawAxes( transform, 2.0f );
 	}
 
@@ -211,7 +211,7 @@ public:
 	{
 		if ( context->restart == false )
 		{
-			m_camera->SetView( -25.0f, 25.0f, 94.0f, { B3_FIX( 30.0f ), B3_FIX( -30.0f ), B3_FIX( 30.0f ) } );
+			m_camera->SetView( -25.0f, 25.0f, 94.0f, SamplePos( { B3_FIX( 30.0f ), B3_FIX( -30.0f ), B3_FIX( 30.0f ) } ) );
 		}
 
 		CreateJointGrid( m_worldId );
@@ -220,7 +220,7 @@ public:
 	void Render() override
 	{
 		Sample::Render();
-		b3Transform t = { { B3_FIX( 0.0f ), B3_FIX( 0.1f ), B3_FIX( 0.0f ) }, b3Quat_identity };
+		b3Transform t = { SamplePos( { B3_FIX( 0.0f ), B3_FIX( 0.1f ), B3_FIX( 0.0f ) } ), b3Quat_identity };
 		DrawAxes( b3MakeWorldTransform( t ), 4.0f );
 
 		// transform.p.y = 0.0f;
@@ -255,19 +255,19 @@ public:
 	{
 		if ( context->restart == false )
 		{
-			m_camera->SetView( 45.0f, 10.0f, 80.0f, { B3_FIX( 0.0f ), B3_FIX( 20.0f ), B3_FIX( 0.0f ) } );
+			m_camera->SetView( 45.0f, 10.0f, 80.0f, SamplePos( { B3_FIX( 0.0f ), B3_FIX( 20.0f ), B3_FIX( 0.0f ) } ) );
 		}
 
 		AddGroundBox( 100.0f );
 
 		{
 			constexpr int n = m_isDebug ? 4 : 50;
-			b3Fixed a = B3_FIX( 0.5f );
+			float a = 0.5f;
 
 			b3BodyDef bodyDef = b3DefaultBodyDef();
 			bodyDef.type = b3_dynamicBody;
 			b3ShapeDef shapeDef = b3DefaultShapeDef();
-			b3BoxHull box = b3MakeCubeHull( a );
+			b3BoxHull box = b3MakeCubeHull( b3FixFromFloat( a ) );
 
 			for ( int i = 0; i < n; ++i )
 			{
@@ -275,7 +275,7 @@ public:
 				{
 					for ( int k = 0; k < 8; ++k )
 					{
-						bodyDef.position = { -16 * a + 4 * j * a, 4 * i * a + 5 * a, -16 * a + 4 * k * a };
+						bodyDef.position = SamplePos( -16.0f * a + 4.0f * a * j, 4.0f * a * i + 5.0f * a, -16.0f * a + 4.0f * a * k );
 						b3BodyId bodyId = b3CreateBody( m_worldId, &bodyDef );
 						b3CreateHullShape( bodyId, &shapeDef, &box.base );
 					}
@@ -301,7 +301,7 @@ public:
 		if ( context->restart == false )
 		{
 			float radius = m_isDebug ? 20.0f : 70.0f;
-			m_camera->SetView( 45.0f, 20.0f, radius, b3Pos_zero );
+			m_camera->SetView( 45.0f, 20.0f, radius, SampleOrigin() );
 		}
 
 		AddGroundBox( 60.0f );
@@ -313,14 +313,14 @@ public:
 			b3BodyDef bodyDef = b3DefaultBodyDef();
 			bodyDef.type = b3_dynamicBody;
 			b3ShapeDef shapeDef = b3DefaultShapeDef();
-			m_convex = CreateConvex( B3_FIX( 0.6f ), B3_FIX( 0.0f ), B3_FIX( 0.95f ), B3_FIX( 1.0f ) );
+			m_convex = CreateConvex( 0.6f, 0.0f, 0.95f, 1.0f );
 			for ( int i = 0; i < n; ++i )
 			{
 				for ( int j = 0; j < m; ++j )
 				{
 					for ( int k = 0; k < m; ++k )
 					{
-						bodyDef.position = { B3_FIX( -10.0f ) + j * B3_FIX( 2.5f ), b3FixFromInt( i ), B3_FIX( -10.0f ) + k * B3_FIX( 2.5f ) };
+						bodyDef.position = SamplePos( -10.0f + 2.5f * j, 1.0f * i, -10.0f + 2.5f * k );
 						b3BodyId bodyId = b3CreateBody( m_worldId, &bodyDef );
 						b3CreateHullShape( bodyId, &shapeDef, m_convex );
 					}
@@ -334,7 +334,7 @@ public:
 		b3DestroyHull( m_convex );
 	}
 
-	b3HullData* CreateConvex( b3Fixed radius1, b3Fixed height1, b3Fixed radius2, b3Fixed height2 ) const
+	b3HullData* CreateConvex( float radius1, float height1, float radius2, float height2 ) const
 	{
 		constexpr int sideCount = 8;
 		const b3Fixed deltaAlpha = 2 * B3_PI / sideCount;
@@ -347,13 +347,13 @@ public:
 		{
 			b3CosSin cs = b3ComputeCosSin( alpha );
 
-			b3Fixed x1 = b3FixMul( radius1, cs.cosine );
-			b3Fixed z1 = b3FixMul( radius1, cs.sine );
-			b3Fixed x2 = b3FixMul( radius2, cs.cosine );
-			b3Fixed z2 = b3FixMul( radius2, cs.sine );
+			float x1 = radius1 * b3FixToFloat( cs.cosine );
+			float z1 = radius1 * b3FixToFloat( cs.sine );
+			float x2 = radius2 * b3FixToFloat( cs.cosine );
+			float z2 = radius2 * b3FixToFloat( cs.sine );
 
-			vertexBase[2 * sideIndex + 0] = { x1, height1, z1 };
-			vertexBase[2 * sideIndex + 1] = { x2, height2, z2 };
+			vertexBase[2 * sideIndex + 0] = { b3FixFromFloat( x1 ), b3FixFromFloat( height1 ), b3FixFromFloat( z1 ) };
+			vertexBase[2 * sideIndex + 1] = { b3FixFromFloat( x2 ), b3FixFromFloat( height2 ), b3FixFromFloat( z2 ) };
 			alpha += deltaAlpha;
 		}
 
@@ -379,13 +379,14 @@ public:
 		if ( m_context->restart == false )
 		{
 			float radius = m_isDebug ? 15.0f : 30.0f;
-			m_camera->SetView( 45.0f, 20.0f, radius, { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) } );
+			m_camera->SetView( 45.0f, 20.0f, radius, SampleOrigin() );
 		}
 
 		b3ShapeDef shapeDef = b3DefaultShapeDef();
 		m_gridMesh = b3CreateGridMesh( 40, 40, B3_FIX( 1.0f ), 0, true );
 
 		b3BodyDef bodyDef = b3DefaultBodyDef();
+		bodyDef.position = SampleOrigin();
 		b3BodyId groundId = b3CreateBody( m_worldId, &bodyDef );
 		b3CreateMeshShape( groundId, &shapeDef, m_gridMesh, b3Vec3_one );
 
@@ -435,7 +436,7 @@ public:
 		{
 			for ( int k = -n; k <= n; ++k )
 			{
-				bodyDef.position = { b3FixFromInt( i ), B3_FIX( 0.0f ), b3FixFromInt( k ) };
+				bodyDef.position = SamplePos( 1.0f * i, 0.0f, 1.0f * k );
 
 				b3BodyId bodyId = b3CreateBody( m_worldId, &bodyDef );
 				b3CreateHullShape( bodyId, &shapeDef, m_cylinder );
@@ -457,7 +458,7 @@ public:
 	{
 		b3ExplosionDef def = b3DefaultExplosionDef();
 		def.radius = B3_FIX( 16.0f );
-		def.position = { B3_FIX( 0.0f ), B3_FIX( -4.0f ), B3_FIX( 0.0f ) };
+		def.position = SamplePos( { B3_FIX( 0.0f ), B3_FIX( -4.0f ), B3_FIX( 0.0f ) } );
 		def.impulsePerArea = b3FixFromFloat( m_impulse );
 
 		b3World_Explode( m_worldId, &def );
@@ -519,7 +520,7 @@ public:
 	{
 		if ( context->restart == false )
 		{
-			m_camera->SetView( 0.0f, 20.0f, 50.0f, b3Pos_zero );
+			m_camera->SetView( 0.0f, 20.0f, 50.0f, SampleOrigin() );
 		}
 
 		m_columnCount = 50;
@@ -527,7 +528,7 @@ public:
 		m_radius = 0.1f;
 
 		b3BodyDef bodyDef = b3DefaultBodyDef();
-		bodyDef.position = { m_columnCount * B3_FIX( -0.5f ), B3_FIX( 0.0f ), m_rowCount * B3_FIX( -0.5f ) };
+		bodyDef.position = SamplePos( -0.5f * m_columnCount, 0.0f, -0.5f * m_rowCount );
 		b3BodyId body = b3CreateBody( m_worldId, &bodyDef );
 
 		m_heightField = b3CreateWave( 50, 50, b3Vec3_one, B3_FIX( 0.02f ), B3_FIX( 0.04f ), true );
@@ -550,9 +551,9 @@ public:
 	{
 		Sample::Render();
 
-		DrawLine( b3Pos_zero, b3OffsetPos( b3Pos_zero, B3_FIX( 0.4f ) * b3Vec3_axisX ), MakeColor( b3_colorRed ) );
-		DrawLine( b3Pos_zero, b3OffsetPos( b3Pos_zero, B3_FIX( 0.4f ) * b3Vec3_axisY ), MakeColor( b3_colorGreen ) );
-		DrawLine( b3Pos_zero, b3OffsetPos( b3Pos_zero, B3_FIX( 0.4f ) * b3Vec3_axisZ ), MakeColor( b3_colorBlue ) );
+		DrawLine( SampleOrigin(), b3OffsetPos( SampleOrigin(), B3_FIX( 0.4f ) * b3Vec3_axisX ), MakeColor( b3_colorRed ) );
+		DrawLine( SampleOrigin(), b3OffsetPos( SampleOrigin(), B3_FIX( 0.4f ) * b3Vec3_axisY ), MakeColor( b3_colorGreen ) );
+		DrawLine( SampleOrigin(), b3OffsetPos( SampleOrigin(), B3_FIX( 0.4f ) * b3Vec3_axisZ ), MakeColor( b3_colorBlue ) );
 
 		int hitCount = 0;
 		int iterationCount = 0;
@@ -560,8 +561,8 @@ public:
 
 		float delta = m_isDebug ? 2.0f * 0.95f : 0.4f;
 
-		float spanX = 0.94f * 0.5f * float( m_columnCount );
-		float spanZ = 0.96f * 0.5f * float( m_rowCount );
+		float spanX = 0.94f * 0.5f * m_columnCount;
+		float spanZ = 0.96f * 0.5f * m_rowCount;
 
 		uint64_t startTick = b3GetTicks();
 
@@ -573,7 +574,7 @@ public:
 		{
 			for ( float z = -spanZ; z <= spanZ; z += delta )
 			{
-				b3Pos rayOrigin = { b3FixFromFloat( x ), B3_FIX( 2.0f ), b3FixFromFloat( z ) };
+				b3Pos rayOrigin = SamplePos( x, 2.0f, z );
 
 				b3RayResult result = {};
 				if ( m_radius == 0.0f )
@@ -665,7 +666,7 @@ public:
 	{
 		if ( context->restart == false )
 		{
-			m_camera->SetView( 20.0f, 0.0f, 140.0f, { B3_FIX( 0.0f ), B3_FIX( 15.0f ), B3_FIX( 0.0f ) } );
+			m_camera->SetView( 20.0f, 0.0f, 140.0f, SamplePos( { B3_FIX( 0.0f ), B3_FIX( 15.0f ), B3_FIX( 0.0f ) } ) );
 		}
 
 		m_gridSize = 100;
@@ -743,7 +744,7 @@ public:
 	{
 		if ( m_context->restart == false )
 		{
-			m_camera->SetView( 0.0f, 0.0f, 250.0f, { B3_FIX( 0.0f ), B3_FIX( 110.0f ), B3_FIX( 0.0f ) } );
+			m_camera->SetView( 0.0f, 0.0f, 250.0f, SamplePos( { B3_FIX( 0.0f ), B3_FIX( 110.0f ), B3_FIX( 0.0f ) } ) );
 		}
 
 		b3World_SetCustomFilterCallback( m_worldId, FilterFcn, this );
@@ -752,10 +753,10 @@ public:
 		m_activeSensor.active = true;
 
 		{
-			b3Fixed gridSize = B3_FIX( 3.0f );
+			float gridSize = 3.0f;
 
 			// These destroy anything they touch, including themselves.
-			b3BoxHull box = b3MakeCubeHull( b3FixMul( B3_FIX( 0.48f ), gridSize ) );
+			b3BoxHull box = b3MakeCubeHull( b3FixFromFloat( 0.48f * gridSize ) );
 			b3BodyDef bodyDef = b3DefaultBodyDef();
 
 			b3ShapeDef shapeDef = b3DefaultShapeDef();
@@ -764,11 +765,11 @@ public:
 			shapeDef.userData = &m_activeSensor;
 			shapeDef.baseMaterial.customColor = b3MakeDebugColor( (b3HexColor)0x505050u, b3_debugMaterialMetallic );
 
-			b3Fixed y = B3_FIX( 0.0f );
-			b3Fixed x = -40 * gridSize;
+			float y = 0.0f;
+			float x = -40.0f * gridSize;
 			for ( int i = 0; i < 81; ++i )
 			{
-				bodyDef.position = { x, y, B3_FIX( 0.0f ) };
+				bodyDef.position = SamplePos( x, y, 0.0f );
 				b3BodyId groundId = b3CreateBody( m_worldId, &bodyDef );
 				b3CreateHullShape( groundId, &shapeDef, &box.base );
 				x += gridSize;
@@ -778,8 +779,8 @@ public:
 		{
 			g_randomSeed = 42;
 
-			b3Fixed shift = B3_FIX( 5.0f );
-			b3Fixed xCenter = m_columnCount * shift / 2;
+			float shift = 5.0f;
+			float xCenter = 0.5f * shift * m_columnCount;
 
 			b3BodyDef bodyDef = b3DefaultBodyDef();
 
@@ -788,7 +789,7 @@ public:
 			shapeDef.isSensor = true;
 			shapeDef.enableSensorEvents = true;
 
-			b3Fixed yStart = B3_FIX( 10.0f );
+			float yStart = 10.0f;
 			m_filterRow = m_rowCount >> 1;
 
 			for ( int j = 0; j < m_rowCount; ++j )
@@ -808,11 +809,11 @@ public:
 					shapeDef.baseMaterial.customColor = 0;
 				}
 
-				b3Fixed y = j * shift + yStart;
+				float y = j * shift + yStart;
 				for ( int i = 0; i < m_columnCount; ++i )
 				{
-					b3Fixed x = i * shift - xCenter;
-					bodyDef.position = { x, y, B3_FIX( 0.0f ) };
+					float x = i * shift - xCenter;
+					bodyDef.position = SamplePos( x, y, 0.0f );
 					b3BodyId groundId = b3CreateBody( m_worldId, &bodyDef );
 					b3CreateHullShape( groundId, &shapeDef, &box.base );
 				}
@@ -824,10 +825,10 @@ public:
 		m_lastStepCount = 0;
 	}
 
-	void CreateRow( b3Fixed y )
+	void CreateRow( float y )
 	{
-		b3Fixed shift = B3_FIX( 5.0f );
-		b3Fixed xCenter = m_columnCount * shift / 2;
+		float shift = 5.0f;
+		float xCenter = 0.5f * shift * m_columnCount;
 
 		b3BodyDef bodyDef = b3DefaultBodyDef();
 		bodyDef.type = b3_dynamicBody;
@@ -841,8 +842,8 @@ public:
 		for ( int i = 0; i < m_columnCount; ++i )
 		{
 			// stagger bodies to avoid bunching up events into a single update
-			b3Fixed yOffset = RandomFloatRange( B3_FIX( -1.0f ), B3_FIX( 1.0f ) );
-			bodyDef.position = { shift * i - xCenter, y + yOffset, B3_FIX( 0.0f ) };
+			float yOffset = b3FixToFloat( RandomFloatRange( B3_FIX( -1.0f ), B3_FIX( 1.0f ) ) );
+			bodyDef.position = SamplePos( shift * i - xCenter, y + yOffset, 0.0f );
 			b3BodyId bodyId = b3CreateBody( m_worldId, &bodyDef );
 
 			b3CreateSphereShape( bodyId, &shapeDef, &sphere );
@@ -908,7 +909,7 @@ public:
 
 		if ( ( m_stepCount & delay ) == 0 )
 		{
-			CreateRow( B3_FIX( 10.0f ) + m_rowCount * B3_FIX( 5.0f ) );
+			CreateRow( 10.0f + m_rowCount * 5.0f );
 		}
 
 		m_lastStepCount = m_stepCount;
@@ -970,7 +971,7 @@ public:
 	{
 		if ( m_context->restart == false )
 		{
-			m_camera->SetView( 15.0f, 20.0f, 60.0, { B3_FIX( 0.0f ), B3_FIX( 15.0f ), B3_FIX( 0.0f ) } );
+			m_camera->SetView( 15.0f, 20.0f, 60.0, SamplePos( { B3_FIX( 0.0f ), B3_FIX( 15.0f ), B3_FIX( 0.0f ) } ) );
 		}
 
 		b3Capacity capacity = {};
@@ -997,7 +998,7 @@ public:
 	{
 		if ( context->restart == false )
 		{
-			m_camera->SetView( 0.0f, 10.0f, 250.0f, b3Pos_zero );
+			m_camera->SetView( 0.0f, 10.0f, 250.0f, SampleOrigin() );
 		}
 
 		b3Capacity capacity = {};
@@ -1029,7 +1030,7 @@ public:
 	{
 		if ( m_context->restart == false )
 		{
-			m_camera->SetView( 0.0f, 15.0f, 5.0f, b3Pos_zero );
+			m_camera->SetView( 0.0f, 15.0f, 5.0f, SampleOrigin() );
 		}
 
 		g_randomSeed = 42;
@@ -1053,8 +1054,8 @@ public:
 
 	void Render() override
 	{
-		b3Transform t1 = { { B3_FIX( -2.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, b3Quat_identity };
-		b3Transform t2 = { { B3_FIX( 2.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, b3Quat_identity };
+		b3Transform t1 = { SamplePos( { B3_FIX( -2.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) } ), b3Quat_identity };
+		b3Transform t2 = { SamplePos( { B3_FIX( 2.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) } ), b3Quat_identity };
 
 		DrawHull( b3MakeWorldTransform( t1 ), m_hull, MakeColor( b3_colorGreen ) );
 		DrawHull( b3MakeWorldTransform( t2 ), m_transformedHull, MakeColor( b3_colorYellow ) );
@@ -1088,8 +1089,8 @@ public:
 		float cloneTime = b3FixToFloat( b3GetMilliseconds( startTick ) );
 
 		DrawTextLine( "trials = %d", trials );
-		DrawTextLine( "createTime (us) = %.2f, area = %.2f", 1000.0f * createTime / float( trials ), area / float( trials ) );
-		DrawTextLine( "cloneTime (us) = %.2f, area = %.2f", 1000.0f * cloneTime / float( trials ), scaledArea / float( trials ) );
+		DrawTextLine( "createTime (us) = %.2f, area = %.2f", 1000.0f * createTime / trials, area / trials );
+		DrawTextLine( "cloneTime (us) = %.2f, area = %.2f", 1000.0f * cloneTime / trials, scaledArea / trials );
 		DrawTextLine( "createTime / cloneTime = %.2f", createTime / cloneTime );
 		Sample::Step();
 	}
@@ -1117,27 +1118,28 @@ public:
 	{
 		if ( context->restart == false )
 		{
-			m_camera->SetView( 0.0f, 15.0f, 50.0f, { B3_FIX( 0.0f ), B3_FIX( 5.0f ), B3_FIX( 0.0f ) } );
+			m_camera->SetView( 0.0f, 15.0f, 50.0f, SamplePos( { B3_FIX( 0.0f ), B3_FIX( 5.0f ), B3_FIX( 0.0f ) } ) );
 		}
 
 		b3BodyDef bodyDef = b3DefaultBodyDef();
+		bodyDef.position = SampleOrigin();
 		b3BodyId groundId = b3CreateBody( m_worldId, &bodyDef );
 
 		m_meshData = b3CreateWaveMesh( 80, 80, B3_FIX( 1.0f ), B3_FIX( 0.5f ), B3_FIX( 0.05f ), B3_FIX( 0.01f ) );
 		b3ShapeDef shapeDef = b3DefaultShapeDef();
 		b3CreateMeshShape( groundId, &shapeDef, m_meshData, b3Vec3_one );
 
-		b3Fixed linkRadius = B3_FIX( 0.125f );
-		b3Fixed linkExtent = B3_FIX( 0.25f );
-		b3Capsule capsule = { { B3_FIX( 0.0f ), -linkExtent, B3_FIX( 0.0f ) }, { B3_FIX( 0.0f ), linkExtent, B3_FIX( 0.0f ) }, linkRadius };
+		float linkRadius = 0.125f;
+		float linkExtent = 0.25f;
+		b3Capsule capsule = { { B3_FIX( 0.0f ), b3FixFromFloat( -linkExtent ), B3_FIX( 0.0f ) }, { B3_FIX( 0.0f ), b3FixFromFloat( linkExtent ), B3_FIX( 0.0f ) }, b3FixFromFloat( linkRadius ) };
 
 		bodyDef.enableSleep = false;
 
 		int linkCount = 4;
 
 		b3SphericalJointDef jointDef = b3DefaultSphericalJointDef();
-		jointDef.base.localFrameA = { { B3_FIX( 0.0f ), -linkExtent, B3_FIX( 0.0f ) }, b3Quat_identity };
-		jointDef.base.localFrameB = { { B3_FIX( 0.0f ), linkExtent, B3_FIX( 0.0f ) }, b3Quat_identity };
+		jointDef.base.localFrameA = { { B3_FIX( 0.0f ), b3FixFromFloat( -linkExtent ), B3_FIX( 0.0f ) }, b3Quat_identity };
+		jointDef.base.localFrameB = { { B3_FIX( 0.0f ), b3FixFromFloat( linkExtent ), B3_FIX( 0.0f ) }, b3Quat_identity };
 		jointDef.enableSpring = true;
 		jointDef.hertz = B3_FIX( 1.0f );
 		jointDef.dampingRatio = B3_FIX( 0.7f );
@@ -1154,7 +1156,7 @@ public:
 			{
 				for ( int i = 0; i < linkCount; ++i )
 				{
-					bodyDef.position = { b3FixFromFloat( x ), ( 1 - 2 * i ) * linkExtent + B3_FIX( 3.0f ), b3FixFromFloat( z ) };
+					bodyDef.position = SamplePos( x, ( 1.0f - 2.0f * i ) * linkExtent + 3.0f, z );
 
 					bodyDef.type = i == 0 ? b3_staticBody : b3_dynamicBody;
 
@@ -1231,11 +1233,11 @@ public:
 		{
 			if ( m_small )
 			{
-				m_camera->SetView( 0.0f, 40.0f, 20.0f, { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) } );
+				m_camera->SetView( 0.0f, 40.0f, 20.0f, SampleOrigin() );
 			}
 			else
 			{
-				m_camera->SetView( 0.0f, 40.0f, 30.0f, { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) } );
+				m_camera->SetView( 0.0f, 40.0f, 30.0f, SampleOrigin() );
 			}
 		}
 
@@ -1251,13 +1253,14 @@ public:
 		m_gridMesh = b3CreateGridMesh( 40, 40, B3_FIX( 1.0f ), 0, true );
 
 		b3BodyDef bodyDef = b3DefaultBodyDef();
+		bodyDef.position = SampleOrigin();
 		b3BodyId groundId = b3CreateBody( m_worldId, &bodyDef );
 		b3CreateMeshShape( groundId, &shapeDef, m_gridMesh, b3Vec3_one );
 
 #if 0
 		{
 			b3Transform transform;
-			transform.p = { B3_FIX( 0.0f ), B3_FIX( 5.0f ), B3_FIX( -20.0f ) };
+			transform.p = { 0.0f, 5.0f, -20.0f };
 			transform.q = b3Quat_identity;
 			b3BoxHull wallBox = b3MakeTransformedBoxHull( B3_FIX( 20.0f ), B3_FIX( 5.0f ), B3_FIX( 0.1f ), transform );
 			shapeDef.name = "wall1";
@@ -1266,7 +1269,7 @@ public:
 
 		{
 			b3Transform transform;
-			transform.p = { B3_FIX( 0.0f ), B3_FIX( 5.0f ), B3_FIX( 20.0f ) };
+			transform.p = { 0.0f, 5.0f, 20.0f };
 			transform.q = b3Quat_identity;
 			b3BoxHull wallBox = b3MakeTransformedBoxHull( B3_FIX( 20.0f ), B3_FIX( 5.0f ), B3_FIX( 0.1f ), transform );
 			shapeDef.name = "wall2";
@@ -1275,7 +1278,7 @@ public:
 
 		{
 			b3Transform transform;
-			transform.p = { B3_FIX( -20.0f ), B3_FIX( 5.0f ), B3_FIX( 0.0f ) };
+			transform.p = { -20.0f, 5.0f, 0.0f };
 			transform.q = b3Quat_identity;
 			b3BoxHull wallBox = b3MakeTransformedBoxHull( B3_FIX( 0.1f ), B3_FIX( 5.0f ), B3_FIX( 20.0f ), transform );
 			shapeDef.name = "wall3";
@@ -1284,7 +1287,7 @@ public:
 
 		{
 			b3Transform transform;
-			transform.p = { B3_FIX( 20.0f ), B3_FIX( 5.0f ), B3_FIX( 0.0f ) };
+			transform.p = { 20.0f, 5.0f, 0.0f };
 			transform.q = b3Quat_identity;
 			b3BoxHull wallBox = b3MakeTransformedBoxHull( B3_FIX( 0.1f ), B3_FIX( 5.0f ), B3_FIX( 20.0f ), transform );
 			shapeDef.name = "wall4";
@@ -1297,9 +1300,9 @@ public:
 		m_bodyCount = 0;
 
 		m_explosionDef = b3DefaultExplosionDef();
-		m_explosionDef.radius = m_extent;
-		m_explosionDef.falloff = m_extent / 2;
-		m_explosionDef.position = { B3_FIX( 0.0f ), 2 * m_extent, B3_FIX( 0.0f ) };
+		m_explosionDef.radius = b3FixFromFloat( m_extent );
+		m_explosionDef.falloff = b3FixFromFloat( 0.5f * m_extent );
+		m_explosionDef.position = SamplePos( { B3_FIX( 0.0f ), b3FixFromFloat( 2.0f * m_extent ), B3_FIX( 0.0f ) } );
 		m_explosionDef.impulsePerArea = m_small ? B3_FIX( 200.0f ) : B3_FIX( 1000.0f );
 
 		m_spawnMilliseconds = 0.0f;
@@ -1330,9 +1333,8 @@ public:
 	{
 		uint64_t ticks = b3GetTicks();
 
-		b3Fixed a = m_extent / m_gridCount;
-		b3Fixed boxExtent = b3FixMul( B3_FIX( 0.8f ), a );
-		b3BoxHull box = b3MakeBoxHull( boxExtent, boxExtent, boxExtent );
+		float a = m_extent / m_gridCount;
+		b3BoxHull box = b3MakeBoxHull( b3FixFromFloat( 0.8f * a ), b3FixFromFloat( 0.8f * a ), b3FixFromFloat( 0.8f * a ) );
 
 		b3BodyDef bodyDef = b3DefaultBodyDef();
 		bodyDef.type = b3_dynamicBody;
@@ -1347,12 +1349,13 @@ public:
 			{
 				for ( int k = 0; k < m_gridCount; ++k )
 				{
-					if ( RandomIntRange( 1, randomRange ) == 1 )
+					if ( RandomIntRange( 1, randomRange ) == b3FixFromInt( 1 ) )
 					{
 						continue;
 					}
 
-					bodyDef.position = { ( 2 * i - m_gridCount + 1 ) * a, ( 2 * j + 1 ) * a, ( 2 * k - m_gridCount + 1 ) * a };
+					bodyDef.position =
+						SamplePos( ( 2.0f * i - m_gridCount + 1.0f ) * a, ( 2.0f * j + 1.0f ) * a, ( 2.0f * k - m_gridCount + 1.0f ) * a );
 
 					b3BodyId bodyId = b3CreateBody( m_worldId, &bodyDef );
 					b3CreateHullShape( bodyId, &shapeDef, &box.base );
@@ -1403,7 +1406,7 @@ public:
 
 	static constexpr bool m_small = m_isDebug;
 	static constexpr int m_gridCount = m_small ? 6 : 20;
-	static constexpr b3Fixed m_extent = m_small ? B3_FIX( 0.75f ) : B3_FIX( 2.5f );
+	static constexpr float m_extent = m_small ? 0.75f : 2.5f;
 
 	b3BodyId* m_bodyIds;
 	int m_bodyCount;
@@ -1423,7 +1426,7 @@ public:
 	{
 		if ( context->restart == false )
 		{
-			m_camera->SetView( 45.0f, 30.0f, 125.0f, b3Pos_zero );
+			m_camera->SetView( 45.0f, 30.0f, 125.0f, SampleOrigin() );
 			GetGuiDraw()->drawJoints = false;
 		}
 
@@ -1458,7 +1461,7 @@ public:
 	{
 		if ( context->restart == false )
 		{
-			m_camera->SetView( 45.0f, 20.0f, 150.0f, { B3_FIX( 0.0f ), B3_FIX( 15.0f ), B3_FIX( 0.0f ) } );
+			m_camera->SetView( 45.0f, 20.0f, 150.0f, SamplePos( { B3_FIX( 0.0f ), B3_FIX( 15.0f ), B3_FIX( 0.0f ) } ) );
 		}
 
 		CreateConvexPile( m_worldId );
