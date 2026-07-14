@@ -700,6 +700,108 @@ static int TestMeshDrop( void )
 	return 0;
 }
 
+// Regression for the impulse-cap wrap fix in contact_solver.c. The friction
+// clamp compares a squared impulse length against b3FixMul( maxImpulse,
+// maxImpulse ), and those squared forms wrap int64 once an operand reaches
+// 2^23.5 ~ 1.19e7 units. A dense cube slammed into high-friction ground is
+// physically legal content that crosses that line: the impact normal impulse
+// is ~4.6e6 units, so the friction cap (friction 3.0, the Driving sample's
+// tire value) is ~1.4e7 - inside [1.19e7, 1.68e7), where the wrapped squared
+// cap comes out negative and the clamp fires on EVERY compare. The misfired
+// clamp rescales the friction impulse UP to the cap, so "friction" pumped
+// energy INTO the slide and the box never stopped sliding. With the gated
+// 128-bit cold path the clamp is exact and friction only ever removes energy.
+// Runs on both a hull ground (wide convex solver) and a flat mesh ground
+// (mesh solver).
+static int FrictionCapWrapScene( bool useMeshGround )
+{
+	b3WorldDef worldDef = b3DefaultWorldDef();
+	worldDef.workerCount = 1;
+	b3WorldId worldId = b3CreateWorld( &worldDef );
+
+	b3MeshData* meshData = NULL;
+	{
+		b3BodyDef groundBodyDef = b3DefaultBodyDef();
+		b3ShapeDef groundShapeDef = b3DefaultShapeDef();
+		groundShapeDef.baseMaterial.friction = B3_FIX( 3.0f );
+
+		if ( useMeshGround )
+		{
+			b3BodyId groundId = b3CreateBody( worldId, &groundBodyDef );
+			meshData = b3CreateWaveMesh( 20, 20, B3_FIX( 4.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) );
+			b3CreateMeshShape( groundId, &groundShapeDef, meshData, b3Vec3_one );
+		}
+		else
+		{
+			groundBodyDef.position = (b3Pos){ B3_FIX( 0.0f ), -B3_FIX( 1.0f ), B3_FIX( 0.0f ) };
+			b3BodyId groundId = b3CreateBody( worldId, &groundBodyDef );
+			b3BoxHull groundBox = b3MakeBoxHull( B3_FIX( 100.0f ), B3_FIX( 1.0f ), B3_FIX( 100.0f ) );
+			b3CreateHullShape( groundId, &groundShapeDef, &groundBox.base );
+		}
+	}
+
+	// Start the cube just above the ground so the contact pair exists before
+	// the impact (no dependence on continuous collision at these speeds)
+	b3BodyDef bodyDef = b3DefaultBodyDef();
+	bodyDef.type = b3_dynamicBody;
+	bodyDef.position = (b3Pos){ B3_FIX( 0.0f ), B3_FIX( 0.51f ), B3_FIX( 0.0f ) };
+	bodyDef.linearVelocity = (b3Vec3){ B3_FIX( 3.0f ), -B3_FIX( 70.0f ), B3_FIX( 1.0f ) };
+	b3BodyId bodyId = b3CreateBody( worldId, &bodyDef );
+
+	b3BoxHull box = b3MakeCubeHull( B3_FIX( 0.5f ) );
+	b3ShapeDef shapeDef = b3DefaultShapeDef();
+	// 1 m^3 at this density puts the impact normal impulse past the cap wrap
+	// point when multiplied by friction 3.0 (heavier is not possible: 65536 is
+	// the largest mass whose inverse is representable)
+	shapeDef.density = B3_FIX( 65536.0f );
+	shapeDef.baseMaterial.friction = B3_FIX( 3.0f );
+	shapeDef.baseMaterial.rollingResistance = B3_FIX( 1.0f );
+	b3CreateHullShape( bodyId, &shapeDef, &box.base );
+
+	b3Fixed timeStep = b3FixDiv( B3_FIX( 1.0f ) , B3_FIX( 60.0f ) );
+	int subStepCount = 4;
+
+	b3Fixed startSpeed = b3Length( bodyDef.linearVelocity );
+	b3Fixed maxSpeed = startSpeed;
+
+	for ( int i = 0; i < 120; ++i )
+	{
+		b3World_Step( worldId, timeStep, subStepCount );
+		b3Fixed speed = b3Length( b3Body_GetLinearVelocity( bodyId ) );
+		maxSpeed = b3FixMax( maxSpeed, speed );
+	}
+
+	b3Fixed finalSpeed = b3Length( b3Body_GetLinearVelocity( bodyId ) );
+	b3Fixed finalSpin = b3Length( b3Body_GetAngularVelocity( bodyId ) );
+	b3Pos position = b3Body_GetPosition( bodyId );
+
+	b3DestroyWorld( worldId );
+	if ( meshData != NULL )
+	{
+		b3DestroyMesh( meshData );
+	}
+
+	// A correct clamp only ever removes energy; the wrapped clamp made the box
+	// gain speed from friction
+	ENSURE( maxSpeed <= startSpeed + B3_FIX( 1.0f ) );
+	ENSURE( finalSpeed < B3_FIX( 1.0f ) );
+	ENSURE( finalSpin < B3_FIX( 1.0f ) );
+	ENSURE( position.y > -B3_FIX( 1.0f ) && position.y < B3_FIX( 5.0f ) );
+
+	return 0;
+}
+
+static int TestFrictionCapWrap( void )
+{
+	int result = FrictionCapWrapScene( false );
+	if ( result != 0 )
+	{
+		return result;
+	}
+
+	return FrictionCapWrapScene( true );
+}
+
 // Verifies the b3*_Overflow solver path. The scene puts >B3_DYNAMIC_COLOR_COUNT
 // dyn-dyn contacts on a single hub body so several land in the overflow color.
 // The new Prepare/Store contactId-pairing asserts in contact_solver.c fire here
@@ -1081,6 +1183,7 @@ int WorldTest( void )
 	RUN_SUBTEST( TestHitEvents );
 	RUN_SUBTEST( TestCompoundHitEvents );
 	RUN_SUBTEST( TestMeshDrop );
+	RUN_SUBTEST( TestFrictionCapWrap );
 	RUN_SUBTEST( TestOverflowColorPile );
 	RUN_SUBTEST( SetBulletDriftTest );
 	RUN_SUBTEST( EnableSleepFlagSyncTest );

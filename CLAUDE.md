@@ -824,11 +824,33 @@ Fixes landed in session 2 (beyond the session-1 list):
    Regression: TestParallelJointSentinelTorqueCap (verified red pre-fix).
    Audit rule: a sentinel-derived value that later gets SQUARED (or multiplied
    by anything >= 1) wraps even when the first product was safe. The contact
-   solver's friction/twist caps (`b3FixMul(maxImpulse, maxImpulse)` in
-   contact_solver.c scalar + wide) square PHYSICAL impulses (μ·normal), which
-   fit today by ~12x margin at convex_pile scale (audit numbers) — flagged as
-   follow-up, do not blindly re-pattern them without touching scalar and wide
-   identically.
+   solver's friction/rolling caps square PHYSICAL impulses (μ·normal) the same
+   way — THAT FOLLOW-UP IS FIXED (2026-07-14, same day): the extended range
+   audit measured the true cap operand (the per-iteration manifold normal sum,
+   NOT the 5.8e6 per-point event accumulator, which is never squared) at
+   1.65e6 in convex_pile → cap 0.99e6 at friction 0.6, only 12x under the
+   2^23.5 ~ 1.19e7 wrap, with friction/density/body-scale all linear
+   multipliers; and for caps in [1.19e7, 1.68e7) the wrapped square is
+   NEGATIVE, so the clamp fired on every compare and rescaled the friction
+   impulse UP (energy injection, reachable by legal heavy/high-friction
+   content). All six squared-cap sites (scalar mesh, wide convex, wide mesh ×
+   friction/rolling) now gate every compare operand on B3_IMPULSE_CAP_GATE
+   (2^38 raw = 4.19e6 units; below it no 64-bit intermediate can wrap and the
+   historical code runs verbatim = bit-identical for all existing content);
+   past the gate a cold path in contact_solver.c compares at 128 bits
+   mirroring each site's exact rounding (unfused two-term friction form,
+   fused three-term rolling form, per-site epsilon placement), with the clamp
+   divisor from the 64-bit squared length when it did not wrap and from the
+   raw 128-bit sum when it did. Scalar and wide share the cold helpers
+   lane-wise, so they cannot diverge; the gate also makes the hot path's
+   int64-addition UB unreachable. Twist caps are symmetric clamps (no
+   squaring) and stay unguarded. Regression: TestFrictionCapWrap in
+   test_world.c (hull ground = wide convex, mesh ground = mesh path; a
+   65536-mass cube — the largest whose inverse mass is representable — onto
+   friction-3.0 ground lands the cap mid-wrap-window; verified red at
+   e63f161). The range audit now also covers the scalar mesh solver and
+   tracks the real clamp operands (iter normal sum, friction/rolling/twist
+   cap channels).
 5. **Degenerate simplexes are common** in fixed point (support points quantize
    to identical values). GJK (`src/distance.c`) flushes cached simplexes with
    duplicate vertices and restarts (instead of restoring an empty backup) when
