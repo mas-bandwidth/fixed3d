@@ -850,7 +850,19 @@ Fixes landed in session 2 (beyond the session-1 list):
    friction-3.0 ground lands the cap mid-wrap-window; verified red at
    e63f161). The range audit now also covers the scalar mesh solver and
    tracks the real clamp operands (iter normal sum, friction/rolling/twist
-   cap channels).
+   cap channels). VERIFIED: all 22 suites + goldens 287/0xE7D52285 in
+   Release and Debug+VALIDATE+ASan/UBSan on arm64 scalar, and on Zen 4
+   AVX-512 with clang-18 Release, gcc-13 Release LTO AND no-LTO (the divq /
+   dedup lesson), and clang-18 Debug+VALIDATE+ASan/UBSan. COST (interleaved
+   min-of-3 A/B, both sides LTO, gates folded to one bias-and-OR compare
+   per site): convex_pile +0.5-0.7% on M3 scalar, +1.05% on Zen 4 AVX-512
+   (3/3 pairs — the friction-site gate is the only addition convex_pile
+   executes; its rolling resistance is zero); rain (scalar mesh) and
+   trees100 (wide mesh) are a wash. Accepted as the price of the
+   correctness fix — there is no zero-cost formulation that keeps the
+   clamp exact in both misfire directions, and the lazy alternative
+   (verify only when the 64-bit compare fires) still misses wrapped
+   never-fire compares and costs MORE in cone-saturated scenes.
 5. **Degenerate simplexes are common** in fixed point (support points quantize
    to identical values). GJK (`src/distance.c`) flushes cached simplexes with
    duplicate vertices and restarts (instead of restoring an empty backup) when
