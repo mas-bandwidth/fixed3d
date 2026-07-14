@@ -614,10 +614,10 @@ typedef struct
 {
 	int viewportWidth;
 	int viewportHeight;
-	b3Vec2 viewportPixelSize;
-	b3Vec2 ndcToViewMul;
-	b3Vec2 ndcToViewAdd;
-	b3Vec2 ndcToViewMul_x_PixelSize;
+	Vec2 viewportPixelSize;
+	Vec2 ndcToViewMul;
+	Vec2 ndcToViewAdd;
+	Vec2 ndcToViewMul_x_PixelSize;
 	GtaoTraceParams params;
 } GtaoUboInputs;
 
@@ -631,13 +631,13 @@ static GtaoUboInputs ComputeUboInputs( const Mat4* proj, int viewportWidth, int 
 	GtaoUboInputs in;
 	in.viewportWidth = viewportWidth;
 	in.viewportHeight = viewportHeight;
-	in.viewportPixelSize = (b3Vec2){ 1.0f / (float)viewportWidth, 1.0f / (float)viewportHeight };
+	in.viewportPixelSize = (Vec2){ 1.0f / (float)viewportWidth, 1.0f / (float)viewportHeight };
 
 	const float tanHalfFOVY = 1.0f / proj->cy.y;
 	const float tanHalfFOVX = 1.0f / proj->cx.x;
-	in.ndcToViewMul = (b3Vec2){ tanHalfFOVX * 2.0f, tanHalfFOVY * -2.0f };
-	in.ndcToViewAdd = (b3Vec2){ tanHalfFOVX * -1.0f, tanHalfFOVY * 1.0f };
-	in.ndcToViewMul_x_PixelSize = (b3Vec2){
+	in.ndcToViewMul = (Vec2){ tanHalfFOVX * 2.0f, tanHalfFOVY * -2.0f };
+	in.ndcToViewAdd = (Vec2){ tanHalfFOVX * -1.0f, tanHalfFOVY * 1.0f };
+	in.ndcToViewMul_x_PixelSize = (Vec2){
 		in.ndcToViewMul.x * in.viewportPixelSize.x,
 		in.ndcToViewMul.y * in.viewportPixelSize.y,
 	};

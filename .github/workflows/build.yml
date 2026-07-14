@@ -41,7 +41,7 @@ jobs:
           # Pure MSVC cannot build the fixed-point core (no __int128); all
           # Windows coverage uses clang-cl. No Windows ASan: clang-cl rejects
           # /MTd with -fsanitize=address, and macos/ubuntu cover sanitizers.
-          # Box3D is width-4 SIMD only, so this covers the clang-cl toolchain, not AVX2.
+          # Fixed3D is width-4 SIMD only, so this covers the clang-cl toolchain, not AVX2.
           - name: windows-clang-cl
             os: windows-latest
             msvc: true

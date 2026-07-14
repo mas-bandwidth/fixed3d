@@ -11,7 +11,7 @@
 #include <string.h>
 
 // Per-frame array of label entries. Cap and per-entry text length are sized
-// for the highest-density label scene we expect (Box3D's body names + joint
+// for the highest-density label scene we expect (Fixed3D's body names + joint
 // types + contact IDs on a busy demo). Bump if a real scene saturates. The
 // text fits inline so an entry stays small and we don't need a second arena
 // for the strings.
@@ -21,7 +21,7 @@
 typedef struct TextSlot
 {
 	TextSpace space;
-	b3Vec3 worldPos;
+	b3Vec3 worldPos; // eye-relative fixed meters (already differenced against the draw origin by the caller)
 	int screenX;
 	int screenY;
 	Vec4 color;
@@ -67,6 +67,10 @@ static void PublishSlot( const TextSlot* slot )
 	s_count += 1;
 }
 
+// worldPos is eye-relative fixed meters: callers difference against the draw
+// origin in fixed point before submitting (draw.c ToRelative, debug_adapter.c
+// b3SubPos against GetDrawOrigin). It stays fixed through storage and crosses
+// to float by value in ProjectWorldToScreen when the label is projected.
 void DrawString( b3Vec3 worldPos, Vec4 color, const char* text )
 {
 	TextSlot* slot = AppendSlot( color, text );

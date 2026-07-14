@@ -31,7 +31,7 @@
 
 #pragma sokol @ctype mat4 Mat4
 #pragma sokol @ctype vec4 Vec4
-#pragma sokol @ctype vec3 b3Vec3
+#pragma sokol @ctype vec3 Vec3
 
 #pragma sokol @vs vs
 

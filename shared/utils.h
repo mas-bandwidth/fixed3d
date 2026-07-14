@@ -23,6 +23,23 @@ int GetNumberOfCores( void );
 }
 #endif
 
+// World origin that every scene in this repo — samples, benchmarks, profiling
+// runs, and the shared scene builders — places its content around: 100 km out
+// on all three axes. Fixed point has uniform precision everywhere, so working
+// far from (0,0,0) at all times enforces the large-world claim continuously:
+// any regression that only manifests away from the origin shows up in every
+// benchmark run and every sample session, not just in a dedicated test. This
+// is deliberately a constant with no setter — nothing can opt back to the
+// origin. Moving it invalidates the determinism goldens in
+// test/test_determinism.c (rerun and update them per the procedure there).
+#define SCENE_ORIGIN_COORDINATE B3_FIX( 100000.0f )
+
+B3_INLINE b3Pos GetSceneOrigin( void )
+{
+	b3Pos origin = { SCENE_ORIGIN_COORDINATE, SCENE_ORIGIN_COORDINATE, SCENE_ORIGIN_COORDINATE };
+	return origin;
+}
+
 // Simple random number generator. Using this instead of rand() for cross platform determinism.
 B3_INLINE int RandomInt()
 {

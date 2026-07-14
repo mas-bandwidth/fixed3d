@@ -160,13 +160,15 @@ public:
 	// camera itself then lives in meters, so radius and speeds read in meters.
 	void SetRenderTransform( float lengthUnitsPerMeter, bool zUp );
 
-	// Eye in simulation space (length units). The renderer shifts simulation-space
-	// geometry against this. The view folds in the sim->display map afterward. With
-	// an identity transform this is just m_worldEye.
+	// Eye in simulation space, exact fixed point. The renderer shifts
+	// simulation-space geometry against this in fixed point (b3SubPos is exact),
+	// so the floats downstream only ever see small eye-relative meters and the
+	// draw origin never loses precision or overflows — at 100 km, at 1e7 m,
+	// anywhere in the representable range. Do NOT round-trip this through float:
+	// the old float form saturated int64 for eyes beyond ~32 km.
 	b3Pos DrawOrigin() const
 	{
-		Vec4 e = MulMV4( m_renderXformInv, MakeVec4( m_worldEye.x, m_worldEye.y, m_worldEye.z, 1.0f ) );
-		return b3Pos{ b3FixFromFloat( e.x ), b3FixFromFloat( e.y ), b3FixFromFloat( e.z ) };
+		return m_worldEye;
 	}
 
 	// Cull box for b3World_Draw, in simulation space (length units): a cube of the

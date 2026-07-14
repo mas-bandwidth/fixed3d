@@ -47,7 +47,7 @@ void* ptr = b3World_GetUserData(worldId);
 
 ## Coordinate Systems
 
-Box3D uses a right-handed coordinate system. Positive Y is up by default,
+Fixed3D uses a right-handed coordinate system. Positive Y is up by default,
 meaning the default gravity vector points in the negative Y direction
 (`{0, B3_FIX( -10.0f ), 0}`). Nothing in the engine hard-codes this — gravity
 is just a `b3Vec3` set on the world and you can orient it however your
@@ -57,17 +57,17 @@ Use MKS units: meters, kilograms, seconds, and radians. The solver is tuned for
 objects in the range of roughly 0.1 to 10 meters. Very small or very large
 objects relative to this range can degrade numerical stability. If your content
 is authored at a different unit scale, apply a single conversion factor at the
-boundary between your asset pipeline and Box3D, not scattered throughout the
+boundary between your asset pipeline and Fixed3D, not scattered throughout the
 simulation code.
 
-Bodies in Box3D have 6 degrees of freedom. Position is a `b3Vec3`, orientation
+Bodies in Fixed3D have 6 degrees of freedom. Position is a `b3Vec3`, orientation
 is a `b3Quat`, angular velocity and torque are `b3Vec3` values. The rotational
 inertia tensor is a `b3Matrix3`.
 
 ## Debug Drawing
 
 Implement the function pointers in `b3DebugDraw` to get detailed drawing of the
-Box3D world. The struct lives in `types.h` and has slots for:
+Fixed3D world. The struct lives in `types.h` and has slots for:
 
 - `DrawShapeFcn` — draws a shape; receives a user-shape object created by
   `b3WorldDef::createDebugShape` and the current transform and color.
@@ -126,7 +126,7 @@ The samples application demonstrates a complete `b3DebugDraw` implementation.
 
 ## Limitations
 
-Box3D uses several approximations to simulate rigid body physics efficiently.
+Fixed3D uses several approximations to simulate rigid body physics efficiently.
 As a v0.1 engine it is still maturing, so expect rougher edges than Box2D.
 
 Current limitations:

@@ -257,6 +257,17 @@ asserts pinning the field offsets saved us twice during refactors.
   ignored, so `-b large_pyramid` (space instead of `=`) runs the full
   suite and looks like a hang. Erroring on unknown args would have saved
   us an embarrassing hour.
+- **Sample text helpers have no printf format attribute:** your
+  `Sample::DrawTextLine`, `DrawString3D`, and `DrawScreenStringFormat`
+  (e961bfb samples/sample.h:183 and the gfx headers) are varargs with no
+  `__attribute__(( format( printf, ... ) ))`, so -Wformat is blind to
+  their call sites. Adding the attribute (the core's b3Log already has
+  it) immediately caught real varargs UB in your own sample code that we
+  inherited: `uint64_t` material ids printed with `%d`
+  (e961bfb samples/sample_events.cpp:221, plus the compound/collision
+  material readouts) and a `uint64_t` tick count through `%ld` — broken
+  on Windows where long is 32-bit. Three lines of attribute, compiler
+  finds the rest.
 
 ---
 

@@ -1,5 +1,5 @@
 @echo off
-rem Use this batch file to generate Visual Studio 2022 project files for box3d.
+rem Use this batch file to generate Visual Studio 2022 project files for Fixed3D.
 rem
 rem Usage:
 rem   build_vs2022.bat          Configure or update project files in build\

@@ -18,7 +18,7 @@ public:
 	{
 		if ( m_context->restart == false )
 		{
-			m_camera->SetView( 0.0f, 15.0f, 5.0f, b3Pos_zero );
+			m_camera->SetView( 0.0f, 15.0f, 5.0f, SampleOrigin() );
 		}
 
 		m_hull = nullptr;
@@ -39,9 +39,9 @@ public:
 
 	void UpdateRotation()
 	{
-		b3Quat qx = b3MakeQuatFromAxisAngle( b3Vec3_axisX, B3_DEG_TO_RAD * m_rotation.x );
-		b3Quat qy = b3MakeQuatFromAxisAngle( b3Vec3_axisY, B3_DEG_TO_RAD * m_rotation.y );
-		b3Quat qz = b3MakeQuatFromAxisAngle( b3Vec3_axisZ, B3_DEG_TO_RAD * m_rotation.z );
+		b3Quat qx = b3MakeQuatFromAxisAngle( b3Vec3_axisX, b3FixMul( B3_DEG_TO_RAD, m_rotation.x ) );
+		b3Quat qy = b3MakeQuatFromAxisAngle( b3Vec3_axisY, b3FixMul( B3_DEG_TO_RAD, m_rotation.y ) );
+		b3Quat qz = b3MakeQuatFromAxisAngle( b3Vec3_axisZ, b3FixMul( B3_DEG_TO_RAD, m_rotation.z ) );
 
 		m_transform.q = b3MulQuat( qz, b3MulQuat( qy, qx ) );
 	}
@@ -113,10 +113,11 @@ public:
 
 	void Render() override
 	{
-		DrawHull( b3WorldTransform_identity, m_hull, MakeColor( b3_colorYellow ) );
-		DrawHull( b3WorldTransform_identity, &m_box.base, MakeColor( b3_colorCyan ) );
+		b3WorldTransform originTransform = { SampleOrigin(), b3Quat_identity };
+		DrawHull( originTransform, m_hull, MakeColor( b3_colorYellow ) );
+		DrawHull( originTransform, &m_box.base, MakeColor( b3_colorCyan ) );
 
-		DrawAxes( b3WorldTransform_identity, 1.0f );
+		DrawAxes( originTransform, 1.0f );
 
 		Sample::Render();
 	}
@@ -144,7 +145,7 @@ public:
 	{
 		if ( m_context->restart == false )
 		{
-			m_camera->SetView( 0.0f, 15.0f, 5.0f, b3Pos_zero );
+			m_camera->SetView( 0.0f, 15.0f, 5.0f, SampleOrigin() );
 		}
 
 		m_hull = nullptr;
@@ -208,12 +209,13 @@ public:
 
 	void Render() override
 	{
+		b3WorldTransform originTransform = { SampleOrigin(), b3Quat_identity };
 		if ( m_hull != nullptr )
 		{
-			DrawHull( b3WorldTransform_identity, m_hull, MakeColor( b3_colorYellow ) );
+			DrawHull( originTransform, m_hull, MakeColor( b3_colorYellow ) );
 		}
 
-		DrawAxes( b3WorldTransform_identity, 1.0f );
+		DrawAxes( originTransform, 1.0f );
 
 		Sample::Render();
 	}
@@ -245,7 +247,7 @@ public:
 	{
 		if ( m_context->restart == false )
 		{
-			m_camera->SetView( 0.0f, 15.0f, 5.0f, b3Pos_zero );
+			m_camera->SetView( 0.0f, 15.0f, 5.0f, SampleOrigin() );
 		}
 
 		m_hull = nullptr;
@@ -334,14 +336,15 @@ public:
 
 	void Render() override
 	{
+		b3WorldTransform originTransform = { SampleOrigin(), b3Quat_identity };
 		if ( m_hull != nullptr )
 		{
-			DrawHull( b3WorldTransform_identity, m_hull, MakeColor( b3_colorYellow ) );
+			DrawHull( originTransform, m_hull, MakeColor( b3_colorYellow ) );
 
 			DrawTextLine( "v/f/e = %d/%d/%d", m_hull->vertexCount, m_hull->faceCount, m_hull->edgeCount / 2 );
 		}
 
-		DrawAxes( b3WorldTransform_identity, 1.0f );
+		DrawAxes( originTransform, 1.0f );
 
 		Sample::Render();
 	}
@@ -368,10 +371,10 @@ public:
 	{
 		if ( m_context->restart == false )
 		{
-			m_camera->SetView( 0.0f, 15.0f, 5.0f, b3Pos_zero );
+			m_camera->SetView( 0.0f, 15.0f, 5.0f, SampleOrigin() );
 		}
 
-		m_original = b3CreateCylinder( 1.0f, B3_FIX( 0.5f ), 0.0f, 9 );
+		m_original = b3CreateCylinder( B3_FIX( 1.0f ), B3_FIX( 0.5f ), B3_FIX( 0.0f ), 9 );
 		m_box = b3MakeBoxHull( B3_FIX( 0.5f ), B3_FIX( 0.5f ), B3_FIX( 0.5f ) );
 		// m_original = &m_box.base;
 		m_scale = { B3_FIX( 1.0f ), B3_FIX( 1.0f ), B3_FIX( 1.0f ) };
@@ -394,9 +397,9 @@ public:
 	{
 		b3DestroyHull( m_hull );
 
-		b3Quat qx = b3MakeQuatFromAxisAngle( b3Vec3_axisX, m_angles.x * B3_PI / 180.0f );
-		b3Quat qy = b3MakeQuatFromAxisAngle( b3Vec3_axisY, m_angles.y * B3_PI / 180.0f );
-		b3Quat qz = b3MakeQuatFromAxisAngle( b3Vec3_axisZ, m_angles.z * B3_PI / 180.0f );
+		b3Quat qx = b3MakeQuatFromAxisAngle( b3Vec3_axisX, b3FixMul( m_angles.x, B3_PI ) / 180 );
+		b3Quat qy = b3MakeQuatFromAxisAngle( b3Vec3_axisY, b3FixMul( m_angles.y, B3_PI ) / 180 );
+		b3Quat qz = b3MakeQuatFromAxisAngle( b3Vec3_axisZ, b3FixMul( m_angles.z, B3_PI ) / 180 );
 		b3Quat q = b3MulQuat( qz, b3MulQuat( qy, qx ) );
 
 		m_hull = b3CloneAndTransformHull( m_original, { m_offset, q }, m_scale );
@@ -404,16 +407,18 @@ public:
 
 	void Render() override
 	{
-		b3Transform transform1 = { { B3_FIX( -2.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, b3Quat_identity };
-		b3Transform transform2 = { { B3_FIX( 2.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, b3Quat_identity };
+		b3Transform transform1 = { SamplePos( { B3_FIX( -2.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) } ), b3Quat_identity };
+		b3Transform transform2 = { SamplePos( { B3_FIX( 2.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) } ), b3Quat_identity };
 
+		b3WorldTransform originTransform = { SampleOrigin(), b3Quat_identity };
 		DrawHull( b3MakeWorldTransform( transform1 ), m_original, MakeColor( b3_colorGreen ) );
 		DrawHull( b3MakeWorldTransform( transform2 ), m_hull, MakeColor( b3_colorYellow ) );
-		DrawAxes( b3WorldTransform_identity, 1.0f );
+		DrawAxes( originTransform, 1.0f );
 
-		DrawTextLine( "hull 1: area = %g, volume = %g, radius = %g", m_original->surfaceArea, m_original->volume,
-					  m_original->innerRadius );
-		DrawTextLine( "hull 2: area = %g, volume = %g, radius = %g", m_hull->surfaceArea, m_hull->volume, m_hull->innerRadius );
+		DrawTextLine( "hull 1: area = %g, volume = %g, radius = %g", b3FixToDouble( m_original->surfaceArea ),
+					  b3FixToDouble( m_original->volume ), b3FixToDouble( m_original->innerRadius ) );
+		DrawTextLine( "hull 2: area = %g, volume = %g, radius = %g", b3FixToDouble( m_hull->surfaceArea ),
+					  b3FixToDouble( m_hull->volume ), b3FixToDouble( m_hull->innerRadius ) );
 
 		Sample::Render();
 	}
@@ -496,14 +501,14 @@ public:
 	{
 		if ( m_context->restart == false )
 		{
-			m_camera->SetView( 0.0f, 15.0f, 5.0f, b3Pos_zero );
+			m_camera->SetView( 0.0f, 15.0f, 5.0f, SampleOrigin() );
 		}
 
 		m_radius = 1.0f;
 		m_length = 2.0f;
 		m_sides = 6;
 		m_capsule = { { b3FixFromFloat( -0.5f * m_length ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, { b3FixFromFloat( 0.5f * m_length ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, b3FixFromFloat( m_radius ) };
-		m_box = b3MakeBoxHull( m_radius + 0.5f * m_length, m_radius, m_radius );
+		m_box = b3MakeBoxHull( b3FixFromFloat( m_radius + 0.5f * m_length ), b3FixFromFloat( m_radius ), b3FixFromFloat( m_radius ) );
 
 		m_hull = nullptr;
 		CreateCapsuleHull( m_sides );
@@ -535,19 +540,20 @@ public:
 		}
 
 		int count = 2 * sides * sides;
-		float d = B3_PI / ( sides - 1.0f );
-		float angle1 = -0.5f * B3_PI;
+		float pi = b3FixToFloat( B3_PI );
+		float d = pi / ( sides - 1.0f );
+		float angle1 = -0.5f * pi;
 		int index = 0;
 		for ( int i = 0; i < sides; ++i )
 		{
 			float s1 = sinf( angle1 );
 			float c1 = cosf( angle1 );
-			float angle2 = -0.5f * B3_PI;
+			float angle2 = -0.5f * pi;
 			for ( int j = 0; j < sides; ++j )
 			{
-				points[index].x = 1.0f + m_radius * c1;
-				points[index].y = m_radius * s1 * cosf( angle2 );
-				points[index].z = m_radius * s1 * sinf( angle2 );
+				points[index].x = b3FixFromFloat( 1.0f + m_radius * c1 );
+				points[index].y = b3FixFromFloat( m_radius * s1 * cosf( angle2 ) );
+				points[index].z = b3FixFromFloat( m_radius * s1 * sinf( angle2 ) );
 				angle2 += d;
 				index += 1;
 			}
@@ -555,17 +561,17 @@ public:
 			angle1 += d;
 		}
 
-		angle1 = 0.5f * B3_PI;
+		angle1 = 0.5f * pi;
 		for ( int i = 0; i < sides; ++i )
 		{
 			float s1 = sinf( angle1 );
 			float c1 = cosf( angle1 );
-			float angle2 = -0.5f * B3_PI;
+			float angle2 = -0.5f * pi;
 			for ( int j = 0; j < sides; ++j )
 			{
-				points[index].x = -1.0f + m_radius * c1;
-				points[index].y = m_radius * s1 * cosf( angle2 );
-				points[index].z = m_radius * s1 * sinf( angle2 );
+				points[index].x = b3FixFromFloat( -1.0f + m_radius * c1 );
+				points[index].y = b3FixFromFloat( m_radius * s1 * cosf( angle2 ) );
+				points[index].z = b3FixFromFloat( m_radius * s1 * sinf( angle2 ) );
 				angle2 += d;
 				index += 1;
 			}
@@ -580,37 +586,38 @@ public:
 
 	void Render() override
 	{
-		DrawSolidCapsule( b3WorldTransform_identity, m_capsule, MakeColorAlpha( b3_colorAqua, 0.8f ) );
-		DrawHull( b3WorldTransform_identity, &m_box.base, MakeColor( b3_colorBlueViolet ) );
+		b3WorldTransform originTransform = { SampleOrigin(), b3Quat_identity };
+		DrawSolidCapsule( originTransform, m_capsule, MakeColorAlpha( b3_colorAqua, 0.8f ) );
+		DrawHull( originTransform, &m_box.base, MakeColor( b3_colorBlueViolet ) );
 
 		if ( m_hull != nullptr )
 		{
-			DrawHull( b3WorldTransform_identity, m_hull, MakeColor( b3_colorYellow ) );
+			DrawHull( originTransform, m_hull, MakeColor( b3_colorYellow ) );
 		}
 
-		DrawAxes( b3WorldTransform_identity, 1.0f );
+		DrawAxes( originTransform, 1.0f );
 
 		if ( m_hull != nullptr )
 		{
-			b3MassData lowerMassData = b3ComputeHullMass( m_hull, 1.0f );
-			b3MassData massData = b3ComputeCapsuleMass( &m_capsule, 1.0f );
-			b3MassData upperMassData = b3ComputeHullMass( &m_box.base, 1.0f );
+			b3MassData lowerMassData = b3ComputeHullMass( m_hull, B3_FIX( 1.0f ) );
+			b3MassData massData = b3ComputeCapsuleMass( &m_capsule, B3_FIX( 1.0f ) );
+			b3MassData upperMassData = b3ComputeHullMass( &m_box.base, B3_FIX( 1.0f ) );
 
-			DrawTextLine( "mass hull:    %g", lowerMassData.mass );
-			DrawTextLine( "mass capsule: %g", massData.mass );
-			DrawTextLine( "mass box:     %g", upperMassData.mass );
+			DrawTextLine( "mass hull:    %g", b3FixToDouble( lowerMassData.mass ) );
+			DrawTextLine( "mass capsule: %g", b3FixToDouble( massData.mass ) );
+			DrawTextLine( "mass box:     %g", b3FixToDouble( upperMassData.mass ) );
 			m_textLine += m_textIncrement;
-			DrawTextLine( "Ixx hull:    %g", lowerMassData.inertia.cx.x );
-			DrawTextLine( "Ixx capsule: %g", massData.inertia.cx.x );
-			DrawTextLine( "Ixx box:     %g", upperMassData.inertia.cx.x );
+			DrawTextLine( "Ixx hull:    %g", b3FixToDouble( lowerMassData.inertia.cx.x ) );
+			DrawTextLine( "Ixx capsule: %g", b3FixToDouble( massData.inertia.cx.x ) );
+			DrawTextLine( "Ixx box:     %g", b3FixToDouble( upperMassData.inertia.cx.x ) );
 			m_textLine += m_textIncrement;
-			DrawTextLine( "Iyy hull:    %g", lowerMassData.inertia.cy.y );
-			DrawTextLine( "Iyy capsule: %g", massData.inertia.cy.y );
-			DrawTextLine( "Iyy box:     %g", upperMassData.inertia.cy.y );
+			DrawTextLine( "Iyy hull:    %g", b3FixToDouble( lowerMassData.inertia.cy.y ) );
+			DrawTextLine( "Iyy capsule: %g", b3FixToDouble( massData.inertia.cy.y ) );
+			DrawTextLine( "Iyy box:     %g", b3FixToDouble( upperMassData.inertia.cy.y ) );
 			m_textLine += m_textIncrement;
-			DrawTextLine( "Izz hull:    %g", lowerMassData.inertia.cz.z );
-			DrawTextLine( "Izz capsule: %g", massData.inertia.cz.z );
-			DrawTextLine( "Izz box:     %g", upperMassData.inertia.cz.z );
+			DrawTextLine( "Izz hull:    %g", b3FixToDouble( lowerMassData.inertia.cz.z ) );
+			DrawTextLine( "Izz capsule: %g", b3FixToDouble( massData.inertia.cz.z ) );
+			DrawTextLine( "Izz box:     %g", b3FixToDouble( upperMassData.inertia.cz.z ) );
 		}
 
 		Sample::Render();

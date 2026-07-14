@@ -1,6 +1,6 @@
 # Simulation
-Rigid body simulation is the primary feature of Box3D. It is the most complex part of
-Box3D and is the part you will likely interact with the most. Simulation sits on top of
+Rigid body simulation is the primary feature of Fixed3D. It is the most complex part of
+Fixed3D and is the part you will likely interact with the most. Simulation sits on top of
 the foundation and collision layers, so you should be somewhat familiar with those by now.
 
 Rigid body simulation contains:
@@ -18,25 +18,25 @@ Therefore, you may want to quickly skim this section before reading it
 closely.
 
 ## Ids
-Box3D has a C interface. Typically in a C/C++ library when you create an object with a long lifetime
+Fixed3D has a C interface. Typically in a C/C++ library when you create an object with a long lifetime
 you will keep a pointer (or smart pointer) to the object.
 
-Box3D works differently. Instead of pointers, you are given an *id* when you create an object.
+Fixed3D works differently. Instead of pointers, you are given an *id* when you create an object.
 This *id* acts as a [handle](https://en.wikipedia.org/wiki/Handle_(computing)) which helps avoid
 problems with [dangling pointers](https://en.wikipedia.org/wiki/Dangling_pointer).
 
-This also allows Box3D to use [data-oriented design](https://en.wikipedia.org/wiki/Data-oriented_design) internally.
+This also allows Fixed3D to use [data-oriented design](https://en.wikipedia.org/wiki/Data-oriented_design) internally.
 This helps to reduce cache misses drastically and also allows for [SIMD](https://en.wikipedia.org/wiki/Single_instruction,_multiple_data) optimizations.
 
 So you will be dealing with `b3WorldId`, `b3BodyId`, etc. These are small opaque structures that you
-will pass around by value, just like pointers. Box3D creation functions return an id. Functions
-that operate on Box3D objects take ids.
+will pass around by value, just like pointers. Fixed3D creation functions return an id. Functions
+that operate on Fixed3D objects take ids.
 
 ```c
 b3BodyId myBodyId = b3CreateBody(myWorldId, &myBodyDef);
 ```
 
-There are functions to check if an id is valid. Box3D functions will assert if you use an invalid id.
+There are functions to check if an id is valid. Fixed3D functions will assert if you use an invalid id.
 This makes debugging easier than using dangling pointers.
 
 ```c
@@ -68,9 +68,9 @@ if (B3_IS_NON_NULL(myShapeId))
 ```
 
 ## World
-The Box3D world contains the bodies and joints. It manages all aspects
+The Fixed3D world contains the bodies and joints. It manages all aspects
 of the simulation and allows for asynchronous queries (like AABB queries
-and ray-casts). Much of your interactions with Box3D will be with a
+and ray-casts). Much of your interactions with Fixed3D will be with a
 world object, using `b3WorldId`.
 
 ### World Definition
@@ -89,7 +89,7 @@ The world definition has lots of options, but for most you will use the defaults
 worldDef.gravity = (b3Vec3){B3_FIX( 0.0f ), B3_FIX( -10.0f ), B3_FIX( 0.0f )};
 ```
 
-Box3D has no built-in concept of an up direction. Gravity is simply a `b3Vec3` applied to every
+Fixed3D has no built-in concept of an up direction. Gravity is simply a `b3Vec3` applied to every
 dynamic body each step.
 
 If your game doesn't need sleep, you can get a performance boost by completely disabling sleep:
@@ -171,14 +171,14 @@ Here are the body type definitions:
 ### Body Types
 `b3_staticBody`:
 A static body does not move under simulation and behaves as if it has infinite mass.
-Internally, Box3D stores zero for the mass and the inverse mass. A static body has zero
+Internally, Fixed3D stores zero for the mass and the inverse mass. A static body has zero
 velocity. Static bodies do not collide with other static or kinematic bodies.
 
 `b3_kinematicBody`:
 A kinematic body moves under simulation according to its velocity.
 Kinematic bodies do not respond to forces. A kinematic body is moved by setting its
 velocity. A kinematic body behaves as if it has infinite mass, however,
-Box3D stores zero for the mass and the inverse mass. Kinematic bodies do
+Fixed3D stores zero for the mass and the inverse mass. Kinematic bodies do
 not collide with other kinematic or static bodies. Generally you should use
 a kinematic body if you want a shape to be animated and not affected by
 forces or collisions.
@@ -190,10 +190,10 @@ finite, non-zero mass.
 
 > **Caution**:
 > Generally you should not set the transform on bodies after creation.
-> Box3D treats this as a teleport and may result in undesirable behavior and/or performance problems.
+> Fixed3D treats this as a teleport and may result in undesirable behavior and/or performance problems.
 
 Bodies carry shapes and move them around in the world. Bodies are always
-rigid bodies in Box3D. That means two shapes attached to the same rigid body never move
+rigid bodies in Fixed3D. That means two shapes attached to the same rigid body never move
 relative to each other, and shapes attached to the same body don't collide.
 
 Shapes have collision geometry and density. Normally, bodies acquire
@@ -210,7 +210,7 @@ Before a body is created you must create a body definition (`b3BodyDef`).
 The body definition holds the data needed to create and initialize a
 body correctly.
 
-Because Box3D uses a C API, a function is provided to create a default
+Because Fixed3D uses a C API, a function is provided to create a default
 body definition.
 
 ```c
@@ -219,7 +219,7 @@ b3BodyDef myBodyDef = b3DefaultBodyDef();
 
 This ensures the body definition is valid and this initialization is **mandatory**.
 
-Box3D copies the data out of the body definition; it does not keep a
+Fixed3D copies the data out of the body definition; it does not keep a
 pointer to the body definition. This means you can recycle a body
 definition to create multiple bodies.
 
@@ -246,7 +246,7 @@ A body has two main points of interest. The first point is the body's
 origin. Shapes and joints are attached relative to the body's origin.
 The second point of interest is the center of mass. The center of mass
 is determined from the mass distribution of the attached shapes or is
-explicitly set using `b3MassData`. Much of Box3D's internal computations
+explicitly set using `b3MassData`. Much of Fixed3D's internal computations
 use the center of mass position. For example the body stores the linear
 velocity for the center of mass, not the body origin.
 
@@ -311,8 +311,8 @@ bodyDef.gravityScale = B3_FIX( 0.0f );
 ```
 
 ### Sleep Parameters
-When a body comes to rest, Box3D can stop simulating it to save CPU time.
-This is called *sleeping*. When Box3D determines that a body (or group of bodies)
+When a body comes to rest, Fixed3D can stop simulating it to save CPU time.
+This is called *sleeping*. When Fixed3D determines that a body (or group of bodies)
 has come to rest, the body enters a sleep state which has very little CPU overhead.
 If a body is awake and collides with a sleeping body, then the sleeping body
 wakes up. Bodies will also wake up if a joint or contact attached to
@@ -331,7 +331,7 @@ The `isAwake` flag is ignored if `enableSleep` is false.
 ### Motion Locks
 In 3D you sometimes want to restrict a body to a subset of its six degrees of freedom.
 For example, you might want a door hinge that only rotates about the Y axis, or a
-platform that only translates along X. Box3D provides `b3MotionLocks` for this:
+platform that only translates along X. Fixed3D provides `b3MotionLocks` for this:
 
 ```c
 b3MotionLocks locks = {0};
@@ -362,7 +362,7 @@ objects incorrectly pass through each other. This effect is called
 
 ![Tunneling 2](images/tunneling2.svg)
 
-By default, Box3D uses continuous collision detection (CCD) to prevent
+By default, Fixed3D uses continuous collision detection (CCD) to prevent
 dynamic bodies from tunneling through static bodies. This is done by
 sweeping shapes from their old position to their new positions. The
 engine looks for new collisions during the sweep and computes the time
@@ -379,7 +379,7 @@ to use CCD. For example, you may want to shoot a high speed bullet at a
 stack of dynamic bricks. Without CCD, the bullet might tunnel through
 the bricks.
 
-Fast moving objects in Box3D can be configured as *bullets*. Bullets will
+Fast moving objects in Fixed3D can be configured as *bullets*. Bullets will
 perform CCD with all body types, but **not** other bullets. You should decide what
 bodies should be bullets based on your game design. If you decide a body
 should be treated as a bullet, use the following setting.
@@ -442,11 +442,11 @@ b3DestroyBody(myBodyId);
 myBodyId = b3_nullBodyId;
 ```
 
-Box3D does not keep a reference to the body definition or any of the
+Fixed3D does not keep a reference to the body definition or any of the
 data it holds (except user data pointers). So you can create temporary
 body definitions and reuse the same body definitions.
 
-Box3D allows you to avoid destroying bodies by destroying the world
+Fixed3D allows you to avoid destroying bodies by destroying the world
 directly using `b3DestroyWorld()`, which does all the cleanup work for you.
 However, you should be mindful to nullify body ids that you keep in your application.
 
@@ -521,7 +521,7 @@ Please see the comments on these functions for more details.
 ### Position and Velocity
 You can access the position and orientation of a body. This is common when
 rendering your associated game object. You can also set the position and orientation,
-although this is less common since you will normally use Box3D to
+although this is less common since you will normally use Fixed3D to
 simulate movement.
 
 ```c
@@ -532,7 +532,7 @@ b3Quat rotation = b3Body_GetRotation(myBodyId);
 ```
 
 You can access the center of mass position in local and world
-coordinates. Much of the internal simulation in Box3D uses the center of
+coordinates. Much of the internal simulation in Fixed3D uses the center of
 mass. However, you should normally not need to access it. Instead you
 will usually work with the body transform. For example, you may have a
 body that is a box. The body origin might be a corner of the box,
@@ -586,8 +586,8 @@ b3Body_ApplyLinearImpulseToCenter(myBodyId, linearImpulse, wake);
 ```
 
 > **Caution**:
-> Since Box3D uses sub-stepping, you should not apply a steady impulse
-> for several frames. Instead you should apply a force which Box3D will
+> Since Fixed3D uses sub-stepping, you should not apply a steady impulse
+> for several frames. Instead you should apply a force which Fixed3D will
 > spread out evenly across the sub-steps, resulting in smoother movement.
 
 ### Coordinate Transformations
@@ -632,7 +632,7 @@ While you can gather transforms from all your bodies after every time step, this
 Many bodies may not have moved because they are sleeping. Also iterating across many bodies
 will have lots of cache misses.
 
-Box3D provides `b3BodyEvents` that you can access after every call to `b3World_Step()` to get
+Fixed3D provides `b3BodyEvents` that you can access after every call to `b3World_Step()` to get
 an array of body movement events. Since this data is contiguous, it is cache friendly.
 
 ```c
@@ -726,14 +726,14 @@ b3Body_ApplyMassFromShapes(myBodyId);
 ### Friction
 
 Friction is used to make objects slide along each other realistically.
-Box3D supports static and dynamic friction, but uses the same parameter
-for both. Box3D attempts to simulate friction accurately and the friction
+Fixed3D supports static and dynamic friction, but uses the same parameter
+for both. Fixed3D attempts to simulate friction accurately and the friction
 strength is proportional to the normal force. This is called [Coulomb
 friction](https://en.wikipedia.org/wiki/Friction). The friction parameter
 is usually set between 0 and 1, but
 can be any non-negative value. A friction value of 0 turns off friction
 and a value of 1 makes the friction strong. When the friction force is
-computed between two shapes, Box3D must combine the friction parameters
+computed between two shapes, Fixed3D must combine the friction parameters
 of the two parent shapes. This is done with the
 [geometric mean](https://en.wikipedia.org/wiki/Geometric_mean):
 
@@ -767,7 +767,7 @@ Restitution is combined this way so that you can have a bouncy super
 ball without having a bouncy floor.
 
 When a shape develops multiple contacts, restitution is simulated
-approximately. This is because Box3D uses a sequential solver. Box3D
+approximately. This is because Fixed3D uses a sequential solver. Fixed3D
 also uses inelastic collisions when the collision velocity is small.
 This is done to prevent jitter. See `b3WorldDef::restitutionThreshold`.
 
@@ -806,10 +806,10 @@ Collision filtering allows you to efficiently prevent collision between shapes.
 For example, say you make a character that rides a bicycle. You want the
 bicycle to collide with the terrain and the character to collide with
 the terrain, but you don't want the character to collide with the
-bicycle (because they must overlap). Box3D supports such collision
+bicycle (because they must overlap). Fixed3D supports such collision
 filtering using categories, masks, and groups.
 
-Box3D supports 64 collision categories (stored as `uint64_t`). For each shape you can specify
+Fixed3D supports 64 collision categories (stored as `uint64_t`). For each shape you can specify
 which category it belongs to. You can also specify what other categories
 this shape can collide with. For example, you could specify in a
 multiplayer game that players don't collide with each other. Rather
@@ -872,7 +872,7 @@ according the category and mask bits. If two shapes have the
 same non-zero group index, then this overrides the category and mask.
 Collision groups have a higher priority than categories and masks.
 
-Note that additional collision filtering occurs automatically in Box3D. Here is a
+Note that additional collision filtering occurs automatically in Fixed3D. Here is a
 list:
 
 - A shape on a static body can only collide with a dynamic body.
@@ -996,14 +996,14 @@ Sensor events are only enabled for shapes if `b3ShapeDef::enableSensorEvents` is
 > sensor events, potentially causing bugs in game logic.
 
 ## Contacts
-Contacts are internal objects created by Box3D to manage collision between pairs of
+Contacts are internal objects created by Fixed3D to manage collision between pairs of
 shapes. They are fundamental to rigid body simulation in games.
 
 ### Terminology
 Contacts have a fair bit of terminology that are important to review.
 
 #### contact point
-A contact point is a point where two shapes touch. Box3D approximates
+A contact point is a point where two shapes touch. Fixed3D approximates
 contact with a small number of points.
 
 #### contact normal
@@ -1022,23 +1022,23 @@ contact.
 
 #### normal impulse
 The normal force is the force applied at a contact point to prevent the
-shapes from penetrating. For convenience, Box3D uses impulses. The
+shapes from penetrating. For convenience, Fixed3D uses impulses. The
 normal impulse is just the normal force multiplied by the time step. Since
-Box3D uses sub-stepping, this is the sub-step time step.
+Fixed3D uses sub-stepping, this is the sub-step time step.
 
 #### tangent impulse
 The tangent force is generated at a contact point to simulate friction.
 For convenience, this is stored as an impulse.
 
 #### contact point id
-Box3D tries to re-use the contact impulse results from a time step as the
-initial guess for the next time step. Box3D uses contact point ids to match
+Fixed3D tries to re-use the contact impulse results from a time step as the
+initial guess for the next time step. Fixed3D uses contact point ids to match
 contact points across time steps. The ids contain geometric feature
 indices that help to distinguish one contact point from another.
 
 #### speculative contact
-When two shapes are close together, Box3D will create contact
-points even if the shapes are not touching. This lets Box3D anticipate
+When two shapes are close together, Fixed3D will create contact
+points even if the shapes are not touching. This lets Fixed3D anticipate
 collision to improve behavior. Speculative contact points have positive
 separation.
 
@@ -1052,12 +1052,12 @@ are not touching (just their AABBs). Well, this is correct. It's a
 "chicken or egg" problem. We don't know if we need a contact object
 until one is created to analyze the collision. We could delete the
 contact right away if the shapes are not touching, or we can just wait
-until the AABBs stop overlapping. Box3D takes the latter approach
+until the AABBs stop overlapping. Fixed3D takes the latter approach
 because it lets the system cache information to improve performance.
 
 ### Contact Data
 As mentioned before, the contact is created and destroyed by
-Box3D automatically. Contact data is not created by the user. However, you are
+Fixed3D automatically. Contact data is not created by the user. However, you are
 able to access the contact data.
 
 You can get contact data from shapes or bodies. The contact data
@@ -1166,7 +1166,7 @@ for (int i = 0; i < contactEvents.hitCount; ++i)
 
 Shapes only generate hit events if `b3ShapeDef::enableHitEvents` is true.
 Only enable this for shapes that need hit events because
-it creates some overhead. Box3D also only reports hit events that have an
+it creates some overhead. Fixed3D also only reports hit events that have an
 approach speed larger than `b3WorldDef::hitEventThreshold`.
 
 ### Contact Filtering
@@ -1195,7 +1195,7 @@ bool MyCustomFilter(b3ShapeId shapeIdA, b3ShapeId shapeIdB, void* context)
 b3World_SetCustomFilterCallback(myWorldId, MyCustomFilter, myGame);
 ```
 
-This function must be [thread-safe](https://en.wikipedia.org/wiki/Thread_safety) and must not read from or write to the Box3D world. Otherwise you will get a [race condition](https://en.wikipedia.org/wiki/Race_condition).
+This function must be [thread-safe](https://en.wikipedia.org/wiki/Thread_safety) and must not read from or write to the Fixed3D world. Otherwise you will get a [race condition](https://en.wikipedia.org/wiki/Race_condition).
 
 #### Pre-Solve Callback
 This is called after collision detection, but before collision
@@ -1203,9 +1203,9 @@ resolution. This gives you a chance to disable the contact based on the contact 
 
 The contact will be re-enabled each time through collision processing,
 so you will need to disable the contact every time-step. This function must be thread-safe
-and must not read from or write to the Box3D world.
+and must not read from or write to the Fixed3D world.
 
-The pre-solve callback for Box3D receives the two shape ids, the contact point, and the contact normal:
+The pre-solve callback for Fixed3D receives the two shape ids, the contact point, and the contact normal:
 
 ```c
 bool MyPreSolve(b3ShapeId shapeIdA, b3ShapeId shapeIdB,
@@ -1263,7 +1263,7 @@ the default behavior and you must set `collideConnected` to true
 to allow collision between two connected bodies.
 
 Many joint definitions require that you provide some geometric data.
-In Box3D joints use *local frames* (`b3Transform localFrameA` and `b3Transform localFrameB`)
+In Fixed3D joints use *local frames* (`b3Transform localFrameA` and `b3Transform localFrameB`)
 rather than anchor points. The local frame specifies both the attachment point and the
 orientation axes used to measure joint quantities. These frames are specified in the local
 space of the attached bodies. This way the joint can be specified even when the
@@ -1296,7 +1296,7 @@ It is always good to nullify your ids after they are destroyed.
 Joint lifetime is related to body lifetime. Joints cannot exist detached from a body.
 So when a body is destroyed, all joints attached to that body are automatically destroyed.
 This means you need to be careful to avoid using joint ids when the attached body was
-destroyed. Box3D will assert if you use a dangling joint id.
+destroyed. Fixed3D will assert if you use a dangling joint id.
 
 > **Caution**:
 > Joints are destroyed when an attached body is destroyed.
@@ -1329,7 +1329,7 @@ void* myUserData = b3Joint_GetUserData(myJointId);
 
 All joints have a reaction force and torque. Reaction forces are
 related to the [free body diagram](https://en.wikipedia.org/wiki/Free_body_diagram).
-The Box3D convention is that the reaction force
+The Fixed3D convention is that the reaction force
 is applied to body B at the anchor point. You can use reaction forces to
 break joints or trigger other game events. These functions may do some
 computations, so don't call them if you don't need the result.
@@ -1522,7 +1522,7 @@ bodies. Both translation and rotation can have spring-damper softness.
 See `b3WeldJointDef` and the `Cantilever` sample for details.
 
 It is tempting to use the weld joint to define breakable structures.
-However, the Box3D solver is approximate so the joints can be soft in some
+However, the Fixed3D solver is approximate so the joints can be soft in some
 cases regardless of the joint settings. So chains of bodies connected by weld
 joints may flex.
 
@@ -1696,7 +1696,7 @@ ray-casts, and shape-casts. These allow you to do things like:
 
 ### Overlap Queries
 Sometimes you want to determine all the shapes in a region. The world has a fast
-log(N) method for this using the broad-phase data structure. Box3D provides these
+log(N) method for this using the broad-phase data structure. Fixed3D provides these
 overlap tests:
 - axis-aligned bounding box (AABB) overlap
 - shape proxy overlap
@@ -1901,7 +1901,7 @@ Like ray-casts, shape-cast results may be sent to the callback in any order. If 
 
 ![Simulation Loop](images/simulation_loop.svg)
 
-The Box3D simulation loop can be useful to understand when you process results.
+The Fixed3D simulation loop can be useful to understand when you process results.
 
 Multithreading is represented in the diagram.
 - rectangles are parallel-for work
@@ -1913,10 +1913,10 @@ Let's review each of these stages.
 The game starts the simulation by calling `b3World_Step` supplying the time step.
 
 ### find pairs
-Box3D maintains a record of every shape that has moved. For each of these shapes the broad-phase
+Fixed3D maintains a record of every shape that has moved. For each of these shapes the broad-phase
 (BVH) is queried for overlaps. New overlaps are recorded for processing in the next step. Existing
 overlaps are tracked in a hash set of all existing shape pairs. This operation is a parallel-for.
-Box3D maintains separate BVH trees for static, kinematic, and dynamic bodies.
+Fixed3D maintains separate BVH trees for static, kinematic, and dynamic bodies.
 
 ### create contacts
 This takes the pair results and creates the internal contact pair structure. This
@@ -1984,7 +1984,7 @@ This can result in an inefficient BVH, which is why the `rebuild BVH` stage exis
 BVH but is necessary to ensure the BVH is valid for subsequent queries, such as ray casts.
 
 ### bullets
-This is where bullets are processed. Note that this comes after hit events because continuous collision in Box3D does not
+This is where bullets are processed. Note that this comes after hit events because continuous collision in Fixed3D does not
 generate events until the next time step.
 
 ### island sleep
@@ -1994,14 +1994,14 @@ When an island goes to sleep the simulation data associated with that island is 
 Sensor overlaps are checked in the final stage. The overlap state reflects the final body transform. Sensors do not consider sleep so they may react to the user setting a body transform or creating a sleeping body. This is a parallel-for operation. The cost is roughly proportional to the number of sensors.
 
 ## Determinism
-Box3D is designed to be deterministic across thread counts and platforms. This is important for debugging and game design.
+Fixed3D is designed to be deterministic across thread counts and platforms. This is important for debugging and game design.
 
 Multithreaded determinism is achieved by basing simulation order on creation order. This includes bodies, shapes, and joint creation order. Determinism includes results reported to users (events). These events must be in deterministic order.
 
 Cross-platform determinism is achieved by construction: the simulation is pure integer math (Q48.16 fixed point), which
 behaves identically on every conforming platform.
 - There are no floating-point compiler flags to configure or police.
-- Box3D has custom integer implementations of atan2, cosine, and sine (Q32.32 intermediates).
+- Fixed3D has custom integer implementations of atan2, cosine, and sine (Q32.32 intermediates).
 
 Determinism is on by default and there is no option to disable it; in fixed point no compiler flag can break it.
 (Vanilla float Box3D is also cross-platform deterministic — it uses floating-point discipline to get there: precise
@@ -2010,5 +2010,5 @@ math on MSVC, `-ffp-contract=off` on clang and gcc.)
 A unit test for determinism is run for every pull request. Determinism is easy to break, so it is important to have regular validation.
 
 > **Caution**:
-> Box3D determinism does not mean your application will be deterministic. Consider using similar strategies to make your
-> application deterministic as have been used for Box3D.
+> Fixed3D determinism does not mean your application will be deterministic. Consider using similar strategies to make your
+> application deterministic as have been used for Fixed3D.

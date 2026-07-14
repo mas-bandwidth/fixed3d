@@ -18,7 +18,7 @@ public:
 	{
 		if ( m_context->restart == false )
 		{
-			m_camera->SetView( 35.0f, 30.0f, 50.0f, { B3_FIX( 0.0f ), B3_FIX( 5.0f ), B3_FIX( 0.0f ) } );
+			m_camera->SetView( 35.0f, 30.0f, 50.0f, SamplePos( { B3_FIX( 0.0f ), B3_FIX( 5.0f ), B3_FIX( 0.0f ) } ) );
 		}
 
 		memset( m_points, 0, sizeof( m_points ) );
@@ -26,12 +26,12 @@ public:
 		m_manifold.points = m_points;
 
 		{
-			m_transformA.p = { B3_FIX( 3.5f ), B3_FIX( 0.5f ), B3_FIX( 0.0f ) };
-			m_transformA.q = b3MakeQuatFromAxisAngle( { B3_FIX( 0.0f ), B3_FIX( 1.0f ), B3_FIX( 0.0f ) }, 0.5f * B3_PI );
+			m_transformA.p = SamplePos( { B3_FIX( 3.5f ), B3_FIX( 0.5f ), B3_FIX( 0.0f ) } );
+			m_transformA.q = b3MakeQuatFromAxisAngle( { B3_FIX( 0.0f ), B3_FIX( 1.0f ), B3_FIX( 0.0f ) }, B3_PI / 2 );
 		}
 
 		{
-			m_transformB.p = { B3_FIX( 0.0f ), B3_FIX( 1.5f ), B3_FIX( 3.5f ) };
+			m_transformB.p = SamplePos( { B3_FIX( 0.0f ), B3_FIX( 1.5f ), B3_FIX( 3.5f ) } );
 			m_transformB.q = b3Quat_identity;
 		}
 
@@ -50,17 +50,17 @@ public:
 
 	void Render() override
 	{
-		DrawTextLine( "origin: %g %g %g", m_origin.x, m_origin.y, m_origin.z );
+		DrawTextLine( "origin: %g %g %g", b3FixToDouble( m_origin.x ), b3FixToDouble( m_origin.y ), b3FixToDouble( m_origin.z ) );
 		DrawTextLine( "count = %d", m_manifold.pointCount );
 
-		DrawAxes( b3WorldTransform_identity, 1.0f );
+		DrawAxes( { SampleOrigin(), b3Quat_identity }, 1.0f );
 
 		if ( m_manifold.pointCount == 0 )
 		{
 			return;
 		}
 
-		float length = 0.5f * b3GetLengthUnitsPerMeter();
+		b3Fixed length = b3GetLengthUnitsPerMeter() / 2;
 		b3Vec3 normal = b3RotateVector( m_transformA.q, m_manifold.normal );
 
 		for ( int pointIndex = 0; pointIndex < m_manifold.pointCount; ++pointIndex )
@@ -71,7 +71,7 @@ public:
 
 			DrawLine( point, point + length * normal, MakeColor( b3_colorWhite ) );
 
-			if ( manifoldPoint.separation > 0.0f )
+			if ( manifoldPoint.separation > 0 )
 			{
 				DrawPoint( point, 10.0f, MakeColor( b3_colorWhite ) );
 			}
@@ -80,7 +80,7 @@ public:
 				DrawPoint( point, 10.0f, MakeColor( b3_colorYellow ) );
 			}
 
-			DrawString3D( point, MakeColor( b3_colorWhite ), "   %.3f", manifoldPoint.separation );
+			DrawString3D( point, MakeColor( b3_colorWhite ), "   %.3f", b3FixToDouble( manifoldPoint.separation ) );
 
 			b3Vec3 perp = b3Perp( normal );
 			b3FeaturePair pair = manifoldPoint.pair;
@@ -116,15 +116,15 @@ public:
 		{
 			if ( modifiers & MOD_SHIFT )
 			{
-				m_baseX = p.x;
-				m_baseY = p.y;
+				m_baseX = b3FixRoundToInt( p.x );
+				m_baseY = b3FixRoundToInt( p.y );
 				m_baseQuaternion = m_transformB.q;
 				m_rotating = true;
 			}
 			else
 			{
-				PickRay pickRay = m_camera->BuildPickRay( p.x, p.y );
-				m_origin = pickRay.origin + 10.0f * b3Normalize( pickRay.translation );
+				PickRay pickRay = m_camera->BuildPickRay( b3FixToFloat( p.x ), b3FixToFloat( p.y ) );
+				m_origin = pickRay.origin + B3_FIX( 10.0f ) * b3Normalize( pickRay.translation );
 				m_baseTranslation = m_transformB.p;
 				m_tracking = true;
 			}
@@ -141,18 +141,18 @@ public:
 	{
 		if ( m_tracking )
 		{
-			PickRay pickRay = m_camera->BuildPickRay( p.x, p.y );
-			b3Pos origin = pickRay.origin + 10.0f * b3Normalize( pickRay.translation );
+			PickRay pickRay = m_camera->BuildPickRay( b3FixToFloat( p.x ), b3FixToFloat( p.y ) );
+			b3Pos origin = pickRay.origin + B3_FIX( 10.0f ) * b3Normalize( pickRay.translation );
 			m_transformB.p = m_baseTranslation + b3SubPos( origin, m_origin );
 		}
 
 		if ( m_rotating )
 		{
-			int x = p.x;
-			int y = p.y;
+			int x = b3FixRoundToInt( p.x );
+			int y = b3FixRoundToInt( p.y );
 
-			b3Quat qx = b3MakeQuatFromAxisAngle( b3Vec3_axisY, 0.01f * ( x - m_baseX ) );
-			b3Quat qz = b3MakeQuatFromAxisAngle( b3Vec3_axisZ, 0.01f * ( y - m_baseY ) );
+			b3Quat qx = b3MakeQuatFromAxisAngle( b3Vec3_axisY, b3FixFromFloat( 0.01f * ( x - m_baseX ) ) );
+			b3Quat qz = b3MakeQuatFromAxisAngle( b3Vec3_axisZ, b3FixFromFloat( 0.01f * ( y - m_baseY ) ) );
 			m_transformB.q = b3NormalizeQuat( b3MulQuat( m_baseQuaternion, b3MulQuat( qx, qz ) ) );
 		}
 	}
@@ -183,7 +183,7 @@ public:
 	{
 		if ( m_context->restart == false )
 		{
-			m_camera->SetView( 35.0f, 30.0f, 50.0f, { B3_FIX( 0.0f ), B3_FIX( 5.0f ), B3_FIX( 0.0f ) } );
+			m_camera->SetView( 35.0f, 30.0f, 50.0f, SamplePos( { B3_FIX( 0.0f ), B3_FIX( 5.0f ), B3_FIX( 0.0f ) } ) );
 		}
 
 		m_manifold = {};
@@ -191,12 +191,12 @@ public:
 		m_manifold.points = m_points;
 
 		{
-			m_transformA.p = { B3_FIX( 3.5f ), B3_FIX( 0.5f ), B3_FIX( 0.0f ) };
-			m_transformA.q = b3MakeQuatFromAxisAngle( { B3_FIX( 0.0f ), B3_FIX( 1.0f ), B3_FIX( 0.0f ) }, 0.5f * B3_PI );
+			m_transformA.p = SamplePos( { B3_FIX( 3.5f ), B3_FIX( 0.5f ), B3_FIX( 0.0f ) } );
+			m_transformA.q = b3MakeQuatFromAxisAngle( { B3_FIX( 0.0f ), B3_FIX( 1.0f ), B3_FIX( 0.0f ) }, B3_PI / 2 );
 		}
 
 		{
-			m_transformB.p = { B3_FIX( 0.0f ), B3_FIX( 1.5f ), B3_FIX( 3.5f ) };
+			m_transformB.p = SamplePos( { B3_FIX( 0.0f ), B3_FIX( 1.5f ), B3_FIX( 3.5f ) } );
 			m_transformB.q = b3Quat_identity;
 		}
 
@@ -216,16 +216,16 @@ public:
 
 	void Render() override
 	{
-		DrawTextLine( "origin: %g %g %g", m_origin.x, m_origin.y, m_origin.z );
+		DrawTextLine( "origin: %g %g %g", b3FixToDouble( m_origin.x ), b3FixToDouble( m_origin.y ), b3FixToDouble( m_origin.z ) );
 		DrawTextLine( "count = %d", m_manifold.pointCount );
 		DrawTextLine( "feature = %d", m_manifold.feature );
 		DrawTextLine( "cache hit = %d", m_satCache.hit );
 
-		DrawAxes( b3WorldTransform_identity, 1.0f );
+		DrawAxes( { SampleOrigin(), b3Quat_identity }, 1.0f );
 
 		if ( m_manifold.pointCount > 0 )
 		{
-			float length = 0.5f * b3GetLengthUnitsPerMeter();
+			b3Fixed length = b3GetLengthUnitsPerMeter() / 2;
 			b3Vec3 normal = b3RotateVector( m_transformB.q, m_manifold.normal );
 
 			for ( int pointIndex = 0; pointIndex < m_manifold.pointCount; ++pointIndex )
@@ -235,7 +235,7 @@ public:
 				b3Pos point = b3TransformWorldPoint( m_transformB, manifoldPoint.point );
 				DrawLine( point, point + length * normal, MakeColor( b3_colorWhite ) );
 
-				if ( manifoldPoint.separation > 0.0f )
+				if ( manifoldPoint.separation > 0 )
 				{
 					DrawPoint( point, 10.0f, MakeColor( b3_colorWhite ) );
 				}
@@ -244,7 +244,7 @@ public:
 					DrawPoint( point, 10.0f, MakeColor( b3_colorYellow ) );
 				}
 
-				DrawString3D( point, MakeColor( b3_colorWhite ), "  %.2f", 100.0f * manifoldPoint.separation );
+				DrawString3D( point, MakeColor( b3_colorWhite ), "  %.2f", 100.0f * b3FixToFloat( manifoldPoint.separation ) );
 
 				b3FeaturePair pair = manifoldPoint.pair;
 				DrawString3D( point + B3_FIX( 0.025f ) * normal, MakeColor( b3_colorPapayaWhip ), "  %X:%X %X:%X", pair.owner1, pair.index1,
@@ -262,7 +262,7 @@ public:
 		DrawString3D( p3, MakeColor( b3_colorWhite ), "2" );
 
 		b3Vec3 normal = b3Normalize( b3Cross( p2 - p1, p3 - p1 ) );
-		b3Pos center = p1 + ( 1.0f / 3.0f ) * ( ( p2 - p1 ) + ( p3 - p1 ) );
+		b3Pos center = p1 + B3_FIX( 1.0f / 3.0f ) * ( ( p2 - p1 ) + ( p3 - p1 ) );
 		DrawArrow( center, center + B3_FIX( 0.5f ) * normal, MakeColor( b3_colorMediumPurple ) );
 
 		Sample::Render();
@@ -293,15 +293,15 @@ public:
 		{
 			if ( modifiers & MOD_SHIFT )
 			{
-				m_baseX = p.x;
-				m_baseY = p.y;
+				m_baseX = b3FixRoundToInt( p.x );
+				m_baseY = b3FixRoundToInt( p.y );
 				m_baseQuaternion = m_transformB.q;
 				m_rotating = true;
 			}
 			else
 			{
-				PickRay pickRay = m_camera->BuildPickRay( p.x, p.y );
-				m_origin = pickRay.origin + 10.0f * b3Normalize( pickRay.translation );
+				PickRay pickRay = m_camera->BuildPickRay( b3FixToFloat( p.x ), b3FixToFloat( p.y ) );
+				m_origin = pickRay.origin + B3_FIX( 10.0f ) * b3Normalize( pickRay.translation );
 				m_baseTranslation = m_transformB.p;
 				m_tracking = true;
 			}
@@ -318,18 +318,18 @@ public:
 	{
 		if ( m_tracking )
 		{
-			PickRay pickRay = m_camera->BuildPickRay( p.x, p.y );
-			b3Pos origin = pickRay.origin + 10.0f * b3Normalize( pickRay.translation );
+			PickRay pickRay = m_camera->BuildPickRay( b3FixToFloat( p.x ), b3FixToFloat( p.y ) );
+			b3Pos origin = pickRay.origin + B3_FIX( 10.0f ) * b3Normalize( pickRay.translation );
 			m_transformB.p = m_baseTranslation + b3SubPos( origin, m_origin );
 		}
 
 		if ( m_rotating )
 		{
-			int x = p.x;
-			int y = p.y;
+			int x = b3FixRoundToInt( p.x );
+			int y = b3FixRoundToInt( p.y );
 
-			b3Quat qx = b3MakeQuatFromAxisAngle( b3Vec3_axisY, 0.01f * ( x - m_baseX ) );
-			b3Quat qz = b3MakeQuatFromAxisAngle( b3Vec3_axisZ, 0.01f * ( y - m_baseY ) );
+			b3Quat qx = b3MakeQuatFromAxisAngle( b3Vec3_axisY, b3FixFromFloat( 0.01f * ( x - m_baseX ) ) );
+			b3Quat qz = b3MakeQuatFromAxisAngle( b3Vec3_axisZ, b3FixFromFloat( 0.01f * ( y - m_baseY ) ) );
 			m_transformB.q = b3NormalizeQuat( b3MulQuat( m_baseQuaternion, b3MulQuat( qx, qz ) ) );
 		}
 	}
@@ -405,8 +405,8 @@ public:
 		m_capsule = { { B3_FIX( -2.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, { B3_FIX( 2.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, B3_FIX( 1.0f ) };
 		m_sphere = { { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, B3_FIX( 2.0f ) };
 
-		m_transformA = { { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, b3Quat_identity };
-		m_transformB = { { B3_FIX( -4.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, b3Quat_identity };
+		m_transformA = { SampleOrigin(), b3Quat_identity };
+		m_transformB = { SamplePos( { B3_FIX( -4.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) } ), b3Quat_identity };
 	}
 
 	void Render() override
@@ -436,10 +436,10 @@ public:
 		: Manifold( sampleContext )
 	{
 		m_sphere = { { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, B3_FIX( 1.0f ) };
-		m_hull = b3MakeBoxHull( 2.0f, B3_FIX( 0.5f ), B3_FIX( 0.5f ) );
+		m_hull = b3MakeBoxHull( B3_FIX( 2.0f ), B3_FIX( 0.5f ), B3_FIX( 0.5f ) );
 
-		m_transformA = { { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, b3Quat_identity };
-		m_transformB = { { B3_FIX( 1.5f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, b3Quat_identity };
+		m_transformA = { SampleOrigin(), b3Quat_identity };
+		m_transformB = { SamplePos( { B3_FIX( 1.5f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) } ), b3Quat_identity };
 	}
 
 	void Render() override
@@ -485,7 +485,7 @@ public:
 	{
 		if ( m_context->restart == false )
 		{
-			m_camera->SetView( 0.0f, 30.0f, 10.0f, b3Pos_zero );
+			m_camera->SetView( 0.0f, 30.0f, 10.0f, SampleOrigin() );
 		}
 
 		m_sphere = { { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, B3_FIX( 0.25f ) };
@@ -496,8 +496,8 @@ public:
 		// b3Quat qA = b3MakeQuatFromAxisAngle( { 0.0f, 1.0f, 0.0f }, 2.0f );
 		// m_transformA = { { 1.0f, 1.0f, 0.0f }, qA };
 
-		m_transformA = b3WorldTransform_identity;
-		m_transformB = { { B3_FIX( 2.0f ), B3_FIX( 0.5f ), B3_FIX( 1.0f ) }, b3Quat_identity };
+		m_transformA = { SampleOrigin(), b3Quat_identity };
+		m_transformB = { SamplePos( { B3_FIX( 2.0f ), B3_FIX( 0.5f ), B3_FIX( 1.0f ) } ), b3Quat_identity };
 	}
 
 	void Render() override
@@ -533,8 +533,8 @@ public:
 	{
 		m_capsule = { { B3_FIX( -2.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, { B3_FIX( 2.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, B3_FIX( 1.0f ) };
 
-		m_transformA = { { B3_FIX( 1.0f ), B3_FIX( 1.0f ), B3_FIX( 0.0f ) }, b3Quat_identity };
-		m_transformB = { { B3_FIX( -4.0f ), B3_FIX( 1.0f ), B3_FIX( 0.0f ) }, b3Quat_identity };
+		m_transformA = { SamplePos( { B3_FIX( 1.0f ), B3_FIX( 1.0f ), B3_FIX( 0.0f ) } ), b3Quat_identity };
+		m_transformB = { SamplePos( { B3_FIX( -4.0f ), B3_FIX( 1.0f ), B3_FIX( 0.0f ) } ), b3Quat_identity };
 	}
 
 	void Render() override
@@ -569,14 +569,14 @@ public:
 	{
 		if ( m_context->restart == false )
 		{
-			m_camera->SetView( 0.0f, 30.0f, 5.0f, b3Pos_zero );
+			m_camera->SetView( 0.0f, 30.0f, 5.0f, SampleOrigin() );
 		}
 
 		m_capsule = { { B3_FIX( -1.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, { B3_FIX( 1.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, B3_FIX( 0.15f ) };
-		m_hull = b3MakeBoxHull( 1.0f, B3_FIX( 0.5f ), B3_FIX( 0.5f ) );
+		m_hull = b3MakeBoxHull( B3_FIX( 1.0f ), B3_FIX( 0.5f ), B3_FIX( 0.5f ) );
 
-		m_transformA = { { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, b3Quat_identity };
-		m_transformB = { { B3_FIX( 0.0f ), B3_FIX( 1.0f ), B3_FIX( 0.0f ) }, b3Quat_identity };
+		m_transformA = { SampleOrigin(), b3Quat_identity };
+		m_transformB = { SamplePos( { B3_FIX( 0.0f ), B3_FIX( 1.0f ), B3_FIX( 0.0f ) } ), b3Quat_identity };
 
 		/*
 			p	[ 1.58523774, 0.729615569, 0.451690674 ]	b3Vec3
@@ -586,7 +586,7 @@ public:
 		//	{ 0.0799999982, -0.0151330000, -0.0918010026 }, { -0.0799999982, -0.0151330000, -0.0918010026 }, 0.100000001 };
 		// m_hull = b3CreateBox( { 0.5f, 1.0f, 1.5f } );
 
-		m_transformB = { { B3_FIX( 1.58523774 ), B3_FIX( 0.729615569 ), B3_FIX( 0.451690674 ) },
+		m_transformB = { SamplePos( { B3_FIX( 1.58523774 ), B3_FIX( 0.729615569 ), B3_FIX( 0.451690674 ) } ),
 						 { { B3_FIX( -0.00256555085 ), B3_FIX( -0.0201825816 ), B3_FIX( 0.126076236 ) }, B3_FIX( 0.991811991 ) } };
 	}
 
@@ -633,7 +633,7 @@ public:
 	{
 		if ( m_context->restart == false )
 		{
-			m_camera->SetView( 0.0f, 30.0f, 10.0f, b3Pos_zero );
+			m_camera->SetView( 0.0f, 30.0f, 10.0f, SampleOrigin() );
 		}
 
 		m_capsule = { { B3_FIX( -0.5f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, { B3_FIX( 0.5f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, B3_FIX( 0.05f ) };
@@ -641,8 +641,8 @@ public:
 		m_triangle[1] = { B3_FIX( -4.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
 		m_triangle[2] = { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
 
-		m_transformA = b3WorldTransform_identity;
-		m_transformB = { { B3_FIX( -1.0f ), B3_FIX( 0.0f ), B3_FIX( -1.0f ) }, b3Quat_identity };
+		m_transformA = { SampleOrigin(), b3Quat_identity };
+		m_transformB = { SamplePos( { B3_FIX( -1.0f ), B3_FIX( 0.0f ), B3_FIX( -1.0f ) } ), b3Quat_identity };
 	}
 
 	void Render() override
@@ -684,13 +684,13 @@ public:
 	{
 		if ( m_context->restart == false )
 		{
-			m_camera->SetView( 0.0f, 15.0f, 4.0f, b3Pos_zero );
+			m_camera->SetView( 0.0f, 15.0f, 4.0f, SampleOrigin() );
 		}
 
 		// m_boxA = b3MakeTransformedBoxHull( 0.5f, 0.5f, 0.5f, { { 0.0f, -0.5f, 0.0f }, b3Quat_identity } );
 
 		b3Transform transform = { { B3_FIX( 1.0f ), B3_FIX( 0.5f ), B3_FIX( 0.0f ) }, b3Quat_identity };
-		m_boxA = b3MakeTransformedBoxHull( B3_FIX( 0.5f ), 1.0f, 1.0f, transform );
+		m_boxA = b3MakeTransformedBoxHull( B3_FIX( 0.5f ), B3_FIX( 1.0f ), B3_FIX( 1.0f ), transform );
 
 		// m_hull = CreateConvex( 0.6f, 0.0f, 0.95f, 1.0f, context->arena );
 		m_hullA = &m_boxA.base;
@@ -708,8 +708,8 @@ public:
 +		q	[ [ 0.00000000, 0.00000000, 0.00000000 ], 1.00000000 ]	b3Quat
 
 		*/
-		m_transformA = { { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, b3Quat_identity };
-		m_transformB = { { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, b3Quat_identity };
+		m_transformA = { SampleOrigin(), b3Quat_identity };
+		m_transformB = { SampleOrigin(), b3Quat_identity };
 
 		/*
 			p	[ 0.691772044, 0.951781273, 0.0741987228 ]	b3Vec3
@@ -737,23 +737,28 @@ public:
 	b3HullData* CreateConvex( float radius1, float height1, float radius2, float height2 ) const
 	{
 		constexpr int sideCount = 32;
-		const float deltaAlpha = 2.0f * B3_PI / sideCount;
+		const b3Fixed deltaAlpha = 2 * B3_PI / sideCount;
 
 		int vertexCount = 2 * sideCount;
 		b3Vec3 vertexBase[2 * sideCount];
 
-		float alpha = 0.0f;
+		b3Fixed r1 = b3FixFromFloat( radius1 );
+		b3Fixed h1 = b3FixFromFloat( height1 );
+		b3Fixed r2 = b3FixFromFloat( radius2 );
+		b3Fixed h2 = b3FixFromFloat( height2 );
+
+		b3Fixed alpha = 0;
 		for ( int sideIndex = 0; sideIndex < sideCount; ++sideIndex )
 		{
 			b3CosSin cs = b3ComputeCosSin( alpha );
 
-			float x1 = radius1 * cs.cosine;
-			float z1 = radius1 * cs.sine;
-			float x2 = radius2 * cs.cosine;
-			float z2 = radius2 * cs.sine;
+			b3Fixed x1 = b3FixMul( r1, cs.cosine );
+			b3Fixed z1 = b3FixMul( r1, cs.sine );
+			b3Fixed x2 = b3FixMul( r2, cs.cosine );
+			b3Fixed z2 = b3FixMul( r2, cs.sine );
 
-			vertexBase[2 * sideIndex + 0] = { b3FixFromFloat( x1 ), b3FixFromFloat( height1 ), b3FixFromFloat( z1 ) };
-			vertexBase[2 * sideIndex + 1] = { b3FixFromFloat( x2 ), b3FixFromFloat( height2 ), b3FixFromFloat( z2 ) };
+			vertexBase[2 * sideIndex + 0] = { x1, h1, z1 };
+			vertexBase[2 * sideIndex + 1] = { x2, h2, z2 };
 			alpha += deltaAlpha;
 		}
 
@@ -822,7 +827,7 @@ public:
 	{
 		if ( m_context->restart == false )
 		{
-			m_camera->SetView( 0.0f, 30.0f, 3.0f, b3Pos_zero );
+			m_camera->SetView( 0.0f, 30.0f, 3.0f, SampleOrigin() );
 		}
 
 		//m_triangle[0] = { 1.00000000, 0, 1.00000000 };
@@ -833,15 +838,15 @@ public:
 		m_triangle[0x00000001] = { B3_FIX( -1.82879996 ), B3_FIX( -0.0253999997 ), B3_FIX( -0.406399995 ) };
 		m_triangle[0x00000002] = { B3_FIX( -1.79069996 ), B3_FIX( 0.00000000 ), B3_FIX( -0.406399995 ) };
 
-		float SRC = 0.0254f;
-		float bodyHalfWidth = 16.0f * SRC;
-		float bodyHalfHeight = 36.0f * SRC;
+		b3Fixed SRC = B3_FIX( 0.0254f );
+		b3Fixed bodyHalfWidth = 16 * SRC;
+		b3Fixed bodyHalfHeight = 36 * SRC;
 
 		m_boxHull = b3MakeBoxHull( bodyHalfWidth, bodyHalfHeight, bodyHalfWidth );
 
-		m_transformA = b3WorldTransform_identity;
+		m_transformA = { SampleOrigin(), b3Quat_identity };
 		m_transformB = b3WorldTransform_identity;
-		m_transformB.p = { B3_FIX( -2.16650009f ), B3_FIX( 0.912535489f ), B3_FIX( 0.00000000f ) };
+		m_transformB.p = SamplePos( { B3_FIX( -2.16650009f ), B3_FIX( 0.912535489f ), B3_FIX( 0.00000000f ) } );
 
 		// b3MeshEdgeFlags
 		m_flags = 0;
@@ -864,7 +869,7 @@ public:
 
 		m_satCache = {};
 		m_useCache = false;
-		m_cylinder = b3CreateCylinder( B3_FIX( 0.4f ), B3_FIX( 0.05f ), 0.0f, 6 );
+		m_cylinder = b3CreateCylinder( B3_FIX( 0.4f ), B3_FIX( 0.05f ), B3_FIX( 0.0f ), 6 );
 		m_hull = &m_boxHull.base;
 	}
 

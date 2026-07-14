@@ -59,10 +59,10 @@
 #pragma pack(push,1)
 SOKOL_SHDC_ALIGN(16) typedef struct gtao_main_pass_ub_gtao_t {
     int ViewportSize[2];
-    b3Vec2 ViewportPixelSize;
-    b3Vec2 NDCToViewMul;
-    b3Vec2 NDCToViewAdd;
-    b3Vec2 NDCToViewMul_x_PixelSize;
+    Vec2 ViewportPixelSize;
+    Vec2 NDCToViewMul;
+    Vec2 NDCToViewAdd;
+    Vec2 NDCToViewMul_x_PixelSize;
     float EffectRadius;
     float EffectFalloffRange;
     float RadiusMultiplier;

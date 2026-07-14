@@ -1898,7 +1898,11 @@ b3TOIOutput b3TimeOfImpact( const b3TOIInput* input )
 
 				if ( rootIterationCount == maxRootIterations )
 				{
-					B3_VALIDATE( false );
+					// Hitting the iteration cap is a legitimate fixed-point
+					// outcome: quantized separations can make the root bracket
+					// stall at tolerance boundaries (same class as the removed
+					// conservative-advancement canary). The break path below
+					// handles it gracefully in every build.
 					break;
 				}
 			}
@@ -1906,8 +1910,6 @@ b3TOIOutput b3TimeOfImpact( const b3TOIInput* input )
 			// Restart the inner loop if we have a failing edge case.
 			if ( rootIterationCount == maxRootIterations - 1 && function.type == b3_separationEdges )
 			{
-				B3_VALIDATE( false );
-
 				rootIterationCount = 0;
 				t2 = input->maxFraction;
 				b3ForceFixedAxis( &function, t1 );

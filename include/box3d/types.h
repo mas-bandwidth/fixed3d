@@ -14,23 +14,23 @@
 #define B3_DEFAULT_MASK_BITS UINT64_MAX
 
 /// Task interface
-/// This is the prototype for a Box3D task. Your task system is expected to run this callback on a worker thread,
+/// This is the prototype for a Fixed3D task. Your task system is expected to run this callback on a worker thread,
 /// exactly once per enqueue, passing back the same taskContext pointer supplied to b3EnqueueTaskCallback.
 /// @ingroup world
 typedef void b3TaskCallback( void* taskContext );
 
-/// These functions can be provided to Box3D to invoke a task system.
-/// Returns a pointer to the user's task object. May be nullptr. A nullptr indicates to Box3D that the work was executed
+/// These functions can be provided to Fixed3D to invoke a task system.
+/// Returns a pointer to the user's task object. May be nullptr. A nullptr indicates to Fixed3D that the work was executed
 /// serially within the callback and there is no need to call b3FinishTaskCallback. Otherwise the returned
 /// value must be non-null will be passed to b3FinishTaskCallback as the userTask.
-/// @param task the Box3D task to be called by the scheduler
-/// @param taskContext the Box3D context object that the scheduler must pass to the task
-/// @param userContext the scheduler context object that is opaque to Box3D
-/// @param taskName the Box3D task name that the scheduler can use for diagnostics
+/// @param task the Fixed3D task to be called by the scheduler
+/// @param taskContext the Fixed3D context object that the scheduler must pass to the task
+/// @param userContext the scheduler context object that is opaque to Fixed3D
+/// @param taskName the Fixed3D task name that the scheduler can use for diagnostics
 /// @ingroup world
 typedef void* b3EnqueueTaskCallback( b3TaskCallback* task, void* taskContext, void* userContext, const char* taskName );
 
-/// Finishes a user task object that wraps a Box3D task. This must block until the task has completed.
+/// Finishes a user task object that wraps a Fixed3D task. This must block until the task has completed.
 /// The step blocks here on the tasks it spawned, so b3World_Step holds its stack across every
 /// fork/join. Drive it from a thread you can dedicate to the step, or from a fiber this callback can
 /// park to free the underlying thread. In a job system that cannot park a job's stack, do not call
@@ -49,13 +49,13 @@ typedef void b3DestroyDebugShapeCallback( void* userShape, void* userContext );
 
 /// Optional friction mixing callback. This intentionally provides no context objects because this is called
 /// from a worker thread.
-/// @warning This function should not attempt to modify Box3D state or user application state.
+/// @warning This function should not attempt to modify Fixed3D state or user application state.
 /// @ingroup world
 typedef b3Fixed b3FrictionCallback( b3Fixed frictionA, uint64_t userMaterialIdA, b3Fixed frictionB, uint64_t userMaterialIdB );
 
 /// Optional restitution mixing callback. This intentionally provides no context objects because this is called
 /// from a worker thread.
-/// @warning This function should not attempt to modify Box3D state or user application state.
+/// @warning This function should not attempt to modify Fixed3D state or user application state.
 /// @ingroup world
 typedef b3Fixed b3RestitutionCallback( b3Fixed restitutionA, uint64_t userMaterialIdA, b3Fixed restitutionB, uint64_t userMaterialIdB );
 
@@ -139,7 +139,7 @@ typedef struct b3Capacity
 /// @ingroup world
 typedef struct b3WorldDef
 {
-	/// Gravity vector. Box3D has no up-vector defined.
+	/// Gravity vector. Fixed3D has no up-vector defined.
 	b3Vec3 gravity;
 
 	/// Restitution speed threshold, usually in m/s. Collisions above this
@@ -177,11 +177,11 @@ typedef struct b3WorldDef
 	/// Enable continuous collision
 	bool enableContinuous;
 
-	/// Number of workers to use with the provided task system. Box3D performs best when using only
+	/// Number of workers to use with the provided task system. Fixed3D performs best when using only
 	/// performance cores and accessing a single L2 cache. Efficiency cores and hyper-threading provide
 	/// little benefit and may even harm performance.
 	/// This is clamped to the range [1, B3_MAX_WORKERS]. Using a value above 1 will turn on multithreading.
-	/// If task callbacks are provided then Box3D will use the user provided task system. Otherwise Box3D
+	/// If task callbacks are provided then Fixed3D will use the user provided task system. Otherwise Fixed3D
 	/// will create threads and use an internal scheduler.
 	uint32_t workerCount;
 
@@ -327,7 +327,7 @@ typedef struct b3BodyDef
 	/// I do not recommend using them for game projectiles if precise collision timing is needed. Instead consider
 	/// using a ray or shape cast. You can use a marching ray or shape cast for projectile that moves over time.
 	/// If you want a fast moving projectile to collide with a fast moving target, you need to consider the relative
-	/// movement in your ray or shape cast. This is out of the scope of Box3D.
+	/// movement in your ray or shape cast. This is out of the scope of Fixed3D.
 	/// So what are good use cases for bullets? Pinball games or games with dynamic containers that hold other objects.
 	/// It should be a use case where it doesn't break the game if there is a collision missed, but having them
 	/// captured improves the quality of the game.
@@ -919,7 +919,7 @@ B3_API b3SphericalJointDef b3DefaultSphericalJointDef( void );
 /// Weld joint definition
 /// Connects two bodies together rigidly. This constraint provides springs to mimic
 /// soft-body simulation.
-/// @note The approximate solver in Box3D cannot hold many bodies together rigidly
+/// @note The approximate solver in Fixed3D cannot hold many bodies together rigidly
 /// @ingroup weld_joint
 typedef struct b3WeldJointDef
 {
@@ -1043,7 +1043,7 @@ B3_API b3ExplosionDef b3DefaultExplosionDef( void );
  *
  * Events are used to collect events that occur during the world time step. These events
  * are then available to query after the time step is complete. This is preferable to callbacks
- * because Box3D uses multithreaded simulation.
+ * because Fixed3D uses multithreaded simulation.
  *
  * Also when events occur in the simulation step it may be problematic to modify the world, which is
  * often what applications want to do when events occur.
@@ -1620,9 +1620,9 @@ typedef struct b3TOIOutput
  * @defgroup tree Dynamic Tree
  * The dynamic tree is a binary AABB tree to organize and query large numbers of geometric objects
  *
- * Box3D uses the dynamic tree internally to sort collision shapes into a binary bounding volume hierarchy.
+ * Fixed3D uses the dynamic tree internally to sort collision shapes into a binary bounding volume hierarchy.
  * This data structure may have uses in games for organizing other geometry data and may be used independently
- * of Box3D rigid body simulation.
+ * of Fixed3D rigid body simulation.
  *
  * A dynamic AABB tree broad-phase, inspired by Nathanael Presson's btDbvt.
  * A dynamic tree arranges data in a binary tree to accelerate
@@ -2531,7 +2531,7 @@ typedef bool b3CompoundQueryFcn( const b3CompoundData* compound, int childIndex,
 
 /// A manifold point is a contact point belonging to a contact manifold.
 /// It holds details related to the geometry and dynamics of the contact points.
-/// Box3D uses speculative collision so some contact points may be separated.
+/// Fixed3D uses speculative collision so some contact points may be separated.
 /// You may use the maxNormalImpulse to determine if there was an interaction during
 /// the time step.
 typedef struct b3ManifoldPoint
@@ -2548,7 +2548,7 @@ typedef struct b3ManifoldPoint
 	/// Cached separation used for contact recycling
 	b3Fixed baseSeparation;
 
-	/// The impulse along the manifold normal vector. Since Box3D uses sub-stepping, this is
+	/// The impulse along the manifold normal vector. Since Fixed3D uses sub-stepping, this is
 	/// result from the final sub-step.
 	b3Fixed normalImpulse;
 
@@ -2572,7 +2572,7 @@ typedef struct b3ManifoldPoint
 } b3ManifoldPoint;
 
 /// A contact manifold describes the contact points between colliding shapes.
-/// @note Box3D uses speculative collision so some contact points may be separated.
+/// @note Fixed3D uses speculative collision so some contact points may be separated.
 typedef struct b3Manifold
 {
 	/// The manifold points. There may be 1 to 4 valid points.

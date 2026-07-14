@@ -67,13 +67,14 @@ float SkySunFadeWeight( b3Vec3 dirToSun, bool zUp )
 {
 	// dirToSun is assumed unit-length. The rendering side renormalizes
 	// before calling. sin(elevation) is the component along the sim up axis.
-	float elevSin = zUp ? dirToSun.z : dirToSun.y;
+	// Unit-direction component, small by construction: crosses to float by value.
+	float elevSin = b3FixToFloat( zUp ? dirToSun.z : dirToSun.y );
 	float t = ( elevSin - BELOW_HORIZON_FADE_START_SIN ) / ( BELOW_HORIZON_FADE_END_SIN - BELOW_HORIZON_FADE_START_SIN );
 	t = ( t < 0.0f ) ? 0.0f : ( t > 1.0f ? 1.0f : t );
 	return t * t * ( 3.0f - 2.0f * t );
 }
 
-void DrawSky( b3Vec3 dirToSun, float turbidity, b3Vec3 cameraPos, Mat4 invViewProj, bool zUp )
+void DrawSky( b3Vec3 dirToSun, float turbidity, Vec4 cameraPos, Mat4 invViewProj, bool zUp )
 {
 	if ( !s_sky.ready )
 	{
@@ -82,9 +83,11 @@ void DrawSky( b3Vec3 dirToSun, float turbidity, b3Vec3 cameraPos, Mat4 invViewPr
 
 	// Renormalize defensively. Caller is the renderer with sun.dirToSun
 	// already normalized, but the FS reads sun_dir_world.xyz expecting unit
-	// length and an undetected zero vector here would emit NaNs.
-	const float lenSq = dirToSun.x * dirToSun.x + dirToSun.y * dirToSun.y + dirToSun.z * dirToSun.z;
-	b3Vec3 sun = ( lenSq > 0.0f ) ? b3Normalize( dirToSun ) : b3Vec3_axisY;
+	// length and an undetected zero vector here would emit NaNs. Stays in
+	// fixed point: b3LengthSquared quantizes sub-resolution vectors to zero,
+	// which just sends them down the same fallback as a true zero vector.
+	const b3Fixed lenSq = b3LengthSquared( dirToSun );
+	b3Vec3 sun = ( lenSq > 0 ) ? b3Normalize( dirToSun ) : b3Vec3_axisY;
 
 	const float fade = SkySunFadeWeight( sun, zUp );
 
@@ -94,7 +97,7 @@ void DrawSky( b3Vec3 dirToSun, float turbidity, b3Vec3 cameraPos, Mat4 invViewPr
 	// Sun stays in sim space, the FS rotates it into the model's Y-up frame
 	// alongside the view ray when zUp is set.
 	sky_ub_pass_t up = { 0 };
-	up.sun_dir_world = MakeVec4( sun.x, sun.y, sun.z, fade );
+	up.sun_dir_world = MakeVec4FromFixed( sun.x, sun.y, sun.z, fade );
 	up.sky_params = MakeVec4( turbidity, zUp ? 1.0f : 0.0f, 0.0f, 0.0f );
 	up.camera_pos = MakeVec4( cameraPos.x, cameraPos.y, cameraPos.z, 0.0f );
 

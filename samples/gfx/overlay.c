@@ -284,9 +284,10 @@ void OverlayAppendLine( b3Vec3 a, b3Vec3 b, Vec4 linearColor, float thickness, O
 	}
 	s_overlay.lineCount++;
 
+	// Endpoints arrive eye-relative in fixed point; cross to float meters by value.
 	const Vec4 cpremul = Premultiply( linearColor );
-	inst->a = MakeVec4( a.x, a.y, a.z, thickness );
-	inst->b = MakeVec4( b.x, b.y, b.z, 0.0f );
+	inst->a = MakeVec4FromFixed( a.x, a.y, a.z, thickness );
+	inst->b = MakeVec4FromFixed( b.x, b.y, b.z, 0.0f );
 	inst->color = cpremul;
 	inst->flags[0] = PackThicknessFlag( thicknessUnit );
 	inst->flags[1] = PackOcclusionFlag( occlusionMode );
@@ -312,8 +313,9 @@ void OverlayAppendPoint( b3Vec3 p, Vec4 linearColor, float size, OverlayThicknes
 	}
 	s_overlay.pointCount++;
 
+	// Position arrives eye-relative in fixed point; cross to float meters by value.
 	const Vec4 cpremul = Premultiply( linearColor );
-	inst->p = MakeVec4( p.x, p.y, p.z, size );
+	inst->p = MakeVec4FromFixed( p.x, p.y, p.z, size );
 	inst->color = cpremul;
 	inst->flags[0] = PackThicknessFlag( sizeUnit );
 	inst->flags[1] = PackOcclusionFlag( occlusionMode );
@@ -322,7 +324,7 @@ void OverlayAppendPoint( b3Vec3 p, Vec4 linearColor, float size, OverlayThicknes
 }
 
 void OverlaySubmit( int width, int height, const Mat4* view, const Mat4* viewInv, const Mat4* proj, const Mat4* projInv,
-					b3Vec3 cameraPos, float time,
+					Vec4 cameraPos, float time,
 					sg_view linearDepthView, sg_sampler linearDepthSampler, sg_pixel_format colorFormat,
 					sg_pixel_format depthFormat )
 {

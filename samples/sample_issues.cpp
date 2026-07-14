@@ -18,15 +18,23 @@ public:
 	{
 		if ( context->restart == false )
 		{
-			m_camera->SetView( 45.0f, 30.0f, 15.0f, { B3_FIX( 0.0f ), B3_FIX( 2.0f ), B3_FIX( 0.0f ) } );
+			m_camera->SetView( 45.0f, 30.0f, 15.0f, SamplePos( { B3_FIX( 0.0f ), B3_FIX( 2.0f ), B3_FIX( 0.0f ) } ) );
 			// m_camera->SetView( 45.0f, 30.0f, 300.0f, { 3910.62109f, 9862.50293f, 875.395081f } );
 		}
 
-		b3SetLengthUnitsPerMeter( 1.0f );
+		b3SetLengthUnitsPerMeter( B3_FIX( 1.0f ) );
 
 		const char* dumpPrefix = "data/dumps/single_box/";
 
 #include "dumps/single_box/box3d_dump.inl"
+
+		// The dump is baked generated data authored near the true origin; teleport it
+		// rigidly to the sample origin instead of editing the data.
+		for ( b3BodyId dumpBodyId : bodies )
+		{
+			b3WorldTransform xf = b3Body_GetTransform( dumpBodyId );
+			b3Body_SetTransform( dumpBodyId, b3OffsetPos( SampleOrigin(), xf.p ), xf.q );
+		}
 	}
 
 	~DumpLoader() override
@@ -36,7 +44,7 @@ public:
 			b3DestroyMesh( md );
 		}
 
-		b3SetLengthUnitsPerMeter( 1.0f );
+		b3SetLengthUnitsPerMeter( B3_FIX( 1.0f ) );
 	}
 
 	static Sample* Create( SampleContext* context )
@@ -57,30 +65,30 @@ public:
 	{
 		if ( context->restart == false )
 		{
-			m_camera->SetView( 45.0f, 30.0f, 15.0f, { B3_FIX( 0.0f ), B3_FIX( 2.0f ), B3_FIX( 0.0f ) } );
+			m_camera->SetView( 45.0f, 30.0f, 15.0f, SamplePos( { B3_FIX( 0.0f ), B3_FIX( 2.0f ), B3_FIX( 0.0f ) } ) );
 		}
 
 		b3BodyId groundId;
 		{
 			b3BodyDef bodyDef = b3DefaultBodyDef();
-			bodyDef.position = { B3_FIX( 0.0f ), B3_FIX( -1.0f ), B3_FIX( 0.0f ) };
+			bodyDef.position = SamplePos( { B3_FIX( 0.0f ), B3_FIX( -1.0f ), B3_FIX( 0.0f ) } );
 			groundId = b3CreateBody( m_worldId, &bodyDef );
 
 			b3ShapeDef shapeDef = b3DefaultShapeDef();
-			m_gridMesh = b3CreateGridMesh( 20, 20, 2, 0, true );
+			m_gridMesh = b3CreateGridMesh( 20, 20, B3_FIX( 2.0f ), 0, true );
 			b3CreateMeshShape( groundId, &shapeDef, m_gridMesh, b3Vec3_one );
 		}
 
 		b3BodyDef bodyDef = b3DefaultBodyDef();
 		bodyDef.type = b3_dynamicBody;
-		bodyDef.position = { B3_FIX( 2.0f ), B3_FIX( 4.0f ), B3_FIX( 0.0f ) };
+		bodyDef.position = SamplePos( { B3_FIX( 2.0f ), B3_FIX( 4.0f ), B3_FIX( 0.0f ) } );
 		m_bodyId1 = b3CreateBody( m_worldId, &bodyDef );
 
 		b3ShapeDef shapeDef = b3DefaultShapeDef();
 		b3BoxHull box = b3MakeBoxHull( B3_FIX( 0.5f ), B3_FIX( 0.5f ), B3_FIX( 0.5f ) );
 		b3CreateHullShape( m_bodyId1, &shapeDef, &box.base );
 
-		bodyDef.position = { B3_FIX( -2.0f ), B3_FIX( 4.0f ), B3_FIX( 0.0f ) };
+		bodyDef.position = SamplePos( { B3_FIX( -2.0f ), B3_FIX( 4.0f ), B3_FIX( 0.0f ) } );
 		m_bodyId2 = b3CreateBody( m_worldId, &bodyDef );
 		b3CreateHullShape( m_bodyId2, &shapeDef, &box.base );
 	}
@@ -123,12 +131,13 @@ public:
 	{
 		if ( context->restart == false )
 		{
-			m_camera->SetView( 0.0f, 0.0f, 25.0f, { B3_FIX( 0.0f ), B3_FIX( 5.0f ), B3_FIX( 0.0f ) } );
+			m_camera->SetView( 0.0f, 0.0f, 25.0f, SamplePos( { B3_FIX( 0.0f ), B3_FIX( 5.0f ), B3_FIX( 0.0f ) } ) );
 		}
 
 		b3BodyId groundId;
 		{
 			b3BodyDef bodyDef = b3DefaultBodyDef();
+			bodyDef.position = SampleOrigin();
 			groundId = b3CreateBody( m_worldId, &bodyDef );
 		}
 
@@ -138,16 +147,16 @@ public:
 		jointDef.base.bodyIdA = groundId;
 		jointDef.base.localFrameA.p = { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
 		jointDef.base.localFrameB.p = { B3_FIX( 0.0f ), B3_FIX( -0.6f ), B3_FIX( 0.0f ) };
-		jointDef.base.drawScale = 2.0f;
-		jointDef.base.constraintHertz = 240.0f;
-		jointDef.lowerTranslation = -6.0f;
-		jointDef.upperTranslation = 6.0f;
+		jointDef.base.drawScale = B3_FIX( 2.0f );
+		jointDef.base.constraintHertz = B3_FIX( 240.0f );
+		jointDef.lowerTranslation = B3_FIX( -6.0f );
+		jointDef.upperTranslation = B3_FIX( 6.0f );
 		jointDef.enableLimit = true;
 
 		for ( int i = 0; i < 6; ++i )
 		{
 			b3BodyDef bodyDef = b3DefaultBodyDef();
-			bodyDef.position = { B3_FIX( 0.0f ), b3FixFromFloat( 0.6f + 1.2f * i ), B3_FIX( 0.0f ) };
+			bodyDef.position = SamplePos( 0.0f, 0.6f + 1.2f * i, 0.0f );
 			bodyDef.type = b3_dynamicBody;
 			b3BodyId bodyId = b3CreateBody( m_worldId, &bodyDef );
 			b3CreateHullShape( bodyId, &shapeDef, &box.base );
@@ -179,7 +188,7 @@ public:
 	{
 		if ( m_context->restart == false )
 		{
-			m_camera->SetView( 0.0f, 15.0f, 5.0f, b3Pos_zero );
+			m_camera->SetView( 0.0f, 15.0f, 5.0f, SampleOrigin() );
 		}
 
 		m_hull = nullptr;
@@ -242,19 +251,20 @@ public:
 
 	void Render() override
 	{
+		b3WorldTransform originTransform = { SampleOrigin(), b3Quat_identity };
 		if ( m_hull != nullptr )
 		{
-			DrawHull( b3WorldTransform_identity, m_hull, MakeColor( b3_colorYellow ) );
+			DrawHull( originTransform, m_hull, MakeColor( b3_colorYellow ) );
 		}
 		else
 		{
 			for ( int i = 0; i < m_count; ++i )
 			{
-				DrawPoint( b3ToPos( m_points[i] ), 5.0f, MakeColor( b3_colorWhite ) );
+				DrawPoint( SamplePos( m_points[i] ), 5.0f, MakeColor( b3_colorWhite ) );
 			}
 		}
 
-		DrawAxes( b3WorldTransform_identity, 1.0f );
+		DrawAxes( originTransform, 1.0f );
 
 		Sample::Render();
 	}
@@ -280,18 +290,18 @@ public:
 	{
 		if ( context->restart == false )
 		{
-			m_camera->SetView( 0.0f, 15.0f, 10.0f, { B3_FIX( 0.0f ), B3_FIX( 2.0f ), B3_FIX( 0.0f ) } );
+			m_camera->SetView( 0.0f, 15.0f, 10.0f, SamplePos( { B3_FIX( 0.0f ), B3_FIX( 2.0f ), B3_FIX( 0.0f ) } ) );
 			
 		}
 
 		AddGroundBox( 10.0f );
 
-		float s = 0.01f;
+		b3Fixed s = B3_FIX( 0.01f );
 
 		{
 			b3Vec3 b = { B3_FIX( -459.292877f ), B3_FIX( 217.398331f ), B3_FIX( 1.00115335f ) };
 			b3BodyDef bodyDef = b3DefaultBodyDef();
-			bodyDef.position = { b3FixFromFloat( s * b.x ), b3FixFromFloat( s * b.z + 2.0f ), b3FixFromFloat( s * b.y ) };
+			bodyDef.position = SamplePos( { b3FixMul( s, b.x ), b3FixMul( s, b.z ) + B3_FIX( 2.0f ), b3FixMul( s, b.y ) } );
 			bodyDef.rotation = { { B3_FIX( 0.0f ), B3_FIX( -0.707106769f ), B3_FIX( 0.0f ) }, B3_FIX( 0.707106769f ) };
 			b3BodyId bodyId = b3CreateBody( m_worldId, &bodyDef );
 
@@ -319,7 +329,7 @@ public:
 			for ( int i = 0; i < count; ++i )
 			{
 				b3Vec3 p = points[i];
-				points[i] = { b3FixFromFloat( s * p.x ), b3FixFromFloat( s * p.z ), b3FixFromFloat( s * p.y ) };
+				points[i] = { b3FixMul( s, p.x ), b3FixMul( s, p.z ), b3FixMul( s, p.y ) };
 			}
 
 			b3HullData* hull = b3CreateHull( points, count, count );
@@ -331,7 +341,7 @@ public:
 		{
 			b3Vec3 b = { B3_FIX( -402.321838f ), B3_FIX( 157.310364f ), B3_FIX( 16.8169250f ) };
 			b3BodyDef bodyDef = b3DefaultBodyDef();
-			bodyDef.position = { b3FixFromFloat( s * b.x ), b3FixFromFloat( s * b.z + 2.0f ), b3FixFromFloat( s * b.y ) };
+			bodyDef.position = SamplePos( { b3FixMul( s, b.x ), b3FixMul( s, b.z ) + B3_FIX( 2.0f ), b3FixMul( s, b.y ) } );
 			bodyDef.rotation = { { B3_FIX( 0.0f ), B3_FIX( -0.00152086187f ), B3_FIX( 0.0f ) }, B3_FIX( 0.999998868f ) };
 			bodyDef.type = b3_dynamicBody;
 
@@ -364,7 +374,7 @@ public:
 			for ( int i = 0; i < count; ++i )
 			{
 				b3Vec3 p = points[i];
-				points[i] = { b3FixFromFloat( s * p.x ), b3FixFromFloat( s * p.z ), b3FixFromFloat( s * p.y ) };
+				points[i] = { b3FixMul( s, p.x ), b3FixMul( s, p.z ), b3FixMul( s, p.y ) };
 			}
 
 			b3HullData* hull = b3CreateHull( points, count, count );
@@ -390,12 +400,12 @@ public:
 	{
 		if ( m_context->restart == false )
 		{
-			m_camera->SetView( 45.0f, 30.0f, 12.0f, b3Pos_zero );
+			m_camera->SetView( 45.0f, 30.0f, 12.0f, SampleOrigin() );
 		}
 
 		{
 			b3BodyDef bodyDef = b3DefaultBodyDef();
-			bodyDef.position = { B3_FIX( -10.0f ), B3_FIX( 0.0f ), B3_FIX( -10.0f ) };
+			bodyDef.position = SamplePos( { B3_FIX( -10.0f ), B3_FIX( 0.0f ), B3_FIX( -10.0f ) } );
 			b3BodyId groundId = b3CreateBody( m_worldId, &bodyDef );
 
 			b3ShapeDef shapeDef = b3DefaultShapeDef();
@@ -409,11 +419,12 @@ public:
 
 		{
 			b3BodyDef bodyDef = b3DefaultBodyDef();
+			bodyDef.position = SampleOrigin();
 			b3BodyId groundId = b3CreateBody( m_worldId, &bodyDef );
 
 			// m_boxMesh = b3CreateBoxMesh( { 0.0f, 1.0f, 0.0f }, { 1.0f, 1.0f, 1.0f }, true );
 			b3ShapeDef shapeDef = b3DefaultShapeDef();
-			m_boxMesh = b3CreatePlatformMesh( { B3_FIX( 0.0f ), B3_FIX( 0.5f ), B3_FIX( 0.0f ) }, 1.0f, 2.0f, 5.0f );
+			m_boxMesh = b3CreatePlatformMesh( { B3_FIX( 0.0f ), B3_FIX( 0.5f ), B3_FIX( 0.0f ) }, B3_FIX( 1.0f ), B3_FIX( 2.0f ), B3_FIX( 5.0f ) );
 			b3Vec3 scale = b3Vec3_one;
 			b3CreateMeshShape( groundId, &shapeDef, m_boxMesh, scale );
 		}
@@ -421,7 +432,7 @@ public:
 		{
 			b3BodyDef bodyDef = b3DefaultBodyDef();
 			bodyDef.type = b3_dynamicBody;
-			bodyDef.position = { B3_FIX( 0.0f ), B3_FIX( 3.5f ), B3_FIX( 0.0f ) };
+			bodyDef.position = SamplePos( { B3_FIX( 0.0f ), B3_FIX( 3.5f ), B3_FIX( 0.0f ) } );
 			bodyDef.motionLocks.angularX = true;
 			bodyDef.motionLocks.angularY = true;
 			bodyDef.motionLocks.angularZ = true;
@@ -429,7 +440,7 @@ public:
 			b3BodyId bodyId = b3CreateBody( m_worldId, &bodyDef );
 
 			b3ShapeDef shapeDef = b3DefaultShapeDef();
-			b3BoxHull box = b3MakeBoxHull( B3_FIX( 0.25f ), 1.0f, B3_FIX( 0.25f ) );
+			b3BoxHull box = b3MakeBoxHull( B3_FIX( 0.25f ), B3_FIX( 1.0f ), B3_FIX( 0.25f ) );
 			b3CreateHullShape( bodyId, &shapeDef, &box.base );
 		}
 	}
@@ -444,7 +455,7 @@ public:
 	void Render() override
 	{
 		Sample::Render();
-		b3Transform transform = { { B3_FIX( 0.0f ), B3_FIX( 1.1f ), B3_FIX( 0.0f ) }, b3Quat_identity };
+		b3Transform transform = { SamplePos( { B3_FIX( 0.0f ), B3_FIX( 1.1f ), B3_FIX( 0.0f ) } ), b3Quat_identity };
 		DrawAxes( b3MakeWorldTransform( transform ), 3.0f );
 	}
 
@@ -468,16 +479,17 @@ public:
 	{
 		if ( m_context->restart == false )
 		{
-			m_camera->SetView( 20.0f, 10.0f, 30.0f, { B3_FIX( 0.0f ), B3_FIX( 2.0f ), B3_FIX( 0.0f ) } );
+			m_camera->SetView( 20.0f, 10.0f, 30.0f, SamplePos( { B3_FIX( 0.0f ), B3_FIX( 2.0f ), B3_FIX( 0.0f ) } ) );
 		}
 
 		// --- Ground plane ---
 		{
 			b3BodyDef bodyDef = b3DefaultBodyDef();
+			bodyDef.position = SampleOrigin();
 			b3BodyId body = b3CreateBody( m_worldId, &bodyDef );
 
 			b3ShapeDef shapeDef = b3DefaultShapeDef();
-			b3BoxHull ground = b3MakeBoxHull( 50.0f, B3_FIX( 0.1f ), 50.0f );
+			b3BoxHull ground = b3MakeBoxHull( B3_FIX( 50.0f ), B3_FIX( 0.1f ), B3_FIX( 50.0f ) );
 			b3CreateHullShape( body, &shapeDef, &ground.base );
 		}
 
@@ -485,7 +497,7 @@ public:
 		m_building = CreateMeshData( "data/meshes/building.obj", 1.0f, false, false, true, true );
 		{
 			b3BodyDef bodyDef = b3DefaultBodyDef();
-			bodyDef.position = { B3_FIX( 0.0f ), B3_FIX( 0.1f ), B3_FIX( 0.0f ) };
+			bodyDef.position = SamplePos( { B3_FIX( 0.0f ), B3_FIX( 0.1f ), B3_FIX( 0.0f ) } );
 			b3BodyId body = b3CreateBody( m_worldId, &bodyDef );
 
 			b3ShapeDef shapeDef = b3DefaultShapeDef();
@@ -496,7 +508,7 @@ public:
 		{
 			b3BodyDef bodyDef = b3DefaultBodyDef();
 			bodyDef.type = b3_dynamicBody;
-			bodyDef.position = { B3_FIX( 0.0f ), B3_FIX( 4.0f ), B3_FIX( 10.0f ) };
+			bodyDef.position = SamplePos( { B3_FIX( 0.0f ), B3_FIX( 4.0f ), B3_FIX( 10.0f ) } );
 			bodyDef.motionLocks.angularX = true;
 			bodyDef.motionLocks.angularY = true;
 			bodyDef.motionLocks.angularZ = true;
@@ -578,7 +590,7 @@ public:
 	{
 		if ( m_context->restart == false )
 		{
-			m_camera->SetView( 90.0f, 25.0f, 10.0f, { B3_FIX( 0.0f ), B3_FIX( 1.0f ), B3_FIX( 0.0f ) } );
+			m_camera->SetView( 90.0f, 25.0f, 10.0f, SamplePos( { B3_FIX( 0.0f ), B3_FIX( 1.0f ), B3_FIX( 0.0f ) } ) );
 		}
 
 		// Two chunks meeting at x = 0, each its own body and mesh shape, so seam contacts live
@@ -590,7 +602,7 @@ public:
 		{
 			b3BodyDef bodyDef = b3DefaultBodyDef();
 			bodyDef.type = b3_dynamicBody;
-			bodyDef.position = { b3FixFromFloat( -m_walkRangeX ), b3FixFromFloat( m_bodyHalfHeight + 0.1f ), B3_FIX( 0.0f ) };
+			bodyDef.position = SamplePos( -m_walkRangeX, m_bodyHalfHeight + 0.1f, 0.0f );
 			bodyDef.motionLocks.angularX = true;
 			bodyDef.motionLocks.angularY = true;
 			bodyDef.motionLocks.angularZ = true;
@@ -601,15 +613,16 @@ public:
 			m_characterId = b3CreateBody( m_worldId, &bodyDef );
 
 			b3ShapeDef shapeDef = b3DefaultShapeDef();
-			shapeDef.baseMaterial.friction = 0.0f;
-			shapeDef.baseMaterial.restitution = 0.0f;
+			shapeDef.baseMaterial.friction = B3_FIX( 0.0f );
+			shapeDef.baseMaterial.restitution = B3_FIX( 0.0f );
 			//shapeDef.baseMaterial.customColor = b3_colorLimeGreen;
 
 			float volume = 8.0f * m_bodyHalfWidth * m_bodyHalfHeight * m_bodyHalfWidth;
-			shapeDef.density = m_characterMass / volume;
+			shapeDef.density = b3FixFromFloat( m_characterMass / volume );
 			shapeDef.enableSpeculativeContact = false;
 
-			b3BoxHull box = b3MakeBoxHull( m_bodyHalfWidth, m_bodyHalfHeight, m_bodyHalfWidth );
+			b3BoxHull box = b3MakeBoxHull( b3FixFromFloat( m_bodyHalfWidth ), b3FixFromFloat( m_bodyHalfHeight ),
+										   b3FixFromFloat( m_bodyHalfWidth ) );
 			b3CreateHullShape( m_characterId, &shapeDef, &box.base );
 		}
 
@@ -841,6 +854,7 @@ public:
 		m_chunkMesh[chunk] = b3CreateMesh( &meshDef, nullptr, 0 );
 
 		b3BodyDef bodyDef = b3DefaultBodyDef();
+		bodyDef.position = SampleOrigin();
 		b3BodyId body = b3CreateBody( m_worldId, &bodyDef );
 
 		b3ShapeDef shapeDef = b3DefaultShapeDef();
@@ -851,28 +865,30 @@ public:
 	{
 		// Drive the character with pure velocity control: keep the solver's vertical velocity,
 		// set the horizontal velocity. This is how the s&box player controller moves.
-		b3Pos position = b3Body_GetPosition( m_characterId );
-		if ( position.x > m_walkRangeX )
+		// Walk-range and grounded checks compare against authored scene-local constants,
+		// so convert the world readback to the sample-local frame.
+		b3Vec3 position = SampleLocal( b3Body_GetPosition( m_characterId ) );
+		if ( position.x > b3FixFromFloat( m_walkRangeX ) )
 		{
 			m_walkDirectionX = -1.0f;
 		}
-		else if ( position.x < -m_walkRangeX )
+		else if ( position.x < b3FixFromFloat( -m_walkRangeX ) )
 		{
 			m_walkDirectionX = 1.0f;
 		}
 
-		if ( position.z > m_walkRangeZ )
+		if ( position.z > b3FixFromFloat( m_walkRangeZ ) )
 		{
 			m_walkDirectionZ = -1.0f;
 		}
-		else if ( position.z < -m_walkRangeZ )
+		else if ( position.z < b3FixFromFloat( -m_walkRangeZ ) )
 		{
 			m_walkDirectionZ= 1.0f;
 		}
 
 		b3Vec3 velocity = b3Body_GetLinearVelocity( m_characterId );
-		velocity.x = m_walkDirectionX * m_walkSpeedX;
-		velocity.z = m_walkDirectionZ * m_walkSpeedZ;
+		velocity.x = b3FixFromFloat( m_walkDirectionX * m_walkSpeedX );
+		velocity.z = b3FixFromFloat( m_walkDirectionZ * m_walkSpeedZ );
 		b3Body_SetLinearVelocity( m_characterId, velocity );
 
 		Sample::Step();
@@ -882,20 +898,21 @@ public:
 			// The walkable plane is exactly y = 0, so the grounded body center never rises above
 			// rest height. Any upward velocity spike while grounded is a ghost collision: there
 			// is nothing to climb and nothing to bounce off.
-			position = b3Body_GetPosition( m_characterId );
+			position = SampleLocal( b3Body_GetPosition( m_characterId ) );
 			velocity = b3Body_GetLinearVelocity( m_characterId );
 
-			bool grounded = position.y < m_bodyHalfHeight + 0.01f + 4.0f * SRC;
-			bool launched = velocity.y > m_launchThreshold;
+			bool grounded = position.y < b3FixFromFloat( m_bodyHalfHeight + 0.01f + 4.0f * SRC );
+			bool launched = velocity.y > b3FixFromFloat( m_launchThreshold );
 
 			if ( grounded && launched && m_wasLaunched == false )
 			{
 				m_launchCount += 1;
-				m_maxLaunchSpeed = b3MaxFloat( m_maxLaunchSpeed, velocity.y );
+				m_maxLaunchSpeed = b3MaxFloat( m_maxLaunchSpeed, b3FixToFloat( velocity.y ) );
 
 				if ( m_launchMarkerCount < m_markerCapacity )
 				{
-					m_launchMarkers[m_launchMarkerCount] = position;
+					// Markers are drawn in world space; position is sample-local here.
+					m_launchMarkers[m_launchMarkerCount] = SamplePos( position );
 					m_launchMarkerCount += 1;
 				}
 			}
@@ -911,7 +928,7 @@ public:
 		b3Vec3 currentVelocity = b3Body_GetLinearVelocity( m_characterId );
 		DrawTextLine( "ghost launches: %d, worst: %.2f m/s (%.0f inch/s)", m_launchCount, m_maxLaunchSpeed,
 					  m_maxLaunchSpeed / SRC );
-		DrawTextLine( "vertical velocity: %.2f m/s", currentVelocity.y );
+		DrawTextLine( "vertical velocity: %.2f m/s", b3FixToDouble( currentVelocity.y ) );
 	}
 
 	bool DrawControls() override

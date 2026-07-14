@@ -9,9 +9,9 @@
 
 /**
  * @defgroup id Ids
- * These ids serve as handles to internal Box3D objects.
+ * These ids serve as handles to internal Fixed3D objects.
  * These should be considered opaque data and passed by value.
- * Include this header if you need the id types and not the whole Box3D API.
+ * Include this header if you need the id types and not the whole Fixed3D API.
  * All ids are considered null if initialized to zero.
  *
  * For example in C++:
@@ -29,7 +29,7 @@
  * These are both considered null.
  *
  * @warning Do not use the internals of these ids. They are subject to change. Ids should be treated as opaque objects.
- * @warning You should use ids to access objects in Box3D. Do not access files within the src folder. Such usage is unsupported.
+ * @warning You should use ids to access objects in Fixed3D. Do not access files within the src folder. Such usage is unsupported.
  * @{
  */
 

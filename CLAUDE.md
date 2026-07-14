@@ -41,6 +41,39 @@ there is no pending working-tree state.
   both sessions' data was garbage. The published Zen 4 table stands.
 - **Samples build and run** (the float→fixed sample pass is done, including the
   newly re-enabled GyroscopicPrecession sample from e961bfb).
+- **Samples raw-fixed fix pass (2026-07-14) — CONVERGED WITH 724ba76**: two
+  sessions independently swept the same bug class (b3Fixed raw values
+  through float expressions, float literals truncating to N ULPs) in
+  parallel; 724ba76 (the 100 km origin invariant + renderer conversion)
+  landed on main first and its versions won the merge for all overlapping
+  sample/gfx code — its renderer uses the explicit float-boundary
+  convention (difference against the draw origin in fixed, then cross to
+  float by value), NOT the raw-length-units accident the parallel session
+  had documented; do not reintroduce raw flows there. What this branch
+  ADDS on top of 724ba76: printf format attributes on DrawTextLine /
+  DrawString3D / DrawScreenStringFormat (b3Log pattern, sample.h/draw.h/
+  text.h) plus the varargs-UB fallout they exposed — uint64 material ids
+  through %d (collision/compound/mesh/events) and a uint64 tick count
+  through %ld (wrong on Windows); upstream shares the gap (ERIN.md "Small
+  stuff"). LESSONS THAT SURVIVE THE MERGE: dt reached b3World_Step as a
+  truncated float in both trees' history (the samples GUI never simulated
+  until 2026-07-14 — both sessions fixed it, main's b3FixFromFloat wrap
+  won); the -Wfloat-conversion/-Wimplicit-int-float-conversion audit
+  (recipe also in the renderer bullet below) has two blind spots — clang
+  SUPPRESSES these warnings inside braced initializers, and exact-integer
+  float literals (2.0f) convert warning-free — both need eyeballing; raw
+  b3Fixed*b3Fixed int multiplies are invisible to the flags entirely and
+  need the AST audit (tools/fixed-point/ast_audit.py pointed at the
+  samples compile db with .cpp enabled; the only real C++ hit was a
+  GetAngle*B3_RAD_TO_DEG in sample_replay, fixed). VERIFIED post-merge on
+  this branch: Release + Debug+VALIDATE samples builds green, sample
+  logic at zero 'long long' conversion warnings and zero -Wformat
+  warnings, full headless sample sweep exit 0. The Joints/Driving ~45 s TOI
+  burn flagged here is FIXED — it was the parallel-joint sentinel impulse-cap
+  wrap, not TOI cost; see the Joints/Driving CCD-burst section below (724ba76
+  removed the TOI canaries; the cap fix removes the garbage velocities that
+  caused the burn, and the root finder gained an outcome-identical stall
+  early-out).
 - **Docs consistency pass (2026-07-13, after Glenn's README slim-down)**:
   docs/ was still the vanilla float manual. All ~114 float literals in
   example code are now B3_FIX-wrapped (plus float→b3Fixed declarations,
@@ -57,10 +90,71 @@ there is no pending working-tree state.
   foundation.md gained a b3Fixed primer section; overview.md gained a
   fork note up top. hello.md and simulation.md explain the two B3_FIX
   traps inline (bare literal truncates 65536x; %f on a b3Fixed is UB).
-- **Determinism goldens**: sleepStep=287, hash=0x6FA8A4C5, verified bit-identical
-  across 1-5 workers. Updated for the e961bfb friction-center weighted-average
-  port — any solver-affecting change invalidates these, see the test conventions
-  section for how to regenerate.
+- **Determinism goldens**: sleepStep=287, hash=0xE7D52285, verified bit-identical
+  across 1-5 workers. Hash updated 2026-07-14 for the 100 km scene origin (see
+  the scene-origin bullet below); sleepStep is UNCHANGED from the origin-scene
+  value because an exactly representable origin shift is a bit-exact rigid
+  translation of the whole trajectory — only the absolute transform bytes the
+  hash covers moved. Any solver-affecting change invalidates these, see the
+  test conventions section for how to regenerate.
+- **Scene origin invariant (2026-07-14, from Glenn: "we should always work
+  there")**: every sample, every benchmark scene, and the determinism test
+  build their content around `GetSceneOrigin()` in shared/utils.h — a CONSTANT
+  (100 km on all three axes, `SCENE_ORIGIN_COORDINATE`) with deliberately no
+  setter, so nothing can opt back to (0,0,0). Samples use the wrappers in
+  samples/sample.h: `SampleOrigin()`, `SamplePos( local )`, `SampleLocal(
+  world )`; C scene builders (shared/benchmarks.c, determinism.c,
+  overflow_color.c) use `b3OffsetPos( GetSceneOrigin(), local )`. Author scene
+  layout in LOCAL coordinates and offset exactly once at the world boundary;
+  readbacks compared to authored constants go through SampleLocal/b3SubPos.
+  Benchmark workloads are bit-identical to the historical origin layouts
+  (verified 2026-07-14: body/shape/contact/joint counts AND solver stack
+  high-water marks match pristine-HEAD runs exactly for large_pyramid, rain,
+  trees50, large_world, junkyard) — the published perf tables remain valid;
+  future refreshes still re-run both sides per the existing rules (the float
+  reference stays at ITS origin, which is float's best case, so the comparison
+  is honest). sample_world.cpp's Far* samples keep their own configurable
+  offsets (0..1e7 m) — they are the deliberate exception that demonstrates the
+  full range, including (0,0,0). DrawGroundGrid now takes the origin as a
+  parameter. NOTE: unit tests other than DeterminismTest still author their
+  own scenes near (0,0,0) on purpose (near-origin coverage, and TestMeshDrop's
+  sleep equilibrium is a knife edge — do not move it casually).
+- **The samples RENDERER conversion (2026-07-14, found because the 100 km
+  origin turned silent wrongness into crashes)**: the samples gfx/host layer
+  (samples/gfx, samples/host, and much of the sample scene code) had NEVER
+  actually been converted to fixed point — it was authored against float
+  b3Vec3/b3Pos and compiled silently as integer math on raw Q48.16 bits
+  (~1,850 compiler-flagged lossy conversions). Consequences that existed at
+  HEAD before this work: Camera::DrawOrigin round-tripped the eye through
+  float raw bits (65536^2 inflation; saturated INT64 beyond a ~32 km eye —
+  b3IsValidAABB assert in Debug, dead culling in Release); camera angle
+  constants derived from the FIXED B3_PI (DEG_TO_RAD was 571.9); seven
+  samples SEGFAULTED at pristine HEAD (float args into b3Fixed hull-creator
+  params -> 30 um degenerate clouds -> quickhull's hang-proofed NULL return,
+  never null-checked); ground boxes microscopic (b3MakeBoxHull float args);
+  IBL SH coefficients double-corrupted (diffuse ~0); GTAO UBO layout broken
+  (sokol-shdc @ctype mapped vec2 to b3Vec2, which became two int64s); the
+  rigid-body character controller entirely non-functional (raw
+  closestFraction). ALL FIXED via three passes: (1) render-boundary
+  convention — world positions are differenced against the draw origin IN
+  FIXED (b3SubPos, exact at any distance) and cross to float BY VALUE
+  (b3FixToFloat/MakeVec4FromFixed in samples/gfx/utility.h;
+  MakeMat4FromTransform/MakeViewAndInverse are the choke points); DrawOrigin
+  returns m_worldEye directly; FrameInput drawOrigin/gridWrap/cameraPosition
+  are float Vec4 meters; shader @ctype vec2/vec3 now map to float Vec2/Vec3
+  (utility.h) — gtao_main_pass.glsl.h regenerated-by-hand to match, KEEP IN
+  SYNC if shaders are regenerated; (2) gfx/host file sweep; (3) sample-file
+  sweep driven by the compiler: `-Wfloat-conversion
+  -Wimplicit-int-float-conversion` via -fsyntax-only over
+  compile_commands.json enumerates every lossy crossing (1,852 before, 112
+  benign int-counter leftovers after — b3Fixed is a bare int64 typedef, so
+  BOTH directions of raw mixing are compiler-visible; rerun this audit after
+  merging any float-era sample code). Verified: Release + Debug+VALIDATE
+  builds green, all previously-crashing/asserting samples run clean, and the
+  instance transforms reaching the GPU probe as small eye-relative meters
+  (lldb break on AppendMesh) instead of 65536^2-scaled garbage. Engine code
+  (src/, include/) needed ZERO changes — the uniform-precision story was
+  always true; only the sample app's float boundary was lying about it.
 - **ERIN.md rule (from Glenn, 2026-07-13)**: ERIN.md at the repo root lists
   everything worth backporting into vanilla float Box3D — latent upstream
   bugs, Erin's in-code todos implemented and measured (wins AND rejections),
@@ -91,6 +185,17 @@ there is no pending working-tree state.
   is a technique, not a fixed-point advantage — ERIN.md documents it for
   backporting). If the win is ever claimed publicly again, attach the
   likely-temporary caveat.
+- **Branding rule (2026-07-14, from Glenn)**: the public/user-facing name is
+  "Fixed3D" — window title, docs prose, doxygen project, CMake descriptions /
+  option help / STATUS messages, test+log banners, the fixed.h #error. The
+  ENTIRE API stays Box3D-branded BY DESIGN for migration compatibility: b3*
+  symbols, B3_*/BOX3D_* macros and CMake option names, the box3d include
+  directory and CMake project/target/library names are all untouched — do not
+  "finish" the rename into identifiers. "Box3D" remains correct (and required,
+  per the public-claims rule) wherever it names Erin's upstream engine:
+  "vanilla Box3D", provenance, comparisons, links. Known open content
+  questions deliberately NOT decided during the rename: docs/faq.md and
+  docs/overview.md still route feedback/bugs to erincatto/box3d channels.
 - History (main): e9f6f1d float baseline → 45078b4 + 98b9889 conversion →
   d29ef7d..a40134f optimization passes → 924cd56 narrow storage → ea684c7..632ff0d
   CI/samples → 973acd1 bug-hunt hardening → 1f1c941 friction center weighted
@@ -323,20 +428,15 @@ there is no pending working-tree state.
   root find); saves ~4×50 separation evaluations per outer iteration on
   garbage inputs. The B3_VALIDATE(false) at maxRootIterations is now
   effectively unreachable (any bracket ≤ 1.0 collapses within ~32 bisections).
-- Samples fixed in the same pass: sample.cpp passed FLOAT timeStep straight
-  into b3World_Step — truncates to dt=0, so GUI physics never advanced (this
-  is what hid the explosion; same fix in sample_continuous.cpp's fast-forward
-  loop). The Driving sample carried ~30 silent float→b3Fixed truncations the
-  samples pass missed: value-preserving literals (`density = 2.0f` → 2 raw ≈
-  3e-5; `b3MakeBoxHull(2.0f, …)` → 2-ulp sliver chassis) produce NO
-  -Wliteral-conversion warning, and float MEMBERS assigned to b3Fixed fields
-  (`jointDef.suspensionHertz = m_suspensionHertz`) never warn at all. Driving
-  is fully converted now (b3FixFromFloat at every GUI boundary); the REST of
-  the samples tree still has this class — sample_joint.cpp's Wheel sample
-  block, GearLift (`maxMotorTorque = 30000.0f` → 0.46), and ~80 more `= m_*`
-  sites file-wide. `B3_PI / 180.0f * degrees` sites are VALUE-CORRECT by
-  encoding coincidence (int64 B3_PI as float = pi<<16) — do not "fix" them
-  without care, but don't imitate them either.
+- Samples: this session independently found and fixed the same GUI dt
+  truncation (float timeStep into b3World_Step → dt=0, which is what hid the
+  explosion) and the Driving sample's ~30 silent float→b3Fixed truncations
+  (value-preserving literals like `density = 2.0f` → 2 raw warn nowhere;
+  float MEMBERS assigned to b3Fixed fields never warn) — the parallel
+  raw-fixed fix pass (7d7f7e7/724ba76, see the samples bullet up top) swept
+  the same class tree-wide and its versions won the merge; both sessions
+  converged on identical fixes for Driving. The truncation blind spots are
+  recorded in that bullet.
 - Not ERIN.md material: float is immune to the cap wrap (inf compare), the
   TOI guard is fixed-point-specific, and the sample bugs are port artifacts.
 
@@ -737,10 +837,12 @@ Fixes landed in session 2 (beyond the session-1 list):
   never meant as references — see `ExactQuat` in test_manifold.c, the cylinder
   expectations in test_hull.c, and the trig comparisons in test_math.c).
 - Determinism goldens (`test/test_determinism.c`): `EXPECTED_SLEEP_STEP 287`,
-  `EXPECTED_HASH 0x6FA8A4C5` (updated for the e961bfb friction-center
-  weighted-average port; verified bit-identical across 1-5 workers). Any
-  solver-affecting change invalidates these: rerun, take the printed values,
-  confirm they're identical for all worker counts
+  `EXPECTED_HASH 0xE7D52285` (hash updated 2026-07-14 for the 100 km scene
+  origin; the sleep step carried over unchanged from the origin scene because
+  the shift is a bit-exact rigid translation; previously 0x6FA8A4C5 for the
+  e961bfb friction-center port; verified bit-identical across 1-5 workers).
+  Any solver-affecting change invalidates these: rerun, take the printed
+  values, confirm they're identical for all worker counts
   before updating.
 - `ATAN_TOL` in test_math.c is `B3_FIX(0.0001f)` (poly error + output quantization).
 

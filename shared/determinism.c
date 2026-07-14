@@ -4,6 +4,7 @@
 #include "determinism.h"
 
 #include "human.h"
+#include "utils.h"
 
 #include "box3d/box3d.h"
 
@@ -34,7 +35,8 @@ static void CreateGroup( FallingRagdollData* data, b3WorldId worldId, int rowInd
 	for ( int i = 0; i < RAGDOLL_GROUP_SIZE; ++i )
 	{
 		Human* human = data->groups[groupIndex].humans + i;
-		CreateHuman( human, worldId, position, frictionTorque, hertz, dampingRatio, groupIndex, NULL, colorize );
+		CreateHuman( human, worldId, b3OffsetPos( GetSceneOrigin(), position ), frictionTorque, hertz, dampingRatio, groupIndex,
+					 NULL, colorize );
 		position.x += B3_FIX( 0.75f );
 	}
 }
@@ -52,22 +54,24 @@ FallingRagdollData CreateFallingRagdolls( b3WorldId worldId )
 	b3BodyDef bodyDef = b3DefaultBodyDef();
 	b3ShapeDef shapeDef = b3DefaultShapeDef();
 
-	bodyDef.position.x = b3FixMul( -B3_FIX( 0.5f ) , span ) + b3FixMul( B3_FIX( 0.5f ) , GRID_SIZE );
+	b3Vec3 local = b3Vec3_zero;
+	local.x = b3FixMul( -B3_FIX( 0.5f ) , span ) + b3FixMul( B3_FIX( 0.5f ) , GRID_SIZE );
 	for ( int i = 0; i < RAGDOLL_GRID_COUNT; ++i )
 	{
-		bodyDef.position.z = b3FixMul( -B3_FIX( 0.5f ) , span ) + b3FixMul( B3_FIX( 0.5f ) , GRID_SIZE );
+		local.z = b3FixMul( -B3_FIX( 0.5f ) , span ) + b3FixMul( B3_FIX( 0.5f ) , GRID_SIZE );
 		for ( int j = 0; j < RAGDOLL_GRID_COUNT; ++j )
 		{
+			bodyDef.position = b3OffsetPos( GetSceneOrigin(), local );
 			b3BodyId body = b3CreateBody( worldId, &bodyDef );
 			b3CreateMeshShape( body, &shapeDef, data.gridMesh, b3Vec3_one );
 			b3CreateMeshShape( body, &shapeDef, data.torusMesh, b3Vec3_one );
 
 			CreateGroup( &data, worldId, i, j );
 
-			bodyDef.position.z += GRID_SIZE;
+			local.z += GRID_SIZE;
 		}
 
-		bodyDef.position.x += GRID_SIZE;
+		local.x += GRID_SIZE;
 	}
 
 	return data;

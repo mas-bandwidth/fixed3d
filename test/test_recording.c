@@ -1371,7 +1371,7 @@ static int AllOps( void )
 	b3WeldJoint_SetAngularHertz( weldId, B3_FIX( 5.0f ) );
 	b3WeldJoint_SetAngularDampingRatio( weldId, B3_FIX( 0.6f ) );
 
-	// Wheel joint (Box3D uses Suspension/Spin/Steering naming)
+	// Wheel joint (Fixed3D uses Suspension/Spin/Steering naming)
 	b3WheelJointDef wheelDef = b3DefaultWheelJointDef();
 	wheelDef.base.bodyIdA = jb[7];
 	wheelDef.base.bodyIdB = jb[8];

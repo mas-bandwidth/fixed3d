@@ -16,7 +16,7 @@ public:
 	{
 		if ( context->restart == false )
 		{
-			m_camera->SetView( 45.0f, 30.0f, 6.0f, b3Pos_zero );
+			m_camera->SetView( 45.0f, 30.0f, 6.0f, SampleOrigin() );
 		}
 
 		AddGroundBox( 20.0f );
@@ -32,8 +32,9 @@ public:
 
 	void Spawn()
 	{
-		CreateHuman( &m_human, m_worldId, { B3_FIX( 0.0f ), B3_FIX( 2.0f ), B3_FIX( 0.0f ) }, m_jointFrictionTorque, m_jointHertz, m_jointDampingRatio, 1,
-					 nullptr, false );
+		CreateHuman( &m_human, m_worldId, SamplePos( { B3_FIX( 0.0f ), B3_FIX( 2.0f ), B3_FIX( 0.0f ) } ),
+					 b3FixFromFloat( m_jointFrictionTorque ), b3FixFromFloat( m_jointHertz ),
+					 b3FixFromFloat( m_jointDampingRatio ), 1, nullptr, false );
 		// Human_ApplyRandomAngularImpulse( &m_human, 10.0f );
 	}
 
@@ -43,17 +44,17 @@ public:
 
 		if ( ImGui::SliderFloat( "Joint Friction", &m_jointFrictionTorque, 0.0f, 20.0f, "%3.0f" ) )
 		{
-			Human_SetJointFrictionTorque( &m_human, m_jointFrictionTorque );
+			Human_SetJointFrictionTorque( &m_human, b3FixFromFloat( m_jointFrictionTorque ) );
 		}
 
 		if ( ImGui::SliderFloat( "Hertz", &m_jointHertz, 0.0f, 20.0f, "%3.1f" ) )
 		{
-			Human_SetJointSpringHertz( &m_human, m_jointHertz );
+			Human_SetJointSpringHertz( &m_human, b3FixFromFloat( m_jointHertz ) );
 		}
 
 		if ( ImGui::SliderFloat( "Damping", &m_jointDampingRatio, 0.0f, 4.0f, "%3.1f" ) )
 		{
-			Human_SetJointDampingRatio( &m_human, m_jointDampingRatio );
+			Human_SetJointDampingRatio( &m_human, b3FixFromFloat( m_jointDampingRatio ) );
 		}
 
 		if ( ImGui::Button( "Respawn" ) )
@@ -86,15 +87,16 @@ public:
 	{
 		if ( context->restart == false )
 		{
-			m_camera->SetView( 45.0f, 30.0f, 6.0f, b3Pos_zero );
+			m_camera->SetView( 45.0f, 30.0f, 6.0f, SampleOrigin() );
 		}
 
 		{
 			b3BodyDef bodyDef = b3DefaultBodyDef();
+			bodyDef.position = SampleOrigin();
 			m_groundId = b3CreateBody( m_worldId, &bodyDef );
 
 			b3ShapeDef shapeDef = b3DefaultShapeDef();
-			m_groundMesh = b3CreateGridMesh( 20, 20, 2.0f, 2, true );
+			m_groundMesh = b3CreateGridMesh( 20, 20, B3_FIX( 2.0f ), 2, true );
 			b3CreateMeshShape( m_groundId, &shapeDef, m_groundMesh, b3Vec3_one );
 		}
 
@@ -102,7 +104,7 @@ public:
 			b3Transform transform;
 			transform.p = { B3_FIX( 0.0f ), B3_FIX( 5.0f ), B3_FIX( -20.0f ) };
 			transform.q = b3Quat_identity;
-			b3BoxHull wallBox = b3MakeTransformedBoxHull( 20.0f, 5.0f, B3_FIX( 0.1f ), transform );
+			b3BoxHull wallBox = b3MakeTransformedBoxHull( B3_FIX( 20.0f ), B3_FIX( 5.0f ), B3_FIX( 0.1f ), transform );
 			b3ShapeDef shapeDef = b3DefaultShapeDef();
 			b3CreateHullShape( m_groundId, &shapeDef, &wallBox.base );
 		}
@@ -111,7 +113,7 @@ public:
 			b3Transform transform;
 			transform.p = { B3_FIX( 0.0f ), B3_FIX( 5.0f ), B3_FIX( 20.0f ) };
 			transform.q = b3Quat_identity;
-			b3BoxHull wallBox = b3MakeTransformedBoxHull( 20.0f, 5.0f, B3_FIX( 0.1f ), transform );
+			b3BoxHull wallBox = b3MakeTransformedBoxHull( B3_FIX( 20.0f ), B3_FIX( 5.0f ), B3_FIX( 0.1f ), transform );
 			b3ShapeDef shapeDef = b3DefaultShapeDef();
 			b3CreateHullShape( m_groundId, &shapeDef, &wallBox.base );
 		}
@@ -120,7 +122,7 @@ public:
 			b3Transform transform;
 			transform.p = { B3_FIX( -20.0f ), B3_FIX( 5.0f ), B3_FIX( 0.0f ) };
 			transform.q = b3Quat_identity;
-			b3BoxHull wallBox = b3MakeTransformedBoxHull( B3_FIX( 0.1f ), 5.0f, 20.0f, transform );
+			b3BoxHull wallBox = b3MakeTransformedBoxHull( B3_FIX( 0.1f ), B3_FIX( 5.0f ), B3_FIX( 20.0f ), transform );
 			b3ShapeDef shapeDef = b3DefaultShapeDef();
 			b3CreateHullShape( m_groundId, &shapeDef, &wallBox.base );
 		}
@@ -129,7 +131,7 @@ public:
 			b3Transform transform;
 			transform.p = { B3_FIX( 20.0f ), B3_FIX( 5.0f ), B3_FIX( 0.0f ) };
 			transform.q = b3Quat_identity;
-			b3BoxHull wallBox = b3MakeTransformedBoxHull( B3_FIX( 0.1f ), 5.0f, 20.0f, transform );
+			b3BoxHull wallBox = b3MakeTransformedBoxHull( B3_FIX( 0.1f ), B3_FIX( 5.0f ), B3_FIX( 20.0f ), transform );
 			b3ShapeDef shapeDef = b3DefaultShapeDef();
 			b3CreateHullShape( m_groundId, &shapeDef, &wallBox.base );
 		}
@@ -150,8 +152,9 @@ public:
 
 	void Spawn()
 	{
-		CreateHuman( &m_human, m_worldId, { B3_FIX( 0.0f ), B3_FIX( 1.0f ), B3_FIX( 0.0f ) }, m_jointFrictionTorque, m_jointHertz, m_jointDampingRatio, 1,
-					 nullptr, false );
+		CreateHuman( &m_human, m_worldId, SamplePos( { B3_FIX( 0.0f ), B3_FIX( 1.0f ), B3_FIX( 0.0f ) } ),
+					 b3FixFromFloat( m_jointFrictionTorque ), b3FixFromFloat( m_jointHertz ),
+					 b3FixFromFloat( m_jointDampingRatio ), 1, nullptr, false );
 		// Human_AlignSpring( &m_human, m_worldId, m_groundId, 25.0f, 1.0f );
 		//  Human_ApplyRandomAngularImpulse( &m_human, 10.0f );
 		// b3Body_SetType( m_human.bones[bone_thigh_l].bodyId, b3_kinematicBody );
@@ -167,17 +170,17 @@ public:
 
 		if ( ImGui::SliderFloat( "Joint Friction", &m_jointFrictionTorque, 0.0f, 20.0f, "%3.0f" ) )
 		{
-			Human_SetJointFrictionTorque( &m_human, m_jointFrictionTorque );
+			Human_SetJointFrictionTorque( &m_human, b3FixFromFloat( m_jointFrictionTorque ) );
 		}
 
 		if ( ImGui::SliderFloat( "Hertz", &m_jointHertz, 0.0f, 20.0f, "%3.1f" ) )
 		{
-			Human_SetJointSpringHertz( &m_human, m_jointHertz );
+			Human_SetJointSpringHertz( &m_human, b3FixFromFloat( m_jointHertz ) );
 		}
 
 		if ( ImGui::SliderFloat( "Damping", &m_jointDampingRatio, 0.0f, 4.0f, "%3.1f" ) )
 		{
-			Human_SetJointDampingRatio( &m_human, m_jointDampingRatio );
+			Human_SetJointDampingRatio( &m_human, b3FixFromFloat( m_jointDampingRatio ) );
 		}
 
 		if ( ImGui::Button( "Respawn" ) )
@@ -221,23 +224,23 @@ public:
 	{
 		if ( context->restart == false )
 		{
-			m_camera->SetView( 180.0f, 30.0f, 20.0f, b3Pos_zero );
+			m_camera->SetView( 180.0f, 30.0f, 20.0f, SampleOrigin() );
 		}
 
 		b3BodyDef bodyDef = b3DefaultBodyDef();
-		bodyDef.position = { B3_FIX( 0.0f ), B3_FIX( -1.0f ), B3_FIX( 0.0f ) };
+		bodyDef.position = SamplePos( { B3_FIX( 0.0f ), B3_FIX( -1.0f ), B3_FIX( 0.0f ) } );
 		b3BodyId groundId = b3CreateBody( m_worldId, &bodyDef );
 
 		b3ShapeDef shapeDef = b3DefaultShapeDef();
-		m_groundMesh = b3CreateGridMesh( 20, 20, 1.0f, 1, true );
+		m_groundMesh = b3CreateGridMesh( 20, 20, B3_FIX( 1.0f ), 1, true );
 		b3CreateMeshShape( groundId, &shapeDef, m_groundMesh, b3Vec3_one );
 
 		for ( int i = 0; i < e_count; ++i )
 		{
-			b3Pos position = { b3FixFromFloat( 0.1f * i ), b3FixFromFloat( 2.0f + 0.5f * i ), b3FixFromFloat( -0.1f * i ) };
-			float torque = 10.0f;
-			float hertz = 0.5f;
-			float damping = 0.7f;
+			b3Pos position = SamplePos( { b3FixFromFloat( 0.1f * i ), b3FixFromFloat( 2.0f + 0.5f * i ), b3FixFromFloat( -0.1f * i ) } );
+			b3Fixed torque = B3_FIX( 10.0f );
+			b3Fixed hertz = B3_FIX( 0.5f );
+			b3Fixed damping = B3_FIX( 0.7f );
 			int groupIndex = i;
 			void* userData = nullptr;
 			bool colorize = false;
@@ -269,33 +272,33 @@ public:
 	{
 		if ( m_context->restart == false )
 		{
-			m_camera->SetView( -20.0f, 30.0f, 25.0f, b3Pos_zero );
+			m_camera->SetView( -20.0f, 30.0f, 25.0f, SampleOrigin() );
 		}
 
 		b3ShapeDef shapeDef = b3DefaultShapeDef();
-		m_groundMesh = b3CreateGridMesh( 4, 4, 2.0f, 1, true );
+		m_groundMesh = b3CreateGridMesh( 4, 4, B3_FIX( 2.0f ), 1, true );
 
 		{
 			b3BodyDef bodyDef = b3DefaultBodyDef();
-			bodyDef.position = { B3_FIX( -10.0f ), B3_FIX( 2.0f ), B3_FIX( 0.0f ) };
-			bodyDef.rotation = b3MakeQuatFromAxisAngle( b3Vec3_axisZ, -0.2f * B3_PI );
+			bodyDef.position = SamplePos( { B3_FIX( -10.0f ), B3_FIX( 2.0f ), B3_FIX( 0.0f ) } );
+			bodyDef.rotation = b3MakeQuatFromAxisAngle( b3Vec3_axisZ, b3FixMul( B3_FIX( -0.2f ), B3_PI ) );
 			b3BodyId groundId = b3CreateBody( m_worldId, &bodyDef );
 			b3CreateMeshShape( groundId, &shapeDef, m_groundMesh, b3Vec3_one );
 		}
 
 		{
 			b3BodyDef bodyDef = b3DefaultBodyDef();
-			bodyDef.position = { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
+			bodyDef.position = SampleOrigin();
 			b3BodyId groundId = b3CreateBody( m_worldId, &bodyDef );
 			b3Vec3 scale = { B3_FIX( 4.0f ), B3_FIX( 4.0f ), B3_FIX( 4.0f ) };
 			b3CreateMeshShape( groundId, &shapeDef, m_groundMesh, scale );
 		}
 
 		m_human = {};
-		b3Pos position = { B3_FIX( -12.0f ), B3_FIX( 6.0f ), B3_FIX( 0.0f ) };
-		float torque = 10.0f;
-		float hertz = 2.0f;
-		float damping = 0.7f;
+		b3Pos position = SamplePos( { B3_FIX( -12.0f ), B3_FIX( 6.0f ), B3_FIX( 0.0f ) } );
+		b3Fixed torque = B3_FIX( 10.0f );
+		b3Fixed hertz = B3_FIX( 2.0f );
+		b3Fixed damping = B3_FIX( 0.7f );
 		int groupIndex = 1;
 		void* userData = nullptr;
 		bool colorize = false;

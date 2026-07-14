@@ -39,12 +39,14 @@ float SkySunFadeWeight( b3Vec3 dirToSun, bool zUp );
 //   dirToSun     world-space direction TO the sun, renormalized internally,
 //                may be the same vector handed to SetSun.
 //   turbidity    Preetham T (project spec = 2.2).
-//   cameraPos    world-space camera position, the FS reconstructs view
-//                direction as (world_far_point - cameraPos).
+//   cameraPos    eye-relative camera position in float display meters (the
+//                zero vector under the draw-origin convention, w ignored),
+//                the FS reconstructs view direction as
+//                (world_far_point - cameraPos).
 //   invViewProj  inverse of proj * view for the current frame, the VS
 //                unprojects NDC corners through this to get world rays.
 //   zUp          simulation up axis, reorients the sky model for z-up.
-void DrawSky( b3Vec3 dirToSun, float turbidity, b3Vec3 cameraPos, Mat4 invViewProj, bool zUp );
+void DrawSky( b3Vec3 dirToSun, float turbidity, Vec4 cameraPos, Mat4 invViewProj, bool zUp );
 
 #ifdef __cplusplus
 } // extern "C"
