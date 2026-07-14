@@ -12,6 +12,34 @@ typedef struct b3DebugDraw b3DebugDraw;
 typedef struct b3StepContext b3StepContext;
 typedef struct b3World b3World;
 
+// Impulse cap tests for the vector-valued joint impulse clamps. The squared
+// comparison must not wrap: maxImpulse = h * maxTorque is ~5.8e11 when the
+// torque limit is the B3_FIXED_MAX "unlimited" sentinel (float used FLT_MAX,
+// where the squared compare overflowed to infinity and never fired), and
+// b3FixMul( maxImpulse, maxImpulse ) wraps int64 — at h = 1/240 it wraps to
+// exactly zero, so the spurious "clamp" then SCALES THE IMPULSE UP to
+// maxImpulse. Compare at 128 bits instead, mirroring the exact rounding of the
+// 64-bit forms (two b3FixMul roundings for the 2D case, one fused rounding for
+// the 3D case) so in-range values compare bit-identically.
+static inline bool b3ImpulseOverCap2( b3Vec2 impulse, b3Fixed maxImpulse )
+{
+	// Matches b3LengthSquared2: b3FixMul( x, x ) + b3FixMul( y, y )
+	b3UInt128 lhs = ( (b3UInt128)( (b3Int128)impulse.x * impulse.x + B3_FIXED_HALF ) >> B3_FIXED_FRACTION_BITS ) +
+					( (b3UInt128)( (b3Int128)impulse.y * impulse.y + B3_FIXED_HALF ) >> B3_FIXED_FRACTION_BITS );
+	b3UInt128 rhs = (b3UInt128)( (b3Int128)maxImpulse * maxImpulse + B3_FIXED_HALF ) >> B3_FIXED_FRACTION_BITS;
+	return lhs > rhs;
+}
+
+static inline bool b3ImpulseOverCap3( b3Vec3 impulse, b3Fixed maxImpulse )
+{
+	// Matches b3LengthSquared: single fused rounding on the raw 128-bit dot
+	b3UInt128 dot = (b3UInt128)( (b3Int128)impulse.x * impulse.x ) + (b3UInt128)( (b3Int128)impulse.y * impulse.y ) +
+					(b3UInt128)( (b3Int128)impulse.z * impulse.z );
+	b3UInt128 lhs = ( dot + B3_FIXED_HALF ) >> B3_FIXED_FRACTION_BITS;
+	b3UInt128 rhs = (b3UInt128)( (b3Int128)maxImpulse * maxImpulse + B3_FIXED_HALF ) >> B3_FIXED_FRACTION_BITS;
+	return lhs > rhs;
+}
+
 /// A joint edge is used to connect bodies and joints together
 /// in a joint graph where each body is a node and each joint
 /// is an edge. A joint edge belongs to a doubly linked list

@@ -1841,8 +1841,23 @@ b3TOIOutput b3TimeOfImpact( const b3TOIInput* input )
 			int maxRootIterations = 50;
 			b3Fixed a1 = t1;
 			b3Fixed a2 = t2;
+			bool rootStalled = false;
 			for ( ;; )
 			{
+				// In fixed point the bracket can collapse to a single time ulp with both
+				// endpoints still outside tolerance: the separation jumps by more than the
+				// tolerance between adjacent representable times when the sweep is fast.
+				// From that state every iterate rounds back onto an endpoint (the bisection
+				// midpoint rounds to an endpoint and the false-position numerator rounds to
+				// zero), so no further progress is possible. Bail out early: this is
+				// outcome-identical to burning the remaining iterations (t2 is unchanged
+				// either way) and avoids a pathological CCD stall on extreme velocities.
+				if ( a2 - a1 <= B3_FIXED_EPSILON )
+				{
+					rootStalled = true;
+					break;
+				}
+
 				// Use a mix of false position and bisection.
 				b3Fixed t;
 				if ( rootIterationCount & 1 )
@@ -1903,6 +1918,13 @@ b3TOIOutput b3TimeOfImpact( const b3TOIInput* input )
 
 			output.pushBackIterations += 1;
 			pushBackIterations += 1;
+
+			if ( rootStalled )
+			{
+				// The deepest witness pair and t2 are unchanged, so every further
+				// push-back iteration would repeat the identical stalled root find.
+				break;
+			}
 
 			if ( pushBackIterations == maxPushBackIterations )
 			{
