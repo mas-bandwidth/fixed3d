@@ -336,9 +336,9 @@ public:
 
 			b3ShapeDef shapeDef = b3DefaultShapeDef();
 			b3SurfaceMaterial materials[3];
-			materials[0] = { B3_FIX( 0.6f ), B3_FIX( 0.0f ), 0 };
-			materials[1] = { B3_FIX( 0.6f ), B3_FIX( 1.0f ), 1 };
-			materials[2] = { B3_FIX( 0.1f ), B3_FIX( 0.0f ), 2 };
+			materials[0] = { B3_FIX( 0.6f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
+			materials[1] = { B3_FIX( 0.6f ), B3_FIX( 1.0f ), B3_FIX( 1.0f ) };
+			materials[2] = { B3_FIX( 0.1f ), B3_FIX( 0.0f ), B3_FIX( 2.0f ) };
 			shapeDef.materials = materials;
 			shapeDef.materialCount = 3;
 
@@ -397,9 +397,9 @@ public:
 			m_heightField = b3CreateWave( 50.0f, 50.0f, b3Vec3_one, B3_FIX( 0.02f ), B3_FIX( 0.04f ), true );
 			b3ShapeDef shapeDef = b3DefaultShapeDef();
 			b3SurfaceMaterial materials[3];
-			materials[0] = { B3_FIX( 0.6f ), B3_FIX( 0.0f ), 0 };
-			materials[1] = { B3_FIX( 0.6f ), B3_FIX( 1.0f ), 1 };
-			materials[2] = { B3_FIX( 0.1f ), B3_FIX( 0.0f ), 2 };
+			materials[0] = { B3_FIX( 0.6f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
+			materials[1] = { B3_FIX( 0.6f ), B3_FIX( 1.0f ), B3_FIX( 1.0f ) };
+			materials[2] = { B3_FIX( 0.1f ), B3_FIX( 0.0f ), B3_FIX( 2.0f ) };
 			shapeDef.materials = materials;
 			shapeDef.materialCount = 3;
 
@@ -1342,9 +1342,9 @@ public:
 
 			b3ShapeDef shapeDef = b3DefaultShapeDef();
 			b3SurfaceMaterial materials[3];
-			materials[0] = { B3_FIX( 0.6f ), B3_FIX( 0.0f ), 0 };
-			materials[1] = { B3_FIX( 0.6f ), B3_FIX( 1.0f ), 1 };
-			materials[2] = { B3_FIX( 0.1f ), B3_FIX( 0.0f ), 2 };
+			materials[0] = { B3_FIX( 0.6f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
+			materials[1] = { B3_FIX( 0.6f ), B3_FIX( 1.0f ), B3_FIX( 1.0f ) };
+			materials[2] = { B3_FIX( 0.1f ), B3_FIX( 0.0f ), B3_FIX( 2.0f ) };
 			shapeDef.materials = materials;
 			shapeDef.materialCount = 3;
 
@@ -1402,9 +1402,9 @@ public:
 			m_heightField = b3CreateWave( 50.0f, 50.0f, b3Vec3_one, B3_FIX( 0.02f ), B3_FIX( 0.04f ), true );
 			b3ShapeDef shapeDef = b3DefaultShapeDef();
 			b3SurfaceMaterial materials[3];
-			materials[0] = { B3_FIX( 0.6f ), B3_FIX( 0.0f ), 0 };
-			materials[1] = { B3_FIX( 0.6f ), B3_FIX( 1.0f ), 1 };
-			materials[2] = { B3_FIX( 0.1f ), B3_FIX( 0.0f ), 2 };
+			materials[0] = { B3_FIX( 0.6f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
+			materials[1] = { B3_FIX( 0.6f ), B3_FIX( 1.0f ), B3_FIX( 1.0f ) };
+			materials[2] = { B3_FIX( 0.1f ), B3_FIX( 0.0f ), B3_FIX( 2.0f ) };
 			shapeDef.materials = materials;
 			shapeDef.materialCount = 3;
 

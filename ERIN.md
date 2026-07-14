@@ -268,6 +268,20 @@ asserts pinning the field offsets saved us twice during refactors.
   material readouts) and a `uint64_t` tick count through `%ld` — broken
   on Windows where long is 32-bit. Three lines of attribute, compiler
   finds the rest.
+- **Character sample material "ids" land in rollingResistance:** the
+  positional initializers in e961bfb samples/sample_character.cpp:336-338
+  (repeated at 396-398, 1336-1338, 1396-1398) read
+  `materials[1] = { 0.6f, 1.0f, 1 };` — the third positional field of
+  b3SurfaceMaterial is rollingResistance, so the 0/1/2 literals (which
+  look like the userMaterialId-by-slot pattern your mesh and collision
+  samples set via designated initializers) compile to rolling resistance
+  1.0 and 2.0 on the level mesh, while userMaterialId stays 0. Rolling
+  resistance only acts on spheres and capsules — exactly the character
+  capsule those levels host. If ids were the intent, `.userMaterialId = 1`
+  is the one-line fix. We only noticed because in fixed point the bare `1`
+  quantized to ~1.5e-5 instead of 1.0 and an AST audit flagged the
+  implicit int→fixed conversion; in float it is silent and value-changing
+  all the same.
 
 ---
 

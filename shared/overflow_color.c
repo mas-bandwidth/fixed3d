@@ -65,11 +65,13 @@ OverflowColorPileData CreateOverflowColorPile( b3WorldId worldId )
 
 		// Offset alternate rings by half a slot so neighbors don't sit
 		// directly above each other.
-		b3Fixed thetaOffset = ( ring & 1 ) ? ( b3FixDiv( B3_PI , OVERFLOW_PILE_PER_RING ) ) : B3_FIX( 0.0f );
+		// OVERFLOW_PILE_PER_RING is a plain int: divide with native `/`
+		// (b3FixDiv would treat it as a b3Fixed of 5 ulps, 65536x too big).
+		b3Fixed thetaOffset = ( ring & 1 ) ? ( B3_PI / OVERFLOW_PILE_PER_RING ) : B3_FIX( 0.0f );
 
 		for ( int slot = 0; slot < OVERFLOW_PILE_PER_RING; ++slot )
 		{
-			b3Fixed theta = thetaOffset + b3FixDiv( ( b3FixMul( b3FixMul( B3_FIX( 2.0f ) , B3_PI ) , b3FixFromInt( slot ) ) ) , OVERFLOW_PILE_PER_RING );
+			b3Fixed theta = thetaOffset + ( b3FixMul( b3FixMul( B3_FIX( 2.0f ) , B3_PI ) , b3FixFromInt( slot ) ) ) / OVERFLOW_PILE_PER_RING;
 
 			b3BodyDef bodyDef = b3DefaultBodyDef();
 			bodyDef.type = b3_dynamicBody;
