@@ -6,6 +6,7 @@
 #include "gfx/renderer.h"
 #include "host/capture.h"
 #include "host/gui.h"
+#include "imgui.h"
 #include "sample.h"
 #include "sokol_app.h"
 #include "sokol_glue.h"
@@ -33,6 +34,7 @@ static SampleContext s_context;
 static int s_frame = 0;
 static int s_frameLimit = -1;
 static char s_capturePath[1024];
+static bool s_headless = false;
 static int s_sampleOverride = -1;
 
 static int CompareSamples( const void* a, const void* b )
@@ -507,6 +509,125 @@ static void OnAppLog( const char* tag, uint32_t logLevel, uint32_t logItemId, co
 	}
 }
 
+#if defined( __APPLE__ )
+// Window-free capture driver for --headless --capture: physics steps need no
+// GPU at all, so the loop below runs the exact per-frame sequence OnFrame uses
+// (camera, draw origin, arena reset, Step, Render) with no window, no UI, and
+// no swapchain, then renders ONLY the frozen end state through
+// RenderFrameOffscreen and reads it back. No window ever exists, so nothing
+// can take focus or swallow keystrokes.
+static int RunHeadlessCapture()
+{
+	// Match the windowed high-dpi framebuffer (1920x1080 @ 2x) so headless
+	// captures are directly comparable with windowed ones.
+	const int W = 3840;
+	const int H = 2160;
+
+	const sg_environment env = CaptureHeadlessEnvironment();
+	InitRenderer( &env );
+	InitAdapter();
+
+	// A bare ImGui context with a built font atlas: samples touch ImGui
+	// metrics (fonts, frame heights) even when no UI is drawn.
+	ImGui::CreateContext();
+	ImGui::GetIO().DisplaySize = ImVec2( (float)W, (float)H );
+	ImGui::GetIO().Fonts->AddFontDefault();
+	ImGui::GetIO().Fonts->Build();
+
+	constexpr float DEG = 3.14159265358979323846f / 180.0f;
+	s_context.camera.SetFov( 50.0f * DEG );
+	s_context.camera.SetClip( 0.1f, Camera::kViewDistance );
+
+	int cores = (int)std::thread::hardware_concurrency();
+	s_context.workerCount = b3ClampInt( cores / 2, 1, 8 );
+	s_context.windowWidth = W;
+	s_context.windowHeight = H;
+
+	SortSamples();
+	int index = ( s_sampleOverride >= 0 && s_sampleOverride < g_sampleCount ) ? s_sampleOverride : 0;
+	SelectSample( &s_context, index, false );
+
+	Camera& camera = s_context.camera;
+	const float dt = 1.0f / 60.0f;
+
+	for ( int frame = 0; frame <= s_frameLimit; ++frame )
+	{
+		camera.Update( dt, W, H );
+		camera.SetRenderTransform( b3FixToFloat( b3GetLengthUnitsPerMeter() ), s_context.viewZUp );
+		camera.SetDrawDistance( s_context.drawDistance );
+		SetDrawOrigin( camera.DrawOrigin() );
+		ResetFrameArena();
+		SetTransparentDynamic( s_context.transparentDynamic );
+
+		if ( frame == s_frameLimit )
+		{
+			// Freeze the sim: this iteration renders the end state.
+			s_context.pause = true;
+		}
+
+		s_context.sample->Step();
+
+		if ( frame < s_frameLimit )
+		{
+			continue; // no rendering while stepping
+		}
+
+		s_context.sample->Render();
+
+		FrameInput fi{};
+		fi.view = camera.View();
+		fi.viewInv = camera.ViewInverse();
+		fi.proj = camera.Proj();
+		fi.projInv = camera.ProjInverse();
+		b3Vec3 camPos = camera.Position();
+		fi.cameraPosition = MakeVec4FromFixed( camPos.x, camPos.y, camPos.z, 0.0f );
+		b3Pos drawOrigin = GetDrawOrigin();
+		fi.drawOrigin = MakeVec4( (float)b3FixToDouble( drawOrigin.x ), (float)b3FixToDouble( drawOrigin.y ),
+								  (float)b3FixToDouble( drawOrigin.z ), 0.0f );
+		double gridPeriod = 10.0 * BOX3D_GROUND_GRID_CELL_SIZE;
+		fi.gridWrap.x = (float)fmod( b3FixToDouble( drawOrigin.x ), gridPeriod );
+		fi.gridWrap.y = (float)fmod( b3FixToDouble( drawOrigin.z ), gridPeriod );
+		fi.time = (float)frame / 60.0f;
+		fi.debugMode = s_context.debugView;
+		fi.disableShadows = !s_context.enableShadows;
+		fi.disableAmbientOcclusion = !s_context.enableGtao;
+		fi.zUp = s_context.viewZUp;
+
+		CaptureCreateTarget( W, H );
+		RenderFrameOffscreen( CaptureAttachments(), CaptureFormat(), W, H, &fi );
+
+		// Rotate past both in-flight command buffers so the capture render is
+		// complete before the cross-queue readback blit. The padding frames
+		// must contain a real pass: an empty sg_commit creates no command
+		// buffer and therefore no rotation, and the blit would race the render
+		// (which reads back as undefined — solid magenta on Apple GPUs). A
+		// LOAD-action pass on the capture target preserves its contents.
+		for ( int k = 0; k < 3; ++k )
+		{
+			sg_pass pad = { 0 };
+			pad.action.colors[0].load_action = SG_LOADACTION_LOAD;
+			pad.attachments = *CaptureAttachments();
+			sg_begin_pass( &pad );
+			sg_end_pass();
+			sg_commit();
+		}
+
+		bool ok = CaptureWritePng( s_capturePath, W, H );
+		RenderStats st = GetRenderStats();
+		fprintf( stderr, "headless stats: geom=%d cubes=%d spheres=%d capsules=%d lines=%d points=%d draws=%d\n",
+				 st.geomInstanceCount, st.cubeCount, st.sphereCount, st.capsuleCount, st.lineCount, st.pointCount,
+				 st.drawCallCount );
+		fprintf( stderr, "headless capture: %s %s\n", ok ? "wrote" : "FAILED", s_capturePath );
+
+		delete s_context.sample;
+		s_context.sample = nullptr;
+		return ok ? 0 : 1;
+	}
+
+	return 1;
+}
+#endif
+
 sapp_desc sokol_main( int argc, char** argv )
 {
 	for ( int i = 1; i < argc; ++i )
@@ -539,6 +660,12 @@ sapp_desc sokol_main( int argc, char** argv )
 			// final state offscreen, and write it to this PNG path (macOS only).
 			snprintf( s_capturePath, sizeof( s_capturePath ), "%s", argv[++i] );
 		}
+		else if ( strcmp( argv[i], "--headless" ) == 0 )
+		{
+			// With --capture and --frames: no window at all — step the physics
+			// CPU-side and render only the final frame offscreen (macOS only).
+			s_headless = true;
+		}
 		else if ( strcmp( argv[i], "--list-samples" ) == 0 )
 		{
 			// Print "index<TAB>category<TAB>name" for every registered sample in
@@ -552,6 +679,13 @@ sapp_desc sokol_main( int argc, char** argv )
 			exit( 0 );
 		}
 	}
+
+#if defined( __APPLE__ )
+	if ( s_headless && s_capturePath[0] != '\0' && s_frameLimit >= 0 )
+	{
+		exit( RunHeadlessCapture() );
+	}
+#endif
 
 	sapp_desc desc{};
 	desc.init_cb = OnInit;

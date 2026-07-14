@@ -26,6 +26,24 @@ bool CaptureSupported( void )
 	return sg_query_backend() == SG_BACKEND_METAL_MACOS;
 }
 
+sg_environment CaptureHeadlessEnvironment( void )
+{
+	// Offscreen Metal rendering needs no window, view, or swapchain — just a
+	// device. Keep it alive for the process lifetime.
+	static id<MTLDevice> s_device = nil;
+	if ( s_device == nil )
+	{
+		s_device = MTLCreateSystemDefaultDevice();
+	}
+
+	sg_environment env = { 0 };
+	env.defaults.color_format = SG_PIXELFORMAT_BGRA8;
+	env.defaults.depth_format = SG_PIXELFORMAT_DEPTH_STENCIL;
+	env.defaults.sample_count = 1;
+	env.metal.device = (__bridge const void*)s_device;
+	return env;
+}
+
 void CaptureCreateTarget( int width, int height )
 {
 	if ( s_captureImage.id != SG_INVALID_ID && width == s_captureWidth && height == s_captureHeight )

@@ -33,6 +33,10 @@ sg_pixel_format CaptureFormat( void );
 // done with the capture render (wait >= SG_NUM_INFLIGHT_FRAMES frames).
 bool CaptureWritePng( const char* path, int width, int height );
 
+// A window-free sokol_gfx environment on the system Metal device, for the
+// --headless capture driver. The device is created and retained here.
+sg_environment CaptureHeadlessEnvironment( void );
+
 #ifdef __cplusplus
 }
 #endif
