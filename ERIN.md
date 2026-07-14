@@ -282,6 +282,26 @@ asserts pinning the field offsets saved us twice during refactors.
   quantized to ~1.5e-5 instead of 1.0 and an AST audit flagged the
   implicit int→fixed conversion; in float it is silent and value-changing
   all the same.
+- **A per-sample screenshot sweep is a cheap, shockingly effective
+  regression net:** we ran every sample to its 120-frame end state,
+  captured one PNG each, and paired ours against your float build's — 153
+  pairs, sorted by a 64×36 grayscale mean-difference so the divergent ones
+  surface first. An afternoon of harness work; it caught one real physics
+  divergence (an equilibrium knife-edge our number format can't hold) and
+  certified every other sample visually identical to yours within
+  antialiasing noise. App-side cost is three small flags (`--list-samples`,
+  `--sample N --frames F`, `--capture out.png`) plus an optional headless
+  mode so a sweep doesn't own your desktop for ten minutes. One Metal/sokol
+  trap if you build the headless variant: the readback padding frames must
+  contain a REAL render pass — an empty `sg_commit` creates no command
+  buffer and therefore no in-flight frame rotation, so the cross-queue blit
+  races the render and reads undefined memory (solid magenta on Apple
+  GPUs). Three LOAD-action passes on the capture target force the rotation
+  that guarantees completion.
+- **shape.h declares b3GetShapeArea and b3GetShapeProjectedArea twice**
+  (shape.h:95-96 and again at 107-108, verbatim) — and nothing in the tree
+  calls either outside their definitions. Cosmetic, but it reads like a
+  merge leftover, and dead API invites drift.
 
 ---
 
