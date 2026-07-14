@@ -11,7 +11,7 @@ there is no pending working-tree state.
   suite: `./build-fixed2/bin/test <SuiteName>`.
 - **CI: fully green** — 14 jobs (ubuntu gcc / clang-TSan / clang-MSan, macos
   sanitized, windows-clang-cl, windows-arm64, windows-mingw, emscripten,
-  ubuntu-clang-avx512 compile-only, six samples jobs). The avx512 job runs
+  ubuntu-clang-avx512 compile-only, five samples jobs). The avx512 job runs
   the suite opportunistically when the runner has the ISA. See the CI
   section for the rules that keep the matrix green.
 - **LTO is default ON** for Release-family top-level builds since 13b73cc
