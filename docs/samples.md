@@ -15,7 +15,7 @@ The samples application has many examples of Fixed3D usage in the test cases and
 framework itself. I encourage you to explore and tinker with the samples
 as you learn Fixed3D.
 
-Note: the sample application is written using [GLFW](https://www.glfw.org) and
+Note: the sample application is written using [sokol](https://github.com/floooh/sokol) and
 [imgui](https://github.com/ocornut/imgui).
 The samples app is not part of the Fixed3D library. The Fixed3D library is agnostic about rendering.
 As shown by the HelloWorld example, you don't need a renderer to use Fixed3D.
