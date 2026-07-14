@@ -61,7 +61,7 @@ already does:
 - **Determinism?** Vanilla Box3D is already deterministic in floating point across platforms.
   The only argument that can be made against Box3D determinism is that floating point determinism
   across different platforms like x64 vs. ARM is in *unstable equilibrium* maintained by constant
-  dilligence, while fixed point determinism is in *stable equilibrium* and always works.
+  effort, while fixed point determinism is in *stable equilibrium* and always works.
 
 - **A big world?** Vanilla Box3D already handles a 20,000 km cubed world
   with just ~1M of broadphase padding at 10,000km from origin, and its double
