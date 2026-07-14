@@ -14,9 +14,6 @@
 //
 // A define passed on the compiler command line still wins over this file.
 
-// Large world mode. Stores world positions in double precision. Affects ABI.
-//#define BOX3D_DOUBLE_PRECISION
-
 // Build the scalar fallback instead of SSE2/NEON.
 //#define BOX3D_DISABLE_SIMD
 

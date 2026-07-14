@@ -142,15 +142,9 @@ void b3RecW_TRANSFORM( b3RecBuffer* buf, b3Transform v )
 // In the b3Fixed build this is three floats, wire-identical to VEC3.
 void b3RecW_POSITION( b3RecBuffer* buf, b3Pos v )
 {
-#if defined( BOX3D_DOUBLE_PRECISION )
-	b3RecW_F64( buf, v.x );
-	b3RecW_F64( buf, v.y );
-	b3RecW_F64( buf, v.z );
-#else
 	b3RecW_F32( buf, v.x );
 	b3RecW_F32( buf, v.y );
 	b3RecW_F32( buf, v.z );
-#endif
 }
 
 void b3RecW_WORLDXF( b3RecBuffer* buf, b3WorldTransform v )

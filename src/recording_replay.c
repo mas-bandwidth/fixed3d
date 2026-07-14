@@ -161,15 +161,9 @@ b3Transform b3RecR_TRANSFORM( b3RecReader* rdr )
 b3Pos b3RecR_POSITION( b3RecReader* rdr )
 {
 	b3Pos p;
-#if defined( BOX3D_DOUBLE_PRECISION )
-	p.x = b3RecR_F64( rdr );
-	p.y = b3RecR_F64( rdr );
-	p.z = b3RecR_F64( rdr );
-#else
 	p.x = b3RecR_F32( rdr );
 	p.y = b3RecR_F32( rdr );
 	p.z = b3RecR_F32( rdr );
-#endif
 	return p;
 }
 

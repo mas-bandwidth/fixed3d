@@ -105,8 +105,7 @@ b3AABB b3ComputeSweptCapsuleAABB( const b3Capsule* shape, b3Transform xf1, b3Tra
 
 b3AABB b3ComputeShapeAABB( const b3Shape* shape, b3Transform transform );
 
-// Conservative world AABB for a shape inflated by extra margin. In double precision mode the
-// box is built in the body local frame, translated by the double origin, and rounded outward.
+// Conservative world AABB for a shape inflated by extra margin.
 b3AABB b3ComputeFatShapeAABB( const b3Shape* shape, b3WorldTransform transform, b3Fixed extra );
 b3AABB b3ComputeSweptShapeAABB( const b3Shape* shape, const b3Sweep* sweep, b3Fixed time );
 b3Vec3 b3GetShapeCentroid( const b3Shape* shape );

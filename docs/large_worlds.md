@@ -23,7 +23,6 @@ it compiles unchanged, but the types collapse permanently:
 - `b3WorldTransform` is an alias for `b3Transform`.
 - The boundary helpers (`b3ToPos`, `b3ToVec3`, `b3SubPos`, `b3OffsetPos`,
   `b3RoundDownFloat`, `b3RoundUpFloat`) remain as trivial pass-throughs.
-- `b3IsDoublePrecision()` always returns `false`.
 
 Everywhere the vanilla API accepts or returns a world position —
 `b3BodyDef.position`, `b3Body_GetPosition` / `b3Body_GetTransform`, the query

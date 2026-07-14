@@ -1436,43 +1436,8 @@ typedef struct b3CastOutput
 	bool hit;
 } b3CastOutput;
 
-#if defined( BOX3D_DOUBLE_PRECISION )
-
-/// Ray cast or shape-cast output in world space. The hit point is a world position so the result
-/// stays precise far from the world origin. Mirrors b3CastOutput with a double precision point.
-typedef struct b3WorldCastOutput
-{
-	/// The surface normal at the hit point.
-	b3Vec3 normal;
-
-	/// The surface hit point in world space.
-	b3Pos point;
-
-	/// The fraction of the input translation at collision.
-	b3Fixed fraction;
-
-	/// The number of iterations used.
-	int iterations;
-
-	/// The index of the mesh or height field triangle hit.
-	int triangleIndex;
-
-	/// The index of the compound child shape.
-	int childIndex;
-
-	/// The material index. May be -1 for null.
-	int materialIndex;
-
-	/// Did the cast hit?
-	bool hit;
-} b3WorldCastOutput;
-
-#else
-
 /// Same type in single precision.
 typedef b3CastOutput b3WorldCastOutput;
-
-#endif
 
 /// Body cast result for ray and shape casts.
 typedef struct b3BodyCastResult
@@ -2957,8 +2922,7 @@ typedef struct b3DebugShape
 } b3DebugShape;
 
 /// This struct is passed to b3World_Draw to draw a debug view of the simulation world.
-/// Callbacks receive world coordinates. In large world mode the translation is double precision so
-/// it stays accurate far from the origin. Shift into your own camera frame inside the callbacks.
+/// Callbacks receive world coordinates. Shift into your own camera frame inside the callbacks.
 typedef struct b3DebugDraw
 {
 	/// Draws a shape and returns true if drawing should continue

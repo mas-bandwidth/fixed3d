@@ -24,7 +24,7 @@ public:
 	{
 		// Double precision opens at the dramatic offset, float opens at the origin so it is usable
 		// out of the box. Either way the slider sweeps the full range.
-		m_offsetKilometers = b3IsDoublePrecision() ? m_maxOffset : 0.0f;
+		m_offsetKilometers = m_maxOffset;
 		m_columnCount = 6;
 
 		if ( context->restart == false )
@@ -103,7 +103,6 @@ public:
 		// steady at any offset under double precision and drifts once float runs out of resolution.
 		b3Vec3 top = b3SubPos( b3Body_GetWorldCenter( m_topBodyId ), m_base );
 
-		DrawTextLine( "double precision: %s", b3IsDoublePrecision() ? "ON" : "OFF" );
 		DrawTextLine( "world offset: %.1f km", m_offsetKilometers );
 		DrawTextLine( "top box height above ground: %.4f m", top.y );
 	}
@@ -169,7 +168,6 @@ public:
 	{
 		Sample::Step();
 
-		DrawTextLine( "double precision: %s", b3IsDoublePrecision() ? "ON" : "OFF" );
 		DrawTextLine( "pyramid built %.0f km from the world origin", m_offsetKilometers );
 	}
 
@@ -229,7 +227,6 @@ public:
 	{
 		Sample::Step();
 
-		DrawTextLine( "double precision: %s", b3IsDoublePrecision() ? "ON" : "OFF" );
 		DrawTextLine( "%d ragdolls piled %.0f km from the world origin", m_count, m_offsetKilometers );
 	}
 
@@ -288,7 +285,6 @@ public:
 			}
 		}
 
-		DrawTextLine( "double precision: %s", b3IsDoublePrecision() ? "ON" : "OFF" );
 		DrawTextLine( "mesh drop running %.0f km from the world origin", m_offsetKilometers );
 		if ( m_failed )
 		{

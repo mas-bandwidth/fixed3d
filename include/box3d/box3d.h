@@ -22,13 +22,6 @@
  * @{
  */
 
-#if defined( BOX3D_DOUBLE_PRECISION )
-// Force a link error if the application and library disagree on precision. A b3Fixed app linking
-// a double precision library, or the reverse, gets one unresolved external on the first call
-// every program makes. CMake consumers inherit the define and cannot mismatch.
-#define b3CreateWorld b3CreateWorldDoublePrecision
-#endif
-
 /// Create a world for rigid body simulation. A world contains bodies, shapes, and constraints. You may create
 /// up to 128 worlds. Each world is completely independent and may be simulated in parallel.
 /// @return the world id.

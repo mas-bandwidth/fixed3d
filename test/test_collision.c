@@ -219,34 +219,6 @@ static int LargeWorldManifoldTest( void )
 		ENSURE_SMALL( mOrigin.points[i].separation + B3_FIX( 0.1f ), B3_FIX( 0.01f ) );
 	}
 
-#if defined( BOX3D_DOUBLE_PRECISION )
-	// Same relative configuration shifted far from the origin. The relative pose differences the
-	// world positions in double, so in double the frame A manifold is preserved to b3Fixed precision.
-	// In b3Fixed it would collapse since the offset is below the ULP.
-	b3Pos base = b3OffsetPos( b3Pos_zero, ( b3Vec3 ){ 1.0e7f, 1.0e7f, 1.0e7f } );
-
-	b3LocalManifoldPoint pointsLarge[8];
-	b3LocalManifold mLarge = { 0 };
-	mLarge.points = pointsLarge;
-
-	b3WorldTransform xfAl = { base, b3Quat_identity };
-	b3WorldTransform xfBl = { b3OffsetPos( base, sep ), b3Quat_identity };
-	b3SATCache cacheLarge = { 0 };
-	b3CollideHulls( &mLarge, 8, &boxA.base, &boxB.base, b3InvMulWorldTransforms( xfAl, xfBl ), &cacheLarge );
-
-	ENSURE( mLarge.pointCount == mOrigin.pointCount );
-	ENSURE_SMALL( mLarge.normal.x - mOrigin.normal.x, 1e-4f );
-	ENSURE_SMALL( mLarge.normal.y - mOrigin.normal.y, 1e-4f );
-	ENSURE_SMALL( mLarge.normal.z - mOrigin.normal.z, 1e-4f );
-	for ( int i = 0; i < mLarge.pointCount; ++i )
-	{
-		ENSURE_SMALL( mLarge.points[i].separation - mOrigin.points[i].separation, 1e-4f );
-		ENSURE_SMALL( mLarge.points[i].point.x - mOrigin.points[i].point.x, 1e-4f );
-		ENSURE_SMALL( mLarge.points[i].point.y - mOrigin.points[i].point.y, 1e-4f );
-		ENSURE_SMALL( mLarge.points[i].point.z - mOrigin.points[i].point.z, 1e-4f );
-	}
-#endif
-
 	return 0;
 }
 
@@ -268,31 +240,6 @@ static int LargeWorldAABBTest( void )
 	ENSURE_SMALL( aabbOrigin.upperBound.x - B3_FIX( 0.5f ), 8 * B3_FIXED_EPSILON );
 	ENSURE_SMALL( aabbOrigin.upperBound.y - B3_FIX( 0.5f ), 8 * B3_FIXED_EPSILON );
 	ENSURE_SMALL( aabbOrigin.upperBound.z - B3_FIX( 0.5f ), 8 * B3_FIXED_EPSILON );
-
-#if defined( BOX3D_DOUBLE_PRECISION )
-	double d = 1.0e7;
-	b3WorldTransform xfLarge = { { d, d, d }, b3Quat_identity };
-
-	// Tight world AABB still contains the 0.5 m extent
-	b3AABB tight = b3ComputeFatShapeAABB( &shape, xfLarge, 0.0f );
-	ENSURE( (double)tight.lowerBound.x <= d - 0.5 );
-	ENSURE( (double)tight.lowerBound.y <= d - 0.5 );
-	ENSURE( (double)tight.lowerBound.z <= d - 0.5 );
-	ENSURE( (double)tight.upperBound.x >= d + 0.5 );
-	ENSURE( (double)tight.upperBound.y >= d + 0.5 );
-	ENSURE( (double)tight.upperBound.z >= d + 0.5 );
-
-	// The fat helper folds the extra into the double step before the single outward rounding, so a
-	// margin smaller than a b3Fixed ULP at this range survives instead of becoming a no-op subtract.
-	b3Fixed extra = 0.05f;
-	b3AABB fat = b3ComputeFatShapeAABB( &shape, xfLarge, extra );
-	ENSURE( (double)fat.lowerBound.x <= d - 0.5 - (double)extra );
-	ENSURE( (double)fat.lowerBound.y <= d - 0.5 - (double)extra );
-	ENSURE( (double)fat.lowerBound.z <= d - 0.5 - (double)extra );
-	ENSURE( (double)fat.upperBound.x >= d + 0.5 + (double)extra );
-	ENSURE( (double)fat.upperBound.y >= d + 0.5 + (double)extra );
-	ENSURE( (double)fat.upperBound.z >= d + 0.5 + (double)extra );
-#endif
 
 	return 0;
 }

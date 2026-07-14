@@ -118,15 +118,6 @@ b3Version b3GetVersion( void )
 	return (b3Version){ 1, 0, 0 };
 }
 
-bool b3IsDoublePrecision( void )
-{
-#if defined( BOX3D_DOUBLE_PRECISION )
-	return true;
-#else
-	return false;
-#endif
-}
-
 static b3AllocFcn* b3_allocFcn = NULL;
 static b3FreeFcn* b3_freeFcn = NULL;
 

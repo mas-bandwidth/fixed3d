@@ -294,9 +294,6 @@ int MathTest( void )
 	}
 
 	{
-		// World position boundary helpers. The query agrees with the built type sizes.
-		ENSURE( b3IsDoublePrecision() == ( sizeof( b3Pos ) > sizeof( b3Vec3 ) ) );
-
 		// Deltas and offsets round trip exactly for representable inputs in both modes.
 		b3Vec3 a = { B3_FIX( 3.0f ), -B3_FIX( 5.0f ), B3_FIX( 2.0f ) };
 		b3Vec3 b = { B3_FIX( 1.0f ), B3_FIX( 4.0f ), -B3_FIX( 6.0f ) };
@@ -344,18 +341,6 @@ int MathTest( void )
 		ENSURE_SMALL( relAB.p.y - tB.p.y, 8 * B3_FIXED_EPSILON );
 		ENSURE_SMALL( relAB.p.z - tB.p.z, 8 * B3_FIXED_EPSILON );
 	}
-
-#if defined( BOX3D_DOUBLE_PRECISION )
-	{
-		// Far from the origin the double layer keeps the relative result accurate where pure
-		// b3Fixed would quantize. Two poses one meter apart at x = 1e8.
-		b3Pos base = { 1.0e8, 0.0, 0.0 };
-		b3WorldTransform wA = { base, b3Quat_identity };
-		b3WorldTransform wB = { b3OffsetPos( base, (b3Vec3){ 1.0f, 0.0f, 0.0f } ), b3Quat_identity };
-		b3Transform rel = b3InvMulWorldTransforms( wA, wB );
-		ENSURE( rel.p.x == 1.0f && rel.p.y == 0.0f && rel.p.z == 0.0f );
-	}
-#endif
 
 	return 0;
 }

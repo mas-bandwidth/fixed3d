@@ -703,10 +703,6 @@ B3_INLINE b3Vec3 b3InvTransformPoint( b3Transform t, b3Vec3 v )
 	return b3InvRotateVector( t.q, b3Sub( v, t.p ) );
 }
 
-// World position boundary. These cross between the double precision world space at the public
-// boundary and the b3Fixed interior. One set of bodies serves both modes: the typedefs collapse
-// the types in b3Fixed mode and the explicit b3Fixed casts become no-ops.
-
 /// Convert a vector to a world position.
 B3_INLINE b3Pos b3ToPos( b3Vec3 v )
 {

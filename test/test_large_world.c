@@ -76,21 +76,6 @@ static int LargeWorldStackTest( void )
 {
 	StackResult origin = RunStack( B3_FIX( 0.0f ) );
 	ENSURE( origin.sleepStep >= 0 );
-
-#if defined( BOX3D_DOUBLE_PRECISION )
-	StackResult far = RunStack( 1.0e7f );
-	ENSURE( far.sleepStep >= 0 );
-
-	// Sleeps on the same frame and lands in the same relative configuration
-	ENSURE( far.sleepStep == origin.sleepStep );
-	for ( int i = 0; i < STACK_COUNT; ++i )
-	{
-		ENSURE_SMALL( far.relativePositions[i].x - origin.relativePositions[i].x, 1.0e-3f );
-		ENSURE_SMALL( far.relativePositions[i].y - origin.relativePositions[i].y, 1.0e-3f );
-		ENSURE_SMALL( far.relativePositions[i].z - origin.relativePositions[i].z, 1.0e-3f );
-	}
-#endif
-
 	return 0;
 }
 
@@ -143,12 +128,6 @@ static int LargeWorldBulletTest( void )
 	// short of the wall center at x = 5.
 	b3Fixed originX = RunBullet( B3_FIX( 0.0f ) );
 	ENSURE( originX < B3_FIX( 5.0f ) );
-
-#if defined( BOX3D_DOUBLE_PRECISION )
-	b3Fixed farX = RunBullet( 1.0e7f );
-	ENSURE( farX < 5.0f );
-#endif
-
 	return 0;
 }
 
@@ -273,23 +252,6 @@ static int LargeWorldQueryTest( void )
 	ENSURE_SMALL( origin.rayRelX + B3_FIX( 1.0f ), B3_FIX( 0.05f ) );
 	ENSURE( origin.shapeRayHit );
 	ENSURE_SMALL( origin.shapeRayRelX + B3_FIX( 1.0f ), B3_FIX( 0.05f ) );
-
-#if defined( BOX3D_DOUBLE_PRECISION )
-	QueryResult far = RunQueries( 1.0e7f );
-	ENSURE( far.castHit );
-	ENSURE( far.overlapHit );
-	ENSURE( far.moverFraction < 1.0f );
-	ENSURE( far.planeCount > 0 );
-	ENSURE( far.rayHit );
-	ENSURE( far.shapeRayHit );
-
-	ENSURE_SMALL( far.castRelX - origin.castRelX, 1.0e-3f );
-	ENSURE_SMALL( far.moverFraction - origin.moverFraction, 1.0e-3f );
-	ENSURE( far.planeCount == origin.planeCount );
-	ENSURE_SMALL( far.rayRelX - origin.rayRelX, 1.0e-3f );
-	ENSURE_SMALL( far.shapeRayRelX - origin.shapeRayRelX, 1.0e-3f );
-#endif
-
 	return 0;
 }
 

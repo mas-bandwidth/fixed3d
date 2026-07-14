@@ -22,18 +22,11 @@
 // when the body is far from the origin.
 static inline uint64_t b3FnvMixPosition( uint64_t hash, b3Pos p )
 {
-#if defined( BOX3D_DOUBLE_PRECISION )
-	uint64_t bx, by, bz;
-	memcpy( &bx, &p.x, 8 );
-	memcpy( &by, &p.y, 8 );
-	memcpy( &bz, &p.z, 8 );
-#else
 	uint32_t fx, fy, fz;
 	memcpy( &fx, &p.x, 4 );
 	memcpy( &fy, &p.y, 4 );
 	memcpy( &fz, &p.z, 4 );
 	uint64_t bx = fx, by = fy, bz = fz;
-#endif
 	hash = ( hash ^ bx ) * B3_SNAP_FNV_PRIME;
 	hash = ( hash ^ by ) * B3_SNAP_FNV_PRIME;
 	hash = ( hash ^ bz ) * B3_SNAP_FNV_PRIME;

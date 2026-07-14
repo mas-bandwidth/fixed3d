@@ -36,7 +36,6 @@
 #define B3_SNAP_VERSION 2u
 
 #define B3_SNAP_FLAG_VALIDATION 0x1u
-#define B3_SNAP_FLAG_DOUBLE_PRECISION 0x2u
 
 // Layout hash over all POD-copied structs + key constants.
 // Changing a struct size updates this, catching ABI drift early.
@@ -987,9 +986,6 @@ int b3SerializeWorld( b3World* world, b3RecBuffer* buf, b3Recording* rec )
 	hdr.version = B3_SNAP_VERSION;
 	hdr.layoutHash = b3ComputeLayoutHash();
 	hdr.flags = B3_ENABLE_VALIDATION ? B3_SNAP_FLAG_VALIDATION : 0u;
-#if defined( BOX3D_DOUBLE_PRECISION )
-	hdr.flags |= B3_SNAP_FLAG_DOUBLE_PRECISION;
-#endif
 	b3SnapW_Bytes( buf, &hdr, (int)sizeof( hdr ) );
 
 	// World scalars
@@ -1110,17 +1106,6 @@ bool b3DeserializeIntoShell( const uint8_t* data, int size, b3World* world, b3Re
 	if ( hdr.magic != B3_SNAP_MAGIC || hdr.version != B3_SNAP_VERSION )
 	{
 		printf( "b3DeserializeIntoShell: bad magic/version\n" );
-		return false;
-	}
-	bool imageDouble = ( hdr.flags & B3_SNAP_FLAG_DOUBLE_PRECISION ) != 0;
-#if defined( BOX3D_DOUBLE_PRECISION )
-	bool buildDouble = true;
-#else
-	bool buildDouble = false;
-#endif
-	if ( imageDouble != buildDouble )
-	{
-		printf( "b3DeserializeIntoShell: precision mismatch\n" );
 		return false;
 	}
 	if ( hdr.layoutHash != b3ComputeLayoutHash() )
