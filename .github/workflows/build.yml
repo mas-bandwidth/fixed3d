@@ -147,7 +147,10 @@ jobs:
             args: -DBUILD_SHARED_LIBS=OFF
           - name: samples-macos-static
             os: macos-latest
-            args: -DBUILD_SHARED_LIBS=OFF
+            # This entry also runs the fixed/float conversion audit: it needs a
+            # clang compile database (AppleClang here), which the export flag emits.
+            args: -DBUILD_SHARED_LIBS=OFF -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+            conversion-audit: true
           - name: samples-macos-dynamic
             os: macos-latest
             args: -DBUILD_SHARED_LIBS=ON
@@ -178,3 +181,10 @@ jobs:
 
     - name: Build
       run: cmake --build ${{github.workspace}}/build --config Release
+
+    # Type-aware audit of every b3Fixed<->float/int conversion in consumer code
+    # (exits 1 on findings). Catches the silent-truncation bug classes that
+    # -Wfloat-conversion cannot see; clang-only, hence the macos entry.
+    - name: Conversion audit
+      if: ${{ matrix['conversion-audit'] }}
+      run: python3 tools/fixed-point/conversion_audit.py --db ${{github.workspace}}/build/compile_commands.json
