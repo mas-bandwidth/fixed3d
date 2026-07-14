@@ -155,8 +155,10 @@ typedef struct b3Body
 // according to substep progress. Contacts have reduced stability when anchors are rotated during substeps, especially for
 // round shapes.
 //
-// 56 bytes
+// 56 bytes upstream; 112 bytes in fixed point
 // todo_erin measure perf padding to 64 bytes
+// ^ measured and REJECTED 2026-07-13 (branch bodystate-pad-128, padded to two cache
+// lines): an alignment lottery, not a systematic win — don't redo; see CLAUDE.md / ERIN.md 12.
 typedef struct b3BodyState
 {
 	b3Vec3 linearVelocity;	// 12

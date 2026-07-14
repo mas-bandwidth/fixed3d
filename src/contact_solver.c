@@ -1970,6 +1970,8 @@ typedef struct b3ContactConstraintWide
 	b3Vec3WN rtA1s, rtA2s, rtB1s, rtB2s;
 
 	// todo test computing the tangents on the fly, at least tangent2
+	// ^ measured and REJECTED 2026-07-13 (branch tangent2-on-the-fly): bit-identical
+	// but a wash to slightly slower on both ISAs — don't redo; see CLAUDE.md / ERIN.md 11.
 	b3Vec3WN tangent1;
 	b3Vec3WN tangent2;
 	b3FloatW twistMass;
