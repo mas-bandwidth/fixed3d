@@ -438,7 +438,7 @@ static void BuildCapsuleProxy( CapsuleVertex* outVerts, uint32_t* outIndices )
 	// by cos(halfAz) cos(halfLat). Scale all radials so facets straddle the
 	// surface, halving the max silhouette error. Uniform scale keeps the
 	// proxy a true capsule of radius scale * r, no seam at the equators.
-	const float halfAz = B3_PI / (float)CAPSULE_SLICES;
+	const float halfAz = b3FixToFloat( B3_PI ) / (float)CAPSULE_SLICES;
 	const float halfLat = 0.25f * B3_PI / (float)( CAPSULE_CAP_RINGS + 1 );
 	const float scale = 2.0f / ( 1.0f + cosf( halfAz ) * cosf( halfLat ) );
 
@@ -466,7 +466,7 @@ static void BuildCapsuleProxy( CapsuleVertex* outVerts, uint32_t* outIndices )
 		const float sx = ( side == 0 ) ? +1.0f : -1.0f;
 		for ( int r = 1; r <= CAPSULE_CAP_RINGS; ++r )
 		{
-			const float alpha = 0.5f * B3_PI * (float)r / (float)( CAPSULE_CAP_RINGS + 1 );
+			const float alpha = 0.5f * b3FixToFloat( B3_PI ) * (float)r / (float)( CAPSULE_CAP_RINGS + 1 );
 			for ( int i = 0; i < CAPSULE_SLICES; ++i, ++v )
 			{
 				const float beta = TWO_PI * (float)i / (float)CAPSULE_SLICES;
@@ -1656,7 +1656,7 @@ static void DrawScene( int targetWidth, int targetHeight, const FrameInput* fram
 	// sun.color as illuminance (user-facing convention preserved from
 	// ) rather than radiance, keeps existing scenes recognizable
 	// through the PBR transition. Ambient (sun_color.a) is unscaled.
-	float str = s_gfx.sun.strength * B3_PI;
+	float str = s_gfx.sun.strength * b3FixToFloat( B3_PI );
 	const Vec4 sunColor =
 		MakeVec4( s_gfx.sun.color.x * str, s_gfx.sun.color.y * str, s_gfx.sun.color.z * str, s_gfx.sun.ambient );
 
@@ -2264,7 +2264,7 @@ static void DrawTransparentIntoResolve( int width, int height, const FrameInput*
 
 	const b3Vec3 sunWorld = s_gfx.sun.dirToSun;
 	const b3Vec3 sunView = b3Normalize( TransformDir( frame->view, sunWorld ) );
-	float str = s_gfx.sun.strength * B3_PI;
+	float str = s_gfx.sun.strength * b3FixToFloat( B3_PI );
 	const Vec4 sunColor =
 		MakeVec4( s_gfx.sun.color.x * str, s_gfx.sun.color.y * str, s_gfx.sun.color.z * str, s_gfx.sun.ambient );
 

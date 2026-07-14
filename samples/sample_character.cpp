@@ -56,9 +56,9 @@ public:
 		Sample::Render();
 
 		DrawGroundGrid( 10 );
-		DrawLine( b3Pos_zero, b3OffsetPos( b3Pos_zero, 2.0f * b3Vec3_axisX ), MakeColor( b3_colorRed ) );
-		DrawLine( b3Pos_zero, b3OffsetPos( b3Pos_zero, 2.0f * b3Vec3_axisY ), MakeColor( b3_colorGreen ) );
-		DrawLine( b3Pos_zero, b3OffsetPos( b3Pos_zero, 2.0f * b3Vec3_axisZ ), MakeColor( b3_colorBlue ) );
+		DrawLine( b3Pos_zero, b3OffsetPos( b3Pos_zero, B3_FIX( 2.0f ) * b3Vec3_axisX ), MakeColor( b3_colorRed ) );
+		DrawLine( b3Pos_zero, b3OffsetPos( b3Pos_zero, B3_FIX( 2.0f ) * b3Vec3_axisY ), MakeColor( b3_colorGreen ) );
+		DrawLine( b3Pos_zero, b3OffsetPos( b3Pos_zero, B3_FIX( 2.0f ) * b3Vec3_axisZ ), MakeColor( b3_colorBlue ) );
 	}
 
 	bool DrawControls() override
@@ -76,7 +76,7 @@ public:
 		CapsulePlane* self = static_cast<CapsulePlane*>( context );
 		for ( int i = 0; i < planeCount && self->m_planeCount < 3; ++i )
 		{
-			self->m_planes[self->m_planeCount] = { results[i].plane, b3FixFromFloat( FLT_MAX ), B3_FIX( 0.0f ), true };
+			self->m_planes[self->m_planeCount] = { results[i].plane, B3_FIXED_MAX, B3_FIX( 0.0f ), true };
 			self->m_planeCount += 1;
 		}
 		return true;
@@ -86,8 +86,8 @@ public:
 	{
 		if ( button == 0 && ( modifiers & MOD_ALT ) == 0 )
 		{
-			PickRay pickRay = m_camera->BuildPickRay( p.x, p.y );
-			m_origin = pickRay.origin + 10.0f * b3Normalize( pickRay.translation );
+			PickRay pickRay = m_camera->BuildPickRay( b3FixToFloat( p.x ), b3FixToFloat( p.y ) );
+			m_origin = pickRay.origin + B3_FIX( 10.0f ) * b3Normalize( pickRay.translation );
 			m_baseTranslation = m_transform.p;
 			m_tracking = true;
 		}
@@ -102,8 +102,8 @@ public:
 	{
 		if ( m_tracking )
 		{
-			PickRay pickRay = m_camera->BuildPickRay( p.x, p.y );
-			b3Pos origin = pickRay.origin + 10.0f * b3Normalize( pickRay.translation );
+			PickRay pickRay = m_camera->BuildPickRay( b3FixToFloat( p.x ), b3FixToFloat( p.y ) );
+			b3Pos origin = pickRay.origin + B3_FIX( 10.0f ) * b3Normalize( pickRay.translation );
 			m_transform.p = m_baseTranslation + b3SubPos( origin, m_origin );
 		}
 	}
@@ -226,8 +226,8 @@ public:
 	{
 		if ( button == 0 && ( modifiers & MOD_ALT ) == 0 )
 		{
-			PickRay pickRay = m_camera->BuildPickRay( p.x, p.y );
-			m_origin = pickRay.origin + 10.0f * b3Normalize( pickRay.translation );
+			PickRay pickRay = m_camera->BuildPickRay( b3FixToFloat( p.x ), b3FixToFloat( p.y ) );
+			m_origin = pickRay.origin + B3_FIX( 10.0f ) * b3Normalize( pickRay.translation );
 			m_baseTranslation = m_transform.p;
 			m_tracking = true;
 		}
@@ -242,8 +242,8 @@ public:
 	{
 		if ( m_tracking )
 		{
-			PickRay pickRay = m_camera->BuildPickRay( p.x, p.y );
-			b3Pos origin = pickRay.origin + 10.0f * b3Normalize( pickRay.translation );
+			PickRay pickRay = m_camera->BuildPickRay( b3FixToFloat( p.x ), b3FixToFloat( p.y ) );
+			b3Pos origin = pickRay.origin + B3_FIX( 10.0f ) * b3Normalize( pickRay.translation );
 			m_transform.p = m_baseTranslation + b3SubPos( origin, m_origin );
 		}
 	}
@@ -276,7 +276,7 @@ public:
 			{
 				m_zeroNormalCount += 1;
 			}
-			solverPlanes[i] = { r.plane, b3FixFromFloat( FLT_MAX ), B3_FIX( 0.0f ), true };
+			solverPlanes[i] = { r.plane, B3_FIXED_MAX, B3_FIX( 0.0f ), true };
 		}
 
 		// Solve the planes and show the pushed-out capsule pose.
@@ -341,23 +341,23 @@ public:
 
 			b3CreateMeshShape( body, &shapeDef, m_levelMesh, b3Vec3_one );
 
-			// b3Transform transform = { { 0.0f, 1.0f, 14.0f }, b3MakeQuatFromAxisAngle( b3Vec3_axisY, 0.75f * B3_PI ) };
-			// b3BoxHull box = b3MakeTransformedBoxHull( 5.0f, 1.0f, 0.5f, transform );
+			// b3Transform transform = { { B3_FIX( 0.0f ), B3_FIX( 1.0f ), B3_FIX( 14.0f ) }, b3MakeQuatFromAxisAngle( b3Vec3_axisY, 3 * B3_PI / 4 ) };
+			// b3BoxHull box = b3MakeTransformedBoxHull( B3_FIX( 5.0f ), B3_FIX( 1.0f ), B3_FIX( 0.5f ), transform );
 			// b3CreateHullShape( body, &shapeDef, &box.base );
 
 			{
 				b3Transform transform = { { B3_FIX( 4.0f ), B3_FIX( 1.0f ), B3_FIX( 14.0f ) }, b3Quat_identity };
-				b3BoxHull box = b3MakeTransformedBoxHull( 1.0f, 1.0f, 1.0f, transform );
+				b3BoxHull box = b3MakeTransformedBoxHull( B3_FIX( 1.0f ), B3_FIX( 1.0f ), B3_FIX( 1.0f ), transform );
 				b3CreateHullShape( body, &shapeDef, &box.base );
 			}
 			{
 				b3Transform transform = { { B3_FIX( 4.0f ), B3_FIX( 1.0f ), B3_FIX( 13.95f ) }, b3Quat_identity };
-				b3BoxHull box = b3MakeTransformedBoxHull( 1.0f, 1.0f, 1.0f, transform );
+				b3BoxHull box = b3MakeTransformedBoxHull( B3_FIX( 1.0f ), B3_FIX( 1.0f ), B3_FIX( 1.0f ), transform );
 				b3CreateHullShape( body, &shapeDef, &box.base );
 			}
 			{
-				b3Transform transform = { { B3_FIX( 5.8f ), B3_FIX( 1.0f ), B3_FIX( 13.7f ) }, b3MakeQuatFromAxisAngle( b3Vec3_axisY, 0.1f * B3_PI ) };
-				b3BoxHull box = b3MakeTransformedBoxHull( 1.0f, 1.0f, 1.0f, transform );
+				b3Transform transform = { { B3_FIX( 5.8f ), B3_FIX( 1.0f ), B3_FIX( 13.7f ) }, b3MakeQuatFromAxisAngle( b3Vec3_axisY, B3_PI / 10 ) };
+				b3BoxHull box = b3MakeTransformedBoxHull( B3_FIX( 1.0f ), B3_FIX( 1.0f ), B3_FIX( 1.0f ), transform );
 				b3CreateHullShape( body, &shapeDef, &box.base );
 			}
 		}
@@ -374,11 +374,11 @@ public:
 		}
 
 		{
-			m_torus = b3CreateTorusMesh( 10, 12, 2.0f, 1.0f );
+			m_torus = b3CreateTorusMesh( 10, 12, B3_FIX( 2.0f ), B3_FIX( 1.0f ) );
 
 			b3BodyDef bodyDef = b3DefaultBodyDef();
 			bodyDef.position = { B3_FIX( -10.0f ), B3_FIX( 1.0f ), B3_FIX( -8.0f ) };
-			bodyDef.rotation = b3MakeQuatFromAxisAngle( b3Vec3_axisY, 0.5f * B3_PI );
+			bodyDef.rotation = b3MakeQuatFromAxisAngle( b3Vec3_axisY, B3_PI / 2 );
 
 			b3ShapeDef shapeDef = b3DefaultShapeDef();
 			b3BodyId body = b3CreateBody( m_worldId, &bodyDef );
@@ -390,7 +390,7 @@ public:
 			bodyDef.position = { B3_FIX( 20.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
 			b3BodyId body = b3CreateBody( m_worldId, &bodyDef );
 
-			m_heightField = b3CreateWave( 50.0f, 50.0f, b3Vec3_one, B3_FIX( 0.02f ), B3_FIX( 0.04f ), true );
+			m_heightField = b3CreateWave( 50, 50, b3Vec3_one, B3_FIX( 0.02f ), B3_FIX( 0.04f ), true );
 			b3ShapeDef shapeDef = b3DefaultShapeDef();
 			b3SurfaceMaterial materials[3];
 			materials[0] = { B3_FIX( 0.6f ), B3_FIX( 0.0f ), 0 };
@@ -472,11 +472,11 @@ public:
 
 			bodyDef.type = b3_dynamicBody;
 			bodyDef.position = { B3_FIX( -2.0f ), B3_FIX( 1.6f ), B3_FIX( 0.0f ) };
-			bodyDef.gravityScale = 2.0f;
+			bodyDef.gravityScale = B3_FIX( 2.0f );
 			b3BodyId bodyId = b3CreateBody( m_worldId, &bodyDef );
 
 			b3ShapeDef shapeDef = b3DefaultShapeDef();
-			shapeDef.density = 1000.0f;
+			shapeDef.density = B3_FIX( 1000.0f );
 
 			b3BoxHull box = b3MakeBoxHull( B3_FIX( 0.75f ), B3_FIX( 1.5f ), B3_FIX( 0.1f ) );
 			b3CreateHullShape( bodyId, &shapeDef, &box.base );
@@ -493,14 +493,14 @@ public:
 			jointDef.base.localFrameB.q = axisQuat;
 
 			jointDef.enableLimit = true;
-			jointDef.lowerAngle = B3_DEG_TO_RAD * -90.0f;
-			jointDef.upperAngle = B3_DEG_TO_RAD * 90.0f;
+			jointDef.lowerAngle = -90 * B3_DEG_TO_RAD;
+			jointDef.upperAngle = 90 * B3_DEG_TO_RAD;
 			jointDef.enableSpring = true;
-			jointDef.hertz = 1.0f;
+			jointDef.hertz = B3_FIX( 1.0f );
 			jointDef.dampingRatio = B3_FIX( 0.5f );
 			jointDef.enableMotor = false;
-			jointDef.maxMotorTorque = 100.0f;
-			jointDef.base.drawScale = 2.0f;
+			jointDef.maxMotorTorque = B3_FIX( 100.0f );
+			jointDef.base.drawScale = B3_FIX( 2.0f );
 
 			b3CreateRevoluteJoint( m_worldId, &jointDef );
 		}
@@ -566,7 +566,7 @@ public:
 	{
 		m_mover.Step( &m_ignoreShapeId, 1, m_clipVelocity );
 		DrawTextLine( "third person (T) = %d", m_camera->m_thirdPerson );
-		DrawTextLine( "deltaX = %g, deltaY = %g", m_mouseDelta.x, m_mouseDelta.y );
+		DrawTextLine( "deltaX = %g, deltaY = %g", b3FixToDouble( m_mouseDelta.x ), b3FixToDouble( m_mouseDelta.y ) );
 
 		Sample::Step();
 	}
@@ -723,7 +723,7 @@ struct RigidbodyCharacter
 		bodyDef.enableContactRecycling = false;
 		bodyDef.name = "character";
 
-		bodyDef.gravityScale = m_characterGravity / 10.0f;
+		bodyDef.gravityScale = b3FixFromFloat( m_characterGravity / 10.0f );
 
 		m_bodyId = b3CreateBody( sample->m_worldId, &bodyDef );
 
@@ -735,15 +735,16 @@ struct RigidbodyCharacter
 			float halfExtZ = m_bodyRadius * 0.5f;
 
 			b3ShapeDef shapeDef = b3DefaultShapeDef();
-			shapeDef.baseMaterial.friction = 0.0f;
-			shapeDef.baseMaterial.restitution = 0.0f;
+			shapeDef.baseMaterial.friction = B3_FIX( 0.0f );
+			shapeDef.baseMaterial.restitution = B3_FIX( 0.0f );
 			shapeDef.baseMaterial.customColor = b3_colorLimeGreen;
 
 			float feetVolume = 8.0f * halfExtX * halfExtY * halfExtZ;
-			shapeDef.density = ( m_characterMass * 0.4f ) / feetVolume;
+			shapeDef.density = b3FixFromFloat( ( m_characterMass * 0.4f ) / feetVolume );
 
 			b3Transform feetTransform = { { B3_FIX( 0.0f ), b3FixFromFloat( -m_totalHeight * 0.5f + halfExtY ), B3_FIX( 0.0f ) }, b3Quat_identity };
-			b3BoxHull feetBox = b3MakeTransformedBoxHull( halfExtX, halfExtY, halfExtZ, feetTransform );
+			b3BoxHull feetBox =
+				b3MakeTransformedBoxHull( b3FixFromFloat( halfExtX ), b3FixFromFloat( halfExtY ), b3FixFromFloat( halfExtZ ), feetTransform );
 			m_feetBoxId = b3CreateHullShape( m_bodyId, &shapeDef, &feetBox.base );
 		}
 
@@ -762,14 +763,14 @@ struct RigidbodyCharacter
 				};
 
 				b3ShapeDef shapeDef = b3DefaultShapeDef();
-				shapeDef.baseMaterial.friction = 0.0f;
-				shapeDef.baseMaterial.restitution = 0.0f;
+				shapeDef.baseMaterial.friction = B3_FIX( 0.0f );
+				shapeDef.baseMaterial.restitution = B3_FIX( 0.0f );
 				shapeDef.baseMaterial.customColor = b3_colorCornflowerBlue;
 
 				float h = capsuleTop - capsuleBottom;
 				float r = capsuleRadius;
-				float capsuleVolume = B3_PI * r * r * ( h + 4.0f * r / 3.0f );
-				shapeDef.density = ( m_characterMass * 0.6f ) / capsuleVolume;
+				float capsuleVolume = b3FixToFloat( B3_PI ) * r * r * ( h + 4.0f * r / 3.0f );
+				shapeDef.density = b3FixFromFloat( ( m_characterMass * 0.6f ) / capsuleVolume );
 
 				m_bodyCapsuleId = b3CreateCapsuleShape( m_bodyId, &shapeDef, &capsule );
 			}
@@ -794,8 +795,8 @@ struct RigidbodyCharacter
 		result.startedSolid = false;
 
 		b3Vec3 translation = to - from;
-		float translationLen = b3Length( translation );
-		if ( translationLen < 1e-6f )
+		b3Fixed translationLen = b3Length( translation );
+		if ( translationLen < 8 * B3_FIXED_EPSILON )
 		{
 			return result;
 		}
@@ -824,7 +825,7 @@ struct RigidbodyCharacter
 		b3ShapeProxy proxy;
 		proxy.points = points;
 		proxy.count = 8;
-		proxy.radius = 0.0f;
+		proxy.radius = B3_FIX( 0.0f );
 
 		ClosestShapeCastContext ctx = {};
 		for ( int i = 0; i < m_ownShapeCount; ++i )
@@ -832,7 +833,7 @@ struct RigidbodyCharacter
 			ctx.ignoreShapes[i] = m_ownShapes[i];
 		}
 		ctx.ignoreCount = m_ownShapeCount;
-		ctx.closestFraction = 1.0f;
+		ctx.closestFraction = B3_FIX( 1.0f );
 		ctx.hit = false;
 		ctx.startedSolid = false;
 		ctx.closestShape = b3_nullShapeId;
@@ -844,7 +845,7 @@ struct RigidbodyCharacter
 		if ( ctx.hit )
 		{
 			result.hit = true;
-			result.fraction = ctx.closestFraction;
+			result.fraction = b3FixToFloat( ctx.closestFraction );
 			result.normal = ctx.closestNormal;
 			result.hitPoint = ctx.closestPoint;
 			result.endPosition = from + ctx.closestFraction * translation;
@@ -855,15 +856,15 @@ struct RigidbodyCharacter
 
 	bool IsStandableSurface( b3Vec3 normal ) const
 	{
-		float maxSlopeCos = cosf( m_maxSlopeAngle * B3_PI / 180.0f );
-		return b3Dot( normal, b3Vec3_axisY ) >= maxSlopeCos;
+		float maxSlopeCos = cosf( m_maxSlopeAngle * b3FixToFloat( B3_PI ) / 180.0f );
+		return b3FixToFloat( b3Dot( normal, b3Vec3_axisY ) ) >= maxSlopeCos;
 	}
 
 	// Get feet position from body center position
 	b3Pos GetFeetPosition() const
 	{
 		b3Pos pos = b3Body_GetPosition( m_bodyId );
-		return { pos.x, b3FixFromFloat( pos.y - m_totalHeight * 0.5f ), pos.z };
+		return { pos.x, pos.y - b3FixFromFloat( m_totalHeight * 0.5f ), pos.z };
 	}
 
 	// --- CategorizeGround: s&box-style box cast with radius shrinking ---
@@ -872,8 +873,8 @@ struct RigidbodyCharacter
 		b3Pos feet = GetFeetPosition();
 
 		// s&box: from = WorldPosition + Up*4, to = WorldPosition + Down*2 (Source units)
-		b3Pos from = { feet.x, b3FixFromFloat( feet.y + 4.0f * SRC ), feet.z };
-		b3Pos to = { feet.x, b3FixFromFloat( feet.y - 2.0f * SRC ), feet.z };
+		b3Pos from = { feet.x, feet.y + b3FixFromFloat( 4.0f * SRC ), feet.z };
+		b3Pos to = { feet.x, feet.y - b3FixFromFloat( 2.0f * SRC ), feet.z };
 
 		float radiusScale = 1.0f;
 		TraceResult tr = TraceBody( from, to, radiusScale, 0.5f );
@@ -924,8 +925,8 @@ struct RigidbodyCharacter
 
 		b3Pos pos = b3Body_GetPosition( m_bodyId );
 
-		b3Pos from = { pos.x, b3FixFromFloat( pos.y + 0.05f ), pos.z };
-		b3Pos to = { pos.x, b3FixFromFloat( pos.y - stepSize ), pos.z };
+		b3Pos from = { pos.x, pos.y + B3_FIX( 0.05f ), pos.z };
+		b3Pos to = { pos.x, pos.y - b3FixFromFloat( stepSize ), pos.z };
 
 		float radiusScale = 1.0f;
 		TraceResult tr = TraceBody( from, to, radiusScale, 0.5f );
@@ -942,17 +943,17 @@ struct RigidbodyCharacter
 
 		if ( tr.hit )
 		{
-			b3Pos targetPos = { tr.endPosition.x, b3FixFromFloat( tr.endPosition.y + 0.01f ), tr.endPosition.z };
-			float deltaY = targetPos.y - pos.y;
+			b3Pos targetPos = { tr.endPosition.x, tr.endPosition.y + B3_FIX( 0.01f ), tr.endPosition.z };
+			b3Fixed deltaY = targetPos.y - pos.y;
 
 			b3Quat rot = b3Body_GetRotation( m_bodyId );
 			b3Body_SetTransform( m_bodyId, targetPos, rot );
 
 			// If we moved upward, kill vertical velocity to prevent bouncing
-			if ( deltaY > 0.01f )
+			if ( deltaY > B3_FIX( 0.01f ) )
 			{
 				b3Vec3 vel = b3Body_GetLinearVelocity( m_bodyId );
-				vel.y = 0.0f;
+				vel.y = B3_FIX( 0.0f );
 				b3Body_SetLinearVelocity( m_bodyId, vel );
 			}
 
@@ -975,18 +976,18 @@ struct RigidbodyCharacter
 
 		// Horizontal velocity direction
 		b3Vec3 hVel = { vel.x, B3_FIX( 0.0f ), vel.z };
-		float hSpeed = b3Length( hVel );
-		if ( hSpeed < 0.01f )
+		b3Fixed hSpeed = b3Length( hVel );
+		if ( hSpeed < B3_FIX( 0.01f ) )
 		{
 			return false;
 		}
-		b3Vec3 moveDir = { b3FixFromFloat( hVel.x / hSpeed ), B3_FIX( 0.0f ), b3FixFromFloat( hVel.z / hSpeed ) };
+		b3Vec3 moveDir = { b3FixDiv( hVel.x, hSpeed ), B3_FIX( 0.0f ), b3FixDiv( hVel.z, hSpeed ) };
 
 		// Phase 1 — FORWARD: trace body forward in velocity direction
 		// Start slightly behind (offset by skin)
-		float forwardDist = hSpeed * ( 1.0f / 60.0f ) + m_bodyRadius; // one frame of movement + radius
-		b3Pos forwardFrom = pos - m_skin * moveDir;
-		b3Pos forwardTo = pos + forwardDist * moveDir;
+		float forwardDist = b3FixToFloat( hSpeed ) * ( 1.0f / 60.0f ) + m_bodyRadius; // one frame of movement + radius
+		b3Pos forwardFrom = pos - b3FixFromFloat( m_skin ) * moveDir;
+		b3Pos forwardTo = pos + b3FixFromFloat( forwardDist ) * moveDir;
 
 		float radiusScale = 1.0f;
 		TraceResult trForward = TraceBody( forwardFrom, forwardTo, radiusScale );
@@ -1015,7 +1016,7 @@ struct RigidbodyCharacter
 
 		// Phase 2 — UP: trace straight up from hit position
 		b3Pos upFrom = hitPos;
-		b3Pos upTo = { hitPos.x, b3FixFromFloat( hitPos.y + maxStepHeight ), hitPos.z };
+		b3Pos upTo = { hitPos.x, hitPos.y + b3FixFromFloat( maxStepHeight ), hitPos.z };
 		TraceResult trUp = TraceBody( upFrom, upTo, radiusScale );
 
 		if ( trUp.startedSolid )
@@ -1025,8 +1026,8 @@ struct RigidbodyCharacter
 		}
 
 		b3Pos topPos = trUp.hit ? trUp.endPosition : upTo;
-		float upDistance = topPos.y - upFrom.y;
-		if ( upDistance < 0.005f )
+		b3Fixed upDistance = topPos.y - upFrom.y;
+		if ( upDistance < B3_FIX( 0.005f ) )
 		{
 			// Too tight to step up
 			DrawLine( upFrom, topPos, MakeColor( b3_colorRed ) );
@@ -1038,7 +1039,7 @@ struct RigidbodyCharacter
 		// Phase 3 — ACROSS: from top position, trace in move direction
 		float acrossDist = forwardDist * ( 1.0f - trForward.fraction ) + m_bodyRadius * 0.5f;
 		b3Pos acrossFrom = topPos;
-		b3Pos acrossTo = topPos + acrossDist * moveDir;
+		b3Pos acrossTo = topPos + b3FixFromFloat( acrossDist ) * moveDir;
 		TraceResult trAcross = TraceBody( acrossFrom, acrossTo, radiusScale );
 
 		if ( trAcross.startedSolid )
@@ -1052,7 +1053,7 @@ struct RigidbodyCharacter
 
 		// Phase 4 — DOWN: from across position, trace straight down
 		b3Pos downFrom = acrossPos;
-		b3Pos downTo = { acrossPos.x, b3FixFromFloat( acrossPos.y - maxStepHeight ), acrossPos.z };
+		b3Pos downTo = { acrossPos.x, acrossPos.y - b3FixFromFloat( maxStepHeight ), acrossPos.z };
 		TraceResult trDown = TraceBody( downFrom, downTo, radiusScale );
 
 		if ( !trDown.hit )
@@ -1068,8 +1069,8 @@ struct RigidbodyCharacter
 		}
 
 		// Check we actually stepped up (not just laterally)
-		float stepHeight = trDown.endPosition.y - pos.y;
-		if ( stepHeight < 0.01f )
+		b3Fixed stepHeight = trDown.endPosition.y - pos.y;
+		if ( stepHeight < B3_FIX( 0.01f ) )
 		{
 			return false;
 		}
@@ -1078,15 +1079,15 @@ struct RigidbodyCharacter
 		DrawPoint( trDown.endPosition, 8.0f, MakeColor( b3_colorYellow ) );
 
 		// Teleport body to step position
-		b3Pos stepPos = { trDown.endPosition.x, b3FixFromFloat( trDown.endPosition.y + 0.01f ), trDown.endPosition.z };
+		b3Pos stepPos = { trDown.endPosition.x, trDown.endPosition.y + B3_FIX( 0.01f ), trDown.endPosition.z };
 		b3Quat rot = b3Body_GetRotation( m_bodyId );
 		b3Body_SetTransform( m_bodyId, stepPos, rot );
 
 		// Kill vertical velocity, scale horizontal by 0.9
 		b3Vec3 newVel = b3Body_GetLinearVelocity( m_bodyId );
-		newVel.x *= 0.9f;
-		newVel.y = 0.0f;
-		newVel.z *= 0.9f;
+		newVel.x = b3FixMul( newVel.x, B3_FIX( 0.9f ) );
+		newVel.y = B3_FIX( 0.0f );
+		newVel.z = b3FixMul( newVel.z, B3_FIX( 0.9f ) );
 		b3Body_SetLinearVelocity( m_bodyId, newVel );
 
 		m_stepPosition = stepPos;
@@ -1107,12 +1108,12 @@ struct RigidbodyCharacter
 	}
 
 	// --- AddClamped: add vector but cap the addition's magnitude ---
-	static b3Vec3 AddClamped( b3Vec3 current, b3Vec3 add, float maxAddLength )
+	static b3Vec3 AddClamped( b3Vec3 current, b3Vec3 add, b3Fixed maxAddLength )
 	{
-		float addLen = b3Length( add );
-		if ( addLen > maxAddLength && addLen > 0.0f )
+		b3Fixed addLen = b3Length( add );
+		if ( addLen > maxAddLength && addLen > B3_FIX( 0.0f ) )
 		{
-			add = ( maxAddLength / addLen ) * add;
+			add = b3FixDiv( maxAddLength, addLen ) * add;
 		}
 		return current + add;
 	}
@@ -1140,9 +1141,9 @@ struct RigidbodyCharacter
 	// --- UpdateBody: set friction, gravity, damping per s&box ---
 	void UpdateBody( b3Vec3 wishVelocity )
 	{
-		float wishLen = b3Length( wishVelocity );
+		float wishLen = b3FixToFloat( b3Length( wishVelocity ) );
 		b3Vec3 vel = b3Body_GetLinearVelocity( m_bodyId );
-		float velLen = b3Length( vel );
+		float velLen = b3FixToFloat( b3Length( vel ) );
 
 		// Feet friction — s&box: wantsBrakes when wish < 5 Source/s or wish < vel * 0.9
 		float feetFriction = 0.0f;
@@ -1155,7 +1156,7 @@ struct RigidbodyCharacter
 				feetFriction = 1.0f + 100.0f * m_brakePower * m_surfaceFriction;
 			}
 		}
-		b3Shape_SetFriction( m_feetBoxId, feetFriction );
+		b3Shape_SetFriction( m_feetBoxId, b3FixFromFloat( feetFriction ) );
 
 		// Mass center
 		UpdateMassCenter( wishLen );
@@ -1167,13 +1168,13 @@ struct RigidbodyCharacter
 			wantsGravity = true;
 		if ( velLen > ( 1.0f * SRC ) )
 			wantsGravity = true;
-		if ( b3Length( m_groundVelocity ) > ( 1.0f * SRC ) )
+		if ( b3FixToFloat( b3Length( m_groundVelocity ) ) > ( 1.0f * SRC ) )
 			wantsGravity = true;
-		b3Body_SetGravityScale( m_bodyId, wantsGravity ? ( m_characterGravity / 10.0f ) : 0.0f );
+		b3Body_SetGravityScale( m_bodyId, b3FixFromFloat( wantsGravity ? ( m_characterGravity / 10.0f ) : 0.0f ) );
 
 		// Linear damping — s&box: brakes when wish < 1 unit/s && groundVel < 1 unit/s
-		bool wantsDamping = m_onGround && wishLen < ( 1.0f * SRC ) && b3Length( m_groundVelocity ) < ( 1.0f * SRC );
-		b3Body_SetLinearDamping( m_bodyId, wantsDamping ? 10.0f * m_brakePower : m_airFriction );
+		bool wantsDamping = m_onGround && wishLen < ( 1.0f * SRC ) && b3FixToFloat( b3Length( m_groundVelocity ) ) < ( 1.0f * SRC );
+		b3Body_SetLinearDamping( m_bodyId, b3FixFromFloat( wantsDamping ? 10.0f * m_brakePower : m_airFriction ) );
 	}
 
 	// --- AddVelocity: s&box's MoveMode.Walk velocity model ---
@@ -1181,36 +1182,36 @@ struct RigidbodyCharacter
 	{
 		// Walk mode strips vertical component
 		b3Vec3 wish = { wishVelocity.x, B3_FIX( 0.0f ), wishVelocity.z };
-		float wishLen = b3Length( wish );
-		if ( wishLen < 0.001f )
+		b3Fixed wishLen = b3Length( wish );
+		if ( wishLen < B3_FIX( 0.001f ) )
 		{
 			return;
 		}
 
 		float groundFrictionFactor = 0.25f + m_surfaceFriction * 10.0f;
 		b3Vec3 vel = b3Body_GetLinearVelocity( m_bodyId );
-		float savedY = vel.y;
+		b3Fixed savedY = vel.y;
 
 		b3Vec3 velocity = vel - m_groundVelocity;
-		float speed = b3Length( velocity );
-		float maxSpeed = b3MaxFloat( wishLen, speed );
+		b3Fixed speed = b3Length( velocity );
+		b3Fixed maxSpeed = b3FixMax( wishLen, speed );
 
 		if ( m_onGround )
 		{
-			float amount = 1.0f * groundFrictionFactor;
-			velocity = AddClamped( velocity, amount * wish, wishLen * amount );
+			b3Fixed amount = b3FixFromFloat( 1.0f * groundFrictionFactor );
+			velocity = AddClamped( velocity, amount * wish, b3FixMul( wishLen, amount ) );
 		}
 		else
 		{
-			float amount = 0.05f;
+			b3Fixed amount = B3_FIX( 0.05f );
 			velocity = AddClamped( velocity, amount * wish, wishLen );
 		}
 
 		// Cap at max speed
-		float newSpeed = b3Length( velocity );
-		if ( newSpeed > maxSpeed && newSpeed > 0.0f )
+		b3Fixed newSpeed = b3Length( velocity );
+		if ( newSpeed > maxSpeed && newSpeed > B3_FIX( 0.0f ) )
 		{
-			velocity = ( maxSpeed / newSpeed ) * velocity;
+			velocity = b3FixDiv( maxSpeed, newSpeed ) * velocity;
 		}
 
 		velocity = velocity + m_groundVelocity;
@@ -1231,12 +1232,12 @@ struct RigidbodyCharacter
 		}
 
 		// Compute wish velocity from input
-		float maxSpeed = m_sprint ? m_runSpeed : m_walkSpeed;
-		b3Vec3 wishVelocity = maxSpeed * throttle.x * forward + maxSpeed * throttle.y * right;
-		float wishSpeed = b3Length( wishVelocity );
+		b3Fixed maxSpeed = b3FixFromFloat( m_sprint ? m_runSpeed : m_walkSpeed );
+		b3Vec3 wishVelocity = b3FixMul( maxSpeed, throttle.x ) * forward + b3FixMul( maxSpeed, throttle.y ) * right;
+		b3Fixed wishSpeed = b3Length( wishVelocity );
 		if ( wishSpeed > maxSpeed )
 		{
-			wishVelocity = ( maxSpeed / wishSpeed ) * wishVelocity;
+			wishVelocity = b3FixDiv( maxSpeed, wishSpeed ) * wishVelocity;
 		}
 		m_lastWishVelocity = wishVelocity;
 
@@ -1270,7 +1271,7 @@ struct RigidbodyCharacter
 		if ( m_onGround && m_jumpCooldown <= 0.0f )
 		{
 			b3Vec3 velocity = b3Body_GetLinearVelocity( m_bodyId );
-			velocity.y = m_jumpSpeed;
+			velocity.y = b3FixFromFloat( m_jumpSpeed );
 			b3Body_SetLinearVelocity( m_bodyId, velocity );
 			m_onGround = false;
 			m_jumpCooldown = m_jumpCooldownTime;
@@ -1304,7 +1305,7 @@ struct RigidbodyCharacter
 		// Draw ground indicator
 		if ( m_onGround )
 		{
-			b3Pos bottom = { pos.x, b3FixFromFloat( pos.y - m_totalHeight * 0.5f ), pos.z };
+			b3Pos bottom = { pos.x, pos.y - b3FixFromFloat( m_totalHeight * 0.5f ), pos.z };
 			DrawLine( bottom, b3OffsetPos( bottom, B3_FIX( 0.3f ) * m_groundNormal ), MakeColor( b3_colorGreen ) );
 		}
 	}
@@ -1390,7 +1391,7 @@ public:
 			bodyDef.position = { B3_FIX( 20.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
 			b3BodyId body = b3CreateBody( m_worldId, &bodyDef );
 
-			m_heightField = b3CreateWave( 50.0f, 50.0f, b3Vec3_one, B3_FIX( 0.02f ), B3_FIX( 0.04f ), true );
+			m_heightField = b3CreateWave( 50, 50, b3Vec3_one, B3_FIX( 0.02f ), B3_FIX( 0.04f ), true );
 			b3ShapeDef shapeDef = b3DefaultShapeDef();
 			b3SurfaceMaterial materials[3];
 			materials[0] = { B3_FIX( 0.6f ), B3_FIX( 0.0f ), 0 };
@@ -1410,10 +1411,10 @@ public:
 		{
 			b3BodyDef bodyDef = b3DefaultBodyDef();
 			bodyDef.position = { B3_FIX( 6.0f ), B3_FIX( 1.0f ), B3_FIX( 4.0f ) };
-			bodyDef.rotation = b3MakeQuatFromAxisAngle( b3Vec3_axisZ, -20.0f * B3_DEG_TO_RAD );
+			bodyDef.rotation = b3MakeQuatFromAxisAngle( b3Vec3_axisZ, -20 * B3_DEG_TO_RAD );
 			b3BodyId body = b3CreateBody( m_worldId, &bodyDef );
 			hullShapeDef.baseMaterial.customColor = b3_colorOliveDrab;
-			b3BoxHull box = b3MakeBoxHull( 3.0f, B3_FIX( 0.15f ), B3_FIX( 1.5f ) );
+			b3BoxHull box = b3MakeBoxHull( B3_FIX( 3.0f ), B3_FIX( 0.15f ), B3_FIX( 1.5f ) );
 			b3CreateHullShape( body, &hullShapeDef, &box.base );
 		}
 
@@ -1421,7 +1422,7 @@ public:
 		{
 			b3BodyDef bodyDef = b3DefaultBodyDef();
 			bodyDef.position = { B3_FIX( 6.0f ), B3_FIX( 2.0f ), B3_FIX( -4.0f ) };
-			bodyDef.rotation = b3MakeQuatFromAxisAngle( b3Vec3_axisZ, -50.0f * B3_DEG_TO_RAD );
+			bodyDef.rotation = b3MakeQuatFromAxisAngle( b3Vec3_axisZ, -50 * B3_DEG_TO_RAD );
 			b3BodyId body = b3CreateBody( m_worldId, &bodyDef );
 			hullShapeDef.baseMaterial.customColor = b3_colorIndianRed;
 			b3BoxHull box = b3MakeBoxHull( B3_FIX( 2.5f ), B3_FIX( 0.15f ), B3_FIX( 1.5f ) );
@@ -1432,7 +1433,7 @@ public:
 		for ( int i = 0; i < 3; ++i )
 		{
 			b3BodyDef bodyDef = b3DefaultBodyDef();
-			bodyDef.position = { b3FixFromFloat( -4.0f + 3.5f * i ), B3_FIX( 1.2f ), B3_FIX( -5.0f ) };
+			bodyDef.position = { B3_FIX( -4.0f ) + i * B3_FIX( 3.5f ), B3_FIX( 1.2f ), B3_FIX( -5.0f ) };
 			b3BodyId body = b3CreateBody( m_worldId, &bodyDef );
 			hullShapeDef.baseMaterial.customColor = b3_colorSlateGray;
 			b3BoxHull box = b3MakeBoxHull( B3_FIX( 1.2f ), B3_FIX( 0.15f ), B3_FIX( 1.2f ) );
@@ -1443,11 +1444,11 @@ public:
 		for ( int i = 0; i < 5; ++i )
 		{
 			b3BodyDef bodyDef = b3DefaultBodyDef();
-			float lipHeight = 0.05f + 0.08f * i;
-			bodyDef.position = { B3_FIX( -8.0f ), b3FixFromFloat( lipHeight ), b3FixFromFloat( -1.0f + 2.0f * i ) };
+			b3Fixed lipHeight = B3_FIX( 0.05f ) + i * B3_FIX( 0.08f );
+			bodyDef.position = { B3_FIX( -8.0f ), lipHeight, B3_FIX( -1.0f ) + i * B3_FIX( 2.0f ) };
 			b3BodyId body = b3CreateBody( m_worldId, &bodyDef );
 			hullShapeDef.baseMaterial.customColor = b3_colorCornflowerBlue;
-			b3BoxHull box = b3MakeBoxHull( 1.0f, lipHeight, B3_FIX( 0.6f ) );
+			b3BoxHull box = b3MakeBoxHull( B3_FIX( 1.0f ), lipHeight, B3_FIX( 0.6f ) );
 			b3CreateHullShape( body, &hullShapeDef, &box.base );
 		}
 
@@ -1457,7 +1458,7 @@ public:
 			bodyDef.position = { B3_FIX( 0.0f ), B3_FIX( 1.5f ), B3_FIX( 10.0f ) };
 			b3BodyId body = b3CreateBody( m_worldId, &bodyDef );
 			hullShapeDef.baseMaterial.customColor = b3_colorDarkSlateGray;
-			b3BoxHull box = b3MakeBoxHull( 4.0f, B3_FIX( 1.5f ), B3_FIX( 0.2f ) );
+			b3BoxHull box = b3MakeBoxHull( B3_FIX( 4.0f ), B3_FIX( 1.5f ), B3_FIX( 0.2f ) );
 			b3CreateHullShape( body, &hullShapeDef, &box.base );
 		}
 
@@ -1466,7 +1467,7 @@ public:
 		{
 			b3BodyDef bodyDef = b3DefaultBodyDef();
 			bodyDef.type = b3_dynamicBody;
-			bodyDef.position = { b3FixFromFloat( 3.0f + 1.5f * i ), B3_FIX( 0.5f ), B3_FIX( 0.0f ) };
+			bodyDef.position = { B3_FIX( 3.0f ) + i * B3_FIX( 1.5f ), B3_FIX( 0.5f ), B3_FIX( 0.0f ) };
 			b3BodyId body = b3CreateBody( m_worldId, &bodyDef );
 			hullShapeDef.baseMaterial.customColor = b3_colorGold;
 			b3BoxHull box = b3MakeBoxHull( B3_FIX( 0.4f ), B3_FIX( 0.4f ), B3_FIX( 0.4f ) );
@@ -1523,32 +1524,32 @@ public:
 		b3Vec2 throttle = { B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
 		b3Vec3 forward = -m_camera->GetForward();
 		b3Vec3 right = m_camera->GetRight();
-		forward.y = 0.0f;
+		forward.y = B3_FIX( 0.0f );
 
 		// Normalize forward to horizontal plane
-		float forwardLen = b3Length( forward );
-		if ( forwardLen > 0.001f )
+		b3Fixed forwardLen = b3Length( forward );
+		if ( forwardLen > B3_FIX( 0.001f ) )
 		{
-			forward *= 1.0f / forwardLen;
+			forward = b3Normalize( forward );
 		}
 
 		if ( m_camera->m_thirdPerson )
 		{
 			if ( IsKeyDown( KEY_W ) )
 			{
-				throttle.x += 1.0f;
+				throttle.x += B3_FIX( 1.0f );
 			}
 			if ( IsKeyDown( KEY_S ) )
 			{
-				throttle.x -= 1.0f;
+				throttle.x -= B3_FIX( 1.0f );
 			}
 			if ( IsKeyDown( KEY_A ) )
 			{
-				throttle.y -= 1.0f;
+				throttle.y -= B3_FIX( 1.0f );
 			}
 			if ( IsKeyDown( KEY_D ) )
 			{
-				throttle.y += 1.0f;
+				throttle.y += B3_FIX( 1.0f );
 			}
 
 			if ( IsKeyDown( KEY_SPACE ) )
@@ -1581,16 +1582,16 @@ public:
 			// next frame start from the user's chosen distance instead of ratcheting inward.
 			float cameraRadius = 0.15f;
 			b3Vec3 translation = b3SubPos( m_camera->m_worldEye, charPos );
-			float desiredDist = b3Length( translation );
+			b3Fixed desiredDist = b3Length( translation );
 
-			if ( desiredDist > 0.01f )
+			if ( desiredDist > B3_FIX( 0.01f ) )
 			{
 				b3QueryFilter filter = b3DefaultQueryFilter();
 				b3RayResult rayResult = b3World_CastRayClosest( m_worldId, charPos, translation, filter );
 
 				if ( rayResult.hit )
 				{
-					float clampedDist = rayResult.fraction * desiredDist - cameraRadius;
+					float clampedDist = b3FixToFloat( b3FixMul( rayResult.fraction, desiredDist ) ) - cameraRadius;
 					if ( clampedDist < 0.1f )
 						clampedDist = 0.1f;
 
@@ -1614,10 +1615,13 @@ public:
 
 		// HUD text
 		b3Vec3 vel = b3Body_GetLinearVelocity( m_character.m_bodyId );
-		float speed = sqrtf( vel.x * vel.x + vel.z * vel.z );
+		float velX = b3FixToFloat( vel.x );
+		float velZ = b3FixToFloat( vel.z );
+		float speed = sqrtf( velX * velX + velZ * velZ );
 		DrawTextLine( "Rigid Body Character (s&box-style)" );
-		DrawTextLine( "position: %.2f %.2f %.2f", pos.x, pos.y, pos.z );
-		DrawTextLine( "velocity: %.2f %.2f %.2f (horizontal: %.2f)", vel.x, vel.y, vel.z, speed );
+		DrawTextLine( "position: %.2f %.2f %.2f", b3FixToDouble( pos.x ), b3FixToDouble( pos.y ), b3FixToDouble( pos.z ) );
+		DrawTextLine( "velocity: %.2f %.2f %.2f (horizontal: %.2f)", b3FixToDouble( vel.x ), b3FixToDouble( vel.y ),
+					  b3FixToDouble( vel.z ), speed );
 		DrawTextLine( "on ground: %s | sprint: %s", m_character.m_onGround ? "yes" : "no", m_character.m_sprint ? "yes" : "no" );
 		DrawTextLine( "WASD=move Space=jump Shift=sprint T=camera V=debug" );
 	}
@@ -1642,7 +1646,9 @@ public:
 		ImGui::Text( "Ground: %s", m_character.m_onGround ? "YES" : "NO" );
 
 		b3Vec3 vel = b3Body_GetLinearVelocity( m_character.m_bodyId );
-		float hSpeed = sqrtf( vel.x * vel.x + vel.z * vel.z );
+		float velX = b3FixToFloat( vel.x );
+		float velZ = b3FixToFloat( vel.z );
+		float hSpeed = sqrtf( velX * velX + velZ * velZ );
 		ImGui::Text( "Speed: %.2f m/s", hSpeed );
 		ImGui::Text( "Vertical: %.2f m/s", b3FixToDouble( vel.y ) );
 

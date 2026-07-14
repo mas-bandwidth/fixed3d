@@ -22,7 +22,7 @@ public:
 			// m_camera->SetView( 45.0f, 30.0f, 300.0f, { 3910.62109f, 9862.50293f, 875.395081f } );
 		}
 
-		b3SetLengthUnitsPerMeter( 1.0f );
+		b3SetLengthUnitsPerMeter( B3_FIX( 1.0f ) );
 
 		const char* dumpPrefix = "data/dumps/single_box/";
 
@@ -36,7 +36,7 @@ public:
 			b3DestroyMesh( md );
 		}
 
-		b3SetLengthUnitsPerMeter( 1.0f );
+		b3SetLengthUnitsPerMeter( B3_FIX( 1.0f ) );
 	}
 
 	static Sample* Create( SampleContext* context )
@@ -67,7 +67,7 @@ public:
 			groundId = b3CreateBody( m_worldId, &bodyDef );
 
 			b3ShapeDef shapeDef = b3DefaultShapeDef();
-			m_gridMesh = b3CreateGridMesh( 20, 20, 2, 0, true );
+			m_gridMesh = b3CreateGridMesh( 20, 20, B3_FIX( 2.0f ), 0, true );
 			b3CreateMeshShape( groundId, &shapeDef, m_gridMesh, b3Vec3_one );
 		}
 
@@ -138,16 +138,16 @@ public:
 		jointDef.base.bodyIdA = groundId;
 		jointDef.base.localFrameA.p = { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
 		jointDef.base.localFrameB.p = { B3_FIX( 0.0f ), B3_FIX( -0.6f ), B3_FIX( 0.0f ) };
-		jointDef.base.drawScale = 2.0f;
-		jointDef.base.constraintHertz = 240.0f;
-		jointDef.lowerTranslation = -6.0f;
-		jointDef.upperTranslation = 6.0f;
+		jointDef.base.drawScale = B3_FIX( 2.0f );
+		jointDef.base.constraintHertz = B3_FIX( 240.0f );
+		jointDef.lowerTranslation = B3_FIX( -6.0f );
+		jointDef.upperTranslation = B3_FIX( 6.0f );
 		jointDef.enableLimit = true;
 
 		for ( int i = 0; i < 6; ++i )
 		{
 			b3BodyDef bodyDef = b3DefaultBodyDef();
-			bodyDef.position = { B3_FIX( 0.0f ), b3FixFromFloat( 0.6f + 1.2f * i ), B3_FIX( 0.0f ) };
+			bodyDef.position = { B3_FIX( 0.0f ), b3FixFromFloat( 0.6f + 1.2f * (float)i ), B3_FIX( 0.0f ) };
 			bodyDef.type = b3_dynamicBody;
 			b3BodyId bodyId = b3CreateBody( m_worldId, &bodyDef );
 			b3CreateHullShape( bodyId, &shapeDef, &box.base );
@@ -187,13 +187,13 @@ public:
 #if 0
 		// bad hull SM_Waterfall_MED_Wide_01
 		b3Vec3 points[] = {
-			{ 0.100183107, -498.925385, -1275.39966 }, { 0.100183107, -498.925415, 0.125000000 },
-			{ 0.100183107, 486.343750, 0.125000000 },  { 0.100183107, 486.343719, -1275.39966 },
-			{ -395.117462, 486.343781, -1462.43750 },  { -395.117462, 486.343750, -96.7426758 },
-			{ -395.117462, -498.925415, -96.7424469 }, { -395.117462, -498.925446, -1462.52612 },
-			{ -186.979691, 486.294891, -1462.47949 },  { -298.250000, 486.294891, 0.125000000 },
-			{ -395.121216, 486.294891, -1462.52612 },  { -186.984360, -498.913361, -1462.48413 },
-			{ -298.250000, -498.913361, 0.125000000 },
+			{ B3_FIX( 0.100183107 ), B3_FIX( -498.925385 ), B3_FIX( -1275.39966 ) }, { B3_FIX( 0.100183107 ), B3_FIX( -498.925415 ), B3_FIX( 0.125000000 ) },
+			{ B3_FIX( 0.100183107 ), B3_FIX( 486.343750 ), B3_FIX( 0.125000000 ) },  { B3_FIX( 0.100183107 ), B3_FIX( 486.343719 ), B3_FIX( -1275.39966 ) },
+			{ B3_FIX( -395.117462 ), B3_FIX( 486.343781 ), B3_FIX( -1462.43750 ) },  { B3_FIX( -395.117462 ), B3_FIX( 486.343750 ), B3_FIX( -96.7426758 ) },
+			{ B3_FIX( -395.117462 ), B3_FIX( -498.925415 ), B3_FIX( -96.7424469 ) }, { B3_FIX( -395.117462 ), B3_FIX( -498.925446 ), B3_FIX( -1462.52612 ) },
+			{ B3_FIX( -186.979691 ), B3_FIX( 486.294891 ), B3_FIX( -1462.47949 ) },  { B3_FIX( -298.250000 ), B3_FIX( 486.294891 ), B3_FIX( 0.125000000 ) },
+			{ B3_FIX( -395.121216 ), B3_FIX( 486.294891 ), B3_FIX( -1462.52612 ) },  { B3_FIX( -186.984360 ), B3_FIX( -498.913361 ), B3_FIX( -1462.48413 ) },
+			{ B3_FIX( -298.250000 ), B3_FIX( -498.913361 ), B3_FIX( 0.125000000 ) },
 		};
 
 #elif 1
@@ -204,10 +204,10 @@ public:
 		};
 #else
 		b3Vec3 points[] = {
-			{ -11.3861933, -24.2451687, -12.0037909 }, { -11.3889809, -24.2466526, -11.9013014 },
-			{ -11.3804407, -24.3151531, -12.0046492 }, { -11.3832273, -24.3166409, -11.9021587 },
-			{ -14.4396200, -24.3636723, -12.1324549 }, { -14.4432650, -24.3655701, -12.0299988 },
-			{ -14.4356947, -24.4337788, -12.1336164 }, { -14.4393377, -24.4356804, -12.0311594 },
+			{ B3_FIX( -11.3861933 ), B3_FIX( -24.2451687 ), B3_FIX( -12.0037909 ) }, { B3_FIX( -11.3889809 ), B3_FIX( -24.2466526 ), B3_FIX( -11.9013014 ) },
+			{ B3_FIX( -11.3804407 ), B3_FIX( -24.3151531 ), B3_FIX( -12.0046492 ) }, { B3_FIX( -11.3832273 ), B3_FIX( -24.3166409 ), B3_FIX( -11.9021587 ) },
+			{ B3_FIX( -14.4396200 ), B3_FIX( -24.3636723 ), B3_FIX( -12.1324549 ) }, { B3_FIX( -14.4432650 ), B3_FIX( -24.3655701 ), B3_FIX( -12.0299988 ) },
+			{ B3_FIX( -14.4356947 ), B3_FIX( -24.4337788 ), B3_FIX( -12.1336164 ) }, { B3_FIX( -14.4393377 ), B3_FIX( -24.4356804 ), B3_FIX( -12.0311594 ) },
 		};
 #endif
 
@@ -286,12 +286,12 @@ public:
 
 		AddGroundBox( 10.0f );
 
-		float s = 0.01f;
+		// Source data is scaled by 1/100 (exact integer scaling in fixed point).
 
 		{
 			b3Vec3 b = { B3_FIX( -459.292877f ), B3_FIX( 217.398331f ), B3_FIX( 1.00115335f ) };
 			b3BodyDef bodyDef = b3DefaultBodyDef();
-			bodyDef.position = { b3FixFromFloat( s * b.x ), b3FixFromFloat( s * b.z + 2.0f ), b3FixFromFloat( s * b.y ) };
+			bodyDef.position = { b.x / 100, b.z / 100 + B3_FIX( 2.0f ), b.y / 100 };
 			bodyDef.rotation = { { B3_FIX( 0.0f ), B3_FIX( -0.707106769f ), B3_FIX( 0.0f ) }, B3_FIX( 0.707106769f ) };
 			b3BodyId bodyId = b3CreateBody( m_worldId, &bodyDef );
 
@@ -319,7 +319,7 @@ public:
 			for ( int i = 0; i < count; ++i )
 			{
 				b3Vec3 p = points[i];
-				points[i] = { b3FixFromFloat( s * p.x ), b3FixFromFloat( s * p.z ), b3FixFromFloat( s * p.y ) };
+				points[i] = { p.x / 100, p.z / 100, p.y / 100 };
 			}
 
 			b3HullData* hull = b3CreateHull( points, count, count );
@@ -331,7 +331,7 @@ public:
 		{
 			b3Vec3 b = { B3_FIX( -402.321838f ), B3_FIX( 157.310364f ), B3_FIX( 16.8169250f ) };
 			b3BodyDef bodyDef = b3DefaultBodyDef();
-			bodyDef.position = { b3FixFromFloat( s * b.x ), b3FixFromFloat( s * b.z + 2.0f ), b3FixFromFloat( s * b.y ) };
+			bodyDef.position = { b.x / 100, b.z / 100 + B3_FIX( 2.0f ), b.y / 100 };
 			bodyDef.rotation = { { B3_FIX( 0.0f ), B3_FIX( -0.00152086187f ), B3_FIX( 0.0f ) }, B3_FIX( 0.999998868f ) };
 			bodyDef.type = b3_dynamicBody;
 
@@ -364,7 +364,7 @@ public:
 			for ( int i = 0; i < count; ++i )
 			{
 				b3Vec3 p = points[i];
-				points[i] = { b3FixFromFloat( s * p.x ), b3FixFromFloat( s * p.z ), b3FixFromFloat( s * p.y ) };
+				points[i] = { p.x / 100, p.z / 100, p.y / 100 };
 			}
 
 			b3HullData* hull = b3CreateHull( points, count, count );
@@ -413,7 +413,7 @@ public:
 
 			// m_boxMesh = b3CreateBoxMesh( { 0.0f, 1.0f, 0.0f }, { 1.0f, 1.0f, 1.0f }, true );
 			b3ShapeDef shapeDef = b3DefaultShapeDef();
-			m_boxMesh = b3CreatePlatformMesh( { B3_FIX( 0.0f ), B3_FIX( 0.5f ), B3_FIX( 0.0f ) }, 1.0f, 2.0f, 5.0f );
+			m_boxMesh = b3CreatePlatformMesh( { B3_FIX( 0.0f ), B3_FIX( 0.5f ), B3_FIX( 0.0f ) }, B3_FIX( 1.0f ), B3_FIX( 2.0f ), B3_FIX( 5.0f ) );
 			b3Vec3 scale = b3Vec3_one;
 			b3CreateMeshShape( groundId, &shapeDef, m_boxMesh, scale );
 		}
@@ -429,7 +429,7 @@ public:
 			b3BodyId bodyId = b3CreateBody( m_worldId, &bodyDef );
 
 			b3ShapeDef shapeDef = b3DefaultShapeDef();
-			b3BoxHull box = b3MakeBoxHull( B3_FIX( 0.25f ), 1.0f, B3_FIX( 0.25f ) );
+			b3BoxHull box = b3MakeBoxHull( B3_FIX( 0.25f ), B3_FIX( 1.0f ), B3_FIX( 0.25f ) );
 			b3CreateHullShape( bodyId, &shapeDef, &box.base );
 		}
 	}
@@ -477,7 +477,7 @@ public:
 			b3BodyId body = b3CreateBody( m_worldId, &bodyDef );
 
 			b3ShapeDef shapeDef = b3DefaultShapeDef();
-			b3BoxHull ground = b3MakeBoxHull( 50.0f, B3_FIX( 0.1f ), 50.0f );
+			b3BoxHull ground = b3MakeBoxHull( B3_FIX( 50.0f ), B3_FIX( 0.1f ), B3_FIX( 50.0f ) );
 			b3CreateHullShape( body, &shapeDef, &ground.base );
 		}
 
@@ -590,7 +590,7 @@ public:
 		{
 			b3BodyDef bodyDef = b3DefaultBodyDef();
 			bodyDef.type = b3_dynamicBody;
-			bodyDef.position = { b3FixFromFloat( -m_walkRangeX ), b3FixFromFloat( m_bodyHalfHeight + 0.1f ), B3_FIX( 0.0f ) };
+			bodyDef.position = { -m_walkRangeX, b3FixFromFloat( m_bodyHalfHeight + 0.1f ), B3_FIX( 0.0f ) };
 			bodyDef.motionLocks.angularX = true;
 			bodyDef.motionLocks.angularY = true;
 			bodyDef.motionLocks.angularZ = true;
@@ -601,22 +601,23 @@ public:
 			m_characterId = b3CreateBody( m_worldId, &bodyDef );
 
 			b3ShapeDef shapeDef = b3DefaultShapeDef();
-			shapeDef.baseMaterial.friction = 0.0f;
-			shapeDef.baseMaterial.restitution = 0.0f;
+			shapeDef.baseMaterial.friction = B3_FIX( 0.0f );
+			shapeDef.baseMaterial.restitution = B3_FIX( 0.0f );
 			//shapeDef.baseMaterial.customColor = b3_colorLimeGreen;
 
 			float volume = 8.0f * m_bodyHalfWidth * m_bodyHalfHeight * m_bodyHalfWidth;
-			shapeDef.density = m_characterMass / volume;
+			shapeDef.density = b3FixFromFloat( m_characterMass / volume );
 			shapeDef.enableSpeculativeContact = false;
 
-			b3BoxHull box = b3MakeBoxHull( m_bodyHalfWidth, m_bodyHalfHeight, m_bodyHalfWidth );
+			b3BoxHull box = b3MakeBoxHull( b3FixFromFloat( m_bodyHalfWidth ), b3FixFromFloat( m_bodyHalfHeight ),
+										   b3FixFromFloat( m_bodyHalfWidth ) );
 			b3CreateHullShape( m_characterId, &shapeDef, &box.base );
 		}
 
-		m_walkDirectionX = 1.0f;
-		m_walkDirectionZ = 1.0f;
-		m_walkSpeedX = 350.0f * SRC; // s&box run speed
-		m_walkSpeedZ = 20.0f * SRC;
+		m_walkDirectionX = 1;
+		m_walkDirectionZ = 1;
+		m_walkSpeedX = b3FixFromFloat( 350.0f * SRC ); // s&box run speed
+		m_walkSpeedZ = b3FixFromFloat( 20.0f * SRC );
 		m_launchCount = 0;
 		m_maxLaunchSpeed = 0.0f;
 		m_launchMarkerCount = 0;
@@ -854,20 +855,20 @@ public:
 		b3Pos position = b3Body_GetPosition( m_characterId );
 		if ( position.x > m_walkRangeX )
 		{
-			m_walkDirectionX = -1.0f;
+			m_walkDirectionX = -1;
 		}
 		else if ( position.x < -m_walkRangeX )
 		{
-			m_walkDirectionX = 1.0f;
+			m_walkDirectionX = 1;
 		}
 
 		if ( position.z > m_walkRangeZ )
 		{
-			m_walkDirectionZ = -1.0f;
+			m_walkDirectionZ = -1;
 		}
 		else if ( position.z < -m_walkRangeZ )
 		{
-			m_walkDirectionZ= 1.0f;
+			m_walkDirectionZ= 1;
 		}
 
 		b3Vec3 velocity = b3Body_GetLinearVelocity( m_characterId );
@@ -885,13 +886,13 @@ public:
 			position = b3Body_GetPosition( m_characterId );
 			velocity = b3Body_GetLinearVelocity( m_characterId );
 
-			bool grounded = position.y < m_bodyHalfHeight + 0.01f + 4.0f * SRC;
+			bool grounded = position.y < b3FixFromFloat( m_bodyHalfHeight + 0.01f + 4.0f * SRC );
 			bool launched = velocity.y > m_launchThreshold;
 
 			if ( grounded && launched && m_wasLaunched == false )
 			{
 				m_launchCount += 1;
-				m_maxLaunchSpeed = b3MaxFloat( m_maxLaunchSpeed, velocity.y );
+				m_maxLaunchSpeed = b3MaxFloat( m_maxLaunchSpeed, b3FixToFloat( velocity.y ) );
 
 				if ( m_launchMarkerCount < m_markerCapacity )
 				{
@@ -911,21 +912,21 @@ public:
 		b3Vec3 currentVelocity = b3Body_GetLinearVelocity( m_characterId );
 		DrawTextLine( "ghost launches: %d, worst: %.2f m/s (%.0f inch/s)", m_launchCount, m_maxLaunchSpeed,
 					  m_maxLaunchSpeed / SRC );
-		DrawTextLine( "vertical velocity: %.2f m/s", currentVelocity.y );
+		DrawTextLine( "vertical velocity: %.2f m/s", b3FixToDouble( currentVelocity.y ) );
 	}
 
 	bool DrawControls() override
 	{
-		float speedUX = m_walkSpeedX / SRC;
+		float speedUX = b3FixToFloat( m_walkSpeedX ) / SRC;
 		if ( ImGui::SliderFloat( "Walk Speed X (inch/s)", &speedUX, 100.0f, 400.0f, "%.0f" ) )
 		{
-			m_walkSpeedX = speedUX * SRC;
+			m_walkSpeedX = b3FixFromFloat( speedUX * SRC );
 		}
 
-		float speedUZ = m_walkSpeedZ / SRC;
+		float speedUZ = b3FixToFloat( m_walkSpeedZ ) / SRC;
 		if ( ImGui::SliderFloat( "Walk Speed Z (inch/s)", &speedUZ, 10.0f, 100.0f, "%.0f" ) )
 		{
-			m_walkSpeedZ = speedUZ * SRC;
+			m_walkSpeedZ = b3FixFromFloat( speedUZ * SRC );
 		}
 
 		if ( ImGui::Button( "Reset Counters" ) )
@@ -944,17 +945,17 @@ public:
 		return new SBoxGhostCollisions( context );
 	}
 
-	static constexpr float m_walkRangeX = 3.5f;		 // turn around beyond +/- this x (meters)
-	static constexpr float m_walkRangeZ = 0.5f;		 // turn around beyond +/- this x (meters)
-	static constexpr float m_launchThreshold = 0.5f; // upward m/s counted as a ghost launch (~20 inch/s)
+	static constexpr b3Fixed m_walkRangeX = B3_FIX( 3.5f );		 // turn around beyond +/- this x (meters)
+	static constexpr b3Fixed m_walkRangeZ = B3_FIX( 0.5f );		 // turn around beyond +/- this x (meters)
+	static constexpr b3Fixed m_launchThreshold = B3_FIX( 0.5f ); // upward m/s counted as a ghost launch (~20 inch/s)
 	static constexpr int m_markerCapacity = 64;
 
 	b3MeshData* m_chunkMesh[2] = {};
 	b3BodyId m_characterId;
-	float m_walkDirectionX;
-	float m_walkDirectionZ;
-	float m_walkSpeedX;
-	float m_walkSpeedZ;
+	int m_walkDirectionX;
+	int m_walkDirectionZ;
+	b3Fixed m_walkSpeedX;
+	b3Fixed m_walkSpeedZ;
 	int m_launchCount;
 	float m_maxLaunchSpeed;
 	bool m_wasLaunched;

@@ -295,7 +295,7 @@ static b3Fixed RayCastSortedCallback( b3ShapeId shapeId, b3Pos point, b3Vec3 nor
 		// not closer, continue but tell the caller not to consider fractions further than the largest fraction acquired
 		// this only happens once the buffer is full
 		assert( rayContext->count == 3 );
-		assert( rayContext->fractions[2] <= 1.0f );
+		assert( rayContext->fractions[2] <= B3_FIX( 1.0f ) );
 		return rayContext->fractions[2];
 	}
 
@@ -394,7 +394,7 @@ public:
 	{
 		b3ShapeDef shapeDef = b3DefaultShapeDef();
 		b3BodyDef bodyDef = b3DefaultBodyDef();
-		bodyDef.gravityScale = 0.0f;
+		bodyDef.gravityScale = B3_FIX( 0.0f );
 
 		for ( int i = 0; i < count; ++i )
 		{
@@ -423,11 +423,11 @@ public:
 				bodyDef.type = b3_staticBody;
 			}
 
-			bodyDef.position = b3OffsetPos( b3Pos_zero, RandomVec3Uniform( -20.0f, 20.0f ) );
+			bodyDef.position = b3OffsetPos( b3Pos_zero, RandomVec3Uniform( B3_FIX( -20.0f ), B3_FIX( 20.0f ) ) );
 
-			b3Vec3 axis = RandomVec3Uniform( -1.0f, 1.0f );
+			b3Vec3 axis = RandomVec3Uniform( B3_FIX( -1.0f ), B3_FIX( 1.0f ) );
 			axis = b3Normalize( axis );
-			float angle = RandomFloatRange( -B3_PI, B3_PI );
+			b3Fixed angle = RandomFloatRange( -B3_PI, B3_PI );
 			bodyDef.rotation = b3MakeQuatFromAxisAngle( axis, angle );
 
 			b3BodyId bodyId = b3CreateBody( m_worldId, &bodyDef );
@@ -506,9 +506,9 @@ public:
 	{
 		if ( button == 0 && modifiers == MOD_CTRL )
 		{
-			PickRay pickRay = m_camera->BuildPickRay( p.x, p.y );
+			PickRay pickRay = m_camera->BuildPickRay( b3FixToFloat( p.x ), b3FixToFloat( p.y ) );
 			m_origin = pickRay.origin;
-			m_translation = 100.0f * b3Normalize( pickRay.translation );
+			m_translation = B3_FIX( 100.0f ) * b3Normalize( pickRay.translation );
 		}
 	}
 
@@ -601,13 +601,13 @@ public:
 
 			case e_sphereCast:
 				proxy.count = 1;
-				proxy.radius = m_castRadius;
+				proxy.radius = b3FixFromFloat( m_castRadius );
 				proxy.points = &sphere.center;
 				break;
 
 			case e_capsuleCast:
 				proxy.count = 2;
-				proxy.radius = m_castRadius;
+				proxy.radius = b3FixFromFloat( m_castRadius );
 				pointBuffer[0] = capsule.center1;
 				pointBuffer[1] = capsule.center2;
 				proxy.points = pointBuffer;
@@ -736,7 +736,8 @@ public:
 
 		for ( int i = 0; i < m_castContext.count; ++i )
 		{
-			DrawTextLine( "material = %d, triangle = %d", m_castContext.materialIds[i], m_castContext.triangleIndices[i] );
+			DrawTextLine( "material = %llu, triangle = %d", (unsigned long long)m_castContext.materialIds[i],
+						  m_castContext.triangleIndices[i] );
 		}
 
 		DrawGroundGrid( 10 );
@@ -904,25 +905,25 @@ public:
 
 		for ( int index = 0; index < 3; ++index )
 		{
-			bodyDef.position = { B3_FIX( -6.0f ), b3FixFromFloat( 3.0f + 2.0f * index ), B3_FIX( 0.0f ) };
-			bodyDef.rotation = b3MakeQuatFromAxisAngle( b3Vec3_axisX, 0.5f * B3_PI );
+			bodyDef.position = { B3_FIX( -6.0f ), b3FixFromFloat( 3.0f + 2.0f * float( index ) ), B3_FIX( 0.0f ) };
+			bodyDef.rotation = b3MakeQuatFromAxisAngle( b3Vec3_axisX, B3_PI / 2 );
 			b3BodyId sphereBody = b3CreateBody( m_worldId, &bodyDef );
 			b3Sphere sphere = { b3Vec3_zero, B3_FIX( 0.9f ) };
 			b3CreateSphereShape( sphereBody, &shapeDef, &sphere );
 
-			bodyDef.position = { B3_FIX( -2.0f ), b3FixFromFloat( 3.0f + 2.0f * index ), B3_FIX( 0.0f ) };
-			bodyDef.rotation = b3MakeQuatFromAxisAngle( b3Vec3_axisZ, 0.25f * B3_PI );
+			bodyDef.position = { B3_FIX( -2.0f ), b3FixFromFloat( 3.0f + 2.0f * float( index ) ), B3_FIX( 0.0f ) };
+			bodyDef.rotation = b3MakeQuatFromAxisAngle( b3Vec3_axisZ, B3_PI / 4 );
 			b3BodyId capsuleBody = b3CreateBody( m_worldId, &bodyDef );
 			b3Capsule capsule = { { B3_FIX( -0.5f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, { B3_FIX( 0.5f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, B3_FIX( 0.7f ) };
 			b3CreateCapsuleShape( capsuleBody, &shapeDef, &capsule );
 
-			bodyDef.position = { B3_FIX( 2.0f ), b3FixFromFloat( 3.0f + 2.0f * index ), B3_FIX( 0.0f ) };
-			bodyDef.rotation = b3MakeQuatFromAxisAngle( b3Vec3_axisZ, 0.25f * B3_PI );
+			bodyDef.position = { B3_FIX( 2.0f ), b3FixFromFloat( 3.0f + 2.0f * float( index ) ), B3_FIX( 0.0f ) };
+			bodyDef.rotation = b3MakeQuatFromAxisAngle( b3Vec3_axisZ, B3_PI / 4 );
 			b3BodyId hullBody = b3CreateBody( m_worldId, &bodyDef );
 			b3CreateHullShape( hullBody, &shapeDef, &box.base );
 
-			bodyDef.position = { B3_FIX( 6.0f ), b3FixFromFloat( 3.0f + 2.0f * index ), B3_FIX( 0.0f ) };
-			bodyDef.rotation = b3MakeQuatFromAxisAngle( b3Vec3_axisX, 0.5f * B3_PI );
+			bodyDef.position = { B3_FIX( 6.0f ), b3FixFromFloat( 3.0f + 2.0f * float( index ) ), B3_FIX( 0.0f ) };
+			bodyDef.rotation = b3MakeQuatFromAxisAngle( b3Vec3_axisX, B3_PI / 2 );
 			b3BodyId meshBody = b3CreateBody( m_worldId, &bodyDef );
 			b3CreateMeshShape( meshBody, &shapeDef, m_mesh, b3Vec3_one );
 
@@ -950,7 +951,7 @@ public:
 			b3Sphere sphere = { b3Vec3_zero, B3_FIX( 0.3f ) };
 			b3Vec3 offset = b3Vec3{ b3FixFromFloat( -6.0f + 4.0f * castIndex ), B3_FIX( 3.0f ), B3_FIX( -5.0f ) } + m_castOffset;
 			sphere.center += offset;
-			b3Vec3 translation = 10.0f * b3Vec3_axisZ;
+			b3Vec3 translation = B3_FIX( 10.0f ) * b3Vec3_axisZ;
 			b3ShapeProxy proxy = { &sphere.center, 1, sphere.radius };
 
 			CastContext context = {};
@@ -965,7 +966,7 @@ public:
 			{
 				b3Pos point = context.points[0];
 				b3Vec3 normal = context.normals[0];
-				float fraction = context.fractions[0];
+				b3Fixed fraction = context.fractions[0];
 
 				// final position with overlap resolution
 				DrawSolidSphere( b3MakeWorldTransform( { fraction * translation, b3Quat_identity } ), sphere,
@@ -989,7 +990,7 @@ public:
 			b3Vec3 offset = b3Vec3{ b3FixFromFloat( -6.0f + 4.0f * castIndex ), B3_FIX( 5.0f ), B3_FIX( -5.0f ) } + m_castOffset;
 			capsule.center1 += offset;
 			capsule.center2 += offset;
-			b3Vec3 translation = 10.0f * b3Vec3_axisZ;
+			b3Vec3 translation = B3_FIX( 10.0f ) * b3Vec3_axisZ;
 			b3ShapeProxy proxy = { &capsule.center1, 2, capsule.radius };
 
 			CastContext context = {};
@@ -1004,7 +1005,7 @@ public:
 			{
 				b3Pos point = context.points[0];
 				b3Vec3 normal = context.normals[0];
-				float fraction = context.fractions[0];
+				b3Fixed fraction = context.fractions[0];
 
 				DrawSolidCapsule( b3MakeWorldTransform( { fraction * translation, b3Quat_identity } ), capsule,
 								  MakeColor( b3_colorRed ) );
@@ -1024,9 +1025,9 @@ public:
 		for ( int castIndex = 0; castIndex < 4; ++castIndex )
 		{
 			b3Vec3 offset = b3Vec3{ b3FixFromFloat( -6.0f + 4.0f * castIndex ), B3_FIX( 7.0f ), B3_FIX( -5.0f ) } + m_castOffset;
-			b3Quat qx = b3MakeQuatFromAxisAngle( b3Vec3_axisX, 0.25f * B3_PI );
-			b3Quat qy = b3MakeQuatFromAxisAngle( b3Vec3_axisY, 0.25f * B3_PI );
-			b3Quat qz = b3MakeQuatFromAxisAngle( b3Vec3_axisZ, 0.25f * B3_PI );
+			b3Quat qx = b3MakeQuatFromAxisAngle( b3Vec3_axisX, B3_PI / 4 );
+			b3Quat qy = b3MakeQuatFromAxisAngle( b3Vec3_axisY, B3_PI / 4 );
+			b3Quat qz = b3MakeQuatFromAxisAngle( b3Vec3_axisZ, B3_PI / 4 );
 
 			b3Quat q = b3MulQuat( qx, b3MulQuat( qy, qz ) );
 
@@ -1034,7 +1035,7 @@ public:
 
 			b3BoxHull box = b3MakeTransformedBoxHull( B3_FIX( 0.3f ), B3_FIX( 0.3f ), B3_FIX( 0.3f ), transform );
 
-			b3Vec3 translation = 10.0f * b3Vec3_axisZ;
+			b3Vec3 translation = B3_FIX( 10.0f ) * b3Vec3_axisZ;
 			b3ShapeProxy proxy = { box.boxPoints, box.base.vertexCount, B3_FIX( 0.0f ) };
 
 			CastContext context = {};
@@ -1049,7 +1050,7 @@ public:
 			{
 				b3Pos point = context.points[0];
 				b3Vec3 normal = context.normals[0];
-				float fraction = context.fractions[0];
+				b3Fixed fraction = context.fractions[0];
 
 				// final position with overlap resolution
 				DrawHull( b3MakeWorldTransform( { fraction * translation, b3Quat_identity } ), &box.base,
@@ -1106,12 +1107,12 @@ public:
 	{
 		if ( m_trackingX )
 		{
-			m_castOffset.z = 0.05f * ( m_baseX - p.x );
+			m_castOffset.z = b3FixMul( B3_FIX( 0.05f ), m_baseX - p.x );
 		}
 
 		if ( m_trackingY )
 		{
-			m_castOffset.y = 0.05f * ( m_baseY - p.y );
+			m_castOffset.y = b3FixMul( B3_FIX( 0.05f ), m_baseY - p.y );
 		}
 	}
 
@@ -1134,8 +1135,8 @@ public:
 	}
 
 	b3MeshData* m_mesh;
-	int m_baseX;
-	int m_baseY;
+	b3Fixed m_baseX;
+	b3Fixed m_baseY;
 	b3Vec3 m_castOffset;
 	bool m_trackingX;
 	bool m_trackingY;
@@ -1182,41 +1183,41 @@ public:
 			b3BodyType type = b3BodyType( index );
 
 			bodyDef.type = type;
-			bodyDef.position = { B3_FIX( -6.0f ), b3FixFromFloat( 3.0f + 2.0f * index ), B3_FIX( 0.0f ) };
-			bodyDef.rotation = b3MakeQuatFromAxisAngle( b3Vec3_axisX, 0.5f * B3_PI );
+			bodyDef.position = { B3_FIX( -6.0f ), b3FixFromFloat( 3.0f + 2.0f * float( index ) ), B3_FIX( 0.0f ) };
+			bodyDef.rotation = b3MakeQuatFromAxisAngle( b3Vec3_axisX, B3_PI / 2 );
 			b3BodyId sphereBody = b3CreateBody( m_worldId, &bodyDef );
 			b3Sphere sphere = { b3Vec3_zero, B3_FIX( 0.8f ) };
 			b3CreateSphereShape( sphereBody, &shapeDef, &sphere );
 
 			bodyDef.type = type;
-			bodyDef.position = { B3_FIX( -3.0f ), b3FixFromFloat( 3.0f + 2.0f * index ), B3_FIX( 0.0f ) };
-			bodyDef.rotation = b3MakeQuatFromAxisAngle( b3Vec3_axisZ, 0.25f * B3_PI );
+			bodyDef.position = { B3_FIX( -3.0f ), b3FixFromFloat( 3.0f + 2.0f * float( index ) ), B3_FIX( 0.0f ) };
+			bodyDef.rotation = b3MakeQuatFromAxisAngle( b3Vec3_axisZ, B3_PI / 4 );
 			b3BodyId capsuleBody = b3CreateBody( m_worldId, &bodyDef );
 			b3Capsule capsule = { { B3_FIX( -0.5f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, { B3_FIX( 0.5f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, B3_FIX( 0.5f ) };
 			b3CreateCapsuleShape( capsuleBody, &shapeDef, &capsule );
 
 			bodyDef.type = type;
-			bodyDef.position = { B3_FIX( 0.0f ), b3FixFromFloat( 3.0f + 2.0f * index ), B3_FIX( 0.0f ) };
-			bodyDef.rotation = b3MakeQuatFromAxisAngle( b3Vec3_axisZ, 0.25f * B3_PI );
+			bodyDef.position = { B3_FIX( 0.0f ), b3FixFromFloat( 3.0f + 2.0f * float( index ) ), B3_FIX( 0.0f ) };
+			bodyDef.rotation = b3MakeQuatFromAxisAngle( b3Vec3_axisZ, B3_PI / 4 );
 			b3BodyId hullBody = b3CreateBody( m_worldId, &bodyDef );
 			b3CreateHullShape( hullBody, &shapeDef, &m_box.base );
 
 			bodyDef.type = type;
-			bodyDef.position = { B3_FIX( 3.0f ), b3FixFromFloat( 3.0f + 2.0f * index ), B3_FIX( 0.0f ) };
-			bodyDef.rotation = b3MakeQuatFromAxisAngle( b3Vec3_axisX, 0.5f * B3_PI );
+			bodyDef.position = { B3_FIX( 3.0f ), b3FixFromFloat( 3.0f + 2.0f * float( index ) ), B3_FIX( 0.0f ) };
+			bodyDef.rotation = b3MakeQuatFromAxisAngle( b3Vec3_axisX, B3_PI / 2 );
 			b3BodyId meshBody = b3CreateBody( m_worldId, &bodyDef );
 			b3CreateMeshShape( meshBody, &shapeDef, m_mesh, { B3_FIX( -0.5f ), B3_FIX( 1.5f ), B3_FIX( -1.0f ) } );
 
 			// Height fields only on static bodies
 			bodyDef.type = b3_staticBody;
-			bodyDef.position = { B3_FIX( 5.0f ), b3FixFromFloat( 2.0f + 2.0f * index ), B3_FIX( 0.0f ) };
-			bodyDef.rotation = b3MakeQuatFromAxisAngle( b3Vec3_axisX, -0.5f * B3_PI );
+			bodyDef.position = { B3_FIX( 5.0f ), b3FixFromFloat( 2.0f + 2.0f * float( index ) ), B3_FIX( 0.0f ) };
+			bodyDef.rotation = b3MakeQuatFromAxisAngle( b3Vec3_axisX, -B3_PI / 2 );
 			b3BodyId heightBody = b3CreateBody( m_worldId, &bodyDef );
 			b3CreateHeightFieldShape( heightBody, &shapeDef, m_heightField );
 		}
 
 		m_baseX = 0;
-		m_castOffset = 0.0f;
+		m_castOffset = B3_FIX( 0.0f );
 		m_tracking = false;
 	}
 
@@ -1239,7 +1240,7 @@ public:
 	{
 		for ( int i = 0; i < 5; ++i )
 		{
-			b3Sphere sphere = { { b3FixFromFloat( -6.0f + 3.0f * i ), B3_FIX( 3.0f ), b3FixFromFloat( -5.0f + m_castOffset ) }, B3_FIX( 0.3f ) };
+			b3Sphere sphere = { { b3FixFromFloat( -6.0f + 3.0f * i ), B3_FIX( 3.0f ), B3_FIX( -5.0f ) + m_castOffset }, B3_FIX( 0.3f ) };
 			b3ShapeProxy proxy = { &sphere.center, 1, sphere.radius };
 			b3HexColor color = b3_colorGreen;
 			b3World_OverlapShape( m_worldId, b3Pos_zero, &proxy, b3DefaultQueryFilter(), OverlapResultFcn, &color );
@@ -1252,7 +1253,7 @@ public:
 
 		for ( int i = 0; i < 5; ++i )
 		{
-			b3Vec3 offset = { b3FixFromFloat( -6.0f + 3.0f * i ), B3_FIX( 5.0f ), b3FixFromFloat( -5.0f + m_castOffset ) };
+			b3Vec3 offset = { b3FixFromFloat( -6.0f + 3.0f * i ), B3_FIX( 5.0f ), B3_FIX( -5.0f ) + m_castOffset };
 			b3Capsule capsule = { { B3_FIX( -0.2f ), B3_FIX( -0.2f ), B3_FIX( -0.2f ) }, { B3_FIX( 0.2f ), B3_FIX( 0.2f ), B3_FIX( 0.2f ) }, B3_FIX( 0.2f ) };
 			capsule.center1 += offset;
 			capsule.center2 += offset;
@@ -1267,7 +1268,7 @@ public:
 	{
 		for ( int i = 0; i < 5; ++i )
 		{
-			b3Transform transform{ { b3FixFromFloat( -6.0f + 3.0f * i ), B3_FIX( 7.0f ), b3FixFromFloat( -5.0f + m_castOffset ) }, b3Quat_identity };
+			b3Transform transform{ { b3FixFromFloat( -6.0f + 3.0f * i ), B3_FIX( 7.0f ), B3_FIX( -5.0f ) + m_castOffset }, b3Quat_identity };
 			b3BoxHull box = b3MakeTransformedBoxHull( B3_FIX( 0.3f ), B3_FIX( 0.3f ), B3_FIX( 0.3f ), transform );
 			b3ShapeProxy proxy = { box.boxPoints, box.base.vertexCount, B3_FIX( 0.0f ) };
 			b3HexColor color = b3_colorGreen;
@@ -1300,7 +1301,7 @@ public:
 	{
 		if ( m_tracking )
 		{
-			m_castOffset = 0.05f * ( m_baseX - p.x );
+			m_castOffset = b3FixMul( B3_FIX( 0.05f ), m_baseX - p.x );
 		}
 	}
 
@@ -1322,8 +1323,8 @@ public:
 	b3BoxHull m_box;
 	b3MeshData* m_mesh;
 	b3HeightFieldData* m_heightField;
-	int m_baseX;
-	float m_castOffset;
+	b3Fixed m_baseX;
+	b3Fixed m_castOffset;
 	bool m_tracking;
 };
 
@@ -1356,7 +1357,7 @@ public:
 
 		b3World_SetGravity( m_worldId, b3Vec3_zero );
 
-		m_hull = b3CreateRock( 1.0f );
+		m_hull = b3CreateRock( B3_FIX( 1.0f ) );
 		m_mesh = b3CreateWaveMesh( 8, 8, B3_FIX( 0.5f ), B3_FIX( 0.25f ), B3_FIX( 0.2f ), B3_FIX( 0.2f ) );
 
 		int hfCount = 9;
@@ -1368,7 +1369,7 @@ public:
 		float aimHeight = 2.5f;
 		for ( int i = 0; i < SHAPE_COUNT; ++i )
 		{
-			float x = ( i - 2 ) * spacing;
+			float x = float( i - 2 ) * spacing;
 			m_targets[i] = { b3FixFromFloat( x ), b3FixFromFloat( aimHeight ), B3_FIX( 0.0f ) };
 			m_trailNext[i] = 0;
 			m_trailCount[i] = 0;
@@ -1413,16 +1414,16 @@ public:
 
 		// Height field grows from a corner, so offset the body to center the patch under the ray
 		{
-			float extentX = hfScale.x * ( hfCount - 1 );
-			float extentZ = hfScale.z * ( hfCount - 1 );
-			bodyDef.position = { b3FixFromFloat( m_targets[4].x - 0.5f * extentX ), B3_FIX( 0.0f ), b3FixFromFloat( -0.5f * extentZ ) };
+			b3Fixed extentX = ( hfCount - 1 ) * hfScale.x;
+			b3Fixed extentZ = ( hfCount - 1 ) * hfScale.z;
+			bodyDef.position = { m_targets[4].x - extentX / 2, B3_FIX( 0.0f ), -extentZ / 2 };
 			b3BodyId body = b3CreateBody( m_worldId, &bodyDef );
 			b3CreateHeightFieldShape( body, &shapeDef, m_heightField );
 		}
 
 		m_rayLengthKilometers = 1.0f;
 		m_coneAngle = 5.0f;
-		m_phase = 0.0f;
+		m_phase = B3_FIX( 0.0f );
 
 		memset( m_trail, 0, sizeof( m_trail ) );
 	}
@@ -1446,19 +1447,19 @@ public:
 		Sample::Step();
 
 		// Advance the cone so it completes one loop per trail buffer.
-		m_phase += 2.0f * B3_PI / float( TRAIL_COUNT );
-		if ( m_phase > 2.0f * B3_PI )
+		m_phase += 2 * B3_PI / TRAIL_COUNT;
+		if ( m_phase > 2 * B3_PI )
 		{
-			m_phase -= 2.0f * B3_PI;
+			m_phase -= 2 * B3_PI;
 		}
 
 		// Unit direction precessing on a small cone about the up axis.
-		float halfAngle = m_coneAngle * ( B3_PI / 180.0f );
+		b3Fixed halfAngle = b3FixMul( b3FixFromFloat( m_coneAngle ), B3_DEG_TO_RAD );
 		b3Vec3 tilted = b3RotateVector( b3MakeQuatFromAxisAngle( b3Vec3_axisX, halfAngle ), b3Vec3_axisY );
 		b3Vec3 coneDir = b3RotateVector( b3MakeQuatFromAxisAngle( b3Vec3_axisY, m_phase ), tilted );
 
-		float reach = 5.0f;
-		float farDistance = 1000.0f * m_rayLengthKilometers;
+		b3Fixed reach = B3_FIX( 5.0f );
+		b3Fixed farDistance = 1000 * b3FixFromFloat( m_rayLengthKilometers );
 		b3QueryFilter filter = b3DefaultQueryFilter();
 
 		for ( int i = 0; i < SHAPE_COUNT; ++i )
@@ -1466,7 +1467,7 @@ public:
 			// The long ray under test and a short ray on the same line. The short ray is near
 			// enough to be accurate, so it is the ground truth: if it hits where the long ray
 			// misses, the miss is an accuracy failure, not the cone tilting off the shape.
-			CastHit truth = CastAlong( m_targets[i], coneDir, 50.0f, reach, filter );
+			CastHit truth = CastAlong( m_targets[i], coneDir, B3_FIX( 50.0f ), reach, filter );
 			CastHit cast = CastAlong( m_targets[i], coneDir, farDistance, reach, filter );
 
 			float fail = 0.0f;
@@ -1474,8 +1475,8 @@ public:
 			if ( cast.hit )
 			{
 				// Color the hit by how far it drifts from the ground truth.
-				float error = truth.hit ? b3Length( cast.point - truth.point ) : 0.0f;
-				b3HexColor color = error < 0.05f ? b3_colorGreen : b3_colorOrange;
+				b3Fixed error = truth.hit ? b3Length( cast.point - truth.point ) : B3_FIX( 0.0f );
+				b3HexColor color = error < B3_FIX( 0.05f ) ? b3_colorGreen : b3_colorOrange;
 
 				m_trail[i][m_trailNext[i]] = cast.point;
 				m_trailNext[i] = ( m_trailNext[i] + 1 ) % TRAIL_COUNT;
@@ -1484,7 +1485,7 @@ public:
 					m_trailCount[i] += 1;
 				}
 
-				DrawLine( b3OffsetPos( cast.point, b3MulSV( 3.0f, coneDir ) ), cast.point, MakeColor( b3_colorAqua ) );
+				DrawLine( b3OffsetPos( cast.point, b3MulSV( B3_FIX( 3.0f ), coneDir ) ), cast.point, MakeColor( b3_colorAqua ) );
 				DrawLine( cast.point, b3OffsetPos( cast.point, b3MulSV( B3_FIX( 1.5f ), cast.normal ) ), MakeColor( b3_colorYellow ) );
 				DrawPoint( cast.point, 8.0f, MakeColor( color ) );
 			}
@@ -1495,14 +1496,14 @@ public:
 				fail = 1.0f;
 				b3Pos expected = truth.point;
 				DrawPoint( expected, 14.0f, MakeColor( b3_colorRed ) );
-				DrawLine( b3OffsetPos( expected, b3MulSV( 2.0f, coneDir ) ), b3OffsetPos( expected, b3MulSV( -2.0f, coneDir ) ),
-						  MakeColor( b3_colorRed ) );
+				DrawLine( b3OffsetPos( expected, b3MulSV( B3_FIX( 2.0f ), coneDir ) ),
+						  b3OffsetPos( expected, b3MulSV( B3_FIX( -2.0f ), coneDir ) ), MakeColor( b3_colorRed ) );
 			}
 			else
 			{
 				// Geometric miss: the cone tilted the ray off the shape. Not an accuracy problem.
 				b3Pos aim = m_targets[i];
-				DrawLine( b3OffsetPos( aim, b3MulSV( 2.0f, coneDir ) ), b3OffsetPos( aim, b3MulSV( -4.0f, coneDir ) ),
+				DrawLine( b3OffsetPos( aim, b3MulSV( B3_FIX( 2.0f ), coneDir ) ), b3OffsetPos( aim, b3MulSV( B3_FIX( -4.0f ), coneDir ) ),
 						  MakeColorAlpha( b3_colorGray, 0.4f ) );
 			}
 
@@ -1535,7 +1536,7 @@ public:
 
 	// Cast a ray that passes through the aim point along a cone direction, starting at the given
 	// distance above it. Returns the closest hit.
-	CastHit CastAlong( b3Pos aim, b3Vec3 coneDir, float distance, float reach, b3QueryFilter filter ) const
+	CastHit CastAlong( b3Pos aim, b3Vec3 coneDir, b3Fixed distance, b3Fixed reach, b3QueryFilter filter ) const
 	{
 		b3Pos origin = b3OffsetPos( aim, b3MulSV( distance, coneDir ) );
 		b3Vec3 translation = b3MulSV( -( distance + reach ), coneDir );
@@ -1568,7 +1569,7 @@ public:
 
 	float m_rayLengthKilometers;
 	float m_coneAngle;
-	float m_phase;
+	b3Fixed m_phase;
 };
 
 static int sampleLongRayCast = RegisterSample( "Collision", "Long Ray Cast", LongRayCast::Create );
@@ -1590,7 +1591,7 @@ public:
 
 		b3BodyDef bodyDef = b3DefaultBodyDef();
 		bodyDef.position = { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
-		bodyDef.rotation = b3MakeQuatFromAxisAngle( b3Vec3_axisZ, 10.0f * B3_DEG_TO_RAD );
+		bodyDef.rotation = b3MakeQuatFromAxisAngle( b3Vec3_axisZ, 10 * B3_DEG_TO_RAD );
 		b3BodyId body = b3CreateBody( m_worldId, &bodyDef );
 
 		b3ShapeDef shapeDef = b3DefaultShapeDef();
@@ -1604,7 +1605,7 @@ public:
 		def.useMedianSplit = false;
 
 		m_mesh = b3CreateMesh( &def, nullptr, 0 );
-		b3CreateMeshShape( body, &shapeDef, m_mesh, 4.0f * b3Vec3_one );
+		b3CreateMeshShape( body, &shapeDef, m_mesh, B3_FIX( 4.0f ) * b3Vec3_one );
 
 		m_initialOverlap = true;
 	}
@@ -1656,7 +1657,7 @@ public:
 
 		b3World_CastShape( m_worldId, b3Pos_zero, &proxy, translation, b3DefaultQueryFilter(), RayCastClosestCallback, &context );
 
-		float fraction = context.count > 0 ? context.fractions[0] : 1.0f;
+		b3Fixed fraction = context.count > 0 ? context.fractions[0] : B3_FIX( 1.0f );
 		b3WorldTransform shapeEnd = b3MakeWorldTransform( { fraction * translation, b3Quat_identity } );
 		DrawSolidCapsule( shapeEnd, capsule, MakeColor( context.count > 0 ? b3_colorRed : b3_colorGreen ) );
 
@@ -1702,7 +1703,7 @@ public:
 		}
 
 		// this triggers an assert with scale of 1 and b3_lengthUnitsPerMeter of 100
-		float scale = 0.01f;
+		b3Fixed scale = B3_FIX( 0.01f );
 		m_triangle[0] = scale * b3Vec3{ B3_FIX( 0.000000000 ), B3_FIX( 0.000000000 ), B3_FIX( 0.000000000 ) };
 		m_triangle[1] = scale * b3Vec3{ B3_FIX( 0.000000000 ), B3_FIX( -6400.000000000 ), B3_FIX( 0.000000000 ) };
 		m_triangle[2] = scale * b3Vec3{ B3_FIX( 6400.000000000 ), B3_FIX( 0.000000000 ), B3_FIX( 22.609375000 ) };
@@ -1723,9 +1724,9 @@ public:
 
 		m_capsule.center1 = scale * b3Vec3{ B3_FIX( 43616.210937500 ), B3_FIX( -100213.000000000 ), B3_FIX( 132631.812500000 ) };
 		m_capsule.center2 = scale * b3Vec3{ B3_FIX( 342231.968750000 ), B3_FIX( 359711.687500000 ), B3_FIX( 132631.812500000 ) };
-		m_capsule.radius = scale * 1.0f;
+		m_capsule.radius = scale;
 
-		float length = b3Distance( m_capsule.center1, m_capsule.center2 );
+		b3Fixed length = b3Distance( m_capsule.center1, m_capsule.center2 );
 		(void)length;
 
 		m_transform = { scale * b3Vec3{ B3_FIX( -115200.000000000 ), B3_FIX( -19200.000000000 ), B3_FIX( -202755.000000000 ) } - origin,
@@ -1803,7 +1804,7 @@ public:
 		}
 
 		// this triggers an assert with scale of 1 and b3_lengthUnitsPerMeter of 100
-		float scale = 0.01f;
+		b3Fixed scale = B3_FIX( 0.01f );
 		m_triangle[0] = scale * b3Vec3{ B3_FIX( 1400.00000 ), B3_FIX( 1600.00000 ), B3_FIX( 70.1534424 ) };
 		m_triangle[1] = scale * b3Vec3{ B3_FIX( 1400.00000 ), B3_FIX( 1500.00000 ), B3_FIX( 66.1250000 ) };
 		m_triangle[2] = scale * b3Vec3{ B3_FIX( 1500.00000 ), B3_FIX( 1600.00000 ), B3_FIX( 72.3507080 ) };
@@ -1823,8 +1824,8 @@ public:
 		m_points[6] = scale * b3Vec3{ B3_FIX( -200.305283 ), B3_FIX( -200.460999 ), B3_FIX( -9.53760529 ) };
 		m_points[7] = scale * b3Vec3{ B3_FIX( 200.305283 ), B3_FIX( -200.460999 ), B3_FIX( -9.53760529 ) };
 
-		m_boxA = b3MakeBoxHull( 40.0f, 1.0f, 40.0f );
-		m_boxB = b3MakeTransformedBoxHull( B3_FIX( 0.5f ), 10.0f, B3_FIX( 0.5f ), { { B3_FIX( 0.0f ), B3_FIX( 10.0f ), B3_FIX( 0.0f ) }, b3Quat_identity } );
+		m_boxA = b3MakeBoxHull( B3_FIX( 40.0f ), B3_FIX( 1.0f ), B3_FIX( 40.0f ) );
+		m_boxB = b3MakeTransformedBoxHull( B3_FIX( 0.5f ), B3_FIX( 10.0f ), B3_FIX( 0.5f ), { { B3_FIX( 0.0f ), B3_FIX( 10.0f ), B3_FIX( 0.0f ) }, b3Quat_identity } );
 
 		// m_transformA = {
 		//	.p = { 0.0f, -1.0f, 0.0f },
@@ -1962,11 +1963,12 @@ public:
 		DrawPoint( pA, 5.0f, MakeColor( b3_colorWhite ) );
 		DrawPoint( pB, 5.0f, MakeColor( b3_colorWhite ) );
 		b3Vec3 normal = b3RotateVector( m_transformA.q, output.normal );
-		DrawLine( pA, b3OffsetPos( pA, 1.0f * normal ), MakeColor( b3_colorWhite ) );
+		DrawLine( pA, b3OffsetPos( pA, B3_FIX( 1.0f ) * normal ), MakeColor( b3_colorWhite ) );
 
-		DrawTextLine( "distance = %g, normal = %g, %g, %g", output.distance, normal.x, normal.y, normal.z );
+		DrawTextLine( "distance = %g, normal = %g, %g, %g", b3FixToDouble( output.distance ), b3FixToDouble( normal.x ),
+					  b3FixToDouble( normal.y ), b3FixToDouble( normal.z ) );
 
-		B3_ASSERT( output.distance > 0.0f && b3IsNormalized( output.normal ) );
+		B3_ASSERT( output.distance > B3_FIX( 0.0f ) && b3IsNormalized( output.normal ) );
 
 		if ( m_simplexCount > 0 )
 		{
@@ -1989,9 +1991,9 @@ public:
 			}
 
 			b3Vec3 p = GetClosestPoint( simplex );
-			float distance = b3Length( p );
+			b3Fixed distance = b3Length( p );
 
-			DrawTextLine( "current distance = %.5f", distance );
+			DrawTextLine( "current distance = %.5f", b3FixToDouble( distance ) );
 		}
 
 		for ( int i = 0; i < m_simplexCount; ++i )
@@ -2104,7 +2106,7 @@ public:
 	b3ShapeProxy MakeProxy( ShapeType type, float radius )
 	{
 		b3ShapeProxy proxy = {};
-		proxy.radius = radius;
+		proxy.radius = b3FixFromFloat( radius );
 
 		switch ( type )
 		{
@@ -2215,7 +2217,7 @@ public:
 
 		if ( ( m_typeA == e_point || m_typeA == e_segment ) && ImGui::SliderFloat( "radius A", &m_radiusA, 0.0f, 0.5f, "%.2f" ) )
 		{
-			m_proxyA.radius = m_radiusA;
+			m_proxyA.radius = b3FixFromFloat( m_radiusA );
 		}
 
 		shapeType = int( m_typeB );
@@ -2227,7 +2229,7 @@ public:
 
 		if ( ( m_typeB == e_point || m_typeB == e_segment ) && ImGui::SliderFloat( "radius B", &m_radiusB, 0.0f, 0.5f, "%.2f" ) )
 		{
-			m_proxyB.radius = m_radiusB;
+			m_proxyB.radius = b3FixFromFloat( m_radiusB );
 		}
 
 		ImGui::Separator();
@@ -2258,7 +2260,7 @@ public:
 			if ( mods == 0 && m_rotating == false )
 			{
 				m_dragging = true;
-				PickRay ray = m_camera->BuildPickRay( ps.x, ps.y );
+				PickRay ray = m_camera->BuildPickRay( b3FixToFloat( ps.x ), b3FixToFloat( ps.y ) );
 				b3Vec3 d = b3Normalize( ray.translation );
 
 				// Intersect with plane going through origin
@@ -2291,15 +2293,15 @@ public:
 	{
 		if ( m_dragging )
 		{
-			PickRay ray = m_camera->BuildPickRay( ps.x, ps.y );
+			PickRay ray = m_camera->BuildPickRay( b3FixToFloat( ps.x ), b3FixToFloat( ps.y ) );
 			b3Vec3 d = b3Normalize( ray.translation );
 			b3Pos p = ray.origin - b3Dot( b3SubPos( ray.origin, b3Pos_zero ), d ) * d;
 			m_transformB.p = m_basePosition + ( p - m_dragStart );
 		}
-		else if ( m_rotating && m_camera->m_width > 0.0f )
+		else if ( m_rotating && m_camera->m_width > 0 )
 		{
-			float dx = ( ps.x - m_rotateStart ) / m_camera->m_width;
-			float angle = b3ClampFloat( 2.0f * dx, -B3_PI, B3_PI );
+			b3Fixed dx = b3FixDiv( ps.x - m_rotateStart, b3FixFromInt( m_camera->m_width ) );
+			b3Fixed angle = b3FixClamp( 2 * dx, -B3_PI, B3_PI );
 			b3Vec3 axis = m_camera->GetForward();
 			b3Quat deltaQuat = b3MakeQuatFromAxisAngle( axis, angle );
 			m_transformB.q = b3MulQuat( deltaQuat, m_baseQuat );
@@ -2361,16 +2363,16 @@ public:
 
 		b3DistanceOutput output = b3ShapeDistance( &input, &m_cache, m_simplexes, m_simplexCapacity );
 
-		if ( output.distance > 0.0f )
+		if ( output.distance > B3_FIX( 0.0f ) )
 		{
 			assert( b3IsNormalized( output.normal ) );
 			b3Vec3 d = b3Sub( output.pointB, output.pointA );
-			float length = b3Length( d );
-			assert( b3AbsFloat( length - output.distance ) < 10.0f * FLT_EPSILON );
+			b3Fixed length = b3Length( d );
+			assert( b3FixAbs( length - output.distance ) < 8 * B3_FIXED_EPSILON );
 			b3Vec3 n = b3Normalize( d );
-			assert( b3AbsFloat( n.x - output.normal.x ) < 0.0001f );
-			assert( b3AbsFloat( n.y - output.normal.y ) < 0.0001f );
-			assert( b3AbsFloat( n.z - output.normal.z ) < 0.0001f );
+			assert( b3FixAbs( n.x - output.normal.x ) < 8 * B3_FIXED_EPSILON );
+			assert( b3FixAbs( n.y - output.normal.y ) < 8 * B3_FIXED_EPSILON );
+			assert( b3FixAbs( n.z - output.normal.z ) < 8 * B3_FIXED_EPSILON );
 		}
 
 		m_simplexCount = output.simplexCount;
@@ -2436,7 +2438,7 @@ public:
 
 		DrawTextLine( "mouse button 1: drag" );
 		DrawTextLine( "mouse button 1 + shift: rotate" );
-		DrawTextLine( "distance = %.4f, iterations = %d", output.distance, output.iterations );
+		DrawTextLine( "distance = %.4f, iterations = %d", b3FixToDouble( output.distance ), output.iterations );
 
 		if ( m_cache.count == 1 )
 		{
@@ -2485,7 +2487,7 @@ public:
 	b3Pos m_dragStart;
 
 	b3Quat m_baseQuat;
-	float m_rotateStart;
+	b3Fixed m_rotateStart;
 
 	bool m_dragging;
 	bool m_rotating;
@@ -2527,8 +2529,8 @@ public:
 		m_proxyB = MakeProxy( m_typeB );
 
 		m_sweepA = {};
-		m_sweepA.q1.s = 1.0f;
-		m_sweepA.q2.s = 1.0f;
+		m_sweepA.q1.s = B3_FIX( 1.0f );
+		m_sweepA.q2.s = B3_FIX( 1.0f );
 
 		m_sweepB = {};
 		m_sweepB.c1 = { B3_FIX( -4.06512070 ), B3_FIX( 0.101333618 ), B3_FIX( -7.87591267 ) };
@@ -2643,14 +2645,14 @@ public:
 		input.proxyB = m_proxyB;
 		input.sweepA = m_sweepA;
 		input.sweepB = m_sweepB;
-		input.maxFraction = 1.0f;
+		input.maxFraction = B3_FIX( 1.0f );
 
 		b3TOIOutput output = b3TimeOfImpact( &input );
 
 		DrawShape( m_typeA, b3WorldTransform_identity, b3_colorCyan );
 
-		b3Transform transform1 = b3GetSweepTransform( &m_sweepB, 0.0f );
-		b3Transform transform2 = b3GetSweepTransform( &m_sweepB, 1.0f );
+		b3Transform transform1 = b3GetSweepTransform( &m_sweepB, B3_FIX( 0.0f ) );
+		b3Transform transform2 = b3GetSweepTransform( &m_sweepB, B3_FIX( 1.0f ) );
 
 		// qr = inv(q1) * q2
 		b3Quat qr = b3InvMulQuat( transform1.q, transform2.q );
@@ -2661,7 +2663,7 @@ public:
 		DrawShape( m_typeB, b3MakeWorldTransform( transform1 ), b3_colorLightGreen );
 		DrawShape( m_typeB, b3MakeWorldTransform( transform2 ), b3_colorLightCoral );
 
-		if ( output.fraction < 1.0f )
+		if ( output.fraction < B3_FIX( 1.0f ) )
 		{
 			b3Transform transformHit = b3GetSweepTransform( &m_sweepB, output.fraction );
 			DrawShape( m_typeB, b3MakeWorldTransform( transformHit ), b3_colorLightCyan );
@@ -2689,7 +2691,7 @@ public:
 				break;
 
 			case b3_toiStateHit:
-				DrawTextLine( "hit %g", output.fraction );
+				DrawTextLine( "hit %g", b3FixToDouble( output.fraction ) );
 				break;
 
 			case b3_toiStateSeparated:
@@ -2775,7 +2777,7 @@ public:
 		b3Pos origin = { B3_FIX( -1.0f ), B3_FIX( 0.5f ), B3_FIX( 0.0f ) };
 		b3Vec3 translation = { B3_FIX( 2.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
 		b3QueryFilter filter = b3DefaultQueryFilter();
-		float maxFraction = 1.0f;
+		b3Fixed maxFraction = B3_FIX( 1.0f );
 		b3WorldTransform bodyTransform = b3WorldTransform_identity;
 
 		b3BodyCastResult result = b3Body_CastRay( m_bodyId, origin, translation, filter, maxFraction, bodyTransform );

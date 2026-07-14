@@ -32,9 +32,9 @@ public:
 			bodyDef.name = "attach1";
 			m_attachmentId = b3CreateBody( m_worldId, &bodyDef );
 
-			b3BoxHull box = b3MakeBoxHull( B3_FIX( 0.5f ), 2.0f, B3_FIX( 0.5f ) );
+			b3BoxHull box = b3MakeBoxHull( B3_FIX( 0.5f ), B3_FIX( 2.0f ), B3_FIX( 0.5f ) );
 			b3ShapeDef shapeDef = b3DefaultShapeDef();
-			shapeDef.density = 1.0f;
+			shapeDef.density = B3_FIX( 1.0f );
 			b3CreateHullShape( m_attachmentId, &shapeDef, &box.base );
 		}
 
@@ -47,9 +47,9 @@ public:
 			bodyDef.name = "attach2";
 			m_secondAttachmentId = b3CreateBody( m_worldId, &bodyDef );
 
-			b3BoxHull box = b3MakeBoxHull( B3_FIX( 0.5f ), 2.0f, B3_FIX( 0.5f ) );
+			b3BoxHull box = b3MakeBoxHull( B3_FIX( 0.5f ), B3_FIX( 2.0f ), B3_FIX( 0.5f ) );
 			b3ShapeDef shapeDef = b3DefaultShapeDef();
-			shapeDef.density = 1.0f;
+			shapeDef.density = B3_FIX( 1.0f );
 			b3CreateHullShape( m_secondAttachmentId, &shapeDef, &box.base );
 		}
 
@@ -63,10 +63,10 @@ public:
 			m_platformId = b3CreateBody( m_worldId, &bodyDef );
 
 			b3BoxHull box = b3MakeTransformedBoxHull(
-				B3_FIX( 0.5f ), 4.0f, B3_FIX( 0.5f ), { { B3_FIX( 4.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, b3MakeQuatFromAxisAngle( b3Vec3_axisZ, 0.5f * B3_PI ) } );
+				B3_FIX( 0.5f ), B3_FIX( 4.0f ), B3_FIX( 0.5f ), { { B3_FIX( 4.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, b3MakeQuatFromAxisAngle( b3Vec3_axisZ, B3_PI / 2 ) } );
 
 			b3ShapeDef shapeDef = b3DefaultShapeDef();
-			shapeDef.density = 2.0f;
+			shapeDef.density = B3_FIX( 2.0f );
 			b3CreateHullShape( m_platformId, &shapeDef, &box.base );
 
 			b3RevoluteJointDef revoluteDef = b3DefaultRevoluteJointDef();
@@ -75,7 +75,7 @@ public:
 			revoluteDef.base.bodyIdB = m_platformId;
 			revoluteDef.base.localFrameA.p = b3Body_GetLocalPoint( m_attachmentId, pivot );
 			revoluteDef.base.localFrameB.p = b3Body_GetLocalPoint( m_platformId, pivot );
-			revoluteDef.maxMotorTorque = 50.0f;
+			revoluteDef.maxMotorTorque = B3_FIX( 50.0f );
 			revoluteDef.enableMotor = true;
 			b3CreateRevoluteJoint( m_worldId, &revoluteDef );
 
@@ -84,7 +84,7 @@ public:
 			revoluteDef.base.bodyIdB = m_platformId;
 			revoluteDef.base.localFrameA.p = b3Body_GetLocalPoint( m_secondAttachmentId, pivot );
 			revoluteDef.base.localFrameB.p = b3Body_GetLocalPoint( m_platformId, pivot );
-			revoluteDef.maxMotorTorque = 50.0f;
+			revoluteDef.maxMotorTorque = B3_FIX( 50.0f );
 			revoluteDef.enableMotor = true;
 			b3CreateRevoluteJoint( m_worldId, &revoluteDef );
 
@@ -94,11 +94,11 @@ public:
 			prismaticDef.base.bodyIdB = m_platformId;
 			prismaticDef.base.localFrameA.p = b3Body_GetLocalPoint( groundId, anchor );
 			prismaticDef.base.localFrameB.p = b3Body_GetLocalPoint( m_platformId, anchor );
-			prismaticDef.maxMotorForce = 1000.0f;
-			prismaticDef.motorSpeed = 0.0f;
+			prismaticDef.maxMotorForce = B3_FIX( 1000.0f );
+			prismaticDef.motorSpeed = B3_FIX( 0.0f );
 			prismaticDef.enableMotor = true;
-			prismaticDef.lowerTranslation = -10.0f;
-			prismaticDef.upperTranslation = 10.0f;
+			prismaticDef.lowerTranslation = B3_FIX( -10.0f );
+			prismaticDef.upperTranslation = B3_FIX( 10.0f );
 			prismaticDef.enableLimit = true;
 
 			b3CreatePrismaticJoint( m_worldId, &prismaticDef );
@@ -117,7 +117,7 @@ public:
 			b3BoxHull box = b3MakeBoxHull( B3_FIX( 0.75f ), B3_FIX( 0.75f ), B3_FIX( 0.75f ) );
 
 			b3ShapeDef shapeDef = b3DefaultShapeDef();
-			shapeDef.density = 2.0f;
+			shapeDef.density = B3_FIX( 2.0f );
 
 			b3CreateHullShape( bodyId, &shapeDef, &box.base );
 		}
@@ -134,7 +134,7 @@ public:
 			b3BoxHull box = b3MakeBoxHull( B3_FIX( 0.75f ), B3_FIX( 0.75f ), B3_FIX( 0.75f ) );
 
 			b3ShapeDef shapeDef = b3DefaultShapeDef();
-			shapeDef.density = 2.0f;
+			shapeDef.density = B3_FIX( 2.0f );
 
 			b3CreateHullShape( m_secondPayloadId, &shapeDef, &box.base );
 		}
@@ -151,7 +151,7 @@ public:
 			b3Capsule capsule = { { B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, { B3_FIX( 1.0f ), B3_FIX( 0.0f ) }, B3_FIX( 0.25f ) };
 
 			b3ShapeDef shapeDef = b3DefaultShapeDef();
-			shapeDef.density = 2.0f;
+			shapeDef.density = B3_FIX( 2.0f );
 
 			b3CreateCapsuleShape( m_touchingBodyId, &shapeDef, &capsule );
 		}
@@ -162,14 +162,14 @@ public:
 			bodyDef.type = m_type;
 			bodyDef.isEnabled = m_isEnabled;
 			bodyDef.position = { B3_FIX( -8.0f ), B3_FIX( 12.0f ) };
-			bodyDef.gravityScale = 0.0f;
+			bodyDef.gravityScale = B3_FIX( 0.0f );
 			bodyDef.name = "floater";
 			m_floatingBodyId = b3CreateBody( m_worldId, &bodyDef );
 
 			b3Sphere sphere = { { B3_FIX( 0.0f ), B3_FIX( 0.5f ), B3_FIX( 0.0f ) }, B3_FIX( 0.25f ) };
 
 			b3ShapeDef shapeDef = b3DefaultShapeDef();
-			shapeDef.density = 2.0f;
+			shapeDef.density = B3_FIX( 2.0f );
 
 			b3CreateSphereShape( m_floatingBodyId, &shapeDef, &sphere );
 		}
@@ -240,7 +240,7 @@ public:
 			b3Pos p = b3Body_GetPosition( m_platformId );
 			b3Vec3 v = b3Body_GetLinearVelocity( m_platformId );
 
-			if ( ( p.x < -14.0f && v.x < 0.0f ) || ( p.x > 6.0f && v.x > 0.0f ) )
+			if ( ( p.x < B3_FIX( -14.0f ) && v.x < B3_FIX( 0.0f ) ) || ( p.x > B3_FIX( 6.0f ) && v.x > B3_FIX( 0.0f ) ) )
 			{
 				v.x = -v.x;
 				b3Body_SetLinearVelocity( m_platformId, v );
@@ -285,7 +285,7 @@ public:
 
 		b3BodyDef bodyDef = b3DefaultBodyDef();
 		bodyDef.type = b3_dynamicBody;
-		bodyDef.gravityScale = 0.0f;
+		bodyDef.gravityScale = B3_FIX( 0.0f );
 
 		b3ShapeDef shapeDef = b3DefaultShapeDef();
 
@@ -333,14 +333,14 @@ public:
 		b3BodyDef bodyDef = b3DefaultBodyDef();
 		bodyDef.type = b3_dynamicBody;
 		bodyDef.position = { B3_FIX( 0.0f ), B3_FIX( 2.0f ), B3_FIX( 0.0f ) };
-		bodyDef.rotation = b3MakeQuatFromAxisAngle( b3Vec3_axisX, -0.5f * B3_PI );
-		bodyDef.gravityScale = 0.0f;
+		bodyDef.rotation = b3MakeQuatFromAxisAngle( b3Vec3_axisX, -B3_PI / 2 );
+		bodyDef.gravityScale = B3_FIX( 0.0f );
 		m_bodyId = b3CreateBody( m_worldId, &bodyDef );
 
 		b3ShapeDef shapeDef = b3DefaultShapeDef();
 		shapeDef.updateBodyMass = false;
-		b3HullData* cylinder = b3CreateCylinder( B3_FIX( 0.6f ), B3_FIX( 0.15f ), 0.0f, 32 );
-		b3BoxHull box = b3MakeBoxHull( 1.0f, B3_FIX( 0.05f ), B3_FIX( 0.1f ) );
+		b3HullData* cylinder = b3CreateCylinder( B3_FIX( 0.6f ), B3_FIX( 0.15f ), B3_FIX( 0.0f ), 32 );
+		b3BoxHull box = b3MakeBoxHull( B3_FIX( 1.0f ), B3_FIX( 0.05f ), B3_FIX( 0.1f ) );
 		b3CreateHullShape( m_bodyId, &shapeDef, cylinder );
 		b3CreateHullShape( m_bodyId, &shapeDef, &box.base );
 		b3Body_ApplyMassFromShapes( m_bodyId );
@@ -356,7 +356,7 @@ public:
 		Sample::Step();
 
 		b3Pos c = b3Body_GetWorldCenter( m_bodyId );
-		DrawTextLine( "center %.3g %.3g %.3g", c.x, c.y, c.z );
+		DrawTextLine( "center %.3g %.3g %.3g", b3FixToDouble( c.x ), b3FixToDouble( c.y ), b3FixToDouble( c.z ) );
 	}
 
 	static Sample* Create( SampleContext* sampleContext )
@@ -401,7 +401,7 @@ public:
 		b3ShapeDef shapeDef = b3DefaultShapeDef();
 
 		// Tilt the symmetry axis, then spin about the world up axis so the offset drives precession.
-		b3Quat rotation = b3MakeQuatFromAxisAngle( b3Vec3_axisZ, 15.0f * B3_PI / 180.0f );
+		b3Quat rotation = b3MakeQuatFromAxisAngle( b3Vec3_axisZ, 15 * B3_PI / 180 );
 		b3Vec3 angularVelocity = b3RotateVector( rotation, { B3_FIX( 0.0f ), B3_FIX( 75.0f ), B3_FIX( 0.0f ) } );
 
 		constexpr int count = 8;
@@ -460,7 +460,7 @@ public:
 		shapeDef.baseMaterial.rollingResistance = B3_FIX( 0.1f );
 		b3CreateCapsuleShape( m_weebleId, &shapeDef, &capsule );
 
-		float mass = b3Body_GetMass( m_weebleId );
+		b3Fixed mass = b3Body_GetMass( m_weebleId );
 		b3Matrix3 inertiaTensor = b3Body_GetLocalRotationalInertia( m_weebleId );
 
 		b3Vec3 offset = { B3_FIX( 0.0f ), B3_FIX( -1.5f ), B3_FIX( 0.0f ) };
@@ -469,7 +469,7 @@ public:
 		inertiaTensor = b3AddMM( inertiaTensor, b3Steiner( mass, offset ) );
 
 		b3MassData massData = {
-			.mass = b3FixFromFloat( mass ),
+			.mass = mass,
 			.center = offset,
 			.inertia = inertiaTensor,
 		};
@@ -477,7 +477,7 @@ public:
 		b3Body_SetMassData( m_weebleId, massData );
 
 		m_explosionPosition = { B3_FIX( 0.0f ), B3_FIX( -0.1f ), B3_FIX( 0.0f ) };
-		m_explosionRadius = 8.0f;
+		m_explosionRadius = B3_FIX( 8.0f );
 		m_explosionMagnitude = 20000.0f;
 	}
 
@@ -485,7 +485,7 @@ public:
 	{
 		if ( ImGui::Button( "Teleport" ) )
 		{
-			b3Body_SetTransform( m_weebleId, { B3_FIX( 0.0f ), B3_FIX( 5.0f ), B3_FIX( 0.0f ) }, b3MakeQuatFromAxisAngle( b3Vec3_axisZ, 0.95f * B3_PI ) );
+			b3Body_SetTransform( m_weebleId, { B3_FIX( 0.0f ), B3_FIX( 5.0f ), B3_FIX( 0.0f ) }, b3MakeQuatFromAxisAngle( b3Vec3_axisZ, b3FixMul( B3_FIX( 0.95f ), B3_PI ) ) );
 			b3Body_SetAwake( m_weebleId, true );
 		}
 
@@ -495,7 +495,7 @@ public:
 			def.position = m_explosionPosition;
 			def.radius = m_explosionRadius;
 			def.falloff = B3_FIX( 0.1f );
-			def.impulsePerArea = m_explosionMagnitude;
+			def.impulsePerArea = b3FixFromFloat( m_explosionMagnitude );
 			b3World_Explode( m_worldId, &def );
 		}
 		ImGui::PushItemWidth( 6.0f * ImGui::GetFontSize() );
@@ -510,7 +510,7 @@ public:
 	{
 		Sample::Step();
 
-		b3Sphere sphere = { b3Vec3_zero, b3FixFromFloat( m_explosionRadius ) };
+		b3Sphere sphere = { b3Vec3_zero, m_explosionRadius };
 		DrawWireSphere( { m_explosionPosition, b3Quat_identity }, &sphere, 64, MakeColor( b3_colorAzure ) );
 
 		// This shows how to get the velocity of a point on a body
@@ -532,7 +532,7 @@ public:
 
 	b3BodyId m_weebleId;
 	b3Pos m_explosionPosition;
-	float m_explosionRadius;
+	b3Fixed m_explosionRadius;
 	float m_explosionMagnitude;
 };
 
@@ -578,8 +578,8 @@ public:
 				jointDef.base.bodyIdA = parentId;
 				jointDef.base.bodyIdB = childId;
 				jointDef.base.localFrameA.p = { B3_FIX( 0.0f ), b3FixFromFloat( -linkLength ), B3_FIX( 0.0f ) };
-				jointDef.angularHertz = 10.0f;
-				jointDef.angularDampingRatio = 1.0f;
+				jointDef.angularHertz = B3_FIX( 10.0f );
+				jointDef.angularDampingRatio = B3_FIX( 1.0f );
 				b3CreateWeldJoint( m_worldId, &jointDef );
 			}
 
@@ -664,13 +664,13 @@ public:
 		bodyDef.angularVelocity = { B3_FIX( 0.1f ), B3_FIX( -0.1f ), B3_FIX( 0.1f ) };
 		m_bodyId = b3CreateBody( m_worldId, &bodyDef );
 
-		m_cylinder = b3CreateCylinder( 2.0f, B3_FIX( 0.5f ), 0.0f, 16 );
+		m_cylinder = b3CreateCylinder( B3_FIX( 2.0f ), B3_FIX( 0.5f ), B3_FIX( 0.0f ), 16 );
 
 		b3ShapeDef shapeDef = b3DefaultShapeDef();
 		b3CreateHullShape( m_bodyId, &shapeDef, m_cylinder );
 
 		m_transform.p = { B3_FIX( -10.0f ), B3_FIX( 2.0f ), B3_FIX( 0.0f ) };
-		m_transform.q = b3MakeQuatFromAxisAngle( b3Normalize( { B3_FIX( 1.0f ), B3_FIX( -2.0f ), B3_FIX( 3.0f ) } ), 0.75f * B3_PI );
+		m_transform.q = b3MakeQuatFromAxisAngle( b3Normalize( { B3_FIX( 1.0f ), B3_FIX( -2.0f ), B3_FIX( 3.0f ) } ), 3 * B3_PI / 4 );
 
 		m_baseTranslation = b3Pos_zero;
 		m_baseX = 0;
@@ -688,8 +688,8 @@ public:
 	{
 		if ( button == 0 && modifiers == MOD_SHIFT )
 		{
-			PickRay pickRay = m_camera->BuildPickRay( p.x, p.y );
-			m_origin = pickRay.origin + 10.0f * b3Normalize( pickRay.translation );
+			PickRay pickRay = m_camera->BuildPickRay( b3FixToFloat( p.x ), b3FixToFloat( p.y ) );
+			m_origin = pickRay.origin + B3_FIX( 10.0f ) * b3Normalize( pickRay.translation );
 			m_baseTranslation = m_transform.p;
 			m_tracking = true;
 		}
@@ -711,8 +711,8 @@ public:
 	{
 		if ( m_tracking )
 		{
-			PickRay pickRay = m_camera->BuildPickRay( p.x, p.y );
-			b3Pos origin = pickRay.origin + 10.0f * b3Normalize( pickRay.translation );
+			PickRay pickRay = m_camera->BuildPickRay( b3FixToFloat( p.x ), b3FixToFloat( p.y ) );
+			b3Pos origin = pickRay.origin + B3_FIX( 10.0f ) * b3Normalize( pickRay.translation );
 			m_transform.p = m_baseTranslation + b3SubPos( origin, m_origin );
 		}
 	}
@@ -735,7 +735,7 @@ public:
 			b3Pos origin = { B3_FIX( -9.75f ), B3_FIX( 3.0f ), B3_FIX( -4.0f ) };
 			b3Vec3 translation = { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 8.0f ) };
 			b3QueryFilter filter = b3DefaultQueryFilter();
-			float maxFraction = 1.0f;
+			b3Fixed maxFraction = B3_FIX( 1.0f );
 			b3BodyCastResult result = b3Body_CastRay( m_bodyId, origin, translation, filter, maxFraction, m_transform );
 
 			DrawLine( origin, origin + maxFraction * translation, MakeColor( b3_colorCyan ) );
@@ -759,7 +759,7 @@ public:
 			b3ShapeProxy proxy = { &sphere.center, 1, sphere.radius };
 			b3Vec3 translation = { B3_FIX( 8.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
 			b3QueryFilter filter = b3DefaultQueryFilter();
-			float maxFraction = 1.0f;
+			b3Fixed maxFraction = B3_FIX( 1.0f );
 			bool canEncroach = true;
 			b3BodyCastResult result =
 				b3Body_CastShape( m_bodyId, origin, &proxy, translation, filter, maxFraction, canEncroach, m_transform );
@@ -853,12 +853,12 @@ public:
 		{
 			b3BodyDef bodyDef = b3DefaultBodyDef();
 			bodyDef.type = b3_kinematicBody;
-			bodyDef.position.x = 2.0f * m_amplitude;
-			bodyDef.position.y = m_amplitude + 1.0f;
+			bodyDef.position.x = b3FixFromFloat( 2.0f * m_amplitude );
+			bodyDef.position.y = b3FixFromFloat( m_amplitude + 1.0f );
 
 			m_bodyId = b3CreateBody( m_worldId, &bodyDef );
 
-			b3BoxHull box = b3MakeBoxHull( B3_FIX( 0.1f ), 1.0f, B3_FIX( 0.2f ) );
+			b3BoxHull box = b3MakeBoxHull( B3_FIX( 0.1f ), B3_FIX( 1.0f ), B3_FIX( 0.2f ) );
 			b3ShapeDef shapeDef = b3DefaultShapeDef();
 			b3CreateHullShape( m_bodyId, &shapeDef, &box.base );
 		}
@@ -881,16 +881,16 @@ public:
 			float t = m_time - delay;
 
 			b3Pos point;
-			point.x = 2.0f * m_amplitude * cosf( t );
-			point.y = m_amplitude * ( sinf( 2.0f * t ) + 1.0f ) + 1.0f;
-			point.z = 0.0f;
-			b3Quat rotation = b3MakeQuatFromAxisAngle( b3Vec3_axisZ, 2.0f * t );
+			point.x = b3FixFromFloat( 2.0f * m_amplitude * cosf( t ) );
+			point.y = b3FixFromFloat( m_amplitude * ( sinf( 2.0f * t ) + 1.0f ) + 1.0f );
+			point.z = B3_FIX( 0.0f );
+			b3Quat rotation = b3MakeQuatFromAxisAngle( b3Vec3_axisZ, b3FixFromFloat( 2.0f * t ) );
 
 			b3Vec3 axis = b3RotateVector( rotation, { B3_FIX( 0.0f ), B3_FIX( 1.0f ), B3_FIX( 0.0f ) } );
 			DrawLine( point - B3_FIX( 0.5f ) * axis, point + B3_FIX( 0.5f ) * axis, MakeColor( b3_colorPlum ) );
 			DrawPoint( point, 10.0f, MakeColor( b3_colorPlum ) );
 
-			b3Body_SetTargetTransform( m_bodyId, { point, rotation }, timeStep, true );
+			b3Body_SetTargetTransform( m_bodyId, { point, rotation }, b3FixFromFloat( timeStep ), true );
 		}
 
 		Sample::Step();
@@ -923,7 +923,7 @@ public:
 
 		AddGroundBox( 20.0f );
 
-		b3BoxHull cube = b3MakeBoxHull( 1.0f, 1.0f, 1.0f );
+		b3BoxHull cube = b3MakeBoxHull( B3_FIX( 1.0f ), B3_FIX( 1.0f ), B3_FIX( 1.0f ) );
 		b3ShapeDef shapeDef = b3DefaultShapeDef();
 
 		{

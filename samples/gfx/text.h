@@ -52,7 +52,11 @@ void DrawString( b3Vec3 worldPos, Vec4 color, const char* text );
 // Submit a UTF-8 string at a screen-pixel position (origin top-left, Y down,
 // framebuffer pixels). Same copy/truncation/overflow rules as DrawString.
 void DrawScreenString( int x, int y, Vec4 color, const char* text );
+#if defined( __GNUC__ ) || defined( __clang__ )
+void DrawScreenStringFormat( int x, int y, Vec4 color, const char* fmt, ... ) __attribute__( ( format( printf, 4, 5 ) ) );
+#else
 void DrawScreenStringFormat( int x, int y, Vec4 color, const char* fmt, ... );
+#endif
 
 // Iteration surface for the GUI shell. Pointers/strings are valid until
 // the next ResetTextArena (called by ResetFrameArena, which the GUI shell

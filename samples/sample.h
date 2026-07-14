@@ -180,7 +180,12 @@ public:
 	virtual void MouseMove( b3Vec2 p );
 
 	void ToggleThirdPerson();
+#if defined( __GNUC__ ) || defined( __clang__ )
+	// Index 2/3 accounts for the implicit `this`. Catches b3Fixed passed to %f/%g (varargs UB).
+	void DrawTextLine( const char* text, ... ) __attribute__( ( format( printf, 2, 3 ) ) );
+#else
 	void DrawTextLine( const char* text, ... );
+#endif
 	void ResetProfile();
 
 	// Static ground box at the origin, drawn with the procedural grid material
@@ -204,7 +209,7 @@ public:
 	b3Pos m_mousePoint;
 	b3BodyId m_mouseBodyId;
 	b3JointId m_mouseJointId;
-	float m_mouseFraction;
+	b3Fixed m_mouseFraction;
 	float m_mouseForceScale;
 	float m_launchSpeedScale;
 	int m_stepCount;
@@ -294,16 +299,16 @@ struct PlaneExtra
 struct CharacterMover
 {
 	static constexpr int m_planeCapacity = 8;
-	static constexpr float m_jumpSpeed = 5.0f;
-	static constexpr float m_maxSpeed = 6.0f;
-	static constexpr float m_minSpeed = 0.01f;
-	static constexpr float m_stopSpeed = 1.0f;
-	static constexpr float m_accelerate = 30.0f;
-	static constexpr float m_friction = 4.0f;
-	static constexpr float m_gravity = 15.0f;
+	static constexpr b3Fixed m_jumpSpeed = B3_FIX( 5.0f );
+	static constexpr b3Fixed m_maxSpeed = B3_FIX( 6.0f );
+	static constexpr b3Fixed m_minSpeed = B3_FIX( 0.01f );
+	static constexpr b3Fixed m_stopSpeed = B3_FIX( 1.0f );
+	static constexpr b3Fixed m_accelerate = B3_FIX( 30.0f );
+	static constexpr b3Fixed m_friction = B3_FIX( 4.0f );
+	static constexpr b3Fixed m_gravity = B3_FIX( 15.0f );
 
 	void Initialize( Sample* sample, b3Pos position );
-	void SolveMove( float timeStep, b3Vec3 forward, b3Vec3 right, b3Vec2 throttle, bool clipVelocity );
+	void SolveMove( b3Fixed timeStep, b3Vec3 forward, b3Vec3 right, b3Vec2 throttle, bool clipVelocity );
 	void Step( b3ShapeId* ignoreShapes, int ignoreCount, bool clipVelocity );
 
 	Sample* m_sample;
@@ -314,7 +319,7 @@ struct CharacterMover
 	PlaneExtra m_planeExtras[m_planeCapacity] = {};
 	int m_planeCount;
 	int m_totalIterations;
-	float m_pogoVelocity;
+	b3Fixed m_pogoVelocity;
 	bool m_onGround;
 	bool m_sprint;
 

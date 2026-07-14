@@ -315,13 +315,13 @@ static void LimitFrameRate( uint64_t frameStart )
 	const float targetMs = 1000.0f / 60.0f;
 	const float spinMs = 2.0f;
 
-	int sleepMs = (int)( targetMs - spinMs - b3GetMilliseconds( frameStart ) );
+	int sleepMs = (int)( targetMs - spinMs - b3FixToFloat( b3GetMilliseconds( frameStart ) ) );
 	if ( sleepMs > 0 )
 	{
 		b3Sleep( sleepMs );
 	}
 
-	while ( b3GetMilliseconds( frameStart ) < targetMs )
+	while ( b3FixToFloat( b3GetMilliseconds( frameStart ) ) < targetMs )
 	{
 		b3Yield();
 	}
@@ -370,7 +370,11 @@ static void OnFrame( void )
 	// units from its header on load and restores them on close, so querying every
 	// frame tracks load/unload without extra wiring. Live samples sit at 1 unit per
 	// meter, leaving the transform identity.
-	camera.SetRenderTransform( b3GetLengthUnitsPerMeter(), s_context.viewZUp );
+	// LOAD-BEARING: the raw b3Fixed (65536 for the default 1 unit/meter) is passed as the
+	// renderer's length-unit scale on purpose. Raw fixed values flow untranslated through the
+	// gfx float math as "length units", and this scale folds the 1/65536 back out in the view
+	// transform. Do NOT change this to b3FixToFloat — that would break every draw path.
+	camera.SetRenderTransform( (float)b3GetLengthUnitsPerMeter(), s_context.viewZUp );
 	camera.SetDrawDistance( s_context.drawDistance );
 
 	// Sync the draw origin to the camera eye once per frame, before any drawing. This must hold even

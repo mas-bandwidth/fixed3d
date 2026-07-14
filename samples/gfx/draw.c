@@ -84,13 +84,14 @@ void DrawSolidCapsule( b3WorldTransform transform, b3Capsule capsule, Vec4 color
 	b3Vec3 c1 = b3TransformPoint( rel, capsule.center1 );
 	b3Vec3 c2 = b3TransformPoint( rel, capsule.center2 );
 	b3Vec3 axis = b3Sub( c2, c1 );
-	float length = b3Length( axis );
+	b3Fixed length = b3Length( axis );
 
 	// Impostor cylinder runs along local +X, so align +X with the capsule axis.
+	// Normalize in fixed point: a float reciprocal truncates to 0 ULPs and zeroes the axis.
 	b3Quat q = rel.q;
-	if ( length > 1e-6f )
+	if ( length > 0 )
 	{
-		q = b3ComputeQuatBetweenUnitVectors( b3Vec3_axisX, b3MulSV( 1.0f / length, axis ) );
+		q = b3ComputeQuatBetweenUnitVectors( b3Vec3_axisX, b3Normalize( axis ) );
 	}
 
 	b3Transform world = { b3MulSV( B3_FIX( 0.5f ), b3Add( c1, c2 ) ), q };
@@ -163,17 +164,18 @@ void DrawArrowEx( b3Pos a, b3Pos b, Vec4 color, float thickness, OverlayThicknes
 	OverlayAppendLine( tail, tip, color, thickness, thicknessUnit, occlusionMode );
 
 	b3Vec3 shaft = b3Sub( tip, tail );
-	float shaftLen = b3Length( shaft );
-	if ( shaftLen < 1e-6f )
+	b3Fixed shaftLen = b3Length( shaft );
+	if ( shaftLen == 0 )
 	{
 		return;
 	}
-	b3Vec3 dir = { shaft.x / shaftLen, shaft.y / shaftLen, shaft.z / shaftLen };
+	// Normalize in fixed point: per-component float division truncates the unit vector to whole ULPs.
+	b3Vec3 dir = b3Normalize( shaft );
 	b3Vec3 perp = b3Perp( dir );
-	float headLen = shaftLen * headLengthFrac;
+	b3Fixed headLen = b3FixMul( shaftLen, b3FixFromFloat( headLengthFrac ) );
 
 	b3Vec3 backFromTip = b3MulSV( -headLen, dir );
-	b3Vec3 sideStep = b3MulSV( headLen * 0.5f, perp );
+	b3Vec3 sideStep = b3MulSV( headLen / 2, perp );
 	b3Vec3 tip1 = b3Add( tip, b3Add( backFromTip, sideStep ) );
 	b3Vec3 tip2 = b3Add( tip, b3Sub( backFromTip, sideStep ) );
 	OverlayAppendLine( tip, tip1, color, thickness, thicknessUnit, occlusionMode );
@@ -252,12 +254,14 @@ void DrawAxesEx( b3WorldTransform transform, float size, float thickness, Overla
 	b3Transform rel = ToRelativeFrame( transform );
 	b3Vec3 origin = rel.p;
 	b3Matrix3 basis = b3MakeMatrixFromQuat( rel.q );
-	OverlayAppendLine( origin, b3MulAdd( origin, size, basis.cx ), MakeVec4( 1.0f, 0.0f, 0.0f, 1.0f ), thickness, thicknessUnit,
-					   occlusionMode );
-	OverlayAppendLine( origin, b3MulAdd( origin, size, basis.cy ), MakeVec4( 0.0f, 1.0f, 0.0f, 1.0f ), thickness, thicknessUnit,
-					   occlusionMode );
-	OverlayAppendLine( origin, b3MulAdd( origin, size, basis.cz ), MakeVec4( 0.0f, 0.0f, 1.0f, 1.0f ), thickness, thicknessUnit,
-					   occlusionMode );
+	// The float meter size must convert to fixed; passing it raw truncates to N ULPs (invisible axes).
+	b3Fixed length = b3FixFromFloat( size );
+	OverlayAppendLine( origin, b3MulAdd( origin, length, basis.cx ), MakeVec4( 1.0f, 0.0f, 0.0f, 1.0f ), thickness,
+					   thicknessUnit, occlusionMode );
+	OverlayAppendLine( origin, b3MulAdd( origin, length, basis.cy ), MakeVec4( 0.0f, 1.0f, 0.0f, 1.0f ), thickness,
+					   thicknessUnit, occlusionMode );
+	OverlayAppendLine( origin, b3MulAdd( origin, length, basis.cz ), MakeVec4( 0.0f, 0.0f, 1.0f, 1.0f ), thickness,
+					   thicknessUnit, occlusionMode );
 }
 
 void DrawAxes( b3WorldTransform transform, float size )
@@ -318,7 +322,8 @@ static void DrawDisc( b3Vec3 center, b3Vec3 normal, float radius, int segments, 
 	b3Vec3 tangent1 = b3Perp( normal );
 	b3Vec3 tangent2 = b3Cross( normal, tangent1 );
 
-	float delta = 2.0f * B3_PI / segments;
+	// B3_PI is b3Fixed; convert before float trig or the angle is 65536x too large.
+	float delta = 2.0f * b3FixToFloat( B3_PI ) / segments;
 	float cosine = cosf( delta );
 	float sine = sinf( delta );
 
@@ -371,9 +376,10 @@ void DrawWireSphere( b3WorldTransform transform, const b3Sphere* sphere, int seg
 	b3Vec3 center = b3TransformPoint( rel, sphere->center );
 	float radius = sphere->radius;
 
-	b3Vec3 axisX = b3RotateVector( rel.q, (b3Vec3){ 1.0f, 0.0f, 0.0f } );
-	b3Vec3 axisY = b3RotateVector( rel.q, (b3Vec3){ 0.0f, 1.0f, 0.0f } );
-	b3Vec3 axisZ = b3RotateVector( rel.q, (b3Vec3){ 0.0f, 0.0f, 1.0f } );
+	// Unit axes must be fixed-point ONE: a bare 1.0f in a C braced init truncates to 1 ULP.
+	b3Vec3 axisX = b3RotateVector( rel.q, b3Vec3_axisX );
+	b3Vec3 axisY = b3RotateVector( rel.q, b3Vec3_axisY );
+	b3Vec3 axisZ = b3RotateVector( rel.q, b3Vec3_axisZ );
 
 	DrawDisc( center, axisX, radius, segments, color );
 	DrawDisc( center, axisY, radius, segments, color );

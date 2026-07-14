@@ -6,7 +6,7 @@
 
 #include <math.h>
 
-static constexpr float HALF_PI = B3_PI * 0.5f;
+static constexpr float HALF_PI = 0.5f * 3.14159265359f;
 static constexpr float DEG_TO_RAD = B3_PI / 180.0f;
 static constexpr float ORBIT_SENS = 0.005f;		 // radians per pixel
 static constexpr float FLY_LOOK_SENS = 0.005f;	 // radians per pixel

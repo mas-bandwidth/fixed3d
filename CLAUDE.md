@@ -41,6 +41,50 @@ there is no pending working-tree state.
   both sessions' data was garbage. The published Zen 4 table stands.
 - **Samples build and run** (the float→fixed sample pass is done, including the
   newly re-enabled GyroscopicPrecession sample from e961bfb).
+- **Samples raw-fixed fix pass (2026-07-14, this branch)**: the conversion
+  had left a large bug class in samples/ — b3Fixed raw values flowing
+  through float expressions (65536x off) and float literals silently
+  truncating to N ULPs at b3Fixed boundaries. HEADLINE: Sample::Step passed
+  a float 1/hertz into b3World_Step's b3Fixed dt, which truncated to ZERO —
+  **the samples GUI had never actually simulated since the conversion**
+  (present verbatim at f6dcf7c), which is why none of the scene-setup bugs
+  were ever visually noticed. All fixed: ~600 sites across every
+  sample_*.cpp, sample.cpp/.h (CharacterMover rewritten fixed-native,
+  mouse-grab/pick/launch, profile plots, recycleDistance, AddGroundBox),
+  main.cpp (frame limiter compared raw ms to float), the Dominoes/rings
+  raw-cosine idiom, CandyCups NULL-hull crash, ConvexJitter, Village ray
+  scan, GearLift, Driving, and data/dumps/single_box/box3d_dump.inl (the
+  rewriter had wrapped only FLOAT-syntax literals; bare ints like
+  `{0,-1,0}`, quat w=1, density 1000 were raw — DumpLoader asserted in
+  Debug/crashed in Release). Debug samples builds had NEVER compiled
+  (float-era b3AbsFloat in Debug-only asserts) — fixed. DrawTextLine /
+  DrawString3D / DrawScreenStringFormat now carry printf format attributes
+  (b3Log pattern); all %f-on-b3Fixed and %d-on-uint64 fallout fixed
+  (upstream shares the gap — ERIN.md "Small stuff"). METHOD: compile
+  samples with `-Wfloat-conversion -Wimplicit-int-float-conversion` and
+  chase every warning mentioning 'long long' (a build-samples-audit config;
+  not wired into CI). Two blind spots to know: clang SUPPRESSES these
+  warnings inside braced initializers, and exact-integer float literals
+  (2.0f) convert warning-free — both need eyeballing/grep; raw
+  b3Fixed*b3Fixed int multiplies need the AST audit (tools/fixed-point/
+  ast_audit.py pointed at the samples compile db; only real hit was a
+  GetAngle*B3_RAD_TO_DEG in sample_replay). RENDERER CONVENTION (do not
+  "fix"): main.cpp passes b3GetLengthUnitsPerMeter() (raw 65536) as
+  SetRenderTransform's float length-unit scale ON PURPOSE — raw fixed
+  values flow untranslated through the gfx float math as "length units"
+  and the view transform folds 1/65536 back out; the ~1400 remaining
+  conversion warnings in gfx/host/utility.h are that convention working
+  (comment at main.cpp:373 marks it load-bearing). Only
+  broken-under-any-convention gfx sites were touched: reciprocal-into-
+  fixed axis normalizations (draw.c capsule/arrow, debug_adapter capsule),
+  DrawAxesEx float size (invisible axes), DrawDisc/renderer/camera raw
+  B3_PI in float trig (incl. the BRDF sun premultiply), shadow.c fabsf
+  threshold. VERIFIED: Release + Debug+VALIDATE samples builds green and
+  warning-clean (sample logic at zero 'long long' warnings); ALL 155
+  samples run 100 frames headless exit 0. Known follow-up (chip spawned):
+  Joints/Driving burns ~45 s of TOI (b3QueryHeightField, root finder at
+  maxRootIterations) in its first frames now that CCD actually runs —
+  transient, completes fine after.
 - **Docs consistency pass (2026-07-13, after Glenn's README slim-down)**:
   docs/ was still the vanilla float manual. All ~114 float literals in
   example code are now B3_FIX-wrapped (plus float→b3Fixed declarations,

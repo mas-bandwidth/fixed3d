@@ -416,14 +416,15 @@ static Vec4 HexColorToLinear( b3HexColor color )
 static b3Transform GetCapsuleLocalFrame( b3Vec3 c1, b3Vec3 c2, float* outHalfLength )
 {
 	b3Vec3 d = b3Sub( c2, c1 );
-	float length = b3Length( d );
+	b3Fixed length = b3Length( d );
 	*outHalfLength = 0.5f * length;
 
 	b3Transform t;
 	t.q = b3Quat_identity;
-	if ( length > 1.0e-6f )
+	if ( length > 0 )
 	{
-		b3Vec3 axis = b3MulSV( 1.0f / length, d );
+		// Normalize in fixed point: a float reciprocal truncates to 0 ULPs and zeroes the axis.
+		b3Vec3 axis = b3Normalize( d );
 
 		// For rendering, the capsule axis is along x
 		t.q = b3ComputeQuatBetweenUnitVectors( b3Vec3_axisX, axis );
@@ -976,7 +977,8 @@ static void DrawCapsuleFcn( b3Pos p1, b3Pos p2, b3Fixed radiusFixed, b3HexColor 
 		return;
 	}
 
-	b3Vec3 en = b3MulSV( 1.0f / length, e );
+	// Normalize in fixed point: the float reciprocal truncates to 0 ULPs in b3MulSV and zeroes the axis.
+	b3Vec3 en = b3Normalize( e );
 	b3WorldTransform transform;
 	transform.p = b3OffsetPos( p1, b3MulSV( B3_FIX( 0.5f ), e ));
 	transform.q = b3ComputeQuatBetweenUnitVectors( b3Vec3_axisX, en );

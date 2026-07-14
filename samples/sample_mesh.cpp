@@ -37,7 +37,7 @@ public:
 		b3BodyDef bodyDef = b3DefaultBodyDef();
 		b3BodyId groundId = b3CreateBody( m_worldId, &bodyDef );
 
-		m_gridMesh = b3CreateGridMesh( 20, 20, 1.0f, 0, true );
+		m_gridMesh = b3CreateGridMesh( 20, 20, B3_FIX( 1.0f ), 0, true );
 
 		m_scale = b3Vec3_one;
 		m_scale = { B3_FIX( 2.0f ), B3_FIX( 2.0f ), B3_FIX( 2.0f ) };
@@ -51,7 +51,7 @@ public:
 
 		m_shapeType = ShapeType::cylinder;
 		m_bodyId = b3_nullBodyId;
-		m_cylinderHull = b3CreateCylinder( 1.0f, B3_FIX( 0.25f ), 0.0f, 15 );
+		m_cylinderHull = b3CreateCylinder( B3_FIX( 1.0f ), B3_FIX( 0.25f ), B3_FIX( 0.0f ), 15 );
 		// m_cylinderHull = b3CreateCylinder( 0.5f, 0.2f, 0.0f, 15 );
 
 		Spawn();
@@ -77,7 +77,7 @@ public:
 		// bodyDef.position = { 0.5f, 2.0f, -0.5f };
 		bodyDef.position = { B3_FIX( 0.1f ), B3_FIX( 1.0f ), B3_FIX( -0.1f ) };
 		// bodyDef.enableContactRecycling = m_shapeType != ShapeType::cylinder;
-		bodyDef.angularDamping = m_shapeType == ShapeType::cylinder ? B3_FIX( 0.1f ) : 0.0f;
+		bodyDef.angularDamping = m_shapeType == ShapeType::cylinder ? B3_FIX( 0.1f ) : B3_FIX( 0.0f );
 
 		// bodyDef.linearVelocity = { 2.0f, 0.0f, 0.0f };
 		//  bodyDef.position = { 0.208701894, 0.0791450217, -0.298710823 };
@@ -233,7 +233,7 @@ public:
 		m_shapeType = ShapeType::cylinder;
 		m_bodyId = b3_nullBodyId;
 		//m_cylinderHull = b3CreateCylinder( 0.5f, 0.2f, 0.0f, 15 );
-		m_cylinderHull = b3CreateCylinder( B3_FIX( 0.3f ), B3_FIX( 0.15f ), 0.0f, 32 );
+		m_cylinderHull = b3CreateCylinder( B3_FIX( 0.3f ), B3_FIX( 0.15f ), B3_FIX( 0.0f ), 32 );
 
 		m_stepWhilePaused = false;
 
@@ -398,7 +398,7 @@ public:
 
 		b3BodyDef bodyDef = b3DefaultBodyDef();
 		bodyDef.position = { B3_FIX( 0.0f ), B3_FIX( -1.0f ), B3_FIX( 0.0f ) };
-		bodyDef.rotation = b3MakeQuatFromAxisAngle( b3Vec3_axisY, 0.25f * B3_PI );
+		bodyDef.rotation = b3MakeQuatFromAxisAngle( b3Vec3_axisY, B3_PI / 4 );
 		b3BodyId groundId = b3CreateBody( m_worldId, &bodyDef );
 
 		b3ShapeDef shapeDef = b3DefaultShapeDef();
@@ -408,7 +408,7 @@ public:
 		m_scale = b3Vec3_one;
 		m_boxShapeId = b3CreateMeshShape( groundId, &shapeDef, m_boxMesh, m_scale );
 
-		m_cylinderHull = b3CreateCylinder( 1.0f, B3_FIX( 0.75f ), 0.0f, 8 );
+		m_cylinderHull = b3CreateCylinder( B3_FIX( 1.0f ), B3_FIX( 0.75f ), B3_FIX( 0.0f ), 8 );
 
 		m_shapeType = ShapeType::box;
 		m_bodyId = b3_nullBodyId;
@@ -436,7 +436,7 @@ public:
 
 		if ( m_shapeType == ShapeType::cylinder )
 		{
-			bodyDef.position.y -= 0.5f;
+			bodyDef.position.y -= B3_FIX( 0.5f );
 		}
 
 		m_bodyId = b3CreateBody( m_worldId, &bodyDef );
@@ -572,7 +572,7 @@ public:
 
 		{
 			b3BodyId body = b3CreateBody( m_worldId, &bodyDef );
-			m_gridMesh = b3CreateGridMesh( 20, 20, 2.0f, 2, true );
+			m_gridMesh = b3CreateGridMesh( 20, 20, B3_FIX( 2.0f ), 2, true );
 			b3CreateMeshShape( body, &shapeDef, m_gridMesh, b3Vec3_one );
 		}
 
@@ -635,9 +635,9 @@ public:
 			b3CreateHullShape( body, &shapeDef, &hull.base );
 		}
 
-		float frictionTorque = 5.0f;
-		float hertz = 1.0f;
-		float dampingRatio = 0.7f;
+		b3Fixed frictionTorque = B3_FIX( 5.0f );
+		b3Fixed hertz = B3_FIX( 1.0f );
+		b3Fixed dampingRatio = B3_FIX( 0.7f );
 		bool colorize = false;
 		for ( int humanIndex = 0; humanIndex < e_humanCount; humanIndex += 1 )
 		{
@@ -665,45 +665,45 @@ public:
 	{
 		bool changed = false;
 		b3Vec3 scale = m_scale;
-		if ( ImGui::RadioButton( "Neg X", scale.x < 0.0f ) )
+		if ( ImGui::RadioButton( "Neg X", scale.x < B3_FIX( 0.0f ) ) )
 		{
-			scale.x = -1.0f;
+			scale.x = B3_FIX( -1.0f );
 			changed = true;
 		}
 
 		ImGui::SameLine();
 
-		if ( ImGui::RadioButton( "Pos X", scale.x > 0.0f ) )
+		if ( ImGui::RadioButton( "Pos X", scale.x > B3_FIX( 0.0f ) ) )
 		{
-			scale.x = 1.0f;
+			scale.x = B3_FIX( 1.0f );
 			changed = true;
 		}
 
-		if ( ImGui::RadioButton( "Neg Y", scale.y < 0.0f ) )
+		if ( ImGui::RadioButton( "Neg Y", scale.y < B3_FIX( 0.0f ) ) )
 		{
-			scale.y = -1.0f;
-			changed = true;
-		}
-
-		ImGui::SameLine();
-
-		if ( ImGui::RadioButton( "Pos Y", scale.y > 0.0f ) )
-		{
-			scale.y = 1.0f;
-			changed = true;
-		}
-
-		if ( ImGui::RadioButton( "Neg Z", scale.z < 0.0f ) )
-		{
-			scale.z = -1.0f;
+			scale.y = B3_FIX( -1.0f );
 			changed = true;
 		}
 
 		ImGui::SameLine();
 
-		if ( ImGui::RadioButton( "Pos Z", scale.z > 0.0f ) )
+		if ( ImGui::RadioButton( "Pos Y", scale.y > B3_FIX( 0.0f ) ) )
 		{
-			scale.z = 1.0f;
+			scale.y = B3_FIX( 1.0f );
+			changed = true;
+		}
+
+		if ( ImGui::RadioButton( "Neg Z", scale.z < B3_FIX( 0.0f ) ) )
+		{
+			scale.z = B3_FIX( -1.0f );
+			changed = true;
+		}
+
+		ImGui::SameLine();
+
+		if ( ImGui::RadioButton( "Pos Z", scale.z > B3_FIX( 0.0f ) ) )
+		{
+			scale.z = B3_FIX( 1.0f );
 			changed = true;
 		}
 
@@ -719,8 +719,9 @@ public:
 
 	void Render() override
 	{
-		DrawTextLine( "scale = (%.2g, %.2g, %.2g)", m_scale.x, m_scale.y, m_scale.z );
-		DrawTextLine( "surface type = %d", m_userMaterialId );
+		DrawTextLine( "scale = (%.2g, %.2g, %.2g)", b3FixToDouble( m_scale.x ), b3FixToDouble( m_scale.y ),
+					  b3FixToDouble( m_scale.z ) );
+		DrawTextLine( "surface type = %llu", (unsigned long long)m_userMaterialId );
 
 		Sample::Render();
 	}
@@ -836,24 +837,24 @@ public:
 			m_heightField = b3CreateWave( m_rowCount, m_columnCount, m_scale, B3_FIX( 0.1f ), B3_FIX( 0.03333f ), m_holes );
 		}
 
-		bodyDef.position = { b3FixFromFloat( -0.5f * m_heightField->scale.x * ( m_columnCount - 1 ) ), B3_FIX( 0.0f ),
-							 b3FixFromFloat( -0.5f * m_heightField->scale.z * ( m_rowCount - 1 ) ) };
+		bodyDef.position = { -( ( m_columnCount - 1 ) * m_heightField->scale.x ) / 2, B3_FIX( 0.0f ),
+							 -( ( m_rowCount - 1 ) * m_heightField->scale.z ) / 2 };
 		// bodyDef.rotation = b3MakeQuatFromAxisAngle( b3Vec3_axisY, 0.25f * B3_PI );
 		m_groundId = b3CreateBody( m_worldId, &bodyDef );
 		b3CreateHeightFieldShape( m_groundId, &shapeDef, m_heightField );
 
 #if 0
 		bodyDef.type = b3_dynamicBody;
-		bodyDef.position = { 0.0f, 4.0f, 1.0f };
+		bodyDef.position = { B3_FIX( 0.0f ), B3_FIX( 4.0f ), B3_FIX( 1.0f ) };
 		m_bodyId1 = b3CreateBody( m_worldId, &bodyDef );
-		b3Sphere sphere = { b3Vec3_zero, 0.5f };
+		b3Sphere sphere = { b3Vec3_zero, B3_FIX( 0.5f ) };
 		b3CreateSphereShape( m_bodyId1, &shapeDef, &sphere );
 
-		bodyDef.position = { 0.0f, 0.5f, -0.5f };
-		bodyDef.linearVelocity = { 5.0f, 0.0f, 0.0f };
+		bodyDef.position = { B3_FIX( 0.0f ), B3_FIX( 0.5f ), B3_FIX( -0.5f ) };
+		bodyDef.linearVelocity = { B3_FIX( 5.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
 		m_bodyId2 = b3CreateBody( m_worldId, &bodyDef );
-		b3BoxHull box = b3MakeBoxHull( 0.3f, 0.3f, 0.3f );
-		shapeDef.baseMaterial.friction = 0.05f;
+		b3BoxHull box = b3MakeBoxHull( B3_FIX( 0.3f ), B3_FIX( 0.3f ), B3_FIX( 0.3f ) );
+		shapeDef.baseMaterial.friction = B3_FIX( 0.05f );
 		b3CreateHullShape( m_bodyId2, &shapeDef, &box.base );
 #endif
 	}
@@ -882,14 +883,14 @@ public:
 			CreateScene();
 		}
 
-		SliderFixed( "ray x", &m_rayOrigin.x, -2.0f * m_radius - 0.5f * m_scale.x * ( m_columnCount - 1 ),
-							2.0f * m_radius + 0.5f * m_scale.x * ( m_columnCount - 1 ) );
-		SliderFixed( "ray z", &m_rayOrigin.z, -2.0f * m_radius - 0.5f * m_scale.z * ( m_rowCount - 1 ),
-							2.0f * m_radius + 0.5f * m_scale.z * ( m_rowCount - 1 ) );
-		SliderFixed( "delta x", &m_rayTranslation.x, -2.0f * m_scale.x * ( m_columnCount - 1 ),
-							2.0f * m_scale.x * ( m_columnCount - 1 ) );
-		SliderFixed( "delta z", &m_rayTranslation.z, -2.0f * m_scale.z * ( m_rowCount - 1 ),
-							2.0f * m_scale.z * ( m_rowCount - 1 ) );
+		SliderFixed( "ray x", &m_rayOrigin.x, -2.0f * m_radius - 0.5f * b3FixToFloat( m_scale.x ) * ( m_columnCount - 1 ),
+							2.0f * m_radius + 0.5f * b3FixToFloat( m_scale.x ) * ( m_columnCount - 1 ) );
+		SliderFixed( "ray z", &m_rayOrigin.z, -2.0f * m_radius - 0.5f * b3FixToFloat( m_scale.z ) * ( m_rowCount - 1 ),
+							2.0f * m_radius + 0.5f * b3FixToFloat( m_scale.z ) * ( m_rowCount - 1 ) );
+		SliderFixed( "delta x", &m_rayTranslation.x, -2.0f * b3FixToFloat( m_scale.x ) * ( m_columnCount - 1 ),
+							2.0f * b3FixToFloat( m_scale.x ) * ( m_columnCount - 1 ) );
+		SliderFixed( "delta z", &m_rayTranslation.z, -2.0f * b3FixToFloat( m_scale.z ) * ( m_rowCount - 1 ),
+							2.0f * b3FixToFloat( m_scale.z ) * ( m_rowCount - 1 ) );
 		ImGui::SliderFloat( "radius", &m_radius, 0.0f, 1.0f );
 
 		ImGui::PopItemWidth();
@@ -1013,7 +1014,7 @@ static float ComputeInternalSurfaceArea( const b3MeshData* data )
 			node->upperBound,
 		};
 
-		area += b3AABB_Area( box );
+		area += b3FixToFloat( b3AABB_Area( box ) );
 	}
 
 	return area;
@@ -1090,11 +1091,11 @@ public:
 		def.useMedianSplit = m_medianSplit;
 		def.identifyEdges = m_concaveEdges;
 		def.weldVertices = m_weldVertices;
-		def.weldTolerance = 0.001f * m_weldToleranceMillimeters;
+		def.weldTolerance = b3FixFromFloat( 0.001f * m_weldToleranceMillimeters );
 
 		uint64_t startTicks = b3GetTicks();
 		m_mesh = b3CreateMesh( &def, m_degenerateTriangles, m_degenerateCapacity );
-		m_buildTime = b3GetMilliseconds( startTicks );
+		m_buildTime = b3FixToFloat( b3GetMilliseconds( startTicks ) );
 
 		b3ShapeDef shapeDef = b3DefaultShapeDef();
 		b3CreateMeshShape( m_bodyId, &shapeDef, m_mesh, b3Vec3_one );
@@ -1252,10 +1253,10 @@ public:
 			b3Vec3 v2 = m_tempMesh.vertices[i2];
 			b3Vec3 v3 = m_tempMesh.vertices[i3];
 
-			float area = b3Length( b3Cross( v2 - v1, v3 - v1 ) );
+			b3Fixed area = b3Length( b3Cross( v2 - v1, v3 - v1 ) );
 			(void)area;
 
-			b3Vec3 p = ( 1.0f / 3.0f ) * ( v1 + v2 + v3 );
+			b3Vec3 p = B3_FIX( 1.0f / 3.0f ) * ( v1 + v2 + v3 );
 			b3Pos pPos = b3ToPos( p );
 			DrawPoint( pPos, 10.0f, MakeColor( b3_colorCyan ) );
 			DrawString3D( b3OffsetPos( pPos, offset ), MakeColor( b3_colorOrange ), "%d", triangleIndex );
@@ -1358,7 +1359,7 @@ public:
 				b3DestroyMesh( meshData );
 			}
 
-			float ms = b3GetMilliseconds( startTicks );
+			float ms = b3FixToFloat( b3GetMilliseconds( startTicks ) );
 			m_time = b3MinFloat( m_time, ms );
 		}
 
@@ -1518,12 +1519,12 @@ public:
 
 		b3BodyDef bodyDef = b3DefaultBodyDef();
 		bodyDef.type = b3_dynamicBody;
-		bodyDef.gravityScale = 0.0f;
+		bodyDef.gravityScale = B3_FIX( 0.0f );
 		bodyDef.enableSleep = false;
 		b3ShapeDef shapeDef = b3DefaultShapeDef();
 
 		{
-			b3HullData* cylinderHull = b3CreateCylinder( 1.0f, B3_FIX( 0.25f ), 0.0f, 8 );
+			b3HullData* cylinderHull = b3CreateCylinder( B3_FIX( 1.0f ), B3_FIX( 0.25f ), B3_FIX( 0.0f ), 8 );
 
 			b3Pos positions[6] = {
 				{ B3_FIX( 0.0f ), B3_FIX( -10.2f ), B3_FIX( 0.0f ) }, { B3_FIX( 0.0f ), B3_FIX( 9.2f ), B3_FIX( 0.0f ) }, { B3_FIX( -9.8f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) },

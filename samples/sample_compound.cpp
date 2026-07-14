@@ -31,7 +31,7 @@ public:
 
 			b3Transform hullTransform;
 			hullTransform.p = { B3_FIX( 1.0f ), b3FixFromFloat( -0.125f * a ), B3_FIX( 0.0f ) };
-			hullTransform.q = b3MakeQuatFromAxisAngle( b3Normalize( { B3_FIX( 1.0f ), B3_FIX( 0.0f ), B3_FIX( 1.0f ) } ), 0.0f * B3_PI );
+			hullTransform.q = b3MakeQuatFromAxisAngle( b3Normalize( { B3_FIX( 1.0f ), B3_FIX( 0.0f ), B3_FIX( 1.0f ) } ), 0 * B3_PI );
 
 			b3CompoundHullDef hullDef = {
 				.hull = &box.base,
@@ -47,14 +47,14 @@ public:
 
 			b3BodyDef bodyDef = b3DefaultBodyDef();
 			bodyDef.position = { B3_FIX( 2.0f ), B3_FIX( -1.0f ), B3_FIX( 0.0f ) };
-			bodyDef.rotation = b3MakeQuatFromAxisAngle( { B3_FIX( 0.0f ), B3_FIX( 1.0f ), B3_FIX( 0.0f ) }, 0.25f * B3_PI );
+			bodyDef.rotation = b3MakeQuatFromAxisAngle( { B3_FIX( 0.0f ), B3_FIX( 1.0f ), B3_FIX( 0.0f ) }, B3_PI / 4 );
 			b3BodyId groundId = b3CreateBody( m_worldId, &bodyDef );
 
 			b3ShapeDef shapeDef = b3DefaultShapeDef();
 			(void)b3CreateCompoundShape( groundId, &shapeDef, m_compound );
 		}
 
-		b3World_SetContactRecycleDistance( m_worldId, 0.0f );
+		b3World_SetContactRecycleDistance( m_worldId, B3_FIX( 0.0f ) );
 
 		{
 			b3BodyDef bodyDef = b3DefaultBodyDef();
@@ -124,7 +124,7 @@ public:
 		for ( int i = 0; i < m_count; ++i )
 		{
 			spheres[i].sphere.center = RandomVec3( lower, upper );
-			spheres[i].sphere.radius = RandomFloatRange( 0.01f * h, 0.05f * h );
+			spheres[i].sphere.radius = RandomFloatRange( b3FixFromFloat( 0.01f * h ), b3FixFromFloat( 0.05f * h ) );
 			spheres[i].material = b3DefaultSurfaceMaterial();
 		}
 
@@ -187,9 +187,9 @@ public:
 		for ( int i = 0; i < m_count; ++i )
 		{
 			b3Vec3 extents = {
-				.x = RandomFloatRange( 0.01f * h, 0.05f * h ),
-				.y = RandomFloatRange( 0.01f * h, 0.05f * h ),
-				.z = RandomFloatRange( 0.01f * h, 0.05f * h ),
+				.x = RandomFloatRange( b3FixFromFloat( 0.01f * h ), b3FixFromFloat( 0.05f * h ) ),
+				.y = RandomFloatRange( b3FixFromFloat( 0.01f * h ), b3FixFromFloat( 0.05f * h ) ),
+				.z = RandomFloatRange( b3FixFromFloat( 0.01f * h ), b3FixFromFloat( 0.05f * h ) ),
 			};
 
 			b3Transform transform;
@@ -268,12 +268,12 @@ public:
 			int index = 0;
 			for ( int i = 0; i < gridCount; ++i )
 			{
-				transform.p.x = ( 2.0f * i - gridCount ) * a;
+				transform.p.x = ( 2 * i - gridCount ) * b3FixFromFloat( a );
 
 				for ( int j = 0; j < gridCount; ++j )
 				{
-					transform.p.z = ( 2.0f * j - gridCount ) * a;
-					transform.p.y = RandomFloatRange( B3_FIX( -0.5f ), B3_FIX( 0.25f ) ) * a;
+					transform.p.z = ( 2 * j - gridCount ) * b3FixFromFloat( a );
+					transform.p.y = b3FixMul( RandomFloatRange( B3_FIX( -0.5f ), B3_FIX( 0.25f ) ), b3FixFromFloat( a ) );
 
 					assert( index < boxCount );
 
@@ -320,11 +320,11 @@ public:
 		{
 			b3BodyDef bodyDef = b3DefaultBodyDef();
 			bodyDef.type = b3_dynamicBody;
-			bodyDef.position = { 0.0f, 10.0f, 2.0f };
+			bodyDef.position = { B3_FIX( 0.0f ), B3_FIX( 10.0f ), B3_FIX( 2.0f ) };
 			b3BodyId bodyId = b3CreateBody( m_worldId, &bodyDef );
 
 			b3ShapeDef shapeDef = b3DefaultShapeDef();
-			b3BoxHull box = b3MakeBoxHull( 0.2f, 0.3f, 0.4f );
+			b3BoxHull box = b3MakeBoxHull( B3_FIX( 0.2f ), B3_FIX( 0.3f ), B3_FIX( 0.4f ) );
 			b3CreateHullShape( bodyId, &shapeDef, &box.base );
 		}
 #endif
@@ -381,18 +381,18 @@ public:
 			b3MeshData* box = b3CreateBoxMesh( { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, extents, true );
 			b3CompoundMeshDef* meshes = new b3CompoundMeshDef[boxCount];
 			b3Transform transform = b3Transform_identity;
-			transform.p.y = -0.5f * a;
+			transform.p.y = b3FixFromFloat( -0.5f * a );
 
 			int index = 0;
 			for ( int i = 0; i < gridCount; ++i )
 			{
-				transform.p.x = ( 2.0f * i - gridCount ) * a;
+				transform.p.x = ( 2 * i - gridCount ) * b3FixFromFloat( a );
 
 				for ( int j = 0; j < gridCount; ++j )
 				{
-					transform.p.z = ( 2.0f * j - gridCount ) * a;
+					transform.p.z = ( 2 * j - gridCount ) * b3FixFromFloat( a );
 
-					transform.p.y = RandomFloatRange( B3_FIX( -0.5f ), B3_FIX( 0.25f ) ) * a;
+					transform.p.y = b3FixMul( RandomFloatRange( B3_FIX( -0.5f ), B3_FIX( 0.25f ) ), b3FixFromFloat( a ) );
 
 					assert( index < boxCount );
 
@@ -427,11 +427,11 @@ public:
 		{
 			b3BodyDef bodyDef = b3DefaultBodyDef();
 			bodyDef.type = b3_dynamicBody;
-			bodyDef.position = { 3.0f, 12.0f, 0.0f };
+			bodyDef.position = { B3_FIX( 3.0f ), B3_FIX( 12.0f ), B3_FIX( 0.0f ) };
 			b3BodyId bodyId = b3CreateBody( m_worldId, &bodyDef );
 
 			b3ShapeDef shapeDef = b3DefaultShapeDef();
-			b3Sphere sphere = { b3Vec3_zero, 0.25f };
+			b3Sphere sphere = { b3Vec3_zero, B3_FIX( 0.25f ) };
 			b3CreateSphereShape( bodyId, &shapeDef, &sphere );
 		}
 #endif
@@ -524,12 +524,12 @@ public:
 
 			for ( int i = 0; i < gridCount; ++i )
 			{
-				transform.p.x = ( 2.0f * i - gridCount ) * a;
+				transform.p.x = ( 2 * i - gridCount ) * b3FixFromFloat( a );
 
 				for ( int j = 0; j < gridCount; ++j )
 				{
-					transform.p.z = ( 2.0f * j - gridCount ) * a;
-					transform.p.y = RandomFloatRange( B3_FIX( -0.25f ), B3_FIX( 0.125f ) ) * a;
+					transform.p.z = ( 2 * j - gridCount ) * b3FixFromFloat( a );
+					transform.p.y = b3FixMul( RandomFloatRange( B3_FIX( -0.25f ), B3_FIX( 0.125f ) ), b3FixFromFloat( a ) );
 
 					assert( hullIndex < hullCount );
 
@@ -537,19 +537,19 @@ public:
 					{
 						b3Vec3 p1 = transform.p + RandomVec3( { b3FixFromFloat( -a ), b3FixFromFloat( a ), b3FixFromFloat( -a ) }, { b3FixFromFloat( a ), b3FixFromFloat( 2.0f * a ), b3FixFromFloat( a ) } );
 						b3Vec3 p2 = transform.p + RandomVec3( { b3FixFromFloat( -a ), b3FixFromFloat( a ), b3FixFromFloat( -a ) }, { b3FixFromFloat( a ), b3FixFromFloat( 2.0f * a ), b3FixFromFloat( a ) } );
-						float radius = RandomFloatRange( B3_FIX( 0.1f ), B3_FIX( 0.5f ) );
+						b3Fixed radius = RandomFloatRange( B3_FIX( 0.1f ), B3_FIX( 0.5f ) );
 
 						if ( capsuleIndex < sphereIndex )
 						{
 							assert( capsuleIndex < capsuleCapacity );
-							capsules[capsuleIndex].capsule = { p1, p2, b3FixFromFloat( radius ) };
+							capsules[capsuleIndex].capsule = { p1, p2, radius };
 							capsules[capsuleIndex].material = material;
 							capsuleIndex += 1;
 						}
 						else
 						{
 							assert( sphereIndex < capsuleCapacity );
-							spheres[sphereIndex].sphere = { p1, b3FixFromFloat( radius ) };
+							spheres[sphereIndex].sphere = { p1, radius };
 							spheres[sphereIndex].material = material;
 							sphereIndex += 1;
 						}
@@ -583,7 +583,7 @@ public:
 				meshMaterials[i] = b3DefaultSurfaceMaterial();
 				if ( i == 0 )
 				{
-					meshMaterials[i].friction = 0.0f;
+					meshMaterials[i].friction = B3_FIX( 0.0f );
 				}
 				else if ( i == 1 )
 				{
@@ -598,12 +598,12 @@ public:
 			int meshIndex = 0;
 			for ( int i = 0; i < meshGridCount; ++i )
 			{
-				transform.p.x = ( 2.0f * i - meshGridCount ) * b + 0.5f * b;
+				transform.p.x = ( 2 * i - meshGridCount ) * b3FixFromFloat( b ) + b3FixFromFloat( 0.5f * b );
 
 				for ( int j = 0; j < meshGridCount; ++j )
 				{
-					transform.p.y = 0.5f * a;
-					transform.p.z = ( 2.0f * j - meshGridCount ) * b + 0.5f * b;
+					transform.p.y = b3FixFromFloat( 0.5f * a );
+					transform.p.z = ( 2 * j - meshGridCount ) * b3FixFromFloat( b ) + b3FixFromFloat( 0.5f * b );
 					transform.q = b3MakeQuatFromAxisAngle( { B3_FIX( 0.0f ), B3_FIX( 1.0f ), B3_FIX( 0.0 ) }, RandomFloatRange( -B3_PI, B3_PI ) );
 
 					assert( meshIndex < meshCount );
@@ -646,7 +646,7 @@ public:
 
 			b3BodyDef bodyDef = b3DefaultBodyDef();
 			bodyDef.position = { B3_FIX( -1.0f ), B3_FIX( -0.5f ), B3_FIX( 2.0f ) };
-			bodyDef.rotation = b3MakeQuatFromAxisAngle( { B3_FIX( 0.0f ), B3_FIX( 1.0f ), B3_FIX( 0.0f ) }, -1.15f * B3_PI );
+			bodyDef.rotation = b3MakeQuatFromAxisAngle( { B3_FIX( 0.0f ), B3_FIX( 1.0f ), B3_FIX( 0.0f ) }, b3FixMul( B3_FIX( -1.15f ), B3_PI ) );
 			b3BodyId groundId = b3CreateBody( m_worldId, &bodyDef );
 
 			b3ShapeDef shapeDef = b3DefaultShapeDef();
@@ -689,7 +689,7 @@ public:
 		b3Transform transform = { { B3_FIX( 0.0f ), B3_FIX( 0.01f ), B3_FIX( 0.0f ) }, b3Quat_identity };
 		DrawAxes( b3MakeWorldTransform( transform ), 4.0f );
 
-		DrawTextLine( "surface type = %d", m_userMaterialId );
+		DrawTextLine( "surface type = %llu", (unsigned long long)m_userMaterialId );
 		DrawTextLine( "compound capsules/hulls/meshes/sphere = %d / %d / %d / %d", m_compound->capsuleCount,
 					  m_compound->hullCount, m_compound->meshCount, m_compound->sphereCount );
 		DrawTextLine( "compound byte count = %d", m_compound->byteCount );
@@ -722,8 +722,8 @@ public:
 				b3Pos p2 = p1 + B3_FIX( 0.5f ) * context.normal;
 				DrawLine( p1, p2, MakeColor( b3_colorYellow ) );
 				DrawPoint( p1, 8.0f, MakeColor( b3_colorLightCoral ) );
-				DrawTextLine( "ray hit triangle/child/material = %d / %d / %d", context.triangleIndex, context.childIndex,
-							  context.materialId );
+				DrawTextLine( "ray hit triangle/child/material = %d / %d / %llu", context.triangleIndex, context.childIndex,
+							  (unsigned long long)context.materialId );
 			}
 			else
 			{
@@ -747,8 +747,8 @@ public:
 				DrawPoint( p1, 8.0f, MakeColor( b3_colorLightCoral ) );
 				b3Sphere sphere = { b3Vec3_zero, B3_FIX( 0.25f ) };
 				DrawSolidSphere( { position, b3Quat_identity }, sphere, MakeColor( b3_colorOrchid ) );
-				DrawTextLine( "shape hit triangle/child/material = %d / %d / %d", context.triangleIndex, context.childIndex,
-							  context.materialId );
+				DrawTextLine( "shape hit triangle/child/material = %d / %d / %llu", context.triangleIndex, context.childIndex,
+							  (unsigned long long)context.materialId );
 			}
 			else
 			{
@@ -758,7 +758,7 @@ public:
 
 		{
 			bool overlap = false;
-			b3Pos origin = { b3FixFromFloat( m_rayOrigin.x - 1.0f ), B3_FIX( 2.0f ), b3FixFromFloat( m_rayOrigin.z - 1.0f ) };
+			b3Pos origin = { m_rayOrigin.x - B3_FIX( 1.0f ), B3_FIX( 2.0f ), m_rayOrigin.z - B3_FIX( 1.0f ) };
 			b3ShapeProxy proxy = { &b3Vec3_zero, 1, B3_FIX( 0.3f ) };
 			b3World_OverlapShape( m_worldId, origin, &proxy, filter, OverlapResultFcn, &overlap );
 
@@ -767,15 +767,15 @@ public:
 			DrawSolidSphere( { origin, b3Quat_identity }, sphere, MakeColor( color ) );
 		}
 
-		if ( m_rayOrigin.x > 0.45f * m_worldWidth )
+		if ( m_rayOrigin.x > b3FixFromFloat( 0.45f * m_worldWidth ) )
 		{
-			m_rayOrigin.x = -0.45f * m_worldWidth;
-			m_rayOrigin.z += 8.0f;
+			m_rayOrigin.x = b3FixFromFloat( -0.45f * m_worldWidth );
+			m_rayOrigin.z += B3_FIX( 8.0f );
 		}
 
-		if ( m_rayOrigin.z > 0.45f * m_worldWidth )
+		if ( m_rayOrigin.z > b3FixFromFloat( 0.45f * m_worldWidth ) )
 		{
-			m_rayOrigin.z = -0.45f * m_worldWidth;
+			m_rayOrigin.z = b3FixFromFloat( -0.45f * m_worldWidth );
 		}
 
 		float timeStep = 0.0f;
@@ -784,7 +784,7 @@ public:
 			timeStep = m_context->hertz > 0.0f ? 1.0f / m_context->hertz : 0.0f;
 		}
 
-		m_rayOrigin.x += 2.0f * timeStep;
+		m_rayOrigin.x += b3FixFromFloat( 2.0f * timeStep );
 
 		Sample::Step();
 	}

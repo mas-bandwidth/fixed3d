@@ -73,18 +73,18 @@ public:
 		b3Sphere sphere = { { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, b3FixFromFloat( radius ) };
 
 		b3ShapeDef shapeDef = b3DefaultShapeDef();
-		shapeDef.density = 20.0f;
+		shapeDef.density = B3_FIX( 20.0f );
 
 		float yOffset = 20.0f;
 
 		b3DistanceJointDef jointDef = b3DefaultDistanceJointDef();
-		jointDef.hertz = m_hertz;
-		jointDef.dampingRatio = m_dampingRatio;
-		jointDef.length = m_length;
-		jointDef.lowerSpringForce = -m_tensionForce;
-		jointDef.upperSpringForce = m_compressionForce;
-		jointDef.minLength = m_minLength;
-		jointDef.maxLength = m_maxLength;
+		jointDef.hertz = b3FixFromFloat( m_hertz );
+		jointDef.dampingRatio = b3FixFromFloat( m_dampingRatio );
+		jointDef.length = b3FixFromFloat( m_length );
+		jointDef.lowerSpringForce = b3FixFromFloat( -m_tensionForce );
+		jointDef.upperSpringForce = b3FixFromFloat( m_compressionForce );
+		jointDef.minLength = b3FixFromFloat( m_minLength );
+		jointDef.maxLength = b3FixFromFloat( m_maxLength );
 		jointDef.enableSpring = m_enableSpring;
 		jointDef.enableLimit = m_enableLimit;
 
@@ -93,13 +93,13 @@ public:
 		{
 			b3BodyDef bodyDef = b3DefaultBodyDef();
 			bodyDef.type = b3_dynamicBody;
-			bodyDef.angularDamping = 1.0f;
-			bodyDef.position = { b3FixFromFloat( m_length * ( i + 1.0f ) ), b3FixFromFloat( yOffset ) };
+			bodyDef.angularDamping = B3_FIX( 1.0f );
+			bodyDef.position = { b3FixFromFloat( m_length * ( (float)i + 1.0f ) ), b3FixFromFloat( yOffset ) };
 			m_bodyIds[i] = b3CreateBody( m_worldId, &bodyDef );
 			b3CreateSphereShape( m_bodyIds[i], &shapeDef, &sphere );
 
-			b3Pos pivotA = { b3FixFromFloat( m_length * i ), b3FixFromFloat( yOffset ), B3_FIX( 0.0f ) };
-			b3Pos pivotB = { b3FixFromFloat( m_length * ( i + 1.0f ) ), b3FixFromFloat( yOffset ), B3_FIX( 0.0f ) };
+			b3Pos pivotA = { b3FixFromFloat( m_length * (float)i ), b3FixFromFloat( yOffset ), B3_FIX( 0.0f ) };
+			b3Pos pivotB = { b3FixFromFloat( m_length * ( (float)i + 1.0f ) ), b3FixFromFloat( yOffset ), B3_FIX( 0.0f ) };
 			jointDef.base.bodyIdA = prevBodyId;
 			jointDef.base.bodyIdB = m_bodyIds[i];
 			jointDef.base.localFrameA.p = b3Body_GetLocalPoint( prevBodyId, pivotA );
@@ -116,7 +116,7 @@ public:
 		{
 			for ( int i = 0; i < m_count; ++i )
 			{
-				b3DistanceJoint_SetLength( m_jointIds[i], m_length );
+				b3DistanceJoint_SetLength( m_jointIds[i], b3FixFromFloat( m_length ) );
 				b3Joint_WakeBodies( m_jointIds[i] );
 			}
 		}
@@ -136,7 +136,7 @@ public:
 			{
 				for ( int i = 0; i < m_count; ++i )
 				{
-					b3DistanceJoint_SetSpringForceRange( m_jointIds[i], -m_tensionForce, m_compressionForce );
+					b3DistanceJoint_SetSpringForceRange( m_jointIds[i], b3FixFromFloat( -m_tensionForce ), b3FixFromFloat( m_compressionForce ) );
 					b3Joint_WakeBodies( m_jointIds[i] );
 				}
 			}
@@ -145,7 +145,7 @@ public:
 			{
 				for ( int i = 0; i < m_count; ++i )
 				{
-					b3DistanceJoint_SetSpringForceRange( m_jointIds[i], -m_tensionForce, m_compressionForce );
+					b3DistanceJoint_SetSpringForceRange( m_jointIds[i], b3FixFromFloat( -m_tensionForce ), b3FixFromFloat( m_compressionForce ) );
 					b3Joint_WakeBodies( m_jointIds[i] );
 				}
 			}
@@ -154,7 +154,7 @@ public:
 			{
 				for ( int i = 0; i < m_count; ++i )
 				{
-					b3DistanceJoint_SetSpringHertz( m_jointIds[i], m_hertz );
+					b3DistanceJoint_SetSpringHertz( m_jointIds[i], b3FixFromFloat( m_hertz ) );
 					b3Joint_WakeBodies( m_jointIds[i] );
 				}
 			}
@@ -163,7 +163,7 @@ public:
 			{
 				for ( int i = 0; i < m_count; ++i )
 				{
-					b3DistanceJoint_SetSpringDampingRatio( m_jointIds[i], m_dampingRatio );
+					b3DistanceJoint_SetSpringDampingRatio( m_jointIds[i], b3FixFromFloat( m_dampingRatio ) );
 					b3Joint_WakeBodies( m_jointIds[i] );
 				}
 			}
@@ -186,7 +186,7 @@ public:
 			{
 				for ( int i = 0; i < m_count; ++i )
 				{
-					b3DistanceJoint_SetLengthRange( m_jointIds[i], m_minLength, m_maxLength );
+					b3DistanceJoint_SetLengthRange( m_jointIds[i], b3FixFromFloat( m_minLength ), b3FixFromFloat( m_maxLength ) );
 					b3Joint_WakeBodies( m_jointIds[i] );
 				}
 			}
@@ -195,7 +195,7 @@ public:
 			{
 				for ( int i = 0; i < m_count; ++i )
 				{
-					b3DistanceJoint_SetLengthRange( m_jointIds[i], m_minLength, m_maxLength );
+					b3DistanceJoint_SetLengthRange( m_jointIds[i], b3FixFromFloat( m_minLength ), b3FixFromFloat( m_maxLength ) );
 					b3Joint_WakeBodies( m_jointIds[i] );
 				}
 			}
@@ -295,7 +295,7 @@ public:
 		b3BodyId groundId;
 		{
 			b3BodyDef bodyDef = b3DefaultBodyDef();
-			bodyDef.position.y = -1.0f;
+			bodyDef.position.y = B3_FIX( -1.0f );
 			groundId = b3CreateBody( m_worldId, &bodyDef );
 		}
 
@@ -316,7 +316,7 @@ public:
 			bodyDef.position = m_transform.p;
 			m_bodyId = b3CreateBody( m_worldId, &bodyDef );
 
-			b3BoxHull box = b3MakeBoxHull( 1.0f, B3_FIX( 0.25f ), B3_FIX( 0.25f ) );
+			b3BoxHull box = b3MakeBoxHull( B3_FIX( 1.0f ), B3_FIX( 0.25f ), B3_FIX( 0.25f ) );
 			b3ShapeDef shapeDef = b3DefaultShapeDef();
 			b3CreateHullShape( m_bodyId, &shapeDef, &box.base );
 
@@ -326,12 +326,12 @@ public:
 			b3MotorJointDef jointDef = b3DefaultMotorJointDef();
 			jointDef.base.bodyIdA = m_targetId;
 			jointDef.base.bodyIdB = m_bodyId;
-			jointDef.linearHertz = 4.0f;
+			jointDef.linearHertz = B3_FIX( 4.0f );
 			jointDef.linearDampingRatio = B3_FIX( 0.7f );
-			jointDef.angularHertz = 4.0f;
+			jointDef.angularHertz = B3_FIX( 4.0f );
 			jointDef.angularDampingRatio = B3_FIX( 0.7f );
-			jointDef.maxSpringForce = m_maxForce;
-			jointDef.maxSpringTorque = m_maxTorque;
+			jointDef.maxSpringForce = b3FixFromFloat( m_maxForce );
+			jointDef.maxSpringTorque = b3FixFromFloat( m_maxTorque );
 
 			m_jointId = b3CreateMotorJoint( m_worldId, &jointDef );
 		}
@@ -357,8 +357,8 @@ public:
 			jointDef.linearDampingRatio = B3_FIX( 0.7f );
 			jointDef.angularHertz = B3_FIX( 7.5f );
 			jointDef.angularDampingRatio = B3_FIX( 0.7f );
-			jointDef.maxSpringForce = 200000.0f;
-			jointDef.maxSpringTorque = 10000.0f;
+			jointDef.maxSpringForce = B3_FIX( 200000.0f );
+			jointDef.maxSpringTorque = B3_FIX( 10000.0f );
 
 			b3CreateMotorJoint( m_worldId, &jointDef );
 		}
@@ -375,12 +375,12 @@ public:
 
 		if ( ImGui::SliderFloat( "Max Force", &m_maxForce, 0.0f, 1000000.0f, "%.0f" ) )
 		{
-			b3MotorJoint_SetMaxSpringForce( m_jointId, m_maxForce );
+			b3MotorJoint_SetMaxSpringForce( m_jointId, b3FixFromFloat( m_maxForce ) );
 		}
 
 		if ( ImGui::SliderFloat( "Max Torque", &m_maxTorque, 0.0f, 1000000.0f, "%.0f" ) )
 		{
-			b3MotorJoint_SetMaxSpringTorque( m_jointId, m_maxTorque );
+			b3MotorJoint_SetMaxSpringTorque( m_jointId, b3FixFromFloat( m_maxTorque ) );
 		}
 
 		if ( ImGui::Button( "Apply Impulse" ) )
@@ -408,14 +408,14 @@ public:
 			m_time += m_speed * timeStep;
 
 			b3Pos linearOffset;
-			linearOffset.x = 6.0f * sinf( 2.0f * m_time );
-			linearOffset.y = 10.0f + 4.0f * sinf( 1.0f * m_time );
-			linearOffset.z = 0.0f;
+			linearOffset.x = b3FixFromFloat( 6.0f * sinf( 2.0f * m_time ) );
+			linearOffset.y = b3FixFromFloat( 10.0f + 4.0f * sinf( 1.0f * m_time ) );
+			linearOffset.z = B3_FIX( 0.0f );
 
 			float angularOffset = 2.0f * m_time;
-			m_transform = { linearOffset, b3MakeQuatFromAxisAngle( b3Vec3_axisZ, angularOffset ) };
+			m_transform = { linearOffset, b3MakeQuatFromAxisAngle( b3Vec3_axisZ, b3FixFromFloat( angularOffset ) ) };
 
-			b3Body_SetTargetTransform( m_targetId, m_transform, timeStep, true );
+			b3Body_SetTargetTransform( m_targetId, m_transform, b3FixFromFloat( timeStep ), true );
 		}
 
 		DrawAxes( m_transform, 1.0f );
@@ -425,7 +425,7 @@ public:
 		b3Vec3 force = b3Joint_GetConstraintForce( m_jointId );
 		b3Vec3 torque = b3Joint_GetConstraintTorque( m_jointId );
 
-		DrawTextLine( "force = %3.f, torque = %3.f", b3Length( force ), b3Length( torque ) );
+		DrawTextLine( "force = %3.f, torque = %3.f", b3FixToDouble( b3Length( force ) ), b3FixToDouble( b3Length( torque ) ) );
 	}
 
 	static Sample* Create( SampleContext* context )
@@ -461,24 +461,24 @@ public:
 			b3BodyDef bodyDef = b3DefaultBodyDef();
 			groundId = b3CreateBody( m_worldId, &bodyDef );
 			b3ShapeDef shapeDef = b3DefaultShapeDef();
-			b3BoxHull box = b3MakeTransformedBoxHull( 10.0f, B3_FIX( 0.5f ), 4.0f, { b3Vec3_zero, b3Quat_identity } );
+			b3BoxHull box = b3MakeTransformedBoxHull( B3_FIX( 10.0f ), B3_FIX( 0.5f ), B3_FIX( 4.0f ), { b3Vec3_zero, b3Quat_identity } );
 			b3CreateHullShape( groundId, &shapeDef, &box.base );
 
-			box = b3MakeTransformedBoxHull( B3_FIX( 0.5f ), 10.0f, 4.0f, { { B3_FIX( -10.0f ), B3_FIX( 10.0f ), B3_FIX( 0.0f ) }, b3Quat_identity } );
+			box = b3MakeTransformedBoxHull( B3_FIX( 0.5f ), B3_FIX( 10.0f ), B3_FIX( 4.0f ), { { B3_FIX( -10.0f ), B3_FIX( 10.0f ), B3_FIX( 0.0f ) }, b3Quat_identity } );
 			b3CreateHullShape( groundId, &shapeDef, &box.base );
 
-			box = b3MakeTransformedBoxHull( B3_FIX( 0.5f ), 10.0f, 4.0f, { { B3_FIX( 10.0f ), B3_FIX( 10.0f ), B3_FIX( 0.0f ) }, b3Quat_identity } );
+			box = b3MakeTransformedBoxHull( B3_FIX( 0.5f ), B3_FIX( 10.0f ), B3_FIX( 4.0f ), { { B3_FIX( 10.0f ), B3_FIX( 10.0f ), B3_FIX( 0.0f ) }, b3Quat_identity } );
 			b3CreateHullShape( groundId, &shapeDef, &box.base );
 
-			box = b3MakeTransformedBoxHull( 10.0f, B3_FIX( 0.5f ), 4.0f, { { B3_FIX( 00.0f ), B3_FIX( 20.0f ), B3_FIX( 0.0f ) }, b3Quat_identity } );
+			box = b3MakeTransformedBoxHull( B3_FIX( 10.0f ), B3_FIX( 0.5f ), B3_FIX( 4.0f ), { { B3_FIX( 00.0f ), B3_FIX( 20.0f ), B3_FIX( 0.0f ) }, b3Quat_identity } );
 			b3CreateHullShape( groundId, &shapeDef, &box.base );
 		}
 
 		b3MotorJointDef jointDef = b3DefaultMotorJointDef();
 		jointDef.base.bodyIdA = groundId;
 		jointDef.base.collideConnected = true;
-		jointDef.maxVelocityForce = 1000.0f;
-		jointDef.maxVelocityTorque = 1000.0f;
+		jointDef.maxVelocityForce = B3_FIX( 1000.0f );
+		jointDef.maxVelocityTorque = B3_FIX( 1000.0f );
 
 		b3Capsule capsule = { { B3_FIX( -0.25f ), B3_FIX( 0.0f ) }, { B3_FIX( 0.25f ), B3_FIX( 0.0f ) }, B3_FIX( 0.25f ) };
 		b3Sphere sphere = { { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, B3_FIX( 0.35f ) };
@@ -532,8 +532,8 @@ public:
 			b3ExplosionDef def = b3DefaultExplosionDef();
 			def.position = { B3_FIX( 0.0 ), B3_FIX( 10.0 ), B3_FIX( 0.0 ) };
 			def.radius = sphere.radius;
-			def.falloff = 5.0f;
-			def.impulsePerArea = 10000.0f;
+			def.falloff = B3_FIX( 5.0f );
+			def.impulsePerArea = B3_FIX( 10000.0f );
 			b3World_Explode( m_worldId, &def );
 
 			DrawSolidSphere( b3WorldTransform_identity, sphere, MakeColor( b3_colorWhite ) );
@@ -597,17 +597,17 @@ public:
 		jointDef.base.bodyIdB = m_bodyId;
 		jointDef.base.localFrameA.p = { B3_FIX( 0.0f ), B3_FIX( 6.5f ), B3_FIX( 0.0f ) };
 		jointDef.base.localFrameB.p = { B3_FIX( 0.0f ), B3_FIX( 1.5f ), B3_FIX( 0.0f ) };
-		jointDef.base.constraintHertz = 120.0f;
+		jointDef.base.constraintHertz = B3_FIX( 120.0f );
 		jointDef.enableLimit = m_enableLimit;
-		jointDef.lowerTranslation = m_lowerTranslation;
-		jointDef.upperTranslation = m_upperTranslation;
+		jointDef.lowerTranslation = b3FixFromFloat( m_lowerTranslation );
+		jointDef.upperTranslation = b3FixFromFloat( m_upperTranslation );
 		jointDef.enableSpring = m_enableSpring;
-		jointDef.hertz = m_hertz;
-		jointDef.dampingRatio = m_dampingRatio;
-		jointDef.targetTranslation = m_targetTranslation;
+		jointDef.hertz = b3FixFromFloat( m_hertz );
+		jointDef.dampingRatio = b3FixFromFloat( m_dampingRatio );
+		jointDef.targetTranslation = b3FixFromFloat( m_targetTranslation );
 		jointDef.enableMotor = m_enableMotor;
-		jointDef.maxMotorForce = m_motorForce;
-		jointDef.motorSpeed = m_motorSpeed;
+		jointDef.maxMotorForce = b3FixFromFloat( m_motorForce );
+		jointDef.motorSpeed = b3FixFromFloat( m_motorSpeed );
 
 		m_jointId = b3CreatePrismaticJoint( m_worldId, &jointDef );
 	}
@@ -625,14 +625,14 @@ public:
 			if ( ImGui::SliderFloat( "Lower Translation", &m_lowerTranslation, -10.0f, 10.0f, "%.1f" ) )
 			{
 				m_lowerTranslation = b3MinFloat( m_lowerTranslation, m_upperTranslation );
-				b3PrismaticJoint_SetLimits( m_jointId, m_lowerTranslation, m_upperTranslation );
+				b3PrismaticJoint_SetLimits( m_jointId, b3FixFromFloat( m_lowerTranslation ), b3FixFromFloat( m_upperTranslation ) );
 				b3Joint_WakeBodies( m_jointId );
 			}
 
 			if ( ImGui::SliderFloat( "Upper Translation", &m_upperTranslation, -10.0f, 10.0f, "%.1f" ) )
 			{
 				m_upperTranslation = b3MaxFloat( m_upperTranslation, m_lowerTranslation );
-				b3PrismaticJoint_SetLimits( m_jointId, m_lowerTranslation, m_upperTranslation );
+				b3PrismaticJoint_SetLimits( m_jointId, b3FixFromFloat( m_lowerTranslation ), b3FixFromFloat( m_upperTranslation ) );
 				b3Joint_WakeBodies( m_jointId );
 			}
 		}
@@ -649,13 +649,13 @@ public:
 		{
 			if ( ImGui::SliderFloat( "Max Force", &m_motorForce, 0.0f, 100000.0f, "%.0f" ) )
 			{
-				b3PrismaticJoint_SetMaxMotorForce( m_jointId, m_motorForce );
+				b3PrismaticJoint_SetMaxMotorForce( m_jointId, b3FixFromFloat( m_motorForce ) );
 				b3Joint_WakeBodies( m_jointId );
 			}
 
 			if ( ImGui::SliderFloat( "Speed", &m_motorSpeed, -10.0f, 10.0f, "%.0f" ) )
 			{
-				b3PrismaticJoint_SetMotorSpeed( m_jointId, m_motorSpeed );
+				b3PrismaticJoint_SetMotorSpeed( m_jointId, b3FixFromFloat( m_motorSpeed ) );
 				b3Joint_WakeBodies( m_jointId );
 			}
 		}
@@ -672,19 +672,19 @@ public:
 		{
 			if ( ImGui::SliderFloat( "Hertz", &m_hertz, 0.0f, 10.0f, "%.1f" ) )
 			{
-				b3PrismaticJoint_SetSpringHertz( m_jointId, m_hertz );
+				b3PrismaticJoint_SetSpringHertz( m_jointId, b3FixFromFloat( m_hertz ) );
 				b3Joint_WakeBodies( m_jointId );
 			}
 
 			if ( ImGui::SliderFloat( "Damping", &m_dampingRatio, 0.0f, 2.0f, "%.1f" ) )
 			{
-				b3PrismaticJoint_SetSpringDampingRatio( m_jointId, m_dampingRatio );
+				b3PrismaticJoint_SetSpringDampingRatio( m_jointId, b3FixFromFloat( m_dampingRatio ) );
 				b3Joint_WakeBodies( m_jointId );
 			}
 
 			if ( ImGui::SliderFloat( "Translation", &m_targetTranslation, -20.0f, 20.0f, "%.1f" ) )
 			{
-				b3PrismaticJoint_SetTargetTranslation( m_jointId, m_targetTranslation );
+				b3PrismaticJoint_SetTargetTranslation( m_jointId, b3FixFromFloat( m_targetTranslation ) );
 				b3Joint_WakeBodies( m_jointId );
 			}
 		}
@@ -745,7 +745,7 @@ public:
 		m_bodyId = b3CreateBody( m_worldId, &bodyDef );
 
 		b3ShapeDef shapeDef = b3DefaultShapeDef();
-		shapeDef.density = 100.0f;
+		shapeDef.density = B3_FIX( 100.0f );
 
 		b3BoxHull box = b3MakeBoxHull( B3_FIX( 0.5f ), B3_FIX( 1.5f ), B3_FIX( 0.25f ) );
 		b3CreateHullShape( m_bodyId, &shapeDef, &box.base );
@@ -753,19 +753,19 @@ public:
 		b3SphericalJointDef jointDef = b3DefaultSphericalJointDef();
 		jointDef.base.bodyIdA = groundId;
 		jointDef.base.bodyIdB = m_bodyId;
-		jointDef.base.drawScale = 2.0f;
+		jointDef.base.drawScale = B3_FIX( 2.0f );
 		jointDef.base.localFrameA.p = { B3_FIX( 0.0f ), B3_FIX( 6.5f ), B3_FIX( 0.0f ) };
 		jointDef.base.localFrameB.p = { B3_FIX( 0.0f ), B3_FIX( 1.5f ), B3_FIX( 0.0f ) };
 		jointDef.enableConeLimit = m_enableConeLimit;
-		jointDef.coneAngle = B3_DEG_TO_RAD * m_coneAngleDegrees;
+		jointDef.coneAngle = b3FixMul( B3_DEG_TO_RAD, b3FixFromFloat( m_coneAngleDegrees ) );
 		jointDef.enableTwistLimit = m_enableTwistLimit;
-		jointDef.lowerTwistAngle = B3_DEG_TO_RAD * m_lowerTwistDegrees;
-		jointDef.upperTwistAngle = B3_DEG_TO_RAD * m_upperTwistDegrees;
+		jointDef.lowerTwistAngle = b3FixMul( B3_DEG_TO_RAD, b3FixFromFloat( m_lowerTwistDegrees ) );
+		jointDef.upperTwistAngle = b3FixMul( B3_DEG_TO_RAD, b3FixFromFloat( m_upperTwistDegrees ) );
 		jointDef.enableSpring = m_enableSpring;
-		jointDef.hertz = m_hertz;
-		jointDef.dampingRatio = m_dampingRatio;
+		jointDef.hertz = b3FixFromFloat( m_hertz );
+		jointDef.dampingRatio = b3FixFromFloat( m_dampingRatio );
 		jointDef.enableMotor = m_enableMotor;
-		jointDef.maxMotorTorque = m_motorTorque;
+		jointDef.maxMotorTorque = b3FixFromFloat( m_motorTorque );
 		jointDef.motorVelocity = m_motorVelocity;
 
 		m_jointId = b3CreateSphericalJoint( m_worldId, &jointDef );
@@ -783,7 +783,7 @@ public:
 		{
 			if ( ImGui::SliderFloat( "Cone Angle", &m_coneAngleDegrees, 0.0f, 90.0f, "%.0f" ) )
 			{
-				b3SphericalJoint_SetConeLimit( m_jointId, B3_DEG_TO_RAD * m_coneAngleDegrees );
+				b3SphericalJoint_SetConeLimit( m_jointId, b3FixMul( B3_DEG_TO_RAD, b3FixFromFloat( m_coneAngleDegrees ) ) );
 				b3Joint_WakeBodies( m_jointId );
 			}
 		}
@@ -801,16 +801,16 @@ public:
 			if ( ImGui::SliderFloat( "Lower Twist", &m_lowerTwistDegrees, -180.0f, 180.0f, "%.0f" ) )
 			{
 				m_lowerTwistDegrees = b3MinFloat( m_lowerTwistDegrees, m_upperTwistDegrees );
-				b3SphericalJoint_SetTwistLimits( m_jointId, B3_DEG_TO_RAD * m_lowerTwistDegrees,
-												 B3_DEG_TO_RAD * m_upperTwistDegrees );
+				b3SphericalJoint_SetTwistLimits( m_jointId, b3FixMul( B3_DEG_TO_RAD, b3FixFromFloat( m_lowerTwistDegrees ) ),
+												 b3FixMul( B3_DEG_TO_RAD, b3FixFromFloat( m_upperTwistDegrees ) ) );
 				b3Joint_WakeBodies( m_jointId );
 			}
 
 			if ( ImGui::SliderFloat( "Upper Twist", &m_upperTwistDegrees, -180.0f, 180.0f, "%.0f" ) )
 			{
 				m_upperTwistDegrees = b3MaxFloat( m_upperTwistDegrees, m_lowerTwistDegrees );
-				b3SphericalJoint_SetTwistLimits( m_jointId, B3_DEG_TO_RAD * m_lowerTwistDegrees,
-												 B3_DEG_TO_RAD * m_upperTwistDegrees );
+				b3SphericalJoint_SetTwistLimits( m_jointId, b3FixMul( B3_DEG_TO_RAD, b3FixFromFloat( m_lowerTwistDegrees ) ),
+												 b3FixMul( B3_DEG_TO_RAD, b3FixFromFloat( m_upperTwistDegrees ) ) );
 				b3Joint_WakeBodies( m_jointId );
 			}
 		}
@@ -827,7 +827,7 @@ public:
 		{
 			if ( ImGui::SliderFloat( "Max Torque", &m_motorTorque, 0.0f, 10000.0f, "%.0f" ) )
 			{
-				b3SphericalJoint_SetMaxMotorTorque( m_jointId, m_motorTorque );
+				b3SphericalJoint_SetMaxMotorTorque( m_jointId, b3FixFromFloat( m_motorTorque ) );
 				b3Joint_WakeBodies( m_jointId );
 			}
 
@@ -850,21 +850,21 @@ public:
 		{
 			if ( ImGui::SliderFloat( "Hertz", &m_hertz, 0.0f, 10.0f, "%.1f" ) )
 			{
-				b3SphericalJoint_SetSpringHertz( m_jointId, m_hertz );
+				b3SphericalJoint_SetSpringHertz( m_jointId, b3FixFromFloat( m_hertz ) );
 				b3Joint_WakeBodies( m_jointId );
 			}
 
 			if ( ImGui::SliderFloat( "Damping", &m_dampingRatio, 0.0f, 2.0f, "%.1f" ) )
 			{
-				b3SphericalJoint_SetSpringDampingRatio( m_jointId, m_dampingRatio );
+				b3SphericalJoint_SetSpringDampingRatio( m_jointId, b3FixFromFloat( m_dampingRatio ) );
 				b3Joint_WakeBodies( m_jointId );
 			}
 
 			if ( SliderFixed3( "Rotation", &m_targetRotation, -180.0f, 180.0f, "%.0f" ) )
 			{
-				b3Quat qx = b3MakeQuatFromAxisAngle( b3Vec3_axisX, B3_DEG_TO_RAD * m_targetRotation.x );
-				b3Quat qy = b3MakeQuatFromAxisAngle( b3Vec3_axisY, B3_DEG_TO_RAD * m_targetRotation.y );
-				b3Quat qz = b3MakeQuatFromAxisAngle( b3Vec3_axisZ, B3_DEG_TO_RAD * m_targetRotation.z );
+				b3Quat qx = b3MakeQuatFromAxisAngle( b3Vec3_axisX, b3FixMul( B3_DEG_TO_RAD, m_targetRotation.x ) );
+				b3Quat qy = b3MakeQuatFromAxisAngle( b3Vec3_axisY, b3FixMul( B3_DEG_TO_RAD, m_targetRotation.y ) );
+				b3Quat qz = b3MakeQuatFromAxisAngle( b3Vec3_axisZ, b3FixMul( B3_DEG_TO_RAD, m_targetRotation.z ) );
 				b3Quat q = b3MulQuat( qz, b3MulQuat( qy, qx ) );
 				b3SphericalJoint_SetTargetRotation( m_jointId, q );
 				b3Joint_WakeBodies( m_jointId );
@@ -925,7 +925,7 @@ public:
 			b3Transform transform;
 			transform.p = { B3_FIX( 0.0f ), B3_FIX( 5.0f ), B3_FIX( -20.0f ) };
 			transform.q = b3Quat_identity;
-			b3BoxHull wallBox = b3MakeTransformedBoxHull( 20.0f, 5.0f, B3_FIX( 0.1f ), transform );
+			b3BoxHull wallBox = b3MakeTransformedBoxHull( B3_FIX( 20.0f ), B3_FIX( 5.0f ), B3_FIX( 0.1f ), transform );
 			b3ShapeDef shapeDef = b3DefaultShapeDef();
 			b3CreateHullShape( groundId, &shapeDef, &wallBox.base );
 		}
@@ -934,7 +934,7 @@ public:
 			b3Transform transform;
 			transform.p = { B3_FIX( 0.0f ), B3_FIX( 5.0f ), B3_FIX( 20.0f ) };
 			transform.q = b3Quat_identity;
-			b3BoxHull wallBox = b3MakeTransformedBoxHull( 20.0f, 5.0f, B3_FIX( 0.1f ), transform );
+			b3BoxHull wallBox = b3MakeTransformedBoxHull( B3_FIX( 20.0f ), B3_FIX( 5.0f ), B3_FIX( 0.1f ), transform );
 			b3ShapeDef shapeDef = b3DefaultShapeDef();
 			b3CreateHullShape( groundId, &shapeDef, &wallBox.base );
 		}
@@ -943,7 +943,7 @@ public:
 			b3Transform transform;
 			transform.p = { B3_FIX( -20.0f ), B3_FIX( 5.0f ), B3_FIX( 0.0f ) };
 			transform.q = b3Quat_identity;
-			b3BoxHull wallBox = b3MakeTransformedBoxHull( B3_FIX( 0.1f ), 5.0f, 20.0f, transform );
+			b3BoxHull wallBox = b3MakeTransformedBoxHull( B3_FIX( 0.1f ), B3_FIX( 5.0f ), B3_FIX( 20.0f ), transform );
 			b3ShapeDef shapeDef = b3DefaultShapeDef();
 			b3CreateHullShape( groundId, &shapeDef, &wallBox.base );
 		}
@@ -952,7 +952,7 @@ public:
 			b3Transform transform;
 			transform.p = { B3_FIX( 20.0f ), B3_FIX( 5.0f ), B3_FIX( 0.0f ) };
 			transform.q = b3Quat_identity;
-			b3BoxHull wallBox = b3MakeTransformedBoxHull( B3_FIX( 0.1f ), 5.0f, 20.0f, transform );
+			b3BoxHull wallBox = b3MakeTransformedBoxHull( B3_FIX( 0.1f ), B3_FIX( 5.0f ), B3_FIX( 20.0f ), transform );
 			b3ShapeDef shapeDef = b3DefaultShapeDef();
 			b3CreateHullShape( groundId, &shapeDef, &wallBox.base );
 		}
@@ -960,7 +960,7 @@ public:
 		b3BodyDef bodyDef = b3DefaultBodyDef();
 		bodyDef.type = b3_dynamicBody;
 		bodyDef.position = { B3_FIX( 0.0f ), B3_FIX( 4.0f ), B3_FIX( 0.0f ) };
-		bodyDef.rotation = b3MakeQuatFromAxisAngle( b3Vec3_axisX, 0.25f * B3_PI );
+		bodyDef.rotation = b3MakeQuatFromAxisAngle( b3Vec3_axisX, B3_PI / 4 );
 		m_bodyId = b3CreateBody( m_worldId, &bodyDef );
 
 		b3ShapeDef shapeDef = b3DefaultShapeDef();
@@ -974,10 +974,10 @@ public:
 		jointDef.base.localFrameA.q = b3ComputeQuatBetweenUnitVectors( b3Vec3_axisZ, b3Vec3_axisY );
 		jointDef.base.localFrameB.q = b3InvMulQuat( bodyDef.rotation, jointDef.base.localFrameA.q );
 
-		jointDef.base.drawScale = 2.0f;
+		jointDef.base.drawScale = B3_FIX( 2.0f );
 		jointDef.base.collideConnected = true;
-		jointDef.hertz = m_hertz;
-		jointDef.dampingRatio = m_dampingRatio;
+		jointDef.hertz = b3FixFromFloat( m_hertz );
+		jointDef.dampingRatio = b3FixFromFloat( m_dampingRatio );
 
 		m_jointId = b3CreateParallelJoint( m_worldId, &jointDef );
 	}
@@ -986,13 +986,13 @@ public:
 	{
 		if ( ImGui::SliderFloat( "Hertz", &m_hertz, 0.0f, 5.0f, "%.1f" ) )
 		{
-			b3ParallelJoint_SetSpringHertz( m_jointId, m_hertz );
+			b3ParallelJoint_SetSpringHertz( m_jointId, b3FixFromFloat( m_hertz ) );
 			b3Joint_WakeBodies( m_jointId );
 		}
 
 		if ( ImGui::SliderFloat( "Damping", &m_dampingRatio, 0.0f, 2.0f, "%.1f" ) )
 		{
-			b3ParallelJoint_SetSpringDampingRatio( m_jointId, m_dampingRatio );
+			b3ParallelJoint_SetSpringDampingRatio( m_jointId, b3FixFromFloat( m_dampingRatio ) );
 			b3Joint_WakeBodies( m_jointId );
 		}
 
@@ -1059,16 +1059,16 @@ public:
 		jointDef.base.bodyIdB = m_bodyId;
 		jointDef.base.localFrameA.p = { B3_FIX( 0.0f ), B3_FIX( 6.5f ), B3_FIX( 0.0f ) };
 		jointDef.base.localFrameB.p = { B3_FIX( 0.0f ), B3_FIX( 1.5f ), B3_FIX( 0.0f ) };
-		jointDef.base.drawScale = 2.0f;
+		jointDef.base.drawScale = B3_FIX( 2.0f );
 		jointDef.enableLimit = m_enableLimit;
-		jointDef.lowerAngle = B3_DEG_TO_RAD * m_lowerDegrees;
-		jointDef.upperAngle = B3_DEG_TO_RAD * m_upperDegrees;
+		jointDef.lowerAngle = b3FixMul( B3_DEG_TO_RAD, b3FixFromFloat( m_lowerDegrees ) );
+		jointDef.upperAngle = b3FixMul( B3_DEG_TO_RAD, b3FixFromFloat( m_upperDegrees ) );
 		jointDef.enableSpring = m_enableSpring;
-		jointDef.hertz = m_hertz;
-		jointDef.dampingRatio = m_dampingRatio;
+		jointDef.hertz = b3FixFromFloat( m_hertz );
+		jointDef.dampingRatio = b3FixFromFloat( m_dampingRatio );
 		jointDef.enableMotor = m_enableMotor;
-		jointDef.maxMotorTorque = m_motorTorque;
-		jointDef.motorSpeed = m_motorSpeed;
+		jointDef.maxMotorTorque = b3FixFromFloat( m_motorTorque );
+		jointDef.motorSpeed = b3FixFromFloat( m_motorSpeed );
 
 		m_jointId = b3CreateRevoluteJoint( m_worldId, &jointDef );
 	}
@@ -1086,14 +1086,16 @@ public:
 			if ( ImGui::SliderFloat( "Lower Angle", &m_lowerDegrees, -180.0f, 180.0f, "%.0f" ) )
 			{
 				m_lowerDegrees = b3MinFloat( m_lowerDegrees, m_upperDegrees );
-				b3RevoluteJoint_SetLimits( m_jointId, B3_DEG_TO_RAD * m_lowerDegrees, B3_DEG_TO_RAD * m_upperDegrees );
+				b3RevoluteJoint_SetLimits( m_jointId, b3FixMul( B3_DEG_TO_RAD, b3FixFromFloat( m_lowerDegrees ) ),
+										   b3FixMul( B3_DEG_TO_RAD, b3FixFromFloat( m_upperDegrees ) ) );
 				b3Joint_WakeBodies( m_jointId );
 			}
 
 			if ( ImGui::SliderFloat( "Upper Angle", &m_upperDegrees, -180.0f, 180.0f, "%.0f" ) )
 			{
 				m_upperDegrees = b3MaxFloat( m_upperDegrees, m_lowerDegrees );
-				b3RevoluteJoint_SetLimits( m_jointId, B3_DEG_TO_RAD * m_lowerDegrees, B3_DEG_TO_RAD * m_upperDegrees );
+				b3RevoluteJoint_SetLimits( m_jointId, b3FixMul( B3_DEG_TO_RAD, b3FixFromFloat( m_lowerDegrees ) ),
+										   b3FixMul( B3_DEG_TO_RAD, b3FixFromFloat( m_upperDegrees ) ) );
 				b3Joint_WakeBodies( m_jointId );
 			}
 		}
@@ -1110,13 +1112,13 @@ public:
 		{
 			if ( ImGui::SliderFloat( "Max Torque", &m_motorTorque, 0.0f, 50000.0f, "%.0f" ) )
 			{
-				b3RevoluteJoint_SetMaxMotorTorque( m_jointId, m_motorTorque );
+				b3RevoluteJoint_SetMaxMotorTorque( m_jointId, b3FixFromFloat( m_motorTorque ) );
 				b3Joint_WakeBodies( m_jointId );
 			}
 
 			if ( ImGui::SliderFloat( "Speed", &m_motorSpeed, -10.0f, 10.0f, "%.0f" ) )
 			{
-				b3RevoluteJoint_SetMotorSpeed( m_jointId, m_motorSpeed );
+				b3RevoluteJoint_SetMotorSpeed( m_jointId, b3FixFromFloat( m_motorSpeed ) );
 				b3Joint_WakeBodies( m_jointId );
 			}
 		}
@@ -1133,19 +1135,19 @@ public:
 		{
 			if ( ImGui::SliderFloat( "Hertz", &m_hertz, 0.0f, 10.0f, "%.1f" ) )
 			{
-				b3RevoluteJoint_SetSpringHertz( m_jointId, m_hertz );
+				b3RevoluteJoint_SetSpringHertz( m_jointId, b3FixFromFloat( m_hertz ) );
 				b3Joint_WakeBodies( m_jointId );
 			}
 
 			if ( ImGui::SliderFloat( "Damping", &m_dampingRatio, 0.0f, 2.0f, "%.1f" ) )
 			{
-				b3RevoluteJoint_SetSpringDampingRatio( m_jointId, m_dampingRatio );
+				b3RevoluteJoint_SetSpringDampingRatio( m_jointId, b3FixFromFloat( m_dampingRatio ) );
 				b3Joint_WakeBodies( m_jointId );
 			}
 
 			if ( ImGui::SliderFloat( "Rotation", &m_targetAngle, -180.0f, 180.0f, "%.0f" ) )
 			{
-				b3RevoluteJoint_SetTargetAngle( m_jointId, B3_DEG_TO_RAD * m_targetAngle );
+				b3RevoluteJoint_SetTargetAngle( m_jointId, b3FixMul( B3_DEG_TO_RAD, b3FixFromFloat( m_targetAngle ) ) );
 				b3Joint_WakeBodies( m_jointId );
 			}
 		}
@@ -1160,14 +1162,14 @@ public:
 		b3MassData massData = b3Body_GetMassData( m_bodyId );
 		b3Vec3 angularVelocity = b3Body_GetAngularVelocity( m_bodyId );
 		b3Vec3 linearVelocity = b3Body_GetLinearVelocity( m_bodyId );
-		float kineticEnergy = 0.5f * b3Dot( angularVelocity, b3MulMV( massData.inertia, angularVelocity ) );
-		kineticEnergy += 0.5f * massData.mass * b3Dot( linearVelocity, linearVelocity );
+		b3Fixed kineticEnergy = b3Dot( angularVelocity, b3MulMV( massData.inertia, angularVelocity ) ) / 2;
+		kineticEnergy += b3FixMul( massData.mass, b3Dot( linearVelocity, linearVelocity ) ) / 2;
 		b3Pos center = b3Body_GetWorldCenter( m_bodyId );
 		b3Vec3 gravity = b3World_GetGravity( m_worldId );
-		float potentialEnergy = -massData.mass * center.y * gravity.y;
-		DrawTextLine( "kinetic energy = %g", kineticEnergy );
-		DrawTextLine( "potential energy = %g", potentialEnergy );
-		DrawTextLine( "total energy = %g", kineticEnergy + potentialEnergy );
+		b3Fixed potentialEnergy = -b3FixMul( massData.mass, b3FixMul( center.y, gravity.y ) );
+		DrawTextLine( "kinetic energy = %g", b3FixToDouble( kineticEnergy ) );
+		DrawTextLine( "potential energy = %g", b3FixToDouble( potentialEnergy ) );
+		DrawTextLine( "total energy = %g", b3FixToDouble( kineticEnergy + potentialEnergy ) );
 	}
 
 	static Sample* Create( SampleContext* context )
@@ -1227,12 +1229,12 @@ public:
 		jointDef.base.bodyIdB = m_bodyId;
 		jointDef.base.localFrameA.p = { B3_FIX( 0.0f ), B3_FIX( 6.5f ), B3_FIX( 0.0f ) };
 		jointDef.base.localFrameB.p = { B3_FIX( 0.0f ), B3_FIX( 1.5f ), B3_FIX( 0.0f ) };
-		jointDef.base.constraintHertz = 240.0f;
-		jointDef.linearHertz = m_linearHertz;
-		jointDef.linearDampingRatio = m_linearDampingRatio;
-		jointDef.angularHertz = m_angularHertz;
-		jointDef.angularDampingRatio = m_angularDampingRatio;
-		jointDef.base.drawScale = 2.0f;
+		jointDef.base.constraintHertz = B3_FIX( 240.0f );
+		jointDef.linearHertz = b3FixFromFloat( m_linearHertz );
+		jointDef.linearDampingRatio = b3FixFromFloat( m_linearDampingRatio );
+		jointDef.angularHertz = b3FixFromFloat( m_angularHertz );
+		jointDef.angularDampingRatio = b3FixFromFloat( m_angularDampingRatio );
+		jointDef.base.drawScale = B3_FIX( 2.0f );
 
 		m_jointId = b3CreateWeldJoint( m_worldId, &jointDef );
 	}
@@ -1243,25 +1245,25 @@ public:
 
 		if ( ImGui::SliderFloat( "Linear Hertz", &m_linearHertz, 0.0f, 10.0f, "%.1f" ) )
 		{
-			b3WeldJoint_SetLinearHertz( m_jointId, m_linearHertz );
+			b3WeldJoint_SetLinearHertz( m_jointId, b3FixFromFloat( m_linearHertz ) );
 			b3Joint_WakeBodies( m_jointId );
 		}
 
 		if ( ImGui::SliderFloat( "Linear Damping", &m_linearDampingRatio, 0.0f, 2.0f, "%.1f" ) )
 		{
-			b3WeldJoint_SetLinearDampingRatio( m_jointId, m_linearDampingRatio );
+			b3WeldJoint_SetLinearDampingRatio( m_jointId, b3FixFromFloat( m_linearDampingRatio ) );
 			b3Joint_WakeBodies( m_jointId );
 		}
 
 		if ( ImGui::SliderFloat( "Angular Hertz", &m_angularHertz, 0.0f, 10.0f, "%.1f" ) )
 		{
-			b3WeldJoint_SetAngularHertz( m_jointId, m_angularHertz );
+			b3WeldJoint_SetAngularHertz( m_jointId, b3FixFromFloat( m_angularHertz ) );
 			b3Joint_WakeBodies( m_jointId );
 		}
 
 		if ( ImGui::SliderFloat( "Angular Damping", &m_angularDampingRatio, 0.0f, 2.0f, "%.1f" ) )
 		{
-			b3WeldJoint_SetAngularDampingRatio( m_jointId, m_angularDampingRatio );
+			b3WeldJoint_SetAngularDampingRatio( m_jointId, b3FixFromFloat( m_angularDampingRatio ) );
 			b3Joint_WakeBodies( m_jointId );
 		}
 
@@ -1352,22 +1354,22 @@ public:
 		jointDef.base.localFrameB.q = b3ComputeQuatBetweenUnitVectors( b3Vec3_axisZ, b3Vec3_axisY );
 		jointDef.base.collideConnected = true;
 		jointDef.enableSuspensionLimit = m_enableSuspensionLimit;
-		jointDef.lowerSuspensionLimit = m_lowerTranslation;
-		jointDef.upperSuspensionLimit = m_upperTranslation;
+		jointDef.lowerSuspensionLimit = b3FixFromFloat( m_lowerTranslation );
+		jointDef.upperSuspensionLimit = b3FixFromFloat( m_upperTranslation );
 		jointDef.enableSuspensionSpring = m_enableSuspension;
-		jointDef.suspensionHertz = m_suspensionHertz;
-		jointDef.suspensionDampingRatio = m_suspensionDampingRatio;
+		jointDef.suspensionHertz = b3FixFromFloat( m_suspensionHertz );
+		jointDef.suspensionDampingRatio = b3FixFromFloat( m_suspensionDampingRatio );
 		jointDef.enableSpinMotor = m_enableSpinMotor;
-		jointDef.maxSpinTorque = m_maxSpinTorque;
-		jointDef.spinSpeed = m_spinSpeed;
+		jointDef.maxSpinTorque = b3FixFromFloat( m_maxSpinTorque );
+		jointDef.spinSpeed = b3FixFromFloat( m_spinSpeed );
 		jointDef.enableSteering = m_enableSteering;
-		jointDef.steeringHertz = m_steeringHertz;
-		jointDef.steeringDampingRatio = m_steeringDampingRatio;
-		jointDef.targetSteeringAngle = B3_PI / 180.0f * m_targetSteeringDegrees;
-		jointDef.maxSteeringTorque = m_maxSteeringTorque;
+		jointDef.steeringHertz = b3FixFromFloat( m_steeringHertz );
+		jointDef.steeringDampingRatio = b3FixFromFloat( m_steeringDampingRatio );
+		jointDef.targetSteeringAngle = b3FixMul( B3_DEG_TO_RAD, b3FixFromFloat( m_targetSteeringDegrees ) );
+		jointDef.maxSteeringTorque = b3FixFromFloat( m_maxSteeringTorque );
 		jointDef.enableSteeringLimit = m_enableSteeringLimit;
-		jointDef.lowerSteeringLimit = B3_PI / 180.0f * m_lowerSteeringDegrees;
-		jointDef.upperSteeringLimit = B3_PI / 180.0f * m_upperSteeringDegrees;
+		jointDef.lowerSteeringLimit = b3FixMul( B3_DEG_TO_RAD, b3FixFromFloat( m_lowerSteeringDegrees ) );
+		jointDef.upperSteeringLimit = b3FixMul( B3_DEG_TO_RAD, b3FixFromFloat( m_upperSteeringDegrees ) );
 
 		m_jointId = b3CreateWheelJoint( m_worldId, &jointDef );
 	}
@@ -1385,14 +1387,14 @@ public:
 			if ( ImGui::SliderFloat( "Min##Limit", &m_lowerTranslation, -10.0f, 10.0f, "%.1f" ) )
 			{
 				m_lowerTranslation = b3MinFloat( m_lowerTranslation, m_upperTranslation );
-				b3WheelJoint_SetSuspensionLimits( m_jointId, m_lowerTranslation, m_upperTranslation );
+				b3WheelJoint_SetSuspensionLimits( m_jointId, b3FixFromFloat( m_lowerTranslation ), b3FixFromFloat( m_upperTranslation ) );
 				b3Joint_WakeBodies( m_jointId );
 			}
 
 			if ( ImGui::SliderFloat( "Max##Limit", &m_upperTranslation, -10.0f, 10.0f, "%.1f" ) )
 			{
 				m_upperTranslation = b3MaxFloat( m_upperTranslation, m_lowerTranslation );
-				b3WheelJoint_SetSuspensionLimits( m_jointId, m_lowerTranslation, m_upperTranslation );
+				b3WheelJoint_SetSuspensionLimits( m_jointId, b3FixFromFloat( m_lowerTranslation ), b3FixFromFloat( m_upperTranslation ) );
 				b3Joint_WakeBodies( m_jointId );
 			}
 		}
@@ -1409,13 +1411,13 @@ public:
 		{
 			if ( ImGui::SliderFloat( "Max Torque", &m_maxSpinTorque, 0.0f, 100.0f, "%.0f" ) )
 			{
-				b3WheelJoint_SetMaxSpinTorque( m_jointId, m_maxSpinTorque );
+				b3WheelJoint_SetMaxSpinTorque( m_jointId, b3FixFromFloat( m_maxSpinTorque ) );
 				b3Joint_WakeBodies( m_jointId );
 			}
 
 			if ( ImGui::SliderFloat( "Speed", &m_spinSpeed, -10.0f, 10.0f, "%.0f" ) )
 			{
-				b3WheelJoint_SetSpinMotorSpeed( m_jointId, m_spinSpeed );
+				b3WheelJoint_SetSpinMotorSpeed( m_jointId, b3FixFromFloat( m_spinSpeed ) );
 				b3Joint_WakeBodies( m_jointId );
 			}
 		}
@@ -1432,13 +1434,13 @@ public:
 		{
 			if ( ImGui::SliderFloat( "Hertz##Suspension", &m_suspensionHertz, 0.0f, 10.0f, "%.1f" ) )
 			{
-				b3WheelJoint_SetSuspensionHertz( m_jointId, m_suspensionHertz );
+				b3WheelJoint_SetSuspensionHertz( m_jointId, b3FixFromFloat( m_suspensionHertz ) );
 				b3Joint_WakeBodies( m_jointId );
 			}
 
 			if ( ImGui::SliderFloat( "Damping##Suspension", &m_suspensionDampingRatio, 0.0f, 2.0f, "%.1f" ) )
 			{
-				b3WheelJoint_SetSuspensionDampingRatio( m_jointId, m_suspensionDampingRatio );
+				b3WheelJoint_SetSuspensionDampingRatio( m_jointId, b3FixFromFloat( m_suspensionDampingRatio ) );
 				b3Joint_WakeBodies( m_jointId );
 			}
 		}
@@ -1455,19 +1457,19 @@ public:
 		{
 			if ( ImGui::SliderFloat( "Hertz##Steering", &m_steeringHertz, 0.0f, 10.0f, "%.1f" ) )
 			{
-				b3WheelJoint_SetSteeringHertz( m_jointId, m_steeringHertz );
+				b3WheelJoint_SetSteeringHertz( m_jointId, b3FixFromFloat( m_steeringHertz ) );
 				b3Joint_WakeBodies( m_jointId );
 			}
 
 			if ( ImGui::SliderFloat( "Damping##Steering", &m_steeringDampingRatio, 0.0f, 2.0f, "%.1f" ) )
 			{
-				b3WheelJoint_SetSuspensionDampingRatio( m_jointId, m_suspensionDampingRatio );
+				b3WheelJoint_SetSuspensionDampingRatio( m_jointId, b3FixFromFloat( m_suspensionDampingRatio ) );
 				b3Joint_WakeBodies( m_jointId );
 			}
 
 			if ( ImGui::SliderFloat( "Degrees##Steering", &m_targetSteeringDegrees, -90.0f, 90.0f, "%.0f" ) )
 			{
-				b3WheelJoint_SetTargetSteeringAngle( m_jointId, m_targetSteeringDegrees * B3_PI / 180.0f );
+				b3WheelJoint_SetTargetSteeringAngle( m_jointId, b3FixMul( B3_DEG_TO_RAD, b3FixFromFloat( m_targetSteeringDegrees ) ) );
 				b3Joint_WakeBodies( m_jointId );
 			}
 
@@ -1483,15 +1485,15 @@ public:
 			{
 				if ( ImGui::SliderFloat( "Min Degrees", &m_lowerSteeringDegrees, -90.0f, 0.0f, "%.0f" ) )
 				{
-					b3WheelJoint_SetSteeringLimits( m_jointId, B3_PI / 180.0f * m_lowerSteeringDegrees,
-													B3_PI / 180.0f * m_upperSteeringDegrees );
+					b3WheelJoint_SetSteeringLimits( m_jointId, b3FixMul( B3_DEG_TO_RAD, b3FixFromFloat( m_lowerSteeringDegrees ) ),
+													b3FixMul( B3_DEG_TO_RAD, b3FixFromFloat( m_upperSteeringDegrees ) ) );
 					b3Joint_WakeBodies( m_jointId );
 				}
 
 				if ( ImGui::SliderFloat( "Max Degrees", &m_upperSteeringDegrees, 0.0f, 90.0f, "%.0f" ) )
 				{
-					b3WheelJoint_SetSteeringLimits( m_jointId, B3_PI / 180.0f * m_lowerSteeringDegrees,
-													B3_PI / 180.0f * m_upperSteeringDegrees );
+					b3WheelJoint_SetSteeringLimits( m_jointId, b3FixMul( B3_DEG_TO_RAD, b3FixFromFloat( m_lowerSteeringDegrees ) ),
+													b3FixMul( B3_DEG_TO_RAD, b3FixFromFloat( m_upperSteeringDegrees ) ) );
 					b3Joint_WakeBodies( m_jointId );
 				}
 			}
@@ -1504,8 +1506,8 @@ public:
 	{
 		Sample::Render();
 
-		float angle = b3WheelJoint_GetSteeringAngle( m_jointId );
-		DrawTextLine( "steering degrees = %.1f", 180.0f / B3_PI * angle );
+		b3Fixed angle = b3WheelJoint_GetSteeringAngle( m_jointId );
+		DrawTextLine( "steering degrees = %.1f", b3FixToDouble( b3FixMul( B3_RAD_TO_DEG, angle ) ) );
 	}
 
 	static Sample* Create( SampleContext* context )
@@ -1563,11 +1565,11 @@ public:
 		jointDef.base.localFrameA = b3Transform_identity;
 		jointDef.base.localFrameB = { { b3FixFromFloat( -linkExtent ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, b3Quat_identity };
 		jointDef.enableMotor = true;
-		jointDef.maxMotorTorque = 10.0f;
+		jointDef.maxMotorTorque = B3_FIX( 10.0f );
 
 		for ( int i = 0; i < linkCount; ++i )
 		{
-			bodyDef.position = { b3FixFromFloat( ( 1.0f + 2.0f * i ) * linkExtent ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
+			bodyDef.position = { b3FixFromFloat( ( 1.0f + 2.0f * (float)i ) * linkExtent ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
 			b3BodyId childId = b3CreateBody( m_worldId, &bodyDef );
 
 			b3CreateCapsuleShape( childId, &shapeDef, &capsule );
@@ -1583,7 +1585,7 @@ public:
 		float sphereRadius = 2.0f;
 		b3Sphere sphere = { { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, b3FixFromFloat( sphereRadius ) };
 
-		bodyDef.position = { b3FixFromFloat( ( 1.0f + 2.0f * linkCount ) * linkExtent + sphereRadius - linkExtent ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
+		bodyDef.position = { b3FixFromFloat( ( 1.0f + 2.0f * (float)linkCount ) * linkExtent + sphereRadius - linkExtent ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
 
 		b3BodyId childId = b3CreateBody( m_worldId, &bodyDef );
 
@@ -1619,11 +1621,11 @@ public:
 			b3BodyDef bodyDef = b3DefaultBodyDef();
 			bodyDef.type = b3_dynamicBody;
 			bodyDef.position = { B3_FIX( 0.0f ), B3_FIX( 1.5f ), B3_FIX( 0.0f ) };
-			bodyDef.gravityScale = 2.0f;
+			bodyDef.gravityScale = B3_FIX( 2.0f );
 			m_doorId = b3CreateBody( m_worldId, &bodyDef );
 
 			b3ShapeDef shapeDef = b3DefaultShapeDef();
-			shapeDef.density = 1000.0f;
+			shapeDef.density = B3_FIX( 1000.0f );
 
 			b3BoxHull box = b3MakeBoxHull( B3_FIX( 0.75f ), B3_FIX( 1.5f ), B3_FIX( 0.1f ) );
 			b3CreateHullShape( m_doorId, &shapeDef, &box.base );
@@ -1674,18 +1676,18 @@ public:
 			jointDef.base.localFrameA.q = axisQuat;
 			jointDef.base.localFrameB.p = { B3_FIX( -0.75f ), B3_FIX( -1.5f ), B3_FIX( 0.0f ) };
 			jointDef.base.localFrameB.q = axisQuat;
-			jointDef.base.constraintHertz = m_constraintHertz;
-			jointDef.base.constraintDampingRatio = m_constraintDampingRatio;
+			jointDef.base.constraintHertz = b3FixFromFloat( m_constraintHertz );
+			jointDef.base.constraintDampingRatio = b3FixFromFloat( m_constraintDampingRatio );
 			jointDef.enableLimit = true;
-			jointDef.lowerAngle = B3_DEG_TO_RAD * -90.0f;
-			jointDef.upperAngle = B3_DEG_TO_RAD * 90.0f;
+			jointDef.lowerAngle = -90 * B3_DEG_TO_RAD;
+			jointDef.upperAngle = 90 * B3_DEG_TO_RAD;
 			jointDef.enableSpring = true;
-			jointDef.hertz = 1.0f;
+			jointDef.hertz = B3_FIX( 1.0f );
 			jointDef.dampingRatio = B3_FIX( 0.5f );
 			jointDef.enableMotor = false;
-			jointDef.maxMotorTorque = 100.0f;
+			jointDef.maxMotorTorque = B3_FIX( 100.0f );
 			jointDef.motorSpeed = 0.0f;
-			jointDef.base.drawScale = 2.0f;
+			jointDef.base.drawScale = B3_FIX( 2.0f );
 
 			m_jointId1 = b3CreateRevoluteJoint( m_worldId, &jointDef );
 		}
@@ -1699,18 +1701,18 @@ public:
 			jointDef.base.localFrameA.q = axisQuat;
 			jointDef.base.localFrameB.p = { B3_FIX( -0.75f ), B3_FIX( 1.5f ), B3_FIX( 0.0f ) };
 			jointDef.base.localFrameB.q = axisQuat;
-			jointDef.base.constraintHertz = m_constraintHertz;
-			jointDef.base.constraintDampingRatio = m_constraintDampingRatio;
+			jointDef.base.constraintHertz = b3FixFromFloat( m_constraintHertz );
+			jointDef.base.constraintDampingRatio = b3FixFromFloat( m_constraintDampingRatio );
 			jointDef.enableLimit = true;
-			jointDef.lowerAngle = B3_DEG_TO_RAD * -90.0f;
-			jointDef.upperAngle = B3_DEG_TO_RAD * 90.0f;
+			jointDef.lowerAngle = -90 * B3_DEG_TO_RAD;
+			jointDef.upperAngle = 90 * B3_DEG_TO_RAD;
 			jointDef.enableSpring = true;
-			jointDef.hertz = 1.0f;
+			jointDef.hertz = B3_FIX( 1.0f );
 			jointDef.dampingRatio = B3_FIX( 0.5f );
 			jointDef.enableMotor = false;
-			jointDef.maxMotorTorque = 100.0f;
+			jointDef.maxMotorTorque = B3_FIX( 100.0f );
 			jointDef.motorSpeed = 0.0f;
-			jointDef.base.drawScale = 2.0f;
+			jointDef.base.drawScale = B3_FIX( 2.0f );
 
 			m_jointId2 = b3CreateRevoluteJoint( m_worldId, &jointDef );
 		}
@@ -1720,7 +1722,7 @@ public:
 	{
 		if ( button == 0 && modifiers == 2 )
 		{
-			PickRay pickRay = m_camera->BuildPickRay( p.x, p.y );
+			PickRay pickRay = m_camera->BuildPickRay( b3FixToFloat( p.x ), b3FixToFloat( p.y ) );
 
 			b3RayResult result = b3World_CastRayClosest( m_worldId, pickRay.origin, pickRay.translation, b3DefaultQueryFilter() );
 
@@ -1728,7 +1730,7 @@ public:
 			{
 				b3BodyId bodyId = b3Shape_GetBody( result.shapeId );
 
-				b3Vec3 impulse = m_magnitude * b3Normalize( pickRay.translation );
+				b3Vec3 impulse = b3FixFromFloat( m_magnitude ) * b3Normalize( pickRay.translation );
 				b3Body_ApplyLinearImpulse( bodyId, impulse, result.point, true );
 			}
 		}
@@ -1769,21 +1771,21 @@ public:
 
 		if ( ImGui::SliderFloat( "Hertz##Door", &m_constraintHertz, 15.0f, 240.0f, "%.0f" ) )
 		{
-			b3Joint_SetConstraintTuning( m_jointId1, m_constraintHertz, m_constraintDampingRatio );
+			b3Joint_SetConstraintTuning( m_jointId1, b3FixFromFloat( m_constraintHertz ), b3FixFromFloat( m_constraintDampingRatio ) );
 
 			if ( B3_IS_NON_NULL( m_jointId2 ) )
 			{
-				b3Joint_SetConstraintTuning( m_jointId2, m_constraintHertz, m_constraintDampingRatio );
+				b3Joint_SetConstraintTuning( m_jointId2, b3FixFromFloat( m_constraintHertz ), b3FixFromFloat( m_constraintDampingRatio ) );
 			}
 		}
 
 		if ( ImGui::SliderFloat( "Damping##Door", &m_constraintDampingRatio, 0.0f, 10.0f, "%.1f" ) )
 		{
-			b3Joint_SetConstraintTuning( m_jointId1, m_constraintHertz, m_constraintDampingRatio );
+			b3Joint_SetConstraintTuning( m_jointId1, b3FixFromFloat( m_constraintHertz ), b3FixFromFloat( m_constraintDampingRatio ) );
 
 			if ( B3_IS_NON_NULL( m_jointId2 ) )
 			{
-				b3Joint_SetConstraintTuning( m_jointId2, m_constraintHertz, m_constraintDampingRatio );
+				b3Joint_SetConstraintTuning( m_jointId2, b3FixFromFloat( m_constraintHertz ), b3FixFromFloat( m_constraintDampingRatio ) );
 			}
 		}
 
@@ -1799,13 +1801,13 @@ public:
 		b3Pos p = b3Body_GetWorldPoint( m_doorId, { B3_FIX( 0.75f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) } );
 		DrawPoint( p, 10.0f, MakeColor( b3_colorDarkKhaki ) );
 
-		float translationError1 = b3Joint_GetLinearSeparation( m_jointId1 );
+		float translationError1 = b3FixToFloat( b3Joint_GetLinearSeparation( m_jointId1 ) );
 		m_translationError1 = b3MaxFloat( m_translationError1, translationError1 );
 		DrawTextLine( "translation error 1 = %g", m_translationError1 );
 
 		if ( B3_IS_NON_NULL( m_jointId2 ) )
 		{
-			float translationError2 = b3Joint_GetLinearSeparation( m_jointId2 );
+			float translationError2 = b3FixToFloat( b3Joint_GetLinearSeparation( m_jointId2 ) );
 			m_translationError2 = b3MaxFloat( m_translationError2, translationError2 );
 			DrawTextLine( "translation error 2 = %g", m_translationError2 );
 		}
@@ -1854,17 +1856,17 @@ public:
 		{
 			float a = 0.125f;
 
-			b3BoxHull box = b3MakeBoxHull( a, B3_FIX( 0.125f ), B3_FIX( 0.5f ) );
+			b3BoxHull box = b3MakeBoxHull( b3FixFromFloat( a ), B3_FIX( 0.125f ), B3_FIX( 0.5f ) );
 
 			b3ShapeDef shapeDef = b3DefaultShapeDef();
-			shapeDef.density = 20.0f;
+			shapeDef.density = B3_FIX( 20.0f );
 
 			b3SphericalJointDef jointDef = b3DefaultSphericalJointDef();
 			// b3RevoluteJointDef jointDef = b3DefaultRevoluteJointDef();
-			jointDef.base.constraintHertz = 1000.0f;
+			jointDef.base.constraintHertz = B3_FIX( 1000.0f );
 			jointDef.enableSpring = true;
-			jointDef.hertz = 2.0f;
-			jointDef.dampingRatio = 1.0f;
+			jointDef.hertz = B3_FIX( 2.0f );
+			jointDef.dampingRatio = B3_FIX( 1.0f );
 
 			m_gravityScale = 1.0f;
 
@@ -1875,7 +1877,7 @@ public:
 			{
 				b3BodyDef bodyDef = b3DefaultBodyDef();
 				bodyDef.type = b3_dynamicBody;
-				bodyDef.position = { b3FixFromFloat( xbase + a * ( 1.0f + 2.0f * i ) ), B3_FIX( 20.0f ) };
+				bodyDef.position = { b3FixFromFloat( xbase + a * ( 1.0f + 2.0f * (float)i ) ), B3_FIX( 20.0f ) };
 				bodyDef.linearDamping = B3_FIX( 0.1f );
 				bodyDef.angularDamping = B3_FIX( 0.1f );
 				m_bodyIds[i] = b3CreateBody( m_worldId, &bodyDef );
@@ -1934,7 +1936,7 @@ public:
 		{
 			for ( int i = 0; i < m_count; ++i )
 			{
-				b3Body_SetGravityScale( m_bodyIds[i], m_gravityScale );
+				b3Body_SetGravityScale( m_bodyIds[i], b3FixFromFloat( m_gravityScale ) );
 			}
 		}
 
@@ -1986,15 +1988,15 @@ public:
 		bodyDef.type = b3_dynamicBody;
 		bodyDef.enableSleep = false;
 
-		b3BoxHull box = b3MakeBoxHull( 1.0f, 1.0f, B3_FIX( 0.5f ) );
+		b3BoxHull box = b3MakeBoxHull( B3_FIX( 1.0f ), B3_FIX( 1.0f ), B3_FIX( 0.5f ) );
 
 		m_count = 0;
 
-		float forceThreshold = 20000.0f;
-		float torqueThreshold = 10000.0f;
+		b3Fixed forceThreshold = B3_FIX( 20000.0f );
+		b3Fixed torqueThreshold = B3_FIX( 10000.0f );
 
 		b3ShapeDef shapeDef = b3DefaultShapeDef();
-		shapeDef.density = 1.0f;
+		shapeDef.density = B3_FIX( 1.0f );
 
 		// distance joint
 		{
@@ -2004,9 +2006,9 @@ public:
 			m_bodyIds[m_count] = b3CreateBody( m_worldId, &bodyDef );
 			b3CreateHullShape( m_bodyIds[m_count], &shapeDef, &box.base );
 
-			float length = 2.0f;
-			b3Pos pivot1 = { position.x, b3FixFromFloat( position.y + 1.0f + length ), B3_FIX( 0.0f ) };
-			b3Pos pivot2 = { position.x, b3FixFromFloat( position.y + 1.0f ), B3_FIX( 0.0f ) };
+			b3Fixed length = B3_FIX( 2.0f );
+			b3Pos pivot1 = { position.x, position.y + B3_FIX( 1.0f ) + length, B3_FIX( 0.0f ) };
+			b3Pos pivot2 = { position.x, position.y + B3_FIX( 1.0f ), B3_FIX( 0.0f ) };
 			b3DistanceJointDef jointDef = b3DefaultDistanceJointDef();
 			jointDef.base.bodyIdA = groundId;
 			jointDef.base.bodyIdB = m_bodyIds[m_count];
@@ -2020,7 +2022,7 @@ public:
 			b3CreateDistanceJoint( m_worldId, &jointDef );
 		}
 
-		position.x += 5.0f;
+		position.x += B3_FIX( 5.0f );
 		++m_count;
 
 		// motor joint
@@ -2036,8 +2038,8 @@ public:
 			jointDef.base.bodyIdA = groundId;
 			jointDef.base.bodyIdB = m_bodyIds[m_bodyCount];
 			jointDef.base.localFrameA.p = position;
-			jointDef.maxForce = 1000.0f;
-			jointDef.maxTorque = 20.0f;
+			jointDef.maxForce = B3_FIX( 1000.0f );
+			jointDef.maxTorque = B3_FIX( 20.0f );
 			jointDef.base.forceThreshold = forceThreshold;
 			jointDef.base.torqueThreshold = torqueThreshold;
 			jointDef.base.collideConnected = true;
@@ -2045,7 +2047,7 @@ public:
 			b3CreateMotorJoint( m_worldId, &jointDef );
 		}
 
-		position.x += 5.0f;
+		position.x += B3_FIX( 5.0f );
 		++m_count;
 #endif
 
@@ -2057,7 +2059,7 @@ public:
 			m_bodyIds[m_count] = b3CreateBody( m_worldId, &bodyDef );
 			b3CreateHullShape( m_bodyIds[m_count], &shapeDef, &box.base );
 
-			b3Pos pivot = { b3FixFromFloat( position.x - 1.0f ), position.y, B3_FIX( 0.0f ) };
+			b3Pos pivot = { position.x - B3_FIX( 1.0f ), position.y, B3_FIX( 0.0f ) };
 			b3PrismaticJointDef jointDef = b3DefaultPrismaticJointDef();
 			jointDef.base.bodyIdA = groundId;
 			jointDef.base.bodyIdB = m_bodyIds[m_count];
@@ -2070,7 +2072,7 @@ public:
 			b3CreatePrismaticJoint( m_worldId, &jointDef );
 		}
 
-		position.x += 5.0f;
+		position.x += B3_FIX( 5.0f );
 		++m_count;
 
 		// revolute joint
@@ -2081,7 +2083,7 @@ public:
 			m_bodyIds[m_count] = b3CreateBody( m_worldId, &bodyDef );
 			b3CreateHullShape( m_bodyIds[m_count], &shapeDef, &box.base );
 
-			b3Pos pivot = { b3FixFromFloat( position.x - 1.0f ), position.y, B3_FIX( 0.0f ) };
+			b3Pos pivot = { position.x - B3_FIX( 1.0f ), position.y, B3_FIX( 0.0f ) };
 			b3RevoluteJointDef jointDef = b3DefaultRevoluteJointDef();
 			jointDef.base.bodyIdA = groundId;
 			jointDef.base.bodyIdB = m_bodyIds[m_count];
@@ -2094,7 +2096,7 @@ public:
 			b3CreateRevoluteJoint( m_worldId, &jointDef );
 		}
 
-		position.x += 5.0f;
+		position.x += B3_FIX( 5.0f );
 		++m_count;
 
 		// weld joint
@@ -2105,13 +2107,13 @@ public:
 			m_bodyIds[m_count] = b3CreateBody( m_worldId, &bodyDef );
 			b3CreateHullShape( m_bodyIds[m_count], &shapeDef, &box.base );
 
-			b3Pos pivot = { b3FixFromFloat( position.x - 1.0f ), position.y, B3_FIX( 0.0f ) };
+			b3Pos pivot = { position.x - B3_FIX( 1.0f ), position.y, B3_FIX( 0.0f ) };
 			b3WeldJointDef jointDef = b3DefaultWeldJointDef();
 			jointDef.base.bodyIdA = groundId;
 			jointDef.base.bodyIdB = m_bodyIds[m_count];
 			jointDef.base.localFrameA.p = b3Body_GetLocalPoint( jointDef.base.bodyIdA, pivot );
 			jointDef.base.localFrameB.p = b3Body_GetLocalPoint( jointDef.base.bodyIdB, pivot );
-			jointDef.angularHertz = 2.0f;
+			jointDef.angularHertz = B3_FIX( 2.0f );
 			jointDef.angularDampingRatio = B3_FIX( 0.5f );
 			jointDef.base.forceThreshold = forceThreshold;
 			jointDef.base.torqueThreshold = torqueThreshold;
@@ -2120,7 +2122,7 @@ public:
 			b3CreateWeldJoint( m_worldId, &jointDef );
 		}
 
-		position.x += 5.0f;
+		position.x += B3_FIX( 5.0f );
 		++m_count;
 
 		// wheel joint
@@ -2132,20 +2134,20 @@ public:
 			b3BodyId bodyId = b3CreateBody( m_worldId, &bodyDef );
 			b3CreateHullShape( bodyId, &shapeDef, &box.base );
 
-			b3Vec3 pivot = { position.x - 1.0f, position.y, 0.0f };
+			b3Vec3 pivot = { position.x - B3_FIX( 1.0f ), position.y, B3_FIX( 0.0f ) };
 			b3WheelJointDef jointDef = b3DefaultWheelJointDef();
 			jointDef.base.bodyIdA = groundId;
 			jointDef.base.bodyIdB = bodyId;
 			jointDef.base.localFrameA.p = b3Body_GetLocalPoint( jointDef.base.bodyIdA, pivot );
 			jointDef.base.localFrameB.p = b3Body_GetLocalPoint( jointDef.base.bodyIdB, pivot );
-			jointDef.hertz = 1.0f;
-			jointDef.dampingRatio = 0.7f;
-			jointDef.lowerTranslation = -1.0f;
-			jointDef.upperTranslation = 1.0f;
+			jointDef.hertz = B3_FIX( 1.0f );
+			jointDef.dampingRatio = B3_FIX( 0.7f );
+			jointDef.lowerTranslation = B3_FIX( -1.0f );
+			jointDef.upperTranslation = B3_FIX( 1.0f );
 			jointDef.enableLimit = true;
 			jointDef.enableMotor = true;
-			jointDef.maxMotorTorque = 10.0f;
-			jointDef.motorSpeed = 1.0f;
+			jointDef.maxMotorTorque = B3_FIX( 10.0f );
+			jointDef.motorSpeed = B3_FIX( 1.0f );
 			jointDef.base.forceThreshold = forceThreshold;
 			jointDef.base.torqueThreshold = torqueThreshold;
 			jointDef.base.collideConnected = true;
@@ -2153,7 +2155,7 @@ public:
 			b3CreateWheelJoint( m_worldId, &jointDef );
 		}
 
-		position.x += 5.0f;
+		position.x += B3_FIX( 5.0f );
 		++m_count;
 #endif
 	}
@@ -2291,7 +2293,7 @@ public:
 			m_chassisId = b3CreateBody( m_worldId, &bodyDef );
 
 			shapeDef.density = B3_FIX( 0.5f );
-			b3BoxHull box = b3MakeBoxHull( 2.0f, B3_FIX( 0.5f ), 1.0f );
+			b3BoxHull box = b3MakeBoxHull( B3_FIX( 2.0f ), B3_FIX( 0.5f ), B3_FIX( 1.0f ) );
 			b3CreateHullShape( m_chassisId, &shapeDef, &box.base );
 		}
 
@@ -2302,15 +2304,15 @@ public:
 			parallelJointDef.base.bodyIdB = m_chassisId;
 			parallelJointDef.base.localFrameA.q = b3ComputeQuatBetweenUnitVectors( b3Vec3_axisZ, b3Vec3_axisY );
 			parallelJointDef.base.localFrameB.q = b3ComputeQuatBetweenUnitVectors( b3Vec3_axisZ, b3Vec3_axisY );
-			parallelJointDef.base.drawScale = 2.0f;
+			parallelJointDef.base.drawScale = B3_FIX( 2.0f );
 			parallelJointDef.base.collideConnected = true;
 			parallelJointDef.hertz = B3_FIX( 0.5f );
-			parallelJointDef.dampingRatio = 1.0f;
+			parallelJointDef.dampingRatio = B3_FIX( 1.0f );
 			b3CreateParallelJoint( m_worldId, &parallelJointDef );
 		}
 
-		shapeDef.density = 2.0f;
-		shapeDef.baseMaterial.friction = 3.0f;
+		shapeDef.density = B3_FIX( 2.0f );
+		shapeDef.baseMaterial.friction = B3_FIX( 3.0f );
 
 		bodyDef.type = b3_dynamicBody;
 		bodyDef.allowFastRotation = true;
@@ -2323,21 +2325,21 @@ public:
 		jointDef.base.localFrameA.q = b3ComputeQuatBetweenUnitVectors( b3Vec3_axisX, b3Vec3_axisY );
 		jointDef.base.localFrameB.q = b3ComputeQuatBetweenUnitVectors( b3Vec3_axisZ, b3Vec3_axisY );
 		jointDef.enableSuspensionLimit = true;
-		jointDef.lowerSuspensionLimit = m_lowerTranslation;
-		jointDef.upperSuspensionLimit = m_upperTranslation;
+		jointDef.lowerSuspensionLimit = b3FixFromFloat( m_lowerTranslation );
+		jointDef.upperSuspensionLimit = b3FixFromFloat( m_upperTranslation );
 		jointDef.enableSuspensionSpring = true;
-		jointDef.suspensionHertz = m_suspensionHertz;
-		jointDef.suspensionDampingRatio = m_suspensionDampingRatio;
+		jointDef.suspensionHertz = b3FixFromFloat( m_suspensionHertz );
+		jointDef.suspensionDampingRatio = b3FixFromFloat( m_suspensionDampingRatio );
 		jointDef.enableSpinMotor = true;
-		jointDef.maxSpinTorque = m_maxSpinTorque;
+		jointDef.maxSpinTorque = b3FixFromFloat( m_maxSpinTorque );
 		jointDef.enableSteering = true;
-		jointDef.steeringHertz = m_steeringHertz;
-		jointDef.steeringDampingRatio = m_steeringDampingRatio;
+		jointDef.steeringHertz = b3FixFromFloat( m_steeringHertz );
+		jointDef.steeringDampingRatio = b3FixFromFloat( m_steeringDampingRatio );
 		jointDef.targetSteeringAngle = 0.0f;
-		jointDef.maxSteeringTorque = m_maxSteeringTorque;
+		jointDef.maxSteeringTorque = b3FixFromFloat( m_maxSteeringTorque );
 		jointDef.enableSteeringLimit = true;
-		jointDef.lowerSteeringLimit = B3_PI / 180.0f * m_lowerSteeringDegrees;
-		jointDef.upperSteeringLimit = B3_PI / 180.0f * m_upperSteeringDegrees;
+		jointDef.lowerSteeringLimit = b3FixMul( B3_DEG_TO_RAD, b3FixFromFloat( m_lowerSteeringDegrees ) );
+		jointDef.upperSteeringLimit = b3FixMul( B3_DEG_TO_RAD, b3FixFromFloat( m_upperSteeringDegrees ) );
 
 		b3Sphere sphere = { b3Vec3_zero, B3_FIX( 0.4f ) };
 
@@ -2426,35 +2428,35 @@ public:
 		if ( ImGui::SliderFloat( "Min##Suspension", &m_lowerTranslation, -10.0f, 10.0f, "%.1f" ) )
 		{
 			m_lowerTranslation = b3MinFloat( m_lowerTranslation, m_upperTranslation );
-			b3WheelJoint_SetSuspensionLimits( m_frontLeftId, m_lowerTranslation, m_upperTranslation );
-			b3WheelJoint_SetSuspensionLimits( m_frontRightId, m_lowerTranslation, m_upperTranslation );
-			b3WheelJoint_SetSuspensionLimits( m_rearLeftId, m_lowerTranslation, m_upperTranslation );
-			b3WheelJoint_SetSuspensionLimits( m_rearRightId, m_lowerTranslation, m_upperTranslation );
+			b3WheelJoint_SetSuspensionLimits( m_frontLeftId, b3FixFromFloat( m_lowerTranslation ), b3FixFromFloat( m_upperTranslation ) );
+			b3WheelJoint_SetSuspensionLimits( m_frontRightId, b3FixFromFloat( m_lowerTranslation ), b3FixFromFloat( m_upperTranslation ) );
+			b3WheelJoint_SetSuspensionLimits( m_rearLeftId, b3FixFromFloat( m_lowerTranslation ), b3FixFromFloat( m_upperTranslation ) );
+			b3WheelJoint_SetSuspensionLimits( m_rearRightId, b3FixFromFloat( m_lowerTranslation ), b3FixFromFloat( m_upperTranslation ) );
 		}
 
 		if ( ImGui::SliderFloat( "Max##Suspension", &m_upperTranslation, -10.0f, 10.0f, "%.1f" ) )
 		{
 			m_upperTranslation = b3MaxFloat( m_upperTranslation, m_lowerTranslation );
-			b3WheelJoint_SetSuspensionLimits( m_frontLeftId, m_lowerTranslation, m_upperTranslation );
-			b3WheelJoint_SetSuspensionLimits( m_frontRightId, m_lowerTranslation, m_upperTranslation );
-			b3WheelJoint_SetSuspensionLimits( m_rearLeftId, m_lowerTranslation, m_upperTranslation );
-			b3WheelJoint_SetSuspensionLimits( m_rearRightId, m_lowerTranslation, m_upperTranslation );
+			b3WheelJoint_SetSuspensionLimits( m_frontLeftId, b3FixFromFloat( m_lowerTranslation ), b3FixFromFloat( m_upperTranslation ) );
+			b3WheelJoint_SetSuspensionLimits( m_frontRightId, b3FixFromFloat( m_lowerTranslation ), b3FixFromFloat( m_upperTranslation ) );
+			b3WheelJoint_SetSuspensionLimits( m_rearLeftId, b3FixFromFloat( m_lowerTranslation ), b3FixFromFloat( m_upperTranslation ) );
+			b3WheelJoint_SetSuspensionLimits( m_rearRightId, b3FixFromFloat( m_lowerTranslation ), b3FixFromFloat( m_upperTranslation ) );
 		}
 
 		if ( ImGui::SliderFloat( "Hertz##Suspension", &m_suspensionHertz, 0.0f, 10.0f, "%.1f" ) )
 		{
-			b3WheelJoint_SetSuspensionHertz( m_frontLeftId, m_suspensionHertz );
-			b3WheelJoint_SetSuspensionHertz( m_frontRightId, m_suspensionHertz );
-			b3WheelJoint_SetSuspensionHertz( m_rearLeftId, m_suspensionHertz );
-			b3WheelJoint_SetSuspensionHertz( m_rearRightId, m_suspensionHertz );
+			b3WheelJoint_SetSuspensionHertz( m_frontLeftId, b3FixFromFloat( m_suspensionHertz ) );
+			b3WheelJoint_SetSuspensionHertz( m_frontRightId, b3FixFromFloat( m_suspensionHertz ) );
+			b3WheelJoint_SetSuspensionHertz( m_rearLeftId, b3FixFromFloat( m_suspensionHertz ) );
+			b3WheelJoint_SetSuspensionHertz( m_rearRightId, b3FixFromFloat( m_suspensionHertz ) );
 		}
 
 		if ( ImGui::SliderFloat( "Damping##Suspension", &m_suspensionDampingRatio, 0.0f, 2.0f, "%.1f" ) )
 		{
-			b3WheelJoint_SetSuspensionDampingRatio( m_frontLeftId, m_suspensionDampingRatio );
-			b3WheelJoint_SetSuspensionDampingRatio( m_frontRightId, m_suspensionDampingRatio );
-			b3WheelJoint_SetSuspensionDampingRatio( m_rearLeftId, m_suspensionDampingRatio );
-			b3WheelJoint_SetSuspensionDampingRatio( m_rearRightId, m_suspensionDampingRatio );
+			b3WheelJoint_SetSuspensionDampingRatio( m_frontLeftId, b3FixFromFloat( m_suspensionDampingRatio ) );
+			b3WheelJoint_SetSuspensionDampingRatio( m_frontRightId, b3FixFromFloat( m_suspensionDampingRatio ) );
+			b3WheelJoint_SetSuspensionDampingRatio( m_rearLeftId, b3FixFromFloat( m_suspensionDampingRatio ) );
+			b3WheelJoint_SetSuspensionDampingRatio( m_rearRightId, b3FixFromFloat( m_suspensionDampingRatio ) );
 		}
 
 		ImGui::Separator();
@@ -2470,36 +2472,36 @@ public:
 
 		if ( ImGui::SliderFloat( "Hertz##Steering", &m_steeringHertz, 0.0f, 10.0f, "%.1f" ) )
 		{
-			b3WheelJoint_SetSteeringHertz( m_frontLeftId, m_steeringHertz );
-			b3WheelJoint_SetSteeringHertz( m_frontRightId, m_steeringHertz );
+			b3WheelJoint_SetSteeringHertz( m_frontLeftId, b3FixFromFloat( m_steeringHertz ) );
+			b3WheelJoint_SetSteeringHertz( m_frontRightId, b3FixFromFloat( m_steeringHertz ) );
 		}
 
 		if ( ImGui::SliderFloat( "Damping##Steering", &m_steeringDampingRatio, 0.0f, 2.0f, "%.1f" ) )
 		{
-			b3WheelJoint_SetSteeringDampingRatio( m_frontLeftId, m_steeringDampingRatio );
-			b3WheelJoint_SetSteeringDampingRatio( m_frontRightId, m_steeringDampingRatio );
+			b3WheelJoint_SetSteeringDampingRatio( m_frontLeftId, b3FixFromFloat( m_steeringDampingRatio ) );
+			b3WheelJoint_SetSteeringDampingRatio( m_frontRightId, b3FixFromFloat( m_steeringDampingRatio ) );
 		}
 
 		if ( ImGui::SliderFloat( "Torque##Steering", &m_maxSteeringTorque, 0.0f, 20.0f, "%.1f" ) )
 		{
-			b3WheelJoint_SetMaxSteeringTorque( m_frontLeftId, m_maxSteeringTorque );
-			b3WheelJoint_SetMaxSteeringTorque( m_frontRightId, m_maxSteeringTorque );
+			b3WheelJoint_SetMaxSteeringTorque( m_frontLeftId, b3FixFromFloat( m_maxSteeringTorque ) );
+			b3WheelJoint_SetMaxSteeringTorque( m_frontRightId, b3FixFromFloat( m_maxSteeringTorque ) );
 		}
 
 		if ( ImGui::SliderFloat( "Min Deg##Steering", &m_lowerSteeringDegrees, -90.0f, 0.0f, "%.0f" ) )
 		{
-			b3WheelJoint_SetSteeringLimits( m_frontLeftId, B3_PI / 180.0f * m_lowerSteeringDegrees,
-											B3_PI / 180.0f * m_upperSteeringDegrees );
-			b3WheelJoint_SetSteeringLimits( m_frontRightId, B3_PI / 180.0f * m_lowerSteeringDegrees,
-											B3_PI / 180.0f * m_upperSteeringDegrees );
+			b3WheelJoint_SetSteeringLimits( m_frontLeftId, b3FixMul( B3_DEG_TO_RAD, b3FixFromFloat( m_lowerSteeringDegrees ) ),
+											b3FixMul( B3_DEG_TO_RAD, b3FixFromFloat( m_upperSteeringDegrees ) ) );
+			b3WheelJoint_SetSteeringLimits( m_frontRightId, b3FixMul( B3_DEG_TO_RAD, b3FixFromFloat( m_lowerSteeringDegrees ) ),
+											b3FixMul( B3_DEG_TO_RAD, b3FixFromFloat( m_upperSteeringDegrees ) ) );
 		}
 
 		if ( ImGui::SliderFloat( "Max Deg##Steering", &m_upperSteeringDegrees, 0.0f, 90.0f, "%.0f" ) )
 		{
-			b3WheelJoint_SetSteeringLimits( m_frontLeftId, B3_PI / 180.0f * m_lowerSteeringDegrees,
-											B3_PI / 180.0f * m_upperSteeringDegrees );
-			b3WheelJoint_SetSteeringLimits( m_frontRightId, B3_PI / 180.0f * m_lowerSteeringDegrees,
-											B3_PI / 180.0f * m_upperSteeringDegrees );
+			b3WheelJoint_SetSteeringLimits( m_frontLeftId, b3FixMul( B3_DEG_TO_RAD, b3FixFromFloat( m_lowerSteeringDegrees ) ),
+											b3FixMul( B3_DEG_TO_RAD, b3FixFromFloat( m_upperSteeringDegrees ) ) );
+			b3WheelJoint_SetSteeringLimits( m_frontRightId, b3FixMul( B3_DEG_TO_RAD, b3FixFromFloat( m_lowerSteeringDegrees ) ),
+											b3FixMul( B3_DEG_TO_RAD, b3FixFromFloat( m_upperSteeringDegrees ) ) );
 		}
 
 		ImGui::Separator();
@@ -2520,27 +2522,28 @@ public:
 		b3Vec3 velocity = b3Body_GetLinearVelocity( m_chassisId );
 		b3Quat quat = b3Body_GetRotation( m_chassisId );
 		b3Vec3 forward = b3RotateVector( quat, { B3_FIX( -1.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) } );
-		float speed = b3Dot( velocity, forward );
+		float speed = b3FixToFloat( b3Dot( velocity, forward ) );
 		DrawTextLine( "speed = %.1f", speed );
 
-		float leftSpeed = b3WheelJoint_GetSpinSpeed( m_rearLeftId );
-		float rightSpeed = b3WheelJoint_GetSpinSpeed( m_rearRightId );
+		float leftSpeed = b3FixToFloat( b3WheelJoint_GetSpinSpeed( m_rearLeftId ) );
+		float rightSpeed = b3FixToFloat( b3WheelJoint_GetSpinSpeed( m_rearRightId ) );
 		DrawTextLine( "spin speed = %.1f/%.1f", leftSpeed, rightSpeed );
 
-		float leftSpinTorque = b3WheelJoint_GetSpinTorque( m_rearLeftId );
-		float rightSpinTorque = b3WheelJoint_GetSpinTorque( m_rearRightId );
+		float leftSpinTorque = b3FixToFloat( b3WheelJoint_GetSpinTorque( m_rearLeftId ) );
+		float rightSpinTorque = b3FixToFloat( b3WheelJoint_GetSpinTorque( m_rearRightId ) );
 		DrawTextLine( "spin torque = %.1f/%.1f", leftSpinTorque, rightSpinTorque );
 
-		float angleLeft = b3WheelJoint_GetSteeringAngle( m_frontLeftId );
-		float angleRight = b3WheelJoint_GetSteeringAngle( m_frontRightId );
-		DrawTextLine( "steering degrees = %.1f/%.1f", 180.0f / B3_PI * angleLeft, 180.0f / B3_PI * angleRight );
+		b3Fixed angleLeft = b3WheelJoint_GetSteeringAngle( m_frontLeftId );
+		b3Fixed angleRight = b3WheelJoint_GetSteeringAngle( m_frontRightId );
+		DrawTextLine( "steering degrees = %.1f/%.1f", b3FixToDouble( b3FixMul( B3_RAD_TO_DEG, angleLeft ) ),
+					  b3FixToDouble( b3FixMul( B3_RAD_TO_DEG, angleRight ) ) );
 
-		float leftSteerTorque = b3WheelJoint_GetSteeringTorque( m_frontLeftId );
-		float rightSteerTorque = b3WheelJoint_GetSteeringTorque( m_frontRightId );
+		float leftSteerTorque = b3FixToFloat( b3WheelJoint_GetSteeringTorque( m_frontLeftId ) );
+		float rightSteerTorque = b3FixToFloat( b3WheelJoint_GetSteeringTorque( m_frontRightId ) );
 		DrawTextLine( "steering torque = %.1f/%.1f", leftSteerTorque, rightSteerTorque );
 
 		b3WorldTransform transform = b3WorldTransform_identity;
-		transform.p.y += 0.05f;
+		transform.p.y += B3_FIX( 0.05f );
 		DrawAxes( transform, 2.0f );
 	}
 
@@ -2552,35 +2555,35 @@ public:
 		{
 			if ( IsKeyDown( KEY_W ) )
 			{
-				throttle.x += 1.0f;
+				throttle.x += B3_FIX( 1.0f );
 				b3Body_SetAwake( m_chassisId, true );
 			}
 
 			if ( IsKeyDown( KEY_S ) )
 			{
-				throttle.x -= 1.0f;
+				throttle.x -= B3_FIX( 1.0f );
 				b3Body_SetAwake( m_chassisId, true );
 			}
 
 			if ( IsKeyDown( KEY_A ) )
 			{
-				throttle.y += 1.0f;
+				throttle.y += B3_FIX( 1.0f );
 				b3Body_SetAwake( m_chassisId, true );
 			}
 
 			if ( IsKeyDown( KEY_D ) )
 			{
-				throttle.y -= 1.0f;
+				throttle.y -= B3_FIX( 1.0f );
 				b3Body_SetAwake( m_chassisId, true );
 			}
 		}
 
-		float maxSteeringAngle = 0.25f * B3_PI;
-		b3WheelJoint_SetTargetSteeringAngle( m_frontLeftId, maxSteeringAngle * throttle.y );
-		b3WheelJoint_SetTargetSteeringAngle( m_frontRightId, maxSteeringAngle * throttle.y );
+		b3Fixed maxSteeringAngle = B3_PI / 4;
+		b3WheelJoint_SetTargetSteeringAngle( m_frontLeftId, b3FixMul( maxSteeringAngle, throttle.y ) );
+		b3WheelJoint_SetTargetSteeringAngle( m_frontRightId, b3FixMul( maxSteeringAngle, throttle.y ) );
 
-		b3WheelJoint_SetSpinMotorSpeed( m_rearLeftId, -m_spinSpeed * throttle.x );
-		b3WheelJoint_SetSpinMotorSpeed( m_rearRightId, -m_spinSpeed * throttle.x );
+		b3WheelJoint_SetSpinMotorSpeed( m_rearLeftId, b3FixMul( b3FixFromFloat( -m_spinSpeed ), throttle.x ) );
+		b3WheelJoint_SetSpinMotorSpeed( m_rearRightId, b3FixMul( b3FixFromFloat( -m_spinSpeed ), throttle.x ) );
 
 		if ( m_camera->m_thirdPerson )
 		{
@@ -2674,8 +2677,8 @@ public:
 			revoluteDef.base.localFrameA.p = b3Body_GetLocalPoint( groundId, gearPosition1 );
 			revoluteDef.base.localFrameB.p = { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
 			revoluteDef.enableMotor = m_enableMotor;
-			revoluteDef.maxMotorTorque = m_motorTorque;
-			revoluteDef.motorSpeed = m_motorSpeed;
+			revoluteDef.maxMotorTorque = b3FixFromFloat( m_motorTorque );
+			revoluteDef.motorSpeed = b3FixFromFloat( m_motorSpeed );
 			m_driverId = b3CreateRevoluteJoint( m_worldId, &revoluteDef );
 		}
 
@@ -2685,19 +2688,19 @@ public:
 			revoluteDef.base.bodyIdA = groundId;
 			revoluteDef.base.bodyIdB = followerId;
 			revoluteDef.base.localFrameA.p = b3Body_GetLocalPoint( groundId, gearPosition2 );
-			revoluteDef.base.localFrameA.q = b3MakeQuatFromAxisAngle( b3Vec3_axisZ, 0.25f * B3_PI );
+			revoluteDef.base.localFrameA.q = b3MakeQuatFromAxisAngle( b3Vec3_axisZ, B3_PI / 4 );
 			revoluteDef.base.localFrameB.p = { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
 			revoluteDef.enableMotor = true;
 			revoluteDef.maxMotorTorque = B3_FIX( 0.5f );
-			revoluteDef.lowerAngle = -0.3f * B3_PI;
-			revoluteDef.upperAngle = 0.8f * B3_PI;
+			revoluteDef.lowerAngle = b3FixMul( B3_FIX( -0.3f ), B3_PI );
+			revoluteDef.upperAngle = b3FixMul( B3_FIX( 0.8f ), B3_PI );
 			revoluteDef.enableLimit = true;
 			b3CreateRevoluteJoint( m_worldId, &revoluteDef );
 		}
 
 		// One chain hangs from the follower rim at each depth and both lift the gate.
-		b3Pos linkAttach = { b3FixFromFloat( gearPosition2.x + m_gearRadius + 2.0f * m_toothHalfWidth + m_toothRadius ), gearPosition2.y, B3_FIX( 0.0f ) };
-		b3Pos doorPosition = { linkAttach.x, b3FixFromFloat( linkAttach.y - ( 2.0f * m_linkCount * m_linkHalfLength + m_doorHalfHeight ) ), B3_FIX( 0.0f ) };
+		b3Pos linkAttach = { gearPosition2.x + b3FixFromFloat( m_gearRadius + 2.0f * m_toothHalfWidth + m_toothRadius ), gearPosition2.y, B3_FIX( 0.0f ) };
+		b3Pos doorPosition = { linkAttach.x, linkAttach.y - b3FixFromFloat( 2.0f * m_linkCount * m_linkHalfLength + m_doorHalfHeight ), B3_FIX( 0.0f ) };
 
 		b3BodyId nearLink = CreateChain( followerId, { linkAttach.x, linkAttach.y, b3FixFromFloat( -m_gearZ ) } );
 		b3BodyId farLink = CreateChain( followerId, { linkAttach.x, linkAttach.y, b3FixFromFloat( m_gearZ ) } );
@@ -2799,24 +2802,24 @@ public:
 		b3Vec2 upper = points[0];
 		for ( int i = 1; i < 32; ++i )
 		{
-			lower.x = b3MinFloat( lower.x, points[i].x );
-			lower.y = b3MinFloat( lower.y, points[i].y );
-			upper.x = b3MaxFloat( upper.x, points[i].x );
-			upper.y = b3MaxFloat( upper.y, points[i].y );
+			lower.x = b3FixMin( lower.x, points[i].x );
+			lower.y = b3FixMin( lower.y, points[i].y );
+			upper.x = b3FixMax( upper.x, points[i].x );
+			upper.y = b3FixMax( upper.y, points[i].y );
 		}
 
 		float wallHalfThick = 0.05f;
-		b3Vec3 wallCenter = { b3FixFromFloat( 0.5f * ( lower.x + upper.x ) ), b3FixFromFloat( 0.5f * ( lower.y + upper.y ) ), b3FixFromFloat( -zMax - wallHalfThick ) };
+		b3Vec3 wallCenter = { ( lower.x + upper.x ) / 2, ( lower.y + upper.y ) / 2, b3FixFromFloat( -zMax - wallHalfThick ) };
 		b3BoxHull wall =
-			b3MakeOffsetBoxHull( 0.5f * ( upper.x - lower.x ), 0.5f * ( upper.y - lower.y ), wallHalfThick, wallCenter );
+			b3MakeOffsetBoxHull( ( upper.x - lower.x ) / 2, ( upper.y - lower.y ) / 2, b3FixFromFloat( wallHalfThick ), wallCenter );
 		b3CreateHullShape( groundId, &shapeDef, &wall.base );
 	}
 
 	// Push one cap triangle, flipping the winding so its z-normal has the wanted sign.
 	void PushCap( std::vector<int>& indices, const b3Vec2* poly, int r0, int r1, int r2, int vOffset, bool wantPositiveZ )
 	{
-		float cross =
-			( poly[r1].x - poly[r0].x ) * ( poly[r2].y - poly[r0].y ) - ( poly[r1].y - poly[r0].y ) * ( poly[r2].x - poly[r0].x );
+		float cross = b3FixToFloat( poly[r1].x - poly[r0].x ) * b3FixToFloat( poly[r2].y - poly[r0].y ) -
+					  b3FixToFloat( poly[r1].y - poly[r0].y ) * b3FixToFloat( poly[r2].x - poly[r0].x );
 		bool positive = cross > 0.0f;
 
 		int v0 = 2 * r0 + vOffset;
@@ -2842,7 +2845,7 @@ public:
 		b3Vec3 points[64];
 		for ( int i = 0; i < sides; ++i )
 		{
-			float angle = ( 2.0f * B3_PI * i ) / sides;
+			float angle = ( 2.0f * b3FixToFloat( B3_PI ) * (float)i ) / (float)sides;
 			float c = cosf( angle );
 			float s = sinf( angle );
 			points[2 * i + 0] = { b3FixFromFloat( radius * c ), b3FixFromFloat( radius * s ), b3FixFromFloat( zMin ) };
@@ -2891,7 +2894,7 @@ public:
 
 		b3BodyDef bodyDef = b3DefaultBodyDef();
 		bodyDef.type = b3_dynamicBody;
-		b3Pos position = { attach.x, b3FixFromFloat( attach.y - m_linkHalfLength ), attach.z };
+		b3Pos position = { attach.x, attach.y - b3FixFromFloat( m_linkHalfLength ), attach.z };
 
 		b3BodyId prevBodyId = topBodyId;
 		for ( int i = 0; i < m_linkCount; ++i )
@@ -2900,14 +2903,14 @@ public:
 			b3BodyId bodyId = b3CreateBody( m_worldId, &bodyDef );
 			b3CreateCapsuleShape( bodyId, &shapeDef, &capsule );
 
-			b3Pos pivot = { position.x, b3FixFromFloat( position.y + m_linkHalfLength ), attach.z };
+			b3Pos pivot = { position.x, position.y + b3FixFromFloat( m_linkHalfLength ), attach.z };
 			jointDef.base.bodyIdA = prevBodyId;
 			jointDef.base.bodyIdB = bodyId;
 			jointDef.base.localFrameA.p = b3Body_GetLocalPoint( prevBodyId, pivot );
 			jointDef.base.localFrameB.p = b3Body_GetLocalPoint( bodyId, pivot );
 			b3CreateRevoluteJoint( m_worldId, &jointDef );
 
-			position.y -= 2.0f * m_linkHalfLength;
+			position.y -= b3FixFromFloat( 2.0f * m_linkHalfLength );
 			prevBodyId = bodyId;
 		}
 
@@ -2923,10 +2926,10 @@ public:
 		b3BodyId doorId = b3CreateBody( m_worldId, &bodyDef );
 
 		b3ShapeDef shapeDef = b3DefaultShapeDef();
-		shapeDef.density *= 0.5f;
+		shapeDef.density /= 2;
 		shapeDef.baseMaterial.friction = B3_FIX( 0.1f );
 		shapeDef.baseMaterial.customColor = b3MakeDebugColor( b3_colorDarkCyan, b3_debugMaterialMetallic );
-		b3BoxHull box = b3MakeBoxHull( B3_FIX( 0.05f ), m_doorHalfHeight, m_doorHalfDepth );
+		b3BoxHull box = b3MakeBoxHull( B3_FIX( 0.05f ), b3FixFromFloat( m_doorHalfHeight ), b3FixFromFloat( m_doorHalfDepth ) );
 		b3CreateHullShape( doorId, &shapeDef, &box.base );
 
 		// Hinge the gate to each chain at its depth.
@@ -2934,14 +2937,14 @@ public:
 		float depths[2] = { -m_gearZ, m_gearZ };
 		for ( int i = 0; i < 2; ++i )
 		{
-			b3Pos pivot = { doorPosition.x, b3FixFromFloat( doorPosition.y + m_doorHalfHeight ), b3FixFromFloat( depths[i] ) };
+			b3Pos pivot = { doorPosition.x, doorPosition.y + b3FixFromFloat( m_doorHalfHeight ), b3FixFromFloat( depths[i] ) };
 			b3RevoluteJointDef jointDef = b3DefaultRevoluteJointDef();
 			jointDef.base.bodyIdA = links[i];
 			jointDef.base.bodyIdB = doorId;
 			jointDef.base.localFrameA.p = b3Body_GetLocalPoint( links[i], pivot );
 			jointDef.base.localFrameB.p = { B3_FIX( 0.0f ), b3FixFromFloat( m_doorHalfHeight ), b3FixFromFloat( depths[i] ) };
 			jointDef.enableMotor = true;
-			jointDef.maxMotorTorque = 50.0f;
+			jointDef.maxMotorTorque = B3_FIX( 50.0f );
 			b3CreateRevoluteJoint( m_worldId, &jointDef );
 		}
 
@@ -2954,7 +2957,7 @@ public:
 		jointDef.base.localFrameA.q = slideAxis;
 		jointDef.base.localFrameB.p = { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
 		jointDef.base.localFrameB.q = slideAxis;
-		jointDef.maxMotorForce = 200.0f;
+		jointDef.maxMotorForce = B3_FIX( 200.0f );
 		jointDef.enableMotor = true;
 		jointDef.base.collideConnected = true;
 		b3CreatePrismaticJoint( m_worldId, &jointDef );
@@ -2970,7 +2973,7 @@ public:
 		shapeDef.baseMaterial.customColor = b3_colorGray;
 
 		int count = 16;
-		float deltaAngle = 2.0f * B3_PI / count;
+		b3Fixed deltaAngle = 2 * B3_PI / count;
 
 		float hx = m_toothHalfWidth;					   // radial half extent
 		float hz = m_gearHalfDepth;						   // depth half extent
@@ -2981,7 +2984,7 @@ public:
 		{
 			b3Quat q = b3MakeQuatFromAxisAngle( b3Vec3_axisZ, i * deltaAngle );
 			b3Vec3 center = b3RotateVector( q, { b3FixFromFloat( centerRadius ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) } );
-			center.z = zCenter;
+			center.z = b3FixFromFloat( zCenter );
 
 			// Base at the inner radius, narrower tip at the outer radius.
 			b3Vec3 local[8] = {
@@ -3013,13 +3016,13 @@ public:
 			b3_colorGray, b3_colorGainsboro, b3_colorLightGray, b3_colorLightSlateGray, b3_colorDarkGray,
 		};
 
-		b3HullData* rockHull = b3CreateRock( m_rockRadius );
+		b3HullData* rockHull = b3CreateRock( b3FixFromFloat( m_rockRadius ) );
 
 		float x = -5.0f;
 		int xCount = 12, yCount = 10;
 		for ( int i = 0; i < xCount; ++i )
 		{
-			float y = 6.5f - 0.25f * i;
+			float y = 6.5f - 0.25f * (float)i;
 			for ( int j = 0; j < yCount; ++j )
 			{
 				// Spread the debris across the depth of the stairwell.
@@ -3040,7 +3043,7 @@ public:
 
 	void SetMotorSpeed( float speed )
 	{
-		b3RevoluteJoint_SetMotorSpeed( m_driverId, speed );
+		b3RevoluteJoint_SetMotorSpeed( m_driverId, b3FixFromFloat( speed ) );
 		b3Joint_WakeBodies( m_driverId );
 	}
 
@@ -3056,7 +3059,7 @@ public:
 
 		if ( ImGui::SliderFloat( "Max Torque", &m_motorTorque, 0.0f, 100000.0f, "%.0f" ) )
 		{
-			b3RevoluteJoint_SetMaxMotorTorque( m_driverId, m_motorTorque );
+			b3RevoluteJoint_SetMaxMotorTorque( m_driverId, b3FixFromFloat( m_motorTorque ) );
 			b3Joint_WakeBodies( m_driverId );
 		}
 

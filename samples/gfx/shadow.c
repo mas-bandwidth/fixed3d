@@ -150,7 +150,7 @@ static Mat4 FitCascade( const Mat4* viewInv, const Mat4* proj, b3Vec3 dirToSun, 
 
 	// Avoid a degenerate up vector when the sun is straight up/down.
 	b3Vec3 up = b3Vec3_axisY;
-	if ( fabsf( dirToSun.y ) > 0.999f )
+	if ( b3FixAbs( dirToSun.y ) > B3_FIX( 0.999f ) )
 	{
 		up = b3Vec3_axisZ;
 	}

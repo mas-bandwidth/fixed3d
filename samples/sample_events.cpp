@@ -41,7 +41,7 @@ public:
 		b3CreateHullShape( dynamicBody, &shapeDef, &dynamicBox.base );
 
 		// Sensor
-		b3BoxHull sensorBox = b3MakeBoxHull( 2.0f, 2.0f, 2.0f );
+		b3BoxHull sensorBox = b3MakeBoxHull( B3_FIX( 2.0f ), B3_FIX( 2.0f ), B3_FIX( 2.0f ) );
 
 		bodyDef.type = b3_kinematicBody;
 		bodyDef.position = { B3_FIX( 0.0f ), B3_FIX( 2.0f ), B3_FIX( 0.0f ) };
@@ -106,7 +106,7 @@ public:
 			b3BodyId groundId = b3CreateBody( m_worldId, &bodyDef );
 
 			constexpr int materialCount = 6;
-			m_gridMesh = b3CreateGridMesh( 20, 20, 8.0f, materialCount, true );
+			m_gridMesh = b3CreateGridMesh( 20, 20, B3_FIX( 8.0f ), materialCount, true );
 			b3ShapeDef shapeDef = b3DefaultShapeDef();
 
 			b3SurfaceMaterial materials[materialCount];
@@ -125,8 +125,8 @@ public:
 		}
 
 		b3WeldJointDef jointDef = b3DefaultWeldJointDef();
-		jointDef.angularHertz = 10.0f;
-		jointDef.angularDampingRatio = 2.0f;
+		jointDef.angularHertz = B3_FIX( 10.0f );
+		jointDef.angularDampingRatio = B3_FIX( 2.0f );
 
 		float r = 0.75f;
 		float y = r;
@@ -218,7 +218,8 @@ public:
 
 			DrawPoint( p1, 10.0f, MakeColor( b3_colorYellow ) );
 			DrawLine( p1, p2, MakeColor( b3_colorYellow ) );
-			DrawString3D( p1, MakeColor( b3_colorWhite ), "%.1f, %d", m_events[i].approachSpeed, m_events[i].userMaterialIdA );
+			DrawString3D( p1, MakeColor( b3_colorWhite ), "%.1f, %llu", b3FixToDouble( m_events[i].approachSpeed ),
+						  (unsigned long long)m_events[i].userMaterialIdA );
 		}
 
 		DrawTextLine( "event count = %d", m_eventCount );
@@ -269,17 +270,19 @@ public:
 
 		b3ShapeDef shapeDef = b3DefaultShapeDef();
 		shapeDef.enableHitEvents = true;
-		b3BoxHull dynamicBox = b3MakeTransformedBoxHull( B3_FIX( 0.5f ), 10.0f, B3_FIX( 0.5f ), { { B3_FIX( 0.0f ), B3_FIX( 10.0f ), B3_FIX( 0.0f ) }, b3Quat_identity } );
+		b3BoxHull dynamicBox = b3MakeTransformedBoxHull( B3_FIX( 0.5f ), B3_FIX( 10.0f ), B3_FIX( 0.5f ), { { B3_FIX( 0.0f ), B3_FIX( 10.0f ), B3_FIX( 0.0f ) }, b3Quat_identity } );
 		b3CreateHullShape( m_bodyId, &shapeDef, &dynamicBox.base );
 
 		b3Pos center = b3Body_GetWorldCenter( m_bodyId );
 
 		b3Vec3 r = b3SubPos( pivot, center );
-		float rr = b3LengthSquared( r );
-		if ( rr > 0.0f )
+		b3Fixed rr = b3LengthSquared( r );
+		if ( rr > B3_FIX( 0.0f ) )
 		{
 			b3Vec3 v = { B3_FIX( -10.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
-			b3Vec3 omega = ( 1.0f / rr ) * b3Cross( v, r );
+			// Divide last: scale the cross product by 1/rr component-wise.
+			b3Vec3 c = b3Cross( v, r );
+			b3Vec3 omega = { b3FixDiv( c.x, rr ), b3FixDiv( c.y, rr ), b3FixDiv( c.z, rr ) };
 			b3Body_SetAngularVelocity( m_bodyId, omega );
 			b3Body_SetLinearVelocity( m_bodyId, v );
 		}
@@ -293,8 +296,9 @@ public:
 		b3Vec3 v = b3Body_GetLinearVelocity( m_bodyId );
 		b3Vec3 omega = b3Body_GetAngularVelocity( m_bodyId );
 
-		DrawTextLine( "vp = [%.2f, %.2f, %.2f], v = [%.2f, %.2f, %.2f], w = [%.2f, %.2f, %.2f]", vp.x, vp.y, vp.z, v.x, v.y, v.z,
-					  omega.x, omega.y, omega.z );
+		DrawTextLine( "vp = [%.2f, %.2f, %.2f], v = [%.2f, %.2f, %.2f], w = [%.2f, %.2f, %.2f]", b3FixToDouble( vp.x ),
+					  b3FixToDouble( vp.y ), b3FixToDouble( vp.z ), b3FixToDouble( v.x ), b3FixToDouble( v.y ),
+					  b3FixToDouble( v.z ), b3FixToDouble( omega.x ), b3FixToDouble( omega.y ), b3FixToDouble( omega.z ) );
 	}
 
 	void Step() override
@@ -363,15 +367,15 @@ public:
 		bodyDef.type = b3_dynamicBody;
 		bodyDef.enableSleep = false;
 
-		b3BoxHull box = b3MakeBoxHull( 1.0f, 1.0f, B3_FIX( 0.5f ) );
+		b3BoxHull box = b3MakeBoxHull( B3_FIX( 1.0f ), B3_FIX( 1.0f ), B3_FIX( 0.5f ) );
 
 		int index = 0;
 
-		float forceThreshold = 3000.0f;
-		float torqueThreshold = 10000.0f;
+		b3Fixed forceThreshold = B3_FIX( 3000.0f );
+		b3Fixed torqueThreshold = B3_FIX( 10000.0f );
 
 		b3ShapeDef shapeDef = b3DefaultShapeDef();
-		shapeDef.density = 1.0f;
+		shapeDef.density = B3_FIX( 1.0f );
 
 		// distance joint
 		{
@@ -381,9 +385,9 @@ public:
 			b3BodyId bodyId = b3CreateBody( m_worldId, &bodyDef );
 			b3CreateHullShape( bodyId, &shapeDef, &box.base );
 
-			float length = 2.0f;
-			b3Pos pivot1 = { position.x, b3FixFromFloat( position.y + 1.0f + length ), B3_FIX( 0.0f ) };
-			b3Pos pivot2 = { position.x, b3FixFromFloat( position.y + 1.0f ), B3_FIX( 0.0f ) };
+			b3Fixed length = B3_FIX( 2.0f );
+			b3Pos pivot1 = { position.x, position.y + B3_FIX( 1.0f ) + length, B3_FIX( 0.0f ) };
+			b3Pos pivot2 = { position.x, position.y + B3_FIX( 1.0f ), B3_FIX( 0.0f ) };
 			b3DistanceJointDef jointDef = b3DefaultDistanceJointDef();
 			jointDef.base.bodyIdA = groundId;
 			jointDef.base.bodyIdB = bodyId;
@@ -397,7 +401,7 @@ public:
 			m_jointIds[index] = b3CreateDistanceJoint( m_worldId, &jointDef );
 		}
 
-		position.x += 5.0f;
+		position.x += B3_FIX( 5.0f );
 		++index;
 
 		// motor joint
@@ -425,7 +429,7 @@ public:
 		m_jointIds[index] = {};
 #endif
 
-		position.x += 5.0f;
+		position.x += B3_FIX( 5.0f );
 		++index;
 
 		// prismatic joint
@@ -436,7 +440,7 @@ public:
 			b3BodyId bodyId = b3CreateBody( m_worldId, &bodyDef );
 			b3CreateHullShape( bodyId, &shapeDef, &box.base );
 
-			b3Pos pivot = { b3FixFromFloat( position.x - 1.0f ), position.y, B3_FIX( 0.0f ) };
+			b3Pos pivot = { position.x - B3_FIX( 1.0f ), position.y, B3_FIX( 0.0f ) };
 			b3PrismaticJointDef jointDef = b3DefaultPrismaticJointDef();
 			jointDef.base.bodyIdA = groundId;
 			jointDef.base.bodyIdB = bodyId;
@@ -449,7 +453,7 @@ public:
 			m_jointIds[index] = b3CreatePrismaticJoint( m_worldId, &jointDef );
 		}
 
-		position.x += 5.0f;
+		position.x += B3_FIX( 5.0f );
 		++index;
 
 		// revolute joint
@@ -460,7 +464,7 @@ public:
 			b3BodyId bodyId = b3CreateBody( m_worldId, &bodyDef );
 			b3CreateHullShape( bodyId, &shapeDef, &box.base );
 
-			b3Pos pivot = { b3FixFromFloat( position.x - 1.0f ), position.y, B3_FIX( 0.0f ) };
+			b3Pos pivot = { position.x - B3_FIX( 1.0f ), position.y, B3_FIX( 0.0f ) };
 			b3RevoluteJointDef jointDef = b3DefaultRevoluteJointDef();
 			jointDef.base.bodyIdA = groundId;
 			jointDef.base.bodyIdB = bodyId;
@@ -473,7 +477,7 @@ public:
 			m_jointIds[index] = b3CreateRevoluteJoint( m_worldId, &jointDef );
 		}
 
-		position.x += 5.0f;
+		position.x += B3_FIX( 5.0f );
 		++index;
 
 		// weld joint
@@ -484,7 +488,7 @@ public:
 			b3BodyId bodyId = b3CreateBody( m_worldId, &bodyDef );
 			b3CreateHullShape( bodyId, &shapeDef, &box.base );
 
-			b3Pos pivot = { b3FixFromFloat( position.x - 1.0f ), position.y, B3_FIX( 0.0f ) };
+			b3Pos pivot = { position.x - B3_FIX( 1.0f ), position.y, B3_FIX( 0.0f ) };
 			b3WeldJointDef jointDef = b3DefaultWeldJointDef();
 			jointDef.base.bodyIdA = groundId;
 			jointDef.base.bodyIdB = bodyId;
@@ -499,7 +503,7 @@ public:
 			m_jointIds[index] = b3CreateWeldJoint( m_worldId, &jointDef );
 		}
 
-		position.x += 5.0f;
+		position.x += B3_FIX( 5.0f );
 		++index;
 
 		// wheel joint
@@ -535,7 +539,7 @@ public:
 		m_jointIds[index] = {};
 #endif
 
-		position.x += 5.0f;
+		position.x += B3_FIX( 5.0f );
 		++index;
 	}
 
@@ -648,7 +652,7 @@ public:
 					b3Pos p2 = b3OffsetPos( p1, manifoldPoint->totalNormalImpulse * normal );
 					DrawLine( p1, p2, MakeColor( b3_colorCrimson ) );
 					DrawPoint( p1, 6.0f, MakeColor( b3_colorCrimson ) );
-					DrawString3D( p1, MakeColor( b3_colorGray ), "%.2f", manifoldPoint->totalNormalImpulse );
+					DrawString3D( p1, MakeColor( b3_colorGray ), "%.2f", b3FixToDouble( manifoldPoint->totalNormalImpulse ) );
 				}
 			}
 		}
@@ -696,14 +700,14 @@ public:
 			b3CreateHullShape( groundId, &shapeDef, &wallBox.base );
 		}
 
-		m_gridMesh = b3CreateGridMesh( 2, 2, 5.0f, 0, true );
+		m_gridMesh = b3CreateGridMesh( 2, 2, B3_FIX( 5.0f ), 0, true );
 
 		// Static sensor
 		{
 			b3BodyDef bodyDef = b3DefaultBodyDef();
 			bodyDef.name = "static sensor";
 			bodyDef.position = { B3_FIX( -4.0f ), B3_FIX( 6.0f ) };
-			bodyDef.rotation = b3MakeQuatFromAxisAngle( b3Vec3_axisZ, 0.5f * B3_PI );
+			bodyDef.rotation = b3MakeQuatFromAxisAngle( b3Vec3_axisZ, B3_PI / 2 );
 
 			b3BodyId bodyId = b3CreateBody( m_worldId, &bodyDef );
 			b3ShapeDef shapeDef = b3DefaultShapeDef();
@@ -719,7 +723,7 @@ public:
 			bodyDef.name = "kinematic sensor";
 			bodyDef.type = b3_kinematicBody;
 			bodyDef.position = { B3_FIX( 0.0f ), B3_FIX( 6.0f ) };
-			bodyDef.rotation = b3MakeQuatFromAxisAngle( b3Vec3_axisZ, 0.5f * B3_PI );
+			bodyDef.rotation = b3MakeQuatFromAxisAngle( b3Vec3_axisZ, B3_PI / 2 );
 			bodyDef.linearVelocity = { B3_FIX( 0.5f ), B3_FIX( 0.0f ) };
 
 			m_kinematicBodyId = b3CreateBody( m_worldId, &bodyDef );
@@ -787,8 +791,8 @@ public:
 		b3BodyDef bodyDef = b3DefaultBodyDef();
 		bodyDef.type = b3_dynamicBody;
 		bodyDef.position = { B3_FIX( -26.7f ), B3_FIX( 6.0f ) };
-		float speed = RandomFloatRange( 200.0f, 300.0f );
-		bodyDef.linearVelocity = { b3FixFromFloat( speed ), B3_FIX( 0.0f ) };
+		b3Fixed speed = RandomFloatRange( B3_FIX( 200.0f ), B3_FIX( 300.0f ) );
+		bodyDef.linearVelocity = { speed, B3_FIX( 0.0f ) };
 		bodyDef.isBullet = m_isBullet;
 		m_bodyId = b3CreateBody( m_worldId, &bodyDef );
 
@@ -831,21 +835,21 @@ public:
 	void Step() override
 	{
 		b3Pos p = b3Body_GetPosition( m_kinematicBodyId );
-		if ( p.x > 1.0f )
+		if ( p.x > B3_FIX( 1.0f ) )
 		{
 			b3Body_SetLinearVelocity( m_kinematicBodyId, { B3_FIX( -0.5f ), B3_FIX( 0.0f ) } );
 		}
-		else if ( p.x < -1.0f )
+		else if ( p.x < B3_FIX( -1.0f ) )
 		{
 			b3Body_SetLinearVelocity( m_kinematicBodyId, { B3_FIX( 0.5f ), B3_FIX( 0.0f ) } );
 		}
 
-		float x = b3PrismaticJoint_GetTranslation( m_jointId );
-		if ( x > 1.0f )
+		b3Fixed x = b3PrismaticJoint_GetTranslation( m_jointId );
+		if ( x > B3_FIX( 1.0f ) )
 		{
 			b3PrismaticJoint_SetMotorSpeed( m_jointId, B3_FIX( -0.5f ) );
 		}
-		else if ( x < -1.0f )
+		else if ( x < B3_FIX( -1.0f ) )
 		{
 			b3PrismaticJoint_SetMotorSpeed( m_jointId, B3_FIX( 0.5f ) );
 		}

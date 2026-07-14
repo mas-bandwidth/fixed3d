@@ -32,7 +32,7 @@ public:
 		{
 			b3BodyDef bodyDef = b3DefaultBodyDef();
 			bodyDef.type = b3_dynamicBody;
-			b3BoxHull box = b3MakeBoxHull( extent, extent, extent );
+			b3BoxHull box = b3MakeBoxHull( b3FixFromFloat( extent ), b3FixFromFloat( extent ), b3FixFromFloat( extent ) );
 			b3ShapeDef shapeDef = b3DefaultShapeDef();
 
 			for ( int j = 0; j < 3; ++j )
@@ -50,7 +50,7 @@ public:
 						bodyDef.position = { b3FixFromFloat( 2.0f * coeff * extent + offset ), b3FixFromFloat( yy ), B3_FIX( 0.0f ) };
 						b3BodyId bodyId = b3CreateBody( m_worldId, &bodyDef );
 
-						shapeDef.density = count == 1 ? ( j + 1.0f ) * 100.0f : 1.0f;
+						shapeDef.density = count == 1 ? ( j + 1 ) * B3_FIX( 100.0f ) : B3_FIX( 1.0f );
 						b3CreateHullShape( bodyId, &shapeDef, &box.base );
 					}
 
@@ -94,7 +94,7 @@ public:
 
 			b3ShapeDef shapeDef = b3DefaultShapeDef();
 
-			b3BoxHull box = b3MakeBoxHull( m_extent, m_extent, m_extent );
+			b3BoxHull box = b3MakeBoxHull( b3FixFromFloat( m_extent ), b3FixFromFloat( m_extent ), b3FixFromFloat( m_extent ) );
 
 			for ( int i = 0; i < baseCount; ++i )
 			{
@@ -165,14 +165,14 @@ public:
 			b3DestroyBody( m_bodyIds[i] );
 		}
 
-		b3World_SetContactTuning( m_worldId, m_hertz, m_dampingRatio, m_speed );
+		b3World_SetContactTuning( m_worldId, b3FixFromFloat( m_hertz ), b3FixFromFloat( m_dampingRatio ), b3FixFromFloat( m_speed ) );
 
 		b3BodyDef bodyDef = b3DefaultBodyDef();
 		bodyDef.type = b3_dynamicBody;
 
-		b3BoxHull box = b3MakeBoxHull( m_extent, m_extent, m_extent );
+		b3BoxHull box = b3MakeBoxHull( b3FixFromFloat( m_extent ), b3FixFromFloat( m_extent ), b3FixFromFloat( m_extent ) );
 		b3ShapeDef shapeDef = b3DefaultShapeDef();
-		shapeDef.density = 1.0f;
+		shapeDef.density = B3_FIX( 1.0f );
 
 		m_bodyCount = m_baseCount * ( m_baseCount + 1 ) / 2;
 		m_bodyIds = (b3BodyId*)realloc( m_bodyIds, m_bodyCount * sizeof( b3BodyId ) );
