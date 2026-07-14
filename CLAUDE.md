@@ -224,6 +224,25 @@ there is no pending working-tree state.
   is a technique, not a fixed-point advantage — ERIN.md documents it for
   backporting). If the win is ever claimed publicly again, attach the
   likely-temporary caveat.
+- **Per-sample visual A/B vs float (2026-07-14, first full visual
+  verification)**: the --capture harness ran every sample to its 120-frame end
+  state on BOTH trees — this one (100 km origin) and the pristine float
+  baseline e9f6f1d (same renderer generation, same authored cameras) — and
+  paired the PNGs by category/name. Result: 153/153 matched samples, zero
+  captures failed, zero empty/garbage frames, worst end-state divergence
+  4.3/255 mean luminance. Two real divergences, both understood: (1)
+  Stacking/Card House STANDS in float but COLLAPSES in fixed — its
+  friction/material values verified correctly converted, so this is an honest
+  equilibrium knife-edge at the Q48.16 resolution floor (same class as the
+  TestMeshDrop lore), worth a solver look someday, not a conversion bug; (2)
+  the World/Far samples diverge in fixed point's favor — at 10,000 km float's
+  pyramid shatters on its ~1 m grid while the fixed one is pristine (the
+  repo's thesis, now in pixels). Harness: sweep script + comparison sheet
+  generator live in the session scratchpad pattern (capture_sweep.sh /
+  compare_shots.py); the app-side --capture/--list-samples flags are
+  committed. The float worktree recipe: worktree at e9f6f1d, copy
+  samples/host/capture.{h,m} verbatim (sokol is byte-identical), apply the
+  same five main.cpp hooks + CMake block, build with BOX3D_SAMPLES=ON.
 - **Branding rule (2026-07-14, from Glenn)**: the public/user-facing name is
   "Fixed3D" — window title, docs prose, doxygen project, CMake descriptions /
   option help / STATUS messages, test+log banners, the fixed.h #error. The
