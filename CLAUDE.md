@@ -4,8 +4,24 @@ Box3D converted from float to Q48.16 fixed point (internal and external API).
 Baseline float code is commit e961bfb. EVERYTHING below is committed and pushed;
 there is no pending working-tree state.
 
-## Current status (as of 2026-07-13 — all work landed)
+## Current status (as of 2026-07-14 — v1.1.0, MAINTENANCE MODE)
 
+- **MAINTENANCE MODE (Glenn's direction, 2026-07-14)**: the conversion is done
+  and v1.1.0 is tagged. New feature work here is not planned. Standing duties:
+  keep CI green, port upstream box3d commits when the port routine resumes
+  (currently paused, Glenn re-enables), and keep ERIN.md current — per Glenn,
+  DOCUMENTATION IS THE ENTIRE BACKPORT LANE: findings are written up in ERIN.md
+  for upstream to cherry-pick on its own schedule; do not implement float
+  backports in any tree with upstreaming as the goal. The closure pass landed
+  2026-07-14: conversion_audit.py runs in CI (macos samples job — clang-only
+  tool, verified locally on all 102 TUs first), docs/samples.md GLFW claim
+  fixed, the two measured-and-rejected todos annotated in src (tangent2,
+  BodyState padding), stale local branches deleted (bodystate-pad-128 kept as
+  the experiment record). OPEN DECISIONS (Glenn's): docs/faq.md +
+  docs/overview.md still route bugs/feedback to erincatto/box3d channels;
+  port-routine resume timing. Someday item: the Stacking/Card House equilibrium
+  knife-edge (fixed collapses at the Q48.16 resolution floor where float
+  stands — the one honest physics divergence from the visual A/B).
 - **ALL 22 test suites pass** in Release (`./build-fixed2/bin/test`, ~1.1 s) AND
   in Debug + B3_VALIDATE + ASan/UBSan (exit 0, zero sanitizer reports). Single
   suite: `./build-fixed2/bin/test <SuiteName>`.

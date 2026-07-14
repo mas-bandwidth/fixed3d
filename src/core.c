@@ -115,7 +115,7 @@ void b3Log( const char* format, ... )
 
 b3Version b3GetVersion( void )
 {
-	return (b3Version){ 1, 0, 0 };
+	return (b3Version){ 1, 1, 0 };
 }
 
 static b3AllocFcn* b3_allocFcn = NULL;
