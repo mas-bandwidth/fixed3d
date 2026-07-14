@@ -404,10 +404,23 @@ void b3WarmStartContacts_Mesh( b3SolverBlock block, b3StepContext* context )
 // below 2^62 - nothing reaches 2^63.
 #define B3_IMPULSE_CAP_GATE ( (b3Fixed)1 << 38 )
 
-// -B3_IMPULSE_CAP_GATE < v < B3_IMPULSE_CAP_GATE as a single unsigned compare
-static inline bool b3CapOperandSafe( b3Fixed v )
+// Every operand inside [-B3_IMPULSE_CAP_GATE, B3_IMPULSE_CAP_GATE), tested
+// with one compare: bias each operand by the gate (in-range values land in
+// [0, 2^39)) and OR the results — OR never clears bits, so any out-of-range
+// operand (biased >= 2^39, or wrapped huge for very negative values) keeps a
+// bit at or above position 39 set.
+static inline bool b3CapOperandsSafe3( b3Fixed a, b3Fixed b, b3Fixed c )
 {
-	return (uint64_t)v + (uint64_t)B3_IMPULSE_CAP_GATE < 2 * (uint64_t)B3_IMPULSE_CAP_GATE;
+	uint64_t g = (uint64_t)B3_IMPULSE_CAP_GATE;
+	uint64_t o = ( (uint64_t)a + g ) | ( (uint64_t)b + g ) | ( (uint64_t)c + g );
+	return o < 2 * g;
+}
+
+static inline bool b3CapOperandsSafe4( b3Fixed a, b3Fixed b, b3Fixed c, b3Fixed d )
+{
+	uint64_t g = (uint64_t)B3_IMPULSE_CAP_GATE;
+	uint64_t o = ( (uint64_t)a + g ) | ( (uint64_t)b + g ) | ( (uint64_t)c + g ) | ( (uint64_t)d + g );
+	return o < 2 * g;
 }
 
 // Cold path for the 2D friction clamp. Exact over-cap test mirroring the hot
@@ -718,8 +731,8 @@ void b3SolveContacts_Mesh( b3SolverBlock block, b3StepContext* context, bool use
 				B3_AUDIT_FIX( b3_auditRollingCap, maxImpulse );
 				// The squared compare wraps int64 past B3_IMPULSE_CAP_GATE; the cold
 				// path is exact (see the cap-guard block above this function)
-				if ( b3CapOperandSafe( constraint->rollingImpulse.x ) && b3CapOperandSafe( constraint->rollingImpulse.y ) &&
-					 b3CapOperandSafe( constraint->rollingImpulse.z ) && b3CapOperandSafe( maxImpulse ) )
+				if ( b3CapOperandsSafe4( constraint->rollingImpulse.x, constraint->rollingImpulse.y,
+										 constraint->rollingImpulse.z, maxImpulse ) )
 				{
 					b3Fixed magSqr = b3Dot( constraint->rollingImpulse, constraint->rollingImpulse );
 					if ( magSqr > b3FixMul( maxImpulse , maxImpulse ) + B3_FIXED_EPSILON )
@@ -777,7 +790,7 @@ void b3SolveContacts_Mesh( b3SolverBlock block, b3StepContext* context, bool use
 				// Clamp the accumulated impulse. The squared compare wraps int64 past
 				// B3_IMPULSE_CAP_GATE; the cold path is exact (see the cap-guard block
 				// above this function).
-				if ( b3CapOperandSafe( newImpulse.x ) && b3CapOperandSafe( newImpulse.y ) && b3CapOperandSafe( maxImpulse ) )
+				if ( b3CapOperandsSafe3( newImpulse.x, newImpulse.y, maxImpulse ) )
 				{
 					b3Fixed lengthSquared = b3Dot2( newImpulse, newImpulse );
 					if ( lengthSquared > b3FixMul( maxImpulse , maxImpulse ) )
@@ -1432,16 +1445,40 @@ static inline bool b3AllZeroW( b3FloatW a )
 #endif
 }
 
-// true when every lane is inside (-B3_IMPULSE_CAP_GATE, B3_IMPULSE_CAP_GATE),
-// so the impulse-cap clamps may run their 64-bit hot path (see the cap-guard
-// block above b3SolveContacts_Mesh)
-static inline bool b3CapOperandSafeW( b3FloatW a )
+// true when every lane of every operand vector is inside the cap gate, so the
+// impulse-cap clamps may run their 64-bit hot path (see the cap-guard block
+// above b3SolveContacts_Mesh). Same bias-and-OR fold as the scalar helpers:
+// one compare for the whole gate.
+static inline bool b3CapOperandsSafeW3( b3FloatW a, b3FloatW b, b3FloatW c )
 {
 #if defined( B3_SIMD_AVX512 )
-	__m256i biased = _mm256_add_epi64( a.v, _mm256_set1_epi64x( B3_IMPULSE_CAP_GATE ) );
-	return _mm256_cmp_epu64_mask( biased, _mm256_set1_epi64x( 2 * B3_IMPULSE_CAP_GATE ), _MM_CMPINT_LT ) == 0xF;
+	__m256i g = _mm256_set1_epi64x( B3_IMPULSE_CAP_GATE );
+	__m256i o = _mm256_or_si256( _mm256_add_epi64( a.v, g ),
+								 _mm256_or_si256( _mm256_add_epi64( b.v, g ), _mm256_add_epi64( c.v, g ) ) );
+	return _mm256_cmp_epu64_mask( o, _mm256_set1_epi64x( 2 * B3_IMPULSE_CAP_GATE ), _MM_CMPINT_LT ) == 0xF;
 #else
-	return b3CapOperandSafe( a.x ) && b3CapOperandSafe( a.y ) && b3CapOperandSafe( a.z ) && b3CapOperandSafe( a.w );
+	uint64_t g = (uint64_t)B3_IMPULSE_CAP_GATE;
+	uint64_t o = ( ( (uint64_t)a.x + g ) | ( (uint64_t)a.y + g ) | ( (uint64_t)a.z + g ) | ( (uint64_t)a.w + g ) ) |
+				 ( ( (uint64_t)b.x + g ) | ( (uint64_t)b.y + g ) | ( (uint64_t)b.z + g ) | ( (uint64_t)b.w + g ) ) |
+				 ( ( (uint64_t)c.x + g ) | ( (uint64_t)c.y + g ) | ( (uint64_t)c.z + g ) | ( (uint64_t)c.w + g ) );
+	return o < 2 * g;
+#endif
+}
+
+static inline bool b3CapOperandsSafeW4( b3FloatW a, b3FloatW b, b3FloatW c, b3FloatW d )
+{
+#if defined( B3_SIMD_AVX512 )
+	__m256i g = _mm256_set1_epi64x( B3_IMPULSE_CAP_GATE );
+	__m256i o = _mm256_or_si256( _mm256_or_si256( _mm256_add_epi64( a.v, g ), _mm256_add_epi64( b.v, g ) ),
+								 _mm256_or_si256( _mm256_add_epi64( c.v, g ), _mm256_add_epi64( d.v, g ) ) );
+	return _mm256_cmp_epu64_mask( o, _mm256_set1_epi64x( 2 * B3_IMPULSE_CAP_GATE ), _MM_CMPINT_LT ) == 0xF;
+#else
+	uint64_t g = (uint64_t)B3_IMPULSE_CAP_GATE;
+	uint64_t o = ( ( (uint64_t)a.x + g ) | ( (uint64_t)a.y + g ) | ( (uint64_t)a.z + g ) | ( (uint64_t)a.w + g ) ) |
+				 ( ( (uint64_t)b.x + g ) | ( (uint64_t)b.y + g ) | ( (uint64_t)b.z + g ) | ( (uint64_t)b.w + g ) ) |
+				 ( ( (uint64_t)c.x + g ) | ( (uint64_t)c.y + g ) | ( (uint64_t)c.z + g ) | ( (uint64_t)c.w + g ) ) |
+				 ( ( (uint64_t)d.x + g ) | ( (uint64_t)d.y + g ) | ( (uint64_t)d.z + g ) | ( (uint64_t)d.w + g ) );
+	return o < 2 * g;
 #endif
 }
 
@@ -3398,8 +3435,7 @@ void b3SolveContacts_Convex( b3SolverBlock block, b3StepContext* context, bool u
 				// The squared compare wraps int64 past B3_IMPULSE_CAP_GATE; the cold
 				// path is exact (see the cap-guard block above b3SolveContacts_Mesh)
 				b3FloatW mask, normalize;
-				if ( b3CapOperandSafeW( c->rollingImpulse.X ) && b3CapOperandSafeW( c->rollingImpulse.Y ) &&
-					 b3CapOperandSafeW( c->rollingImpulse.Z ) && b3CapOperandSafeW( maxImpulse ) )
+				if ( b3CapOperandsSafeW4( c->rollingImpulse.X, c->rollingImpulse.Y, c->rollingImpulse.Z, maxImpulse ) )
 				{
 					b3FloatW lengthSquared = b3DotW( c->rollingImpulse, c->rollingImpulse );
 					mask = b3GreaterThanW( lengthSquared, b3MulAddW( epsilonW, maxImpulse, maxImpulse ) );
@@ -3468,7 +3504,7 @@ void b3SolveContacts_Convex( b3SolverBlock block, b3StepContext* context, bool u
 				// B3_IMPULSE_CAP_GATE; the cold path is exact (see the cap-guard block
 				// above b3SolveContacts_Mesh).
 				b3FloatW mask, normalize;
-				if ( b3CapOperandSafeW( newImpulse.x ) && b3CapOperandSafeW( newImpulse.y ) && b3CapOperandSafeW( maxImpulse ) )
+				if ( b3CapOperandsSafeW3( newImpulse.x, newImpulse.y, maxImpulse ) )
 				{
 					b3FloatW lengthSquared = b3AddW( b3MulW( newImpulse.x, newImpulse.x ), b3MulW( newImpulse.y, newImpulse.y ) );
 
@@ -4242,8 +4278,7 @@ void b3SolveContacts_MeshWide( b3SolverBlock block, b3StepContext* context, bool
 				// The squared compare wraps int64 past B3_IMPULSE_CAP_GATE; the cold
 				// path is exact (see the cap-guard block above b3SolveContacts_Mesh)
 				b3FloatW clampMask, scale;
-				if ( b3CapOperandSafeW( rollingImpulse.X ) && b3CapOperandSafeW( rollingImpulse.Y ) &&
-					 b3CapOperandSafeW( rollingImpulse.Z ) && b3CapOperandSafeW( maxImpulse ) )
+				if ( b3CapOperandsSafeW4( rollingImpulse.X, rollingImpulse.Y, rollingImpulse.Z, maxImpulse ) )
 				{
 					b3FloatW magSqr = b3DotW( rollingImpulse, rollingImpulse );
 					clampMask = b3GreaterThanW( magSqr, b3AddW( b3MulW( maxImpulse, maxImpulse ), epsilonW ) );
@@ -4295,7 +4330,7 @@ void b3SolveContacts_MeshWide( b3SolverBlock block, b3StepContext* context, bool
 				// squared compare wraps int64 past B3_IMPULSE_CAP_GATE; the cold path
 				// is exact (see the cap-guard block above b3SolveContacts_Mesh).
 				b3FloatW clampMask, scale;
-				if ( b3CapOperandSafeW( newImpulse.x ) && b3CapOperandSafeW( newImpulse.y ) && b3CapOperandSafeW( maxImpulse ) )
+				if ( b3CapOperandsSafeW3( newImpulse.x, newImpulse.y, maxImpulse ) )
 				{
 					b3FloatW lengthSquared = b3AddW( b3MulW( newImpulse.x, newImpulse.x ), b3MulW( newImpulse.y, newImpulse.y ) );
 					clampMask = b3GreaterThanW( lengthSquared, b3MulW( maxImpulse, maxImpulse ) );
