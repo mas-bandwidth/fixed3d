@@ -84,6 +84,35 @@ there is no pending working-tree state.
   removed the TOI canaries; the cap fix removes the garbage velocities that
   caused the burn, and the root finder gained an outcome-identical stall
   early-out).
+- **Int→b3Fixed classes added to conversion_audit.py (2026-07-14), two real
+  finds fixed**: a parallel session's independent samples cast audit
+  (this branch) converged with conversion_audit.py landing on main; the
+  tools were consolidated instead of duplicated. conversion_audit.py now
+  ALSO flags implicit int → b3Fixed conversions (nonzero literals and
+  int-typed variables — `hertz = 5` widens warning-free but means 5 raw
+  ulps), with the idiomatic integer-scaling contexts (`2 * fixed`,
+  `x / 4`, `r /= N`) suppressed via parent context so the signal stays
+  clean. The int classes are scoped to CONSUMER code
+  (samples/shared/test/benchmark, INT_CLASS_DIRS in the script) — the
+  engine legitimately works in raw ulps (narrow int32 Q16.16 storage
+  widening exactly to int64 lanes, int counts in b3Fixed lane slots,
+  mesh.c's deliberate 1-ULP minArea floor), and those six audited sites
+  are all sanctioned. The float classes audited CLEAN across all 51 samples+shared TUs
+  (the merged fix passes really did get them); the int class found the
+  only two real bugs, both fixed on this branch: sample_character.cpp's
+  positional material initializers put int literals 1/2 into
+  rollingResistance (float upstream compiles 1.0f/2.0f, fixed truncated
+  to 1-2 raw ulps — parity restored with B3_FIX; the literals look like
+  userMaterialIds, upstream quirk noted in ERIN.md "Small stuff"), and
+  shared/overflow_color.c called b3FixDiv( angle, OVERFLOW_PILE_PER_RING )
+  with the plain INT macro as divisor (rule-8 mixup: both ring angles
+  65536x too big, pile placement pseudo-random, the staggered-ring
+  comment was a lie) — fixed to native `/` integer scaling. Verified:
+  full suite green in RelWithDebInfo; Debug+VALIDATE+ASan/UBSan WorldTest
+  green (TestOverflowColorPile still populates the overflow color with
+  the corrected placement — it asserts overflowContacts > 0, no goldens);
+  Release samples build green; all four Character samples +
+  Robustness/OverflowColorPile run 240 headless frames exit 0.
 - **Docs consistency pass (2026-07-13, after Glenn's README slim-down)**:
   docs/ was still the vanilla float manual. All ~114 float literals in
   example code are now B3_FIX-wrapped (plus float→b3Fixed declarations,

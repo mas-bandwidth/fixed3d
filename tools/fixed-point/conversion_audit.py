@@ -18,6 +18,18 @@ Warnings are value-based; the convention is type-based: b3Fixed must cross to
 float via b3FixToFloat/b3FixToDouble and back via b3FixFromFloat/B3_FIX, so
 EVERY implicit conversion between the two type families is a finding.
 
+Also finds implicit int -> b3Fixed conversions (nonzero literals and int-typed
+variables), which widen warning-free but mean raw ulps: `hertz = 5` is 5/65536.
+Idiomatic integer scaling (`2 * fixedValue`, `x / 4`, `r /= N`) is suppressed
+via parent context, so `b3FixDiv( x, SOME_INT_MACRO )` — the rule-8 mixup —
+still surfaces as the macro literal converting at the b3Fixed parameter. These
+classes are scoped to consumer code (samples/shared/test/benchmark, see
+INT_CLASS_DIRS) because the engine legitimately works in raw ulps. They found
+sample_character.cpp's material ids compiled into rollingResistance (1-2 raw
+ulps; float upstream gets 1.0/2.0) and overflow_color.c's
+b3FixDiv( angle, OVERFLOW_PILE_PER_RING ) 65536x ring-angle blowup after every
+float class already swept clean (2026-07-14).
+
 Usage:
   conversion_audit.py [--db <compile_commands.json>] [--all]
 
@@ -31,6 +43,12 @@ from collections import defaultdict
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 OUR_DIRS = [os.path.join(ROOT, d) for d in ("src", "include/box3d", "test", "shared", "benchmark", "samples")]
+# The int->b3Fixed classes only apply where the strict conversion convention
+# holds. Engine code (src/) legitimately works in raw ulps: narrow int32
+# Q16.16 storage widening exactly to int64 lanes (b3WidenVW, b3Vec3WN loads),
+# int counts stored in b3Fixed lane slots (manifoldCounts), deliberate 1-ULP
+# floors (mesh.c minArea). Consumer code has no such idioms.
+INT_CLASS_DIRS = [os.path.join(ROOT, d) for d in ("test", "shared", "benchmark", "samples")]
 # fixed.h implements the sanctioned converters; verstable keeps internal floats
 # by design; the dump inl is generated data audited separately.
 EXCLUDE_FILES = {os.path.join(ROOT, "src/verstable.h"),
@@ -132,6 +150,23 @@ def is_floating_type(q):
 report = []
 stats = defaultdict(int)
 
+def deep_inner(n):
+    """Descend through parens and cast wrappers to the operative source expr."""
+    while n.get("kind") in ("ParenExpr", "ConstantExpr", "ExprWithCleanups",
+                            "MaterializeTemporaryExpr", "ImplicitCastExpr") and n.get("inner"):
+        n = n["inner"][0]
+    return n
+
+def int_literal_value(n):
+    """The literal's value if n is a (possibly negated) IntegerLiteral, else None."""
+    neg = ""
+    if n.get("kind") == "UnaryOperator" and n.get("opcode") == "-" and n.get("inner"):
+        neg = "-"
+        n = deep_inner(n["inner"][0])
+    if n.get("kind") == "IntegerLiteral":
+        return neg + n.get("value", "?")
+    return None
+
 def first_expr_child(n):
     for c in n.get("inner", []):
         if isinstance(c, dict) and c.get("kind", "").endswith(("Expr", "Literal", "Operator", "CallExpr")):
@@ -146,9 +181,12 @@ def spelling_file(n):
     sp = (r.get("begin") or {}).get("__spell")
     return sp[0] if sp else None
 
-def add_finding(n, category):
+def add_finding(n, category, dirs=None):
     f, so, end = node_span(n)
     if not is_ours(f):
+        return
+    if dirs is not None and not any(
+            os.path.normpath(f).startswith(d + os.sep) for d in dirs):
         return
     # Skip casts whose tokens are spelled inside excluded files (the B3_FIX /
     # b3FixFromFloat machinery in fixed.h expands an explicit cast at every
@@ -159,14 +197,20 @@ def add_finding(n, category):
     report.append((f, lineno(f, so), category, snippet(f, so, end)))
     stats[category] += 1
 
-def collect(n):
+def collect(n, scale_ctx=False):
     if isinstance(n, list):
         for c in n:
-            collect(c)
+            collect(c, scale_ctx)
         return
     if not isinstance(n, dict):
         return
     kind = n.get("kind")
+
+    # Integer scaling (`2 * fixedValue`, `x / 4`, `r /= N`) is idiomatic and
+    # correct: suppress the int->b3Fixed classes for casts feeding a mul/div.
+    child_scale = (kind in ("BinaryOperator", "CompoundAssignOperator")
+                   and n.get("opcode") in ("*", "/", "*=", "/="))
+    keep_scale = scale_ctx and kind in ("ParenExpr", "ConstantExpr", "ImplicitCastExpr")
 
     if kind == "ImplicitCastExpr":
         ck = n.get("castKind")
@@ -174,6 +218,17 @@ def collect(n):
             add_finding(n, "float->b3Fixed (implicit, raw truncation)")
         elif ck == "IntegralToFloating" and is_fixed_type(qual(first_expr_child(n))):
             add_finding(n, "b3Fixed->float (implicit, raw read)")
+        elif ck == "IntegralCast" and is_fixed_type(qual(n)) and not scale_ctx \
+                and not n.get("isPartOfExplicitCast"):
+            srcn = deep_inner(first_expr_child(n))
+            if not is_fixed_type(qual(srcn)):
+                lit = int_literal_value(srcn)
+                if lit is not None:
+                    if lit not in ("0", "-0"):
+                        add_finding(n, f"int literal {lit}->b3Fixed (implicit, {lit} raw ulps)",
+                                    dirs=INT_CLASS_DIRS)
+                else:
+                    add_finding(n, "int->b3Fixed (implicit, raw ulps)", dirs=INT_CLASS_DIRS)
     elif kind in ("CStyleCastExpr", "CXXStaticCastExpr", "CXXFunctionalCastExpr"):
         ck = n.get("castKind")
         if ck == "FloatingToIntegral" and is_fixed_type(qual(n)):
@@ -185,7 +240,7 @@ def collect(n):
         if k in ("loc", "range"):
             continue
         if isinstance(v, (dict, list)):
-            collect(v)
+            collect(v, child_scale or keep_scale)
 
 def main():
     db = os.path.join(ROOT, "build-samples", "compile_commands.json")
