@@ -237,12 +237,16 @@ there is no pending working-tree state.
   TestMeshDrop lore), worth a solver look someday, not a conversion bug; (2)
   the World/Far samples diverge in fixed point's favor — at 10,000 km float's
   pyramid shatters on its ~1 m grid while the fixed one is pristine (the
-  repo's thesis, now in pixels). Harness: sweep script + comparison sheet
-  generator live in the session scratchpad pattern (capture_sweep.sh /
-  compare_shots.py); the app-side --capture/--list-samples flags are
-  committed. The float worktree recipe: worktree at e9f6f1d, copy
-  samples/host/capture.{h,m} verbatim (sokol is byte-identical), apply the
-  same five main.cpp hooks + CMake block, build with BOX3D_SAMPLES=ON.
+  repo's thesis, now in pixels). Harness: COMMITTED in tools/capture/
+  (capture_sweep.sh, compare_shots.py — needs Pillow, README has the full
+  recipe), alongside float-baseline-capture-hooks.patch, the float-side port
+  of the capture hooks (applies to e9f6f1d; rescued 2026-07-14 from the
+  session scratchpad where it was the only copy). The app-side
+  --capture/--list-samples/--headless flags are committed. Float worktree
+  recipe: worktree at e9f6f1d, apply the patch, copy
+  samples/host/capture.{h,m} verbatim (byte-identical on both trees), build
+  with BOX3D_SAMPLES=ON. The reviewed contact sheet + raw shot PNGs (~760 MB)
+  were NOT committed — regenerable from the harness in ~30 min.
 - **Branding rule (2026-07-14, from Glenn)**: the public/user-facing name is
   "Fixed3D" — window title, docs prose, doxygen project, CMake descriptions /
   option help / STATUS messages, test+log banners, the fixed.h #error. The
