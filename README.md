@@ -59,8 +59,9 @@ Probably not. Check what you actually need against what vanilla Box3D
 already does:
 
 - **Determinism?** Vanilla Box3D is already deterministic in floating point across platforms.
-  The only argument that can be made against Box3D determinism is that it's an *unstable equilibrium*
-  maintained with constant dilligence, whereas Fixed3D has stable equilibrium determinism across platforms. 
+  The only argument that can be made against Box3D determinism is that floating point determinism
+  across different platforms is in *unstable equilibrium*, while fixed point determinism across
+  different platforms (like x64 and ARM) is stable and always works.
 
 - **A big world?** Vanilla Box3D already handles a 20,000 km cubed world
   with just ~1M of broadphase padding at 10,000km from origin, and its double
