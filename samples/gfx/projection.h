@@ -22,7 +22,8 @@
 static inline bool ProjectWorldToScreen( Mat4 view, Mat4 proj, int viewportW, int viewportH, b3Vec3 worldPos, float* outScreenX,
 										 float* outScreenY )
 {
-	Vec4 world = MakeVec4( worldPos.x, worldPos.y, worldPos.z, 1.0f );
+	// worldPos is eye-relative fixed point; cross to float by value.
+	Vec4 world = MakeVec4FromFixed( worldPos.x, worldPos.y, worldPos.z, 1.0f );
 	Vec4 viewP = MulMV4( view, world );
 	Vec4 clip = MulMV4( proj, viewP );
 

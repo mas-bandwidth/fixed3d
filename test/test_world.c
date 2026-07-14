@@ -14,9 +14,9 @@
 #include <stdio.h>
 
 // This is a simple example of building and running a simulation
-// using Box3D. Here we create a large ground box and a small dynamic
+// using Fixed3D. Here we create a large ground box and a small dynamic
 // box.
-// There are no graphics for this example. Box3D is meant to be used
+// There are no graphics for this example. Fixed3D is meant to be used
 // with your rendering engine in your game engine.
 int HelloWorld( void )
 {

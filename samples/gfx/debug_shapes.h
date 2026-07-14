@@ -1,11 +1,11 @@
 // SPDX-FileCopyrightText: 2026 Erin Catto
 // SPDX-License-Identifier: MIT
 
-// Box3D -> gfx geometry-registry bridge for shapes with intrinsic
+// Fixed3D -> gfx geometry-registry bridge for shapes with intrinsic
 // topology (hulls, triangle meshes, heightfields).
 //
 // Each Acquire* function checks the registry for an existing entry under
-// the Box3D struct's `hash` field (computed by Box3D at construction) and,
+// the Fixed3D struct's `hash` field (computed by Fixed3D at construction) and,
 // on miss, builds a flat-shaded triangle list and registers it. On hit
 // the existing entry's refcount is bumped. Symmetric Release* via the
 // returned MeshHandle goes through ReleaseMeshReference directly.
@@ -15,7 +15,7 @@
 // of the rasterizer without any extra shader logic. This costs ~3x the
 // vertex memory of a deduplicated mesh, acceptable at this scale.
 //
-// Builders run from createDebugShape callbacks (Box3D path). They are NOT hot-path,
+// Builders run from createDebugShape callbacks (Fixed3D path). They are NOT hot-path,
 // running once per distinct geometry per renderer session, so transient build
 // buffers use malloc/free rather than the frame arena.
 
@@ -29,7 +29,7 @@ extern "C"
 {
 #endif
 
-// Acquire a registry handle for the given Box3D hull. Returns an invalid
+// Acquire a registry handle for the given Fixed3D hull. Returns an invalid
 // handle on registry-full or zero hash. The caller owns one refcount. Pair
 // each Acquire with a single ReleaseMeshReference when the consumer goes away.
 MeshHandle FindOrAddHull( const b3HullData* hull );

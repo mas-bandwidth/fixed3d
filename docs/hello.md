@@ -1,17 +1,17 @@
-# Hello Box3D {#hello}
-The Box3D distribution includes a Hello World unit test written in C. The test
+# Hello Fixed3D {#hello}
+The Fixed3D distribution includes a Hello World unit test written in C. The test
 creates a large static ground box and a small dynamic box. This code does not
 contain any graphics. All you will see is text output in the console showing
 the box's position over time.
 
-This is a good example of how to get up and running with Box3D.
+This is a good example of how to get up and running with Fixed3D.
 
 ## Creating a World
-Every Box3D program begins with the creation of a world object.
+Every Fixed3D program begins with the creation of a world object.
 The world is the physics hub that manages memory, objects, and simulation.
 The world is represented by an opaque handle called `b3WorldId`.
 
-It is easy to create a Box3D world. First, create the world definition:
+It is easy to create a Fixed3D world. First, create the world definition:
 
 ```c
 b3WorldDef worldDef = b3DefaultWorldDef();
@@ -21,8 +21,8 @@ The world definition is a temporary object you can create on the stack. The func
 `b3DefaultWorldDef()` populates the world definition with default values. This is necessary
 because C does not have constructors and zero-initializing `b3WorldDef` is not appropriate.
 
-Box3D has no built-in concept of *up*. The gravity vector is a `b3Vec3` and can point in
-any direction. Convention in Box3D examples uses +Y as the up axis. The default gravity
+Fixed3D has no built-in concept of *up*. The gravity vector is a `b3Vec3` and can point in
+any direction. Convention in Fixed3D examples uses +Y as the up axis. The default gravity
 is already `{0, -10, 0}`, but it can be set explicitly:
 
 ```c
@@ -68,7 +68,7 @@ b3BodyId groundId = b3CreateBody(worldId, &groundBodyDef);
 Notice that `worldId` is passed by value. Ids are small structures and are always passed
 by value.
 
-For steps 3 and 4, build a box hull and attach it. Box3D uses convex hulls for box
+For steps 3 and 4, build a box hull and attach it. Fixed3D uses convex hulls for box
 shapes. The `b3MakeBoxHull` helper takes three **half-extents** (hx, hy, hz), so the
 ground slab below is 100 units wide in X, 20 units tall in Y, and 100 units deep in Z:
 
@@ -79,11 +79,11 @@ b3ShapeDef groundShapeDef = b3DefaultShapeDef();
 b3CreateHullShape(groundId, &groundShapeDef, &groundBox.base);
 ```
 
-The `.base` field holds the `b3HullData` that `b3CreateHullShape` expects. Box3D copies
+The `.base` field holds the `b3HullData` that `b3CreateHullShape` expects. Fixed3D copies
 the hull data into a shared internal database, so `groundBox` does not need to outlive
 the call. Do not call `b3DestroyHull` on a `b3BoxHull`; it is stack-allocated.
 
-Box3D is tuned for meters, kilograms, and seconds, so the extents above are in meters.
+Fixed3D is tuned for meters, kilograms, and seconds, so the extents above are in meters.
 The engine works best when objects are sized like real-world objects (a barrel is roughly
 1 m tall). Simulating glaciers or dust particles would push the limits of the fixed-point
 resolution (1/65536 of a meter).
@@ -129,7 +129,7 @@ three axes, equivalent to `b3MakeBoxHull(r, r, r)`.
 That completes initialization. We are now ready to simulate.
 
 ## Simulating the World
-Box3D uses a numerical integrator that advances the simulation by discrete time steps.
+Fixed3D uses a numerical integrator that advances the simulation by discrete time steps.
 A fixed time step of 1/60 seconds (60 Hz) is recommended for most games. Avoid tying
 the time step to your frame rate; a variable time step produces variable results that
 are hard to debug.
@@ -138,7 +138,7 @@ are hard to debug.
 b3Fixed timeStep = B3_FIX( 1.0f / 60.0f );
 ```
 
-In addition to integration, Box3D uses a constraint solver. Box3D advances through the
+In addition to integration, Fixed3D uses a constraint solver. Fixed3D advances through the
 time step in several *sub-steps*, giving each constraint multiple chances to react. Four
 sub-steps is the suggested value:
 
@@ -203,9 +203,9 @@ For advice on managing a fixed simulation rate alongside a variable render rate,
 [Fix Your Timestep!](https://gafferongames.com/post/fix_your_timestep/).
 
 ## Multithreading (optional)
-By default Box3D runs single-threaded. The `b3DefaultWorldDef` leaves `workerCount`
+By default Fixed3D runs single-threaded. The `b3DefaultWorldDef` leaves `workerCount`
 at 1 and the task callbacks null, which is fine for getting started. When performance
-matters, Box3D can drive a task system. Supply `workerCount` plus `enqueueTask`,
+matters, Fixed3D can drive a task system. Supply `workerCount` plus `enqueueTask`,
 `finishTask`, and `userTaskContext` on the world definition before calling
 `b3CreateWorld`. See the Foundations page for details.
 

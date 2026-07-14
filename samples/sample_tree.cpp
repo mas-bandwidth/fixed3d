@@ -50,7 +50,7 @@ public:
 	{
 		if ( context->restart == false )
 		{
-			m_camera->SetView( 45.0f, 45.0f, 250.0f, b3Pos_zero );
+			m_camera->SetView( 45.0f, 45.0f, 250.0f, SampleOrigin() );
 		}
 
 		m_fileNames[0] = { "bounds01" };
@@ -155,7 +155,7 @@ public:
 		constexpr int bufferSize = 512;
 		char buffer[bufferSize];
 
-		int maxArea = 0.0f;
+		b3Fixed maxArea = 0;
 		int maxAreaIndex = -1;
 		uint64_t key = 0;
 
@@ -184,24 +184,27 @@ public:
 
 			if ( zUp )
 			{
-				rec.aabb.lowerBound.x = scale * b1;
-				rec.aabb.lowerBound.y = scale * b3;
-				rec.aabb.lowerBound.z = scale * b2;
-				rec.aabb.upperBound.x = scale * b4;
-				rec.aabb.upperBound.y = scale * b6;
-				rec.aabb.upperBound.z = scale * b5;
+				rec.aabb.lowerBound.x = b3FixFromFloat( scale * b1 );
+				rec.aabb.lowerBound.y = b3FixFromFloat( scale * b3 );
+				rec.aabb.lowerBound.z = b3FixFromFloat( scale * b2 );
+				rec.aabb.upperBound.x = b3FixFromFloat( scale * b4 );
+				rec.aabb.upperBound.y = b3FixFromFloat( scale * b6 );
+				rec.aabb.upperBound.z = b3FixFromFloat( scale * b5 );
 			}
 			else
 			{
-				rec.aabb.lowerBound.x = scale * b1;
-				rec.aabb.lowerBound.y = scale * b2;
-				rec.aabb.lowerBound.z = scale * b3;
-				rec.aabb.upperBound.x = scale * b4;
-				rec.aabb.upperBound.y = scale * b5;
-				rec.aabb.upperBound.z = scale * b6;
+				rec.aabb.lowerBound.x = b3FixFromFloat( scale * b1 );
+				rec.aabb.lowerBound.y = b3FixFromFloat( scale * b2 );
+				rec.aabb.lowerBound.z = b3FixFromFloat( scale * b3 );
+				rec.aabb.upperBound.x = b3FixFromFloat( scale * b4 );
+				rec.aabb.upperBound.y = b3FixFromFloat( scale * b5 );
+				rec.aabb.upperBound.z = b3FixFromFloat( scale * b6 );
 			}
 
-			float area = b3AABB_Area( rec.aabb );
+			// File bounds are authored local coordinates; place them at the sample origin.
+			rec.aabb = b3OffsetAABB( rec.aabb, SampleOrigin() );
+
+			b3Fixed area = b3AABB_Area( rec.aabb );
 			if ( area > maxArea )
 			{
 				maxArea = area;
@@ -231,9 +234,9 @@ public:
 			m_proxies[i].rayTimeStamp = 0;
 		}
 
-		m_buildTime = b3GetMilliseconds( ticks );
+		m_buildTime = b3FixToFloat( b3GetMilliseconds( ticks ) );
 		b3DynamicTree_Validate( &m_tree );
-		m_areaRatio = b3DynamicTree_GetAreaRatio( &m_tree );
+		m_areaRatio = b3FixToFloat( b3DynamicTree_GetAreaRatio( &m_tree ) );
 
 		m_height = ComputeDepths();
 		m_drawLevel = -1;
@@ -253,13 +256,13 @@ public:
 
 		{
 			//bool zUp = true;
-			m_tree = b3DynamicTree_Load( m_saveFileName, m_loadScale );
+			m_tree = b3DynamicTree_Load( m_saveFileName, b3FixFromFloat( m_loadScale ) );
 		}
 
 		constexpr int bufferSize = 512;
 		char buffer[bufferSize];
 
-		int maxArea = 0.0f;
+		b3Fixed maxArea = 0;
 		int maxAreaIndex = -1;
 
 		for ( int i = 0; i < m_tree.nodeCapacity; ++i )
@@ -276,7 +279,7 @@ public:
 			Proxy proxy = {};
 			proxy.aabb = node->aabb;
 
-			float area = b3AABB_Area( proxy.aabb );
+			b3Fixed area = b3AABB_Area( proxy.aabb );
 			if ( area > maxArea )
 			{
 				maxArea = area;
@@ -293,7 +296,7 @@ public:
 
 		m_buildTime = 0.0f;
 		b3DynamicTree_Validate( &m_tree );
-		m_areaRatio = b3DynamicTree_GetAreaRatio( &m_tree );
+		m_areaRatio = b3FixToFloat( b3DynamicTree_GetAreaRatio( &m_tree ) );
 
 		m_height = ComputeDepths();
 		m_drawLevel = -1;
@@ -343,7 +346,7 @@ public:
 
 		b3AABB bounds = m_tree.nodes[m_tree.root].aabb;
 		b3Vec3 extents = b3AABB_Extents( bounds );
-		float radius = ( extents.x + extents.y + extents.z ) / 3.0f;
+		b3Fixed radius = ( extents.x + extents.y + extents.z ) / 3;
 
 		for ( int i = 0; i < m_testCount; ++i )
 		{
@@ -352,7 +355,7 @@ public:
 			b3Vec3 end = RandomVec3( bounds.lowerBound, bounds.upperBound );
 			m_rays[i].translation = end - m_rays[i].origin;
 
-			float s = RandomFloatRange( B3_FIX( 0.01f ), B3_FIX( 0.2f ) );
+			b3Fixed s = RandomFloatRange( B3_FIX( 0.01f ), B3_FIX( 0.2f ) );
 			b3Vec3 c = RandomVec3( bounds.lowerBound, bounds.upperBound );
 			b3Vec3 p1 = c - s * extents;
 			b3Vec3 p2 = c + s * extents;
@@ -362,7 +365,7 @@ public:
 
 			m_closestPointQueries[i] = {
 				.center = c,
-				.radius = b3FixFromFloat( s * radius ),
+				.radius = b3FixMul( s, radius ),
 			};
 		}
 	}
@@ -377,13 +380,13 @@ public:
 
 			b3DynamicTree_RayCast( &m_tree, &input, B3_DEFAULT_MASK_BITS, false, RayCallback, this );
 		}
-		m_rayTime = b3GetMillisecondsAndReset( &ticks );
+		m_rayTime = b3FixToFloat( b3GetMillisecondsAndReset( &ticks ) );
 
 		for ( int i = 0; i < m_testCount; ++i )
 		{
 			b3DynamicTree_Query( &m_tree, m_overlapQueries[i], B3_DEFAULT_MASK_BITS, false, QueryCallback, this );
 		}
-		m_overlapTime = b3GetMilliseconds( ticks );
+		m_overlapTime = b3FixToFloat( b3GetMilliseconds( ticks ) );
 
 		for ( int i = 0; i < m_testCount; ++i )
 		{
@@ -396,7 +399,7 @@ public:
 										&distanceSquared );
 		}
 
-		m_closestTime = b3GetMilliseconds( ticks );
+		m_closestTime = b3FixToFloat( b3GetMilliseconds( ticks ) );
 	}
 
 	bool HasSolverControls() const override
@@ -422,8 +425,8 @@ public:
 		{
 			uint64_t ticks = b3GetTicks();
 			b3DynamicTree_Rebuild( &m_tree, true );
-			m_buildTime = b3GetMilliseconds( ticks );
-			m_areaRatio = b3DynamicTree_GetAreaRatio( &m_tree );
+			m_buildTime = b3FixToFloat( b3GetMilliseconds( ticks ) );
+			m_areaRatio = b3FixToFloat( b3DynamicTree_GetAreaRatio( &m_tree ) );
 			m_height = ComputeDepths();
 		}
 
@@ -461,11 +464,12 @@ public:
 	{
 		Sample::Render();
 
-		DrawAxes( b3WorldTransform_identity, 2.0f );
+		b3WorldTransform originTransform = { SampleOrigin(), b3Quat_identity };
+		DrawAxes( originTransform, 2.0f );
 
 		b3Pos cp = m_camera->DrawOrigin();
 		b3TreeNode* nodes = m_tree.nodes;
-		float distSquared = m_drawDistance * m_drawDistance * 1000.0f * 1000.0f;
+		b3Fixed distSquared = b3FixFromFloat( m_drawDistance * m_drawDistance * 1000.0f * 1000.0f );
 
 		if ( m_drawLevel >= 0 )
 		{

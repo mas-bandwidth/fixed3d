@@ -155,7 +155,7 @@ B3_API void b3World_SetCustomFilterCallback( b3WorldId worldId, b3CustomFilterFc
 /// Register the pre-solve callback. This is optional.
 B3_API void b3World_SetPreSolveCallback( b3WorldId worldId, b3PreSolveFcn* fcn, void* context );
 
-/// Set the gravity vector for the entire world. Box3D has no concept of an up direction and this
+/// Set the gravity vector for the entire world. Fixed3D has no concept of an up direction and this
 /// is left as a decision for the application. Usually in m/s^2.
 /// @see b3WorldDef
 B3_API void b3World_SetGravity( b3WorldId worldId, b3Vec3 gravity );
@@ -962,7 +962,7 @@ B3_API void b3Shape_SetMesh( b3ShapeId shapeId, const b3MeshData* meshData, b3Ve
 B3_API int b3Shape_GetContactCapacity( b3ShapeId shapeId );
 
 /// Get the touching contact data for a shape. The provided shapeId will be either shapeIdA or shapeIdB on the contact data.
-/// @note Box3D uses speculative collision so some contact points may be separated.
+/// @note Fixed3D uses speculative collision so some contact points may be separated.
 /// @returns the number of elements filled in the provided array
 /// @warning do not ignore the return value, it specifies the valid number of elements
 B3_API int b3Shape_GetContactData( b3ShapeId shapeId, b3ContactData* contactData, int capacity );

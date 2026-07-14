@@ -22,20 +22,25 @@ typedef struct FrameInput
 	Mat4 viewInv;
 	Mat4 proj;
 	Mat4 projInv;
-	b3Vec3 cameraPosition;
+
+	// Camera eye position in the relative render frame (eye-relative display
+	// meters, the zero vector under the standard draw-origin convention, but
+	// typed and converted like every other crossing). Float meters, .w unused.
+	Vec4 cameraPosition;
 
 	// World-space position of the relative render frame's origin (the draw
-	// origin the host shifts to the camera each frame). Shapes render relative
-	// to it, so the ground grid adds it back to recover absolute world XZ and
-	// stay locked to the world instead of sliding with the camera. Used full
-	// precision for the origin axes, which fade out far from the world origin.
-	b3Vec3 drawOrigin;
+	// origin the host shifts to the camera each frame), converted to display
+	// meters. Shapes render relative to it, so the ground grid adds it back to
+	// recover absolute world XZ and stay locked to the world instead of
+	// sliding with the camera. Used full precision for the origin axes, which
+	// fade out far from the world origin. Float meters, .w unused.
+	Vec4 drawOrigin;
 
 	// Draw origin XZ wrapped to the grid period (10 cells) in double before it
 	// narrows. The grid pattern repeats over this period, so the wrapped offset
 	// reproduces the same lines while staying small enough for a float to
-	// resolve a 1 m cell out at planetary distance.
-	b3Vec2 gridWrap;
+	// resolve a 1 m cell out at planetary distance. Float meters, .zw unused.
+	Vec4 gridWrap;
 
 	// seconds since InitRenderer
 	float time;

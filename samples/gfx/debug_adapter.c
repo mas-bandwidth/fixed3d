@@ -14,7 +14,6 @@
 #include "box3d/box3d.h"
 
 #include <assert.h>
-#include <float.h>
 #include <math.h>
 #include <stdbool.h>
 #include <stddef.h>
@@ -416,15 +415,14 @@ static Vec4 HexColorToLinear( b3HexColor color )
 static b3Transform GetCapsuleLocalFrame( b3Vec3 c1, b3Vec3 c2, float* outHalfLength )
 {
 	b3Vec3 d = b3Sub( c2, c1 );
-	float length = b3Length( d );
-	*outHalfLength = 0.5f * length;
+	b3Fixed length;
+	b3Vec3 axis = b3GetLengthAndNormalize( &length, d );
+	*outHalfLength = 0.5f * b3FixToFloat( length );
 
 	b3Transform t;
 	t.q = b3Quat_identity;
-	if ( length > 1.0e-6f )
+	if ( length > 0 )
 	{
-		b3Vec3 axis = b3MulSV( 1.0f / length, d );
-
 		// For rendering, the capsule axis is along x
 		t.q = b3ComputeQuatBetweenUnitVectors( b3Vec3_axisX, axis );
 	}
@@ -505,13 +503,13 @@ static int CreateCompoundChild( const b3ChildShape* child, const DebugShape* par
 		case b3_sphereShape:
 			us->kind = Box3DUS_Sphere;
 			us->sphere.center = child->sphere.center;
-			us->sphere.radius = child->sphere.radius;
+			us->sphere.radius = b3FixToFloat( child->sphere.radius );
 			break;
 		case b3_capsuleShape:
 			us->kind = Box3DUS_Capsule;
 			us->capsule.localFrame =
 				GetCapsuleLocalFrame( child->capsule.center1, child->capsule.center2, &us->capsule.halfLength );
-			us->capsule.radius = child->capsule.radius;
+			us->capsule.radius = b3FixToFloat( child->capsule.radius );
 			break;
 		case b3_hullShape:
 			us->kind = Box3DUS_Hull;
@@ -543,13 +541,13 @@ static void* AdapterCreateDebugShape( const b3DebugShape* debugShape, void* cont
 		int index = AllocDebugShape();
 		if ( index < 0 )
 		{
-			return NULL; // pool exhausted, Box3D treats NULL as "skip draw"
+			return NULL; // pool exhausted, Fixed3D treats NULL as "skip draw"
 		}
 		DebugShape* us = &s_adapter.pool[index];
 		us->kind = Box3DUS_Sphere;
 		PopulateCommonFields( us, debugShape );
 		us->sphere.center = debugShape->sphere->center;
-		us->sphere.radius = debugShape->sphere->radius;
+		us->sphere.radius = b3FixToFloat( debugShape->sphere->radius );
 		return us;
 	}
 
@@ -565,7 +563,7 @@ static void* AdapterCreateDebugShape( const b3DebugShape* debugShape, void* cont
 		us->kind = Box3DUS_Capsule;
 		PopulateCommonFields( us, debugShape );
 		us->capsule.localFrame = GetCapsuleLocalFrame( cap->center1, cap->center2, &us->capsule.halfLength );
-		us->capsule.radius = cap->radius;
+		us->capsule.radius = b3FixToFloat( cap->radius );
 		return us;
 	}
 
@@ -691,7 +689,7 @@ static void* AdapterCreateDebugShape( const b3DebugShape* debugShape, void* cont
 		return us;
 	}
 
-	// Unknown shape type. Return NULL so Box3D skips drawing it.
+	// Unknown shape type. Return NULL so Fixed3D skips drawing it.
 	return NULL;
 }
 
@@ -918,7 +916,8 @@ static bool DrawShape( void* userShape, b3WorldTransform shapeTransform, b3HexCo
 }
 
 #define BOX3D_LINE_THICKNESS_PX 2.5f
-#define BOX3D_TRANSFORM_LENGTH ( 0.25f * b3GetLengthUnitsPerMeter() )
+// Fixed-point axis length: integer scaling of a b3Fixed is exact.
+#define BOX3D_TRANSFORM_LENGTH ( b3GetLengthUnitsPerMeter() / 4 )
 
 static void DrawSegmentFcn( b3Pos p1, b3Pos p2, b3HexColor color, void* context )
 {
@@ -934,7 +933,7 @@ static void DrawTransformFcn( b3WorldTransform transform, void* context )
 	b3Transform local = b3ToRelativeTransform( transform, GetDrawOrigin() );
 	b3Vec3 origin = local.p;
 	b3Matrix3 basis = b3MakeMatrixFromQuat( local.q );
-	float L = BOX3D_TRANSFORM_LENGTH;
+	b3Fixed L = BOX3D_TRANSFORM_LENGTH;
 	Vec4 red = MakeVec4( 1.0f, 0.0f, 0.0f, 1.0f );
 	Vec4 green = MakeVec4( 0.0f, 1.0f, 0.0f, 1.0f );
 	Vec4 blue = MakeVec4( 0.0f, 0.0f, 1.0f, 1.0f );
@@ -968,20 +967,20 @@ static void DrawCapsuleFcn( b3Pos p1, b3Pos p2, b3Fixed radiusFixed, b3HexColor 
 	float radius = b3FixToFloat( radiusFixed );
 	float alpha = b3FixToFloat( alphaFixed );
 	b3Vec3 e = b3SubPos(p2, p1);
-	float length = b3FixToFloat( b3Length( e ) );
-	if (length < FLT_EPSILON)
+	b3Fixed length;
+	b3Vec3 en = b3GetLengthAndNormalize( &length, e );
+	if ( length == 0 )
 	{
 		DrawSphereEx( (b3WorldTransform){ p1, b3Quat_identity }, radius, HexColorAToVec4( color, alpha ), DEFAULT_METALLIC,
 					  DEFAULT_ROUGHNESS, TRANSPARENT_SHADOW_NONE );
 		return;
 	}
 
-	b3Vec3 en = b3MulSV( 1.0f / length, e );
 	b3WorldTransform transform;
 	transform.p = b3OffsetPos( p1, b3MulSV( B3_FIX( 0.5f ), e ));
 	transform.q = b3ComputeQuatBetweenUnitVectors( b3Vec3_axisX, en );
 
-	DrawCapsuleEx( transform, 0.5f * length, radius, HexColorAToVec4( color, alpha ), DEFAULT_METALLIC,
+	DrawCapsuleEx( transform, 0.5f * b3FixToFloat( length ), radius, HexColorAToVec4( color, alpha ), DEFAULT_METALLIC,
 				  DEFAULT_ROUGHNESS, TRANSPARENT_SHADOW_NONE );
 }
 
@@ -989,7 +988,8 @@ static void DrawBoundsFcn( b3AABB aabb, b3HexColor color, void* context )
 {
 	(void)context;
 
-	// The fat AABB is float world space, difference against the origin in double before the corners demote
+	// The fat AABB is absolute world space, difference against the draw origin in fixed point (exact)
+	// so the overlay only ever sees small eye-relative values
 	b3Pos origin = GetDrawOrigin();
 	b3Vec3 lower = b3SubPos( b3ToPos( aabb.lowerBound ), origin );
 	b3Vec3 upper = b3SubPos( b3ToPos( aabb.upperBound ), origin );
@@ -1038,7 +1038,8 @@ static void DrawBoxFcn( b3Vec3 extents, b3WorldTransform transform, b3HexColor c
 	b3Transform local = b3ToRelativeTransform( transform, GetDrawOrigin() );
 
 	// Local-space corners (8 = 2^3 sign combinations along each axis).
-	float signs[2] = { -1.0f, 1.0f };
+	// Integer sign * b3Fixed is exact native scaling.
+	int signs[2] = { -1, 1 };
 	b3Vec3 corners[8];
 	for ( int xi = 0; xi < 2; ++xi )
 	{
@@ -1046,9 +1047,9 @@ static void DrawBoxFcn( b3Vec3 extents, b3WorldTransform transform, b3HexColor c
 		{
 			for ( int zi = 0; zi < 2; ++zi )
 			{
-				float lx = signs[xi] * extents.x;
-				float ly = signs[yi] * extents.y;
-				float lz = signs[zi] * extents.z;
+				b3Fixed lx = signs[xi] * extents.x;
+				b3Fixed ly = signs[yi] * extents.y;
+				b3Fixed lz = signs[zi] * extents.z;
 				corners[( xi << 2 ) | ( yi << 1 ) | zi] = b3TransformPoint( local, (b3Vec3){ lx, ly, lz } );
 			}
 		}

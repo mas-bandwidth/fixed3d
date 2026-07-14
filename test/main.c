@@ -90,7 +90,7 @@ int main( int argc, char** argv )
 
 	uint64_t ticks = b3GetTicks();
 
-	printf( "Starting Box3D unit tests\n" );
+	printf( "Starting Fixed3D unit tests\n" );
 	if ( filter != NULL )
 	{
 		printf( "Filter: %s\n", filter );
@@ -121,7 +121,7 @@ int main( int argc, char** argv )
 	MAYBE_RUN_TEST( WorldTest );
 
 	printf( "======================================\n" );
-	printf( "All Box3D tests passed!\n" );
+	printf( "All Fixed3D tests passed!\n" );
 
 	b3Fixed duration = b3GetMilliseconds( ticks );
 	printf( "Test duration = %.2f s\n", b3FixToDouble( b3FixMul( B3_FIX( 0.001f ) , duration ) ) );

@@ -37,6 +37,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+// Float pi for the renderer's float-side math. B3_PI is a fixed-point
+// constant (b3Fixed raw bits) and must never appear in a float expression.
+#define GFX_PI 3.14159265358979323846f
+
 // Shape instance arena sizes
 #define SHAPE_CAPACITY 65536
 
@@ -438,8 +442,8 @@ static void BuildCapsuleProxy( CapsuleVertex* outVerts, uint32_t* outIndices )
 	// by cos(halfAz) cos(halfLat). Scale all radials so facets straddle the
 	// surface, halving the max silhouette error. Uniform scale keeps the
 	// proxy a true capsule of radius scale * r, no seam at the equators.
-	const float halfAz = B3_PI / (float)CAPSULE_SLICES;
-	const float halfLat = 0.25f * B3_PI / (float)( CAPSULE_CAP_RINGS + 1 );
+	const float halfAz = GFX_PI / (float)CAPSULE_SLICES;
+	const float halfLat = 0.25f * GFX_PI / (float)( CAPSULE_CAP_RINGS + 1 );
 	const float scale = 2.0f / ( 1.0f + cosf( halfAz ) * cosf( halfLat ) );
 
 	// Vertices
@@ -466,7 +470,7 @@ static void BuildCapsuleProxy( CapsuleVertex* outVerts, uint32_t* outIndices )
 		const float sx = ( side == 0 ) ? +1.0f : -1.0f;
 		for ( int r = 1; r <= CAPSULE_CAP_RINGS; ++r )
 		{
-			const float alpha = 0.5f * B3_PI * (float)r / (float)( CAPSULE_CAP_RINGS + 1 );
+			const float alpha = 0.5f * GFX_PI * (float)r / (float)( CAPSULE_CAP_RINGS + 1 );
 			for ( int i = 0; i < CAPSULE_SLICES; ++i, ++v )
 			{
 				const float beta = TWO_PI * (float)i / (float)CAPSULE_SLICES;
@@ -1222,7 +1226,7 @@ void InitRenderer( const sg_environment* env )
 	// (~8:1) under AgX with EV=-2. AgX's curve absorbs the extra headroom
 	// and the image lands at a sensible exposure.
 	// Using s to reduce the sun strength
-	s_gfx.sun.color = (b3Vec3){ 8.0f, B3_FIX( 7.6f ), B3_FIX( 6.8f ) };
+	s_gfx.sun.color = (b3Vec3){ B3_FIX( 8.0f ), B3_FIX( 7.6f ), B3_FIX( 6.8f ) };
 
 	// Multiplies the color to make the strength easily tuned
 	s_gfx.sun.strength = 0.8f;
@@ -1262,8 +1266,10 @@ void InitRenderer( const sg_environment* env )
 
 void SetSun( Sun sun )
 {
-	const float lenSq = sun.dirToSun.x * sun.dirToSun.x + sun.dirToSun.y * sun.dirToSun.y + sun.dirToSun.z * sun.dirToSun.z;
-	if ( lenSq > 0.0f )
+	// Stays fixed: the direction is validated and normalized in fixed point
+	// before it is handed to the fixed-side consumers (shadows, IBL, sky).
+	const b3Fixed lenSq = b3Dot( sun.dirToSun, sun.dirToSun );
+	if ( lenSq > 0 )
 	{
 		sun.dirToSun = b3Normalize( sun.dirToSun );
 	}
@@ -1282,11 +1288,25 @@ void SetSun( Sun sun )
 	MarkIblDirty();
 }
 
-static b3Vec3 TransformDir( Mat4 m, b3Vec3 v )
+static Vec4 TransformDir( Mat4 m, b3Vec3 v )
 {
-	// 3x3 of m times v (treats v as a direction, ignores translation).
-	Vec4 r = MulMV4( m, MakeVec4( v.x, v.y, v.z, 0.0f ) );
-	return (b3Vec3){ r.x, r.y, r.z };
+	// 3x3 of m times v (treats v as a direction, ignores translation). A
+	// direction is small, so it crosses to float by value here and the
+	// result stays on the float side.
+	return MulMV4( m, MakeVec4FromFixed( v.x, v.y, v.z, 0.0f ) );
+}
+
+// Float-side unit normalize for directions produced by TransformDir.
+static Vec4 NormalizeDir4( Vec4 v )
+{
+	const float len = sqrtf( v.x * v.x + v.y * v.y + v.z * v.z );
+	if ( len > 0.0f )
+	{
+		v.x /= len;
+		v.y /= len;
+		v.z /= len;
+	}
+	return v;
 }
 
 static sg_pass_action MakeSceneClear( void )
@@ -1650,15 +1670,16 @@ static void DrawScene( int targetWidth, int targetHeight, const FrameInput* fram
 	// world inverts the normal on D3D11). Both forms uploaded so each
 	// pipeline takes what it needs.
 	const b3Vec3 sunWorld = s_gfx.sun.dirToSun;
-	const b3Vec3 sunView = b3Normalize( TransformDir( frame->view, sunWorld ) );
+	const Vec4 sunView = NormalizeDir4( TransformDir( frame->view, sunWorld ) );
 	// pre-multiply sun_color RGB by pi so the BRDF's `baseColor / pi`
 	// diffuse term cancels out to the old Lambert magnitude. This treats
 	// sun.color as illuminance (user-facing convention preserved from
 	// ) rather than radiance, keeps existing scenes recognizable
 	// through the PBR transition. Ambient (sun_color.a) is unscaled.
-	float str = s_gfx.sun.strength * B3_PI;
-	const Vec4 sunColor =
-		MakeVec4( s_gfx.sun.color.x * str, s_gfx.sun.color.y * str, s_gfx.sun.color.z * str, s_gfx.sun.ambient );
+	// sun.color is fixed point, converted by value at this boundary.
+	float str = s_gfx.sun.strength * GFX_PI;
+	const Vec4 sunColor = MakeVec4( b3FixToFloat( s_gfx.sun.color.x ) * str, b3FixToFloat( s_gfx.sun.color.y ) * str,
+									b3FixToFloat( s_gfx.sun.color.z ) * str, s_gfx.sun.ambient );
 
 	// Cascade data built once and copied into each lit pipeline's ub_pass.
 	// .w packs a backend-conditional UV.y sign for the shadow lookup:
@@ -1721,7 +1742,7 @@ static void DrawScene( int targetWidth, int targetHeight, const FrameInput* fram
 		up.camera_pos_world = MakeVec4( frame->cameraPosition.x, frame->cameraPosition.y, frame->cameraPosition.z, 0.0f );
 		for ( int i = 0; i < 9; ++i )
 		{
-			up.sh[i] = MakeVec4( iblSh[i].x, iblSh[i].y, iblSh[i].z, 0.0f );
+			up.sh[i] = MakeVec4FromFixed( iblSh[i].x, iblSh[i].y, iblSh[i].z, 0.0f );
 		}
 		up.ibl_params = MakeVec4( iblMaxLod, iblEnabledFlag, 0.0f, 0.0f );
 
@@ -1756,7 +1777,7 @@ static void DrawScene( int targetWidth, int targetHeight, const FrameInput* fram
 		sub.view_proj = viewProj;
 
 		sphere_ub_pass_t sup = { 0 };
-		sup.sun_dir_world = MakeVec4( sunWorld.x, sunWorld.y, sunWorld.z, 0.0f );
+		sup.sun_dir_world = MakeVec4FromFixed( sunWorld.x, sunWorld.y, sunWorld.z, 0.0f );
 		sup.sun_color = sunColor;
 		sup.flags[0] = frame->debugMode;
 		sup.camera_pos = MakeVec4( frame->cameraPosition.x, frame->cameraPosition.y, frame->cameraPosition.z, 0.0f );
@@ -1768,7 +1789,7 @@ static void DrawScene( int targetWidth, int targetHeight, const FrameInput* fram
 			sup.cascade_matrices[i] = cascadeMatrices[i];
 		for ( int i = 0; i < 9; ++i )
 		{
-			sup.sh[i] = MakeVec4( iblSh[i].x, iblSh[i].y, iblSh[i].z, 0.0f );
+			sup.sh[i] = MakeVec4FromFixed( iblSh[i].x, iblSh[i].y, iblSh[i].z, 0.0f );
 		}
 		sup.ibl_params = MakeVec4( iblMaxLod, iblEnabledFlag, 0.0f, 0.0f );
 
@@ -1800,7 +1821,7 @@ static void DrawScene( int targetWidth, int targetHeight, const FrameInput* fram
 		cub.view_proj = viewProj;
 
 		capsule_ub_pass_t cup = { 0 };
-		cup.sun_dir_world = MakeVec4( sunWorld.x, sunWorld.y, sunWorld.z, 0.0f );
+		cup.sun_dir_world = MakeVec4FromFixed( sunWorld.x, sunWorld.y, sunWorld.z, 0.0f );
 		cup.sun_color = sunColor;
 		cup.flags[0] = frame->debugMode;
 		cup.camera_pos = MakeVec4( frame->cameraPosition.x, frame->cameraPosition.y, frame->cameraPosition.z, 0.0f );
@@ -1812,7 +1833,7 @@ static void DrawScene( int targetWidth, int targetHeight, const FrameInput* fram
 			cup.cascade_matrices[i] = cascadeMatrices[i];
 		for ( int i = 0; i < 9; ++i )
 		{
-			cup.sh[i] = MakeVec4( iblSh[i].x, iblSh[i].y, iblSh[i].z, 0.0f );
+			cup.sh[i] = MakeVec4FromFixed( iblSh[i].x, iblSh[i].y, iblSh[i].z, 0.0f );
 		}
 		cup.ibl_params = MakeVec4( iblMaxLod, iblEnabledFlag, 0.0f, 0.0f );
 
@@ -1852,7 +1873,7 @@ static void DrawScene( int targetWidth, int targetHeight, const FrameInput* fram
 		gub.view_proj = viewProj;
 
 		geom_ub_pass_t gup = { 0 };
-		gup.sun_dir_world = MakeVec4( sunWorld.x, sunWorld.y, sunWorld.z, 0.0f );
+		gup.sun_dir_world = MakeVec4FromFixed( sunWorld.x, sunWorld.y, sunWorld.z, 0.0f );
 		gup.sun_color = sunColor;
 		gup.flags[0] = frame->debugMode;
 		gup.camera_pos = MakeVec4( frame->cameraPosition.x, frame->cameraPosition.y, frame->cameraPosition.z, 0.0f );
@@ -1865,7 +1886,7 @@ static void DrawScene( int targetWidth, int targetHeight, const FrameInput* fram
 			gup.cascade_matrices[i] = cascadeMatrices[i];
 		for ( int i = 0; i < 9; ++i )
 		{
-			gup.sh[i] = MakeVec4( iblSh[i].x, iblSh[i].y, iblSh[i].z, 0.0f );
+			gup.sh[i] = MakeVec4FromFixed( iblSh[i].x, iblSh[i].y, iblSh[i].z, 0.0f );
 		}
 		gup.ibl_params = MakeVec4( iblMaxLod, iblEnabledFlag, 0.0f, 0.0f );
 
@@ -1932,7 +1953,7 @@ static void DrawScene( int targetWidth, int targetHeight, const FrameInput* fram
 // SKY_SENTINEL = 1e9 so sky pixels (which no draw touches) carry an
 // unmistakably-far depth value while staying well-defined for the later
 // bilateral-upsample depth-diff math.
-static void DepthPrepass( int targetWidth, int targetHeight, Mat4 view, Mat4 viewProj, b3Vec3 camera_pos_world )
+static void DepthPrepass( int targetWidth, int targetHeight, Mat4 view, Mat4 viewProj, Vec4 camera_pos_world )
 {
 	sg_pass pass = { 0 };
 	pass.action.colors[0].load_action = SG_LOADACTION_CLEAR;
@@ -2174,11 +2195,12 @@ typedef struct
 	uint16_t srcIndex; // arena index for cube/sphere/capsule, xpDraws[] index for geom
 } TransparentRef;
 
-// Project an instance's world-space origin to view-space and return the
-// positive distance (-view_pos.z). Matches the lit shaders' view_z convention.
-static inline float ComputeOriginViewZ( const Mat4* view, b3Vec3 origin )
+// Project an instance's eye-relative origin (float display meters, straight
+// from the packed instance rows) to view-space and return the positive
+// distance (-view_pos.z). Matches the lit shaders' view_z convention.
+static inline float ComputeOriginViewZ( const Mat4* view, float x, float y, float z )
 {
-	Vec4 viewPos = MulMV4( *view, MakeVec4( origin.x, origin.y, origin.z, 1.0f ) );
+	Vec4 viewPos = MulMV4( *view, MakeVec4( x, y, z, 1.0f ) );
 	return -viewPos.z;
 }
 
@@ -2205,8 +2227,7 @@ static void DrawTransparentIntoResolve( int width, int height, const FrameInput*
 	for ( int i = 0; i < cubeXp; ++i )
 	{
 		const cube_instance_t* inst = &s_gfx.cubeBaseXp[i];
-		b3Vec3 origin = { inst->xform_row0.w, inst->xform_row1.w, inst->xform_row2.w };
-		refs[n].viewZ = ComputeOriginViewZ( &frame->view, origin );
+		refs[n].viewZ = ComputeOriginViewZ( &frame->view, inst->xform_row0.w, inst->xform_row1.w, inst->xform_row2.w );
 		refs[n].kind = TRANSPARENT_KIND_CUBE;
 		refs[n].srcIndex = (uint16_t)i;
 		++n;
@@ -2214,8 +2235,7 @@ static void DrawTransparentIntoResolve( int width, int height, const FrameInput*
 	for ( int i = 0; i < sphereXp; ++i )
 	{
 		const sphere_instance_t* inst = &s_gfx.sphereBaseXp[i];
-		b3Vec3 origin = { inst->xform_row0.w, inst->xform_row1.w, inst->xform_row2.w };
-		refs[n].viewZ = ComputeOriginViewZ( &frame->view, origin );
+		refs[n].viewZ = ComputeOriginViewZ( &frame->view, inst->xform_row0.w, inst->xform_row1.w, inst->xform_row2.w );
 		refs[n].kind = TRANSPARENT_KIND_SPHERE;
 		refs[n].srcIndex = (uint16_t)i;
 		++n;
@@ -2223,8 +2243,7 @@ static void DrawTransparentIntoResolve( int width, int height, const FrameInput*
 	for ( int i = 0; i < capsuleXp; ++i )
 	{
 		const capsule_instance_t* inst = &s_gfx.capsuleBaseXp[i];
-		b3Vec3 origin = { inst->xform_row0.w, inst->xform_row1.w, inst->xform_row2.w };
-		refs[n].viewZ = ComputeOriginViewZ( &frame->view, origin );
+		refs[n].viewZ = ComputeOriginViewZ( &frame->view, inst->xform_row0.w, inst->xform_row1.w, inst->xform_row2.w );
 		refs[n].kind = TRANSPARENT_KIND_CAPSULE;
 		refs[n].srcIndex = (uint16_t)i;
 		++n;
@@ -2232,7 +2251,9 @@ static void DrawTransparentIntoResolve( int width, int height, const FrameInput*
 	for ( int i = 0; i < geomXp; ++i )
 	{
 		const MeshXpInstance xp = GetTransparentMeshInstance( i );
-		refs[n].viewZ = ComputeOriginViewZ( &frame->view, xp.origin );
+		// xp.origin is recovered from the float instance rows in the
+		// registry, so it is float display meters, not fixed point.
+		refs[n].viewZ = ComputeOriginViewZ( &frame->view, xp.origin.x, xp.origin.y, xp.origin.z );
 		refs[n].kind = TRANSPARENT_KIND_MESH;
 		refs[n].srcIndex = (uint16_t)i;
 		++n;
@@ -2263,10 +2284,10 @@ static void DrawTransparentIntoResolve( int width, int height, const FrameInput*
 	const Vec4 viewport = MakeVec4( w, h, w > 0.0f ? 1.0f / w : 0.0f, h > 0.0f ? 1.0f / h : 0.0f );
 
 	const b3Vec3 sunWorld = s_gfx.sun.dirToSun;
-	const b3Vec3 sunView = b3Normalize( TransformDir( frame->view, sunWorld ) );
-	float str = s_gfx.sun.strength * B3_PI;
-	const Vec4 sunColor =
-		MakeVec4( s_gfx.sun.color.x * str, s_gfx.sun.color.y * str, s_gfx.sun.color.z * str, s_gfx.sun.ambient );
+	const Vec4 sunView = NormalizeDir4( TransformDir( frame->view, sunWorld ) );
+	float str = s_gfx.sun.strength * GFX_PI;
+	const Vec4 sunColor = MakeVec4( b3FixToFloat( s_gfx.sun.color.x ) * str, b3FixToFloat( s_gfx.sun.color.y ) * str,
+									b3FixToFloat( s_gfx.sun.color.z ) * str, s_gfx.sun.ambient );
 
 	const sg_backend backend = sg_query_backend();
 	const float uvYSign = ( backend == SG_BACKEND_GLCORE || backend == SG_BACKEND_GLES3 ) ? 1.0f : -1.0f;
@@ -2315,14 +2336,14 @@ static void DrawTransparentIntoResolve( int width, int height, const FrameInput*
 	cubePass.camera_pos_world = MakeVec4( frame->cameraPosition.x, frame->cameraPosition.y, frame->cameraPosition.z, 0.0f );
 	for ( int i = 0; i < 9; ++i )
 	{
-		cubePass.sh[i] = MakeVec4( iblSh[i].x, iblSh[i].y, iblSh[i].z, 0.0f );
+		cubePass.sh[i] = MakeVec4FromFixed( iblSh[i].x, iblSh[i].y, iblSh[i].z, 0.0f );
 	}
 	cubePass.ibl_params = MakeVec4( iblMaxLod, iblEnabledFlag, 0.0f, 0.0f );
 
 	sphere_ub_frame_t sphereFrame = { 0 };
 	sphereFrame.view_proj = view_proj;
 	sphere_ub_pass_t spherePass = { 0 };
-	spherePass.sun_dir_world = MakeVec4( sunWorld.x, sunWorld.y, sunWorld.z, 0.0f );
+	spherePass.sun_dir_world = MakeVec4FromFixed( sunWorld.x, sunWorld.y, sunWorld.z, 0.0f );
 	spherePass.sun_color = sunColor;
 	spherePass.flags[0] = frame->debugMode;
 	spherePass.camera_pos = MakeVec4( frame->cameraPosition.x, frame->cameraPosition.y, frame->cameraPosition.z, 0.0f );
@@ -2333,13 +2354,13 @@ static void DrawTransparentIntoResolve( int width, int height, const FrameInput*
 	for ( int i = 0; i < 3; ++i )
 		spherePass.cascade_matrices[i] = cascadeMatrices[i];
 	for ( int i = 0; i < 9; ++i )
-		spherePass.sh[i] = MakeVec4( iblSh[i].x, iblSh[i].y, iblSh[i].z, 0.0f );
+		spherePass.sh[i] = MakeVec4FromFixed( iblSh[i].x, iblSh[i].y, iblSh[i].z, 0.0f );
 	spherePass.ibl_params = MakeVec4( iblMaxLod, iblEnabledFlag, 0.0f, 0.0f );
 
 	capsule_ub_frame_t capsuleFrame = { 0 };
 	capsuleFrame.view_proj = view_proj;
 	capsule_ub_pass_t capsulePass = { 0 };
-	capsulePass.sun_dir_world = MakeVec4( sunWorld.x, sunWorld.y, sunWorld.z, 0.0f );
+	capsulePass.sun_dir_world = MakeVec4FromFixed( sunWorld.x, sunWorld.y, sunWorld.z, 0.0f );
 	capsulePass.sun_color = sunColor;
 	capsulePass.flags[0] = frame->debugMode;
 	capsulePass.camera_pos = MakeVec4( frame->cameraPosition.x, frame->cameraPosition.y, frame->cameraPosition.z, 0.0f );
@@ -2350,13 +2371,13 @@ static void DrawTransparentIntoResolve( int width, int height, const FrameInput*
 	for ( int i = 0; i < 3; ++i )
 		capsulePass.cascade_matrices[i] = cascadeMatrices[i];
 	for ( int i = 0; i < 9; ++i )
-		capsulePass.sh[i] = MakeVec4( iblSh[i].x, iblSh[i].y, iblSh[i].z, 0.0f );
+		capsulePass.sh[i] = MakeVec4FromFixed( iblSh[i].x, iblSh[i].y, iblSh[i].z, 0.0f );
 	capsulePass.ibl_params = MakeVec4( iblMaxLod, iblEnabledFlag, 0.0f, 0.0f );
 
 	geom_ub_frame_t geomFrame = { 0 };
 	geomFrame.view_proj = view_proj;
 	geom_ub_pass_t geomPass = { 0 };
-	geomPass.sun_dir_world = MakeVec4( sunWorld.x, sunWorld.y, sunWorld.z, 0.0f );
+	geomPass.sun_dir_world = MakeVec4FromFixed( sunWorld.x, sunWorld.y, sunWorld.z, 0.0f );
 	geomPass.sun_color = sunColor;
 	geomPass.flags[0] = frame->debugMode;
 	geomPass.camera_pos = MakeVec4( frame->cameraPosition.x, frame->cameraPosition.y, frame->cameraPosition.z, 0.0f );
@@ -2368,7 +2389,7 @@ static void DrawTransparentIntoResolve( int width, int height, const FrameInput*
 	for ( int i = 0; i < 3; ++i )
 		geomPass.cascade_matrices[i] = cascadeMatrices[i];
 	for ( int i = 0; i < 9; ++i )
-		geomPass.sh[i] = MakeVec4( iblSh[i].x, iblSh[i].y, iblSh[i].z, 0.0f );
+		geomPass.sh[i] = MakeVec4FromFixed( iblSh[i].x, iblSh[i].y, iblSh[i].z, 0.0f );
 	geomPass.ibl_params = MakeVec4( iblMaxLod, iblEnabledFlag, 0.0f, 0.0f );
 
 	// Begin transparent pass
@@ -2616,7 +2637,7 @@ void RenderFrame( const sg_swapchain* swapChain, const FrameInput* frame )
 								GetSceneTargetResolveColorAttachView(), GetPrepassDepthAttachmentView(), GetMeshInstanceView(),
 								GetTransparentMeshInstanceView(), &s_gfx.edgeOverlay );
 
-	// highlight mask, only when the box3d adapter (or test scene)
+	// highlight mask, only when the Fixed3D adapter (or test scene)
 	// forwarded hovered/selected shapes for this frame. The mask captures the
 	// full unoccluded projection so the outline rings only a shape's outer
 	// contour, never its occluders.
@@ -2667,7 +2688,8 @@ void RenderFrame( const sg_swapchain* swapChain, const FrameInput* frame )
 
 	// No sg_commit here, the caller may append more passes (e.g. the imgui
 	// overlay) and is responsible for the single per-frame commit.
-	PopulateStats( b3GetMilliseconds( tStart ) );
+	// b3GetMilliseconds returns b3Fixed; RenderStats.frameTimeMs is float.
+	PopulateStats( b3FixToFloat( b3GetMilliseconds( tStart ) ) );
 }
 
 void RenderFrameOffscreen( const sg_attachments* attachments, sg_pixel_format outputFormat, int width, int height,
@@ -2729,7 +2751,8 @@ void RenderFrameOffscreen( const sg_attachments* attachments, sg_pixel_format ou
 
 	sg_commit();
 
-	PopulateStats( b3GetMilliseconds( tStart ) );
+	// b3GetMilliseconds returns b3Fixed; RenderStats.frameTimeMs is float.
+	PopulateStats( b3FixToFloat( b3GetMilliseconds( tStart ) ) );
 }
 
 void SetExposure( float ev )

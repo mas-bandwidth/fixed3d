@@ -23,7 +23,7 @@
  * @defgroup fixed Fixed-point scalar
  * @brief Deterministic Q48.16 fixed-point scalar type and operations
  *
- * Box3D does all math in fixed point. A scalar is a signed 64 bit integer holding
+ * Fixed3D does all math in fixed point. A scalar is a signed 64 bit integer holding
  * a Q48.16 value: 48 integer bits and 16 fraction bits. The resolution is
  * 1/65536 (about 1.5e-5) uniformly across the entire range, so precision does not
  * degrade far from the origin. All operations are integer operations and are exactly
@@ -75,7 +75,7 @@ __extension__ typedef unsigned __int128 b3UInt128;
 
 #else
 
-#error "Box3D fixed point math requires __int128: use clang, gcc, or clang-cl on Windows"
+#error "Fixed3D fixed point math requires __int128: use clang, gcc, or clang-cl on Windows"
 
 #endif
 

@@ -6,7 +6,6 @@
 #include "gfx/qsort.h"
 
 #include <assert.h>
-#include <math.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -53,7 +52,7 @@ typedef enum EdgeClass
 	EDGE_FLAT = 2,
 } EdgeClass;
 
-// Collapse Box3D's two-bit edge flags to a render class. Concave bit clear
+// Collapse Fixed3D's two-bit edge flags to a render class. Concave bit clear
 // means convex, a true convex edge or an open boundary with neither bit.
 // Both bits set means nearly coplanar.
 static uint32_t ClassifyEdge( uint8_t flags, uint8_t concaveBit, uint8_t inverseBit )
@@ -152,19 +151,21 @@ static EdgeVertex* ExpandEdgesForUpload( const EdgeRecord* edges, int edgeCount,
 		return NULL;
 	}
 
+	// Shape-local fixed-point geometry crosses to the float vertex buffer by
+	// value here. Local coordinates are small, so no draw-origin handling.
 	for ( int i = 0; i < edgeCount; ++i )
 	{
 		const EdgeRecord r = edges[i];
 		const b3Vec3 a = vertices[r.v0];
 		const b3Vec3 c = vertices[r.v1];
 		const float flagF = (float)r.flags;
-		out[2 * i + 0].position[0] = a.x;
-		out[2 * i + 0].position[1] = a.y;
-		out[2 * i + 0].position[2] = a.z;
+		out[2 * i + 0].position[0] = b3FixToFloat( a.x );
+		out[2 * i + 0].position[1] = b3FixToFloat( a.y );
+		out[2 * i + 0].position[2] = b3FixToFloat( a.z );
 		out[2 * i + 0].flag = flagF;
-		out[2 * i + 1].position[0] = c.x;
-		out[2 * i + 1].position[1] = c.y;
-		out[2 * i + 1].position[2] = c.z;
+		out[2 * i + 1].position[0] = b3FixToFloat( c.x );
+		out[2 * i + 1].position[1] = b3FixToFloat( c.y );
+		out[2 * i + 1].position[2] = b3FixToFloat( c.z );
 		out[2 * i + 1].flag = flagF;
 	}
 
@@ -238,25 +239,32 @@ static bool EmitFlatTriangle( BuildBuffer* b, b3Vec3 p0, b3Vec3 p1, b3Vec3 p2, b
 		return false;
 	}
 
+	// Shape-local fixed-point positions and the unit normal cross to the
+	// float vertex buffer by value here. Local coordinates are small, so no
+	// draw-origin handling.
+	const float nx = b3FixToFloat( normal.x );
+	const float ny = b3FixToFloat( normal.y );
+	const float nz = b3FixToFloat( normal.z );
+
 	MeshVertex* v = &b->vertices[b->vertexCount];
-	v[0].position[0] = p0.x;
-	v[0].position[1] = p0.y;
-	v[0].position[2] = p0.z;
-	v[0].normal[0] = normal.x;
-	v[0].normal[1] = normal.y;
-	v[0].normal[2] = normal.z;
-	v[1].position[0] = p1.x;
-	v[1].position[1] = p1.y;
-	v[1].position[2] = p1.z;
-	v[1].normal[0] = normal.x;
-	v[1].normal[1] = normal.y;
-	v[1].normal[2] = normal.z;
-	v[2].position[0] = p2.x;
-	v[2].position[1] = p2.y;
-	v[2].position[2] = p2.z;
-	v[2].normal[0] = normal.x;
-	v[2].normal[1] = normal.y;
-	v[2].normal[2] = normal.z;
+	v[0].position[0] = b3FixToFloat( p0.x );
+	v[0].position[1] = b3FixToFloat( p0.y );
+	v[0].position[2] = b3FixToFloat( p0.z );
+	v[0].normal[0] = nx;
+	v[0].normal[1] = ny;
+	v[0].normal[2] = nz;
+	v[1].position[0] = b3FixToFloat( p1.x );
+	v[1].position[1] = b3FixToFloat( p1.y );
+	v[1].position[2] = b3FixToFloat( p1.z );
+	v[1].normal[0] = nx;
+	v[1].normal[1] = ny;
+	v[1].normal[2] = nz;
+	v[2].position[0] = b3FixToFloat( p2.x );
+	v[2].position[1] = b3FixToFloat( p2.y );
+	v[2].position[2] = b3FixToFloat( p2.z );
+	v[2].normal[0] = nx;
+	v[2].normal[1] = ny;
+	v[2].normal[2] = nz;
 
 	const uint32_t base = (uint32_t)b->vertexCount;
 	b->indices[b->indexCount + 0] = base + 0u;
@@ -268,29 +276,21 @@ static bool EmitFlatTriangle( BuildBuffer* b, b3Vec3 p0, b3Vec3 p1, b3Vec3 p2, b
 	return true;
 }
 
+// Fixed-point face normal. Stays fixed so hull faces (engine plane normals)
+// and computed mesh/heightfield normals feed EmitFlatTriangle uniformly;
+// conversion to float happens at the vertex fill. b3Normalize is exact for
+// tiny inputs, so the only fallback needed is an exactly-zero cross product
+// (degenerate or sub-resolution triangle).
 static b3Vec3 TriangleNormal( b3Vec3 a, b3Vec3 b, b3Vec3 c )
 {
-	const float ex = b.x - a.x, ey = b.y - a.y, ez = b.z - a.z;
-	const float fx = c.x - a.x, fy = c.y - a.y, fz = c.z - a.z;
-	b3Vec3 n;
-	n.x = ey * fz - ez * fy;
-	n.y = ez * fx - ex * fz;
-	n.z = ex * fy - ey * fx;
-	const float lenSq = n.x * n.x + n.y * n.y + n.z * n.z;
-	if ( lenSq > 1.0e-20f )
+	const b3Vec3 e = b3Sub( b, a );
+	const b3Vec3 f = b3Sub( c, a );
+	const b3Vec3 n = b3Cross( e, f );
+	if ( n.x != 0 || n.y != 0 || n.z != 0 )
 	{
-		const float inv = 1.0f / sqrtf( lenSq );
-		n.x *= inv;
-		n.y *= inv;
-		n.z *= inv;
+		return b3Normalize( n );
 	}
-	else
-	{
-		n.x = 0.0f;
-		n.y = 1.0f;
-		n.z = 0.0f;
-	}
-	return n;
+	return (b3Vec3){ B3_FIX( 0.0f ), B3_FIX( 1.0f ), B3_FIX( 0.0f ) };
 }
 
 static MeshHandle BuildHull( const b3HullData* hull )
@@ -543,15 +543,18 @@ static MeshHandle BuildMeshData( const b3MeshData* meshData )
 	return h;
 }
 
+// Decode one grid vertex in fixed point, mirroring the engine's own decode
+// (height_field.c: minHeight + heightScale * compressed, positions
+// scale * gridIndex), so the rendered surface matches collision exactly.
 static b3Vec3 HeightFieldSample( const b3HeightFieldData* hf, int row, int col )
 {
 	int index = row * hf->columnCount + col;
-	float decoded = hf->minHeight + hf->heightScale * (float)b3GetHeightFieldCompressedHeights( hf )[index];
+	b3Fixed decoded = hf->minHeight + b3FixMul( hf->heightScale, b3FixFromInt( b3GetHeightFieldCompressedHeights( hf )[index] ) );
 	b3Vec3 scale = hf->scale;
 	b3Vec3 v;
-	v.x = scale.x * (float)col;
-	v.y = scale.y * decoded;
-	v.z = scale.z * (float)row;
+	v.x = b3FixMul( scale.x, b3FixFromInt( col ) );
+	v.y = b3FixMul( scale.y, decoded );
+	v.z = b3FixMul( scale.z, b3FixFromInt( row ) );
 	return v;
 }
 
@@ -595,13 +598,13 @@ static MeshHandle BuildHeightField( const b3HeightFieldData* hf )
 	//   z in [scale.z * row,     scale.z * (row + 1)]
 	// with corner heights at the four grid corners. b3HeightFieldData holds
 	// per-cell material. B3_HEIGHT_FIELD_HOLE (0xFF) marks a hole, skip
-	// both triangles for that cell. Triangulation matches Box3D's collision
+	// both triangles for that cell. Triangulation matches Fixed3D's collision
 	// triangulation (see height_field.c line 228+):
 	//
 	//   tri0: (col, row),     (col, row+1),     (col+1, row)
 	//   tri1: (col+1, row+1), (col+1, row),     (col, row+1)
 	//
-	// Box3D's `clockwise` flag flips the index order. The "clockwise"
+	// Fixed3D's `clockwise` flag flips the index order. The "clockwise"
 	// terminology is the source-side winding seen from +Y above, the
 	// renderer wants CCW-from-outside (which for an upward-facing
 	// heightfield means CCW from +Y). When clockwise=true we mirror the

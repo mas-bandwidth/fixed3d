@@ -3,7 +3,7 @@
 
 // Ref-counted GPU buffer store for triangle geometries (convex hulls,
 // triangle meshes, heightfields). Owned by the renderer
-// Keyed by uint32_t content hash for Box3D shapes we
+// Keyed by uint32_t content hash for Fixed3D shapes we
 // pass through b3HullData.hash / b3MeshData.hash / b3HeightFieldData.hash
 //
 // Lifecycle:
@@ -74,7 +74,7 @@ typedef struct MeshVertex
 } MeshVertex;
 
 // Per-edge-endpoint data for the edge overlay. Two consecutive entries
-// per edge (the two endpoints). `flag` carries the Box3D edge classification
+// per edge (the two endpoints). `flag` carries the Fixed3D edge classification
 // as 0.0 = concave, 1.0 = convex/face boundary, 2.0 = flat (coplanar), used
 // by the FS to pick between the concave/convex/flat color uniforms. Stored as
 // a float (not uint) so the shader struct can be a flat vec4, sidesteps
@@ -125,7 +125,8 @@ typedef struct MeshEdgeBatch
 // One transparent geom instance, ready to feed into the back-to-front
 // sort and a per-instance draw. `firstInstance` indexes the shared
 // transparent geom buffer (bound via GetTransparentMeshInstanceView). `origin` is
-// the world-space position of the instance, recovered from xform_row*.w.
+// the eye-relative position of the instance in float display meters (w = 1),
+// recovered from xform_row*.w.
 // The renderer uses it as the back-to-front sort key. `shadowCast` is 1.0
 // when SHADOW_FULL, 0.0 otherwise (packed from the instance's material.z
 // so the renderer doesn't have to repeat the unpack).
@@ -135,7 +136,7 @@ typedef struct MeshXpInstance
 	sg_buffer ibo;
 	int indexCount;
 	int firstInstance;
-	b3Vec3 origin;
+	Vec4 origin;
 	float shadowCast;
 } MeshXpInstance;
 
@@ -187,7 +188,7 @@ void ResetFrameForMeshes( void );
 // Material modes packed into the instance buffer's material.z slot. The
 // fragment shader branches on this to either feed baseColor straight into
 // the BRDF or run a procedural-grid shader first (used for ground planes
-// tagged via the Box3D adapter).
+// tagged via the Fixed3D adapter).
 typedef enum MeshMaterialMode
 {
 	MESH_MATERIAL_MODE_SOLID = 0,

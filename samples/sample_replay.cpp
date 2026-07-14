@@ -252,7 +252,7 @@ public:
 
 		if ( context->restart == false )
 		{
-			m_camera->SetView( 30.0f, 22.0f, 14.0f, { B3_FIX( 0.0f ), B3_FIX( 2.0f ), B3_FIX( 0.0f ) } );
+			m_camera->SetView( 30.0f, 22.0f, 14.0f, SamplePos( { B3_FIX( 0.0f ), B3_FIX( 2.0f ), B3_FIX( 0.0f ) } ) );
 		}
 
 		m_prevShowMetrics = m_context->showMetrics;
@@ -387,9 +387,9 @@ public:
 		}
 
 		b3Vec3 extent = b3Sub( m_info.bounds.upperBound, m_info.bounds.lowerBound );
-		if ( extent.x > 0.0f || extent.y > 0.0f || extent.z > 0.0f )
+		if ( extent.x > B3_FIX( 0.0f ) || extent.y > B3_FIX( 0.0f ) || extent.z > B3_FIX( 0.0f ) )
 		{
-			m_camera->SetRenderTransform( b3GetLengthUnitsPerMeter(), m_context->viewZUp );
+			m_camera->SetRenderTransform( b3FixToFloat( b3GetLengthUnitsPerMeter() ), m_context->viewZUp );
 			float aspect = m_camera->m_height > 0 ? (float)m_camera->m_width / (float)m_camera->m_height : 1.0f;
 			m_camera->Frame( m_info.bounds, aspect, 0.75f );
 		}
@@ -397,7 +397,7 @@ public:
 
 	// Modal shown after the Replay menu picks a file: choose the keyframe budget and min interval,
 	// then Load creates the player and pre-generates the whole ring behind a progress bar. Drawn from
-	// DrawSampleWindows, which runs inside the imgui frame (Step does not in Box3D).
+	// DrawSampleWindows, which runs inside the imgui frame (Step does not in Fixed3D).
 	void DrawLoadPopup()
 	{
 		const char* popupId = "Load Replay";
@@ -431,7 +431,7 @@ public:
 			// Step forward in wall-clock slices so the bar animates. Forward stepping captures
 			// keyframes at the interval; a restart then returns to frame 0 with the ring kept.
 			uint64_t ticks = b3GetTicks();
-			while ( b3RecPlayer_IsAtEnd( m_player ) == false && b3GetMilliseconds( ticks ) < 12.0f )
+			while ( b3RecPlayer_IsAtEnd( m_player ) == false && b3GetMilliseconds( ticks ) < B3_FIX( 12.0f ) )
 			{
 				b3RecPlayer_StepFrame( m_player );
 			}
@@ -1518,7 +1518,7 @@ public:
 		switch ( type )
 		{
 			case b3_revoluteJoint:
-				ImGui::Text( "angle    %.1f deg", b3FixToDouble( b3RevoluteJoint_GetAngle( joint ) * B3_RAD_TO_DEG ) );
+				ImGui::Text( "angle    %.1f deg", b3FixToDouble( b3FixMul( b3RevoluteJoint_GetAngle( joint ), B3_RAD_TO_DEG ) ) );
 				break;
 			case b3_prismaticJoint:
 				ImGui::Text( "translation %.3f", b3FixToDouble( b3PrismaticJoint_GetTranslation( joint ) ) );
@@ -1681,7 +1681,7 @@ public:
 			ImGui::GetWindowDrawList()->AddLine( ImVec2( x, lo.y ), ImVec2( x, hi.y ), IM_COL32( 220, 60, 60, 255 ), 2.0f );
 		}
 
-		float hz = m_info.timeStep > 0.0f ? 1.0f / m_info.timeStep : 0.0f;
+		float hz = m_info.timeStep > B3_FIX( 0.0f ) ? 1.0f / b3FixToFloat( m_info.timeStep ) : 0.0f;
 		b3Counters c = b3World_GetCounters( m_replayWorldId );
 		ImGui::Text( "frames %d", m_info.frameCount );
 		ImGui::SameLine();
@@ -1708,7 +1708,7 @@ public:
 			return;
 		}
 
-		PickRay pickRay = m_camera->BuildPickRay( p.x, p.y );
+		PickRay pickRay = m_camera->BuildPickRay( b3FixToFloat( p.x ), b3FixToFloat( p.y ) );
 		b3QueryFilter queryFilter = b3DefaultQueryFilter();
 		b3RayResult result = b3World_CastRayClosest( m_replayWorldId, pickRay.origin, pickRay.translation, queryFilter );
 		SelectShape( result.hit ? result.shapeId : b3_nullShapeId );

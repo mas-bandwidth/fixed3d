@@ -315,13 +315,14 @@ static void LimitFrameRate( uint64_t frameStart )
 	const float targetMs = 1000.0f / 60.0f;
 	const float spinMs = 2.0f;
 
-	int sleepMs = (int)( targetMs - spinMs - b3GetMilliseconds( frameStart ) );
+	// b3GetMilliseconds returns b3Fixed; compare in float by value.
+	int sleepMs = (int)( targetMs - spinMs - b3FixToFloat( b3GetMilliseconds( frameStart ) ) );
 	if ( sleepMs > 0 )
 	{
 		b3Sleep( sleepMs );
 	}
 
-	while ( b3GetMilliseconds( frameStart ) < targetMs )
+	while ( b3FixToFloat( b3GetMilliseconds( frameStart ) ) < targetMs )
 	{
 		b3Yield();
 	}
@@ -370,7 +371,9 @@ static void OnFrame( void )
 	// units from its header on load and restores them on close, so querying every
 	// frame tracks load/unload without extra wiring. Live samples sit at 1 unit per
 	// meter, leaving the transform identity.
-	camera.SetRenderTransform( b3GetLengthUnitsPerMeter(), s_context.viewZUp );
+	// b3GetLengthUnitsPerMeter returns b3Fixed; the camera wants the VALUE.
+	// Passing the raw int64 silently scaled the render transform by 65536.
+	camera.SetRenderTransform( b3FixToFloat( b3GetLengthUnitsPerMeter() ), s_context.viewZUp );
 	camera.SetDrawDistance( s_context.drawDistance );
 
 	// Sync the draw origin to the camera eye once per frame, before any drawing. This must hold even
@@ -395,18 +398,23 @@ static void OnFrame( void )
 	fi.viewInv = camera.ViewInverse();
 	fi.proj = camera.Proj();
 	fi.projInv = camera.ProjInverse();
-	fi.cameraPosition = camera.Position();
+	// Eye-relative render frame: the camera position is the zero vector, typed
+	// and converted like every other fixed->float crossing.
+	b3Vec3 camPos = camera.Position();
+	fi.cameraPosition = MakeVec4FromFixed( camPos.x, camPos.y, camPos.z, 0.0f );
 	// Read back the origin Render actually shifted to. A follow-cam sample can
 	// move it during Step/Render, so reuse the live value rather than the eye.
+	// Cross to float by VALUE (meters): the draw origin is fixed point.
 	b3Pos drawOrigin = GetDrawOrigin();
-	fi.drawOrigin = b3ToVec3( drawOrigin );
+	fi.drawOrigin = MakeVec4( (float)b3FixToDouble( drawOrigin.x ), (float)b3FixToDouble( drawOrigin.y ),
+							  (float)b3FixToDouble( drawOrigin.z ), 0.0f );
 	// Wrap the origin to the grid period in double, before it narrows to float.
 	// A float can't resolve a 1 m cell at 1e7 m, so feeding the raw origin to
 	// the grid would shatter the lines. The pattern repeats every 10 cells, so
 	// the wrapped offset draws identical lines at any distance.
 	double gridPeriod = 10.0 * BOX3D_GROUND_GRID_CELL_SIZE;
-	fi.gridWrap.x = (float)fmod( (double)drawOrigin.x, gridPeriod );
-	fi.gridWrap.y = (float)fmod( (double)drawOrigin.z, gridPeriod );
+	fi.gridWrap.x = (float)fmod( b3FixToDouble( drawOrigin.x ), gridPeriod );
+	fi.gridWrap.y = (float)fmod( b3FixToDouble( drawOrigin.z ), gridPeriod );
 	fi.time = (float)sapp_frame_count() / 60.0f;
 	fi.debugMode = s_context.debugView;
 	fi.disableShadows = !s_context.enableShadows;
@@ -517,7 +525,7 @@ sapp_desc sokol_main( int argc, char** argv )
 	// Static so the pointer outlives sokol_main; sokol keeps it for the window lifetime.
 	b3Version version = b3GetVersion();
 	static char title[64];
-	snprintf( title, sizeof( title ), "Box3D %d.%d.%d - fixed point", version.major, version.minor,
+	snprintf( title, sizeof( title ), "Fixed3D %d.%d.%d", version.major, version.minor,
 			  version.revision );
 	desc.window_title = title;
 

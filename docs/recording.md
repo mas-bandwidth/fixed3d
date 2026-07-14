@@ -1,14 +1,14 @@
 # Recording and Replay {#recording}
 
-Box3D can record a simulation into a memory buffer and replay it later, reproducing the original
+Fixed3D can record a simulation into a memory buffer and replay it later, reproducing the original
 run exactly. A recording is a snapshot of the world at the moment recording starts followed by a
 log of every world-mutating API call after that. Replaying it re-runs the engine from the
 snapshot over those same calls, so the bodies follow the same paths and end up in the same state.
 
 The main use is for debugging. You can record a session, save the buffer to a file, then load it
-in the sample app and view the Box3D state as the simulation progresses.
+in the sample app and view the Fixed3D state as the simulation progresses.
 
-You own the recording buffer. Box3D records into it and grows it as needed; you save it to disk
+You own the recording buffer. Fixed3D records into it and grows it as needed; you save it to disk
 and free it. The library does no file I/O of its own for recording, beyond two optional
 convenience helpers (`b3SaveRecordingToFile` / `b3LoadRecordingFromFile`).
 
@@ -141,7 +141,7 @@ trees, the id pools, and the interned shape geometry. It does not capture host w
 count, task callbacks, user data, the friction and restitution mixers); that is rebuilt or
 reinstalled at restore.
 
-This machinery is currently internal, used only to seed and replay recordings. Box3D does not yet
+This machinery is currently internal, used only to seed and replay recordings. Fixed3D does not yet
 expose a standalone save-state / restore API.
 
 ## Debug shapes for replay
@@ -179,7 +179,7 @@ your responsibility:
   rather than producing a silently wrong replay. A recording therefore does not replay across a
   build whose internal layout changed, including a change in SIMD width.
 - **Pointer width**, **endianness**, and the format version are enforced the same way.
-- **Floating-point environment** must match. Box3D builds with `-ffp-contract=off` so fused
+- **Floating-point environment** must match. Fixed3D builds with `-ffp-contract=off` so fused
   multiply-add does not change results. Building with `-ffast-math` is unsupported.
 
 See the **Determinism** section of the Simulation page for what "same inputs" means across

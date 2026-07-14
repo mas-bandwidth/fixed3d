@@ -1,16 +1,16 @@
 // SPDX-FileCopyrightText: 2026 Erin Catto
 // SPDX-License-Identifier: MIT
 
-// Math utilities: the 4-wide types Box3D does not provide.
+// Math utilities: the 4-wide types Fixed3D does not provide.
 //
 // Vec4, linear-RGBA colors and matrix columns.
 // Mat4, camera-space matrices (view / proj / view-proj / shadow).
 //
 // Per-shape transforms use b3Transform directly. Mat4 only appears for
-// camera-space matrices. These two types may later move into Box3D, this
+// camera-space matrices. These two types may later move into Fixed3D, this
 // header is written to make that a clean cut-paste.
 //
-// Conventions match the renderer and Box3D:
+// Conventions match the renderer and Fixed3D:
 //   * Column-major storage, multiplied as M * v.
 //   * Right-handed, Y-up. The renderer drives reverse-Z by passing near/far
 //     swapped into the perspective builder.
@@ -26,6 +26,21 @@ typedef struct Vec4
 {
 	float x, y, z, w;
 } Vec4;
+
+// Float pair for shader vec2 UBO fields and other display-space values.
+// b3Vec2 is fixed point (two int64s) and no longer layout-compatible with
+// a GPU vec2, use this on the float side of the renderer.
+typedef struct Vec2
+{
+	float x, y;
+} Vec2;
+
+// Float triple for shader vec3 UBO fields (the shaders' @ctype vec3 maps
+// here). b3Vec3 is fixed point and not GPU layout-compatible.
+typedef struct Vec3
+{
+	float x, y, z;
+} Vec3;
 
 // Column-major 4x4. cx / cy / cz are the basis columns and cw the
 // translation column, matching b3Matrix3's cx / cy / cz naming.
@@ -148,7 +163,8 @@ static inline Mat4 MakeOrthographic( float left, float right, float bottom, floa
 	return m;
 }
 
-// Right-handed look-at.
+// Right-handed look-at. Inputs are eye-relative fixed point; entries cross to
+// float by value (see MakeVec4FromFixed below).
 static inline Mat4 MakeLookAt( b3Vec3 eye, b3Vec3 center, b3Vec3 up )
 {
 	b3Vec3 f = b3Normalize( b3Sub( center, eye ) );
@@ -156,10 +172,11 @@ static inline Mat4 MakeLookAt( b3Vec3 eye, b3Vec3 center, b3Vec3 up )
 	b3Vec3 u = b3Cross( s, f );
 
 	Mat4 m;
-	m.cx = MakeVec4( s.x, u.x, -f.x, 0.0f );
-	m.cy = MakeVec4( s.y, u.y, -f.y, 0.0f );
-	m.cz = MakeVec4( s.z, u.z, -f.z, 0.0f );
-	m.cw = MakeVec4( -b3Dot( s, eye ), -b3Dot( u, eye ), b3Dot( f, eye ), 1.0f );
+	m.cx = MakeVec4( b3FixToFloat( s.x ), b3FixToFloat( u.x ), -b3FixToFloat( f.x ), 0.0f );
+	m.cy = MakeVec4( b3FixToFloat( s.y ), b3FixToFloat( u.y ), -b3FixToFloat( f.y ), 0.0f );
+	m.cz = MakeVec4( b3FixToFloat( s.z ), b3FixToFloat( u.z ), -b3FixToFloat( f.z ), 0.0f );
+	m.cw = MakeVec4( -b3FixToFloat( b3Dot( s, eye ) ), -b3FixToFloat( b3Dot( u, eye ) ), b3FixToFloat( b3Dot( f, eye ) ),
+					 1.0f );
 	return m;
 }
 
@@ -172,33 +189,51 @@ static inline Mat4 MakeLookAt( b3Vec3 eye, b3Vec3 center, b3Vec3 up )
 // viewInv is the camera's "world matrix": columns are right / up / forward /
 // eye. view is its transpose-with-shifted-translation form. Neither requires
 // any inversion at runtime.
+// Fixed -> float VALUE conversion for the render boundary. The gfx float
+// pipeline works in eye-relative display meters; b3Fixed values must cross by
+// value (b3FixToFloat), never as raw int64 bits. Raw casts silently scale by
+// 65536 per factor — the bug class that broke rendering after the fixed-point
+// conversion. Positions must be differenced against the draw origin in fixed
+// point (exact) BEFORE they cross, so the floats here only ever see small
+// eye-relative values.
+static inline Vec4 MakeVec4FromFixed( b3Fixed x, b3Fixed y, b3Fixed z, float w )
+{
+	return MakeVec4( b3FixToFloat( x ), b3FixToFloat( y ), b3FixToFloat( z ), w );
+}
+
 static inline void MakeViewAndInverse( Mat4* outView, Mat4* outViewInv, b3Vec3 right, b3Vec3 up, b3Vec3 forward, b3Vec3 eye )
 {
 	Mat4 v;
-	v.cx = MakeVec4( right.x, up.x, forward.x, 0.0f );
-	v.cy = MakeVec4( right.y, up.y, forward.y, 0.0f );
-	v.cz = MakeVec4( right.z, up.z, forward.z, 0.0f );
-	v.cw = MakeVec4( -b3Dot( right, eye ), -b3Dot( up, eye ), -b3Dot( forward, eye ), 1.0f );
+	v.cx = MakeVec4FromFixed( right.x, up.x, forward.x, 0.0f );
+	v.cy = MakeVec4FromFixed( right.y, up.y, forward.y, 0.0f );
+	v.cz = MakeVec4FromFixed( right.z, up.z, forward.z, 0.0f );
+	v.cw = MakeVec4( -b3FixToFloat( b3Dot( right, eye ) ), -b3FixToFloat( b3Dot( up, eye ) ),
+					 -b3FixToFloat( b3Dot( forward, eye ) ), 1.0f );
 	*outView = v;
 
 	Mat4 vi;
-	vi.cx = MakeVec4( right.x, right.y, right.z, 0.0f );
-	vi.cy = MakeVec4( up.x, up.y, up.z, 0.0f );
-	vi.cz = MakeVec4( forward.x, forward.y, forward.z, 0.0f );
-	vi.cw = MakeVec4( eye.x, eye.y, eye.z, 1.0f );
+	vi.cx = MakeVec4FromFixed( right.x, right.y, right.z, 0.0f );
+	vi.cy = MakeVec4FromFixed( up.x, up.y, up.z, 0.0f );
+	vi.cz = MakeVec4FromFixed( forward.x, forward.y, forward.z, 0.0f );
+	vi.cw = MakeVec4FromFixed( eye.x, eye.y, eye.z, 1.0f );
 	*outViewInv = vi;
 }
 
-// Build a 4x4 model matrix from a Box3D rigid transform plus a (possibly
-// non-uniform) scale.
+// Build a 4x4 model matrix from a Fixed3D rigid transform plus a (possibly
+// non-uniform) scale. The transform position must already be eye-relative
+// (differenced against the draw origin in fixed point); it crosses to float
+// by value here.
 static inline Mat4 MakeMat4FromTransform( b3Transform t, b3Vec3 scale )
 {
 	b3Matrix3 r = b3MakeMatrixFromQuat( t.q );
+	float sx = b3FixToFloat( scale.x );
+	float sy = b3FixToFloat( scale.y );
+	float sz = b3FixToFloat( scale.z );
 	Mat4 m;
-	m.cx = MakeVec4( scale.x * r.cx.x, scale.x * r.cx.y, scale.x * r.cx.z, 0.0f );
-	m.cy = MakeVec4( scale.y * r.cy.x, scale.y * r.cy.y, scale.y * r.cy.z, 0.0f );
-	m.cz = MakeVec4( scale.z * r.cz.x, scale.z * r.cz.y, scale.z * r.cz.z, 0.0f );
-	m.cw = MakeVec4( t.p.x, t.p.y, t.p.z, 1.0f );
+	m.cx = MakeVec4( sx * b3FixToFloat( r.cx.x ), sx * b3FixToFloat( r.cx.y ), sx * b3FixToFloat( r.cx.z ), 0.0f );
+	m.cy = MakeVec4( sy * b3FixToFloat( r.cy.x ), sy * b3FixToFloat( r.cy.y ), sy * b3FixToFloat( r.cy.z ), 0.0f );
+	m.cz = MakeVec4( sz * b3FixToFloat( r.cz.x ), sz * b3FixToFloat( r.cz.y ), sz * b3FixToFloat( r.cz.z ), 0.0f );
+	m.cw = MakeVec4FromFixed( t.p.x, t.p.y, t.p.z, 1.0f );
 	return m;
 }
 

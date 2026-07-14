@@ -51,7 +51,7 @@ public:
 		b3BodyId groundId = b3CreateBody( m_worldId, &bodyDef );
 
 		b3ShapeDef shapeDef = b3DefaultShapeDef();
-		b3BoxHull groundHull = b3MakeBoxHull( 12.0f, 1.0f, 12.0f );
+		b3BoxHull groundHull = b3MakeBoxHull( B3_FIX( 12.0f ), B3_FIX( 1.0f ), B3_FIX( 12.0f ) );
 		b3ShapeId groundShapeId = b3CreateHullShape( groundId, &shapeDef, &groundHull.base );
 		SetGroundShape( groundShapeId );
 
@@ -104,7 +104,7 @@ public:
 		b3Vec3 top = b3SubPos( b3Body_GetWorldCenter( m_topBodyId ), m_base );
 
 		DrawTextLine( "world offset: %.1f km", m_offsetKilometers );
-		DrawTextLine( "top box height above ground: %.4f m", top.y );
+		DrawTextLine( "top box height above ground: %.4f m", b3FixToDouble( top.y ) );
 	}
 
 	static Sample* Create( SampleContext* context )
@@ -142,14 +142,14 @@ public:
 		b3BodyId groundId = b3CreateBody( m_worldId, &bodyDef );
 
 		b3ShapeDef shapeDef = b3DefaultShapeDef();
-		b3BoxHull groundHull = b3MakeBoxHull( 400.0f, 1.0f, 400.0f );
+		b3BoxHull groundHull = b3MakeBoxHull( B3_FIX( 400.0f ), B3_FIX( 1.0f ), B3_FIX( 400.0f ) );
 		b3ShapeId groundShapeId = b3CreateHullShape( groundId, &shapeDef, &groundHull.base );
 		SetGroundShape( groundShapeId );
 
 		float h = 0.5f;
 		float shift = h;
-		b3BoxHull box = b3MakeBoxHull( h, h, h );
-		shapeDef.density = 100.0f;
+		b3BoxHull box = b3MakeBoxHull( b3FixFromFloat( h ), b3FixFromFloat( h ), b3FixFromFloat( h ) );
+		shapeDef.density = B3_FIX( 100.0f );
 		bodyDef.type = b3_dynamicBody;
 		for ( int i = 0; i < baseCount; ++i )
 		{
@@ -200,7 +200,7 @@ public:
 		b3BodyId groundId = b3CreateBody( m_worldId, &bodyDef );
 
 		b3ShapeDef shapeDef = b3DefaultShapeDef();
-		m_groundMesh = b3CreateGridMesh( 20, 20, 1.0f, 1, true );
+		m_groundMesh = b3CreateGridMesh( 20, 20, B3_FIX( 1.0f ), 1, true );
 		b3CreateMeshShape( groundId, &shapeDef, m_groundMesh, b3Vec3_one );
 
 		for ( int i = 0; i < m_count; ++i )
@@ -211,9 +211,9 @@ public:
 				b3FixFromFloat( 0.15f * ( 0.5f * m_count - i ) ),
 			};
 			b3Pos position = b3OffsetPos( base, offset );
-			float torque = 10.0f;
-			float hertz = 0.5f;
-			float damping = 0.7f;
+			b3Fixed torque = B3_FIX( 10.0f );
+			b3Fixed hertz = B3_FIX( 0.5f );
+			b3Fixed damping = B3_FIX( 0.7f );
 			CreateHuman( m_humans + i, m_worldId, position, torque, hertz, damping, i, nullptr, false );
 		}
 	}

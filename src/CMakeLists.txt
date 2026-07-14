@@ -154,17 +154,17 @@ if (BOX3D_PROFILE)
 endif()
 
 if(BOX3D_VALIDATE)
-	message(STATUS "Box3D validation ON")	
+	message(STATUS "Fixed3D validation ON")	
 	target_compile_definitions(box3d PRIVATE BOX3D_VALIDATE)
 endif()
 
 if (BOX3D_DISABLE_SIMD)
-	message(STATUS "Box3D SIMD disabled")
+	message(STATUS "Fixed3D SIMD disabled")
 	target_compile_definitions(box3d PRIVATE BOX3D_DISABLE_SIMD)
 endif()
 
 if (BOX3D_NEON)
-	message(STATUS "Box3D NEON fixed-point SIMD ON")
+	message(STATUS "Fixed3D NEON fixed-point SIMD ON")
 	# PRIVATE: narrow-phase internals only; results are bit-identical to the
 	# scalar path so there is no ABI or behavior leak. aarch64 always has NEON,
 	# so no extra compile flags are needed.
@@ -172,7 +172,7 @@ if (BOX3D_NEON)
 endif()
 
 if (BOX3D_AVX512)
-	message(STATUS "Box3D AVX-512 fixed-point SIMD ON")
+	message(STATUS "Fixed3D AVX-512 fixed-point SIMD ON")
 	# PRIVATE: the wide solver types are internal to the library; results are
 	# bit-identical to the scalar path so there is no ABI or behavior leak
 	target_compile_definitions(box3d PRIVATE BOX3D_AVX512)
@@ -184,13 +184,13 @@ if (BOX3D_AVX512)
 endif()
 
 if (BOX3D_DOUBLE_PRECISION)
-	message(STATUS "Box3D double precision ON")
+	message(STATUS "Fixed3D double precision ON")
 	# PUBLIC: consumers must see the same precision mode in the headers or they cannot match the ABI
 	target_compile_definitions(box3d PUBLIC BOX3D_DOUBLE_PRECISION)
 endif()
 
 if (MSVC)
-	message(STATUS "Box3D on MSVC")	
+	message(STATUS "Fixed3D on MSVC")	
 	if (BUILD_SHARED_LIBS)
 		# this is needed by DLL users to import Box3D symbols
 		target_compile_definitions(box3d INTERFACE BOX3D_DLL)
@@ -214,16 +214,16 @@ if (MSVC)
 	endif()
 
 elseif (MINGW)
-	message(STATUS "Box3D on MinGW")
+	message(STATUS "Fixed3D on MinGW")
 elseif (APPLE)
-	message(STATUS "Box3D on Apple")
+	message(STATUS "Fixed3D on Apple")
 	target_compile_options(box3d PRIVATE -Wmissing-prototypes -Wall -Wextra -pedantic)
 elseif (EMSCRIPTEN)
-	message(STATUS "Box3D on Emscripten")
+	message(STATUS "Fixed3D on Emscripten")
 	# SSE2/wasm SIMD flags are set directory-wide in the top-level CMakeLists so the
 	# tests, which include simd.h, get them too.
 elseif (UNIX)
-	message(STATUS "Box3D using Unix")
+	message(STATUS "Fixed3D using Unix")
 	target_compile_options(box3d PRIVATE -Wmissing-prototypes -Wall -Wextra -pedantic -Wno-unused-value)
 	if ("${CMAKE_HOST_SYSTEM_PROCESSOR}" STREQUAL "aarch64")
 		# raspberry pi

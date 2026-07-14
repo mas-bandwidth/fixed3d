@@ -60,7 +60,7 @@
 
 #pragma sokol @module gtao_denoise
 
-#pragma sokol @ctype vec2 b3Vec2
+#pragma sokol @ctype vec2 Vec2
 #pragma sokol @ctype vec4 Vec4
 #pragma sokol @ctype mat4 Mat4
 

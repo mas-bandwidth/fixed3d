@@ -1,22 +1,22 @@
 # Foundations
 
-Box3D provides minimal base functionality for allocation hooks and vector math. The C interface
+Fixed3D provides minimal base functionality for allocation hooks and vector math. The C interface
 allows most runtime data and types to be defined internally in the `src` folder.
 
 ## Assertions
 
-Box3D will assert on bad input. This includes things like sending in NaN or infinity for values.
+Fixed3D will assert on bad input. This includes things like sending in NaN or infinity for values.
 It will assert if you use negative values for things that should only be positive, such as density.
 
-Box3D will also assert if an internal bug is detected. For this reason, it is advisable to build
-Box3D from source. The library compiles in about a second.
+Fixed3D will also assert if an internal bug is detected. For this reason, it is advisable to build
+Fixed3D from source. The library compiles in about a second.
 
 You may wish to capture assertions in your application. In that case use `b3SetAssertFcn()`. This
 lets you override the debugger break and/or perform your own error handling.
 
 ## Allocation
 
-Box3D uses memory efficiently and minimizes per-frame allocations by pooling memory. The engine
+Fixed3D uses memory efficiently and minimizes per-frame allocations by pooling memory. The engine
 quickly adapts to the simulation size. After the first step or two of simulation there should be
 no further per-frame allocations.
 
@@ -38,7 +38,7 @@ The `b3Version` structure holds the current version so you can query it at run-t
 
 ```c
 b3Version version = b3GetVersion();
-printf("Box3D version %d.%d.%d\n", version.major, version.minor, version.revision);
+printf("Fixed3D version %d.%d.%d\n", version.major, version.minor, version.revision);
 ```
 
 ## Fixed-Point Math
@@ -63,8 +63,8 @@ divide two `b3Fixed` values with the native `*` and `/` operators — that is in
 math on the raw representation, and it compiles without warning.
 
 ## Vector Math
-Box3D includes a vector math library covering types `b3Vec3`, `b3Quat`, `b3Transform`,
-`b3Matrix3`, and `b3AABB`. The library is designed to suit the internal needs of Box3D
+Fixed3D includes a vector math library covering types `b3Vec3`, `b3Quat`, `b3Transform`,
+`b3Matrix3`, and `b3AABB`. The library is designed to suit the internal needs of Fixed3D
 and its interface. All members are exposed, so you can use them freely in your application.
 
 ### b3Vec3
@@ -159,11 +159,11 @@ Axis-aligned bounding box with `lowerBound` and `upperBound` as `b3Vec3`. Helper
 
 ## Multithreading {#multi}
 
-Box3D has been optimized for multithreading. Multithreading is not required and by default Box3D will run single-threaded. If performance is important for your application, you should consider using the multithreading features.
+Fixed3D has been optimized for multithreading. Multithreading is not required and by default Fixed3D will run single-threaded. If performance is important for your application, you should consider using the multithreading features.
 
 ### Internal scheduler
 
-Box3D has a built-in task scheduler that creates threads. You can use the built-in scheduler by setting the worker count in the world definition. This example shows how to use 4 workers. In this case Box3D will create 3 threads, and count the thread that calls `b3World_Step` as the fourth worker. I recommend to use the core count of the CPU as the worker count, not counting hyper-threads or efficiency cores.
+Fixed3D has a built-in task scheduler that creates threads. You can use the built-in scheduler by setting the worker count in the world definition. This example shows how to use 4 workers. In this case Fixed3D will create 3 threads, and count the thread that calls `b3World_Step` as the fourth worker. I recommend to use the core count of the CPU as the worker count, not counting hyper-threads or efficiency cores.
 
 ```c
 b3WorldDef worldDef = b3DefaultWorldDef();
@@ -172,7 +172,7 @@ worldDef.workerCount = 4;
 
 ### External scheduler
 
-You can optionally connect your own task scheduler if you want more control.  Multithreading is established for each Box3D world you create and must be hooked up to the world definition. See `b3TaskCallback()`, `b3EnqueueTaskCallback()`, and `b3FinishTaskCallback()` for more details. Also see `b3WorldDef::workerCount`, `b3WorldDef::enqueueTask`, and `b3WorldDef::finishTask`.
+You can optionally connect your own task scheduler if you want more control.  Multithreading is established for each Fixed3D world you create and must be hooked up to the world definition. See `b3TaskCallback()`, `b3EnqueueTaskCallback()`, and `b3FinishTaskCallback()` for more details. Also see `b3WorldDef::workerCount`, `b3WorldDef::enqueueTask`, and `b3WorldDef::finishTask`.
 
 ```c
 // Implement b3EnqueueTaskCallback
@@ -204,14 +204,14 @@ worldDef.workerCount = GetMyWorkerCount();
 
 ### Threading model
 
-The multithreading design for Box3D is focused on [data parallelism](https://en.wikipedia.org/wiki/Data_parallelism).
+The multithreading design for Fixed3D is focused on [data parallelism](https://en.wikipedia.org/wiki/Data_parallelism).
 The goal is to use multiple cores to finish the world simulation as fast as possible.
-Box3D multithreading is not designed for [task parallelism](https://en.wikipedia.org/wiki/Task_parallelism).
+Fixed3D multithreading is not designed for [task parallelism](https://en.wikipedia.org/wiki/Task_parallelism).
 Often in games you have a render thread or an audio thread doing work in isolation from the
 main thread. Those are examples of task parallelism.
 
-So when you design your game loop, you should let Box3D *go wide* and use multiple cores to
-finish its work quickly, without other threads interacting with the Box3D world at the same time.
+So when you design your game loop, you should let Fixed3D *go wide* and use multiple cores to
+finish its work quickly, without other threads interacting with the Fixed3D world at the same time.
 
 It is expected that the thread that calls `b3World_Step` participates in making progress. Do not call
 `b3World_Step` and park that fiber. Tasks will only be enqueued on the thread that calls `b3World_Step`.
@@ -222,12 +222,12 @@ when `MyFinishTask` is called.
 
 In a multithreaded environment you must be careful to avoid [race conditions](https://en.wikipedia.org/wiki/Race_condition).
 Modifying the world while it is simulating will lead to unpredictable behavior and is never safe.
-It is also not safe to read data from a Box3D world while it is simulating. Box3D may move data
+It is also not safe to read data from a Fixed3D world while it is simulating. Fixed3D may move data
 structures to improve cache performance, so you could easily read garbage.
 
 > **Caution**:
-> Do not perform read or write operations on a Box3D world during `b3World_Step()`.
-> Do not write to the Box3D world from multiple threads. Any operation that wakes
+> Do not perform read or write operations on a Fixed3D world during `b3World_Step()`.
+> Do not write to the Fixed3D world from multiple threads. Any operation that wakes
 > a body is not thread-safe.
 
 It *is safe* to do ray-casts, shape-casts, and overlap tests from multiple threads outside of
@@ -236,12 +236,12 @@ It *is safe* to do ray-casts, shape-casts, and overlap tests from multiple threa
 
 ## Multithreading Multiple Worlds
 
-Some applications may wish to create multiple Box3D worlds and simulate them on different threads.
-This works fine because Box3D has very limited use of globals.
+Some applications may wish to create multiple Fixed3D worlds and simulate them on different threads.
+This works fine because Fixed3D has very limited use of globals.
 
 There are a few caveats:
 
-- You will get a race condition if you create or destroy Box3D worlds from multiple threads. Use a mutex to guard those operations.
-- If you simulate multiple Box3D worlds simultaneously, they should probably not share a task system. Otherwise you risk preemption between worlds competing for the same workers.
-- Any callbacks you hook up to Box3D must be thread-safe, including memory allocators.
+- You will get a race condition if you create or destroy Fixed3D worlds from multiple threads. Use a mutex to guard those operations.
+- If you simulate multiple Fixed3D worlds simultaneously, they should probably not share a task system. Otherwise you risk preemption between worlds competing for the same workers.
+- Any callbacks you hook up to Fixed3D must be thread-safe, including memory allocators.
 - All the limitations for single-world simulation still apply.

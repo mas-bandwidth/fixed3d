@@ -288,7 +288,7 @@ void EndPanel( void )
 }
 
 // Text overlay. Drain the per-frame label arena (filled by DrawString /
-// DrawScreenString and the Box3D adapter's DrawString callback). World
+// DrawScreenString and the Fixed3D adapter's DrawString callback). World
 // entries project to screen pixels with the last rendered camera, screen
 // entries pass through their pixel position, and both emit into ImGui's
 // background draw list - labels sit on the scene but under any ImGui
@@ -322,12 +322,46 @@ static void RenderText()
 	{
 		const TextEntry* e = GetTextAt( i );
 		float sx, sy;
-		if ( !ResolveTextScreenPos( e, cam.view, cam.proj, vpW, vpH, &sx, &sy ) )
+		if ( e->space == TEXT_SPACE_SCREEN )
 		{
-			continue;
+			sx = (float)e->screenX;
+			sy = (float)e->screenY;
+		}
+		else
+		{
+			// World anchors arrive eye-relative in FIXED point: every submitter
+			// differences against the draw origin before DrawString (draw.c's
+			// ToRelative, the Fixed3D adapter's b3SubPos), which is exact at any
+			// world distance. Convert the anchor by VALUE here and only then run
+			// the float camera matrices - cam.view/cam.proj are built in the same
+			// eye-relative frame, so the floats never see an absolute world
+			// position. Same math as ProjectWorldToScreen (projection.h) with the
+			// fixed->float crossing made explicit.
+			const Vec4 rel = MakeVec4FromFixed( e->worldPos.x, e->worldPos.y, e->worldPos.z, 1.0f );
+			const Vec4 viewP = MulMV4( cam.view, rel );
+			const Vec4 clip = MulMV4( cam.proj, viewP );
+
+			// Reverse-Z still uses a positive w for "in front of camera". Reject
+			// behind-camera and numerically degenerate cases together.
+			if ( clip.w <= 1e-6f )
+			{
+				continue;
+			}
+
+			const float invW = 1.0f / clip.w;
+			const float ndcX = clip.x * invW;
+			const float ndcY = clip.y * invW;
+			if ( ndcX < -1.0f || ndcX > 1.0f || ndcY < -1.0f || ndcY > 1.0f )
+			{
+				continue;
+			}
+
+			// NDC (-1..1, Y up) -> screen pixels (0..W, 0..H, Y down).
+			sx = ( ndcX * 0.5f + 0.5f ) * (float)vpW;
+			sy = ( 1.0f - ( ndcY * 0.5f + 0.5f ) ) * (float)vpH;
 		}
 		// Linear-to-byte: pass straight through (no sRGB encode) - matches
-		// how Box3D's b3HexColor literals reach the Draw* path, so a label
+		// how Fixed3D's b3HexColor literals reach the Draw* path, so a label
 		// color reads the same as the SVG hex it came from.
 		const auto byte = []( float v ) -> uint32_t {
 			if ( v < 0.0f )

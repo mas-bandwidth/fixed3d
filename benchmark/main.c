@@ -120,7 +120,7 @@ static void PrintBenchmarks( const Benchmark* benchmarks, int count )
 	}
 }
 
-// Box3D benchmark application. On Windows it is important to use affinity avoid cross CCD
+// Fixed3D benchmark application. On Windows it is important to use affinity avoid cross CCD
 // usage or efficiency cores. Also on Windows create a power plan with Processor power management
 // Min/Max of 99%. This prevents boosting and makes the benchmarks more repeatable.
 // Affinity [0x01 0x02 0x04 0x08 0x10 0x20 0x40 0x80]

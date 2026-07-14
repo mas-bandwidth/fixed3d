@@ -18,7 +18,7 @@
 // 
 // Shared library macros
 // Predefine BOX3D_EXPORT to reuse an existing export/import scheme, for example
-// when compiling Box3D into another shared library.
+// when compiling Fixed3D into another shared library.
 #ifndef BOX3D_EXPORT
 #if defined(_WIN32) && defined(box3d_EXPORTS)
 	// build the Windows DLL
@@ -102,7 +102,7 @@ typedef void b3LogFcn( const char* message );
 ///	set during application startup.
 B3_API void b3SetAllocator( b3AllocFcn* allocFcn, b3FreeFcn* freeFcn );
 
-/// Total bytes allocated by Box3D
+/// Total bytes allocated by Fixed3D
 B3_API int b3GetByteCount( void );
 
 /// Override the default assert callback.
@@ -158,7 +158,7 @@ typedef struct b3Version
 	int revision;
 } b3Version;
 
-/// Get the current version of Box3D
+/// Get the current version of Fixed3D
 B3_API b3Version b3GetVersion( void );
 
 /**@}*/

@@ -92,7 +92,7 @@ int b3InternalAssert( const char* condition, const char* fileName, int lineNumbe
 
 static void b3DefaultLogFcn( const char* message )
 {
-	printf( "Box3D: %s\n", message );
+	printf( "Fixed3D: %s\n", message );
 }
 
 b3LogFcn* b3LogHandler = b3DefaultLogFcn;
@@ -136,8 +136,8 @@ void* b3Alloc( size_t size )
 		return NULL;
 	}
 
-	// This could cause some sharing issues, however Box3D rarely calls b3Alloc.
-	// todo this is not true, Box3D allocates a lot.
+	// This could cause some sharing issues, however Fixed3D rarely calls b3Alloc.
+	// todo this is not true, Fixed3D allocates a lot.
 	b3AtomicFetchAddInt( &b3_byteCount, (int)size );
 
 	// Allocation must be a multiple of B3_ALIGNMENT (required by spec).

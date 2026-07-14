@@ -4,8 +4,40 @@
 #pragma once
 
 #include "host/camera.h"
+#include "utils.h"
 
+#include "box3d/math_functions.h"
 #include "box3d/types.h"
+
+// Every sample builds its scene around the repo-wide scene origin: 100 km out
+// on all three axes (GetSceneOrigin in shared/utils.h — the benchmarks and
+// profiling runs use the same constant). Fixed-point positions have uniform
+// resolution everywhere, so the whole sample app doubles as a large-world
+// demo: the physics runs identically here and at (0,0,0), and the camera, draw
+// origin, and pick rays are all fixed point and follow the content. Author
+// scene layout in small local coordinates and place it with SamplePos().
+inline b3Pos SampleOrigin()
+{
+	return GetSceneOrigin();
+}
+
+// Local layout coordinate -> world position at the sample origin.
+inline b3Pos SamplePos( b3Vec3 local )
+{
+	return b3OffsetPos( SampleOrigin(), local );
+}
+
+inline b3Pos SamplePos( float x, float y, float z )
+{
+	return b3OffsetPos( SampleOrigin(), { b3FixFromFloat( x ), b3FixFromFloat( y ), b3FixFromFloat( z ) } );
+}
+
+// World position -> local layout coordinate. Use for readbacks that compare
+// against authored values: kill planes, height readouts, respawn logic.
+inline b3Vec3 SampleLocal( b3Pos world )
+{
+	return b3SubPos( world, SampleOrigin() );
+}
 
 // Polled key state for samples that need continuous input (character movers).
 // Fed from the host event loop; read with the KEY_* aliases in gfx/keycodes.h.

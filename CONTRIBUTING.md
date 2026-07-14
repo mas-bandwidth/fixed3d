@@ -1,4 +1,4 @@
-# Contributing to Box3D
+# Contributing to Fixed3D
 
 This project is open source under the [MIT License](LICENSE). Please read this document
 before opening a pull request — **PRs that skip these steps will be closed.**
@@ -98,4 +98,4 @@ conventions and use clang format.
 ## Questions?
 
 Open a [Discussion](../../discussions) — that's the best place for anything not
-covered here. Thanks for helping make Box3D better!
+covered here. Thanks for helping make Fixed3D better!

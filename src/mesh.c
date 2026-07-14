@@ -1602,7 +1602,14 @@ b3MeshData* b3CreateMesh( const b3MeshDef* def, int* degenerateTriangleIndices, 
 	b3Array( b3Primitive ) primitives;
 	b3Array_CreateN( primitives, triangleCount );
 	int degenerateCount = 0;
+	// 0.01 * slop^2 is far below fixed-point resolution and quantizes to zero,
+	// which turned the degenerate filter into a no-op: a triangle collapsed by
+	// vertex welding (two indices merged, exact zero area) sailed through and
+	// tripped the b3IsNonDegenerate validation below. Floor at one ULP so
+	// zero-area triangles are always filtered (the squared-tolerance-collapse
+	// class: FixMul( d, d ) of sub-resolution d is zero).
 	b3Fixed minArea = b3FixMul( b3FixMul( B3_FIX( 0.01f ) , B3_LINEAR_SLOP ) , B3_LINEAR_SLOP );
+	minArea = b3FixMax( minArea, 1 );
 	b3Fixed surfaceArea = B3_FIX( 0.0f );
 	int materialCount = 1;
 
