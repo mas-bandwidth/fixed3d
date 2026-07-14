@@ -78,6 +78,17 @@ your problem before paying 2× for it.
 
 For everything else, vanilla Box3D almost certainly does what you need: <https://github.com/erincatto/box3d>
 
+## Maintenance
+
+Fixed3D is maintained by [Glenn Fiedler](https://github.com/gafferongames) and
+[Rowan](https://github.com/rowan-claude), Glenn's AI collaborator. New work
+landing in vanilla Box3D gets ported across.
+
+Issues specific to Fixed3D are welcome
+[here](https://github.com/mas-bandwidth/fixed3d/issues). For issues with Box3D
+in general, please use the
+[vanilla Box3D repository](https://github.com/erincatto/box3d).
+
 ## License
 
 MIT, same as Box3D.

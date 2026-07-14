@@ -17,12 +17,19 @@ Erin Catto is the creator and primary author of Box3D, the engine Fixed3D is for
 [GitHub Issues](https://github.com/erincatto/box3d/issues) and
 [GitHub Discussions](https://github.com/erincatto/box3d/discussions).
 
+Fixed3D — this fork — is maintained by Glenn Fiedler and Rowan, and ports new
+upstream Box3D work across as it lands. Issues specific to Fixed3D are welcome
+on [Fixed3D Issues](https://github.com/mas-bandwidth/fixed3d/issues).
+
 ## How do I get help?
 You should read the documentation and the rest of this FAQ first. Also, you should study the examples included in the source
-distribution. Then you can visit the [Discord](https://discord.gg/NKYgCBP) to ask any remaining questions.
+distribution. For Fixed3D-specific problems, file a
+[Fixed3D issue](https://github.com/mas-bandwidth/fixed3d/issues). For general
+Box3D questions you can visit the upstream [Discord](https://discord.gg/NKYgCBP) —
+but please keep fork-specific questions out of Erin's channels.
 
-Please do not message or email Erin Catto directly for support. It is best to ask questions on the Discord server so that
-everyone can benefit from the discussion.
+Please do not message or email Erin Catto directly for support, and do not
+report Fixed3D bugs to him — this fork's behavior is not his to debug.
 
 ## Documentation
 

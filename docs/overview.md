@@ -65,15 +65,20 @@ Fixed3D may be out of sync with this manual.
 
 ## Feedback and Bugs
 
-Please file bugs and feature requests here:
+Fixed3D is maintained by Glenn Fiedler and Rowan. For issues specific to
+Fixed3D (fixed-point behavior, this fork's build, its samples), please file
+them here: [Fixed3D Issues](https://github.com/mas-bandwidth/fixed3d/issues)
+
+For issues with Box3D in general, please use the upstream tracker:
 [Box3D Issues](https://github.com/erincatto/box3d/issues)
 
 You can help to ensure your issue gets fixed if you provide sufficient
 detail. A testbed example that reproduces the problem is ideal. You can
 read about the testbed later in this document.
 
-There is also a [Discord server](https://discord.gg/NKYgCBP) and
-[GitHub Discussions](https://github.com/erincatto/box3d/discussions).
+Upstream Box3D also has a [Discord server](https://discord.gg/NKYgCBP) and
+[GitHub Discussions](https://github.com/erincatto/box3d/discussions) —
+please keep Fixed3D-specific questions out of those channels.
 
 ## Core Concepts
 Fixed3D works with several fundamental concepts and objects. I briefly

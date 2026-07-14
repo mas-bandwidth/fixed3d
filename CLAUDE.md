@@ -17,9 +17,12 @@ there is no pending working-tree state.
   tool, verified locally on all 102 TUs first), docs/samples.md GLFW claim
   fixed, the two measured-and-rejected todos annotated in src (tangent2,
   BodyState padding), stale local branches deleted (bodystate-pad-128 kept as
-  the experiment record). OPEN DECISIONS (Glenn's): docs/faq.md +
-  docs/overview.md still route bugs/feedback to erincatto/box3d channels;
-  port-routine resume timing. Someday item: the Stacking/Card House equilibrium
+  the experiment record). Issue routing DECIDED (Glenn, 2026-07-14, post-1.1.0):
+  Fixed3D is maintained by Glenn Fiedler and Rowan; Fixed3D-specific issues go
+  to THIS repo's tracker, general Box3D issues to erincatto/box3d — README,
+  docs/overview.md, and docs/faq.md all state this now (ships with the next
+  release). REMAINING OPEN DECISION (Glenn's): port-routine resume timing.
+  Someday item: the Stacking/Card House equilibrium
   knife-edge (fixed collapses at the Q48.16 resolution floor where float
   stands — the one honest physics divergence from the visual A/B).
 - **ALL 22 test suites pass** in Release (`./build-fixed2/bin/test`, ~1.1 s) AND
