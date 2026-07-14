@@ -170,6 +170,38 @@ static int TestParallelJoint( void )
 	return FinishJoint( jointId, f.worldId );
 }
 
+// Regression for the sentinel impulse-cap wrap: the default maxTorque is the
+// B3_FIXED_MAX "unlimited" sentinel (float used FLT_MAX, whose squared compare
+// overflowed to infinity and never fired). b3FixMul( h * B3_FIXED_MAX,
+// h * B3_FIXED_MAX ) wraps int64 — to exactly zero at h = 1/240 — so the
+// spurious clamp fired on the first nonzero impulse and SCALED IT UP to
+// ~5.8e11, injecting ~1e10 rad/s (found via the Joints/Driving sample: four
+// wheels touching a height field exploded the chassis and then stalled CCD
+// for seconds per frame). Verified red before the 128-bit cap compare fix.
+static int TestParallelJointSentinelTorqueCap( void )
+{
+	JointFixture f = CreateJointFixture();
+
+	b3ParallelJointDef def = b3DefaultParallelJointDef();
+	SetCommonFrames( &def.base, &f );
+	// Keep the sentinel default maxTorque; give the constraint a small error to
+	// produce a nonzero corrective impulse.
+	b3JointId jointId = b3CreateParallelJoint( f.worldId, &def );
+
+	b3Body_SetAngularVelocity( f.bodyId, (b3Vec3){ B3_FIX( 0.5f ), B3_FIX( 0.0f ), B3_FIX( 0.25f ) } );
+
+	b3Fixed timeStep = b3FixDiv( B3_FIX( 1.0f ), B3_FIX( 60.0f ) );
+	for ( int i = 0; i < 10; ++i )
+	{
+		b3World_Step( f.worldId, timeStep, 4 );
+	}
+
+	b3Vec3 w = b3Body_GetAngularVelocity( f.bodyId );
+	ENSURE( b3Length( w ) < B3_FIX( 10.0f ) );
+
+	return FinishJoint( jointId, f.worldId );
+}
+
 static int TestDistanceJoint( void )
 {
 	JointFixture f = CreateJointFixture();
@@ -568,6 +600,7 @@ static int TestWheelJoint( void )
 int JointTest( void )
 {
 	RUN_SUBTEST( TestParallelJoint );
+	RUN_SUBTEST( TestParallelJointSentinelTorqueCap );
 	RUN_SUBTEST( TestDistanceJoint );
 	RUN_SUBTEST( TestFilterJoint );
 	RUN_SUBTEST( TestMotorJoint );

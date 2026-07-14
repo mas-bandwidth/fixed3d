@@ -302,6 +302,44 @@ there is no pending working-tree state.
   is still scalar; the mesh contact path is wide as of 2026-07-13 (see the
   wide mesh bullet above; scalar remains for overflow and non-AVX builds).
 
+## Joints/Driving CCD-burst investigation (2026-07-14, landed)
+
+- The reported "~45 s wall time in the first ~15 frames, all in
+  b3SolveContinuous → b3TimeOfImpact, root finder hits maxRootIterations" was
+  a SYMPTOM. Root cause: the parallel joint's sentinel impulse-cap wrap (see
+  rule 4 above) exploded velocities to ~1e14 at the first wheel–height-field
+  contact; CCD then ground on garbage sweeps. Fixed-point TOI quantization was
+  NOT the driver: with sane velocities, wheels pre-spun to 10,000 rad/s
+  (allowFastRotation) drop onto the b3CreateWave field with ZERO measurable
+  CCD cost and the distance.c canaries stay silent in Debug+VALIDATE (a
+  sphere's separation function is rotation-invariant, and capped-rotation
+  hulls stay within Erin's 0.25π/step design bound).
+- b3TimeOfImpact still gained the cheap guard, as hardening: when the root
+  bracket collapses to one time-ulp with both endpoints outside tolerance, no
+  iterate can make progress (bisection midpoint rounds onto an endpoint,
+  false-position numerator rounds to 0), so it bails out of the root find AND
+  the push-back loop. Outcome-identical by construction (t2 unchanged either
+  way, every further push-back iteration would repeat the identical stalled
+  root find); saves ~4×50 separation evaluations per outer iteration on
+  garbage inputs. The B3_VALIDATE(false) at maxRootIterations is now
+  effectively unreachable (any bracket ≤ 1.0 collapses within ~32 bisections).
+- Samples fixed in the same pass: sample.cpp passed FLOAT timeStep straight
+  into b3World_Step — truncates to dt=0, so GUI physics never advanced (this
+  is what hid the explosion; same fix in sample_continuous.cpp's fast-forward
+  loop). The Driving sample carried ~30 silent float→b3Fixed truncations the
+  samples pass missed: value-preserving literals (`density = 2.0f` → 2 raw ≈
+  3e-5; `b3MakeBoxHull(2.0f, …)` → 2-ulp sliver chassis) produce NO
+  -Wliteral-conversion warning, and float MEMBERS assigned to b3Fixed fields
+  (`jointDef.suspensionHertz = m_suspensionHertz`) never warn at all. Driving
+  is fully converted now (b3FixFromFloat at every GUI boundary); the REST of
+  the samples tree still has this class — sample_joint.cpp's Wheel sample
+  block, GearLift (`maxMotorTorque = 30000.0f` → 0.46), and ~80 more `= m_*`
+  sites file-wide. `B3_PI / 180.0f * degrees` sites are VALUE-CORRECT by
+  encoding coincidence (int64 B3_PI as float = pi<<16) — do not "fix" them
+  without care, but don't imitate them either.
+- Not ERIN.md material: float is immune to the cap wrap (inf compare), the
+  TOI guard is fixed-point-specific, and the sample bugs are port artifacts.
+
 ## Repository and remotes (IMPORTANT)
 
 - This checkout (`/Users/glenn/fixed3d`) maps to **github.com/mas-bandwidth/fixed3d**
@@ -631,6 +669,27 @@ Fixes landed in session 2 (beyond the session-1 list):
    that audit: `b3FixMul(B3_FIXED_MAX, x)` only wraps for |x| >= 1 (joint force
    limits * h with h < 1 are fine); `MAX - positiveTol` cannot wrap; sentinel
    returns (b3CollideHullFace) are safe only behind pointCount short-circuits.
+   THAT RULE OF THUMB WAS INCOMPLETE (found 2026-07-14 via the Joints/Driving
+   sample): `maxImpulse = h * B3_FIXED_MAX` is fine (~5.8e11), but the joint
+   impulse caps then compute `impulse² > b3FixMul(maxImpulse, maxImpulse)`,
+   which wraps — at h = 1/240 to EXACTLY 0 — so the "clamp" fired on the first
+   nonzero impulse and SCALED THE IMPULSE UP to 5.8e11 (float: (h·FLT_MAX)² =
+   inf, compare never fires). One misfire injected ~1e10 rad/s into the
+   Driving chassis, the wheel joints spread it to ~1e14 across two frames, and
+   the resulting garbage sweeps stalled CCD for seconds per frame (the
+   reported "45 s in 15 frames" burst — the TOI root finder was the victim,
+   not the cause). Fix: b3ImpulseOverCap2/3 in joint.h compare at 128 bits,
+   mirroring each site's exact rounding (two FixMul roundings for the vec2
+   site, one fused rounding for vec3) so in-range values compare
+   bit-identically; parallel_joint.c + the four motor_joint.c caps use them.
+   Regression: TestParallelJointSentinelTorqueCap (verified red pre-fix).
+   Audit rule: a sentinel-derived value that later gets SQUARED (or multiplied
+   by anything >= 1) wraps even when the first product was safe. The contact
+   solver's friction/twist caps (`b3FixMul(maxImpulse, maxImpulse)` in
+   contact_solver.c scalar + wide) square PHYSICAL impulses (μ·normal), which
+   fit today by ~12x margin at convex_pile scale (audit numbers) — flagged as
+   follow-up, do not blindly re-pattern them without touching scalar and wide
+   identically.
 5. **Degenerate simplexes are common** in fixed point (support points quantize
    to identical values). GJK (`src/distance.c`) flushes cached simplexes with
    duplicate vertices and restarts (instead of restoring an empty backup) when

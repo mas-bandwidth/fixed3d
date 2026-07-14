@@ -215,7 +215,7 @@ void b3SolveParallelJoint( b3JointSim* base, b3StepContext* context )
 			b3FixMul( -massScale , sol.y ) - b3FixMul( impulseScale , oldImpulse.y ),
 		};
 		joint->perpImpulse = (b3Vec2){ oldImpulse.x + deltaImpulse.x, oldImpulse.y + deltaImpulse.y };
-		if ( b3LengthSquared2( joint->perpImpulse ) > b3FixMul( maxImpulse , maxImpulse ) )
+		if ( b3ImpulseOverCap2( joint->perpImpulse, maxImpulse ) )
 		{
 			b3Fixed s = b3FixDiv( maxImpulse , b3Length2( joint->perpImpulse ) );
 			joint->perpImpulse = (b3Vec2){ b3FixMul( s , joint->perpImpulse.x ), b3FixMul( s , joint->perpImpulse.y ) };

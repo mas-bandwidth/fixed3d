@@ -2291,7 +2291,7 @@ public:
 			m_chassisId = b3CreateBody( m_worldId, &bodyDef );
 
 			shapeDef.density = B3_FIX( 0.5f );
-			b3BoxHull box = b3MakeBoxHull( 2.0f, B3_FIX( 0.5f ), 1.0f );
+			b3BoxHull box = b3MakeBoxHull( B3_FIX( 2.0f ), B3_FIX( 0.5f ), B3_FIX( 1.0f ) );
 			b3CreateHullShape( m_chassisId, &shapeDef, &box.base );
 		}
 
@@ -2302,15 +2302,15 @@ public:
 			parallelJointDef.base.bodyIdB = m_chassisId;
 			parallelJointDef.base.localFrameA.q = b3ComputeQuatBetweenUnitVectors( b3Vec3_axisZ, b3Vec3_axisY );
 			parallelJointDef.base.localFrameB.q = b3ComputeQuatBetweenUnitVectors( b3Vec3_axisZ, b3Vec3_axisY );
-			parallelJointDef.base.drawScale = 2.0f;
+			parallelJointDef.base.drawScale = B3_FIX( 2.0f );
 			parallelJointDef.base.collideConnected = true;
 			parallelJointDef.hertz = B3_FIX( 0.5f );
-			parallelJointDef.dampingRatio = 1.0f;
+			parallelJointDef.dampingRatio = B3_FIX( 1.0f );
 			b3CreateParallelJoint( m_worldId, &parallelJointDef );
 		}
 
-		shapeDef.density = 2.0f;
-		shapeDef.baseMaterial.friction = 3.0f;
+		shapeDef.density = B3_FIX( 2.0f );
+		shapeDef.baseMaterial.friction = B3_FIX( 3.0f );
 
 		bodyDef.type = b3_dynamicBody;
 		bodyDef.allowFastRotation = true;
@@ -2323,18 +2323,18 @@ public:
 		jointDef.base.localFrameA.q = b3ComputeQuatBetweenUnitVectors( b3Vec3_axisX, b3Vec3_axisY );
 		jointDef.base.localFrameB.q = b3ComputeQuatBetweenUnitVectors( b3Vec3_axisZ, b3Vec3_axisY );
 		jointDef.enableSuspensionLimit = true;
-		jointDef.lowerSuspensionLimit = m_lowerTranslation;
-		jointDef.upperSuspensionLimit = m_upperTranslation;
+		jointDef.lowerSuspensionLimit = b3FixFromFloat( m_lowerTranslation );
+		jointDef.upperSuspensionLimit = b3FixFromFloat( m_upperTranslation );
 		jointDef.enableSuspensionSpring = true;
-		jointDef.suspensionHertz = m_suspensionHertz;
-		jointDef.suspensionDampingRatio = m_suspensionDampingRatio;
+		jointDef.suspensionHertz = b3FixFromFloat( m_suspensionHertz );
+		jointDef.suspensionDampingRatio = b3FixFromFloat( m_suspensionDampingRatio );
 		jointDef.enableSpinMotor = true;
-		jointDef.maxSpinTorque = m_maxSpinTorque;
+		jointDef.maxSpinTorque = b3FixFromFloat( m_maxSpinTorque );
 		jointDef.enableSteering = true;
-		jointDef.steeringHertz = m_steeringHertz;
-		jointDef.steeringDampingRatio = m_steeringDampingRatio;
-		jointDef.targetSteeringAngle = 0.0f;
-		jointDef.maxSteeringTorque = m_maxSteeringTorque;
+		jointDef.steeringHertz = b3FixFromFloat( m_steeringHertz );
+		jointDef.steeringDampingRatio = b3FixFromFloat( m_steeringDampingRatio );
+		jointDef.targetSteeringAngle = B3_FIX( 0.0f );
+		jointDef.maxSteeringTorque = b3FixFromFloat( m_maxSteeringTorque );
 		jointDef.enableSteeringLimit = true;
 		jointDef.lowerSteeringLimit = B3_PI / 180.0f * m_lowerSteeringDegrees;
 		jointDef.upperSteeringLimit = B3_PI / 180.0f * m_upperSteeringDegrees;
@@ -2426,35 +2426,35 @@ public:
 		if ( ImGui::SliderFloat( "Min##Suspension", &m_lowerTranslation, -10.0f, 10.0f, "%.1f" ) )
 		{
 			m_lowerTranslation = b3MinFloat( m_lowerTranslation, m_upperTranslation );
-			b3WheelJoint_SetSuspensionLimits( m_frontLeftId, m_lowerTranslation, m_upperTranslation );
-			b3WheelJoint_SetSuspensionLimits( m_frontRightId, m_lowerTranslation, m_upperTranslation );
-			b3WheelJoint_SetSuspensionLimits( m_rearLeftId, m_lowerTranslation, m_upperTranslation );
-			b3WheelJoint_SetSuspensionLimits( m_rearRightId, m_lowerTranslation, m_upperTranslation );
+			b3WheelJoint_SetSuspensionLimits( m_frontLeftId, b3FixFromFloat( m_lowerTranslation ), b3FixFromFloat( m_upperTranslation ) );
+			b3WheelJoint_SetSuspensionLimits( m_frontRightId, b3FixFromFloat( m_lowerTranslation ), b3FixFromFloat( m_upperTranslation ) );
+			b3WheelJoint_SetSuspensionLimits( m_rearLeftId, b3FixFromFloat( m_lowerTranslation ), b3FixFromFloat( m_upperTranslation ) );
+			b3WheelJoint_SetSuspensionLimits( m_rearRightId, b3FixFromFloat( m_lowerTranslation ), b3FixFromFloat( m_upperTranslation ) );
 		}
 
 		if ( ImGui::SliderFloat( "Max##Suspension", &m_upperTranslation, -10.0f, 10.0f, "%.1f" ) )
 		{
 			m_upperTranslation = b3MaxFloat( m_upperTranslation, m_lowerTranslation );
-			b3WheelJoint_SetSuspensionLimits( m_frontLeftId, m_lowerTranslation, m_upperTranslation );
-			b3WheelJoint_SetSuspensionLimits( m_frontRightId, m_lowerTranslation, m_upperTranslation );
-			b3WheelJoint_SetSuspensionLimits( m_rearLeftId, m_lowerTranslation, m_upperTranslation );
-			b3WheelJoint_SetSuspensionLimits( m_rearRightId, m_lowerTranslation, m_upperTranslation );
+			b3WheelJoint_SetSuspensionLimits( m_frontLeftId, b3FixFromFloat( m_lowerTranslation ), b3FixFromFloat( m_upperTranslation ) );
+			b3WheelJoint_SetSuspensionLimits( m_frontRightId, b3FixFromFloat( m_lowerTranslation ), b3FixFromFloat( m_upperTranslation ) );
+			b3WheelJoint_SetSuspensionLimits( m_rearLeftId, b3FixFromFloat( m_lowerTranslation ), b3FixFromFloat( m_upperTranslation ) );
+			b3WheelJoint_SetSuspensionLimits( m_rearRightId, b3FixFromFloat( m_lowerTranslation ), b3FixFromFloat( m_upperTranslation ) );
 		}
 
 		if ( ImGui::SliderFloat( "Hertz##Suspension", &m_suspensionHertz, 0.0f, 10.0f, "%.1f" ) )
 		{
-			b3WheelJoint_SetSuspensionHertz( m_frontLeftId, m_suspensionHertz );
-			b3WheelJoint_SetSuspensionHertz( m_frontRightId, m_suspensionHertz );
-			b3WheelJoint_SetSuspensionHertz( m_rearLeftId, m_suspensionHertz );
-			b3WheelJoint_SetSuspensionHertz( m_rearRightId, m_suspensionHertz );
+			b3WheelJoint_SetSuspensionHertz( m_frontLeftId, b3FixFromFloat( m_suspensionHertz ) );
+			b3WheelJoint_SetSuspensionHertz( m_frontRightId, b3FixFromFloat( m_suspensionHertz ) );
+			b3WheelJoint_SetSuspensionHertz( m_rearLeftId, b3FixFromFloat( m_suspensionHertz ) );
+			b3WheelJoint_SetSuspensionHertz( m_rearRightId, b3FixFromFloat( m_suspensionHertz ) );
 		}
 
 		if ( ImGui::SliderFloat( "Damping##Suspension", &m_suspensionDampingRatio, 0.0f, 2.0f, "%.1f" ) )
 		{
-			b3WheelJoint_SetSuspensionDampingRatio( m_frontLeftId, m_suspensionDampingRatio );
-			b3WheelJoint_SetSuspensionDampingRatio( m_frontRightId, m_suspensionDampingRatio );
-			b3WheelJoint_SetSuspensionDampingRatio( m_rearLeftId, m_suspensionDampingRatio );
-			b3WheelJoint_SetSuspensionDampingRatio( m_rearRightId, m_suspensionDampingRatio );
+			b3WheelJoint_SetSuspensionDampingRatio( m_frontLeftId, b3FixFromFloat( m_suspensionDampingRatio ) );
+			b3WheelJoint_SetSuspensionDampingRatio( m_frontRightId, b3FixFromFloat( m_suspensionDampingRatio ) );
+			b3WheelJoint_SetSuspensionDampingRatio( m_rearLeftId, b3FixFromFloat( m_suspensionDampingRatio ) );
+			b3WheelJoint_SetSuspensionDampingRatio( m_rearRightId, b3FixFromFloat( m_suspensionDampingRatio ) );
 		}
 
 		ImGui::Separator();
@@ -2470,20 +2470,20 @@ public:
 
 		if ( ImGui::SliderFloat( "Hertz##Steering", &m_steeringHertz, 0.0f, 10.0f, "%.1f" ) )
 		{
-			b3WheelJoint_SetSteeringHertz( m_frontLeftId, m_steeringHertz );
-			b3WheelJoint_SetSteeringHertz( m_frontRightId, m_steeringHertz );
+			b3WheelJoint_SetSteeringHertz( m_frontLeftId, b3FixFromFloat( m_steeringHertz ) );
+			b3WheelJoint_SetSteeringHertz( m_frontRightId, b3FixFromFloat( m_steeringHertz ) );
 		}
 
 		if ( ImGui::SliderFloat( "Damping##Steering", &m_steeringDampingRatio, 0.0f, 2.0f, "%.1f" ) )
 		{
-			b3WheelJoint_SetSteeringDampingRatio( m_frontLeftId, m_steeringDampingRatio );
-			b3WheelJoint_SetSteeringDampingRatio( m_frontRightId, m_steeringDampingRatio );
+			b3WheelJoint_SetSteeringDampingRatio( m_frontLeftId, b3FixFromFloat( m_steeringDampingRatio ) );
+			b3WheelJoint_SetSteeringDampingRatio( m_frontRightId, b3FixFromFloat( m_steeringDampingRatio ) );
 		}
 
 		if ( ImGui::SliderFloat( "Torque##Steering", &m_maxSteeringTorque, 0.0f, 20.0f, "%.1f" ) )
 		{
-			b3WheelJoint_SetMaxSteeringTorque( m_frontLeftId, m_maxSteeringTorque );
-			b3WheelJoint_SetMaxSteeringTorque( m_frontRightId, m_maxSteeringTorque );
+			b3WheelJoint_SetMaxSteeringTorque( m_frontLeftId, b3FixFromFloat( m_maxSteeringTorque ) );
+			b3WheelJoint_SetMaxSteeringTorque( m_frontRightId, b3FixFromFloat( m_maxSteeringTorque ) );
 		}
 
 		if ( ImGui::SliderFloat( "Min Deg##Steering", &m_lowerSteeringDegrees, -90.0f, 0.0f, "%.0f" ) )
@@ -2520,27 +2520,27 @@ public:
 		b3Vec3 velocity = b3Body_GetLinearVelocity( m_chassisId );
 		b3Quat quat = b3Body_GetRotation( m_chassisId );
 		b3Vec3 forward = b3RotateVector( quat, { B3_FIX( -1.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) } );
-		float speed = b3Dot( velocity, forward );
+		float speed = b3FixToFloat( b3Dot( velocity, forward ) );
 		DrawTextLine( "speed = %.1f", speed );
 
-		float leftSpeed = b3WheelJoint_GetSpinSpeed( m_rearLeftId );
-		float rightSpeed = b3WheelJoint_GetSpinSpeed( m_rearRightId );
+		float leftSpeed = b3FixToFloat( b3WheelJoint_GetSpinSpeed( m_rearLeftId ) );
+		float rightSpeed = b3FixToFloat( b3WheelJoint_GetSpinSpeed( m_rearRightId ) );
 		DrawTextLine( "spin speed = %.1f/%.1f", leftSpeed, rightSpeed );
 
-		float leftSpinTorque = b3WheelJoint_GetSpinTorque( m_rearLeftId );
-		float rightSpinTorque = b3WheelJoint_GetSpinTorque( m_rearRightId );
+		float leftSpinTorque = b3FixToFloat( b3WheelJoint_GetSpinTorque( m_rearLeftId ) );
+		float rightSpinTorque = b3FixToFloat( b3WheelJoint_GetSpinTorque( m_rearRightId ) );
 		DrawTextLine( "spin torque = %.1f/%.1f", leftSpinTorque, rightSpinTorque );
 
-		float angleLeft = b3WheelJoint_GetSteeringAngle( m_frontLeftId );
-		float angleRight = b3WheelJoint_GetSteeringAngle( m_frontRightId );
-		DrawTextLine( "steering degrees = %.1f/%.1f", 180.0f / B3_PI * angleLeft, 180.0f / B3_PI * angleRight );
+		float angleLeft = b3FixToFloat( b3WheelJoint_GetSteeringAngle( m_frontLeftId ) );
+		float angleRight = b3FixToFloat( b3WheelJoint_GetSteeringAngle( m_frontRightId ) );
+		DrawTextLine( "steering degrees = %.1f/%.1f", 180.0f / b3FixToFloat( B3_PI ) * angleLeft, 180.0f / b3FixToFloat( B3_PI ) * angleRight );
 
-		float leftSteerTorque = b3WheelJoint_GetSteeringTorque( m_frontLeftId );
-		float rightSteerTorque = b3WheelJoint_GetSteeringTorque( m_frontRightId );
+		float leftSteerTorque = b3FixToFloat( b3WheelJoint_GetSteeringTorque( m_frontLeftId ) );
+		float rightSteerTorque = b3FixToFloat( b3WheelJoint_GetSteeringTorque( m_frontRightId ) );
 		DrawTextLine( "steering torque = %.1f/%.1f", leftSteerTorque, rightSteerTorque );
 
 		b3WorldTransform transform = b3WorldTransform_identity;
-		transform.p.y += 0.05f;
+		transform.p.y += B3_FIX( 0.05f );
 		DrawAxes( transform, 2.0f );
 	}
 
@@ -2552,35 +2552,35 @@ public:
 		{
 			if ( IsKeyDown( KEY_W ) )
 			{
-				throttle.x += 1.0f;
+				throttle.x += B3_FIX( 1.0f );
 				b3Body_SetAwake( m_chassisId, true );
 			}
 
 			if ( IsKeyDown( KEY_S ) )
 			{
-				throttle.x -= 1.0f;
+				throttle.x -= B3_FIX( 1.0f );
 				b3Body_SetAwake( m_chassisId, true );
 			}
 
 			if ( IsKeyDown( KEY_A ) )
 			{
-				throttle.y += 1.0f;
+				throttle.y += B3_FIX( 1.0f );
 				b3Body_SetAwake( m_chassisId, true );
 			}
 
 			if ( IsKeyDown( KEY_D ) )
 			{
-				throttle.y -= 1.0f;
+				throttle.y -= B3_FIX( 1.0f );
 				b3Body_SetAwake( m_chassisId, true );
 			}
 		}
 
-		float maxSteeringAngle = 0.25f * B3_PI;
-		b3WheelJoint_SetTargetSteeringAngle( m_frontLeftId, maxSteeringAngle * throttle.y );
-		b3WheelJoint_SetTargetSteeringAngle( m_frontRightId, maxSteeringAngle * throttle.y );
+		b3Fixed maxSteeringAngle = B3_PI / 4;
+		b3WheelJoint_SetTargetSteeringAngle( m_frontLeftId, b3FixMul( maxSteeringAngle, throttle.y ) );
+		b3WheelJoint_SetTargetSteeringAngle( m_frontRightId, b3FixMul( maxSteeringAngle, throttle.y ) );
 
-		b3WheelJoint_SetSpinMotorSpeed( m_rearLeftId, -m_spinSpeed * throttle.x );
-		b3WheelJoint_SetSpinMotorSpeed( m_rearRightId, -m_spinSpeed * throttle.x );
+		b3WheelJoint_SetSpinMotorSpeed( m_rearLeftId, b3FixMul( b3FixFromFloat( -m_spinSpeed ), throttle.x ) );
+		b3WheelJoint_SetSpinMotorSpeed( m_rearRightId, b3FixMul( b3FixFromFloat( -m_spinSpeed ), throttle.x ) );
 
 		if ( m_camera->m_thirdPerson )
 		{

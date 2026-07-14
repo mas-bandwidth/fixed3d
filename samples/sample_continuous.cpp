@@ -703,7 +703,7 @@ public:
 				int n = 20;
 				for ( int i = 0; i < n; ++i )
 				{
-					b3World_Step( m_worldId, timeStep, m_context->subStepCount );
+					b3World_Step( m_worldId, b3FixFromFloat( timeStep ), m_context->subStepCount );
 				}
 
 				m_stepCount += n;

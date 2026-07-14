@@ -426,7 +426,7 @@ void Sample::Step()
 
 	if ( B3_IS_NON_NULL( m_mouseBodyId ) && timeStep > 0.0f )
 	{
-		b3Body_SetTargetTransform( m_mouseBodyId, { m_mousePoint, b3Quat_identity }, timeStep, true );
+		b3Body_SetTargetTransform( m_mouseBodyId, { m_mousePoint, b3Quat_identity }, b3FixFromFloat( timeStep ), true );
 	}
 
 	b3World_EnableSleeping( m_worldId, m_context->enableSleep );
@@ -435,7 +435,9 @@ void Sample::Step()
 
 	if ( timeStep > 0.0f || m_stepWhilePaused )
 	{
-		b3World_Step( m_worldId, timeStep, m_context->subStepCount );
+		// timeStep is a float at the GUI boundary; a bare pass-in truncates to a
+		// b3Fixed of 0 (1/60 second is well below one raw unit) and freezes physics.
+		b3World_Step( m_worldId, b3FixFromFloat( timeStep ), m_context->subStepCount );
 	}
 
 	if ( timeStep > 0.0f )

@@ -315,7 +315,7 @@ void b3SolveMotorJoint( b3JointSim* base, b3StepContext* context )
 		b3Vec3 oldImpulse = joint->angularSpringImpulse;
 		b3Vec3 impulse = b3MulSub( b3MulSV( -massScale, b3MulMV( joint->angularMass, b3Add( cdot, bias ) ) ), impulseScale, oldImpulse );
 		joint->angularSpringImpulse = b3Add( oldImpulse, impulse );
-		if ( b3LengthSquared( joint->angularSpringImpulse ) > b3FixMul( maxImpulse , maxImpulse ) )
+		if ( b3ImpulseOverCap3( joint->angularSpringImpulse, maxImpulse ) )
 		{
 			joint->angularSpringImpulse = b3MulSV( maxImpulse, b3Normalize( joint->angularSpringImpulse ) );
 		}
@@ -334,7 +334,7 @@ void b3SolveMotorJoint( b3JointSim* base, b3StepContext* context )
 		b3Fixed maxImpulse = b3FixMul( context->h , joint->maxVelocityTorque );
 		b3Vec3 oldImpulse = joint->angularVelocityImpulse;
 		joint->angularVelocityImpulse = b3Add( oldImpulse, impulse );
-		if ( b3LengthSquared( joint->angularVelocityImpulse ) > b3FixMul( maxImpulse , maxImpulse ) )
+		if ( b3ImpulseOverCap3( joint->angularVelocityImpulse, maxImpulse ) )
 		{
 			joint->angularVelocityImpulse = b3MulSV( maxImpulse, b3Normalize( joint->angularVelocityImpulse ) );
 		}
@@ -377,7 +377,7 @@ void b3SolveMotorJoint( b3JointSim* base, b3StepContext* context )
 		b3Fixed maxImpulse = b3FixMul( context->h , joint->maxSpringForce );
 		joint->linearSpringImpulse = b3Add( joint->linearSpringImpulse, impulse );
 
-		if ( b3LengthSquared( joint->linearSpringImpulse ) > b3FixMul( maxImpulse , maxImpulse ) )
+		if ( b3ImpulseOverCap3( joint->linearSpringImpulse, maxImpulse ) )
 		{
 			joint->linearSpringImpulse = b3MulSV( maxImpulse, b3Normalize( joint->linearSpringImpulse ) );
 		}
@@ -412,7 +412,7 @@ void b3SolveMotorJoint( b3JointSim* base, b3StepContext* context )
 		b3Fixed maxImpulse = b3FixMul( context->h , joint->maxVelocityForce );
 		joint->linearVelocityImpulse = b3Add( joint->linearVelocityImpulse, impulse );
 
-		if ( b3LengthSquared( joint->linearVelocityImpulse ) > b3FixMul( maxImpulse , maxImpulse ) )
+		if ( b3ImpulseOverCap3( joint->linearVelocityImpulse, maxImpulse ) )
 		{
 			joint->linearVelocityImpulse = b3MulSV( maxImpulse, b3Normalize( joint->linearVelocityImpulse ) );
 		}
