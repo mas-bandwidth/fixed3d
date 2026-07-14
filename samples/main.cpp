@@ -4,6 +4,7 @@
 #include "gfx/debug_adapter.h"
 #include "gfx/keycodes.h"
 #include "gfx/renderer.h"
+#include "host/capture.h"
 #include "host/gui.h"
 #include "sample.h"
 #include "sokol_app.h"
@@ -31,6 +32,7 @@
 static SampleContext s_context;
 static int s_frame = 0;
 static int s_frameLimit = -1;
+static char s_capturePath[1024];
 static int s_sampleOverride = -1;
 
 static int CompareSamples( const void* a, const void* b )
@@ -332,8 +334,27 @@ static void OnFrame( void )
 {
 	if ( s_frameLimit >= 0 && s_frame >= s_frameLimit )
 	{
-		sapp_quit();
-		return;
+#if defined( __APPLE__ )
+		if ( s_capturePath[0] != '\0' )
+		{
+			// End-state capture: freeze the sim at the frame limit. The frame at
+			// s_frame == s_frameLimit renders the end state into the capture
+			// target (below); a few more paused frames let sokol's in-flight
+			// rotation guarantee GPU completion before the readback.
+			s_context.pause = true;
+			if ( s_frame >= s_frameLimit + 3 )
+			{
+				CaptureWritePng( s_capturePath, sapp_width(), sapp_height() );
+				sapp_quit();
+				return;
+			}
+		}
+		else
+#endif
+		{
+			sapp_quit();
+			return;
+		}
 	}
 
 	const uint64_t frameStart = b3GetTicks();
@@ -424,6 +445,15 @@ static void OnFrame( void )
 	const sg_swapchain sc = sglue_swapchain();
 	RenderFrame( &sc, &fi );
 
+#if defined( __APPLE__ )
+	if ( s_capturePath[0] != '\0' && s_frame == s_frameLimit && CaptureSupported() )
+	{
+		// Render the frozen end state a second time into the capture target.
+		CaptureCreateTarget( sapp_width(), sapp_height() );
+		RenderFrameOffscreen( CaptureAttachments(), CaptureFormat(), sapp_width(), sapp_height(), &fi );
+	}
+#endif
+
 	// StartUIFrame runs after RenderFrame: it drains the text arena with the
 	// camera state RenderFrame just latched and runs the UI draw callback.
 	StartUIFrame( dt );
@@ -502,6 +532,24 @@ sapp_desc sokol_main( int argc, char** argv )
 		else if ( strcmp( argv[i], "--zup" ) == 0 )
 		{
 			s_context.viewZUp = true;
+		}
+		else if ( strcmp( argv[i], "--capture" ) == 0 && i + 1 < argc )
+		{
+			// End-state screenshot: at --frames N, freeze the sim, render the
+			// final state offscreen, and write it to this PNG path (macOS only).
+			snprintf( s_capturePath, sizeof( s_capturePath ), "%s", argv[++i] );
+		}
+		else if ( strcmp( argv[i], "--list-samples" ) == 0 )
+		{
+			// Print "index<TAB>category<TAB>name" for every registered sample in
+			// the same sorted order --sample indexes into, then exit. Lets a
+			// harness map sample names across trees whose sample sets differ.
+			SortSamples();
+			for ( int k = 0; k < g_sampleCount; ++k )
+			{
+				printf( "%d\t%s\t%s\n", k, g_sampleEntries[k].Category, g_sampleEntries[k].Name );
+			}
+			exit( 0 );
 		}
 	}
 

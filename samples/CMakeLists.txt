@@ -188,6 +188,11 @@ if(APPLE)
     # sokol_app's Cocoa backend is Objective-C. Compile its impl TU as OBJC with ARC.
     set_source_files_properties(host/sokol_app_impl.c PROPERTIES LANGUAGE OBJC)
     set_source_files_properties(host/sokol_app_impl.c PROPERTIES COMPILE_OPTIONS "-fobjc-arc")
+
+    # --capture end-state screenshot readback (Metal blit + ImageIO PNG encode).
+    target_sources(samples PRIVATE host/capture.h host/capture_macos.m)
+    set_source_files_properties(host/capture_macos.m PROPERTIES COMPILE_OPTIONS "-fobjc-arc")
+    target_link_libraries(samples PRIVATE "-framework ImageIO" "-framework CoreGraphics")
 endif()
 
 # Include root is the samples dir so "gfx/..." and "host/..." prefixes resolve.
