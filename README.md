@@ -22,17 +22,17 @@ fixed point** in an `int64_t`. All of it: the solver, GJK, the trig, the ray
 casts, the mass properties, the recording format. The float SIMD is gone (it
 grew back on AVX-512 and NEON — same bits, just faster). In
 exchange, resolution is a uniform 1/65536 everywhere in a ±1.4×10¹⁴ meter
-world, every step is still bit-exact on every platform (vanilla Box3D already
+world, every step is still bit-exact on every platform (Box3D already
 was — see below), and all 22 unit test suites still pass.
 
-## Profile results: fixed point vs. vanilla single precision
+## Profile results: fixed point vs. single precision floating point
 
 `benchmark -t=4 -w=4 -r=2` (4 workers, min of 2 runs, continuous collision on),
 Apple M3 Ultra, macOS 26.5.1, Apple clang 21, RelWithDebInfo, Ninja.
 Measured 2026-07-13 at the current build defaults; all three columns were
 re-run in the same session, float included.
 
-- **float** = vanilla Box3D at `e961bfb` (single precision, NEON SIMD)
+- **float** = Box3D at `e961bfb` (single precision, NEON SIMD)
 - **fixed** = this tree, scalar int64 lanes
 - **fixed+NEON** = this tree with `-DBOX3D_NEON=ON` (narrow phase only)
 
@@ -55,36 +55,36 @@ worthwhile optimizations found during this exercise are backported to the real B
 
 ## Should I use this?
 
-Probably not. Check what you actually need against what vanilla Box3D
+Probably not. Check what you actually need against what Box3D
 already does:
 
 - **Determinism?** Box3D is already deterministic in floating point across platforms.
 
-- **A big world?** Vanilla Box3D already handles a 20,000 km cubed world
+- **A big world?** Box3D already handles a 20,000 km cubed world
   with just ~1M of broadphase padding at 10,000km from origin, and its double
   position support costs just 3% over standard float positions.
   
 - **Uniform resolution over a truly enormous range?** The same 1/65536
   everywhere in a ±1.4×10¹⁴ m world, with zero precision falloff away from
-  the origin — this is the one thing this tree does that vanilla Box3D does
+  the origin — this is the one thing this tree does that Box3D does
   not.
 
 If your world genuinely outruns what large positions plus broadphase
 padding cover, this library is the answer to your problem. Be sure that is
 your problem before paying 2× for it.
 
-For everything else, vanilla Box3D almost certainly does what you need: <https://github.com/erincatto/box3d>
+For everything else, Box3D almost certainly does what you need: <https://github.com/erincatto/box3d>
 
 ## Maintenance
 
 Fixed3D is maintained by [Glenn Fiedler](https://github.com/gafferongames) and
 [Rowan](https://github.com/rowan-claude), Glenn's AI collaborator. New work
-landing in vanilla Box3D gets ported across.
+landing in Box3D gets ported across.
 
 Issues specific to Fixed3D are welcome
 [here](https://github.com/mas-bandwidth/fixed3d/issues). For issues with Box3D
 in general, please use the
-[vanilla Box3D repository](https://github.com/erincatto/box3d).
+[Box3D repository](https://github.com/erincatto/box3d).
 
 ## License
 
