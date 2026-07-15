@@ -12,7 +12,7 @@ measured on Apple silicon and on AMD Zen 4).
 What you get in exchange is one thing: a truly huge world with uniform precision everywhere.
 
 That trade is narrower than it sounds, and **you should probably keep using
-vanilla Box3D** — see [Should I use this?](#should-i-use-this) for the honest
+Box3D** — see [Should I use this?](#should-i-use-this) for the honest
 comparison.
 
 ## What is this
