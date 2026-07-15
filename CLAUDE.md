@@ -148,32 +148,54 @@ there is no pending working-tree state.
   foundation.md gained a b3Fixed primer section; overview.md gained a
   fork note up top. hello.md and simulation.md explain the two B3_FIX
   traps inline (bare literal truncates 65536x; %f on a b3Fixed is UB).
-- **Determinism goldens**: sleepStep=287, hash=0xE7D52285, verified bit-identical
-  across 1-5 workers. Hash updated 2026-07-14 for the 100 km scene origin (see
+- **Determinism goldens**: sleepStep=287, hash=0x228A3865, verified bit-identical
+  across 1-5 workers. Hash updated 2026-07-14 (late) for the 120,000 km scene
+  origin; sleepStep has now carried over unchanged through TWO origin moves
+  (origin→100 km→120,000 km), each an exactly representable rigid translation.
+  Previous hash at 100 km: 0xE7D52285 (see
   the scene-origin bullet below); sleepStep is UNCHANGED from the origin-scene
   value because an exactly representable origin shift is a bit-exact rigid
   translation of the whole trajectory — only the absolute transform bytes the
   hash covers moved. Any solver-affecting change invalidates these, see the
   test conventions section for how to regenerate.
 - **Scene origin invariant (2026-07-14, from Glenn: "we should always work
-  there")**: every sample, every benchmark scene, and the determinism test
-  build their content around `GetSceneOrigin()` in shared/utils.h — a CONSTANT
-  (100 km on all three axes, `SCENE_ORIGIN_COORDINATE`) with deliberately no
-  setter, so nothing can opt back to (0,0,0). Samples use the wrappers in
+  there"; moved to 120,000 km later the same day, from Glenn via Erin: vanilla
+  Box3D + double precision handles a ±120,000 km cube with ~1 m of
+  single-float broadphase padding — we match its maximum world at uniform
+  1/65536, structurally, in every scene)**: every sample, every benchmark
+  scene, and the determinism test build their content around
+  `GetSceneOrigin()` in shared/utils.h — a CONSTANT
+  (120,000 km = 1.2e8 m on all three axes, `SCENE_ORIGIN_COORDINATE`, exactly
+  representable in float32 AND Q48.16 so origin moves stay bit-exact rigid
+  translations) with deliberately no
+  setter, so nothing can opt back to (0,0,0). NOTE the numeric hazard class at
+  this magnitude: a 64-bit b3FixMul SQUARE of an absolute coordinate wraps
+  past |v| ~ 1e7 m (raw 7.9e12 squared >> int64) — the engine's length/dot
+  paths are exact raw-128 and immune, differences are small, but never square
+  an absolute world coordinate in 64-bit fixed. 120,000 km verification
+  (2026-07-14 late): full suite + goldens (sleepStep 287 unchanged, hash
+  0x228A3865) in Release AND Debug+VALIDATE+ASan/UBSan; sanitized 10-step
+  benchmark smoke all scenes; per-scene benchmark counts diffed IDENTICAL vs
+  100 km; full 154-sample headless sweep zero failures; screenshot A/B vs the
+  float-at-origin baseline: 153/153 pairs, same two known divergences (Card
+  House 4.3/255 — identical score to 100 km — and Far Pyramid 3.7 by design),
+  nothing new. Samples use the wrappers in
   samples/sample.h: `SampleOrigin()`, `SamplePos( local )`, `SampleLocal(
   world )`; C scene builders (shared/benchmarks.c, determinism.c,
   overflow_color.c) use `b3OffsetPos( GetSceneOrigin(), local )`. Author scene
   layout in LOCAL coordinates and offset exactly once at the world boundary;
   readbacks compared to authored constants go through SampleLocal/b3SubPos.
   Benchmark workloads are bit-identical to the historical origin layouts
-  (verified 2026-07-14: body/shape/contact/joint counts AND solver stack
-  high-water marks match pristine-HEAD runs exactly for large_pyramid, rain,
-  trees50, large_world, junkyard) — the published perf tables remain valid;
+  (verified 2026-07-14 at 100 km vs pristine-HEAD for five scenes, and again
+  at 120,000 km vs 100 km for ALL scenes via the sanitized smoke's count
+  lines) — the published perf tables remain valid;
   future refreshes still re-run both sides per the existing rules (the float
   reference stays at ITS origin, which is float's best case, so the comparison
   is honest). sample_world.cpp's Far* samples keep their own configurable
   offsets (0..1e7 m) — they are the deliberate exception that demonstrates the
-  full range, including (0,0,0). DrawGroundGrid now takes the origin as a
+  full range, including (0,0,0); note their 1e7 m ceiling is the documented
+  safe bound for naive 64-bit squares, NOT a position limit — the shared
+  origin at 1.2e8 m is fine because engine paths never square absolutes. DrawGroundGrid now takes the origin as a
   parameter. NOTE: unit tests other than DeterminismTest still author their
   own scenes near (0,0,0) on purpose (near-origin coverage, and TestMeshDrop's
   sleep equilibrium is a knife edge — do not move it casually).
@@ -952,8 +974,9 @@ Fixes landed in session 2 (beyond the session-1 list):
   never meant as references — see `ExactQuat` in test_manifold.c, the cylinder
   expectations in test_hull.c, and the trig comparisons in test_math.c).
 - Determinism goldens (`test/test_determinism.c`): `EXPECTED_SLEEP_STEP 287`,
-  `EXPECTED_HASH 0xE7D52285` (hash updated 2026-07-14 for the 100 km scene
-  origin; the sleep step carried over unchanged from the origin scene because
+  `EXPECTED_HASH 0x228A3865` (hash updated 2026-07-14 late for the 120,000 km
+  scene origin, previously 0xE7D52285 at 100 km; the sleep step carried over
+  unchanged through both origin moves because
   the shift is a bit-exact rigid translation; previously 0x6FA8A4C5 for the
   e961bfb friction-center port; verified bit-identical across 1-5 workers).
   Any solver-affecting change invalidates these: rerun, take the printed

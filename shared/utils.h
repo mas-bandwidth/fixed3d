@@ -32,7 +32,10 @@ int GetNumberOfCores( void );
 // is deliberately a constant with no setter — nothing can opt back to the
 // origin. Moving it invalidates the determinism goldens in
 // test/test_determinism.c (rerun and update them per the procedure there).
-#define SCENE_ORIGIN_COORDINATE B3_FIX( 100000.0f )
+// 120,000 km on each axis: vanilla Box3D's double-precision maximum world
+// (+/-120,000 km cube, per Erin). 120,000,000 is exactly representable in
+// both float32 and Q48.16, so the shift is a bit-exact rigid translation.
+#define SCENE_ORIGIN_COORDINATE B3_FIX( 120000000.0f )
 
 B3_INLINE b3Pos GetSceneOrigin( void )
 {

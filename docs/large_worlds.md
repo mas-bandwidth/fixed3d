@@ -55,20 +55,24 @@ drawOrigin )` is exact — and a distant scene renders crisply. The sample app
 sets the draw origin from the camera eye each frame, and the Large World
 sample uses it to render a stack at 1e7 with no jitter.
 
-## Everything runs 100 km out
+## Everything runs 120,000 km out
 
 Every sample scene, every benchmark scene, and the determinism test build
-their content around a shared world origin 100 km from (0,0,0) on all three
-axes (`GetSceneOrigin()` in `shared/utils.h` — a constant with no setter, so
-nothing can quietly opt back to the origin). This enforces the large-world
-claim continuously: all performance numbers are measured, and every sample is
-exercised, far from the origin. An exactly representable origin shift is a
-bit-exact rigid translation of the whole simulation — the falling-ragdolls
-determinism scene sleeps on the identical step at 100 km as at the origin,
-and the benchmark workloads (contact counts, solver stack high-water marks)
-are bit-identical — so working out there costs nothing and proves the
-uniform-precision claim on every run. The World > Far samples go further,
-with configurable offsets out to 1e7 m.
+their content around a shared world origin 120,000 km from (0,0,0) on all
+three axes (`GetSceneOrigin()` in `shared/utils.h` — a constant with no
+setter, so nothing can quietly opt back to the origin). That coordinate is
+chosen to match the maximum world of vanilla Box3D's double-precision mode
+(a ±120,000 km cube), where vanilla's single-precision broad phase costs
+about a meter of bounding-box padding — here the resolution is the same
+1/65536 it is everywhere else. This enforces the large-world claim
+continuously: all performance numbers are measured, and every sample is
+exercised, at the far edge of the comparable world. An exactly representable
+origin shift is a bit-exact rigid translation of the whole simulation — the
+falling-ragdolls determinism scene sleeps on the identical step at
+120,000 km as at the origin, and the benchmark workloads (contact counts,
+solver stack high-water marks) are bit-identical — so working out there
+costs nothing and proves the uniform-precision claim on every run. The
+World > Far samples vary the offset independently of the shared origin.
 
 ## Determinism
 
