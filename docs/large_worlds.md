@@ -55,23 +55,27 @@ drawOrigin )` is exact — and a distant scene renders crisply. The sample app
 sets the draw origin from the camera eye each frame, and the Large World
 sample uses it to render a stack at 1e7 with no jitter.
 
-## Everything runs 120,000 km out
+## Everything runs 120 million kilometers out
 
 Every sample scene, every benchmark scene, and the determinism test build
-their content around a shared world origin 120,000 km from (0,0,0) on all
-three axes (`GetSceneOrigin()` in `shared/utils.h` — a constant with no
-setter, so nothing can quietly opt back to the origin). That coordinate is
-chosen to match the maximum world of vanilla Box3D's double-precision mode
-(a ±120,000 km cube), where vanilla's single-precision broad phase costs
-about a meter of bounding-box padding — here the resolution is the same
-1/65536 it is everywhere else. This enforces the large-world claim
-continuously: all performance numbers are measured, and every sample is
-exercised, at the far edge of the comparable world. An exactly representable
-origin shift is a bit-exact rigid translation of the whole simulation — the
-falling-ragdolls determinism scene sleeps on the identical step at
-120,000 km as at the origin, and the benchmark workloads (contact counts,
-solver stack high-water marks) are bit-identical — so working out there
-costs nothing and proves the uniform-precision claim on every run. The
+their content around a shared world origin 120,000,000 km — about 0.8
+astronomical units, most of the way to the Sun — from (0,0,0) on all three
+axes (`GetSceneOrigin()` in `shared/utils.h` — a constant with no setter,
+so nothing can quietly opt back to the origin). For scale: vanilla Box3D's
+double-precision mode supports a ±120,000 km cube, with its
+single-precision broad phase costing about a meter of bounding-box padding
+at the edge. This origin is a thousand times past that edge, at the same
+1/65536 resolution the engine has everywhere. Working out here enforces
+the large-world claim continuously: all performance numbers are measured,
+and every sample is exercised, three orders of magnitude beyond the
+comparable world. An exactly representable origin shift is a bit-exact
+rigid translation of the whole simulation — the falling-ragdolls
+determinism scene sleeps on the identical step at 0.8 AU as at the origin
+(the sleep step has carried unchanged through four origin moves), and the
+benchmark workloads (contact counts, solver stack high-water marks) are
+bit-identical — so working out there costs nothing and proves the
+uniform-precision claim on every run. Sentinel probes hold clean further
+still, out to 1.2e14 m (~800 AU, 85% of the Q48.16 range). The
 World > Far samples vary the offset independently of the shared origin.
 
 ## Determinism

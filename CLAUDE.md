@@ -148,27 +148,32 @@ there is no pending working-tree state.
   foundation.md gained a b3Fixed primer section; overview.md gained a
   fork note up top. hello.md and simulation.md explain the two B3_FIX
   traps inline (bare literal truncates 65536x; %f on a b3Fixed is UB).
-- **Determinism goldens**: sleepStep=287, hash=0x228A3865, verified bit-identical
-  across 1-5 workers. Hash updated 2026-07-14 (late) for the 120,000 km scene
-  origin; sleepStep has now carried over unchanged through TWO origin moves
-  (origin→100 km→120,000 km), each an exactly representable rigid translation.
-  Previous hash at 100 km: 0xE7D52285 (see
+- **Determinism goldens**: sleepStep=287, hash=0xB222C195, verified bit-identical
+  across 1-5 workers. Hash updated 2026-07-15 for the 0.8 AU scene origin;
+  sleepStep has carried over unchanged through FOUR origin moves
+  (origin→100 km→120,000 km→1.2e11 m), each an exactly representable rigid
+  translation. Prior hashes: 0x228A3865 (120,000 km), 0xE7D52285 (100 km) (see
   the scene-origin bullet below); sleepStep is UNCHANGED from the origin-scene
   value because an exactly representable origin shift is a bit-exact rigid
   translation of the whole trajectory — only the absolute transform bytes the
   hash covers moved. Any solver-affecting change invalidates these, see the
   test conventions section for how to regenerate.
 - **Scene origin invariant (2026-07-14, from Glenn: "we should always work
-  there"; moved to 120,000 km later the same day, from Glenn via Erin: vanilla
-  Box3D + double precision handles a ±120,000 km cube with ~1 m of
-  single-float broadphase padding — we match its maximum world at uniform
-  1/65536, structurally, in every scene)**: every sample, every benchmark
+  there"; moved to 120,000 km the same day to match vanilla-double's maximum
+  world — a ±120,000 km cube with ~1 m float-broadphase padding, per Erin —
+  then to 120,000,000 km = 1.2e11 m ≈ 0.8 AU for v1.2.0, a thousand times
+  past that edge, same 1/65536 resolution)**: every sample, every benchmark
   scene, and the determinism test build their content around
   `GetSceneOrigin()` in shared/utils.h — a CONSTANT
-  (120,000 km = 1.2e8 m on all three axes, `SCENE_ORIGIN_COORDINATE`, exactly
-  representable in float32 AND Q48.16 so origin moves stay bit-exact rigid
-  translations) with deliberately no
-  setter, so nothing can opt back to (0,0,0). NOTE the numeric hazard class at
+  (`SCENE_ORIGIN_COORDINATE`, now `b3FixFromInt(120000000000LL)` — INTEGER
+  construction because 1.2e11 is NOT exactly representable in float32; exact
+  in Q48.16, so origin moves stay bit-exact rigid translations) with
+  deliberately no setter, so nothing can opt back to (0,0,0). v1.2.0
+  verification at 0.8 AU (2026-07-15): full suite + goldens (sleepStep 287,
+  hash 0xB222C195) Release AND sanitized Debug; sanitized bench smoke with
+  counts IDENTICAL to 120,000 km; 154-sample sweep zero failures; A/B vs
+  float baseline: Card House 4.25 and Far Pyramid 3.73 only (both 0.00
+  pixel-identical to their 120,000 km selves), rest at noise. NOTE the numeric hazard class at
   this magnitude: a 64-bit b3FixMul SQUARE of an absolute coordinate wraps
   past |v| ~ 1e7 m (raw 7.9e12 squared >> int64) — the engine's length/dot
   paths are exact raw-128 and immune, differences are small, but never square
@@ -974,9 +979,9 @@ Fixes landed in session 2 (beyond the session-1 list):
   never meant as references — see `ExactQuat` in test_manifold.c, the cylinder
   expectations in test_hull.c, and the trig comparisons in test_math.c).
 - Determinism goldens (`test/test_determinism.c`): `EXPECTED_SLEEP_STEP 287`,
-  `EXPECTED_HASH 0x228A3865` (hash updated 2026-07-14 late for the 120,000 km
-  scene origin, previously 0xE7D52285 at 100 km; the sleep step carried over
-  unchanged through both origin moves because
+  `EXPECTED_HASH 0xB222C195` (hash updated 2026-07-15 for the 0.8 AU scene
+  origin, previously 0x228A3865 at 120,000 km and 0xE7D52285 at 100 km; the
+  sleep step carried over unchanged through all four origin moves because
   the shift is a bit-exact rigid translation; previously 0x6FA8A4C5 for the
   e961bfb friction-center port; verified bit-identical across 1-5 workers).
   Any solver-affecting change invalidates these: rerun, take the printed

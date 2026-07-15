@@ -22,7 +22,7 @@
 // because it covers the absolute transform bytes: an exactly representable
 // origin shift is a bit-exact rigid translation of the whole trajectory.
 #define EXPECTED_SLEEP_STEP 287
-#define EXPECTED_HASH 0x228A3865
+#define EXPECTED_HASH 0xB222C195
 
 static int SingleMultithreadingTest( int workerCount )
 {
