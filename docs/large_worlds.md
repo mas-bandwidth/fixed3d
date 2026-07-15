@@ -4,10 +4,10 @@ In Fixed3D **every world is a large world**. Positions are Q48.16 fixed point:
 a uniform resolution of 1/65536 (about 1.5e-5 meters) at the origin, at
 10,000 km from the origin, and everywhere else. There is no precision falloff
 with distance, so there is no separate large-world mode to enable — and the
-double-precision mode from vanilla Box3D is removed. Defining
+double-precision mode from Box3D is removed. Defining
 `BOX3D_DOUBLE_PRECISION` is a compile error in this tree.
 
-For context: vanilla float Box3D loses position resolution far from the
+For context: float Box3D loses position resolution far from the
 origin (a float has a step of about one meter at 1e7 meters), and solves this
 with an optional double-precision world-position mode that costs only a few
 percent. If a big world is all you need, that mode is the pragmatic choice —
@@ -16,7 +16,7 @@ resolution is *uniform*: sub-millimeter everywhere, with nothing to configure.
 
 ## The world-position API
 
-The vanilla API's world-position vocabulary is kept so code written against
+The Box3D API's world-position vocabulary is kept so code written against
 it compiles unchanged, but the types collapse permanently:
 
 - `b3Pos` is an alias for `b3Vec3`.
@@ -24,7 +24,7 @@ it compiles unchanged, but the types collapse permanently:
 - The boundary helpers (`b3ToPos`, `b3ToVec3`, `b3SubPos`, `b3OffsetPos`,
   `b3RoundDownFloat`, `b3RoundUpFloat`) remain as trivial pass-throughs.
 
-Everywhere the vanilla API accepts or returns a world position —
+Everywhere the Box3D API accepts or returns a world position —
 `b3BodyDef.position`, `b3Body_GetPosition` / `b3Body_GetTransform`, the query
 origins (`b3World_OverlapShape`, `b3World_CastShape`, `b3World_CastMover`,
 `b3World_CastRay`), hit points, and the body move event — the fixed-point
@@ -61,7 +61,7 @@ Every sample scene, every benchmark scene, and the determinism test build
 their content around a shared world origin 120,000,000 km — about 0.8
 astronomical units, most of the way to the Sun — from (0,0,0) on all three
 axes (`GetSceneOrigin()` in `shared/utils.h` — a constant with no setter,
-so nothing can quietly opt back to the origin). For scale: vanilla Box3D's
+so nothing can quietly opt back to the origin). For scale: Box3D's
 double-precision mode supports a ±120,000 km cube, with its
 single-precision broad phase costing about a meter of bounding-box padding
 at the edge. This origin is a thousand times past that edge, at the same
@@ -82,5 +82,5 @@ World > Far samples vary the offset independently of the shared origin.
 
 There is a single precision mode, so there is a single set of determinism
 expectations: the same simulation produces bit-identical results across
-platforms and worker counts. (Vanilla Box3D is also deterministic — see the
+platforms and worker counts. (Box3D is also deterministic — see the
 FAQ — fixed point only changes how that is achieved.)

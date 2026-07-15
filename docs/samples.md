@@ -15,8 +15,8 @@ The samples application has many examples of Fixed3D usage in the test cases and
 framework itself. I encourage you to explore and tinker with the samples
 as you learn Fixed3D.
 
-Note: one sample intentionally diverges from vanilla Box3D. **Stacking >
-Card House** collapses in Fixed3D while standing in vanilla — not from a
+Note: one sample intentionally diverges from Box3D. **Stacking >
+Card House** collapses in Fixed3D while standing in Box3D — not from a
 conversion defect, but because its cards are thinner than the solver's
 contact tolerances, which makes the outcome chaotic: differences far below
 any engineering tolerance (a 0.00003 change in one initial rotation, in

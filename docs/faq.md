@@ -126,22 +126,27 @@ Fixed3D does not have any support for coordinate frame wrapping. You would likel
 For the same input Fixed3D will reproduce any simulation. Fixed3D does not use any random numbers nor base any computation
 on random events (such as timers, etc).
 
-Fixed3D is also deterministic under multithreading. A simulation using two threads will give the same result as eight threads.
+Fixed3D is also deterministic under multithreading. A simulation using two threads will give the same result as eight
+threads. This is the largest part of the determinism story, and it is Erin Catto's engineering, inherited from Box3D:
+making a multithreaded solver produce identical results regardless of thread count or scheduling is a substantial,
+ongoing piece of work (simulation order pinned to creation order, deterministic event ordering, and more), and it must
+be actively preserved by every change — which is why the determinism unit test runs on every pull request in both trees.
 
-Fixed3D is cross-platform deterministic by construction: the simulation is pure integer math (Q48.16 fixed point), so
-there are no floating-point flags to police. Note that vanilla float Box3D is *also* cross-platform deterministic — it
-achieves this with floating-point discipline (`-ffp-contract=off`, consistent IEEE 754 arithmetic). Fixed point changes
-how determinism is achieved, not whether.
+The *math layer* of cross-platform determinism is where this fork differs. Fixed3D is deterministic by construction
+there: the simulation is pure integer math (Q48.16 fixed point), so there are no floating-point flags to police. Box3D
+is *also* cross-platform deterministic at the math layer — it achieves this with floating-point discipline
+(`-ffp-contract=off`, consistent IEEE 754 arithmetic across compilers and ISAs). Fixed point changes how that one layer
+is achieved, not whether — and the threading layer above it, the bulk of the work, is identical in both trees.
 
 However, Fixed3D does not have rollback determinism. There is no mechanism to set a world back to a prior state and then
 resume simulation expecting identical results. Fixed3D caches a lot of internal state to improve simulation stability and
 performance.
 
 ### But I really want fixed point
-Vanilla Box3D does not support fixed-point math — upstream's FAQ notes that it is slower and more tedious to develop,
+Box3D does not support fixed-point math — upstream's FAQ notes that it is slower and more tedious to develop,
 which is why Erin chose not to use it. This fork exists to measure exactly that: the entire simulation is Q48.16 fixed
 point, and it comes out about 2× slower (see the README). He was right on both counts. If determinism is all you want,
-vanilla float Box3D already provides it.
+float Box3D already provides it.
 
 ## What are the common mistakes made by new users?
 * Using non-metric units instead of meters

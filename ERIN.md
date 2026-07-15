@@ -3,7 +3,7 @@
 While converting Box3D to fixed point we spent a lot of time staring at your
 code, implementing your todos, and stress-testing paths your test corpus
 doesn't reach. This file is the useful residue: everything we found or built
-that applies to **vanilla float Box3D**, with the fixed-point parts filtered
+that applies to **float Box3D**, with the fixed-point parts filtered
 out.
 
 Line numbers reference your tree at `e961bfb`. Performance numbers were
@@ -310,5 +310,10 @@ determinism golden (state hash + sleep step over a few hundred frames of
 ragdolls on meshes, checked across 1–5 worker threads) on arm64 and
 x86-64. That harness catches a one-ulp change anywhere in the solver — we
 can recommend the setup regardless of what your numbers are made of.
-Vanilla Box3D was already deterministic when we got here; that part was
-always yours.
+Box3D was already deterministic when we got here, and having now lived
+inside the machinery: the bulk of that is your multithreading determinism
+work — simulation order pinned to creation order, deterministic event
+ordering, identical results at any worker count — which this fork inherits
+whole and guards with the same cross-worker golden you'd recognize. The
+fixed-point part only changes how the math layer underneath gets its
+determinism. The rest was always yours.

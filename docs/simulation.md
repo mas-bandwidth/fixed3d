@@ -1997,15 +1997,18 @@ Sensor overlaps are checked in the final stage. The overlap state reflects the f
 Fixed3D is designed to be deterministic across thread counts and platforms. This is important for debugging and game design.
 
 Multithreaded determinism is achieved by basing simulation order on creation order. This includes bodies, shapes, and joint creation order. Determinism includes results reported to users (events). These events must be in deterministic order.
+This threading determinism is the bulk of the determinism engineering, it is Erin Catto's work inherited from Box3D,
+and it is the part every change must be careful to preserve — the cross-worker-count golden test exists to guard it.
 
-Cross-platform determinism is achieved by construction: the simulation is pure integer math (Q48.16 fixed point), which
-behaves identically on every conforming platform.
+The math layer of cross-platform determinism is achieved by construction in this fork: the simulation is pure integer
+math (Q48.16 fixed point), which behaves identically on every conforming platform.
 - There are no floating-point compiler flags to configure or police.
 - Fixed3D has custom integer implementations of atan2, cosine, and sine (Q32.32 intermediates).
 
-Determinism is on by default and there is no option to disable it; in fixed point no compiler flag can break it.
-(Vanilla float Box3D is also cross-platform deterministic — it uses floating-point discipline to get there: precise
-math on MSVC, `-ffp-contract=off` on clang and gcc.)
+Determinism is on by default and there is no option to disable it; in fixed point no compiler flag can break the math
+layer. (Box3D is also cross-platform deterministic at the math layer — it uses floating-point discipline to get there:
+precise math on MSVC, `-ffp-contract=off` on clang and gcc — and its threading determinism is the same machinery this
+fork inherits.)
 
 A unit test for determinism is run for every pull request. Determinism is easy to break, so it is important to have regular validation.
 

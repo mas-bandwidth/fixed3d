@@ -13,7 +13,7 @@ changes, and behavior matches Box3D except where fixed point is called
 out — most visibly, scalar quantities are `b3Fixed` rather than `float`,
 and float literals in your code must be wrapped with `B3_FIX`. See the
 repository README for what this fork is and whether you should use it
-(short answer: you probably want vanilla Box3D).
+(short answer: you probably want Box3D).
 
 Fixed3D is a 3D rigid body simulation library for games. Programmers can
 use it in their games to make objects move in realistic ways and make
@@ -198,7 +198,7 @@ improve precision and simulation behavior.
 
 Another consideration is overall world size. In float Box3D, world units
 larger than 12 kilometers or so lose precision, which can affect stability
-(vanilla addresses this with its optional double-precision world-position
+(Box3D addresses this with its optional double-precision world-position
 mode). Fixed3D does not have this limit: Q48.16 positions have uniform
 resolution at any distance from the origin. See [Large
 Worlds](large_worlds.md) for the practical operating range.
