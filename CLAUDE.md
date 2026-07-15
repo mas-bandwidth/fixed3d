@@ -22,9 +22,12 @@ there is no pending working-tree state.
   to THIS repo's tracker, general Box3D issues to erincatto/box3d — README,
   docs/overview.md, and docs/faq.md all state this now (ships with the next
   release). REMAINING OPEN DECISION (Glenn's): port-routine resume timing.
-  Someday item: the Stacking/Card House equilibrium
-  knife-edge (fixed collapses at the Q48.16 resolution floor where float
-  stands — the one honest physics divergence from the visual A/B).
+  The Card House someday-item is
+  RESOLVED (2026-07-15, kept intentionally, see the visual-A/B bullet for
+  the full experiment record); the remaining open investigation is the
+  Mesh Drop origin sensitivity (0.85-1.44/255 divergence BETWEEN fixed
+  origins at every distance tested while everything else is 0.00 —
+  mechanism unknown, drivers in the private rowan repo).
 - **ALL 22 test suites pass** in Release (`./build-fixed2/bin/test`, ~1.1 s) AND
   in Debug + B3_VALIDATE + ASan/UBSan (exit 0, zero sanitizer reports). Single
   suite: `./build-fixed2/bin/test <SuiteName>`.
@@ -277,10 +280,32 @@ there is no pending working-tree state.
   paired the PNGs by category/name. Result: 153/153 matched samples, zero
   captures failed, zero empty/garbage frames, worst end-state divergence
   4.3/255 mean luminance. Two real divergences, both understood: (1)
-  Stacking/Card House STANDS in float but COLLAPSES in fixed — its
-  friction/material values verified correctly converted, so this is an honest
-  equilibrium knife-edge at the Q48.16 resolution floor (same class as the
-  TestMeshDrop lore), worth a solver look someday, not a conversion bug; (2)
+  Stacking/Card House STANDS in float but COLLAPSES in fixed — INVESTIGATED
+  TO CLOSURE 2026-07-15, KEPT INTENTIONALLY (Glenn's decision; annotated in
+  the sample and docs/samples.md so nobody is confused by the divergence).
+  Mechanism, established by controlled experiments (drivers + dumps + all
+  probe rounds preserved in the private rowan repo,
+  investigations/cardhouse/): the cards (2 mm) are thinner than the
+  solver's linear-slop-class tolerances (~5 mm; Erin's own in-sample todo
+  says the scene strains minimum thickness), which puts the outcome in a
+  CHAOTIC regime. Three attractive theories were refuted by experiment —
+  authored-thickness quantization (exactly-representable 2^-10 thickness
+  collapses identically), the 15 um resolution lattice (a physically
+  identical house with a 100x finer lattice and correctly scaled
+  gravity/tolerances collapses identically — NOTE: gravity and sleep
+  thresholds do NOT scale with lengthUnitsPerMeter, a confound that
+  invalidated the first naive scale ladder), and dt (float stepping at
+  fixed's exact 0.01666259765625 stands at 1.638 vs 1.640 m). The proof of
+  sensitive dependence: PURE FLOAT with only fixed's initial rotations
+  injected (~3e-5 quat differences from the Q32.32 trig constructors)
+  loses its top story (max height 1.640 -> 1.452). Fixed point stands and
+  SLEEPS when the scene has sane tolerance ratios (dynamically-similar
+  x100 house, gravity x100: zero displacement). Conclusion: knife-edge
+  scene in ANY number system; the number system merely picks the ending.
+  Kept as the corpus' sensitivity canary — any future solver change that
+  shifts sub-tolerance behavior shows up here first. Content guidance now
+  in docs/samples.md: keep feature sizes comfortably above solver
+  tolerances for marginally stable assemblies; (2)
   the World/Far samples diverge in fixed point's favor — at 10,000 km float's
   pyramid shatters on its ~1 m grid while the fixed one is pristine (the
   repo's thesis, now in pixels). Harness: COMMITTED in tools/capture/

@@ -115,6 +115,15 @@ public:
 		b3Fixed angle2 = B3_PI / 2;
 
 		// todo box hull is limiting the minimum thickness, breaking this test
+		// KEPT INTENTIONALLY, DIVERGES FROM VANILLA (Fixed3D, 2026-07): here the
+		// house collapses while vanilla float Box3D's stands. Investigated to
+		// closure: the cards are thinner than the solver's linear-slop-class
+		// tolerances (the todo above), which makes the outcome chaotic — pure
+		// float loses its top level from a 3e-5 initial-rotation change, and
+		// fixed point stands and sleeps when the scene is scaled to sane
+		// tolerance ratios. Not a conversion bug; a knife-edge scene in any
+		// number system. Kept as the engine's sensitivity canary. Details and
+		// the experiment record: CLAUDE.md (Card House).
 		b3BoxHull cardBox = b3MakeBoxHull( b3FixFromFloat( cardThickness ), b3FixFromFloat( cardHeight ), b3FixFromFloat( cardDepth ) );
 		b3BodyDef bodyDef = b3DefaultBodyDef();
 		bodyDef.type = b3_dynamicBody;
