@@ -73,6 +73,13 @@ If your world genuinely outruns what large positions plus broadphase
 padding cover, this library is the answer to your problem. Be sure that is
 your problem before paying 2× for it.
 
+And if ±1.4×10¹⁴ m is somehow still not enough, `LUDICROUS_MODE` widens the
+broadphase to 128 bits: collision works a light-year from the origin, for
+another +1.6%. A box dropped a tenth of a light-year out settles
+bit-identically to the same box at the origin. You do not need this. It was
+built to measure exactly how much slower a 128-bit broadphase is, and the
+answer was too good not to ship.
+
 For everything else, Box3D almost certainly does what you need: <https://github.com/erincatto/box3d>
 
 ## Maintenance
