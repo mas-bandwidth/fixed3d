@@ -1,5 +1,7 @@
 # Fixed3D: Box3D in Q48.16 fixed point
 
+[![Build Status](https://github.com/mas-bandwidth/fixed3d/actions/workflows/build.yml/badge.svg)](https://github.com/mas-bandwidth/fixed3d/actions)
+
 This fork exists to answer two questions:
 
 1. **What would [Box3D](https://github.com/erincatto/box3d) look like if it
