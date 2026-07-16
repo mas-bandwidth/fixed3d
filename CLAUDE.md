@@ -79,6 +79,14 @@ there is no pending working-tree state.
   b3TreeNode/b3HullData/b3MeshData embed 16-aligned int128 bounds (UBSan
   caught it); every section offset now rounds to _Alignof of its element type
   via b3AlignUp (math_internal.h) — provably a no-op in narrow builds.
+  NOTE: the same packing is LIVE UB in upstream FLOAT box3d — b3HullInstance
+  is 36 bytes there, so ANY odd hull-instance count (one hull!) misaligns
+  b3HullData's uint64 version field; verified with a minimal repro against a
+  pristine e961bfb UBSan build (fires at upstream compound.c:582) — ERIN.md
+  item 9, raw repro preserved in the private rowan repo
+  investigations/ludicrous/. Our fixed tree only dodged it pre-LUDICROUS
+  because int64 transforms make the instance structs 8-multiples. Relevant
+  when porting upstream compound.c changes.
   B3_ALIGNMENT >= 16 already covered allocator base pointers. KNOWN SCOPE
   BOUNDARY: the samples app does NOT build under BOX3D_WIDE_POSITIONS (never
   ported — ~145 pre-existing errors), hence not under LUDICROUS_MODE either;
