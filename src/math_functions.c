@@ -47,12 +47,12 @@ bool b3IsValidMatrix3( b3Matrix3 a )
 
 bool b3IsValidAABB( b3AABB a )
 {
-	if ( b3IsValidVec3( a.lowerBound ) == false )
+	if ( b3IsValidVec3( b3BoundToVec3( a.lowerBound ) ) == false )
 	{
 		return false;
 	}
 
-	if ( b3IsValidVec3( a.upperBound ) == false )
+	if ( b3IsValidVec3( b3BoundToVec3( a.upperBound ) ) == false )
 	{
 		return false;
 	}

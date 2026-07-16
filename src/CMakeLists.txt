@@ -171,6 +171,13 @@ if (BOX3D_NEON)
 	target_compile_definitions(box3d PRIVATE BOX3D_NEON)
 endif()
 
+if (LUDICROUS_MODE)
+	message(STATUS "Fixed3D LUDICROUS MODE ON (128-bit broadphase — you were warned)")
+	# PUBLIC: changes the definition of the public b3AABB type, so every consumer of the
+	# header must compile with the same definition as the library or the ABI diverges.
+	target_compile_definitions(box3d PUBLIC LUDICROUS_MODE)
+endif()
+
 if (BOX3D_WIDE_POSITIONS)
 	message(STATUS "Fixed3D 128-bit world positions ON")
 	# PUBLIC: BOX3D_WIDE_POSITIONS changes the definition of the public b3Pos /

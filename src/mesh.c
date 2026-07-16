@@ -217,8 +217,8 @@ static bool b3IsNonDegenerate( const b3MeshData* mesh, b3Fixed minArea )
 static inline b3AABB b3GetNodeAABB( const b3MeshNode* node )
 {
 	return (b3AABB){
-		node->lowerBound,
-		node->upperBound,
+		b3Vec3ToBound( node->lowerBound ),
+		b3Vec3ToBound( node->upperBound ),
 	};
 }
 
@@ -532,8 +532,8 @@ static inline void b3StoreLeaf( b3MeshNode* node, const b3AABB* aabb, int triang
 	node->data.asLeaf.type = B3_LEAF_NODE;
 	node->data.asLeaf.triangleCount = triangleCount;
 	node->triangleOffset = triangleOffset;
-	node->lowerBound = aabb->lowerBound;
-	node->upperBound = aabb->upperBound;
+	node->lowerBound = b3BoundToVec3( aabb->lowerBound );
+	node->upperBound = b3BoundToVec3( aabb->upperBound );
 }
 
 typedef struct b3Primitive
@@ -564,7 +564,7 @@ static b3Split b3SplitBinnedSah( int count, b3Primitive* primitives )
 	split.index = -1;
 
 	// Compute bounds of primitive centroids and choose split axis
-	b3AABB bounds = { primitives[0].center, primitives[0].center };
+	b3AABB bounds = { b3Vec3ToBound( primitives[0].center ), b3Vec3ToBound( primitives[0].center ) };
 	for ( int i = 1; i < count; ++i )
 	{
 		bounds = b3AABB_AddPoint( bounds, primitives[i].center );
@@ -594,11 +594,11 @@ static b3Split b3SplitBinnedSah( int count, b3Primitive* primitives )
 
 		// Fill buckets
 		b3Fixed factor = b3FixDiv( B3_BIN_COUNT * ( B3_FIX( 1.0f ) - B3_FIXED_EPSILON ),
-					   ( b3GetByIndex( bounds.upperBound, axis ) - b3GetByIndex( bounds.lowerBound, axis ) ) );
+					   ( b3GetByIndex( b3BoundToVec3( bounds.upperBound ), axis ) - b3GetByIndex( b3BoundToVec3( bounds.lowerBound ), axis ) ) );
 		for ( int i = 0; i < count; ++i )
 		{
 			b3Vec3 center = primitives[i].center;
-			int index = (int)b3FixTruncToInt( ( b3FixMul( factor , ( b3GetByIndex( center, axis ) - b3GetByIndex( bounds.lowerBound, axis ) ) ) ) );
+			int index = (int)b3FixTruncToInt( ( b3FixMul( factor , ( b3GetByIndex( center, axis ) - b3GetByIndex( b3BoundToVec3( bounds.lowerBound ), axis ) ) ) ) );
 			B3_ASSERT( 0 <= index && index < B3_BIN_COUNT );
 
 			buckets[index].count++;
@@ -648,13 +648,13 @@ static b3Split b3SplitBinnedSah( int count, b3Primitive* primitives )
 	{
 		int axis = split.axis;
 		b3Fixed factor = b3FixDiv( B3_BIN_COUNT * ( B3_FIX( 1.0f ) - B3_FIXED_EPSILON ),
-					   ( b3GetByIndex( bounds.upperBound, axis ) - b3GetByIndex( bounds.lowerBound, axis ) ) );
+					   ( b3GetByIndex( b3BoundToVec3( bounds.upperBound ), axis ) - b3GetByIndex( b3BoundToVec3( bounds.lowerBound ), axis ) ) );
 
 		int splitIndex = 0;
 		for ( int i = 0; i < count; ++i )
 		{
 			b3Vec3 center = primitives[i].center;
-			int index = (int)b3FixTruncToInt( ( b3FixMul( factor , ( b3GetByIndex( center, axis ) - b3GetByIndex( bounds.lowerBound, axis ) ) ) ) );
+			int index = (int)b3FixTruncToInt( ( b3FixMul( factor , ( b3GetByIndex( center, axis ) - b3GetByIndex( b3BoundToVec3( bounds.lowerBound ), axis ) ) ) ) );
 
 			if ( index <= bestBucket )
 			{
@@ -926,8 +926,8 @@ static int b3BuildRecursive( b3Array( b3MeshNode ) * nodes, int count, b3Primiti
 		b3MeshNode* node = b3Array_Get( *nodes, index );
 		node->data.asNode.axis = split.axis;
 		node->data.asNode.childOffset = rightIndex - index;
-		node->lowerBound = aabb.lowerBound;
-		node->upperBound = aabb.upperBound;
+		node->lowerBound = b3BoundToVec3( aabb.lowerBound );
+		node->upperBound = b3BoundToVec3( aabb.upperBound );
 
 		// Zero so mesh->hash is deterministic
 		node->triangleOffset = 0;
@@ -1645,8 +1645,8 @@ b3MeshData* b3CreateMesh( const b3MeshDef* def, int* degenerateTriangleIndices, 
 		surfaceArea += area;
 
 		b3AABB box = {
-			b3Min( vertex1, b3Min( vertex2, vertex3 ) ),
-			b3Max( vertex1, b3Max( vertex2, vertex3 ) ),
+			b3Vec3ToBound( b3Min( vertex1, b3Min( vertex2, vertex3 ) ) ),
+			b3Vec3ToBound( b3Max( vertex1, b3Max( vertex2, vertex3 ) ) ),
 		};
 
 		b3Vec3 center = b3AABB_Center( box );
@@ -1797,8 +1797,11 @@ bool b3OverlapMesh( const b3Mesh* shape, b3Transform shapeTransform, const b3Sha
 	// Scale may have reflection so min/max may become invalid when unscaled
 	b3V32 scale = b3LoadV( &meshScale.x );
 	b3V32 invScale = b3DivV( b3_oneV, scale );
-	b3V32 temp1 = b3MulV( invScale, b3LoadV( &aabb.lowerBound.x ) );
-	b3V32 temp2 = b3MulV( invScale, b3LoadV( &aabb.upperBound.x ) );
+	// b3LoadV wants a packed 3x b3Fixed layout; in ludicrous mode the bounds are 128-bit, so narrow
+	// them to b3Vec3 first (exact in local mesh range). No-op in the narrow/wide-positions builds.
+	b3Vec3 aabbLo = b3BoundToVec3( aabb.lowerBound ), aabbHi = b3BoundToVec3( aabb.upperBound );
+	b3V32 temp1 = b3MulV( invScale, b3LoadV( &aabbLo.x ) );
+	b3V32 temp2 = b3MulV( invScale, b3LoadV( &aabbHi.x ) );
 	b3V32 invScaledBoundsMin = b3MinV( temp1, temp2 );
 	b3V32 invScaledBoundsMax = b3MaxV( temp1, temp2 );
 	b3V32 invScaledBoundsCenter = b3MulV( b3_halfV, b3AddV( invScaledBoundsMin, invScaledBoundsMax ) );
@@ -1885,9 +1888,9 @@ bool b3OverlapMesh( const b3Mesh* shape, b3Transform shapeTransform, const b3Sha
 
 b3AABB b3ComputeMeshAABB( const b3MeshData* shape, b3Transform transform, b3Vec3 scale )
 {
-	b3Vec3 scaledLower = b3Mul( scale, shape->bounds.lowerBound );
-	b3Vec3 scaledUpper = b3Mul( scale, shape->bounds.upperBound );
-	b3AABB bounds = { b3Min( scaledLower, scaledUpper ), b3Max( scaledLower, scaledUpper ) };
+	b3Vec3 scaledLower = b3Mul( scale, b3BoundToVec3( shape->bounds.lowerBound ) );
+	b3Vec3 scaledUpper = b3Mul( scale, b3BoundToVec3( shape->bounds.upperBound ) );
+	b3AABB bounds = { b3Vec3ToBound( b3Min( scaledLower, scaledUpper ) ), b3Vec3ToBound( b3Max( scaledLower, scaledUpper ) ) };
 	return b3AABB_Transform( transform, bounds );
 }
 
@@ -2341,8 +2344,11 @@ void b3QueryMesh( const b3Mesh* mesh, b3AABB bounds, b3MeshQueryFcn* fcn, void* 
 	// Scale may have reflection so min/max may become invalid when unscaled
 	b3V32 scale = b3LoadV( &meshScale.x );
 	b3V32 invScale = b3DivV( b3_oneV, scale );
-	b3V32 temp1 = b3MulV( invScale, b3LoadV( &bounds.lowerBound.x ) );
-	b3V32 temp2 = b3MulV( invScale, b3LoadV( &bounds.upperBound.x ) );
+	// b3LoadV wants a packed 3x b3Fixed layout; in ludicrous mode the bounds are 128-bit, so narrow
+	// them to b3Vec3 first (exact in local mesh range). No-op in the narrow/wide-positions builds.
+	b3Vec3 boundsLo = b3BoundToVec3( bounds.lowerBound ), boundsHi = b3BoundToVec3( bounds.upperBound );
+	b3V32 temp1 = b3MulV( invScale, b3LoadV( &boundsLo.x ) );
+	b3V32 temp2 = b3MulV( invScale, b3LoadV( &boundsHi.x ) );
 	b3V32 invScaledBoundsMin = b3MinV( temp1, temp2 );
 	b3V32 invScaledBoundsMax = b3MaxV( temp1, temp2 );
 	b3V32 invScaledBoundsCenter = b3MulV( b3_halfV, b3AddV( invScaledBoundsMin, invScaledBoundsMax ) );

@@ -613,7 +613,7 @@ static int PlayerAccessors( void )
 	ENSURE( info.frameCount == totalFrames );
 	ENSURE( info.subStepCount == subStepCount );
 	ENSURE( info.timeStep > B3_FIX( 0.0f ) );
-	b3Vec3 extent = b3Sub( info.bounds.upperBound, info.bounds.lowerBound );
+	b3Vec3 extent = b3Sub( b3BoundToVec3(info.bounds.upperBound), b3BoundToVec3(info.bounds.lowerBound) );
 	ENSURE( extent.x > B3_FIX( 0.0f ) && extent.y > B3_FIX( 0.0f ) && extent.z > B3_FIX( 0.0f ) );
 
 	// Body ordinals: ground + 4 dynamic, seeded from the snapshot and present at frame 0.
@@ -1490,7 +1490,7 @@ static int AllOps( void )
 		ENSURE( player != NULL );
 
 		b3RecPlayerInfo info = b3RecPlayer_GetInfo( player );
-		b3Vec3 recExtents = b3Sub( info.bounds.upperBound, info.bounds.lowerBound );
+		b3Vec3 recExtents = b3Sub( b3BoundToVec3(info.bounds.upperBound), b3BoundToVec3(info.bounds.lowerBound) );
 		ENSURE( recExtents.x > B3_FIX( 0.0f ) && recExtents.y > B3_FIX( 0.0f ) );
 
 		// Build a no-op b3DebugDraw to exercise the draw path headlessly

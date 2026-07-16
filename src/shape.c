@@ -185,8 +185,8 @@ static b3Shape* b3CreateShapeInternal( b3World* world, b3Body* body, b3WorldTran
 	shape->proxyKey = B3_NULL_INDEX;
 	shape->localCentroid = b3GetShapeCentroid( shape );
 	shape->aabbMargin = b3ComputeShapeMargin( shape );
-	shape->aabb = (b3AABB){ b3Vec3_zero, b3Vec3_zero };
-	shape->fatAABB = (b3AABB){ b3Vec3_zero, b3Vec3_zero };
+	shape->aabb = (b3AABB){ b3Vec3ToBound( b3Vec3_zero ), b3Vec3ToBound( b3Vec3_zero ) };
+	shape->fatAABB = (b3AABB){ b3Vec3ToBound( b3Vec3_zero ), b3Vec3ToBound( b3Vec3_zero ) };
 	shape->nameId = b3AddName( &world->names, def->name );
 	shape->generation += 1;
 
@@ -593,7 +593,7 @@ b3AABB b3ComputeShapeAABB( const b3Shape* shape, b3Transform transform )
 		default:
 		{
 			B3_ASSERT( false );
-			b3AABB empty = { transform.p, transform.p };
+			b3AABB empty = { b3Vec3ToBound( transform.p ), b3Vec3ToBound( transform.p ) };
 			return empty;
 		}
 	}
@@ -607,8 +607,8 @@ b3AABB b3ComputeFatShapeAABB( const b3Shape* shape, b3WorldTransform transform, 
 	// radius — and compute the fat AABB in world Q48.16. Identity in the narrow build.
 	b3Transform localTransform = b3ToRelativeTransform( transform, b3Pos_zero );
 	b3AABB aabb = b3ComputeShapeAABB( shape, localTransform );
-	aabb.lowerBound = b3Sub( aabb.lowerBound, r );
-	aabb.upperBound = b3Add( aabb.upperBound, r );
+	aabb.lowerBound = b3Vec3ToBound( b3Sub( b3BoundToVec3( aabb.lowerBound ), r ) );
+	aabb.upperBound = b3Vec3ToBound( b3Add( b3BoundToVec3( aabb.upperBound ), r ) );
 	return aabb;
 }
 
@@ -631,7 +631,7 @@ b3AABB b3ComputeSweptShapeAABB( const b3Shape* shape, const b3Sweep* sweep, b3Fi
 
 		default:
 			B3_ASSERT( false );
-			return (b3AABB){ xf1.p, xf1.p };
+			return (b3AABB){ b3Vec3ToBound( xf1.p ), b3Vec3ToBound( xf1.p ) };
 	}
 }
 
@@ -750,8 +750,8 @@ b3ShapeExtent b3ComputeShapeExtent( const b3Shape* shape, b3Vec3 localCenter )
 		{
 			// This is shouldn't be needed but here for completeness
 			b3AABB aabb = b3ComputeCompoundAABB( shape->compound, b3Transform_identity );
-			b3Fixed r1 = b3Length( b3Sub( aabb.lowerBound, localCenter ) );
-			b3Fixed r2 = b3Length( b3Sub( aabb.upperBound, localCenter ) );
+			b3Fixed r1 = b3Length( b3Sub( b3BoundToVec3( aabb.lowerBound ), localCenter ) );
+			b3Fixed r2 = b3Length( b3Sub( b3BoundToVec3( aabb.upperBound ), localCenter ) );
 			extent.minExtent = b3FixMin( r1, r2 );
 			b3Vec3 p = b3FarthestPointOnAABB( aabb, localCenter );
 			extent.maxExtent = b3Abs( b3Sub( p, localCenter ) );
@@ -776,8 +776,8 @@ b3ShapeExtent b3ComputeShapeExtent( const b3Shape* shape, b3Vec3 localCenter )
 		{
 			// This is needed for kinematic mesh sleeping
 			b3AABB aabb = b3ComputeMeshAABB( shape->mesh.data, b3Transform_identity, shape->mesh.scale );
-			b3Fixed r1 = b3Length( b3Sub( aabb.lowerBound, localCenter ) );
-			b3Fixed r2 = b3Length( b3Sub( aabb.upperBound, localCenter ) );
+			b3Fixed r1 = b3Length( b3Sub( b3BoundToVec3( aabb.lowerBound ), localCenter ) );
+			b3Fixed r2 = b3Length( b3Sub( b3BoundToVec3( aabb.upperBound ), localCenter ) );
 			extent.minExtent = b3FixMin( r1, r2 );
 			b3Vec3 p = b3FarthestPointOnAABB( aabb, localCenter );
 			extent.maxExtent = b3Abs( p );
@@ -1089,19 +1089,19 @@ b3AABB b3ComputeProxyAABB( const b3ShapeProxy* proxy )
 {
 	const b3Vec3* points = proxy->points;
 	b3AABB aabb = {
-		.lowerBound = points[0],
-		.upperBound = points[0],
+		.lowerBound = b3Vec3ToBound( points[0] ),
+		.upperBound = b3Vec3ToBound( points[0] ),
 	};
 
 	for ( int i = 1; i < proxy->count; ++i )
 	{
-		aabb.lowerBound = b3Min( aabb.lowerBound, points[i] );
-		aabb.upperBound = b3Max( aabb.upperBound, points[i] );
+		aabb.lowerBound = b3Vec3ToBound( b3Min( b3BoundToVec3( aabb.lowerBound ), points[i] ) );
+		aabb.upperBound = b3Vec3ToBound( b3Max( b3BoundToVec3( aabb.upperBound ), points[i] ) );
 	}
 
 	b3Vec3 r = { proxy->radius, proxy->radius, proxy->radius };
-	aabb.lowerBound = b3Sub( aabb.lowerBound, r );
-	aabb.upperBound = b3Add( aabb.upperBound, r );
+	aabb.lowerBound = b3Vec3ToBound( b3Sub( b3BoundToVec3( aabb.lowerBound ), r ) );
+	aabb.upperBound = b3Vec3ToBound( b3Add( b3BoundToVec3( aabb.upperBound ), r ) );
 	return aabb;
 }
 

@@ -245,7 +245,7 @@ void DrawBounds( b3AABB bounds, float extension, Vec4 color )
 {
 	b3Fixed ext = b3FixFromFloat( extension );
 	b3Vec3 e = { ext, ext, ext };
-	DrawAabb( b3Sub( bounds.lowerBound, e ), b3Add( bounds.upperBound, e ), color );
+	DrawAabb( b3Sub( b3BoundToVec3( bounds.lowerBound ), e ), b3Add( b3BoundToVec3( bounds.upperBound ), e ), color );
 }
 
 void DrawAxesEx( b3WorldTransform transform, float size, float thickness, OverlayThicknessUnit thicknessUnit,

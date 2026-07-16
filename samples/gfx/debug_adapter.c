@@ -872,9 +872,11 @@ static bool DrawShape( void* userShape, b3WorldTransform shapeTransform, b3HexCo
 		if ( cull )
 		{
 			// Shift the view box into the draw origin frame the primitives render in.
+			// The subtraction happens in b3Pos (exact at any distance); the small
+			// origin-relative result widens back into the bound storage type.
 			b3Pos origin = GetDrawOrigin();
-			viewRel.lowerBound = b3SubPos( b3ToPos( s_adapter.viewBounds.lowerBound ), origin );
-			viewRel.upperBound = b3SubPos( b3ToPos( s_adapter.viewBounds.upperBound ), origin );
+			viewRel.lowerBound = b3Vec3ToBound( b3SubPos( b3BoundToPos( s_adapter.viewBounds.lowerBound ), origin ) );
+			viewRel.upperBound = b3Vec3ToBound( b3SubPos( b3BoundToPos( s_adapter.viewBounds.upperBound ), origin ) );
 
 			// If the whole compound sits inside the view the query returns every child,
 			// so walking the list is cheaper. Both boxes are in the draw origin frame.
@@ -991,8 +993,8 @@ static void DrawBoundsFcn( b3AABB aabb, b3HexColor color, void* context )
 	// The fat AABB is absolute world space, difference against the draw origin in fixed point (exact)
 	// so the overlay only ever sees small eye-relative values
 	b3Pos origin = GetDrawOrigin();
-	b3Vec3 lower = b3SubPos( b3ToPos( aabb.lowerBound ), origin );
-	b3Vec3 upper = b3SubPos( b3ToPos( aabb.upperBound ), origin );
+	b3Vec3 lower = b3SubPos( b3BoundToPos( aabb.lowerBound ), origin );
+	b3Vec3 upper = b3SubPos( b3BoundToPos( aabb.upperBound ), origin );
 	Vec4 c = HexColorToVec4( color );
 
 	b3Vec3 c000 = { lower.x, lower.y, lower.z };

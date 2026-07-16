@@ -338,8 +338,8 @@ static b3AABB b3BuildBounds( int vertexCount, const b3Vec3* vertices )
 	b3AABB bounds = B3_BOUNDS3_EMPTY;
 	for ( int i = 0; i < vertexCount; ++i )
 	{
-		bounds.lowerBound = b3Min( bounds.lowerBound, vertices[i] );
-		bounds.upperBound = b3Max( bounds.upperBound, vertices[i] );
+		bounds.lowerBound = b3Vec3ToBound( b3Min( b3BoundToVec3( bounds.lowerBound ), vertices[i] ) );
+		bounds.upperBound = b3Vec3ToBound( b3Max( b3BoundToVec3( bounds.upperBound ), vertices[i] ) );
 	}
 	return bounds;
 }
@@ -656,7 +656,7 @@ static bool b3CheckConsistency( const b3QHFace* face )
 static void b3HullBuilder_ComputeTolerance( b3HullBuilder* b, int pointCount, const b3Vec3* points )
 {
 	b3AABB bounds = b3BuildBounds( pointCount, points );
-	b3Vec3 maxAbs = b3Max( b3Abs( bounds.lowerBound ), b3Abs( bounds.upperBound ) );
+	b3Vec3 maxAbs = b3Max( b3Abs( b3BoundToVec3( bounds.lowerBound ) ), b3Abs( b3BoundToVec3( bounds.upperBound ) ) );
 
 	b3Fixed maxSum = maxAbs.x + maxAbs.y + maxAbs.z;
 	b3Fixed maxCoord = b3FixMax( maxAbs.x, b3FixMax( maxAbs.y, maxAbs.z ) );
@@ -2415,14 +2415,14 @@ static void b3UpdateHullBounds( b3HullData* hull )
 
 	B3_ASSERT( vertexCount > 0 );
 	b3AABB bounds;
-	bounds.lowerBound = points[0];
-	bounds.upperBound = points[0];
+	bounds.lowerBound = b3Vec3ToBound( points[0] );
+	bounds.upperBound = b3Vec3ToBound( points[0] );
 
 	for ( int i = 1; i < vertexCount; ++i )
 	{
 		b3Vec3 p = points[i];
-		bounds.lowerBound = b3Min( bounds.lowerBound, p );
-		bounds.upperBound = b3Max( bounds.upperBound, p );
+		bounds.lowerBound = b3Vec3ToBound( b3Min( b3BoundToVec3( bounds.lowerBound ), p ) );
+		bounds.upperBound = b3Vec3ToBound( b3Max( b3BoundToVec3( bounds.upperBound ), p ) );
 	}
 
 	hull->aabb = bounds;
@@ -2787,8 +2787,8 @@ bool b3CompareHullData( const b3HullData* hull1, const b3HullData* hull2 )
 
 // Hull identity covers every byte, so the structs carry explicit padding. These lock
 // the layout, re-audit padding if a size changes.
-_Static_assert( sizeof( b3HullData ) == 224, "unexpected hull data size" );
-_Static_assert( sizeof( b3BoxHull ) == 720, "unexpected box hull size" );
+_Static_assert( sizeof( b3HullData ) == 224 + ( sizeof( b3AABB ) - 2 * sizeof( b3Vec3 ) ), "unexpected hull data size" );
+_Static_assert( sizeof( b3BoxHull ) == 720 + ( sizeof( b3AABB ) - 2 * sizeof( b3Vec3 ) ), "unexpected box hull size" );
 
 #define NAME b3HullMap
 #define KEY_TY const b3HullData*
@@ -3231,7 +3231,7 @@ b3BoxHull b3MakeTransformedBoxHull( b3Fixed hx, b3Fixed hy, b3Fixed hz, b3Transf
 	b3Fixed minH = b3FixMul( B3_FIX( 0.2f ) , B3_LINEAR_SLOP );
 	b3Vec3 h = b3Max( (b3Vec3){ minH, minH, minH }, (b3Vec3){ hx, hy, hz } );
 
-	boxHull.base.aabb = b3AABB_Transform( transform, (b3AABB){ b3Neg( h ), h } );
+	boxHull.base.aabb = b3AABB_Transform( transform, (b3AABB){ b3Vec3ToBound( b3Neg( h ) ), b3Vec3ToBound( h ) } );
 	boxHull.base.surfaceArea = b3FixMul( B3_FIX( 8.0f ) , ( b3FixMul( h.x , h.y ) + b3FixMul( h.x , h.z ) + b3FixMul( h.y , h.z ) ) );
 	boxHull.base.volume = b3FixMul( b3FixMul( b3FixMul( B3_FIX( 8.0f ) , h.x ) , h.y ) , h.z );
 	boxHull.base.innerRadius = b3FixMin( h.x, b3FixMin( h.y, h.z ) );

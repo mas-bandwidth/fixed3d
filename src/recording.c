@@ -177,8 +177,8 @@ void b3RecW_MATRIX3( b3RecBuffer* buf, b3Matrix3 v )
 
 void b3RecW_AABB( b3RecBuffer* buf, b3AABB v )
 {
-	b3RecW_VEC3( buf, v.lowerBound );
-	b3RecW_VEC3( buf, v.upperBound );
+	b3RecW_VEC3( buf, b3BoundToVec3( v.lowerBound ) );
+	b3RecW_VEC3( buf, b3BoundToVec3( v.upperBound ) );
 }
 
 void b3RecW_QUERYFILTER( b3RecBuffer* buf, b3QueryFilter v )

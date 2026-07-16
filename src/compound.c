@@ -474,52 +474,58 @@ b3CompoundData* b3CreateCompound( const b3CompoundDef* def )
 
 	b3DynamicTree_Rebuild( &tree, true );
 
+	// Each section offset rounds up to the alignment of the element type it holds.
+	// In the narrow builds every rounding is a no-op (types need <= 8, offsets are
+	// already 8-aligned), so the historical layout is unchanged byte for byte. In
+	// ludicrous mode b3TreeNode / b3HullData / b3MeshData embed 128-bit AABB bounds
+	// and need 16; the padding bytes stay zero from the blob memset, so the content
+	// hash stays deterministic.
 	int byteCount = sizeof( b3CompoundData );
 
 	// Tree nodes - todo 64 byte alignment
-	int nodeOffset = byteCount;
-	byteCount += tree.nodeCapacity * sizeof( b3TreeNode );
+	int nodeOffset = (int)b3AlignUp( (size_t)byteCount, _Alignof( b3TreeNode ) );
+	byteCount = nodeOffset + tree.nodeCapacity * (int)sizeof( b3TreeNode );
 
-	int materialOffset = byteCount;
-	byteCount += materialCount * sizeof( b3SurfaceMaterial );
+	int materialOffset = (int)b3AlignUp( (size_t)byteCount, _Alignof( b3SurfaceMaterial ) );
+	byteCount = materialOffset + materialCount * (int)sizeof( b3SurfaceMaterial );
 
-	int capsuleOffset = byteCount;
-	byteCount += def->capsuleCount * sizeof( b3CompoundCapsule );
+	int capsuleOffset = (int)b3AlignUp( (size_t)byteCount, _Alignof( b3CompoundCapsule ) );
+	byteCount = capsuleOffset + def->capsuleCount * (int)sizeof( b3CompoundCapsule );
 
 	// Hull data layout has another level of indirection to allow for tight data packing
 	// 1. hull instance array : hull count array of b3HullInstance with individual hull transforms and offsets
 	// 2. heterogeneous array of shared hull data : each shared hull can have a different byte count, so direct indexing is not
 	// possible
-	int hullArrayOffset = byteCount;
+	int hullArrayOffset = (int)b3AlignUp( (size_t)byteCount, _Alignof( b3HullInstance ) );
 
 	// Array of hull instances
-	byteCount += hullCount * sizeof( b3HullInstance );
+	byteCount = hullArrayOffset + hullCount * (int)sizeof( b3HullInstance );
 
 	// Packed shared hull blobs
 	for ( int i = 0; i < sharedHullCount; ++i )
 	{
-		sharedHulls[i].hullOffset = byteCount;
-		byteCount += sharedHulls[i].hull->byteCount;
+		sharedHulls[i].hullOffset = (int)b3AlignUp( (size_t)byteCount, _Alignof( b3HullData ) );
+		byteCount = sharedHulls[i].hullOffset + sharedHulls[i].hull->byteCount;
 	}
 
 	// Mesh data layout has another level of indirection to allow for tight data packing
 	// 1. mesh instance array : mesh count array of b3MeshInstance with individual mesh transform, scale, and offset
 	// 2. heterogeneous array of shared mesh data : each shared mesh can have a different byte count, so direct indexing is not
 	// possible
-	int meshArrayOffset = byteCount;
+	int meshArrayOffset = (int)b3AlignUp( (size_t)byteCount, _Alignof( b3MeshInstance ) );
 
 	// Array of mesh instances
-	byteCount += meshCount * sizeof( b3MeshInstance );
+	byteCount = meshArrayOffset + meshCount * (int)sizeof( b3MeshInstance );
 
 	// Packed shared mesh blobs
 	for ( int i = 0; i < sharedMeshCount; ++i )
 	{
-		sharedMeshes[i].meshOffset = byteCount;
-		byteCount += sharedMeshes[i].meshData->byteCount;
+		sharedMeshes[i].meshOffset = (int)b3AlignUp( (size_t)byteCount, _Alignof( b3MeshData ) );
+		byteCount = sharedMeshes[i].meshOffset + sharedMeshes[i].meshData->byteCount;
 	}
 
-	int sphereOffset = byteCount;
-	byteCount += def->sphereCount * sizeof( b3CompoundSphere );
+	int sphereOffset = (int)b3AlignUp( (size_t)byteCount, _Alignof( b3CompoundSphere ) );
+	byteCount = sphereOffset + def->sphereCount * (int)sizeof( b3CompoundSphere );
 
 	b3CompoundData* compound = b3Alloc( byteCount );
 	memset( compound, 0, byteCount );
@@ -746,16 +752,16 @@ bool b3OverlapCompound( const b3CompoundData* shape, b3Transform shapeTransform,
 		.overlap = false,
 	};
 
-	b3AABB aabb = { proxy->points[0], proxy->points[0] };
+	b3AABB aabb = { b3Vec3ToBound( proxy->points[0] ), b3Vec3ToBound( proxy->points[0] ) };
 	for ( int i = 1; i < proxy->count; ++i )
 	{
-		aabb.lowerBound = b3Min( aabb.lowerBound, proxy->points[i] );
-		aabb.upperBound = b3Max( aabb.upperBound, proxy->points[i] );
+		aabb.lowerBound = b3Vec3ToBound( b3Min( b3BoundToVec3( aabb.lowerBound ), proxy->points[i] ) );
+		aabb.upperBound = b3Vec3ToBound( b3Max( b3BoundToVec3( aabb.upperBound ), proxy->points[i] ) );
 	}
 
 	b3Vec3 r = { proxy->radius, proxy->radius, proxy->radius };
-	aabb.lowerBound = b3Sub( aabb.lowerBound, r );
-	aabb.upperBound = b3Add( aabb.upperBound, r );
+	aabb.lowerBound = b3Vec3ToBound( b3Sub( b3BoundToVec3( aabb.lowerBound ), r ) );
+	aabb.upperBound = b3Vec3ToBound( b3Add( b3BoundToVec3( aabb.upperBound ), r ) );
 
 	(void)b3DynamicTree_Query( &shape->tree, aabb, ~0ull, false, b3CompoundOverlapCallback, &context );
 
@@ -1191,11 +1197,11 @@ int b3CollideMoverAndCompound( b3PlaneResult* planes, int capacity, const b3Comp
 	};
 
 	b3AABB aabb;
-	aabb.lowerBound = b3Min( mover->center1, mover->center2 );
-	aabb.upperBound = b3Max( mover->center1, mover->center2 );
+	aabb.lowerBound = b3Vec3ToBound( b3Min( mover->center1, mover->center2 ) );
+	aabb.upperBound = b3Vec3ToBound( b3Max( mover->center1, mover->center2 ) );
 	b3Vec3 r = { mover->radius, mover->radius, mover->radius };
-	aabb.lowerBound = b3Sub( aabb.lowerBound, r );
-	aabb.upperBound = b3Add( aabb.upperBound, r );
+	aabb.lowerBound = b3Vec3ToBound( b3Sub( b3BoundToVec3( aabb.lowerBound ), r ) );
+	aabb.upperBound = b3Vec3ToBound( b3Add( b3BoundToVec3( aabb.upperBound ), r ) );
 
 	(void)b3DynamicTree_Query( &shape->tree, aabb, ~0ull, false, b3CompoundMoverCallback, &context );
 

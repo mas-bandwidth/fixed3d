@@ -112,11 +112,22 @@ typedef struct b3Matrix3
 } b3Matrix3;
 
 /// Axis aligned bounding box.
+#if defined( LUDICROUS_MODE )
+/// Ludicrous mode: AABB bounds are 128-bit world positions, so the broadphase tree is
+/// collision-active across the full wide-position range (past a light-year). Puts int128
+/// into the hot tree. Nobody needs this; it exists to be measured (and marveled at).
+typedef struct b3AABB
+{
+	b3Pos lowerBound;
+	b3Pos upperBound;
+} b3AABB;
+#else
 typedef struct b3AABB
 {
 	b3Vec3 lowerBound;
 	b3Vec3 upperBound;
 } b3AABB;
+#endif
 
 /// A plane.
 /// separation = dot(normal, point) - offset
@@ -743,6 +754,25 @@ B3_INLINE b3Vec3 b3ToVec3( b3Pos p )
 	return B3_LITERAL( b3Vec3 ){ (b3Fixed)p.x, (b3Fixed)p.y, (b3Fixed)p.z };
 }
 
+/// Bridge b3Vec3-based math to the AABB bound storage type. Bounds are 128-bit b3Pos ONLY in
+/// ludicrous mode (LUDICROUS_MODE); in the narrow and wide-positions-only builds b3AABB stays
+/// b3Vec3, so these are the identity there. Bound-touching code uses them to compile in all three
+/// builds without #if (analogous to b3ToPos/b3ToVec3 for positions, but keyed on the bound type).
+#if defined( LUDICROUS_MODE )
+B3_INLINE b3Vec3 b3BoundToVec3( b3Pos p ) { return b3ToVec3( p ); }
+B3_INLINE b3Pos b3Vec3ToBound( b3Vec3 v ) { return b3ToPos( v ); }
+/// Bound <-> world position, exact in every build (bounds ARE b3Pos here).
+B3_INLINE b3Pos b3BoundToPos( b3Pos p ) { return p; }
+B3_INLINE b3Pos b3PosToBound( b3Pos p ) { return p; }
+#else
+B3_INLINE b3Vec3 b3BoundToVec3( b3Vec3 v ) { return v; }
+B3_INLINE b3Vec3 b3Vec3ToBound( b3Vec3 v ) { return v; }
+/// Bound <-> world position. Widening a narrow bound is exact; narrowing a
+/// position into a narrow bound is the sanctioned lossy demote of those builds.
+B3_INLINE b3Pos b3BoundToPos( b3Vec3 v ) { return b3ToPos( v ); }
+B3_INLINE b3Vec3 b3PosToBound( b3Pos p ) { return b3ToVec3( p ); }
+#endif
+
 /// Narrow a world coordinate. World coordinates are the same fixed-point type as
 /// local coordinates, so this is the identity. Kept for API compatibility with the
 /// old large-world mode.
@@ -1107,6 +1137,104 @@ B3_FORCE_INLINE b3Matrix3 b3MakeMatrixFromQuat( b3Quat q )
 /// https://en.wikipedia.org/wiki/Parallel_axis_theorem
 B3_API b3Matrix3 b3Steiner( b3Fixed mass, b3Vec3 origin );
 
+#if defined( LUDICROUS_MODE )
+// Ludicrous mode: AABB bounds are 128-bit. Storage, min/max, union, contains and overlap stay
+// 128-bit (the hot tree ops); extent/center narrow to b3Fixed for the b3Vec3-returning API
+// (exact whenever the box fits local range, which every in-range scene does).
+B3_FIXED_INLINE b3Int128 b3W_min128( b3Int128 a, b3Int128 b ) { return a < b ? a : b; }
+B3_FIXED_INLINE b3Int128 b3W_max128( b3Int128 a, b3Int128 b ) { return a > b ? a : b; }
+
+B3_INLINE b3AABB b3MakeAABB( const b3Vec3* points, int count, b3Fixed radius )
+{
+	B3_ASSERT( count > 0 );
+	b3AABB a = { { points[0].x, points[0].y, points[0].z }, { points[0].x, points[0].y, points[0].z } };
+	for ( int i = 1; i < count; ++i )
+	{
+		a.lowerBound.x = b3W_min128( a.lowerBound.x, points[i].x );
+		a.lowerBound.y = b3W_min128( a.lowerBound.y, points[i].y );
+		a.lowerBound.z = b3W_min128( a.lowerBound.z, points[i].z );
+		a.upperBound.x = b3W_max128( a.upperBound.x, points[i].x );
+		a.upperBound.y = b3W_max128( a.upperBound.y, points[i].y );
+		a.upperBound.z = b3W_max128( a.upperBound.z, points[i].z );
+	}
+	a.lowerBound.x -= radius; a.lowerBound.y -= radius; a.lowerBound.z -= radius;
+	a.upperBound.x += radius; a.upperBound.y += radius; a.upperBound.z += radius;
+	return a;
+}
+
+B3_INLINE bool b3AABB_Contains( b3AABB a, b3AABB b )
+{
+	if ( a.lowerBound.x > b.lowerBound.x || b.upperBound.x > a.upperBound.x ) return false;
+	if ( a.lowerBound.y > b.lowerBound.y || b.upperBound.y > a.upperBound.y ) return false;
+	if ( a.lowerBound.z > b.lowerBound.z || b.upperBound.z > a.upperBound.z ) return false;
+	return true;
+}
+
+B3_INLINE b3Fixed b3AABB_Area( b3AABB a )
+{
+	b3Fixed dx = (b3Fixed)( a.upperBound.x - a.lowerBound.x );
+	b3Fixed dy = (b3Fixed)( a.upperBound.y - a.lowerBound.y );
+	b3Fixed dz = (b3Fixed)( a.upperBound.z - a.lowerBound.z );
+	return b3FixMul( B3_FIX( 2.0f ) , ( b3FixMul( dx , dy ) + b3FixMul( dy , dz ) + b3FixMul( dz , dx ) ) );
+}
+
+B3_INLINE b3Vec3 b3AABB_Center( b3AABB a )
+{
+	// narrow the bounds to b3Fixed (exact in local range) then use the SAME half-up rounding
+	// as the narrow build's b3MulSV(0.5, ...) — integer /2 would truncate and shift the box.
+	return b3MulSV( B3_FIX( 0.5f ), b3Add( b3ToVec3( a.upperBound ), b3ToVec3( a.lowerBound ) ) );
+}
+
+B3_INLINE b3Vec3 b3AABB_Extents( b3AABB a )
+{
+	return b3MulSV( B3_FIX( 0.5f ), b3Sub( b3ToVec3( a.upperBound ), b3ToVec3( a.lowerBound ) ) );
+}
+
+B3_INLINE b3AABB b3AABB_Union( b3AABB a, b3AABB b )
+{
+	b3AABB out;
+	out.lowerBound.x = b3W_min128( a.lowerBound.x, b.lowerBound.x );
+	out.lowerBound.y = b3W_min128( a.lowerBound.y, b.lowerBound.y );
+	out.lowerBound.z = b3W_min128( a.lowerBound.z, b.lowerBound.z );
+	out.upperBound.x = b3W_max128( a.upperBound.x, b.upperBound.x );
+	out.upperBound.y = b3W_max128( a.upperBound.y, b.upperBound.y );
+	out.upperBound.z = b3W_max128( a.upperBound.z, b.upperBound.z );
+	return out;
+}
+
+B3_INLINE b3AABB b3AABB_Inflate( b3AABB a, b3Fixed extension )
+{
+	b3AABB out = a;
+	out.lowerBound.x -= extension; out.lowerBound.y -= extension; out.lowerBound.z -= extension;
+	out.upperBound.x += extension; out.upperBound.y += extension; out.upperBound.z += extension;
+	return out;
+}
+
+B3_INLINE bool b3AABB_Overlaps( b3AABB a, b3AABB b )
+{
+	if ( a.upperBound.x < b.lowerBound.x || a.lowerBound.x > b.upperBound.x ) return false;
+	if ( a.upperBound.y < b.lowerBound.y || a.lowerBound.y > b.upperBound.y ) return false;
+	if ( a.upperBound.z < b.lowerBound.z || a.lowerBound.z > b.upperBound.z ) return false;
+	return true;
+}
+
+B3_INLINE b3AABB b3AABB_Transform( b3Transform transform, b3AABB a )
+{
+	b3Vec3 center = b3TransformPoint( transform, b3AABB_Center( a ) );
+	b3Matrix3 m = b3MakeMatrixFromQuat( transform.q );
+	b3Vec3 extent = b3MulMV( b3AbsMatrix3( m ), b3AABB_Extents( a ) );
+	b3Vec3 lo = b3Sub( center, extent ), hi = b3Add( center, extent );
+	b3AABB out = { { lo.x, lo.y, lo.z }, { hi.x, hi.y, hi.z } };
+	return out;
+}
+
+B3_INLINE b3Vec3 b3ClosestPointToAABB( b3Vec3 point, b3AABB a )
+{
+	b3Vec3 lo = { (b3Fixed)a.lowerBound.x, (b3Fixed)a.lowerBound.y, (b3Fixed)a.lowerBound.z };
+	b3Vec3 hi = { (b3Fixed)a.upperBound.x, (b3Fixed)a.upperBound.y, (b3Fixed)a.upperBound.z };
+	return b3Clamp( point, lo, hi );
+}
+#else
 /// Get the AABB of a point cloud.
 B3_INLINE b3AABB b3MakeAABB( const b3Vec3* points, int count, b3Fixed radius )
 {
@@ -1209,6 +1337,7 @@ B3_INLINE b3Vec3 b3ClosestPointToAABB( b3Vec3 point, b3AABB a )
 {
 	return b3Clamp( point, a.lowerBound, a.upperBound );
 }
+#endif
 
 /// The closest points between to segments or infinite lines.
 typedef struct b3SegmentDistanceResult

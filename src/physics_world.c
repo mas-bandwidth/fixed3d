@@ -2813,8 +2813,8 @@ void b3World_CollideMover( b3WorldId worldId, b3Pos origin, const b3Capsule* mov
 
 	// Relative box lifted to world b3Fixed with outward rounding, conservative for the tree
 	b3AABB relBox;
-	relBox.lowerBound = b3Sub( b3Min( mover->center1, mover->center2 ), r );
-	relBox.upperBound = b3Add( b3Max( mover->center1, mover->center2 ), r );
+	relBox.lowerBound = b3Vec3ToBound( b3Sub( b3Min( mover->center1, mover->center2 ), r ) );
+	relBox.upperBound = b3Vec3ToBound( b3Add( b3Max( mover->center1, mover->center2 ), r ) );
 	b3AABB aabb = b3OffsetAABB( relBox, origin );
 
 	WorldMoverContext worldContext = {

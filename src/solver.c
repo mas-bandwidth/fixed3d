@@ -588,7 +588,7 @@ static void b3SolveContinuous( b3World* world, int bodySimIndex, b3TaskContext* 
 			{
 				b3Fixed marginScalar = shape->aabbMargin;
 				b3Vec3 aabbMargin = { marginScalar, marginScalar, marginScalar };
-				shape->fatAABB = (b3AABB){ b3Sub( aabb.lowerBound, aabbMargin ), b3Add( aabb.upperBound, aabbMargin ) };
+				shape->fatAABB = (b3AABB){ b3Vec3ToBound( b3Sub( b3BoundToVec3( aabb.lowerBound ), aabbMargin ) ), b3Vec3ToBound( b3Add( b3BoundToVec3( aabb.upperBound ), aabbMargin ) ) };
 
 				shape->flags |= b3_enlargedAABB;
 				fastBodySim->flags |= b3_enlargeBounds;
@@ -618,8 +618,8 @@ static void b3SolveContinuous( b3World* world, int bodySimIndex, b3TaskContext* 
 				b3Fixed marginScalar = shape->aabbMargin;
 				b3Vec3 aabbMargin = { marginScalar, marginScalar, marginScalar };
 				shape->fatAABB = (b3AABB){
-					.lowerBound = b3Sub( shape->aabb.lowerBound, aabbMargin ),
-					.upperBound = b3Add( shape->aabb.upperBound, aabbMargin ),
+					.lowerBound = b3Vec3ToBound( b3Sub( b3BoundToVec3( shape->aabb.lowerBound ), aabbMargin ) ),
+					.upperBound = b3Vec3ToBound( b3Add( b3BoundToVec3( shape->aabb.upperBound ), aabbMargin ) ),
 				};
 
 				shape->flags |= b3_enlargedAABB;
@@ -847,7 +847,7 @@ static void b3FinalizeBodiesTask( int startIndex, int endIndex, int workerIndex,
 				{
 					b3Fixed marginScalar = shape->aabbMargin;
 					b3Vec3 aabbMargin = { marginScalar, marginScalar, marginScalar };
-					shape->fatAABB = (b3AABB){ b3Sub( aabb.lowerBound, aabbMargin ), b3Add( aabb.upperBound, aabbMargin ) };
+					shape->fatAABB = (b3AABB){ b3Vec3ToBound( b3Sub( b3BoundToVec3( aabb.lowerBound ), aabbMargin ) ), b3Vec3ToBound( b3Add( b3BoundToVec3( aabb.upperBound ), aabbMargin ) ) };
 					shape->flags |= b3_enlargedAABB;
 
 					// Bit-set to keep the move array sorted
