@@ -119,6 +119,9 @@ keeping.
 
 ### 9. Compound blob packing misaligns b3HullData — live UB, one hull is enough
 
+Filed upstream as [erincatto/box3d#85](https://github.com/erincatto/box3d/issues/85)
+(2026-07-16, verified against both e961bfb and current main d421e45).
+
 `b3CreateCompound` packs its blob sections back-to-back with no alignment
 rounding (compound.c:472, your own `todo 64 byte alignment` comment sits on
 the tree-node section). That's fine only while every section size is a
