@@ -144,7 +144,10 @@ jobs:
   samples:
     name: ${{ matrix.name }}
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 8
+    # macOS runners: the Release sample build plus the 102-TU conversion audit runs
+    # ~8+ min and was intermittently killed at the old 8-minute cap (a 8m21s run
+    # tripped it). Headroom, not a hang — the audit is bounded and exits on findings.
+    timeout-minutes: 15
     if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     strategy:
       fail-fast: false
