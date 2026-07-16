@@ -2762,6 +2762,19 @@ b3RecPlayer* b3RecPlayer_Create( const void* data, int size, int workerCount )
 		printf( "b3RecPlayer_Create: pointer width mismatch %u vs %u\n", hdr.pointerWidth, (unsigned)sizeof( void* ) );
 		return NULL;
 	}
+	// The position wire is one word per axis at 8, two at 16; a mismatch would silently misread
+	// every world coordinate. Legacy recordings carry 0, which means the narrow layout (8).
+	{
+		unsigned fileAxis = hdr.positionWidth == 0 ? 8u : hdr.positionWidth;
+		unsigned buildAxis = (unsigned)sizeof( ( (b3Pos*)0 )->x );
+		if ( fileAxis != buildAxis )
+		{
+			printf( "b3RecPlayer_Create: position precision mismatch (recording %u-byte axis, build %u-byte). "
+					"A wide-position recording needs a BOX3D_WIDE_POSITIONS build and vice versa.\n",
+					fileAxis, buildAxis );
+			return NULL;
+		}
+	}
 	if ( hdr.bigEndian != 0 )
 	{
 		printf( "b3RecPlayer_Create: big-endian recording not supported\n" );

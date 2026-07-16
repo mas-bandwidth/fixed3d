@@ -61,6 +61,15 @@ jobs:
             os: ubuntu-latest
             args: '-DCMAKE_CXX_COMPILER=clang++-18 -DCMAKE_C_COMPILER=clang-18 -DBOX3D_AVX512=ON -DCMAKE_BUILD_TYPE=RelWithDebInfo'
             test: 'sh -c "if grep -q avx512dq /proc/cpuinfo; then ./bin/test; else echo runner lacks AVX-512, compile-only; fi"'
+          # 128-bit world positions: build the wide b3Pos path under Debug+VALIDATE
+          # and ASan/UBSan (the int128 boundary, wire, and lerp reformulation are
+          # exercised here) so it cannot silently regress as upstream ports land.
+          # Carries its own determinism golden; OFF coverage is every other job.
+          - name: ubuntu-wide-positions
+            os: ubuntu-latest
+            timeout: 10
+            args: '-DCMAKE_CXX_COMPILER=clang++-18 -DCMAKE_C_COMPILER=clang-18 -DBOX3D_WIDE_POSITIONS=ON -DCMAKE_C_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer" -DCMAKE_CXX_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer" -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address,undefined"'
+            test: ./bin/test
     steps:
     - uses: actions/checkout@v6
 
@@ -135,7 +144,10 @@ jobs:
   samples:
     name: ${{ matrix.name }}
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 8
+    # macOS runners: the Release sample build plus the 102-TU conversion audit runs
+    # ~8+ min and was intermittently killed at the old 8-minute cap (a 8m21s run
+    # tripped it). Headroom, not a hang — the audit is bounded and exits on findings.
+    timeout-minutes: 15
     if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     strategy:
       fail-fast: false
