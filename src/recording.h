@@ -58,7 +58,8 @@ typedef struct b3RecHeader
 	uint8_t pointerWidth;	   // sizeof(void*), gates POD-def struct layout
 	uint8_t bigEndian;		   // 0 on all supported targets
 	uint8_t validationEnabled; // 1 if built with BOX3D_VALIDATE, diagnostic only
-	uint8_t reserved;
+	uint8_t positionWidth;	   // sizeof a world-position axis: 8 (Q48.16) or 16 (wide Q112.16).
+							   // 0 in legacy recordings, read as 8. Gates the position wire layout.
 	uint32_t reserved2;	 // explicit pad so the 64-bit fields align with no implicit gap
 	b3Fixed lengthScale; // b3GetLengthUnitsPerMeter(), Q48.16
 	uint64_t snapshotSize;		// bytes of snapshot blob after the header (0 in Phase 1)

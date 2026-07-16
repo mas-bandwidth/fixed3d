@@ -1635,13 +1635,13 @@ static int ReservedHeaderBytes( void )
 	int recSize = b3Recording_GetSize( rec );
 	ENSURE( recSize >= (int)sizeof( b3RecHeader ) );
 
-	// Patch reserved fields at their byte offsets in b3RecHeader:
-	//   byte 11 : reserved  (uint8_t at offset 11)
+	// Patch the still-reserved header fields at their byte offsets in b3RecHeader and confirm
+	// replay ignores them. Byte 11 is NO LONGER reserved — it is positionWidth (validated on
+	// load, checked in the mismatch block below), so it is left intact here.
 	//   bytes 16-19 : reserved2 (uint32_t at offset 16)
 	//   bytes 20-23 : reserved3 (uint32_t at offset 20)
 	uint8_t* patched = (uint8_t*)b3Alloc( (size_t)recSize );
 	memcpy( patched, recData, (size_t)recSize );
-	patched[11] = 0xAB;
 	patched[16] = 0xCD;
 	patched[17] = 0xEF;
 	patched[18] = 0x12;
@@ -1652,6 +1652,14 @@ static int ReservedHeaderBytes( void )
 	patched[23] = 0xBC;
 	ENSURE( b3ValidateReplay( patched, recSize, 1 ) );
 	b3Free( patched, (size_t)recSize );
+
+	// positionWidth (byte 11) IS load-bearing: forge the other precision and confirm replay
+	// refuses rather than silently misreading every world coordinate. 8 <-> 16 either way.
+	uint8_t* wrongPrecision = (uint8_t*)b3Alloc( (size_t)recSize );
+	memcpy( wrongPrecision, recData, (size_t)recSize );
+	wrongPrecision[11] = wrongPrecision[11] == 16 ? 8 : 16;
+	ENSURE( b3ValidateReplay( wrongPrecision, recSize, 1 ) == false );
+	b3Free( wrongPrecision, (size_t)recSize );
 
 	b3DestroyRecording( rec );
 	return 0;

@@ -1071,6 +1071,9 @@ void b3StartRecordingIntoBuffer( b3World* world, b3Recording* recording )
 	hdr.versionMajor = B3_REC_VERSION_MAJOR;
 	hdr.versionMinor = B3_REC_VERSION_MINOR;
 	hdr.pointerWidth = (uint8_t)sizeof( void* );
+	// 8 in the narrow build, 16 in the wide-position build. b3RecW_POSITION writes one word
+	// per axis when this is 8 and two when it is 16, so replay must match the build.
+	hdr.positionWidth = (uint8_t)sizeof( ( (b3Pos*)0 )->x );
 	hdr.bigEndian = 0;
 	hdr.validationEnabled = B3_ENABLE_VALIDATION ? 1u : 0u;
 	hdr.lengthScale = b3GetLengthUnitsPerMeter();

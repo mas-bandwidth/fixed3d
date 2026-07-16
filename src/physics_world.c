@@ -202,6 +202,15 @@ static void b3DestroyWorkerContexts( b3World* world )
 	b3Array_Destroy( world->sensorTaskContexts );
 }
 
+bool b3IsWidePrecision( void )
+{
+#if defined( BOX3D_WIDE_POSITIONS )
+	return true;
+#else
+	return false;
+#endif
+}
+
 b3WorldId b3CreateWorld( const b3WorldDef* def )
 {
 	B3_CHECK_DEF( def );
