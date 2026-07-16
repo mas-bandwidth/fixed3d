@@ -73,14 +73,47 @@ If your world genuinely outruns what large positions plus broadphase
 padding cover, this library is the answer to your problem. Be sure that is
 your problem before paying 2× for it.
 
-And if ±1.4×10¹⁴ m is somehow still not enough, `LUDICROUS_MODE` widens the
-broadphase to 128 bits: collision works a light-year from the origin, for
-another +1.6%. A box dropped a tenth of a light-year out settles
-bit-identically to the same box at the origin. You do not need this. It was
-built to measure exactly how much slower a 128-bit broadphase is, and the
-answer was too good not to ship.
-
 For everything else, Box3D almost certainly does what you need: <https://github.com/erincatto/box3d>
+
+## LUDICROUS MODE
+
+Q48.16 positions cover ±1.4×10¹⁴ meters at 15-micron resolution. That is
+about 900 astronomical units, and it is enough for any physics simulation
+that has ever existed or will ever exist.
+
+`LUDICROUS_MODE` is for when it is not enough.
+
+```
+cmake -DBOX3D_WIDE_POSITIONS=ON -DLUDICROUS_MODE=ON ..
+```
+
+This widens world positions to Q112.16 in `__int128` and — this is the
+ludicrous part — widens the broadphase with them, so collision detection
+works across the entire ±2.6×10³³ meter range. That is not a typo. That is
+six million observable universes laid end to end, every point of which has
+the same 15-micron resolution as the origin.
+
+Measured cost: **+1.6%**.
+
+We verified it the boring way. The full test suite and the determinism
+goldens pass, in release and under sanitizers, and a box dropped onto
+another box a tenth of a light-year from the origin settles bit-for-bit
+identically to the same box dropped at the origin: same resting height,
+same 2.4 mm settle drift, asleep on the same frame. News of the impact
+would take a month to reach the origin at the speed of light. The
+simulation neither knows nor cares.
+
+Should you enable it? No. Note the absence of "probably." There is no game
+whose collision detection spans light-years at dust-mite resolution, and if
+yours does, we would gently suggest that at those distances gravity is no
+longer something you apply with `b3World_SetGravity`. It is off by default,
+it is bit-identical when off, and nothing in this repository uses it.
+
+It exists because we wanted to know exactly how much slower a 128-bit
+broadphase is, and the answer was too beautiful to keep private. Details in
+[docs/large_worlds.md](docs/large_worlds.md).
+
+They've gone to plaid.
 
 ## Maintenance
 
