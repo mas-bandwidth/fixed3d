@@ -117,6 +117,36 @@ geometry for calls that changed nothing. We shipped these as ops
 the `B3_REC` call, watch the replay hash gate trip — is cheap and worth
 keeping.
 
+### 9. Compound blob packing misaligns b3HullData — live UB, one hull is enough
+
+`b3CreateCompound` packs its blob sections back-to-back with no alignment
+rounding (compound.c:472, your own `todo 64 byte alignment` comment sits on
+the tree-node section). That's fine only while every section size is a
+multiple of every later section's alignment — and two of yours aren't:
+`b3HullInstance` is 36 bytes and `b3MeshInstance` is 60 (compound.c:30–43;
+a 28-byte transform plus uint32 tails, the mesh instance adds a 12-byte
+scale). `b3HullData` and `b3MeshData` both start
+with `uint64_t version`, so a compound with an **odd number of hull
+instances** puts its first shared hull blob at offset ≡ 4 (mod 8).
+Verified on pristine e961bfb: a compound with a **single box hull** —
+`def.hullCount = 1`, nothing else — fires
+
+    compound.c:582:11: runtime error: store to misaligned address 0x...72c
+    for type 'b3HullData *', which requires 8 byte alignment
+
+under `-fsanitize=undefined`. Odd mesh-instance counts misalign
+`b3MeshData` the same way. Your corpus presumably uses counts that happen
+to land aligned; ours did too until we widened the AABB in an experiment
+and UBSan lit up our copy of the same code. On x86-64/arm64 the misaligned
+uint64 loads work silently today, so the practical exposure is UBSan noise,
+strict-alignment targets, and any future typed-SIMD access through those
+pointers — but it's UB as it stands. The fix is small and free: round each
+section offset up to the `_Alignof` of the element type it holds
+(`offset = (offset + align - 1) & ~(align - 1)` before each section; the
+blob is already memset, so the pad bytes don't perturb your content
+hashes). That also gives you the hook for the 64-byte tree-node alignment
+your todo asks for — same rounding, bigger constant.
+
 ## Your todos, implemented and measured
 
 We did your homework. Some of it was worth doing.

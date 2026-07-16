@@ -17,7 +17,8 @@ resolution is *uniform*: sub-millimeter everywhere, with nothing to configure.
 ## The world-position API
 
 The Box3D API's world-position vocabulary is kept so code written against
-it compiles unchanged, but the types collapse permanently:
+it compiles unchanged. In the default build the types collapse (see the
+optional 128-bit builds at the end of this page for the exception):
 
 - `b3Pos` is an alias for `b3Vec3`.
 - `b3WorldTransform` is an alias for `b3Transform`.
@@ -84,3 +85,29 @@ There is a single precision mode, so there is a single set of determinism
 expectations: the same simulation produces bit-identical results across
 platforms and worker counts. (Box3D is also deterministic — see the
 FAQ — fixed point only changes how that is achieved.)
+
+## Optional 128-bit world positions (and ludicrous mode)
+
+Two stacked opt-in builds extend the range past ±1.4e14 meters. Almost
+nobody needs them — Q48.16's default envelope already covers hundreds of
+astronomical units — but they exist, they are verified, and they are
+measured. See `docs/design/wide-world-positions.md` for the full record.
+
+**`BOX3D_WIDE_POSITIONS`** widens `b3Pos` and `b3WorldTransform.p` to
+Q112.16 in `__int128` (range ±2.6e33 units — far past a light-year) while
+the entire solver interior stays Q48.16. The boundary helpers listed above
+become real conversions, which is why they exist in the API at all.
+Measured cost on the benchmark suite: none (geomean 1.00 of the default
+build). Collision remains active only within the int64 envelope, because
+the broadphase AABBs stay 64-bit; beyond it, bodies exist and transform
+exactly but do not collide. The samples application has not been ported
+to this build — engine, tests, and benchmarks all work.
+
+**`LUDICROUS_MODE`** (requires `BOX3D_WIDE_POSITIONS`) also widens the
+broadphase AABBs to 128 bits, so collision is active across the full
+wide-position range. The name is the documentation: you do not need a
+physics broadphase that works a light-year from the origin. It costs
++1.6% geomean (only tree-query-bound scenes pay measurably), and a box
+dropped onto a box at 1e15 meters — a tenth of a light-year out — settles
+bit-identically to the same scene at the origin. Both builds are off by
+default and change nothing when off.
