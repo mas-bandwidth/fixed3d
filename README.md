@@ -2,6 +2,8 @@
 
 [![Build Status](https://github.com/mas-bandwidth/fixed3d/actions/workflows/build.yml/badge.svg)](https://github.com/mas-bandwidth/fixed3d/actions)
 
+![They've gone to plaid.](docs/images/plaid.jpg)
+
 This fork exists to answer two questions:
 
 1. **What would [Box3D](https://github.com/erincatto/box3d) look like if it
