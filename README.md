@@ -106,7 +106,7 @@ we wanted to know exactly how much slower a 128-bit broadphase is, and the
 answer was too beautiful to keep private. Details in
 [docs/large_worlds.md](docs/large_worlds.md).
 
-They've gone to plaid.
+**We've gone to plaid.**
 
 ## Maintenance
 
