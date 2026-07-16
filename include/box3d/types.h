@@ -1437,9 +1437,9 @@ typedef struct b3CastOutput
 } b3CastOutput;
 
 /// World-space cast output. Same as b3CastOutput but the hit point is a world
-/// position, so in the wide-position build it is a distinct struct carrying a
+/// position, so in ludicrous mode it is a distinct struct carrying a
 /// b3Pos; in the narrow build it is the same type.
-#if defined( BOX3D_WIDE_POSITIONS )
+#if defined( BOX3D_LUDICROUS_MODE )
 typedef struct b3WorldCastOutput
 {
 	b3Vec3 normal;

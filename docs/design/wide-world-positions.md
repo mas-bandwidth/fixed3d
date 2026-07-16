@@ -366,3 +366,13 @@ identical values through int128). The samples app does not build under
 `BOX3D_WIDE_POSITIONS` (pre-existing scope boundary from the Option A
 work), so it doesn't build under ludicrous mode either; the engine,
 tests, and benchmarks all do.
+
+**Flag merge (2026-07-16, same day, Glenn's direction):** there is no
+situation where you want wide positions without the wide broadphase, so the
+two options merged into a single **`BOX3D_LUDICROUS_MODE`** (the
+`BOX3D_WIDE_POSITIONS` and bare `LUDICROUS_MODE` flags no longer exist).
+The merged build is preprocessor-identical to the old both-flags-on build —
+verified bit-identical: full suite + goldens in Release and sanitized Debug,
+narrow build unchanged, and the 1e15 m probe settles with the same −156 ulp
+drift. The measurements above stand: the positions were free, the broadphase
+is the +1.6%.

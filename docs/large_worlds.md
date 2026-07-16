@@ -86,28 +86,23 @@ expectations: the same simulation produces bit-identical results across
 platforms and worker counts. (Box3D is also deterministic — see the
 FAQ — fixed point only changes how that is achieved.)
 
-## Optional 128-bit world positions (and ludicrous mode)
+## Ludicrous mode: optional 128-bit positions and broadphase
 
-Two stacked opt-in builds extend the range past ±1.4e14 meters. Almost
-nobody needs them — Q48.16's default envelope already covers hundreds of
-astronomical units — but they exist, they are verified, and they are
-measured. See `docs/design/wide-world-positions.md` for the full record.
+One opt-in build extends the range past ±1.4e14 meters. Almost nobody
+needs it — Q48.16's default envelope already covers hundreds of
+astronomical units — but it exists, it is verified, and it is measured.
+See `docs/design/wide-world-positions.md` for the full record.
 
-**`BOX3D_WIDE_POSITIONS`** widens `b3Pos` and `b3WorldTransform.p` to
-Q112.16 in `__int128` (range ±2.6e33 units — far past a light-year) while
-the entire solver interior stays Q48.16. The boundary helpers listed above
-become real conversions, which is why they exist in the API at all.
-Measured cost on the benchmark suite: none (geomean 1.00 of the default
-build). Collision remains active only within the int64 envelope, because
-the broadphase AABBs stay 64-bit; beyond it, bodies exist and transform
-exactly but do not collide. The samples application has not been ported
-to this build — engine, tests, and benchmarks all work.
-
-**`LUDICROUS_MODE`** (requires `BOX3D_WIDE_POSITIONS`) also widens the
-broadphase AABBs to 128 bits, so collision is active across the full
-wide-position range. The name is the documentation: you do not need a
-physics broadphase that works a light-year from the origin. It costs
-+1.6% geomean (only tree-query-bound scenes pay measurably), and a box
+**`BOX3D_LUDICROUS_MODE`** widens `b3Pos`, `b3WorldTransform.p`, and the
+broadphase AABBs to Q112.16 in `__int128` (range ±2.6e33 units — far past
+a light-year) while the entire solver interior stays Q48.16. The boundary
+helpers listed above become real conversions, which is why they exist in
+the API at all, and collision is active across the full range: a box
 dropped onto a box at 1e15 meters — a tenth of a light-year out — settles
-bit-identically to the same scene at the origin. Both builds are off by
-default and change nothing when off.
+bit-identically to the same scene at the origin. Measured cost: +1.6%
+geomean (only tree-query-bound scenes pay measurably; widening the
+positions alone measured free, the broadphase is the entire cost). The
+name is the documentation: you do not need a physics broadphase that
+works a light-year from the origin. Off by default; bit-identical when
+off. The samples application has not been ported to this build — engine,
+tests, and benchmarks all work.

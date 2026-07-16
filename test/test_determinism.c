@@ -26,7 +26,7 @@
 // bit-exact rigid translation of the trajectory. The hash differs only because it covers
 // the absolute transform bytes, and the wide build stores 128-bit positions (80-byte
 // b3WorldTransform vs 56-byte), so it carries its own golden. Full 128 bits are hashed.
-#if defined( BOX3D_WIDE_POSITIONS )
+#if defined( BOX3D_LUDICROUS_MODE )
 #define EXPECTED_HASH 0x886BE415
 #else
 #define EXPECTED_HASH 0xB222C195

@@ -141,7 +141,7 @@ void b3RecW_TRANSFORM( b3RecBuffer* buf, b3Transform v )
 // World position at full precision so recordings reproduce the simulation far from the origin.
 // In the narrow build this is three 64-bit words, wire-identical to VEC3. In the wide build
 // each axis is the full 128-bit Q112.16 value, written as two 64-bit words (low word first).
-#if defined( BOX3D_WIDE_POSITIONS )
+#if defined( BOX3D_LUDICROUS_MODE )
 static void b3RecW_I128( b3RecBuffer* buf, b3Int128 v )
 {
 	b3RecW_U64( buf, (uint64_t)(b3UInt128)v );
@@ -325,9 +325,9 @@ static void b3RecW_STR( b3RecBuffer* buf, const char* s )
 // stay field-for-field in sync. Add a field to a def and the size changes, firing the matching assert
 // so the writer and reader both get updated. Only enforced on the 64-bit target; each def lists the
 // single-precision and double-precision sizes (equal for most), so either build configuration passes.
-// b3ExplosionDef and b3BodyDef embed a b3Pos, so they grow in the wide-position build
+// b3ExplosionDef and b3BodyDef embed a b3Pos, so they grow in ludicrous mode
 // (int128 axes, 16-byte aligned). Both sizes are pinned per build.
-#if defined( BOX3D_WIDE_POSITIONS )
+#if defined( BOX3D_LUDICROUS_MODE )
 _Static_assert( sizeof( void* ) != 8 || sizeof( b3ExplosionDef ) == 96,
 				"b3ExplosionDef changed: update b3RecW_EXPLOSIONDEF and b3RecR_EXPLOSIONDEF together" );
 _Static_assert( sizeof( void* ) != 8 || sizeof( b3BodyDef ) == 208,
@@ -1071,7 +1071,7 @@ void b3StartRecordingIntoBuffer( b3World* world, b3Recording* recording )
 	hdr.versionMajor = B3_REC_VERSION_MAJOR;
 	hdr.versionMinor = B3_REC_VERSION_MINOR;
 	hdr.pointerWidth = (uint8_t)sizeof( void* );
-	// 8 in the narrow build, 16 in the wide-position build. b3RecW_POSITION writes one word
+	// 8 in the narrow build, 16 in ludicrous mode. b3RecW_POSITION writes one word
 	// per axis when this is 8 and two when it is 16, so replay must match the build.
 	hdr.positionWidth = (uint8_t)sizeof( ( (b3Pos*)0 )->x );
 	hdr.bigEndian = 0;

@@ -21,7 +21,7 @@
 // Mix a world position into the recording's state hash.
 static inline uint64_t b3FnvMixPosition( uint64_t hash, b3Pos p )
 {
-#if defined( BOX3D_WIDE_POSITIONS )
+#if defined( BOX3D_LUDICROUS_MODE )
 	// Wide positions are 128-bit. Hash the FULL width of each axis as 64-bit chunks (matching
 	// B3_HASH_FLOAT for the other fields), so the determinism gate covers all 128 bits rather
 	// than silently validating only the low word.

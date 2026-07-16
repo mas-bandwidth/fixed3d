@@ -94,16 +94,12 @@ option(BOX3D_AVX512 "Enable AVX-512 fixed-point SIMD in the contact solver (x86-
 option(BOX3D_NEON "Enable NEON fixed-point SIMD in the narrow phase (aarch64, bit-identical results)" OFF)
 option(BOX3D_COMPILE_WARNING_AS_ERROR "Compile warnings as errors" OFF)
 option(BOX3D_DOUBLE_PRECISION "Enable double precision for large worlds" OFF)
-option(BOX3D_WIDE_POSITIONS "Enable 128-bit world positions (Q112.16); interior stays Q48.16" OFF)
-# LUDICROUS_MODE: widen the broadphase tree AABBs to int128 too, so collision is active
-# across the full wide-position range (+/-2.6e33 units, far past a light-year) instead of
-# capped at +/-1.4e14. Puts int128 into the hot tree. Nobody should ever turn this on —
-# it exists to answer exactly one question: how much slower is it? (Deliberately not
-# BOX3D_-prefixed. The name is the documentation.)
-option(LUDICROUS_MODE "Enable 128-bit broadphase AABBs (requires BOX3D_WIDE_POSITIONS; you don't need this)" OFF)
-if(LUDICROUS_MODE AND NOT BOX3D_WIDE_POSITIONS)
-	message(FATAL_ERROR "LUDICROUS_MODE requires BOX3D_WIDE_POSITIONS")
-endif()
+# BOX3D_LUDICROUS_MODE: 128-bit world positions (Q112.16) AND 128-bit broadphase AABBs,
+# so simulation and collision both work across +/-2.6e33 units — far past a light-year —
+# at the same 1/65536 resolution as the origin. The interior solver stays Q48.16.
+# Costs +1.6% geomean. Nobody should ever turn this on; it exists to answer exactly one
+# question: how much slower is it? See the README's LUDICROUS MODE section.
+option(BOX3D_LUDICROUS_MODE "Enable 128-bit positions and broadphase (you don't need this)" OFF)
 
 # Emscripten maps the SSE2 path onto wasm SIMD128. simd.h is a header included by
 # non-library targets like the tests, so these flags must be directory-wide, not

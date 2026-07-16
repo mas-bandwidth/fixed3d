@@ -70,9 +70,9 @@ typedef struct b3Transform
 #error "BOX3D_DOUBLE_PRECISION is not supported with fixed-point math"
 #endif
 
-#if defined( BOX3D_WIDE_POSITIONS )
+#if defined( BOX3D_LUDICROUS_MODE )
 
-/// A world position in the wide-position build: Q112.16 fixed point in a 128-bit
+/// A world position in ludicrous mode: Q112.16 fixed point in a 128-bit
 /// integer. Same 16 fraction bits as b3Fixed (so the boundary subtract to local
 /// space is an exact truncation, not a rescale), with all 64 extra bits going to
 /// integer *range* (±2.6e33 units, far past a light-year in metres). Uniform
@@ -112,7 +112,7 @@ typedef struct b3Matrix3
 } b3Matrix3;
 
 /// Axis aligned bounding box.
-#if defined( LUDICROUS_MODE )
+#if defined( BOX3D_LUDICROUS_MODE )
 /// Ludicrous mode: AABB bounds are 128-bit world positions, so the broadphase tree is
 /// collision-active across the full wide-position range (past a light-year). Puts int128
 /// into the hot tree. Nobody needs this; it exists to be measured (and marveled at).
@@ -754,21 +754,21 @@ B3_INLINE b3Vec3 b3ToVec3( b3Pos p )
 	return B3_LITERAL( b3Vec3 ){ (b3Fixed)p.x, (b3Fixed)p.y, (b3Fixed)p.z };
 }
 
-/// Bridge b3Vec3-based math to the AABB bound storage type. Bounds are 128-bit b3Pos ONLY in
-/// ludicrous mode (LUDICROUS_MODE); in the narrow and wide-positions-only builds b3AABB stays
-/// b3Vec3, so these are the identity there. Bound-touching code uses them to compile in all three
-/// builds without #if (analogous to b3ToPos/b3ToVec3 for positions, but keyed on the bound type).
-#if defined( LUDICROUS_MODE )
+/// Bridge b3Vec3-based math to the AABB bound storage type. Bounds are 128-bit b3Pos in
+/// ludicrous mode (BOX3D_LUDICROUS_MODE) and b3Vec3 in the default build, so these are the
+/// identity there. Bound-touching code uses them to compile in both builds without #if
+/// (analogous to b3ToPos/b3ToVec3 for positions, but marking a BOUND crossing — keep the
+/// distinction so bound flows stay auditable).
+#if defined( BOX3D_LUDICROUS_MODE )
 B3_INLINE b3Vec3 b3BoundToVec3( b3Pos p ) { return b3ToVec3( p ); }
 B3_INLINE b3Pos b3Vec3ToBound( b3Vec3 v ) { return b3ToPos( v ); }
-/// Bound <-> world position, exact in every build (bounds ARE b3Pos here).
+/// Bound <-> world position: the identity (bounds ARE b3Pos here).
 B3_INLINE b3Pos b3BoundToPos( b3Pos p ) { return p; }
 B3_INLINE b3Pos b3PosToBound( b3Pos p ) { return p; }
 #else
 B3_INLINE b3Vec3 b3BoundToVec3( b3Vec3 v ) { return v; }
 B3_INLINE b3Vec3 b3Vec3ToBound( b3Vec3 v ) { return v; }
-/// Bound <-> world position. Widening a narrow bound is exact; narrowing a
-/// position into a narrow bound is the sanctioned lossy demote of those builds.
+/// Bound <-> world position: also the identity (b3Pos aliases b3Vec3 in the default build).
 B3_INLINE b3Pos b3BoundToPos( b3Vec3 v ) { return b3ToPos( v ); }
 B3_INLINE b3Vec3 b3PosToBound( b3Pos p ) { return b3ToVec3( p ); }
 #endif
@@ -800,7 +800,7 @@ B3_INLINE b3Pos b3OffsetPos( b3Pos p, b3Vec3 d )
 }
 
 /// World position interpolation for sweeps and sampling.
-#if defined( BOX3D_WIDE_POSITIONS )
+#if defined( BOX3D_LUDICROUS_MODE )
 /// Wide build: the two-rounding form ((1-t)*a + t*b) would multiply b3FixMul by
 /// an absolute 128-bit coordinate, which overflows and truncates. Reformulate as
 /// a + t*(b-a): the difference (b-a) is in local range, so the multiply is a
@@ -1137,7 +1137,7 @@ B3_FORCE_INLINE b3Matrix3 b3MakeMatrixFromQuat( b3Quat q )
 /// https://en.wikipedia.org/wiki/Parallel_axis_theorem
 B3_API b3Matrix3 b3Steiner( b3Fixed mass, b3Vec3 origin );
 
-#if defined( LUDICROUS_MODE )
+#if defined( BOX3D_LUDICROUS_MODE )
 // Ludicrous mode: AABB bounds are 128-bit. Storage, min/max, union, contains and overlap stay
 // 128-bit (the hot tree ops); extent/center narrow to b3Fixed for the b3Vec3-returning API
 // (exact whenever the box fits local range, which every in-range scene does).

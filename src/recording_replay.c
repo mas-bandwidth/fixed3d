@@ -158,7 +158,7 @@ b3Transform b3RecR_TRANSFORM( b3RecReader* rdr )
 	return t;
 }
 
-#if defined( BOX3D_WIDE_POSITIONS )
+#if defined( BOX3D_LUDICROUS_MODE )
 static b3Int128 b3RecR_I128( b3RecReader* rdr )
 {
 	uint64_t lo = b3RecR_U64( rdr );
@@ -2776,7 +2776,7 @@ b3RecPlayer* b3RecPlayer_Create( const void* data, int size, int workerCount )
 		if ( fileAxis != buildAxis )
 		{
 			printf( "b3RecPlayer_Create: position precision mismatch (recording %u-byte axis, build %u-byte). "
-					"A wide-position recording needs a BOX3D_WIDE_POSITIONS build and vice versa.\n",
+					"A wide-position recording needs a BOX3D_LUDICROUS_MODE build and vice versa.\n",
 					fileAxis, buildAxis );
 			return NULL;
 		}

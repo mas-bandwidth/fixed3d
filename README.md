@@ -81,10 +81,10 @@ Q48.16 positions cover ±1.4×10¹⁴ meters at 15-micron resolution. That is
 about 900 astronomical units, and it is enough for any physics simulation
 that has ever existed or will ever exist.
 
-`LUDICROUS_MODE` is for when it is not enough.
+`BOX3D_LUDICROUS_MODE` is for when it is not enough.
 
 ```
-cmake -DBOX3D_WIDE_POSITIONS=ON -DLUDICROUS_MODE=ON ..
+cmake -DBOX3D_LUDICROUS_MODE=ON ..
 ```
 
 This widens world positions to Q112.16 in `__int128` and — this is the

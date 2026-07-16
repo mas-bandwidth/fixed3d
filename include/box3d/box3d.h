@@ -22,12 +22,12 @@
  * @{
  */
 
-/// ABI guard: BOX3D_WIDE_POSITIONS changes the size of b3Pos / b3WorldTransform, so a wide app
+/// ABI guard: BOX3D_LUDICROUS_MODE changes the size of b3Pos / b3WorldTransform, so a wide app
 /// linked against a narrow library (or vice versa) would pass structs of the wrong size across
 /// the boundary and corrupt silently. Decorating b3CreateWorld's symbol with the mode turns that
 /// mismatch into a link-time undefined-symbol error instead. Every program calls b3CreateWorld.
-#if defined( BOX3D_WIDE_POSITIONS )
-#define b3CreateWorld b3CreateWorld_widePositions
+#if defined( BOX3D_LUDICROUS_MODE )
+#define b3CreateWorld b3CreateWorld_ludicrous
 #endif
 
 /// Create a world for rigid body simulation. A world contains bodies, shapes, and constraints. You may create
@@ -35,7 +35,7 @@
 /// @return the world id.
 B3_API b3WorldId b3CreateWorld( const b3WorldDef* def );
 
-/// True if this build uses 128-bit world positions (BOX3D_WIDE_POSITIONS). Lets a host confirm
+/// True if this build uses 128-bit world positions (BOX3D_LUDICROUS_MODE). Lets a host confirm
 /// the library's precision mode at runtime; the link-time guard above catches ABI mismatches.
 B3_API bool b3IsWidePrecision( void );
 

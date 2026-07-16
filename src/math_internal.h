@@ -491,7 +491,7 @@ static inline b3Matrix3 b3TransformInertia( b3Transform transform, b3Matrix3 cen
 // Add a point to an AABB.
 static inline b3AABB b3AABB_AddPoint( b3AABB a, b3Vec3 point )
 {
-#if defined( LUDICROUS_MODE )
+#if defined( BOX3D_LUDICROUS_MODE )
 	b3AABB out = a;
 	out.lowerBound.x = a.lowerBound.x < point.x ? a.lowerBound.x : point.x;
 	out.lowerBound.y = a.lowerBound.y < point.y ? a.lowerBound.y : point.y;

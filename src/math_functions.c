@@ -125,7 +125,7 @@ bool b3IsValidPlane( b3Plane a )
 	return b3IsValidFixed( a.offset );
 }
 
-#if defined( BOX3D_WIDE_POSITIONS )
+#if defined( BOX3D_LUDICROUS_MODE )
 // Wide world coordinate: mirror b3IsValidFixed — every value is a legal quantity
 // except the 128-bit minimum, which is reserved so negation cannot overflow.
 static inline bool b3IsValidWideCoord( b3Int128 x )

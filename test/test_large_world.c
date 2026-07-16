@@ -255,7 +255,7 @@ static int LargeWorldQueryTest( void )
 	return 0;
 }
 
-#if defined( BOX3D_WIDE_POSITIONS )
+#if defined( BOX3D_LUDICROUS_MODE )
 // Only the wide build can represent a coordinate past the old +/-1.4e14 Q48.16 limit.
 // 1e15 units per axis is raw 6.5e19, well past INT64_MAX (9.2e18): store it through the
 // public API and read it back exactly, proving the widening actually extends reach.
@@ -299,7 +299,7 @@ int LargeWorldTest( void )
 	RUN_SUBTEST( LargeWorldStackTest );
 	RUN_SUBTEST( LargeWorldBulletTest );
 	RUN_SUBTEST( LargeWorldQueryTest );
-#if defined( BOX3D_WIDE_POSITIONS )
+#if defined( BOX3D_LUDICROUS_MODE )
 	RUN_SUBTEST( LargeWorldBeyondRangeTest );
 #endif
 	return 0;

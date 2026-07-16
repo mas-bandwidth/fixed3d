@@ -204,7 +204,7 @@ static void b3DestroyWorkerContexts( b3World* world )
 
 bool b3IsWidePrecision( void )
 {
-#if defined( BOX3D_WIDE_POSITIONS )
+#if defined( BOX3D_LUDICROUS_MODE )
 	return true;
 #else
 	return false;
