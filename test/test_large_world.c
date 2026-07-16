@@ -255,10 +255,52 @@ static int LargeWorldQueryTest( void )
 	return 0;
 }
 
+#if defined( BOX3D_WIDE_POSITIONS )
+// Only the wide build can represent a coordinate past the old +/-1.4e14 Q48.16 limit.
+// 1e15 units per axis is raw 6.5e19, well past INT64_MAX (9.2e18): store it through the
+// public API and read it back exactly, proving the widening actually extends reach.
+// (Collision past 1.4e14 is out of scope for Option A — the broadphase stays Q48.16 —
+// so this exercises position storage/transport, which is what the extra range buys.)
+static int LargeWorldBeyondRangeTest( void )
+{
+	b3WorldDef worldDef = b3DefaultWorldDef();
+	b3WorldId worldId = b3CreateWorld( &worldDef );
+
+	b3Pos base;
+	base.x = b3Int128ShiftLeft( (b3Int128)1000000000000000LL, B3_FIXED_FRACTION_BITS );
+	base.y = b3Int128ShiftLeft( (b3Int128)-2000000000000000LL, B3_FIXED_FRACTION_BITS );
+	base.z = b3Int128ShiftLeft( (b3Int128)3000000000000000LL, B3_FIXED_FRACTION_BITS );
+
+	// past the old limit in both directions
+	ENSURE( base.x > (b3Int128)INT64_MAX );
+	ENSURE( base.y < -(b3Int128)INT64_MAX );
+
+	b3BodyDef bodyDef = b3DefaultBodyDef();
+	bodyDef.position = base;
+	b3BodyId bodyId = b3CreateBody( worldId, &bodyDef );
+
+	// exact round-trip through the public API
+	b3Pos p = b3Body_GetPosition( bodyId );
+	ENSURE( p.x == base.x && p.y == base.y && p.z == base.z );
+
+	// a local move stays exact: offset by a small local vector, read back, subtract the base
+	b3Vec3 local = { B3_FIX( 12.5f ), -B3_FIX( 7.0f ), B3_FIX( 0.25f ) };
+	b3Body_SetTransform( bodyId, b3OffsetPos( base, local ), b3Quat_identity );
+	b3Vec3 got = b3SubPos( b3Body_GetPosition( bodyId ), base );
+	ENSURE( got.x == local.x && got.y == local.y && got.z == local.z );
+
+	b3DestroyWorld( worldId );
+	return 0;
+}
+#endif
+
 int LargeWorldTest( void )
 {
 	RUN_SUBTEST( LargeWorldStackTest );
 	RUN_SUBTEST( LargeWorldBulletTest );
 	RUN_SUBTEST( LargeWorldQueryTest );
+#if defined( BOX3D_WIDE_POSITIONS )
+	RUN_SUBTEST( LargeWorldBeyondRangeTest );
+#endif
 	return 0;
 }

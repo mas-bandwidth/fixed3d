@@ -158,6 +158,21 @@ b3Transform b3RecR_TRANSFORM( b3RecReader* rdr )
 	return t;
 }
 
+#if defined( BOX3D_WIDE_POSITIONS )
+static b3Int128 b3RecR_I128( b3RecReader* rdr )
+{
+	uint64_t lo = b3RecR_U64( rdr );
+	uint64_t hi = b3RecR_U64( rdr );
+	return (b3Int128)( ( (b3UInt128)hi << 64 ) | lo );
+}
+b3Pos b3RecR_POSITION( b3RecReader* rdr )
+{
+	b3Pos p;
+	p.x = b3RecR_I128( rdr );
+	p.y = b3RecR_I128( rdr );
+	p.z = b3RecR_I128( rdr );
+	return p;
+#else
 b3Pos b3RecR_POSITION( b3RecReader* rdr )
 {
 	b3Pos p;
@@ -165,6 +180,7 @@ b3Pos b3RecR_POSITION( b3RecReader* rdr )
 	p.y = b3RecR_F32( rdr );
 	p.z = b3RecR_F32( rdr );
 	return p;
+#endif
 }
 
 b3WorldTransform b3RecR_WORLDXF( b3RecReader* rdr )

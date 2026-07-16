@@ -353,7 +353,8 @@ void CreateGroup( b3WorldId worldId, int rowIndex, int columnIndex )
 	b3Fixed span = RAIN_GRID_COUNT * RAIN_GRID_SIZE;
 	b3Fixed groupDistance = span / RAIN_GRID_COUNT;
 
-	b3Pos position;
+	// local offset from the scene origin (b3OffsetPos adds it onto GetSceneOrigin)
+	b3Vec3 position;
 	position.x = b3FixMul( -B3_FIX( 0.5f ) , span ) + b3FixMul( groupDistance , ( b3FixFromInt( columnIndex ) + B3_FIX( 0.5f ) ) );
 	position.y = B3_FIX( 20.0f );
 	position.z = b3FixMul( -B3_FIX( 0.5f ) , span ) + b3FixMul( groupDistance , ( b3FixFromInt( rowIndex ) + B3_FIX( 0.5f ) ) );

@@ -139,13 +139,28 @@ void b3RecW_TRANSFORM( b3RecBuffer* buf, b3Transform v )
 }
 
 // World position at full precision so recordings reproduce the simulation far from the origin.
-// In the b3Fixed build this is three floats, wire-identical to VEC3.
+// In the narrow build this is three 64-bit words, wire-identical to VEC3. In the wide build
+// each axis is the full 128-bit Q112.16 value, written as two 64-bit words (low word first).
+#if defined( BOX3D_WIDE_POSITIONS )
+static void b3RecW_I128( b3RecBuffer* buf, b3Int128 v )
+{
+	b3RecW_U64( buf, (uint64_t)(b3UInt128)v );
+	b3RecW_U64( buf, (uint64_t)( (b3UInt128)v >> 64 ) );
+}
+void b3RecW_POSITION( b3RecBuffer* buf, b3Pos v )
+{
+	b3RecW_I128( buf, v.x );
+	b3RecW_I128( buf, v.y );
+	b3RecW_I128( buf, v.z );
+}
+#else
 void b3RecW_POSITION( b3RecBuffer* buf, b3Pos v )
 {
 	b3RecW_F32( buf, v.x );
 	b3RecW_F32( buf, v.y );
 	b3RecW_F32( buf, v.z );
 }
+#endif
 
 void b3RecW_WORLDXF( b3RecBuffer* buf, b3WorldTransform v )
 {
@@ -310,10 +325,19 @@ static void b3RecW_STR( b3RecBuffer* buf, const char* s )
 // stay field-for-field in sync. Add a field to a def and the size changes, firing the matching assert
 // so the writer and reader both get updated. Only enforced on the 64-bit target; each def lists the
 // single-precision and double-precision sizes (equal for most), so either build configuration passes.
+// b3ExplosionDef and b3BodyDef embed a b3Pos, so they grow in the wide-position build
+// (int128 axes, 16-byte aligned). Both sizes are pinned per build.
+#if defined( BOX3D_WIDE_POSITIONS )
+_Static_assert( sizeof( void* ) != 8 || sizeof( b3ExplosionDef ) == 96,
+				"b3ExplosionDef changed: update b3RecW_EXPLOSIONDEF and b3RecR_EXPLOSIONDEF together" );
+_Static_assert( sizeof( void* ) != 8 || sizeof( b3BodyDef ) == 208,
+				"b3BodyDef changed: update b3RecW_BODYDEF and b3RecR_BODYDEF together" );
+#else
 _Static_assert( sizeof( void* ) != 8 || sizeof( b3ExplosionDef ) == 56,
 				"b3ExplosionDef changed: update b3RecW_EXPLOSIONDEF and b3RecR_EXPLOSIONDEF together" );
 _Static_assert( sizeof( void* ) != 8 || sizeof( b3BodyDef ) == 176,
 				"b3BodyDef changed: update b3RecW_BODYDEF and b3RecR_BODYDEF together" );
+#endif
 _Static_assert( sizeof( void* ) != 8 || sizeof( b3ShapeDef ) == 152,
 				"b3ShapeDef changed: update b3RecW_SHAPEDEF and b3RecR_SHAPEDEF together" );
 _Static_assert( sizeof( void* ) != 8 || sizeof( b3ParallelJointDef ) == 208,

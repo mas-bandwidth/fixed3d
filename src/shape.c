@@ -602,7 +602,11 @@ b3AABB b3ComputeShapeAABB( const b3Shape* shape, b3Transform transform )
 b3AABB b3ComputeFatShapeAABB( const b3Shape* shape, b3WorldTransform transform, b3Fixed extra )
 {
 	b3Vec3 r = { extra, extra, extra };
-	b3AABB aabb = b3ComputeShapeAABB( shape, transform );
+	// Option A (broadphase tree stays Q48.16 world): demote the world transform to
+	// the matching b3Fixed world frame — exact within the ±1.4e14 collision-active
+	// radius — and compute the fat AABB in world Q48.16. Identity in the narrow build.
+	b3Transform localTransform = b3ToRelativeTransform( transform, b3Pos_zero );
+	b3AABB aabb = b3ComputeShapeAABB( shape, localTransform );
 	aabb.lowerBound = b3Sub( aabb.lowerBound, r );
 	aabb.upperBound = b3Add( aabb.upperBound, r );
 	return aabb;
