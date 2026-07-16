@@ -22,7 +22,8 @@ static void CreateGroup( FallingRagdollData* data, b3WorldId worldId, int rowInd
 	b3Fixed span = RAGDOLL_GRID_COUNT * GRID_SIZE;
 	b3Fixed groupDistance = span / RAGDOLL_GRID_COUNT;
 
-	b3Pos position;
+	// local offset from the scene origin (b3OffsetPos adds it onto GetSceneOrigin)
+	b3Vec3 position;
 	position.x = b3FixMul( -B3_FIX( 0.5f ) , span ) + b3FixMul( groupDistance , ( b3FixFromInt( columnIndex ) + B3_FIX( 0.5f ) ) );
 	position.y = B3_FIX( 15.0f );
 	position.z = b3FixMul( -B3_FIX( 0.5f ) , span ) + b3FixMul( groupDistance , ( b3FixFromInt( rowIndex ) + B3_FIX( 0.5f ) ) );

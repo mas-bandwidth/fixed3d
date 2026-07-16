@@ -171,6 +171,15 @@ if (BOX3D_NEON)
 	target_compile_definitions(box3d PRIVATE BOX3D_NEON)
 endif()
 
+if (BOX3D_WIDE_POSITIONS)
+	message(STATUS "Fixed3D 128-bit world positions ON")
+	# PUBLIC: BOX3D_WIDE_POSITIONS changes the definition of the public b3Pos /
+	# b3WorldTransform types in math_functions.h, so every consumer of the header
+	# (tests, samples, host apps) must compile with the same definition as the
+	# library or the ABI diverges. Unlike the SIMD flags, this is not internal.
+	target_compile_definitions(box3d PUBLIC BOX3D_WIDE_POSITIONS)
+endif()
+
 if (BOX3D_AVX512)
 	message(STATUS "Fixed3D AVX-512 fixed-point SIMD ON")
 	# PRIVATE: the wide solver types are internal to the library; results are

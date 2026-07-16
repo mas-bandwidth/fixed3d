@@ -1436,8 +1436,24 @@ typedef struct b3CastOutput
 	bool hit;
 } b3CastOutput;
 
-/// Same type in single precision.
+/// World-space cast output. Same as b3CastOutput but the hit point is a world
+/// position, so in the wide-position build it is a distinct struct carrying a
+/// b3Pos; in the narrow build it is the same type.
+#if defined( BOX3D_WIDE_POSITIONS )
+typedef struct b3WorldCastOutput
+{
+	b3Vec3 normal;
+	b3Pos point;
+	b3Fixed fraction;
+	int iterations;
+	int triangleIndex;
+	int childIndex;
+	int materialIndex;
+	bool hit;
+} b3WorldCastOutput;
+#else
 typedef b3CastOutput b3WorldCastOutput;
+#endif
 
 /// Body cast result for ray and shape casts.
 typedef struct b3BodyCastResult
