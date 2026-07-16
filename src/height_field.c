@@ -185,9 +185,9 @@ b3HeightFieldData* b3CreateHeightField( const b3HeightFieldDef* data )
 		}
 	}
 
-	hf->aabb.lowerBound = (b3Vec3){ B3_FIX( 0.0f ), b3FixMul( hf->scale.y , lowerHeightBound ), B3_FIX( 0.0f ) };
+	hf->aabb.lowerBound = b3Vec3ToBound( (b3Vec3){ B3_FIX( 0.0f ), b3FixMul( hf->scale.y , lowerHeightBound ), B3_FIX( 0.0f ) } );
 	hf->aabb.upperBound =
-		(b3Vec3){ b3FixMul( hf->scale.x , b3FixFromInt( ( hf->columnCount - 1 ) ) ), b3FixMul( hf->scale.y , upperHeightBound ), b3FixMul( hf->scale.z , b3FixFromInt( ( hf->rowCount - 1 ) ) ) };
+		b3Vec3ToBound( (b3Vec3){ b3FixMul( hf->scale.x , b3FixFromInt( ( hf->columnCount - 1 ) ) ), b3FixMul( hf->scale.y , upperHeightBound ), b3FixMul( hf->scale.z , b3FixFromInt( ( hf->rowCount - 1 ) ) ) } );
 
 	b3Fixed cos5Deg = B3_FIX( 0.9962f );
 	b3Vec3 scale = hf->scale;
@@ -617,8 +617,8 @@ b3CastOutput b3ShapeCastHeightField( const b3HeightFieldData* heightField, const
 
 	b3Vec3 shapeExtents = b3AABB_Extents( shapeBounds );
 	b3Vec3 margin = { B3_MAX_AABB_MARGIN, B3_MAX_AABB_MARGIN, B3_MAX_AABB_MARGIN };
-	b3AABB combinedBounds = { b3Sub( b3Sub( heightField->aabb.lowerBound, shapeExtents ), margin ),
-							  b3Add( b3Add( heightField->aabb.upperBound, shapeExtents ), margin ) };
+	b3AABB combinedBounds = { b3Vec3ToBound( b3Sub( b3Sub( b3BoundToVec3( heightField->aabb.lowerBound ), shapeExtents ), margin ) ),
+							  b3Vec3ToBound( b3Add( b3Add( b3BoundToVec3( heightField->aabb.upperBound ), shapeExtents ), margin ) ) };
 
 	b3Fixed minFraction, maxFraction;
 	bool intersects = b3RayCastAABB( combinedBounds, shapeStart, shapeEnd, &minFraction, &maxFraction );
@@ -766,8 +766,8 @@ b3CastOutput b3ShapeCastHeightField( const b3HeightFieldData* heightField, const
 	pairInput.canEncroach = input->canEncroach;
 
 	b3AABB castBounds;
-	castBounds.lowerBound = b3Sub( b3Min( centerStart, centerEnd ), shapeExtents );
-	castBounds.upperBound = b3Add( b3Max( centerStart, centerEnd ), shapeExtents );
+	castBounds.lowerBound = b3Vec3ToBound( b3Sub( b3Min( centerStart, centerEnd ), shapeExtents ) );
+	castBounds.upperBound = b3Vec3ToBound( b3Add( b3Max( centerStart, centerEnd ), shapeExtents ) );
 
 	b3V32 rayOrigin = b3LoadV( &shapeStart.x );
 	b3V32 rayTranslation = b3LoadV( &shapeTranslation.x );
@@ -830,8 +830,8 @@ b3CastOutput b3ShapeCastHeightField( const b3HeightFieldData* heightField, const
 
 				// I know the min/max x and z values, but not the min/max heights.
 				b3AABB bounds;
-				bounds.lowerBound = b3Min( b3Min( point11, point12 ), b3Min( point21, point22 ) );
-				bounds.upperBound = b3Max( b3Max( point11, point12 ), b3Max( point21, point22 ) );
+				bounds.lowerBound = b3Vec3ToBound( b3Min( b3Min( point11, point12 ), b3Min( point21, point22 ) ) );
+				bounds.upperBound = b3Vec3ToBound( b3Max( b3Max( point11, point12 ), b3Max( point21, point22 ) ) );
 
 				if ( b3AABB_Overlaps( castBounds, bounds ) == false )
 				{
@@ -1039,13 +1039,16 @@ bool b3OverlapHeightField( const b3HeightFieldData* shape, b3Transform shapeTran
 	b3AABB aabb = b3ComputeProxyAABB( &localProxy );
 
 	b3Vec3 scale = shape->scale;
-	int minRow = (int)b3FixTruncToInt( b3FixFloor( b3FixDiv( aabb.lowerBound.z , scale.z ) ) );
-	int maxRow = (int)b3FixTruncToInt( b3FixFloor( b3FixDiv( aabb.upperBound.z , scale.z ) ) );
-	int minCol = (int)b3FixTruncToInt( b3FixFloor( b3FixDiv( aabb.lowerBound.x , scale.x ) ) );
-	int maxCol = (int)b3FixTruncToInt( b3FixFloor( b3FixDiv( aabb.upperBound.x , scale.x ) ) );
+	// Narrow the (128-bit in ludicrous mode) bounds to b3Vec3 once; exact in local range, no-op elsewhere.
+	b3Vec3 aabbLo = b3BoundToVec3( aabb.lowerBound ), aabbHi = b3BoundToVec3( aabb.upperBound );
+	int minRow = (int)b3FixTruncToInt( b3FixFloor( b3FixDiv( aabbLo.z , scale.z ) ) );
+	int maxRow = (int)b3FixTruncToInt( b3FixFloor( b3FixDiv( aabbHi.z , scale.z ) ) );
+	int minCol = (int)b3FixTruncToInt( b3FixFloor( b3FixDiv( aabbLo.x , scale.x ) ) );
+	int maxCol = (int)b3FixTruncToInt( b3FixFloor( b3FixDiv( aabbHi.x , scale.x ) ) );
 
-	b3V32 boundsMin = b3LoadV( &aabb.lowerBound.x );
-	b3V32 boundsMax = b3LoadV( &aabb.upperBound.x );
+	// b3LoadV wants a packed 3x b3Fixed layout; the bounds are already narrowed above.
+	b3V32 boundsMin = b3LoadV( &aabbLo.x );
+	b3V32 boundsMax = b3LoadV( &aabbHi.x );
 	b3V32 boundsCenter = b3MulV( b3_halfV, b3AddV( boundsMin, boundsMax ) );
 	b3V32 boundsExtent = b3SubV( boundsMax, boundsCenter );
 
@@ -1178,8 +1181,8 @@ void b3QueryHeightField( const b3HeightFieldData* heightField, b3AABB bounds, b3
 			// I know the min/max x and z values, but not the min/max heights.
 			// This could be done with no branching in SIMD.
 			b3AABB cellBound;
-			cellBound.lowerBound = b3Min( b3Min( point11, point12 ), b3Min( point21, point22 ) );
-			cellBound.upperBound = b3Max( b3Max( point11, point12 ), b3Max( point21, point22 ) );
+			cellBound.lowerBound = b3Vec3ToBound( b3Min( b3Min( point11, point12 ), b3Min( point21, point22 ) ) );
+			cellBound.upperBound = b3Vec3ToBound( b3Max( b3Max( point11, point12 ), b3Max( point21, point22 ) ) );
 
 			if ( b3AABB_Overlaps( bounds, cellBound ) )
 			{

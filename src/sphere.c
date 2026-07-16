@@ -33,7 +33,7 @@ b3AABB b3ComputeSphereAABB( const b3Sphere* shape, b3Transform transform )
 	b3Vec3 center = b3TransformPoint( transform, shape->center );
 	b3Fixed radius = shape->radius;
 	b3Vec3 extent = { radius, radius, radius };
-	return ( b3AABB ){ b3Sub( center, extent ), b3Add( center, extent ) };
+	return ( b3AABB ){ b3Vec3ToBound( b3Sub( center, extent ) ), b3Vec3ToBound( b3Add( center, extent ) ) };
 }
 
 b3AABB b3ComputeSweptSphereAABB( const b3Sphere* shape, b3Transform xf1, b3Transform xf2 )
@@ -41,7 +41,7 @@ b3AABB b3ComputeSweptSphereAABB( const b3Sphere* shape, b3Transform xf1, b3Trans
 	b3Vec3 r = { shape->radius, shape->radius, shape->radius };
 	b3Vec3 center1 = b3TransformPoint( xf1, shape->center );
 	b3Vec3 center2 = b3TransformPoint( xf2, shape->center );
-	return ( b3AABB ){ b3Sub( b3Min( center1, center2 ), r ), b3Add( b3Max( center1, center2 ), r ) };
+	return ( b3AABB ){ b3Vec3ToBound( b3Sub( b3Min( center1, center2 ), r ) ), b3Vec3ToBound( b3Add( b3Max( center1, center2 ), r ) ) };
 }
 
 bool b3OverlapSphere( const b3Sphere* shape, b3Transform shapeTransform, const b3ShapeProxy* proxy )

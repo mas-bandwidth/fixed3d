@@ -499,7 +499,7 @@ b3AABB b3Body_ComputeAABB( b3BodyId bodyId )
 	{
 		b3WorldTransform transform = b3GetBodyTransform( world, body->id );
 		b3Vec3 p = b3ToVec3( transform.p );
-		return (b3AABB){ p, p };
+		return (b3AABB){ b3Vec3ToBound( p ), b3Vec3ToBound( p ) };
 	}
 
 	b3Shape* shape = b3Array_Get( world->shapes, body->headShapeId );

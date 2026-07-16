@@ -921,7 +921,7 @@ b3AABB b3DynamicTree_GetRootBounds( const b3DynamicTree* tree )
 		return tree->nodes[tree->root].aabb;
 	}
 
-	b3AABB empty = { b3Vec3_zero, b3Vec3_zero };
+	b3AABB empty = { b3Vec3ToBound( b3Vec3_zero ), b3Vec3ToBound( b3Vec3_zero ) };
 	return empty;
 }
 
@@ -1150,7 +1150,7 @@ b3TreeStats b3DynamicTree_Query( const b3DynamicTree* tree, b3AABB aabb, uint64_
 
 B3_FORCE_INLINE b3Fixed b3DistanceToNodeSqr( b3Vec3 point, const b3TreeNode* node )
 {
-	b3Vec3 r = b3Sub( point, b3Clamp( point, node->aabb.lowerBound, node->aabb.upperBound ) );
+	b3Vec3 r = b3Sub( point, b3Clamp( point, b3BoundToVec3( node->aabb.lowerBound ), b3BoundToVec3( node->aabb.upperBound ) ) );
 	return b3Dot( r, r );
 }
 
@@ -1266,7 +1266,7 @@ b3TreeStats b3DynamicTree_RayCast( const b3DynamicTree* tree, const b3RayCastInp
 	b3Vec3 p2 = b3MulAdd( p1, maxFraction, d );
 
 	// Build a bounding box for the segment.
-	b3AABB segmentAABB = { b3Min( p1, p2 ), b3Max( p1, p2 ) };
+	b3AABB segmentAABB = { b3Vec3ToBound( b3Min( p1, p2 ) ), b3Vec3ToBound( b3Max( p1, p2 ) ) };
 
 	int stack[B3_TREE_STACK_SIZE];
 	int stackCount = 0;
@@ -1299,8 +1299,11 @@ b3TreeStats b3DynamicTree_RayCast( const b3DynamicTree* tree, const b3RayCastInp
 			continue;
 		}
 
-		b3V32 lower = b3LoadV( &nodeAABB.lowerBound.x );
-		b3V32 upper = b3LoadV( &nodeAABB.upperBound.x );
+		// b3LoadV wants a packed 3x b3Fixed layout; in ludicrous mode node AABBs are 128-bit, so narrow
+		// to b3Vec3 first (exact in broadphase range). No-op in the narrow/wide-positions builds.
+		b3Vec3 nodeLo = b3BoundToVec3( nodeAABB.lowerBound ), nodeHi = b3BoundToVec3( nodeAABB.upperBound );
+		b3V32 lower = b3LoadV( &nodeLo.x );
+		b3V32 upper = b3LoadV( &nodeHi.x );
 
 		bool edgeOverlap = b3TestBoundsRayOverlap( lower, upper, pv1, dv );
 		if ( edgeOverlap == false )
@@ -1328,8 +1331,8 @@ b3TreeStats b3DynamicTree_RayCast( const b3DynamicTree* tree, const b3RayCastInp
 				// Update segment bounding box.
 				maxFraction = value;
 				p2 = b3MulAdd( p1, maxFraction, d );
-				segmentAABB.lowerBound = b3Min( p1, p2 );
-				segmentAABB.upperBound = b3Max( p1, p2 );
+				segmentAABB.lowerBound = b3Vec3ToBound( b3Min( p1, p2 ) );
+				segmentAABB.upperBound = b3Vec3ToBound( b3Max( p1, p2 ) );
 			}
 		}
 		else
@@ -1383,8 +1386,8 @@ b3TreeStats b3DynamicTree_BoxCast( const b3DynamicTree* tree, const b3BoxCastInp
 	// Build total box for the cast
 	b3Vec3 t = b3MulSV( maxFraction, input->translation );
 	b3AABB totalAABB = {
-		b3Min( originAABB.lowerBound, b3Add( originAABB.lowerBound, t ) ),
-		b3Max( originAABB.upperBound, b3Add( originAABB.upperBound, t ) ),
+		b3Vec3ToBound( b3Min( b3BoundToVec3( originAABB.lowerBound ), b3Add( b3BoundToVec3( originAABB.lowerBound ), t ) ) ),
+		b3Vec3ToBound( b3Max( b3BoundToVec3( originAABB.upperBound ), b3Add( b3BoundToVec3( originAABB.upperBound ), t ) ) ),
 	};
 
 	b3BoxCastInput subInput = *input;
@@ -1414,8 +1417,11 @@ b3TreeStats b3DynamicTree_BoxCast( const b3DynamicTree* tree, const b3BoxCastInp
 		}
 
 		// radius extension is added to the node in this case
-		b3V32 lower = b3SubV( b3LoadV( &node->aabb.lowerBound.x ), ev );
-		b3V32 upper = b3AddV( b3LoadV( &node->aabb.upperBound.x ), ev );
+		// b3LoadV wants a packed 3x b3Fixed layout; in ludicrous mode node AABBs are 128-bit, so narrow
+		// to b3Vec3 first (exact in broadphase range). No-op in the narrow/wide-positions builds.
+		b3Vec3 nodeLo = b3BoundToVec3( node->aabb.lowerBound ), nodeHi = b3BoundToVec3( node->aabb.upperBound );
+		b3V32 lower = b3SubV( b3LoadV( &nodeLo.x ), ev );
+		b3V32 upper = b3AddV( b3LoadV( &nodeHi.x ), ev );
 		bool edgeOverlap = b3TestBoundsRayOverlap( lower, upper, pv1, dv );
 		if ( edgeOverlap == false )
 		{
@@ -1439,8 +1445,8 @@ b3TreeStats b3DynamicTree_BoxCast( const b3DynamicTree* tree, const b3BoxCastInp
 			{
 				maxFraction = value;
 				t = b3MulSV( maxFraction, input->translation );
-				totalAABB.lowerBound = b3Min( originAABB.lowerBound, b3Add( originAABB.lowerBound, t ) );
-				totalAABB.upperBound = b3Max( originAABB.upperBound, b3Add( originAABB.upperBound, t ) );
+				totalAABB.lowerBound = b3Vec3ToBound( b3Min( b3BoundToVec3( originAABB.lowerBound ), b3Add( b3BoundToVec3( originAABB.lowerBound ), t ) ) );
+				totalAABB.upperBound = b3Vec3ToBound( b3Max( b3BoundToVec3( originAABB.upperBound ), b3Add( b3BoundToVec3( originAABB.upperBound ), t ) ) );
 			}
 		}
 		else
@@ -2181,8 +2187,8 @@ b3DynamicTree b3DynamicTree_Load( const char* fileName, b3Fixed scale )
 		for ( int i = 0; i < tree.nodeCapacity; ++i )
 		{
 			b3TreeNode* node = tree.nodes + i;
-			node->aabb.lowerBound = b3MulSV( scale, node->aabb.lowerBound );
-			node->aabb.upperBound = b3MulSV( scale, node->aabb.upperBound );
+			node->aabb.lowerBound = b3Vec3ToBound( b3MulSV( scale, b3BoundToVec3( node->aabb.lowerBound ) ) );
+			node->aabb.upperBound = b3Vec3ToBound( b3MulSV( scale, b3BoundToVec3( node->aabb.upperBound ) ) );
 		}
 	}
 	else

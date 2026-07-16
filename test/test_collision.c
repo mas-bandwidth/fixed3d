@@ -12,12 +12,12 @@
 static int AABBTest( void )
 {
 	b3AABB a;
-	a.lowerBound = (b3Vec3){ -B3_FIX( 1.0f ), -B3_FIX( 1.0f ), -B3_FIX( 1.0f ) };
-	a.upperBound = (b3Vec3){ -B3_FIX( 2.0f ), -B3_FIX( 2.0f ), -B3_FIX( 2.0f ) };
+	a.lowerBound = b3Vec3ToBound( (b3Vec3){ -B3_FIX( 1.0f ), -B3_FIX( 1.0f ), -B3_FIX( 1.0f ) } );
+	a.upperBound = b3Vec3ToBound( (b3Vec3){ -B3_FIX( 2.0f ), -B3_FIX( 2.0f ), -B3_FIX( 2.0f ) } );
 
 	ENSURE( b3IsValidAABB( a ) == false );
 
-	a.upperBound = (b3Vec3){ B3_FIX( 1.0f ), B3_FIX( 1.0f ) };
+	a.upperBound = b3Vec3ToBound( (b3Vec3){ B3_FIX( 1.0f ), B3_FIX( 1.0f ) } );
 	ENSURE( b3IsValidAABB( a ) == true );
 
 	b3AABB b = { { B3_FIX( 2.0f ), B3_FIX( 2.0f ) }, { B3_FIX( 4.0f ), B3_FIX( 4.0f ) } };

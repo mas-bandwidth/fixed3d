@@ -178,7 +178,7 @@ public:
 	{
 		float h = m_drawDistance * m_lengthUnitsPerMeter;
 		b3Vec3 r = { b3FixFromFloat( h ), b3FixFromFloat( h ), b3FixFromFloat( h ) };
-		return b3OffsetAABB( { b3Neg( r ), r }, DrawOrigin() );
+		return b3OffsetAABB( { b3Vec3ToBound( b3Neg( r ) ), b3Vec3ToBound( r ) }, DrawOrigin() );
 	}
 
 	b3Pos m_pivot; // look-at point, display space (meters). Double precision so it stays exact far from origin.

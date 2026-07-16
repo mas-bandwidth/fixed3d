@@ -203,8 +203,8 @@ b3Matrix3 b3RecR_MATRIX3( b3RecReader* rdr )
 b3AABB b3RecR_AABB( b3RecReader* rdr )
 {
 	b3AABB v;
-	v.lowerBound = b3RecR_VEC3( rdr );
-	v.upperBound = b3RecR_VEC3( rdr );
+	v.lowerBound = b3Vec3ToBound( b3RecR_VEC3( rdr ) );
+	v.upperBound = b3Vec3ToBound( b3RecR_VEC3( rdr ) );
 	return v;
 }
 
@@ -2568,11 +2568,17 @@ static void b3RecScanFile( b3RecPlayer* player )
 				gotStep = true;
 			}
 		}
-		else if ( opcode == 0xF2 && payloadSize >= (uint32_t)sizeof( b3AABB ) ) // RecordingBounds
+		else if ( opcode == 0xF2 && payloadSize >= 6 * (uint32_t)sizeof( b3Fixed ) ) // RecordingBounds
 		{
-			// Payload is a single b3AABB (lower xyz, upper xyz as f32), written at stop so the
-			// viewer can frame the whole recorded motion without playing to the end.
-			memcpy( &player->bounds, data + payloadStart, sizeof( b3AABB ) );
+			// Payload is a single b3AABB serialized as two b3Vec3 (lower xyz, upper xyz), each
+			// coordinate a 64-bit b3Fixed on the wire — always 48 bytes regardless of build.
+			// Parse the six coordinates and widen into the (128-bit in ludicrous mode) bounds, rather
+			// than raw-memcpy'ing (b3AABB's in-memory size differs from the wire in ludicrous mode).
+			// Written at stop so the viewer can frame the whole recorded motion.
+			b3Fixed c[6];
+			memcpy( c, data + payloadStart, sizeof( c ) );
+			player->bounds.lowerBound = b3Vec3ToBound( B3_LITERAL( b3Vec3 ){ c[0], c[1], c[2] } );
+			player->bounds.upperBound = b3Vec3ToBound( B3_LITERAL( b3Vec3 ){ c[3], c[4], c[5] } );
 		}
 		cursor = payloadStart + (int)payloadSize;
 	}

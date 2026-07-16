@@ -4,7 +4,7 @@ Box3D converted from float to Q48.16 fixed point (internal and external API).
 Baseline float code is commit e961bfb. EVERYTHING below is committed and pushed;
 there is no pending working-tree state.
 
-## Current status (as of 2026-07-14 — v1.1.0, MAINTENANCE MODE)
+## Current status (as of 2026-07-16 — v1.2.0, MAINTENANCE MODE)
 
 - **MAINTENANCE MODE (Glenn's direction, 2026-07-14)**: the conversion is done
   and v1.1.0 is tagged. New feature work here is not planned. Standing duties:
@@ -46,6 +46,50 @@ there is no pending working-tree state.
 - **ALL 22 test suites pass** in Release (`./build-fixed2/bin/test`, ~1.1 s) AND
   in Debug + B3_VALIDATE + ASan/UBSan (exit 0, zero sanitizer reports). Single
   suite: `./build-fixed2/bin/test <SuiteName>`.
+- **128-bit world positions (BOX3D_WIDE_POSITIONS) + LUDICROUS_MODE (2026-07-15/16)**:
+  two stacked opt-in builds, both OFF by default and OFF-bit-identical.
+  (1) `BOX3D_WIDE_POSITIONS` widens world positions to Q112.16 int128 b3Pos
+  (interior stays Q48.16; ~14-function boundary vocabulary: b3ToPos/b3ToVec3/
+  b3SubPos/b3OffsetPos...); design + full record in
+  docs/design/wide-world-positions.md; goldens sleepStep 287 / hash 0x886BE415
+  (wide) vs 0xB222C195 (narrow); measured FREE (geomean 1.00 of narrow, 8
+  scenes, M3 Ultra interleaved min-of-3). Collision stays capped at the int64
+  ±1.4e14 because the broadphase AABBs stay b3Vec3. (2) `LUDICROUS_MODE`
+  (named by Glenn 2026-07-16; deliberately NOT BOX3D_-prefixed, the name is
+  the point; requires WIDE_POSITIONS, CMake FATAL_ERROR otherwise) widens
+  b3AABB bounds to b3Pos so collision is active across the full int128 range:
+  **costs +1.6% geomean** (trees100 the only real payer at +7-9%, tree-query
+  bound; convex_pile/washer flat) — full table + far-range proof in the
+  design doc addendum. A box dropped at 1e15 m (~0.1 ly, 7x past int64 range)
+  settles BIT-IDENTICAL to the same scene at the origin (-156 ulp settle
+  drift both). Verified in all three configs: full suite Release AND
+  Debug+VALIDATE+ASan/UBSan zero reports, goldens intact (ludicrous
+  self-verifies against the wide golden — in-range scenes take identical
+  values through int128). TWO BUG CLASSES from the widening, both fixed, do
+  not reintroduce: (a) SIMD packed loads on bounds — b3LoadV(&aabb.lowerBound.x)
+  reads bounds as packed 3x int64, scrambled bytes when bounds are int128 (6
+  sites: mesh.c query+rescale, dynamic_tree.c ray/shape-cast, height_field.c
+  cast); use the b3BoundToVec3/b3Vec3ToBound (+ b3BoundToPos/b3PosToBound)
+  converters in math_functions.h — identity in narrow builds, so bound-touching
+  code compiles in all three configs without #if; the recording bounds scanner
+  also gated on sizeof(b3AABB) and raw-memcpy'd a wire payload that is 6x int64
+  in EVERY build (parse explicitly, never sizeof-gate wire formats on in-memory
+  structs). (b) Blob section alignment — compound.c packed sections back-to-back
+  with no rounding; fine at <=8 alignment, misaligned once
+  b3TreeNode/b3HullData/b3MeshData embed 16-aligned int128 bounds (UBSan
+  caught it); every section offset now rounds to _Alignof of its element type
+  via b3AlignUp (math_internal.h) — provably a no-op in narrow builds.
+  B3_ALIGNMENT >= 16 already covered allocator base pointers. KNOWN SCOPE
+  BOUNDARY: the samples app does NOT build under BOX3D_WIDE_POSITIONS (never
+  ported — ~145 pre-existing errors), hence not under LUDICROUS_MODE either;
+  engine/tests/benchmarks all do. CI does NOT cover the wide builds
+  (deliberate, keep the matrix lean — rebuild build-wide/build-ludicrous
+  locally when touching bound/position code). Build dirs: build-wide (optA
+  RelWithDebInfo), build-wide-san, build-ludicrous, build-ludicrous-san,
+  bench-narrow/bench-wide/bench-ludicrous (Release+LTO for A/Bs; bench-*/ is
+  gitignored). The 3-way benchmark driver lives in /tmp/benchab/run3.sh
+  (session-scratch, trivially recreatable: min-of-3 -t=4 -w=4, per-scene
+  interleaved, geomean).
 - **CI: fully green** — 14 jobs (ubuntu gcc / clang-TSan / clang-MSan, macos
   sanitized, windows-clang-cl, windows-arm64, windows-mingw, emscripten,
   ubuntu-clang-avx512 compile-only, five samples jobs). The avx512 job runs

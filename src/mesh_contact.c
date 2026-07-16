@@ -97,8 +97,8 @@ static void b3RefreshCache( b3Contact* contact, const b3Shape* shapeA, b3WorldTr
 	// Enlarge to the query bounds to absorb small movement
 	b3Fixed radius = B3_MAX_AABB_MARGIN + B3_SPECULATIVE_DISTANCE;
 	b3Vec3 extension = { radius, radius, radius };
-	meshContact->queryBounds.lowerBound = b3Sub( bounds->lowerBound, extension );
-	meshContact->queryBounds.upperBound = b3Add( bounds->upperBound, extension );
+	meshContact->queryBounds.lowerBound = b3Vec3ToBound( b3Sub( b3BoundToVec3( bounds->lowerBound ), extension ) );
+	meshContact->queryBounds.upperBound = b3Vec3ToBound( b3Add( b3BoundToVec3( bounds->upperBound ), extension ) );
 
 	// Query triangles
 	int triangleCapacity = B3_MAX_MESH_CONTACT_TRIANGLES;

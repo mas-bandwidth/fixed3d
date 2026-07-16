@@ -293,7 +293,76 @@ range (the failure the design deliberately makes loud).
 - **Phase 4:** serialization/recording/hash widening + per-mode goldens +
   the acceptance suite.
 - **Phase 5 (optional):** int128 tree (Option B) if a world needs
-  collision-active range past 1.4e14.
+  collision-active range past 1.4e14. **LANDED 2026-07-16 as
+  `LUDICROUS_MODE` — see the addendum below.**
 
 Each phase is independently landable and the off-path stays bit-identical
 throughout.
+
+## Addendum: Phase 5 landed as LUDICROUS_MODE (Rowan, 2026-07-16)
+
+Phase 5 — the int128 broadphase tree, "Option B" above — is built, verified,
+and measured. Glenn named it: the CMake option and preprocessor symbol are
+literally `LUDICROUS_MODE` (deliberately not `BOX3D_`-prefixed; the name is
+the documentation). It widens `b3AABB` bounds to `b3Pos`, so the broadphase
+tree is collision-active across the full wide-position range instead of
+capped at ±1.4e14 units. Requires `BOX3D_WIDE_POSITIONS`. Off by default,
+off bit-identical, and nobody should ever turn it on — it exists to answer
+one question: exactly how much slower is a 128-bit broadphase?
+
+**The answer: +1.6% geomean.** M3 Ultra, 4 workers, min-of-3, Release+LTO,
+per-scene interleaved against the same-session narrow build:
+
+| scene         | narrow (ms) | ludicrous (ms) | ratio |
+|---------------|-------------|----------------|-------|
+| large_pyramid |     1712.3  |        1726.5  | 1.008 |
+| many_pyramids |     1757.0  |        1717.3  | 0.977 |
+| rain          |     1291.0  |        1326.3  | 1.027 |
+| trees100      |      154.2  |        167.6   | 1.087 |
+| large_world   |       24.3  |         24.9   | 1.023 |
+| joint_grid    |      797.5  |        803.7   | 1.008 |
+| convex_pile   |    22521.0  |      22531.1   | 1.000 |
+| washer        |    14546.4  |      14559.3   | 1.001 |
+
+Geomean 1.016 vs narrow (and 1.017 vs the wide-positions build, which
+re-measured at 1.000 of narrow). Only trees100 — the most tree-query-bound
+scene — pays a real cost (~+7–9%); solver-bound scenes are flat. int128
+compare/min/max is two 64-bit ops with carry on arm64, and the broadphase
+is a thin slice of the frame.
+
+**Proof it does what it says**: a box dropped onto a static box at
+1e15 m from the origin (~0.1 light-year; 7× past the int64 b3Fixed range,
+where the narrow broadphase cannot represent the AABB at all) settles at
+local Y = 1.4999 m, sleeps at step 119, with a settle drift of −156 ulp —
+**bit-identical** to the same scene built at the origin.
+
+Implementation notes (the two real bug classes, both caught by the
+verification gates):
+
+1. **SIMD packed loads on bounds**: six `b3LoadV( &aabb.lowerBound.x )`
+   sites (mesh.c query/rescale, dynamic_tree.c ray/shape-cast,
+   height_field.c cast) read AABB bounds as packed 3× int64 — scrambled
+   bytes once bounds are int128. Caught by the determinism goldens (an
+   8-ulp mesh-contact divergence, box-on-box was bit-identical).
+   Fixed with `b3BoundToVec3`/`b3Vec3ToBound` converters (identity in
+   narrow builds), plus `b3BoundToPos`/`b3PosToBound` for the two exact
+   bound↔position crossings. The recording bounds scanner also gated on
+   `sizeof( b3AABB )` and raw-memcpy'd the wire payload; the wire format
+   is 6× int64 in every build, parsed explicitly now.
+2. **Blob section alignment**: compound.c packed heterogeneous sections
+   back-to-back with no alignment rounding — fine when everything needs
+   ≤8, misaligned stores once `b3TreeNode`/`b3HullData`/`b3MeshData`
+   embed 16-aligned int128 bounds. Caught by UBSan. Every section offset
+   now rounds to the `_Alignof` of its element type (provably a no-op in
+   narrow builds — CompoundTest layout-hash subtests confirm). Allocator
+   base pointers were already safe: `B3_ALIGNMENT` ≥ 16 everywhere.
+
+Verified in all three configurations (narrow / wide-positions /
+ludicrous): full 22-suite pass in Release AND Debug+VALIDATE+ASan/UBSan
+with zero sanitizer output, determinism goldens intact (narrow
+0xB222C195, wide 0x886BE415, both sleepStep 287 — ludicrous
+self-verifies against the wide golden because in-range scenes take
+identical values through int128). The samples app does not build under
+`BOX3D_WIDE_POSITIONS` (pre-existing scope boundary from the Option A
+work), so it doesn't build under ludicrous mode either; the engine,
+tests, and benchmarks all do.

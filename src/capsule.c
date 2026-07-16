@@ -61,8 +61,8 @@ b3AABB b3ComputeCapsuleAABB( const b3Capsule* shape, b3Transform transform )
 	b3Vec3 extent = { r, r, r };
 
 	b3AABB aabb;
-	aabb.lowerBound = b3Sub( b3Min( center1, center2 ), extent );
-	aabb.upperBound = b3Add( b3Max( center1, center2 ), extent );
+	aabb.lowerBound = b3Vec3ToBound( b3Sub( b3Min( center1, center2 ), extent ) );
+	aabb.upperBound = b3Vec3ToBound( b3Add( b3Max( center1, center2 ), extent ) );
 	return aabb;
 }
 
@@ -75,8 +75,8 @@ b3AABB b3ComputeSweptCapsuleAABB( const b3Capsule* shape, b3Transform xf1, b3Tra
 	b3Vec3 d = b3TransformPoint( xf2, shape->center2 );
 
 	b3AABB aabb = {
-		.lowerBound = b3Sub( b3Min( b3Min( a, b ), b3Min( c, d ) ), r ),
-		.upperBound = b3Add( b3Max( b3Max( a, b ), b3Max( c, d ) ), r ),
+		.lowerBound = b3Vec3ToBound( b3Sub( b3Min( b3Min( a, b ), b3Min( c, d ) ), r ) ),
+		.upperBound = b3Vec3ToBound( b3Add( b3Max( b3Max( a, b ), b3Max( c, d ) ), r ) ),
 	};
 	return aabb;
 }

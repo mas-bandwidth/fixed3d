@@ -66,6 +66,16 @@ static inline size_t b3AlignUp8( size_t x )
 	return ( x + 7u ) & ~(size_t)7u;
 }
 
+// Round up to any power-of-two alignment. Blob section offsets round to the
+// _Alignof of the element type they hold: a no-op in the narrow builds (every
+// blob type needs <= 8 and offsets are already 8-aligned), real padding in
+// ludicrous mode where b3AABB-bearing types (b3TreeNode, b3HullData,
+// b3MeshData) need 16.
+static inline size_t b3AlignUp( size_t x, size_t align )
+{
+	return ( x + align - 1 ) & ~( align - 1 );
+}
+
 // https://en.wikipedia.org/wiki/Floor_and_ceiling_functions
 static inline int b3CeilingInt( int numerator, int denominator )
 {
@@ -481,5 +491,16 @@ static inline b3Matrix3 b3TransformInertia( b3Transform transform, b3Matrix3 cen
 // Add a point to an AABB.
 static inline b3AABB b3AABB_AddPoint( b3AABB a, b3Vec3 point )
 {
+#if defined( LUDICROUS_MODE )
+	b3AABB out = a;
+	out.lowerBound.x = a.lowerBound.x < point.x ? a.lowerBound.x : point.x;
+	out.lowerBound.y = a.lowerBound.y < point.y ? a.lowerBound.y : point.y;
+	out.lowerBound.z = a.lowerBound.z < point.z ? a.lowerBound.z : point.z;
+	out.upperBound.x = a.upperBound.x > point.x ? a.upperBound.x : point.x;
+	out.upperBound.y = a.upperBound.y > point.y ? a.upperBound.y : point.y;
+	out.upperBound.z = a.upperBound.z > point.z ? a.upperBound.z : point.z;
+	return out;
+#else
 	return (b3AABB){ b3Min( a.lowerBound, point ), b3Max( a.upperBound, point ) };
+#endif
 }
