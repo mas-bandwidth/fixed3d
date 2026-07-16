@@ -24,10 +24,25 @@ there is no pending working-tree state.
   release). REMAINING OPEN DECISION (Glenn's): port-routine resume timing.
   The Card House someday-item is
   RESOLVED (2026-07-15, kept intentionally, see the visual-A/B bullet for
-  the full experiment record); the remaining open investigation is the
-  Mesh Drop origin sensitivity (0.85-1.44/255 divergence BETWEEN fixed
-  origins at every distance tested while everything else is 0.00 —
-  mechanism unknown, drivers in the private rowan repo).
+  the full experiment record). The Mesh Drop origin sensitivity is also
+  RESOLVED (2026-07-15): the SIMULATION is bit-for-bit origin-invariant —
+  a two-world probe (investigations/meshdrop/ in the private rowan repo:
+  meshdrop_origin.c + results.txt) builds the exact Mesh Drop scene at
+  origin 0 and at a far origin, steps both 400 steps, and compares
+  origin-SUBTRACTED body transforms; the local state is BIT-IDENTICAL at
+  1e6, 1e7, 1e8, 1e10, AND 1.2e11 m (0.8 AU). The probe is validated to
+  detect divergence (a deliberate +1-substep perturbation lights up
+  6421/7168 components at the perturbed step). So the 0.85-1.44/255
+  screenshot divergence BETWEEN fixed origins is RENDER-ONLY, not a
+  fixed-point bug: the draw origin is carried as float meters (see the
+  renderer bullet — FrameInput drawOrigin/gridWrap are float Vec4), so the
+  wrapped ground grid shifts sub-pixel between absolute origins while the
+  bodies (drawn from exact fixed differences against the draw origin)
+  render identically; the delta is roughly constant across distance
+  because the grid wrap bounds the phase. Cosmetic, at the sanctioned
+  float render boundary; the engine passes its own origin-invariance
+  thesis for Mesh Drop exactly like every other sample. NO open
+  investigations remain.
 - **ALL 22 test suites pass** in Release (`./build-fixed2/bin/test`, ~1.1 s) AND
   in Debug + B3_VALIDATE + ASan/UBSan (exit 0, zero sanitizer reports). Single
   suite: `./build-fixed2/bin/test <SuiteName>`.
