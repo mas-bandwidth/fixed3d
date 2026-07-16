@@ -16,6 +16,8 @@ ordered by how confident we are that you'll care.
 
 ### 1. Over-tight B3_VALIDATE in b3CollideCapsuleAndTriangle
 
+Filed upstream as [erincatto/box3d#86](https://github.com/erincatto/box3d/issues/86) (2026-07-16).
+
 `triangle_manifold.c:480` asserts `faceSeparation <= 0.0f` after clipping
 the capsule segment to the triangle face. But
 `b3BuildTriangleAndCapsuleFaceContact` only bails out (pointCount stays 0)
@@ -78,6 +80,8 @@ subtest) makes traps attributable.
 
 ### 6. b3Log has no printf format attribute
 
+Filed upstream as [erincatto/box3d#89](https://github.com/erincatto/box3d/issues/89) (2026-07-16, together with the sample text helpers from Small stuff).
+
 `core.h:135` declares `void b3Log( const char* format, ... )` bare, so
 mismatched varargs are invisible to `-Wformat`. One attribute line makes
 the compiler check every call site. All our call sites happened to be
@@ -99,6 +103,8 @@ scenes to arithmetic that is exact in both number systems; for you, exact
 binary-representable spacings would do it).
 
 ### 8. Three shape mutators don't record: SetHull, SetMesh, SetMeshMaterial
+
+Filed upstream as [erincatto/box3d#87](https://github.com/erincatto/box3d/issues/87) (2026-07-16).
 
 Your recording manifest covers the shape mutators through `ShapeSetName`
 (0x5C), but `b3Shape_SetHull` (shape.c:1589), `b3Shape_SetMesh`
@@ -155,6 +161,8 @@ your todo asks for — same rounding, bigger constant.
 We did your homework. Some of it was worth doing.
 
 ### 9. `todo_erin use the max point count of the four manifolds` — DO THIS
+
+Filed upstream as [erincatto/box3d#90](https://github.com/erincatto/box3d/issues/90) (2026-07-16).
 
 contact_solver.c:2032. Prepare stores the widest manifold across the four
 lanes; warm start, solve, and restitution loop only that far. Slots past a
@@ -290,7 +298,7 @@ asserts pinning the field offsets saved us twice during refactors.
   ignored, so `-b large_pyramid` (space instead of `=`) runs the full
   suite and looks like a hang. Erroring on unknown args would have saved
   us an embarrassing hour.
-- **Sample text helpers have no printf format attribute:** your
+- **Sample text helpers have no printf format attribute** (filed with item 6 as [erincatto/box3d#89](https://github.com/erincatto/box3d/issues/89))**:** your
   `Sample::DrawTextLine`, `DrawString3D`, and `DrawScreenStringFormat`
   (e961bfb samples/sample.h:183 and the gfx headers) are varargs with no
   `__attribute__(( format( printf, ... ) ))`, so -Wformat is blind to
@@ -301,7 +309,7 @@ asserts pinning the field offsets saved us twice during refactors.
   material readouts) and a `uint64_t` tick count through `%ld` — broken
   on Windows where long is 32-bit. Three lines of attribute, compiler
   finds the rest.
-- **Character sample material "ids" land in rollingResistance:** the
+- **Character sample material "ids" land in rollingResistance** (filed upstream as [erincatto/box3d#88](https://github.com/erincatto/box3d/issues/88), 2026-07-16)**:** the
   positional initializers in e961bfb samples/sample_character.cpp:336-338
   (repeated at 396-398, 1336-1338, 1396-1398) read
   `materials[1] = { 0.6f, 1.0f, 1 };` — the third positional field of
