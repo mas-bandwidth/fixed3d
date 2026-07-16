@@ -70,12 +70,40 @@ typedef struct b3Transform
 #error "BOX3D_DOUBLE_PRECISION is not supported with fixed-point math"
 #endif
 
+#if defined( BOX3D_WIDE_POSITIONS )
+
+/// A world position in the wide-position build: Q112.16 fixed point in a 128-bit
+/// integer. Same 16 fraction bits as b3Fixed (so the boundary subtract to local
+/// space is an exact truncation, not a rescale), with all 64 extra bits going to
+/// integer *range* (±2.6e33 units, far past a light-year in metres). Uniform
+/// 15-micron resolution — the thesis — is preserved exactly at any distance. A
+/// distinct struct on purpose: every world/local coordinate crossing that is not
+/// routed through the boundary vocabulary becomes a compile error.
+typedef struct b3Pos
+{
+	b3Int128 x;
+	b3Int128 y;
+	b3Int128 z;
+} b3Pos;
+
+/// A world transform: 128-bit translation, narrow (b3Fixed) rotation. Rotation is
+/// frame-local and never needs range, so the quaternion stays Q48.16.
+typedef struct b3WorldTransform
+{
+	b3Pos p;
+	b3Quat q;
+} b3WorldTransform;
+
+#else
+
 /// A world position. Fixed point has uniform precision everywhere, so world
 /// positions use the same representation as local vectors.
 typedef b3Vec3 b3Pos;
 
 /// A world transform. Same representation as a local transform in fixed point.
 typedef b3Transform b3WorldTransform;
+
+#endif
 
 /// A 3x3 matrix.
 typedef struct b3Matrix3
@@ -742,6 +770,22 @@ B3_INLINE b3Pos b3OffsetPos( b3Pos p, b3Vec3 d )
 }
 
 /// World position interpolation for sweeps and sampling.
+#if defined( BOX3D_WIDE_POSITIONS )
+/// Wide build: the two-rounding form ((1-t)*a + t*b) would multiply b3FixMul by
+/// an absolute 128-bit coordinate, which overflows and truncates. Reformulate as
+/// a + t*(b-a): the difference (b-a) is in local range, so the multiply is a
+/// safe b3FixMul on b3Fixed, and the result adds back onto the 128-bit base. This
+/// is one rounding instead of two, so it is NOT bit-identical to the narrow build
+/// (the wide build carries its own goldens).
+B3_INLINE b3Pos b3LerpPosition( b3Pos a, b3Pos b, b3Fixed t )
+{
+	return B3_LITERAL( b3Pos ){
+		a.x + b3FixMul( t , (b3Fixed)( b.x - a.x ) ),
+		a.y + b3FixMul( t , (b3Fixed)( b.y - a.y ) ),
+		a.z + b3FixMul( t , (b3Fixed)( b.z - a.z ) ),
+	};
+}
+#else
 B3_INLINE b3Pos b3LerpPosition( b3Pos a, b3Pos b, b3Fixed t )
 {
 	return B3_LITERAL( b3Pos ){
@@ -750,6 +794,7 @@ B3_INLINE b3Pos b3LerpPosition( b3Pos a, b3Pos b, b3Fixed t )
 		b3FixMul( ( B3_FIX( 1.0f ) - t ) , a.z ) + b3FixMul( t , b.z ),
 	};
 }
+#endif
 
 /// Transform a local point to a world position. Rotation in b3Fixed, translation in double.
 B3_INLINE b3Pos b3TransformWorldPoint( b3WorldTransform t, b3Vec3 p )

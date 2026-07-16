@@ -94,6 +94,7 @@ option(BOX3D_AVX512 "Enable AVX-512 fixed-point SIMD in the contact solver (x86-
 option(BOX3D_NEON "Enable NEON fixed-point SIMD in the narrow phase (aarch64, bit-identical results)" OFF)
 option(BOX3D_COMPILE_WARNING_AS_ERROR "Compile warnings as errors" OFF)
 option(BOX3D_DOUBLE_PRECISION "Enable double precision for large worlds" OFF)
+option(BOX3D_WIDE_POSITIONS "Enable 128-bit world positions (Q112.16); interior stays Q48.16" OFF)
 
 # Emscripten maps the SSE2 path onto wasm SIMD128. simd.h is a header included by
 # non-library targets like the tests, so these flags must be directory-wide, not
