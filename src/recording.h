@@ -18,10 +18,29 @@
 #define B3_SNAP_FNV_INIT 14695981039346656037ull
 #define B3_SNAP_FNV_PRIME 1099511628211ull
 
-// Mix a world position at full width so the determinism gate validates past b3Fixed precision
-// when the body is far from the origin.
+// Mix a world position into the recording's state hash.
 static inline uint64_t b3FnvMixPosition( uint64_t hash, b3Pos p )
 {
+#if defined( BOX3D_WIDE_POSITIONS )
+	// Wide positions are 128-bit. Hash the FULL width of each axis as 64-bit chunks (matching
+	// B3_HASH_FLOAT for the other fields), so the determinism gate covers all 128 bits rather
+	// than silently validating only the low word.
+	const b3Int128 axes[3] = { p.x, p.y, p.z };
+	for ( int c = 0; c < 3; ++c )
+	{
+		uint64_t lo, hi;
+		memcpy( &lo, (const uint8_t*)&axes[c], 8 );
+		memcpy( &hi, (const uint8_t*)&axes[c] + 8, 8 );
+		hash = ( hash ^ lo ) * B3_SNAP_FNV_PRIME;
+		hash = ( hash ^ hi ) * B3_SNAP_FNV_PRIME;
+	}
+	return hash;
+#else
+	// Narrow build, unchanged (byte-stable). NOTE: this mixes only the low 4 bytes of each
+	// int64 axis, so the recording state hash under-covers a body far from the origin (its high
+	// integer bits go unhashed). Pre-existing and low-impact — a real divergence also perturbs
+	// the fully-hashed velocities/quaternion — but a genuine gap, tracked as a separate narrow-build follow-up. Left byte-stable
+	// here so the narrow recording gate does not shift with the wide-position work.
 	uint32_t fx, fy, fz;
 	memcpy( &fx, &p.x, 4 );
 	memcpy( &fy, &p.y, 4 );
@@ -31,6 +50,7 @@ static inline uint64_t b3FnvMixPosition( uint64_t hash, b3Pos p )
 	hash = ( hash ^ by ) * B3_SNAP_FNV_PRIME;
 	hash = ( hash ^ bz ) * B3_SNAP_FNV_PRIME;
 	return hash;
+#endif
 }
 
 typedef struct b3World b3World;
