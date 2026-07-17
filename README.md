@@ -10,7 +10,7 @@ This fork exists to answer two questions:
    was *entirely* fixed point?**
 2. **Exactly how much slower would it be?**
 
-The answers: This repository and **2× slower** (geometric mean over the full benchmark suite,
+The answers: This repository and roughly **2× slower** (geometric mean over the full benchmark suite,
 measured on Apple silicon and on AMD Zen 4).
 
 What you get in exchange is one thing: a truly huge world with uniform precision everywhere.
