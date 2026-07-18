@@ -1146,7 +1146,7 @@ static int AllOps( void )
 	b3CompoundData* compound = b3CreateCompound( &compoundDef );
 	ENSURE( compound != NULL );
 	b3ShapeDef compoundShapeDef = b3DefaultShapeDef();
-	b3CreateCompoundShape( compoundBodyId, &compoundShapeDef, compound );
+	b3CreateBakedCompoundShape( compoundBodyId, &compoundShapeDef, compound );
 
 	// Throwaway shape to exercise DestroyShape
 	b3Sphere tmpSphere = { { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, B3_FIX( 0.1f ) };

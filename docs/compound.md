@@ -23,8 +23,10 @@ offline, kept in memory as flat byte buffers (which the engine uses directly
 without copying), and attached to static bodies when a region loads, then
 detached when it unloads.
 
-Do not use a compound on dynamic or kinematic bodies — `b3CreateCompoundShape`
-enforces static-only attachment.
+Do not use a baked compound on dynamic or kinematic bodies —
+`b3CreateBakedCompoundShape` enforces static-only attachment. Runtime
+compounds are achieved by adding multiple shapes to a single body, and those
+can be dynamic and/or kinematic.
 
 ## Building a Compound
 
@@ -105,10 +107,10 @@ bodyDef.position = tileOrigin;
 b3BodyId bodyId = b3CreateBody(worldId, &bodyDef);
 
 b3ShapeDef shapeDef = b3DefaultShapeDef();
-b3ShapeId shapeId = b3CreateCompoundShape(bodyId, &shapeDef, compound);
+b3ShapeId shapeId = b3CreateBakedCompoundShape(bodyId, &shapeDef, compound);
 ```
 
-`b3CreateCompoundShape` asserts that the body is static.
+`b3CreateBakedCompoundShape` asserts that the body is static.
 
 ## Querying a Compound
 
