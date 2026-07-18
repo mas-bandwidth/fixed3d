@@ -1,7 +1,7 @@
 # Box3D Fixed-Point Conversion — Session Handoff
 
 Box3D converted from float to Q48.16 fixed point (internal and external API).
-Baseline float code is commit e961bfb. EVERYTHING below is committed and pushed;
+Baseline float code is commit d421e45. EVERYTHING below is committed and pushed;
 there is no pending working-tree state.
 
 ## Current status (as of 2026-07-16 — v1.3.0, MAINTENANCE MODE)
