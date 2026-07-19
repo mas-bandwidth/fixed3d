@@ -167,7 +167,7 @@ static b3EdgeQuery b3QueryEdgeDirectionHullAndCapsule( const b3HullData* hull, c
 	const b3HullHalfEdge* edges = b3GetHullEdges( hull );
 	const b3Vec3* points = b3GetHullPoints( hull );
 	const b3Plane* planes = b3GetHullPlanes( hull );
-	b3Fixed squaredTolerance = b3FixMul( B3_FIX( 0.005f ) , B3_FIX( 0.005f ) );
+	b3Fixed squaredTolerance = b3FixMul( B3_FIX( B3_PARALLEL_EDGE_TOL ) , B3_FIX( B3_PARALLEL_EDGE_TOL ) );
 
 	for ( int index = 0; index < hull->edgeCount; index += 2 )
 	{
@@ -387,7 +387,7 @@ static b3EdgeQuery b3QueryEdgeDirections( const b3HullData* hullA, const b3HullD
 	// Work in frame A
 	b3Matrix3 matrix = b3MakeMatrixFromQuat( transformBtoA.q );
 
-	b3Fixed squaredTolerance = b3FixMul( B3_FIX( 0.005f ) , B3_FIX( 0.005f ) );
+	b3Fixed squaredTolerance = b3FixMul( B3_FIX( B3_PARALLEL_EDGE_TOL ) , B3_FIX( B3_PARALLEL_EDGE_TOL ) );
 
 #if defined( B3_SIMD_AVX512 ) || defined( B3_SIMD_NEON )
 	// Precompute hull A's edge vectors once, SoA: they are reused for every
@@ -1794,7 +1794,7 @@ void b3CollideHulls( b3LocalManifold* manifold, int capacity, const b3HullData* 
 				b3Fixed dba = b3FixFromDotRaw( dbaRaw );
 
 				// Avoid nearly parallel edges that may lead to invalid separation values at the noise floor.
-				b3Fixed squaredTolerance = b3FixMul( B3_FIX( 0.005f ) , B3_FIX( 0.005f ) );
+				b3Fixed squaredTolerance = b3FixMul( B3_FIX( B3_PARALLEL_EDGE_TOL ) , B3_FIX( B3_PARALLEL_EDGE_TOL ) );
 				if ( b3FixMax( b3FixMul( cba , cba ), b3FixMul( dba , dba ) ) >= b3FixMul( squaredTolerance , b3LengthSquared( eA ) ) )
 				{
 					// Transform reference center of the first hull into local space of the second hull

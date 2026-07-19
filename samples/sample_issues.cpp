@@ -10,53 +10,6 @@
 
 #include <vector>
 
-class DumpLoader : public Sample
-{
-public:
-	explicit DumpLoader( SampleContext* context )
-		: Sample( context )
-	{
-		if ( context->restart == false )
-		{
-			m_camera->SetView( 45.0f, 30.0f, 15.0f, SamplePos( { B3_FIX( 0.0f ), B3_FIX( 2.0f ), B3_FIX( 0.0f ) } ) );
-			// m_camera->SetView( 45.0f, 30.0f, 300.0f, { 3910.62109f, 9862.50293f, 875.395081f } );
-		}
-
-		b3SetLengthUnitsPerMeter( B3_FIX( 1.0f ) );
-
-		const char* dumpPrefix = "data/dumps/single_box/";
-
-#include "dumps/single_box/box3d_dump.inl"
-
-		// The dump is baked generated data authored near the true origin; teleport it
-		// rigidly to the sample origin instead of editing the data.
-		for ( b3BodyId dumpBodyId : bodies )
-		{
-			b3WorldTransform xf = b3Body_GetTransform( dumpBodyId );
-			b3Body_SetTransform( dumpBodyId, b3OffsetPos( SampleOrigin(), xf.p ), xf.q );
-		}
-	}
-
-	~DumpLoader() override
-	{
-		for ( b3MeshData* md : m_meshes )
-		{
-			b3DestroyMesh( md );
-		}
-
-		b3SetLengthUnitsPerMeter( B3_FIX( 1.0f ) );
-	}
-
-	static Sample* Create( SampleContext* context )
-	{
-		return new DumpLoader( context );
-	}
-
-	std::vector<b3MeshData*> m_meshes;
-};
-
-static int sampleDumpLoader = RegisterSample( "Issues", "Dump Loader", DumpLoader::Create );
-
 class Crash : public Sample
 {
 public:

@@ -125,7 +125,7 @@ static void b3IntegrateVelocitiesTask( b3SolverBlock block, b3StepContext* conte
 			const b3Fixed i12 = inertiaLocal.cz.y;
 			const b3Fixed i22 = inertiaLocal.cz.z;
 
-			for ( int gyroIteration = 0; gyroIteration < 1; ++gyroIteration )
+			for ( int gyroIteration = 0; gyroIteration < B3_GYROSCOPIC_ITERATIONS; ++gyroIteration )
 			{
 				const b3Fixed w1 = omega2.x;
 				const b3Fixed w2 = omega2.y;

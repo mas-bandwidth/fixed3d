@@ -1,10 +1,68 @@
 # Box3D Fixed-Point Conversion — Session Handoff
 
 Box3D converted from float to Q48.16 fixed point (internal and external API).
-Baseline float code is commit d421e45. EVERYTHING below is committed and pushed;
+Baseline float code is commit c37cfe4. EVERYTHING below is committed and pushed;
 there is no pending working-tree state.
 
 ## Current status (as of 2026-07-16 — v1.3.0, MAINTENANCE MODE)
+
+- **PORT RECORD c37cfe4 "SIMD hull collision (#93)" (2026-07-19)** — the largest
+  upstream commit since the conversion; ported with a documented scope decision.
+  ADOPTED (re-expressed in fixed point where needed): b3Body_AllowFastRotation /
+  b3Body_IsFastRotationAllowed (+ recording op 0x3A, B3_REC_VERSION_MINOR 6) and
+  the dead b3BodySim::maxAngularVelocity removal (our solver already used
+  B3_MAX_ROTATION * inv_dt + the b3_allowFastRotation flag, identical to
+  upstream's post-commit clamp); block-allocator stride rounded up to
+  B3_ALIGNMENT (+ TestBlockAlignment); B3_GYROSCOPIC_ITERATIONS,
+  B3_PARALLEL_EDGE_TOL (respelled at the convex_manifold.c tolerance sites,
+  value-identical), and the B3_MAX_HULL_VERTICES/FACES/EDGES = 128 limits
+  (replacing the 255 caps at b3CreateHull's clamp + final checks; test_hull.c
+  updated, sphere-stress M <= 32); parallel_for blocksPerWorker 4 -> 32
+  (Erin's float-side tuning, determinism-neutral, NOT re-benchmarked here);
+  UBSan -fno-sanitize-recover=all + UBSAN_OPTIONS print_stacktrace in CI;
+  THREE new determinism scenarios with per-mode goldens pinned in
+  test_determinism.c — WavePile (sleep 279, narrow 0x28C104F3 / ludicrous
+  0x6B02B773, workers 1-4), QuerySpawn (sleep 243, hits 59, queryHash
+  0xE583B246 both modes, hash narrow 0x28042A4C / ludicrous 0x72EDD20C),
+  MeshDrop (grid 32 -> 20 per upstream, sleep 250, narrow 0xC7800D21 /
+  ludicrous 0x309C7C69; replaces WorldTest's TestMeshDrop; the knife-edge
+  warnings about the OLD 32-grid equilibrium are historical); the matching
+  Determinism samples + GyroscopicPrecession heavy-top diagnostic (readbacks
+  cross to double via b3FixToDouble, classical mechanics in double libm);
+  sample removals (CardHouseThick, DumpLoader, MeshDropUnitTest), CardHouse
+  rollingResistance 0.05 (upstream change postdating the Card House closure
+  record — the divergence claim predates it), junkyard/convex-pile capacity
+  prefetch, samples main.cpp SOKOL_NO_ENTRY/own-main/MSVC leak dump/Tracy
+  scaffolding, LimitFrameRate paced by context hertz, gfx C17 properties.
+  NOT ADOPTED (documented divergence, deliberate): the float SIMD hull
+  collision core — src/simd.h b3FloatW float-lane library, b3HullData SOA
+  float vertex/normal arrays + layout reorder + B3_HULL_VERSION /
+  B3_COMPOUND_VERSION bumps, b3ComputeSeparatingAxis + the restructured
+  b3CollideHulls (EPS-based fuzzy sign tests, mantissa-embedded-index wide
+  support scan, first-separating-axis early-outs, absFaceBias face
+  preference, cache->hit + manual-axis test hooks), and test_sat.c which
+  tests that new function. Rationale: Fixed3D's narrow phase IS the
+  fixed-point re-expression of vectorized hull collision (raw-128 exact dots,
+  exact sign tests, the BOX3D_AVX512/BOX3D_NEON wide edge/support paths —
+  ERIN.md item 14; upstream's commit credits the same idea from #54), the
+  float tricks have no faithful Q48.16 expression (index bits in a float
+  mantissa; epsilon sign tests conflict with the exact-sign convention), and
+  adopting the restructure would change manifold selection => new goldens,
+  re-opened Card House record, invalidated perf measurements — deeper design
+  work than a port. Consequences to remember: upstream convex_manifold.c now
+  has a different structure, so FUTURE ports touching it must map hunks onto
+  our exact-SAT structure manually; upstream compound.c alignment moved to
+  b3AlignUp8 while ours stays on the stronger b3AlignUp(_Alignof) (ERIN.md
+  item 9) — treat those hunks as already-satisfied; upstream b3CreateWave /
+  b3CreateWaveMesh / RandomUnitVector / RandomQuat moved from sinf to
+  b3ComputeCosSin, which our tree had already done wholesale; hull content
+  hashes/layout unchanged here so hull/compound version constants deliberately
+  NOT bumped. A fixed-point SAT-oracle test (port of test_sat.c's brute-force
+  oracle against OUR face/edge queries) is a good follow-up candidate.
+  ALSO: ERIN.md's benchmark ratios (and the README table) were measured
+  against pre-c37cfe4 float; upstream's narrow phase is now SIMD — re-measure
+  before repeating any fixed-vs-float claim publicly (banner added to
+  ERIN.md's SIMD section).
 
 - **MAINTENANCE MODE (Glenn's direction, 2026-07-14)**: the conversion is done
   and v1.1.0 is tagged. New feature work here is not planned. Standing duties:

@@ -1430,6 +1430,10 @@ public:
 			GetGuiDraw()->drawJoints = false;
 		}
 
+		b3Capacity capacity = {};
+		GetJunkyardCapacity( &capacity );
+		CreateWorld( &capacity );
+
 		CreateJunkyard( m_worldId );
 
 		SetGroundShape( GetGroundShapeId() );
@@ -1463,6 +1467,10 @@ public:
 		{
 			m_camera->SetView( 45.0f, 20.0f, 150.0f, SamplePos( { B3_FIX( 0.0f ), B3_FIX( 15.0f ), B3_FIX( 0.0f ) } ) );
 		}
+
+		b3Capacity capacity = {};
+		GetConvexPileCapacity( &capacity );
+		CreateWorld( &capacity );
 
 		CreateConvexPile( m_worldId );
 
