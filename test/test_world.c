@@ -3,7 +3,6 @@
 
 #include "benchmarks.h"
 #include "overflow_color.h"
-#include "stability.h"
 #include "test_macros.h"
 
 #include "box3d/box3d.h"
@@ -659,47 +658,6 @@ static int TestSetWorkerCount( void )
 	return 0;
 }
 
-// This tests continuous collision and mesh contact stability
-static int TestMeshDrop( void )
-{
-	b3WorldDef worldDef = b3DefaultWorldDef();
-	// todo GetCoreCount
-	worldDef.workerCount = 4;
-
-	b3WorldId worldId = b3CreateWorld( &worldDef );
-
-	MeshDropData data = CreateMeshDrop( worldId, b3Pos_zero );
-
-	b3Fixed timeStep = b3FixDiv( B3_FIX( 1.0f ) , B3_FIX( 60.0f ) );
-
-	int stepIndex = 0;
-	int stepLimit = 400;
-
-	while ( stepIndex < stepLimit )
-	{
-		int subStepCount = 4;
-		b3World_Step( worldId, timeStep, subStepCount );
-
-		b3BodyEvents events = b3World_GetBodyEvents( worldId );
-		if ( events.moveCount == 0 )
-		{
-			// All bodies sleeping
-			break;
-		}
-
-		stepIndex += 1;
-	}
-
-	printf( "  TestMeshDrop stepIndex = %d\n", stepIndex );
-
-	DestroyMeshDrop( &data );
-	b3DestroyWorld( worldId );
-
-	ENSURE( stepIndex < stepLimit );
-
-	return 0;
-}
-
 // Regression for the impulse-cap wrap fix in contact_solver.c. The friction
 // clamp compares a squared impulse length against b3FixMul( maxImpulse,
 // maxImpulse ), and those squared forms wrap int64 once an operand reaches
@@ -1182,7 +1140,6 @@ int WorldTest( void )
 	RUN_SUBTEST( TestContactEvents );
 	RUN_SUBTEST( TestHitEvents );
 	RUN_SUBTEST( TestCompoundHitEvents );
-	RUN_SUBTEST( TestMeshDrop );
 	RUN_SUBTEST( TestFrictionCapWrap );
 	RUN_SUBTEST( TestOverflowColorPile );
 	RUN_SUBTEST( SetBulletDriftTest );

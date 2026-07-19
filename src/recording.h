@@ -66,7 +66,8 @@ typedef struct b3World b3World;
 // Minor version 3 added name cache.
 // Minor version 4 added ShapeSetMeshMaterial.
 // Minor version 5 added ShapeSetHull and ShapeSetMesh.
-#define B3_REC_VERSION_MINOR 5
+// Minor version 6 added BodyAllowFastRotation.
+#define B3_REC_VERSION_MINOR 6
 
 // File header, fixed 48 bytes, little-endian. Contains the registry locator so the player
 // can load geometry before replaying any ops.

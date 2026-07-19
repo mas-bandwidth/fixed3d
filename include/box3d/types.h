@@ -2039,7 +2039,7 @@ typedef struct b3MeshDef
 	/// Triangle vertices
 	b3Vec3* vertices;
 
-	/// Triangle vertex indices. 3 for each triangle.
+	/// Triangle vertex indices. 3 for each triangle. CCW winding.
 	int32_t* indices;
 
 	/// Triangle material index. 1 per triangle. Indexes into b3ShapeDef::materials.

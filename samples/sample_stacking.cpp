@@ -11,84 +11,6 @@
 
 #include <stdio.h>
 
-class CardHouseThick : public Sample
-{
-public:
-	explicit CardHouseThick( SampleContext* context )
-		: Sample( context )
-	{
-		if ( context->restart == false )
-		{
-			m_camera->SetView( 0.0f, 25.0f, 10.0f, SamplePos( { B3_FIX( 0.0f ), B3_FIX( 2.0f ), B3_FIX( 0.0f ) } ) );
-		}
-
-		AddGroundBox( 10.0f );
-
-		const b3Fixed alpha = b3FixMul( B3_FIX( 25.0f ), B3_DEG_TO_RAD );
-		const float width = 0.38f;
-		const float height = 0.98f;
-		const float depth = 0.08f;
-
-		float offsetX = 0.5f * height * b3FixToFloat( b3Sin( alpha ) ) + 0.045f;
-		float offsetY = 0.5f * height * b3FixToFloat( b3Cos( alpha ) ) + 0.035f;
-
-		b3BoxHull box = b3MakeBoxHull( b3FixFromFloat( 0.5f * depth ), b3FixFromFloat( 0.5f * height ), b3FixFromFloat( 0.5f * width ) );
-		AddVerticalRow( 4, -6.0f * offsetX, offsetX, offsetY, alpha, box );
-		AddHorizontalRow( 3, -4.0f * offsetX, 4.0f * offsetX, 2.0f * offsetY + 0.04f, box );
-		AddVerticalRow( 3, -4.0f * offsetX, offsetX, 3.0f * offsetY + 0.08f, alpha, box );
-		AddHorizontalRow( 2, -2.0f * offsetX, 4.0f * offsetX, 4.0f * offsetY + 0.12f, box );
-		AddVerticalRow( 2, -2.0f * offsetX, offsetX, 5.0f * offsetY + 0.16f, alpha, box );
-		AddHorizontalRow( 1, -0.0f * offsetX, 4.0f * offsetX, 6.0f * offsetY + 0.20f, box );
-		AddVerticalRow( 1, -0.0f * offsetX, offsetX, 7.0f * offsetY + 0.24f, alpha, box );
-	}
-
-	void AddVerticalRow( int n, float startX, float offsetX, float startY, b3Fixed alpha, const b3BoxHull& box )
-	{
-		b3BodyDef bodyDef = b3DefaultBodyDef();
-		bodyDef.type = b3_dynamicBody;
-		b3ShapeDef shapeDef = b3DefaultShapeDef();
-		shapeDef.baseMaterial.friction = B3_FIX( 0.8f );
-
-		for ( int index = 0; index < n; ++index )
-		{
-			bodyDef.position = SamplePos( { b3FixFromFloat( startX - offsetX ), b3FixFromFloat( startY ), B3_FIX( 0.0f ) } );
-			bodyDef.rotation = b3MakeQuatFromAxisAngle( b3Vec3_axisZ, -alpha );
-			b3BodyId body1 = b3CreateBody( m_worldId, &bodyDef );
-			b3CreateHullShape( body1, &shapeDef, &box.base );
-
-			bodyDef.position = SamplePos( { b3FixFromFloat( startX + offsetX ), b3FixFromFloat( startY ), B3_FIX( 0.0f ) } );
-			bodyDef.rotation = b3MakeQuatFromAxisAngle( b3Vec3_axisZ, alpha );
-			b3BodyId body2 = b3CreateBody( m_worldId, &bodyDef );
-			b3CreateHullShape( body2, &shapeDef, &box.base );
-
-			startX += 4.0f * offsetX;
-		}
-	}
-
-	void AddHorizontalRow( int n, float startX, float offsetX, float startY, const b3BoxHull& box )
-	{
-		b3BodyDef bodyDef = b3DefaultBodyDef();
-		bodyDef.type = b3_dynamicBody;
-		b3ShapeDef shapeDef = b3DefaultShapeDef();
-		shapeDef.baseMaterial.friction = B3_FIX( 0.8f );
-
-		for ( int index = 0; index < n; ++index )
-		{
-			bodyDef.position = SamplePos( { b3FixFromFloat( startX + index * offsetX ), b3FixFromFloat( startY ), B3_FIX( 0.0f ) } );
-			bodyDef.rotation = b3MakeQuatFromAxisAngle( b3Vec3_axisZ, B3_PI / 2 );
-			b3BodyId body = b3CreateBody( m_worldId, &bodyDef );
-			b3CreateHullShape( body, &shapeDef, &box.base );
-		}
-	}
-
-	static Sample* Create( SampleContext* context )
-	{
-		return new CardHouseThick( context );
-	}
-};
-
-static int sampleCardHouseThick = RegisterSample( "Stacking", "Card House Thick", CardHouseThick::Create );
-
 // From PEEL
 class CardHouse : public Sample
 {
@@ -104,6 +26,7 @@ public:
 		AddGroundBox( 10.0f );
 
 		b3ShapeDef shapeDef = b3DefaultShapeDef();
+		shapeDef.baseMaterial.rollingResistance = B3_FIX( 0.05f );
 		shapeDef.baseMaterial.friction = B3_FIX( 0.7f );
 
 		float cardHeight = 0.2f;
@@ -123,7 +46,9 @@ public:
 		// fixed point stands and sleeps when the scene is scaled to sane
 		// tolerance ratios. Not a conversion bug; a knife-edge scene in any
 		// number system. Kept as the engine's sensitivity canary. Details and
-		// the experiment record: CLAUDE.md (Card House).
+		// the experiment record: CLAUDE.md (Card House). NOTE: upstream c37cfe4
+		// added rollingResistance 0.05 to this scene after that record was
+		// closed; the divergence claim predates the material change.
 		b3BoxHull cardBox = b3MakeBoxHull( b3FixFromFloat( cardThickness ), b3FixFromFloat( cardHeight ), b3FixFromFloat( cardDepth ) );
 		b3BodyDef bodyDef = b3DefaultBodyDef();
 		bodyDef.type = b3_dynamicBody;
@@ -296,7 +221,7 @@ public:
 			bodyDef.name = "cube";
 			bodyDef.type = b3_dynamicBody;
 			bodyDef.position = SamplePos( { B3_FIX( 0.0f ), B3_FIX( 0.5f ), B3_FIX( 0.0f ) } );
-			bodyDef.angularVelocity = { B3_FIX( 0.0f ), B3_FIX( 10.0f ), B3_FIX( 0.0f ) };
+			// bodyDef.angularVelocity = { B3_FIX( 0.0f ), B3_FIX( 10.0f ), B3_FIX( 0.0f ) };
 			m_bodyId = b3CreateBody( m_worldId, &bodyDef );
 
 			b3ShapeDef shapeDef = b3DefaultShapeDef();
@@ -439,7 +364,7 @@ public:
 	{
 		if ( context->restart == false )
 		{
-			m_camera->SetView( 0.0f, 15.0f, 50.0f, SamplePos( { B3_FIX( 0.0f ), B3_FIX( 20.0f ), B3_FIX( 0.0f ) } ) );
+			m_camera->SetView( 40.0f, 15.0f, 50.0f, SamplePos( { B3_FIX( 0.0f ), B3_FIX( 20.0f ), B3_FIX( 0.0f ) } ) );
 		}
 
 		AddGroundBox( 40.0f );
@@ -450,7 +375,6 @@ public:
 		bodyDef.type = b3_dynamicBody;
 
 		b3BoxHull cube = b3MakeBoxHull( b3FixFromFloat( a ), b3FixFromFloat( a ), b3FixFromFloat( a ) );
-		// b3Quat q = b3MakeQuatFromAxisAngle( { 1.0f, 0.0f, 0.0f }, 0.5f * B3_PI );
 
 		for ( int i = 0; i < 40; ++i )
 		{

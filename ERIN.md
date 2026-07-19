@@ -216,6 +216,15 @@ there.
 
 ## SIMD your floats are leaving on the table
 
+> **STATUS UPDATE (2026-07-19):** upstream c37cfe4 ("SIMD hull collision", with
+> credit to Cairn Overturf's #54 work) landed a SIMD narrow phase in float
+> Box3D — SoA hull vertex/normal arrays, a unified `b3ComputeSeparatingAxis`,
+> and a mantissa-embedded-index wide support scan. The claim below that "your
+> SIMD stops at the contact solver" is now historical, and every fixed-vs-float
+> benchmark ratio in this repo was measured against the PRE-c37cfe4 float
+> narrow phase — re-measure against current upstream before repeating any of
+> them publicly (the convex_pile numbers especially).
+
 This is where the fixed-point build wins its head-to-head benchmarks, so
 here it is in earnest. Your SIMD stops at the contact solver. The narrow phase is scalar on every
 platform, and it doesn't have to be. None of this needs fixed point — in

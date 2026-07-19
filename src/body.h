@@ -210,7 +210,6 @@ typedef struct b3BodySim
 
 	b3Fixed minExtent;
 	b3Vec3 maxExtent;
-	b3Fixed maxAngularVelocity;
 	b3Fixed linearDamping;
 	b3Fixed angularDamping;
 	b3Fixed gravityScale;
