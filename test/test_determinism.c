@@ -22,35 +22,38 @@
 // identical to the value the scene had at (0,0,0); only the hash moved,
 // because it covers the absolute transform bytes: an exactly representable
 // origin shift is a bit-exact rigid translation of the whole trajectory.
-#define EXPECTED_SLEEP_STEP 287
+#define RAGDOLL_SLEEP_STEP 287
 // The sleep step is identical in both builds — an exactly representable origin is a
 // bit-exact rigid translation of the trajectory. The hash differs only because it covers
 // the absolute transform bytes, and the wide build stores 128-bit positions (80-byte
 // b3WorldTransform vs 56-byte), so it carries its own golden. Full 128 bits are hashed.
 #if defined( BOX3D_LUDICROUS_MODE )
-#define EXPECTED_HASH 0x886BE415
+#define RAGDOLL_HASH 0x886BE415
 #else
-#define EXPECTED_HASH 0xB222C195
+#define RAGDOLL_HASH 0xB222C195
 #endif
 
 // Goldens for the c37cfe4-ported scenarios (wave pile, query spawn, mesh drop).
 // Fixed-point goldens hold across platforms and worker counts by construction.
 // The sleep steps are shared between builds; the hashes cover absolute transform
 // bytes, so the ludicrous build (128-bit positions, 80-byte b3WorldTransform)
-// carries its own values.
+// carries its own values. The wave pile and mesh drop hashes moved with the
+// dfa5e6a triangle-vs-hull admission change (hulls resting on mesh terrain take
+// slightly different manifolds); their sleep steps and everything about query
+// spawn carried over unchanged.
 #define WAVE_PILE_SLEEP_STEP 279
 #define QUERY_SPAWN_SLEEP_STEP 243
 #define QUERY_SPAWN_HIT_COUNT 59
 #define QUERY_SPAWN_QUERY_HASH 0xE583B246
 #define MESH_DROP_SLEEP_STEP 250
 #if defined( BOX3D_LUDICROUS_MODE )
-#define WAVE_PILE_HASH 0x6B02B773
+#define WAVE_PILE_HASH 0x95D6FBC0
 #define QUERY_SPAWN_HASH 0x72EDD20C
-#define MESH_DROP_HASH 0x309C7C69
+#define MESH_DROP_HASH 0xEE4D0F7A
 #else
-#define WAVE_PILE_HASH 0x28C104F3
+#define WAVE_PILE_HASH 0xB2784280
 #define QUERY_SPAWN_HASH 0x28042A4C
-#define MESH_DROP_HASH 0xC7800D21
+#define MESH_DROP_HASH 0x777F3CB6
 #endif
 
 static int SingleMultithreadingTest( int workerCount )
@@ -80,13 +83,13 @@ static int SingleMultithreadingTest( int workerCount )
 
 	b3DestroyWorld( worldId );
 
-	if ( data.sleepStep != EXPECTED_SLEEP_STEP || data.hash != EXPECTED_HASH )
+	if ( data.sleepStep != RAGDOLL_SLEEP_STEP || data.hash != RAGDOLL_HASH )
 	{
 		printf( "  workers=%d sleepStep=%d hash=0x%08X\n", workerCount, data.sleepStep, data.hash );
 	}
 
-	ENSURE( data.sleepStep == EXPECTED_SLEEP_STEP );
-	ENSURE( data.hash == EXPECTED_HASH );
+	ENSURE( data.sleepStep == RAGDOLL_SLEEP_STEP );
+	ENSURE( data.hash == RAGDOLL_HASH );
 
 	DestroyFallingRagdolls( &data );
 
@@ -125,13 +128,13 @@ static int CrossPlatformTest( void )
 		done = UpdateFallingRagdolls( worldId, &data );
 	}
 
-	if ( data.sleepStep != EXPECTED_SLEEP_STEP || data.hash != EXPECTED_HASH )
+	if ( data.sleepStep != RAGDOLL_SLEEP_STEP || data.hash != RAGDOLL_HASH )
 	{
 		printf( "  cross-platform sleepStep=%d hash=0x%08X\n", data.sleepStep, data.hash );
 	}
 
-	ENSURE( data.sleepStep == EXPECTED_SLEEP_STEP );
-	ENSURE( data.hash == EXPECTED_HASH );
+	ENSURE( data.sleepStep == RAGDOLL_SLEEP_STEP );
+	ENSURE( data.hash == RAGDOLL_HASH );
 
 	DestroyFallingRagdolls( &data );
 

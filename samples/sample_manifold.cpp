@@ -834,19 +834,18 @@ public:
 		//m_triangle[1] = { 1.00000000, 0, 0.00000000 };
 		//m_triangle[2] = { 0.00000000, 0, 0.00000000 };
 
-		m_triangle[0x00000000] = { B3_FIX( -1.82879996 ), B3_FIX( -0.0253999997 ), B3_FIX( -0.609600008 ) };
-		m_triangle[0x00000001] = { B3_FIX( -1.82879996 ), B3_FIX( -0.0253999997 ), B3_FIX( -0.406399995 ) };
-		m_triangle[0x00000002] = { B3_FIX( -1.79069996 ), B3_FIX( 0.00000000 ), B3_FIX( -0.406399995 ) };
+		m_triangle[0] = { B3_FIX( 0.299769998f ), B3_FIX( -1.01549578f ), B3_FIX( -0.744717002f ) };
+		m_triangle[1] = { B3_FIX( 0.299769998f ), B3_FIX( -1.01549578f ), B3_FIX( 1.28728306f ) };
+		m_triangle[2] = { B3_FIX( 0.299769998f ), B3_FIX( -0.913895786f ), B3_FIX( 0.271283031f ) };
 
-		b3Fixed SRC = B3_FIX( 0.0254f );
-		b3Fixed bodyHalfWidth = 16 * SRC;
-		b3Fixed bodyHalfHeight = 36 * SRC;
+		b3Fixed bodyHalfWidth = B3_FIX( 0.304800004f );
+		b3Fixed bodyHalfHeight = B3_FIX( 0.914399981f );
 
 		m_boxHull = b3MakeBoxHull( bodyHalfWidth, bodyHalfHeight, bodyHalfWidth );
 
 		m_transformA = { SampleOrigin(), b3Quat_identity };
-		m_transformB = b3WorldTransform_identity;
-		m_transformB.p = SamplePos( { B3_FIX( -2.16650009f ), B3_FIX( 0.912535489f ), B3_FIX( 0.00000000f ) } );
+		m_transformB = { SampleOrigin(), b3Quat_identity };
+		//m_transformB.p = SamplePos( { B3_FIX( -2.16650009f ), B3_FIX( 0.912535489f ), B3_FIX( 0.00000000f ) } );
 
 		// b3MeshEdgeFlags
 		m_flags = 0;

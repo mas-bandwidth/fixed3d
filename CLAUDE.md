@@ -1,10 +1,52 @@
 # Box3D Fixed-Point Conversion — Session Handoff
 
 Box3D converted from float to Q48.16 fixed point (internal and external API).
-Baseline float code is commit c37cfe4. EVERYTHING below is committed and pushed;
+Baseline float code is commit dfa5e6a. EVERYTHING below is committed and pushed;
 there is no pending working-tree state.
 
 ## Current status (as of 2026-07-16 — v1.3.0, MAINTENANCE MODE)
+
+- **PORT RECORD dfa5e6a "Fixing issues (#94)" (2026-07-20)** — adopted in full
+  except where already satisfied. Real engine fixes: compound child contact
+  MATERIALS now come from the struck child (contact.c b3UpdateContact copies
+  materialIndices[0]'s material into childShapeA for non-mesh children; the
+  mixing callbacks used to see material table entry 0 — regression
+  TestCompoundContactMaterials in test_world.c, verified red pre-fix); the
+  triangle-vs-hull face admission loosened (`faceQueryB.separation >=
+  faceQueryA.separation`, the linearSlop bias dropped) to reduce ghost
+  collisions — the ONE solver-affecting change: WavePile hash 0xB2784280
+  narrow / 0x95D6FBC0 ludicrous, MeshDrop 0x777F3CB6 / 0xEE4D0F7A; every
+  sleep step, the ragdoll goldens, and all QuerySpawn values carried over
+  unchanged (capsule-triangle paths untouched, and only hull-on-mesh scenes
+  move). API/build: b3SurfaceMaterial gained an explicit `uint32_t padding`
+  field ("must be zero"; compound.c asserts sizeof == 64 where upstream
+  asserts 40, plus padding==0 in hash/compare — b3StageMaterial keeps
+  staging, so the invariant holds by construction and world snapshots stay
+  deterministic); b3DebugDraw.DrawShapeFcn returns void; drawAnchorA
+  int -> bool; the RELWITHDEBINFO B3_ENABLE_ASSERT genexp moved out of the
+  MSVC block to ALL compilers (build-fixed2 now runs with live asserts) and
+  the mingw CI job moved Debug -> RelWithDebInfo (upstream's comment credits
+  our padding dedup find); mingw CMake presets added. Samples:
+  CharacterMover extracted to samples/mover.{h,cpp} with upstream's four
+  mover behavior fixes re-expressed in fixed point (the stop clause zeroes
+  x/z not x/y, friction scales the horizontal components only, the pogo
+  spring is suppressed while m_velocity.y > 0, forward is normalized after
+  flattening); kinematic transparency option (SetTransparentKinematic
+  replaces GetTransparentDynamic, Transparency submenu, BOTH main.cpp
+  SetTransparentDynamic sites paired); new "GMod Wheel Stack" issues sample
+  (317 verts B3_FIX-wrapped mechanically, hull creation null-guarded because
+  fixed-point quickhull returns NULL on degenerate input); TriangleAndHull
+  manifold scenario replaced with upstream's new repro (m_transformB kept at
+  SampleOrigin where upstream uses raw identity — both transforms must share
+  the scene origin). NOT PORTED: upstream's README "Windows MinGW" line
+  (Glenn's slimmed README has no presets section). ALREADY SATISFIED: the
+  contact_solver.c per-lane pointCounts arrays + max-point solver loops —
+  our maxPointCount wide-constraint field (Round 2 item 1) has bounded warm
+  start/solve/restitution since before upstream implemented its version;
+  treat future upstream diffs to those loops as satisfied and map them onto
+  maxPointCount. Verified: full suite Release AND Debug+VALIDATE+ASan/UBSan
+  in BOTH narrow and ludicrous builds; conversion_audit.py clean over all
+  103 TUs; headless smoke (240 frames) on the new/touched samples exit 0.
 
 - **PORT RECORD c37cfe4 "SIMD hull collision (#93)" (2026-07-19)** — the largest
   upstream commit since the conversion; ported with a documented scope decision.
@@ -1133,8 +1175,9 @@ Fixes landed in session 2 (beyond the session-1 list):
   `b3Sin`/`b3Cos` (the deterministic approximations carry ~1e-3 error and were
   never meant as references — see `ExactQuat` in test_manifold.c, the cylinder
   expectations in test_hull.c, and the trig comparisons in test_math.c).
-- Determinism goldens (`test/test_determinism.c`): `EXPECTED_SLEEP_STEP 287`,
-  `EXPECTED_HASH 0xB222C195` (hash updated 2026-07-15 for the 0.8 AU scene
+- Determinism goldens (`test/test_determinism.c`): `RAGDOLL_SLEEP_STEP 287`,
+  `RAGDOLL_HASH 0xB222C195` (macros renamed from EXPECTED_* in the dfa5e6a
+  port, following upstream; hash updated 2026-07-15 for the 0.8 AU scene
   origin, previously 0x228A3865 at 120,000 km and 0xE7D52285 at 100 km; the
   sleep step carried over unchanged through all four origin moves because
   the shift is a bit-exact rigid translation; previously 0x6FA8A4C5 for the

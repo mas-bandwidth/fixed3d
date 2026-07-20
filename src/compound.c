@@ -226,16 +226,25 @@ static bool b3CompareMeshes( const b3MeshData* mesh1, const b3MeshData* mesh2 )
 #define FREE_FN b3Free
 #include "verstable.h"
 
+// Fixed-point layout: 3 x b3Fixed + b3Vec3 + uint64 + 2 x uint32 = 64 bytes, no implicit
+// padding left (the explicit padding field fills the old 4 tail bytes). Upstream float
+// asserts 40 here.
+_Static_assert( sizeof( b3SurfaceMaterial ) == 64, "review padding" );
+
 // Keys must be staged with b3StageMaterial (shape.h) so the padding bytes swept here are
 // zero. The staged array is also what lands in the compound blob, whose raw bytes
 // b3RecInternCompound hashes.
 static inline uint64_t b3HashMaterial( const b3SurfaceMaterial* material )
 {
+	B3_ASSERT( material->padding == 0 );
+
 	return vt_wyhash( material, sizeof( b3SurfaceMaterial ) );
 }
 
 static bool b3CompareMaterials( const b3SurfaceMaterial* mat1, const b3SurfaceMaterial* mat2 )
 {
+	B3_ASSERT( mat1->padding == 0 && mat2->padding == 0 );
+
 	if ( mat1 == mat2 )
 	{
 		return true;
