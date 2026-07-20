@@ -933,3 +933,240 @@ public:
 };
 
 static int sampleSBoxGhostCollisions = RegisterSample( "Issues", "s&box Ghost Collisions", SBoxGhostCollisions::Create );
+
+static const b3Vec3 s_metalWheel1Verts[317] = {
+	{ B3_FIX( 0.010279f ), B3_FIX( 0.086341f ), B3_FIX( 0.051768f ) },	{ B3_FIX( -0.010314f ), B3_FIX( -0.084708f ), B3_FIX( 0.051804f ) },	{ B3_FIX( 0.010279f ), B3_FIX( -0.084708f ), B3_FIX( 0.051768f ) },
+	{ B3_FIX( -0.010314f ), B3_FIX( 0.086341f ), B3_FIX( 0.051804f ) },	{ B3_FIX( 0.029138f ), B3_FIX( -0.084708f ), B3_FIX( -0.043911f ) },	{ B3_FIX( 0.043724f ), B3_FIX( -0.084708f ), B3_FIX( -0.029376f ) },
+	{ B3_FIX( 0.010098f ), B3_FIX( -0.084708f ), B3_FIX( -0.051759f ) },	{ B3_FIX( -0.010494f ), B3_FIX( -0.084708f ), B3_FIX( -0.051723f ) }, { B3_FIX( 0.051638f ), B3_FIX( -0.084708f ), B3_FIX( -0.010364f ) },
+	{ B3_FIX( 0.051674f ), B3_FIX( -0.084708f ), B3_FIX( 0.010229f ) },	{ B3_FIX( 0.043827f ), B3_FIX( -0.084708f ), B3_FIX( 0.029268f ) },	{ B3_FIX( 0.029291f ), B3_FIX( -0.084708f ), B3_FIX( 0.043855f ) },
+	{ B3_FIX( -0.029353f ), B3_FIX( -0.084708f ), B3_FIX( 0.043957f ) },	{ B3_FIX( -0.051889f ), B3_FIX( -0.084708f ), B3_FIX( -0.010183f ) }, { B3_FIX( -0.051853f ), B3_FIX( -0.084708f ), B3_FIX( 0.010409f ) },
+	{ B3_FIX( -0.043939f ), B3_FIX( -0.084708f ), B3_FIX( 0.029421f ) },	{ B3_FIX( -0.029506f ), B3_FIX( -0.084708f ), B3_FIX( -0.043809f ) }, { B3_FIX( -0.044042f ), B3_FIX( -0.084708f ), B3_FIX( -0.029222f ) },
+	{ B3_FIX( -0.029353f ), B3_FIX( 0.086341f ), B3_FIX( 0.043957f ) },	{ B3_FIX( 0.043724f ), B3_FIX( 0.086341f ), B3_FIX( -0.029376f ) },	{ B3_FIX( 0.029138f ), B3_FIX( 0.086341f ), B3_FIX( -0.043911f ) },
+	{ B3_FIX( 0.010098f ), B3_FIX( 0.086341f ), B3_FIX( -0.051759f ) },	{ B3_FIX( 0.051638f ), B3_FIX( 0.086341f ), B3_FIX( -0.010364f ) },	{ B3_FIX( 0.051674f ), B3_FIX( 0.086341f ), B3_FIX( 0.010229f ) },
+	{ B3_FIX( -0.044042f ), B3_FIX( 0.086341f ), B3_FIX( -0.029222f ) },	{ B3_FIX( 0.043827f ), B3_FIX( 0.086341f ), B3_FIX( 0.029268f ) },	{ B3_FIX( -0.051889f ), B3_FIX( 0.086341f ), B3_FIX( -0.010183f ) },
+	{ B3_FIX( -0.043939f ), B3_FIX( 0.086341f ), B3_FIX( 0.029421f ) },	{ B3_FIX( -0.029506f ), B3_FIX( 0.086341f ), B3_FIX( -0.043809f ) },	{ B3_FIX( 0.035354f ), B3_FIX( 0.070897f ), B3_FIX( 0.035658f ) },
+	{ B3_FIX( 0.035354f ), B3_FIX( -0.069397f ), B3_FIX( 0.035658f ) },	{ B3_FIX( -0.035498f ), B3_FIX( 0.070897f ), B3_FIX( 0.035658f ) },	{ B3_FIX( -0.035498f ), B3_FIX( -0.069397f ), B3_FIX( 0.035658f ) },
+	{ B3_FIX( 0.035354f ), B3_FIX( -0.069397f ), B3_FIX( 0.365503f ) },	{ B3_FIX( 0.035354f ), B3_FIX( 0.070897f ), B3_FIX( 0.365503f ) },	{ B3_FIX( -0.035498f ), B3_FIX( 0.070897f ), B3_FIX( 0.365503f ) },
+	{ B3_FIX( -0.035498f ), B3_FIX( -0.069397f ), B3_FIX( 0.365503f ) },	{ B3_FIX( 0.035354f ), B3_FIX( 0.070897f ), B3_FIX( -0.365033f ) },	{ B3_FIX( 0.035354f ), B3_FIX( -0.069397f ), B3_FIX( -0.365033f ) },
+	{ B3_FIX( -0.035498f ), B3_FIX( 0.070897f ), B3_FIX( -0.365033f ) },	{ B3_FIX( -0.035498f ), B3_FIX( -0.069397f ), B3_FIX( -0.365033f ) }, { B3_FIX( 0.035354f ), B3_FIX( -0.069397f ), B3_FIX( -0.035187f ) },
+	{ B3_FIX( 0.035354f ), B3_FIX( 0.070897f ), B3_FIX( -0.035187f ) },	{ B3_FIX( -0.035498f ), B3_FIX( 0.070897f ), B3_FIX( -0.035187f ) },	{ B3_FIX( -0.035498f ), B3_FIX( -0.069397f ), B3_FIX( -0.035187f ) },
+	{ B3_FIX( -0.035494f ), B3_FIX( -0.069397f ), B3_FIX( -0.035191f ) }, { B3_FIX( -0.365340f ), B3_FIX( -0.069397f ), B3_FIX( -0.035191f ) }, { B3_FIX( -0.035494f ), B3_FIX( 0.070897f ), B3_FIX( -0.035191f ) },
+	{ B3_FIX( -0.365340f ), B3_FIX( 0.070897f ), B3_FIX( -0.035191f ) },	{ B3_FIX( -0.365340f ), B3_FIX( -0.069397f ), B3_FIX( 0.035661f ) },	{ B3_FIX( -0.035494f ), B3_FIX( -0.069397f ), B3_FIX( 0.035661f ) },
+	{ B3_FIX( -0.035494f ), B3_FIX( 0.070897f ), B3_FIX( 0.035661f ) },	{ B3_FIX( -0.365340f ), B3_FIX( 0.070897f ), B3_FIX( 0.035661f ) },	{ B3_FIX( 0.035350f ), B3_FIX( 0.070897f ), B3_FIX( -0.035191f ) },
+	{ B3_FIX( 0.365196f ), B3_FIX( 0.070897f ), B3_FIX( -0.035191f ) },	{ B3_FIX( 0.035350f ), B3_FIX( -0.069397f ), B3_FIX( -0.035191f ) },	{ B3_FIX( 0.365196f ), B3_FIX( -0.069397f ), B3_FIX( -0.035191f ) },
+	{ B3_FIX( 0.365196f ), B3_FIX( 0.070897f ), B3_FIX( 0.035661f ) },	{ B3_FIX( 0.035350f ), B3_FIX( 0.070897f ), B3_FIX( 0.035661f ) },	{ B3_FIX( 0.035350f ), B3_FIX( -0.069397f ), B3_FIX( 0.035661f ) },
+	{ B3_FIX( 0.365196f ), B3_FIX( -0.069397f ), B3_FIX( 0.035661f ) },	{ B3_FIX( -0.070802f ), B3_FIX( 0.086337f ), B3_FIX( 0.355420f ) },	{ B3_FIX( -0.070802f ), B3_FIX( -0.084705f ), B3_FIX( 0.355420f ) },
+	{ B3_FIX( -0.097081f ), B3_FIX( 0.086335f ), B3_FIX( 0.487537f ) },	{ B3_FIX( -0.097081f ), B3_FIX( -0.084704f ), B3_FIX( 0.487537f ) },	{ B3_FIX( -0.000108f ), B3_FIX( 0.086337f ), B3_FIX( 0.362383f ) },
+	{ B3_FIX( -0.000108f ), B3_FIX( 0.086335f ), B3_FIX( 0.497088f ) },	{ B3_FIX( -0.000108f ), B3_FIX( -0.084704f ), B3_FIX( 0.497088f ) },	{ B3_FIX( -0.000108f ), B3_FIX( -0.084705f ), B3_FIX( 0.362383f ) },
+	{ B3_FIX( -0.138787f ), B3_FIX( -0.084705f ), B3_FIX( 0.334799f ) },	{ B3_FIX( -0.138787f ), B3_FIX( 0.086337f ), B3_FIX( 0.334799f ) },	{ B3_FIX( -0.070810f ), B3_FIX( -0.084705f ), B3_FIX( 0.355419f ) },
+	{ B3_FIX( -0.070810f ), B3_FIX( 0.086337f ), B3_FIX( 0.355419f ) },	{ B3_FIX( -0.097090f ), B3_FIX( 0.086335f ), B3_FIX( 0.487536f ) },	{ B3_FIX( -0.190336f ), B3_FIX( 0.086335f ), B3_FIX( 0.459250f ) },
+	{ B3_FIX( -0.190336f ), B3_FIX( -0.084704f ), B3_FIX( 0.459250f ) },	{ B3_FIX( -0.097090f ), B3_FIX( -0.084704f ), B3_FIX( 0.487536f ) },	{ B3_FIX( -0.138795f ), B3_FIX( 0.086337f ), B3_FIX( 0.334796f ) },
+	{ B3_FIX( -0.138795f ), B3_FIX( -0.084705f ), B3_FIX( 0.334796f ) },	{ B3_FIX( -0.201442f ), B3_FIX( 0.086337f ), B3_FIX( 0.301310f ) },	{ B3_FIX( -0.201442f ), B3_FIX( -0.084705f ), B3_FIX( 0.301310f ) },
+	{ B3_FIX( -0.276280f ), B3_FIX( -0.084704f ), B3_FIX( 0.413313f ) },	{ B3_FIX( -0.276280f ), B3_FIX( 0.086335f ), B3_FIX( 0.413313f ) },	{ B3_FIX( -0.190344f ), B3_FIX( 0.086335f ), B3_FIX( 0.459247f ) },
+	{ B3_FIX( -0.190344f ), B3_FIX( -0.084704f ), B3_FIX( 0.459247f ) },	{ B3_FIX( -0.201450f ), B3_FIX( -0.084705f ), B3_FIX( 0.301306f ) },	{ B3_FIX( -0.256361f ), B3_FIX( -0.084705f ), B3_FIX( 0.256241f ) },
+	{ B3_FIX( -0.201450f ), B3_FIX( 0.086337f ), B3_FIX( 0.301306f ) },	{ B3_FIX( -0.256361f ), B3_FIX( 0.086337f ), B3_FIX( 0.256241f ) },	{ B3_FIX( -0.351612f ), B3_FIX( 0.086335f ), B3_FIX( 0.351492f ) },
+	{ B3_FIX( -0.351612f ), B3_FIX( -0.084704f ), B3_FIX( 0.351492f ) },	{ B3_FIX( -0.276288f ), B3_FIX( 0.086335f ), B3_FIX( 0.413309f ) },	{ B3_FIX( -0.276288f ), B3_FIX( -0.084704f ), B3_FIX( 0.413309f ) },
+	{ B3_FIX( -0.301431f ), B3_FIX( -0.084705f ), B3_FIX( 0.201325f ) },	{ B3_FIX( -0.413435f ), B3_FIX( -0.084704f ), B3_FIX( 0.276163f ) },	{ B3_FIX( -0.413435f ), B3_FIX( 0.086335f ), B3_FIX( 0.276163f ) },
+	{ B3_FIX( -0.301431f ), B3_FIX( 0.086337f ), B3_FIX( 0.201325f ) },	{ B3_FIX( -0.256367f ), B3_FIX( -0.084705f ), B3_FIX( 0.256236f ) },	{ B3_FIX( -0.256367f ), B3_FIX( 0.086337f ), B3_FIX( 0.256236f ) },
+	{ B3_FIX( -0.351618f ), B3_FIX( 0.086335f ), B3_FIX( 0.351487f ) },	{ B3_FIX( -0.351618f ), B3_FIX( -0.084704f ), B3_FIX( 0.351487f ) },	{ B3_FIX( -0.334922f ), B3_FIX( -0.084705f ), B3_FIX( 0.138670f ) },
+	{ B3_FIX( -0.459374f ), B3_FIX( -0.084704f ), B3_FIX( 0.190220f ) },	{ B3_FIX( -0.459374f ), B3_FIX( 0.086335f ), B3_FIX( 0.190220f ) },	{ B3_FIX( -0.334922f ), B3_FIX( 0.086337f ), B3_FIX( 0.138670f ) },
+	{ B3_FIX( -0.301436f ), B3_FIX( 0.086337f ), B3_FIX( 0.201318f ) },	{ B3_FIX( -0.301436f ), B3_FIX( -0.084705f ), B3_FIX( 0.201318f ) },	{ B3_FIX( -0.413440f ), B3_FIX( 0.086335f ), B3_FIX( 0.276156f ) },
+	{ B3_FIX( -0.413440f ), B3_FIX( -0.084704f ), B3_FIX( 0.276156f ) },	{ B3_FIX( -0.487663f ), B3_FIX( -0.084704f ), B3_FIX( 0.096966f ) },	{ B3_FIX( -0.355546f ), B3_FIX( -0.084705f ), B3_FIX( 0.070686f ) },
+	{ B3_FIX( -0.459377f ), B3_FIX( -0.084704f ), B3_FIX( 0.190212f ) },	{ B3_FIX( -0.334926f ), B3_FIX( -0.084705f ), B3_FIX( 0.138663f ) },	{ B3_FIX( -0.355546f ), B3_FIX( 0.086337f ), B3_FIX( 0.070686f ) },
+	{ B3_FIX( -0.334926f ), B3_FIX( 0.086337f ), B3_FIX( 0.138663f ) },	{ B3_FIX( -0.487663f ), B3_FIX( 0.086335f ), B3_FIX( 0.096966f ) },	{ B3_FIX( -0.459377f ), B3_FIX( 0.086335f ), B3_FIX( 0.190212f ) },
+	{ B3_FIX( -0.362511f ), B3_FIX( -0.084705f ), B3_FIX( -0.000016f ) }, { B3_FIX( -0.355549f ), B3_FIX( -0.084705f ), B3_FIX( 0.070678f ) },	{ B3_FIX( -0.497217f ), B3_FIX( -0.084704f ), B3_FIX( -0.000016f ) },
+	{ B3_FIX( -0.487665f ), B3_FIX( -0.084704f ), B3_FIX( 0.096957f ) },	{ B3_FIX( -0.497217f ), B3_FIX( 0.086335f ), B3_FIX( -0.000016f ) },	{ B3_FIX( -0.362511f ), B3_FIX( 0.086337f ), B3_FIX( -0.000016f ) },
+	{ B3_FIX( -0.355549f ), B3_FIX( 0.086337f ), B3_FIX( 0.070678f ) },	{ B3_FIX( -0.487665f ), B3_FIX( 0.086335f ), B3_FIX( 0.096957f ) },	{ B3_FIX( -0.362512f ), B3_FIX( 0.086337f ), B3_FIX( -0.000024f ) },
+	{ B3_FIX( -0.362512f ), B3_FIX( -0.084705f ), B3_FIX( -0.000024f ) }, { B3_FIX( -0.355549f ), B3_FIX( 0.086337f ), B3_FIX( -0.070717f ) },	{ B3_FIX( -0.355549f ), B3_FIX( -0.084705f ), B3_FIX( -0.070717f ) },
+	{ B3_FIX( -0.497217f ), B3_FIX( -0.084704f ), B3_FIX( -0.000024f ) }, { B3_FIX( -0.487666f ), B3_FIX( -0.084704f ), B3_FIX( -0.096997f ) }, { B3_FIX( -0.497217f ), B3_FIX( 0.086335f ), B3_FIX( -0.000024f ) },
+	{ B3_FIX( -0.487666f ), B3_FIX( 0.086335f ), B3_FIX( -0.096997f ) },	{ B3_FIX( -0.334927f ), B3_FIX( -0.084705f ), B3_FIX( -0.138702f ) }, { B3_FIX( -0.355548f ), B3_FIX( 0.086337f ), B3_FIX( -0.070726f ) },
+	{ B3_FIX( -0.355548f ), B3_FIX( -0.084705f ), B3_FIX( -0.070726f ) }, { B3_FIX( -0.334927f ), B3_FIX( 0.086337f ), B3_FIX( -0.138702f ) },	{ B3_FIX( -0.487665f ), B3_FIX( -0.084704f ), B3_FIX( -0.097005f ) },
+	{ B3_FIX( -0.459379f ), B3_FIX( -0.084704f ), B3_FIX( -0.190252f ) }, { B3_FIX( -0.487665f ), B3_FIX( 0.086335f ), B3_FIX( -0.097005f ) },	{ B3_FIX( -0.459379f ), B3_FIX( 0.086335f ), B3_FIX( -0.190252f ) },
+	{ B3_FIX( -0.413442f ), B3_FIX( -0.084704f ), B3_FIX( -0.276196f ) }, { B3_FIX( -0.301439f ), B3_FIX( -0.084705f ), B3_FIX( -0.201358f ) }, { B3_FIX( -0.334925f ), B3_FIX( -0.084705f ), B3_FIX( -0.138710f ) },
+	{ B3_FIX( -0.459376f ), B3_FIX( -0.084704f ), B3_FIX( -0.190260f ) }, { B3_FIX( -0.334925f ), B3_FIX( 0.086337f ), B3_FIX( -0.138710f ) },	{ B3_FIX( -0.301439f ), B3_FIX( 0.086337f ), B3_FIX( -0.201358f ) },
+	{ B3_FIX( -0.459376f ), B3_FIX( 0.086335f ), B3_FIX( -0.190260f ) },	{ B3_FIX( -0.413442f ), B3_FIX( 0.086335f ), B3_FIX( -0.276196f ) },	{ B3_FIX( -0.256370f ), B3_FIX( -0.084705f ), B3_FIX( -0.256276f ) },
+	{ B3_FIX( -0.301434f ), B3_FIX( 0.086337f ), B3_FIX( -0.201365f ) },	{ B3_FIX( -0.301434f ), B3_FIX( -0.084705f ), B3_FIX( -0.201365f ) }, { B3_FIX( -0.256370f ), B3_FIX( 0.086337f ), B3_FIX( -0.256276f ) },
+	{ B3_FIX( -0.413438f ), B3_FIX( 0.086335f ), B3_FIX( -0.276203f ) },	{ B3_FIX( -0.351621f ), B3_FIX( 0.086335f ), B3_FIX( -0.351527f ) },	{ B3_FIX( -0.413438f ), B3_FIX( -0.084704f ), B3_FIX( -0.276203f ) },
+	{ B3_FIX( -0.351621f ), B3_FIX( -0.084704f ), B3_FIX( -0.351527f ) }, { B3_FIX( -0.256364f ), B3_FIX( -0.084705f ), B3_FIX( -0.256283f ) }, { B3_FIX( -0.201453f ), B3_FIX( 0.086337f ), B3_FIX( -0.301347f ) },
+	{ B3_FIX( -0.256364f ), B3_FIX( 0.086337f ), B3_FIX( -0.256283f ) },	{ B3_FIX( -0.201453f ), B3_FIX( -0.084705f ), B3_FIX( -0.301347f ) }, { B3_FIX( -0.276292f ), B3_FIX( -0.084704f ), B3_FIX( -0.413350f ) },
+	{ B3_FIX( -0.351615f ), B3_FIX( -0.084704f ), B3_FIX( -0.351534f ) }, { B3_FIX( -0.351615f ), B3_FIX( 0.086335f ), B3_FIX( -0.351534f ) },	{ B3_FIX( -0.276292f ), B3_FIX( 0.086335f ), B3_FIX( -0.413350f ) },
+	{ B3_FIX( -0.201447f ), B3_FIX( -0.084705f ), B3_FIX( -0.301352f ) }, { B3_FIX( -0.276285f ), B3_FIX( -0.084704f ), B3_FIX( -0.413355f ) }, { B3_FIX( -0.138799f ), B3_FIX( -0.084705f ), B3_FIX( -0.334838f ) },
+	{ B3_FIX( -0.190349f ), B3_FIX( -0.084704f ), B3_FIX( -0.459289f ) }, { B3_FIX( -0.276285f ), B3_FIX( 0.086335f ), B3_FIX( -0.413355f ) },	{ B3_FIX( -0.201447f ), B3_FIX( 0.086337f ), B3_FIX( -0.301352f ) },
+	{ B3_FIX( -0.190349f ), B3_FIX( 0.086335f ), B3_FIX( -0.459289f ) },	{ B3_FIX( -0.138799f ), B3_FIX( 0.086337f ), B3_FIX( -0.334838f ) },	{ B3_FIX( -0.190341f ), B3_FIX( 0.086335f ), B3_FIX( -0.459293f ) },
+	{ B3_FIX( -0.190341f ), B3_FIX( -0.084704f ), B3_FIX( -0.459293f ) }, { B3_FIX( -0.138791f ), B3_FIX( -0.084705f ), B3_FIX( -0.334842f ) }, { B3_FIX( -0.138791f ), B3_FIX( 0.086337f ), B3_FIX( -0.334842f ) },
+	{ B3_FIX( -0.070815f ), B3_FIX( 0.086337f ), B3_FIX( -0.355462f ) },	{ B3_FIX( -0.070815f ), B3_FIX( -0.084705f ), B3_FIX( -0.355462f ) }, { B3_FIX( -0.097095f ), B3_FIX( 0.086335f ), B3_FIX( -0.487579f ) },
+	{ B3_FIX( -0.097095f ), B3_FIX( -0.084704f ), B3_FIX( -0.487579f ) }, { B3_FIX( -0.070807f ), B3_FIX( 0.086337f ), B3_FIX( -0.355464f ) },	{ B3_FIX( -0.097086f ), B3_FIX( 0.086335f ), B3_FIX( -0.487581f ) },
+	{ B3_FIX( -0.097086f ), B3_FIX( -0.084704f ), B3_FIX( -0.487581f ) }, { B3_FIX( -0.070807f ), B3_FIX( -0.084705f ), B3_FIX( -0.355464f ) }, { B3_FIX( -0.000113f ), B3_FIX( -0.084705f ), B3_FIX( -0.362427f ) },
+	{ B3_FIX( -0.000113f ), B3_FIX( 0.086337f ), B3_FIX( -0.362427f ) },	{ B3_FIX( -0.000113f ), B3_FIX( 0.086335f ), B3_FIX( -0.497132f ) },	{ B3_FIX( -0.000113f ), B3_FIX( -0.084704f ), B3_FIX( -0.497132f ) },
+	{ B3_FIX( 0.070588f ), B3_FIX( 0.086337f ), B3_FIX( -0.355465f ) },	{ B3_FIX( 0.096868f ), B3_FIX( -0.084704f ), B3_FIX( -0.487582f ) },	{ B3_FIX( 0.096868f ), B3_FIX( 0.086335f ), B3_FIX( -0.487582f ) },
+	{ B3_FIX( 0.070588f ), B3_FIX( -0.084705f ), B3_FIX( -0.355465f ) },	{ B3_FIX( -0.000105f ), B3_FIX( 0.086337f ), B3_FIX( -0.362427f ) },	{ B3_FIX( -0.000105f ), B3_FIX( 0.086335f ), B3_FIX( -0.497133f ) },
+	{ B3_FIX( -0.000105f ), B3_FIX( -0.084704f ), B3_FIX( -0.497133f ) }, { B3_FIX( -0.000105f ), B3_FIX( -0.084705f ), B3_FIX( -0.362427f ) }, { B3_FIX( 0.190123f ), B3_FIX( -0.084704f ), B3_FIX( -0.459294f ) },
+	{ B3_FIX( 0.190123f ), B3_FIX( 0.086335f ), B3_FIX( -0.459294f ) },	{ B3_FIX( 0.138573f ), B3_FIX( -0.084705f ), B3_FIX( -0.334843f ) },	{ B3_FIX( 0.138573f ), B3_FIX( 0.086337f ), B3_FIX( -0.334843f ) },
+	{ B3_FIX( 0.070597f ), B3_FIX( 0.086337f ), B3_FIX( -0.355463f ) },	{ B3_FIX( 0.070597f ), B3_FIX( -0.084705f ), B3_FIX( -0.355463f ) },	{ B3_FIX( 0.096876f ), B3_FIX( -0.084704f ), B3_FIX( -0.487580f ) },
+	{ B3_FIX( 0.096876f ), B3_FIX( 0.086335f ), B3_FIX( -0.487580f ) },	{ B3_FIX( 0.201229f ), B3_FIX( -0.084705f ), B3_FIX( -0.301354f ) },	{ B3_FIX( 0.276067f ), B3_FIX( -0.084704f ), B3_FIX( -0.413358f ) },
+	{ B3_FIX( 0.201229f ), B3_FIX( 0.086337f ), B3_FIX( -0.301354f ) },	{ B3_FIX( 0.138581f ), B3_FIX( -0.084705f ), B3_FIX( -0.334840f ) },	{ B3_FIX( 0.138581f ), B3_FIX( 0.086337f ), B3_FIX( -0.334840f ) },
+	{ B3_FIX( 0.190131f ), B3_FIX( 0.086335f ), B3_FIX( -0.459292f ) },	{ B3_FIX( 0.276067f ), B3_FIX( 0.086335f ), B3_FIX( -0.413358f ) },	{ B3_FIX( 0.190131f ), B3_FIX( -0.084704f ), B3_FIX( -0.459292f ) },
+	{ B3_FIX( 0.201236f ), B3_FIX( 0.086337f ), B3_FIX( -0.301350f ) },	{ B3_FIX( 0.256147f ), B3_FIX( -0.084705f ), B3_FIX( -0.256286f ) },	{ B3_FIX( 0.256147f ), B3_FIX( 0.086337f ), B3_FIX( -0.256286f ) },
+	{ B3_FIX( 0.201236f ), B3_FIX( -0.084705f ), B3_FIX( -0.301350f ) },	{ B3_FIX( 0.351398f ), B3_FIX( -0.084704f ), B3_FIX( -0.351537f ) },	{ B3_FIX( 0.351398f ), B3_FIX( 0.086335f ), B3_FIX( -0.351537f ) },
+	{ B3_FIX( 0.276074f ), B3_FIX( -0.084704f ), B3_FIX( -0.413353f ) },	{ B3_FIX( 0.276074f ), B3_FIX( 0.086335f ), B3_FIX( -0.413353f ) },	{ B3_FIX( 0.301218f ), B3_FIX( -0.084705f ), B3_FIX( -0.201369f ) },
+	{ B3_FIX( 0.301218f ), B3_FIX( 0.086337f ), B3_FIX( -0.201369f ) },	{ B3_FIX( 0.256154f ), B3_FIX( -0.084705f ), B3_FIX( -0.256280f ) },	{ B3_FIX( 0.256154f ), B3_FIX( 0.086337f ), B3_FIX( -0.256280f ) },
+	{ B3_FIX( 0.413221f ), B3_FIX( 0.086335f ), B3_FIX( -0.276207f ) },	{ B3_FIX( 0.413221f ), B3_FIX( -0.084704f ), B3_FIX( -0.276207f ) },	{ B3_FIX( 0.351405f ), B3_FIX( 0.086335f ), B3_FIX( -0.351531f ) },
+	{ B3_FIX( 0.351405f ), B3_FIX( -0.084704f ), B3_FIX( -0.351531f ) },	{ B3_FIX( 0.334709f ), B3_FIX( 0.086337f ), B3_FIX( -0.138715f ) },	{ B3_FIX( 0.301223f ), B3_FIX( 0.086337f ), B3_FIX( -0.201362f ) },
+	{ B3_FIX( 0.334709f ), B3_FIX( -0.084705f ), B3_FIX( -0.138715f ) },	{ B3_FIX( 0.301223f ), B3_FIX( -0.084705f ), B3_FIX( -0.201362f ) },	{ B3_FIX( 0.459160f ), B3_FIX( -0.084704f ), B3_FIX( -0.190264f ) },
+	{ B3_FIX( 0.459160f ), B3_FIX( 0.086335f ), B3_FIX( -0.190264f ) },	{ B3_FIX( 0.413226f ), B3_FIX( 0.086335f ), B3_FIX( -0.276200f ) },	{ B3_FIX( 0.413226f ), B3_FIX( -0.084704f ), B3_FIX( -0.276200f ) },
+	{ B3_FIX( 0.334713f ), B3_FIX( -0.084705f ), B3_FIX( -0.138707f ) },	{ B3_FIX( 0.355333f ), B3_FIX( -0.084705f ), B3_FIX( -0.070731f ) },	{ B3_FIX( 0.334713f ), B3_FIX( 0.086337f ), B3_FIX( -0.138707f ) },
+	{ B3_FIX( 0.355333f ), B3_FIX( 0.086337f ), B3_FIX( -0.070731f ) },	{ B3_FIX( 0.459164f ), B3_FIX( 0.086335f ), B3_FIX( -0.190257f ) },	{ B3_FIX( 0.487450f ), B3_FIX( 0.086335f ), B3_FIX( -0.097010f ) },
+	{ B3_FIX( 0.487450f ), B3_FIX( -0.084704f ), B3_FIX( -0.097010f ) },	{ B3_FIX( 0.459164f ), B3_FIX( -0.084704f ), B3_FIX( -0.190257f ) },	{ B3_FIX( 0.355335f ), B3_FIX( -0.084705f ), B3_FIX( -0.070722f ) },
+	{ B3_FIX( 0.362298f ), B3_FIX( -0.084705f ), B3_FIX( -0.000029f ) },	{ B3_FIX( 0.355335f ), B3_FIX( 0.086337f ), B3_FIX( -0.070722f ) },	{ B3_FIX( 0.362298f ), B3_FIX( 0.086337f ), B3_FIX( -0.000029f ) },
+	{ B3_FIX( 0.497003f ), B3_FIX( -0.084704f ), B3_FIX( -0.000029f ) },	{ B3_FIX( 0.497003f ), B3_FIX( 0.086335f ), B3_FIX( -0.000029f ) },	{ B3_FIX( 0.487452f ), B3_FIX( 0.086335f ), B3_FIX( -0.097002f ) },
+	{ B3_FIX( 0.487452f ), B3_FIX( -0.084704f ), B3_FIX( -0.097002f ) },	{ B3_FIX( 0.362298f ), B3_FIX( -0.084705f ), B3_FIX( -0.000021f ) },	{ B3_FIX( 0.497003f ), B3_FIX( -0.084704f ), B3_FIX( -0.000021f ) },
+	{ B3_FIX( 0.355336f ), B3_FIX( -0.084705f ), B3_FIX( 0.070673f ) },	{ B3_FIX( 0.487453f ), B3_FIX( -0.084704f ), B3_FIX( 0.096952f ) },	{ B3_FIX( 0.497003f ), B3_FIX( 0.086335f ), B3_FIX( -0.000021f ) },
+	{ B3_FIX( 0.362298f ), B3_FIX( 0.086337f ), B3_FIX( -0.000021f ) },	{ B3_FIX( 0.355336f ), B3_FIX( 0.086337f ), B3_FIX( 0.070673f ) },	{ B3_FIX( 0.487453f ), B3_FIX( 0.086335f ), B3_FIX( 0.096952f ) },
+	{ B3_FIX( 0.355334f ), B3_FIX( -0.084705f ), B3_FIX( 0.070681f ) },	{ B3_FIX( 0.355334f ), B3_FIX( 0.086337f ), B3_FIX( 0.070681f ) },	{ B3_FIX( 0.487451f ), B3_FIX( 0.086335f ), B3_FIX( 0.096961f ) },
+	{ B3_FIX( 0.487451f ), B3_FIX( -0.084704f ), B3_FIX( 0.096961f ) },	{ B3_FIX( 0.334714f ), B3_FIX( -0.084705f ), B3_FIX( 0.138658f ) },	{ B3_FIX( 0.459165f ), B3_FIX( -0.084704f ), B3_FIX( 0.190207f ) },
+	{ B3_FIX( 0.334714f ), B3_FIX( 0.086337f ), B3_FIX( 0.138658f ) },	{ B3_FIX( 0.459165f ), B3_FIX( 0.086335f ), B3_FIX( 0.190207f ) },	{ B3_FIX( 0.334711f ), B3_FIX( 0.086337f ), B3_FIX( 0.138666f ) },
+	{ B3_FIX( 0.301225f ), B3_FIX( 0.086337f ), B3_FIX( 0.201313f ) },	{ B3_FIX( 0.459163f ), B3_FIX( 0.086335f ), B3_FIX( 0.190215f ) },	{ B3_FIX( 0.413229f ), B3_FIX( 0.086335f ), B3_FIX( 0.276151f ) },
+	{ B3_FIX( 0.334711f ), B3_FIX( -0.084705f ), B3_FIX( 0.138666f ) },	{ B3_FIX( 0.301225f ), B3_FIX( -0.084705f ), B3_FIX( 0.201313f ) },	{ B3_FIX( 0.413229f ), B3_FIX( -0.084704f ), B3_FIX( 0.276151f ) },
+	{ B3_FIX( 0.459163f ), B3_FIX( -0.084704f ), B3_FIX( 0.190215f ) },	{ B3_FIX( 0.301221f ), B3_FIX( -0.084705f ), B3_FIX( 0.201321f ) },	{ B3_FIX( 0.256157f ), B3_FIX( -0.084705f ), B3_FIX( 0.256232f ) },
+	{ B3_FIX( 0.301221f ), B3_FIX( 0.086337f ), B3_FIX( 0.201321f ) },	{ B3_FIX( 0.256157f ), B3_FIX( 0.086337f ), B3_FIX( 0.256232f ) },	{ B3_FIX( 0.413224f ), B3_FIX( -0.084704f ), B3_FIX( 0.276159f ) },
+	{ B3_FIX( 0.413224f ), B3_FIX( 0.086335f ), B3_FIX( 0.276159f ) },	{ B3_FIX( 0.351408f ), B3_FIX( 0.086335f ), B3_FIX( 0.351483f ) },	{ B3_FIX( 0.351408f ), B3_FIX( -0.084704f ), B3_FIX( 0.351483f ) },
+	{ B3_FIX( 0.201240f ), B3_FIX( -0.084705f ), B3_FIX( 0.301302f ) },	{ B3_FIX( 0.201240f ), B3_FIX( 0.086337f ), B3_FIX( 0.301302f ) },	{ B3_FIX( 0.256151f ), B3_FIX( -0.084705f ), B3_FIX( 0.256238f ) },
+	{ B3_FIX( 0.256151f ), B3_FIX( 0.086337f ), B3_FIX( 0.256238f ) },	{ B3_FIX( 0.351402f ), B3_FIX( 0.086335f ), B3_FIX( 0.351489f ) },	{ B3_FIX( 0.351402f ), B3_FIX( -0.084704f ), B3_FIX( 0.351489f ) },
+	{ B3_FIX( 0.276078f ), B3_FIX( 0.086335f ), B3_FIX( 0.413305f ) },	{ B3_FIX( 0.276078f ), B3_FIX( -0.084704f ), B3_FIX( 0.413305f ) },	{ B3_FIX( 0.138586f ), B3_FIX( -0.084705f ), B3_FIX( 0.334793f ) },
+	{ B3_FIX( 0.201233f ), B3_FIX( -0.084705f ), B3_FIX( 0.301307f ) },	{ B3_FIX( 0.190135f ), B3_FIX( -0.084704f ), B3_FIX( 0.459244f ) },	{ B3_FIX( 0.276071f ), B3_FIX( -0.084704f ), B3_FIX( 0.413311f ) },
+	{ B3_FIX( 0.201233f ), B3_FIX( 0.086337f ), B3_FIX( 0.301307f ) },	{ B3_FIX( 0.138586f ), B3_FIX( 0.086337f ), B3_FIX( 0.334793f ) },	{ B3_FIX( 0.276071f ), B3_FIX( 0.086335f ), B3_FIX( 0.413311f ) },
+	{ B3_FIX( 0.190135f ), B3_FIX( 0.086335f ), B3_FIX( 0.459244f ) },	{ B3_FIX( 0.138578f ), B3_FIX( -0.084705f ), B3_FIX( 0.334797f ) },	{ B3_FIX( 0.070602f ), B3_FIX( -0.084705f ), B3_FIX( 0.355417f ) },
+	{ B3_FIX( 0.138578f ), B3_FIX( 0.086337f ), B3_FIX( 0.334797f ) },	{ B3_FIX( 0.070602f ), B3_FIX( 0.086337f ), B3_FIX( 0.355417f ) },	{ B3_FIX( 0.190127f ), B3_FIX( 0.086335f ), B3_FIX( 0.459248f ) },
+	{ B3_FIX( 0.190127f ), B3_FIX( -0.084704f ), B3_FIX( 0.459248f ) },	{ B3_FIX( 0.096881f ), B3_FIX( 0.086335f ), B3_FIX( 0.487534f ) },	{ B3_FIX( 0.096881f ), B3_FIX( -0.084704f ), B3_FIX( 0.487534f ) },
+	{ B3_FIX( 0.070593f ), B3_FIX( -0.084705f ), B3_FIX( 0.355419f ) },	{ B3_FIX( 0.096873f ), B3_FIX( 0.086335f ), B3_FIX( 0.487536f ) },	{ B3_FIX( 0.096873f ), B3_FIX( -0.084704f ), B3_FIX( 0.487536f ) },
+	{ B3_FIX( 0.070593f ), B3_FIX( 0.086337f ), B3_FIX( 0.355419f ) },	{ B3_FIX( -0.000100f ), B3_FIX( 0.086337f ), B3_FIX( 0.362382f ) },	{ B3_FIX( -0.000100f ), B3_FIX( 0.086335f ), B3_FIX( 0.497087f ) },
+	{ B3_FIX( -0.000100f ), B3_FIX( -0.084704f ), B3_FIX( 0.497087f ) },	{ B3_FIX( -0.000100f ), B3_FIX( -0.084705f ), B3_FIX( 0.362382f ) },
+};
+
+typedef struct WheelHullSpan
+{
+	int offset;
+	int count;
+} WheelHullSpan;
+static const WheelHullSpan s_metalWheel1Hulls[37] = {
+	{ 0, 29 },	{ 29, 8 },	{ 37, 8 },	{ 45, 8 },	{ 53, 8 },	{ 61, 8 },	{ 69, 8 },	{ 77, 8 },	{ 85, 8 },	{ 93, 8 },
+	{ 101, 8 }, { 109, 8 }, { 117, 8 }, { 125, 8 }, { 133, 8 }, { 141, 8 }, { 149, 8 }, { 157, 8 }, { 165, 8 }, { 173, 8 },
+	{ 181, 8 }, { 189, 8 }, { 197, 8 }, { 205, 8 }, { 213, 8 }, { 221, 8 }, { 229, 8 }, { 237, 8 }, { 245, 8 }, { 253, 8 },
+	{ 261, 8 }, { 269, 8 }, { 277, 8 }, { 285, 8 }, { 293, 8 }, { 301, 8 }, { 309, 8 },
+};
+#define s_metalWheel1HullCount 37
+
+// 30 metal_wheel1 props (37-piece convex decompositions) stacked. Body-pair contact merging
+// lets them settle and sleep instead of wobbling.
+class WheelStack : public Sample
+{
+public:
+	explicit WheelStack( SampleContext* context )
+		: Sample( context )
+	{
+		if ( context->restart == false )
+		{
+			m_camera->SetView( 0.0f, 12.0f, 5.0f, SamplePos( { B3_FIX( 0.0f ), B3_FIX( 0.85f ), B3_FIX( 0.0f ) } ) );
+		}
+
+		AddGroundBox( 10.0f );
+
+		constexpr int N = 512;
+		b3Vec3 buffer[N];
+		int bufferCount = 0;
+		for ( int h = 0; h < s_metalWheel1HullCount; ++h )
+		{
+			const WheelHullSpan& span = s_metalWheel1Hulls[h];
+			m_hulls[h] = b3CreateHull( &s_metalWheel1Verts[span.offset], span.count, span.count );
+
+			// Fixed-point quickhull returns NULL instead of building a degenerate hull
+			if ( m_hulls[h] == nullptr )
+			{
+				continue;
+			}
+
+			const b3Vec3* points = b3GetHullPoints( m_hulls[h] );
+			for ( int j = 0; j < m_hulls[h]->vertexCount && bufferCount < N; ++j )
+			{
+				buffer[bufferCount] = points[j];
+				++bufferCount;
+			}
+		}
+
+		// Create a single hull that wraps the input hulls.
+		b3HullData* wheelHull = b3CreateHull( buffer, bufferCount, bufferCount );
+		if ( wheelHull == nullptr )
+		{
+			return;
+		}
+
+		const b3Fixed height = B3_FIX( 0.171f );
+		const b3Fixed spacing = height + B3_FIX( 0.006f );
+		const b3Fixed startY = height / 2 + B3_FIX( 0.004f );
+
+		b3ShapeDef shapeDef = b3DefaultShapeDef();
+		shapeDef.baseMaterial.friction = B3_FIX( 0.6f );
+
+		for ( int i = 0; i < m_wheelCount; ++i )
+		{
+			b3BodyDef bodyDef = b3DefaultBodyDef();
+			bodyDef.type = b3_dynamicBody;
+			bodyDef.name = "wheel";
+			bodyDef.position = SamplePos( { B3_FIX( 0.0f ), startY + i * spacing, B3_FIX( 0.0f ) } );
+			b3BodyId bodyId = b3CreateBody( m_worldId, &bodyDef );
+
+			//for ( int h = 0; h < s_metalWheel1HullCount; ++h )
+			//{
+			//	b3CreateHullShape( bodyId, &shapeDef, m_hulls[h] );
+			//}
+
+			// Using a single hull improves the simulation.
+			b3CreateHullShape( bodyId, &shapeDef, wheelHull );
+		}
+
+		b3DestroyHull( wheelHull );
+
+		b3World_SetContactTuning( m_worldId, B3_FIX( 240.0f ), B3_FIX( 10.0f ), B3_FIX( 3.0f ) );
+	}
+
+	~WheelStack() override
+	{
+		for ( int h = 0; h < s_metalWheel1HullCount; ++h )
+		{
+			if ( m_hulls[h] != nullptr )
+			{
+				b3DestroyHull( m_hulls[h] );
+			}
+		}
+	}
+
+	void Step() override
+	{
+		Sample::Step();
+
+		b3Profile p = b3World_GetProfile( m_worldId );
+		float substepRate = m_context->hertz * m_context->subStepCount;
+		float effectiveHz = 0.125f * substepRate < 240.0f ? 0.125f * substepRate : 240.0f;
+		double stepMs = b3FixToDouble( p.step );
+		double collideMs = b3FixToDouble( p.collide );
+		double solveMs = b3FixToDouble( p.solve );
+
+		DrawTextLine( "wheels %d, hull pieces/wheel %d (%d total shapes)", m_wheelCount, s_metalWheel1HullCount,
+					  m_wheelCount * s_metalWheel1HullCount );
+		DrawTextLine( "step %.0f hz, sub-steps %d -> substep rate %.0f hz", m_context->hertz, m_context->subStepCount,
+					  substepRate );
+		DrawTextLine( "eff contact hz = min(240, %.0f) = %.0f", 0.125f * substepRate, effectiveHz );
+		DrawTextLine( "step %.3f ms | collide %.3f ms (%.0f%%) | solve %.3f ms (%.0f%%)", stepMs, collideMs,
+					  stepMs > 0.0 ? 100.0 * collideMs / stepMs : 0.0, solveMs, stepMs > 0.0 ? 100.0 * solveMs / stepMs : 0.0 );
+	}
+
+	static Sample* Create( SampleContext* context )
+	{
+		return new WheelStack( context );
+	}
+
+	b3HullData* m_hulls[s_metalWheel1HullCount] = {};
+	static constexpr int m_wheelCount = 30;
+};
+
+static int sampleWheelStack = RegisterSample( "Issues", "GMod Wheel Stack", WheelStack::Create );
