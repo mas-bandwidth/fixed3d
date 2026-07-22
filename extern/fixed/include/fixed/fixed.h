@@ -141,7 +141,35 @@ B3_FIXED_INLINE b3Int128 b3Int128Div( b3Int128 a, b3Int128 b )
 	// Divisor beyond 64 bits, quotient beyond 64 bits, or division by zero:
 	// fall through to the generic path (identical behavior in all three).
 #endif
+#if defined( _WIN32 )
+	// ClangCL does not link compiler-rt builtins, so native 128-bit division
+	// (__divti3) is unavailable. Restoring shift-subtract division: bit-identical
+	// results, and this path is cold -- the fast paths above catch simulation
+	// workloads. Every caller guards division by zero; if reached anyway it
+	// returns 0 deterministically instead of trapping.
+	{
+		b3UInt128 un = a < 0 ? -(b3UInt128)a : (b3UInt128)a;
+		b3UInt128 ud = b < 0 ? -(b3UInt128)b : (b3UInt128)b;
+		if ( ud == 0 )
+		{
+			return 0;
+		}
+		b3UInt128 q = 0;
+		b3UInt128 r = 0;
+		for ( int i = 127; i >= 0; i-- )
+		{
+			r = ( r << 1 ) | ( ( un >> i ) & 1 );
+			if ( r >= ud )
+			{
+				r -= ud;
+				q |= (b3UInt128)1 << i;
+			}
+		}
+		return ( a < 0 ) != ( b < 0 ) ? -(b3Int128)q : (b3Int128)q;
+	}
+#else
 	return a / b;
+#endif
 }
 
 /// Multiply two fixed-point numbers with round-to-nearest.
