@@ -7,6 +7,10 @@
 #include "base.h"
 #include "fixed.h"
 
+// The fixed-point vector/quat/matrix/transform types (b3Vec2/3, b3Quat, b3Transform,
+// b3Matrix3, b3Pos, b3WorldTransform) live in the vendored `fixed` library.
+#include "fixed/fixed_vec.h"
+
 // The scalar fixed-point transcendentals (b3CosSin, b3Atan2, b3ComputeCosSin, b3Sin,
 // b3Cos, b3UnwindAngle) live in the vendored `fixed` library, not here. Included after
 // box3d/base.h so box3d's B3_API (with its export decoration) wins.
@@ -32,55 +36,10 @@
 /// Minimum scale used for scaling collision meshes, etc.
 #define B3_MIN_SCALE B3_FIX( 0.01f )
 
-/// A 2D vector.
-typedef struct b3Vec2
-{
-	b3Fixed x;
-	b3Fixed y;
-} b3Vec2;
-
-/// A 3D vector.
-typedef struct b3Vec3
-{
-	b3Fixed x;
-	b3Fixed y;
-	b3Fixed z;
-} b3Vec3;
-
-// b3CosSin is provided by fixed/fixed_math.h (included above).
-
-/// A quaternion.
-typedef struct b3Quat
-{
-	b3Vec3 v;
-	b3Fixed s;
-} b3Quat;
-
-/// A rigid transform.
-typedef struct b3Transform
-{
-	b3Vec3 p;
-	b3Quat q;
-} b3Transform;
-
-#if defined( BOX3D_DOUBLE_PRECISION )
-// Fixed point has uniform absolute precision across the whole world, so the
-// double precision large-world mode is unnecessary and no longer supported.
-#error "BOX3D_DOUBLE_PRECISION is not supported with fixed-point math"
-#endif
-
-/// A world position. Fixed point has uniform precision everywhere, so world
-/// positions use the same representation as local vectors.
-typedef b3Vec3 b3Pos;
-
-/// A world transform. Same representation as a local transform in fixed point.
-typedef b3Transform b3WorldTransform;
-
-/// A 3x3 matrix.
-typedef struct b3Matrix3
-{
-	b3Vec3 cx, cy, cz;
-} b3Matrix3;
+// b3Vec2, b3Vec3, b3Quat, b3Transform, b3Matrix3, b3Pos, b3WorldTransform, and b3CosSin
+// are provided by the vendored `fixed` library (fixed/fixed_vec.h + fixed/fixed_math.h,
+// included above). The ops on these types remain below and are migrating to `fixed`
+// incrementally.
 
 /// Axis aligned bounding box.
 typedef struct b3AABB
