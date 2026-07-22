@@ -728,3 +728,243 @@ B3_INLINE b3WorldTransform b3MakeWorldTransform( b3Transform t )
 	return w;
 }
 
+/// Compute the determinant of a 3-by-3 matrix.
+B3_INLINE b3Fixed b3Det( b3Matrix3 m )
+{
+	return b3Dot( m.cx, b3Cross( m.cy, m.cz ) );
+}
+
+#if B3_HAS_INT128
+// Internal: 3x3 cofactors at Q32.32 in 128 bits and the determinant at Q16.48.
+// The Q48.16 determinant of a matrix with small entries (like the inertia of a
+// small body) underflows to zero, so the inverse and solve helpers work at
+// full precision internally.
+B3_INLINE b3Int128 b3Cofactor128( b3Fixed a, b3Fixed b, b3Fixed c, b3Fixed d )
+{
+	return (b3Int128)a * b - (b3Int128)c * d; // Q32.32
+}
+#endif
+
+/// Multiply a matrix times a column vector.
+B3_INLINE b3Vec3 b3MulMV( b3Matrix3 m, b3Vec3 a )
+{
+	// Kept as per-product rounding: the single-rounding form shifted the SAT
+	// edge-query geometry by an ulp and put convex hull piles into a persistent
+	// cache-miss regime (convex_pile +40%). See the round-3 notes in CLAUDE.md.
+	b3Vec3 b = {
+		b3FixMul( m.cx.x , a.x ) + b3FixMul( m.cy.x , a.y ) + b3FixMul( m.cz.x , a.z ),
+		b3FixMul( m.cx.y , a.x ) + b3FixMul( m.cy.y , a.y ) + b3FixMul( m.cz.y , a.z ),
+		b3FixMul( m.cx.z , a.x ) + b3FixMul( m.cy.z , a.y ) + b3FixMul( m.cz.z , a.z ),
+	};
+	return b;
+}
+
+/// Negate a matrix.
+B3_INLINE b3Matrix3 b3NegateMat3( b3Matrix3 a )
+{
+	return B3_LITERAL( b3Matrix3 ){
+		{ -a.cx.x, -a.cx.y, -a.cx.z },
+		{ -a.cy.x, -a.cy.y, -a.cy.z },
+		{ -a.cz.x, -a.cz.y, -a.cz.z },
+	};
+}
+
+/// Matrix addition.
+/// @return a + b
+B3_INLINE b3Matrix3 b3AddMM( b3Matrix3 a, b3Matrix3 b )
+{
+	return B3_LITERAL( b3Matrix3 ){
+		{ a.cx.x + b.cx.x, a.cx.y + b.cx.y, a.cx.z + b.cx.z },
+		{ a.cy.x + b.cy.x, a.cy.y + b.cy.y, a.cy.z + b.cy.z },
+		{ a.cz.x + b.cz.x, a.cz.y + b.cz.y, a.cz.z + b.cz.z },
+	};
+}
+
+/// Matrix subtraction.
+/// @return a - b
+B3_INLINE b3Matrix3 b3SubMM( b3Matrix3 a, b3Matrix3 b )
+{
+	return B3_LITERAL( b3Matrix3 ){
+		{ a.cx.x - b.cx.x, a.cx.y - b.cx.y, a.cx.z - b.cx.z },
+		{ a.cy.x - b.cy.x, a.cy.y - b.cy.y, a.cy.z - b.cy.z },
+		{ a.cz.x - b.cz.x, a.cz.y - b.cz.y, a.cz.z - b.cz.z },
+	};
+}
+
+/// Multiply a matrix by a scalar, component-wise.
+B3_INLINE b3Matrix3 b3MulSM( b3Fixed s, b3Matrix3 a )
+{
+	return B3_LITERAL( b3Matrix3 ){
+		{ b3FixMul( s , a.cx.x ), b3FixMul( s , a.cx.y ), b3FixMul( s , a.cx.z ) },
+		{ b3FixMul( s , a.cy.x ), b3FixMul( s , a.cy.y ), b3FixMul( s , a.cy.z ) },
+		{ b3FixMul( s , a.cz.x ), b3FixMul( s , a.cz.y ), b3FixMul( s , a.cz.z ) },
+	};
+}
+
+/// Matrix multiplication.
+/// @return a * b
+B3_INLINE b3Matrix3 b3MulMM( b3Matrix3 a, b3Matrix3 b )
+{
+	b3Matrix3 out;
+	out.cx = b3MulMV( a, b.cx );
+	out.cy = b3MulMV( a, b.cy );
+	out.cz = b3MulMV( a, b.cz );
+	return out;
+}
+
+/// Matrix transpose.
+B3_INLINE b3Matrix3 b3Transpose( b3Matrix3 m )
+{
+	b3Matrix3 out;
+	out.cx = B3_LITERAL( b3Vec3 ){ m.cx.x, m.cy.x, m.cz.x };
+	out.cy = B3_LITERAL( b3Vec3 ){ m.cx.y, m.cy.y, m.cz.y };
+	out.cz = B3_LITERAL( b3Vec3 ){ m.cx.z, m.cy.z, m.cz.z };
+
+	return out;
+}
+
+/// General matrix inverse.
+B3_INLINE b3Matrix3 b3InvertMatrix( b3Matrix3 m )
+{
+	// Full precision cofactors (Q32.32 in 128 bits) so small matrices like the
+	// inertia of tiny bodies stay invertible: a Q48.16 determinant underflows.
+	b3Int128 c00 = b3Cofactor128( m.cy.y, m.cz.z, m.cy.z, m.cz.y );
+	b3Int128 c01 = b3Cofactor128( m.cy.z, m.cz.x, m.cy.x, m.cz.z );
+	b3Int128 c02 = b3Cofactor128( m.cy.x, m.cz.y, m.cy.y, m.cz.x );
+	b3Int128 c10 = b3Cofactor128( m.cz.y, m.cx.z, m.cz.z, m.cx.y );
+	b3Int128 c11 = b3Cofactor128( m.cz.z, m.cx.x, m.cz.x, m.cx.z );
+	b3Int128 c12 = b3Cofactor128( m.cz.x, m.cx.y, m.cz.y, m.cx.x );
+	b3Int128 c20 = b3Cofactor128( m.cx.y, m.cy.z, m.cx.z, m.cy.y );
+	b3Int128 c21 = b3Cofactor128( m.cx.z, m.cy.x, m.cx.x, m.cy.z );
+	b3Int128 c22 = b3Cofactor128( m.cx.x, m.cy.y, m.cx.y, m.cy.x );
+
+	b3Int128 limit = (b3Int128)1 << 62;
+	if ( -limit < c00 && c00 < limit && -limit < c10 && c10 < limit && -limit < c20 && c20 < limit )
+	{
+		// Exact path: cofactors fit in 64 bits, determinant at Q16.48
+		b3Int128 det = (b3Int128)m.cx.x * (int64_t)c00 + (b3Int128)m.cy.x * (int64_t)c10 + (b3Int128)m.cz.x * (int64_t)c20;
+		if ( det != 0 )
+		{
+			// inverse_ij = cofactor_ji / det: (Q32.32 << 32) / Q16.48 -> Q48.16
+			b3Matrix3 out;
+			out.cx = B3_LITERAL( b3Vec3 ){ (b3Fixed)b3Int128Div( b3Int128ShiftLeft( c00, 32 ), det ),
+										   (b3Fixed)b3Int128Div( b3Int128ShiftLeft( c10, 32 ), det ),
+										   (b3Fixed)b3Int128Div( b3Int128ShiftLeft( c20, 32 ), det ) };
+			out.cy = B3_LITERAL( b3Vec3 ){ (b3Fixed)b3Int128Div( b3Int128ShiftLeft( c01, 32 ), det ),
+										   (b3Fixed)b3Int128Div( b3Int128ShiftLeft( c11, 32 ), det ),
+										   (b3Fixed)b3Int128Div( b3Int128ShiftLeft( c21, 32 ), det ) };
+			out.cz = B3_LITERAL( b3Vec3 ){ (b3Fixed)b3Int128Div( b3Int128ShiftLeft( c02, 32 ), det ),
+										   (b3Fixed)b3Int128Div( b3Int128ShiftLeft( c12, 32 ), det ),
+										   (b3Fixed)b3Int128Div( b3Int128ShiftLeft( c22, 32 ), det ) };
+			return out;
+		}
+		return b3Mat3_zero;
+	}
+
+	// Huge matrix path: drop 16 fraction bits from the cofactors to keep the
+	// determinant accumulation in range
+	b3Int128 det = (b3Int128)m.cx.x * (int64_t)( c00 >> 16 ) + (b3Int128)m.cy.x * (int64_t)( c10 >> 16 ) +
+				   (b3Int128)m.cz.x * (int64_t)( c20 >> 16 ); // ~Q16.32
+	if ( det != 0 )
+	{
+		// b3Int128ShiftLeft: the raw << the float era used here is UB for the
+		// negative cofactors this path exists for (same bits, defined behavior)
+		b3Matrix3 out;
+		out.cx = B3_LITERAL( b3Vec3 ){ (b3Fixed)b3Int128Div( b3Int128ShiftLeft( c00, 16 ), det ),
+									   (b3Fixed)b3Int128Div( b3Int128ShiftLeft( c10, 16 ), det ),
+									   (b3Fixed)b3Int128Div( b3Int128ShiftLeft( c20, 16 ), det ) };
+		out.cy = B3_LITERAL( b3Vec3 ){ (b3Fixed)b3Int128Div( b3Int128ShiftLeft( c01, 16 ), det ),
+									   (b3Fixed)b3Int128Div( b3Int128ShiftLeft( c11, 16 ), det ),
+									   (b3Fixed)b3Int128Div( b3Int128ShiftLeft( c21, 16 ), det ) };
+		out.cz = B3_LITERAL( b3Vec3 ){ (b3Fixed)b3Int128Div( b3Int128ShiftLeft( c02, 16 ), det ),
+									   (b3Fixed)b3Int128Div( b3Int128ShiftLeft( c12, 16 ), det ),
+									   (b3Fixed)b3Int128Div( b3Int128ShiftLeft( c22, 16 ), det ) };
+		return out;
+	}
+
+	return b3Mat3_zero;
+}
+
+/// Solve a matrix equation.
+/// @return inv(m) * a
+/// Solves directly from the 128-bit cofactors with three divisions rather than
+/// inverting (nine divisions) and multiplying.
+B3_INLINE b3Vec3 b3Solve3( b3Matrix3 m, b3Vec3 a )
+{
+	b3Int128 c00 = b3Cofactor128( m.cy.y, m.cz.z, m.cy.z, m.cz.y );
+	b3Int128 c01 = b3Cofactor128( m.cy.z, m.cz.x, m.cy.x, m.cz.z );
+	b3Int128 c02 = b3Cofactor128( m.cy.x, m.cz.y, m.cy.y, m.cz.x );
+	b3Int128 c10 = b3Cofactor128( m.cz.y, m.cx.z, m.cz.z, m.cx.y );
+	b3Int128 c11 = b3Cofactor128( m.cz.z, m.cx.x, m.cz.x, m.cx.z );
+	b3Int128 c12 = b3Cofactor128( m.cz.x, m.cx.y, m.cz.y, m.cx.x );
+	b3Int128 c20 = b3Cofactor128( m.cx.y, m.cy.z, m.cx.z, m.cy.y );
+	b3Int128 c21 = b3Cofactor128( m.cx.z, m.cy.x, m.cx.x, m.cy.z );
+	b3Int128 c22 = b3Cofactor128( m.cx.x, m.cy.y, m.cx.y, m.cy.x );
+
+	b3Int128 limit = (b3Int128)1 << 62;
+	if ( -limit < c00 && c00 < limit && -limit < c10 && c10 < limit && -limit < c20 && c20 < limit )
+	{
+		// Exact path: cofactors fit in 64 bits, determinant at Q16.48
+		b3Int128 det = (b3Int128)m.cx.x * (int64_t)c00 + (b3Int128)m.cy.x * (int64_t)c10 + (b3Int128)m.cz.x * (int64_t)c20;
+		if ( det != 0 )
+		{
+			// x_i = ( sum_j cofactor_ji * a_j ) / det: (Q32.32 * Q48.16 << 16) / Q16.48 -> Q48.16
+			b3Int128 nx = (b3Int128)(int64_t)c00 * a.x + (b3Int128)(int64_t)c01 * a.y + (b3Int128)(int64_t)c02 * a.z;
+			b3Int128 ny = (b3Int128)(int64_t)c10 * a.x + (b3Int128)(int64_t)c11 * a.y + (b3Int128)(int64_t)c12 * a.z;
+			b3Int128 nz = (b3Int128)(int64_t)c20 * a.x + (b3Int128)(int64_t)c21 * a.y + (b3Int128)(int64_t)c22 * a.z;
+
+			b3Vec3 b = {
+				(b3Fixed)b3Int128Div( b3Int128ShiftLeft( nx, 16 ), det ),
+				(b3Fixed)b3Int128Div( b3Int128ShiftLeft( ny, 16 ), det ),
+				(b3Fixed)b3Int128Div( b3Int128ShiftLeft( nz, 16 ), det ),
+			};
+			return b;
+		}
+		return b3Vec3_zero;
+	}
+
+	// Huge matrix path
+	b3Matrix3 inv = b3InvertMatrix( m );
+	return b3MulMV( inv, a );
+}
+
+/// Inverse transpose of a matrix. Identical to the inverse for the symmetric
+/// matrices (like inertia tensors) this is used with.
+B3_INLINE b3Matrix3 b3InvertT( b3Matrix3 m )
+{
+	b3Matrix3 out = b3InvertMatrix( m );
+	return b3Transpose( out );
+}
+
+/// Get the component-wise absolute value of a matrix.
+B3_INLINE b3Matrix3 b3AbsMatrix3( b3Matrix3 m )
+{
+	b3Matrix3 out;
+	out.cx = b3Abs( m.cx );
+	out.cy = b3Abs( m.cy );
+	out.cz = b3Abs( m.cz );
+
+	return out;
+}
+
+/// Make a matrix from a quaternion. This is useful if you need to
+/// rotate many vectors.
+/// The force inline improves the performance of b3ShapeDistance.
+B3_FORCE_INLINE b3Matrix3 b3MakeMatrixFromQuat( b3Quat q )
+{
+	b3Fixed xx = b3FixMul( q.v.x , q.v.x );
+	b3Fixed yy = b3FixMul( q.v.y , q.v.y );
+	b3Fixed zz = b3FixMul( q.v.z , q.v.z );
+	b3Fixed xy = b3FixMul( q.v.x , q.v.y );
+	b3Fixed xz = b3FixMul( q.v.x , q.v.z );
+	b3Fixed xw = b3FixMul( q.v.x , q.s );
+	b3Fixed yz = b3FixMul( q.v.y , q.v.z );
+	b3Fixed yw = b3FixMul( q.v.y , q.s );
+	b3Fixed zw = b3FixMul( q.v.z , q.s );
+
+	return B3_LITERAL( b3Matrix3 ){
+		{ B3_FIX( 1.0f ) - b3FixMul( B3_FIX( 2.0f ) , ( yy + zz ) ), b3FixMul( B3_FIX( 2.0f ) , ( xy + zw ) ), b3FixMul( B3_FIX( 2.0f ) , ( xz - yw ) ) },
+		{ b3FixMul( B3_FIX( 2.0f ) , ( xy - zw ) ), B3_FIX( 1.0f ) - b3FixMul( B3_FIX( 2.0f ) , ( xx + zz ) ), b3FixMul( B3_FIX( 2.0f ) , ( yz + xw ) ) },
+		{ b3FixMul( B3_FIX( 2.0f ) , ( xz + yw ) ), b3FixMul( B3_FIX( 2.0f ) , ( yz - xw ) ), B3_FIX( 1.0f ) - b3FixMul( B3_FIX( 2.0f ) , ( xx + yy ) ) },
+	};
+}
