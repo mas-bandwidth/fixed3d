@@ -86,6 +86,16 @@ Issues specific to Fixed3D are welcome
 in general, please use the
 [Box3D repository](https://github.com/erincatto/box3d).
 
+## Fixed-point core
+
+The `b3Fixed` type and the deterministic transcendentals live in a standalone library,
+[`fixed`](extern/fixed), vendored here and consumed directly — `box3d/fixed.h` is a shim
+over `fixed/fixed.h`, and the transcendentals compile from `extern/fixed/src/fixed_math.c`.
+The intent is for the fixed-point core to be shareable and to evolve independently of the
+physics engine.
+
 ## License
 
-MIT, same as Box3D.
+MIT (same as Box3D), retained throughout. Fixed3D is a fixed-point conversion of Box3D by
+Erin Catto; the conversion is by Más Bandwidth LLC. Whether additional or alternative terms
+apply to the fixed-point additions is under review with counsel. See `NOTICE`.

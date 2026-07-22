@@ -1,0 +1,25 @@
+Fixed3D
+
+PROVENANCE
+  Fixed3D is a fixed-point conversion of Box3D by Erin Catto
+  (https://github.com/erincatto/box3d), licensed under the MIT License. Box3D's
+  copyright and the MIT License (see LICENSE) are retained and apply throughout.
+
+  The fixed-point conversion -- replacing float with Q48.16 `b3Fixed` across the engine,
+  the deterministic integer transcendentals, and the supporting work -- is by
+  Más Bandwidth LLC.
+
+VENDORED LIBRARY
+  The fixed-point core (the `b3Fixed` type, arithmetic, and the deterministic
+  transcendentals b3Atan2 / b3ComputeCosSin) is maintained as a standalone library in
+  extern/fixed (the `fixed` library) and consumed from there: box3d/fixed.h is a shim
+  including "fixed/fixed.h", and the transcendentals compile from
+  extern/fixed/src/fixed_math.c. See extern/fixed/NOTICE.
+
+CREDIT
+  Box3D, and the physics design this builds on, are the work of Erin Catto. Fixed3D would
+  not exist without it, and useful findings are fed back upstream (see ERIN.md).
+
+LICENSE
+  MIT (LICENSE). Whether additional or alternative terms apply to the fixed-point
+  additions is under review with counsel; nothing here removes the MIT grant.

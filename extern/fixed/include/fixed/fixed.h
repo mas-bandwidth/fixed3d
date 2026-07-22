@@ -1,4 +1,5 @@
-// SPDX-FileCopyrightText: 2026 Erin Catto
+// SPDX-FileCopyrightText: 2025-2026 Erin Catto -- derived from Box3D (https://github.com/erincatto/box3d)
+// SPDX-FileCopyrightText: 2026 Más Bandwidth LLC -- fixed-point conversion
 // SPDX-License-Identifier: MIT
 
 #pragma once

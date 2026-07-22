@@ -1,10 +1,16 @@
-// SPDX-FileCopyrightText: 2025 Erin Catto
+// SPDX-FileCopyrightText: 2025-2026 Erin Catto -- Box3D (https://github.com/erincatto/box3d)
+// SPDX-FileCopyrightText: 2026 Más Bandwidth LLC -- fixed-point conversion
 // SPDX-License-Identifier: MIT
 
 #pragma once
 
 #include "base.h"
 #include "fixed.h"
+
+// The scalar fixed-point transcendentals (b3CosSin, b3Atan2, b3ComputeCosSin, b3Sin,
+// b3Cos, b3UnwindAngle) live in the vendored `fixed` library, not here. Included after
+// box3d/base.h so box3d's B3_API (with its export decoration) wins.
+#include "fixed/fixed_math.h"
 
 #include <stdbool.h>
 
@@ -41,14 +47,7 @@ typedef struct b3Vec3
 	b3Fixed z;
 } b3Vec3;
 
-/// Cosine and sine pair.
-/// This uses a custom implementation designed for cross-platform determinism.
-typedef struct b3CosSin
-{
-	/// cosine and sine
-	b3Fixed cosine;
-	b3Fixed sine;
-} b3CosSin;
+// b3CosSin is provided by fixed/fixed_math.h (included above).
 
 /// A quaternion.
 typedef struct b3Quat
@@ -167,43 +166,9 @@ B3_INLINE b3Fixed b3FixLerp( b3Fixed a, b3Fixed b, b3Fixed alpha )
 	return b3FixMul( ( B3_FIX( 1.0f ) - alpha ) , a ) + b3FixMul( alpha , b );
 }
 
-/// Compute an approximate arctangent in the range [-pi, pi]
-/// This is hand coded for cross-platform determinism. The atan2f
-/// function in the standard library is not cross-platform deterministic.
-///	Accurate to around 0.0023 degrees.
-B3_API b3Fixed b3Atan2( b3Fixed y, b3Fixed x );
-
-/// Compute the cosine and sine of an angle in radians. Implemented
-/// for cross-platform determinism.
-B3_API b3CosSin b3ComputeCosSin( b3Fixed radians );
-
-/// @deprecated 
-B3_INLINE b3Fixed b3Sin( b3Fixed radians )
-{
-	b3CosSin cs = b3ComputeCosSin( radians );
-	return cs.sine;
-}
-
-/// @deprecated 
-B3_INLINE b3Fixed b3Cos( b3Fixed radians )
-{
-	b3CosSin cs = b3ComputeCosSin( radians );
-	return cs.cosine;
-}
-
-/// Convert any angle into the range [-pi, pi].
-B3_INLINE b3Fixed b3UnwindAngle( b3Fixed radians )
-{
-	// remainder( radians, 2 * pi ) with a round-to-nearest quotient,
-	// matching the semantics of remainderf.
-	// The quotient stays in 64 bits (b3FixRoundToInt returns 32, which a huge
-	// angle overflows) and the product is formed at 128 bits: near the b3Fixed
-	// range limit n * twoPi overflows int64 even though the final remainder is
-	// always in [-pi, pi].
-	const b3Fixed twoPi = B3_FIX( 6.28318530718 );
-	int64_t n = ( b3FixDiv( radians, twoPi ) + B3_FIXED_HALF ) >> B3_FIXED_FRACTION_BITS;
-	return (b3Fixed)( radians - (b3Int128)n * twoPi );
-}
+// b3Atan2, b3ComputeCosSin, b3Sin, b3Cos, and b3UnwindAngle are provided by
+// fixed/fixed_math.h (included above). fixed3d's physics calls them; the vendored
+// `fixed` library owns their declarations and definitions.
 
 /// Vector addition.
 B3_INLINE b3Vec3 b3Add( b3Vec3 a, b3Vec3 b )

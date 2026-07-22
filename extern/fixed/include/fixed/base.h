@@ -1,8 +1,13 @@
-// SPDX-FileCopyrightText: 2026 Erin Catto
+// SPDX-FileCopyrightText: 2025-2026 Erin Catto -- derived from Box3D (https://github.com/erincatto/box3d)
+// SPDX-FileCopyrightText: 2026 Más Bandwidth LLC -- fixed-point conversion
 // SPDX-License-Identifier: MIT
 // Minimal macro base for the fixed library, extracted from box3d/base.h so box3d
 // can depend on this library without renaming its API.
 #pragma once
+// Guarded so a host that already defines these (e.g. box3d/base.h, whose B3_API
+// carries an export decoration) wins when both headers are in the same translation
+// unit. Standalone users of `fixed` get the definitions below.
+#ifndef B3_API
 #ifdef __cplusplus
 	#define B3_API extern "C"
 	#define B3_INLINE inline
@@ -28,3 +33,4 @@
 	#define B3_LITERAL(T) (T)
 	#define B3_ZERO_INIT {0}
 #endif
+#endif // B3_API

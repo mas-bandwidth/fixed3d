@@ -33,6 +33,14 @@ and CI extends that to Linux/libstdc++ and Windows/MSVC.
 - [ ] Fixed-point scalars and fixed-point time.
 - [ ] box3d depends on `fixed` for its fixed-point core.
 
-## License
+## Provenance & license
 
-MIT, © Erin Catto. See `LICENSE`.
+Derived from [Box3D](https://github.com/erincatto/box3d) by Erin Catto (MIT). Box3D's
+copyright and MIT license (`LICENSE`) are retained and apply to all Box3D-derived
+material. The fixed-point conversion — the `b3Fixed` type and its arithmetic, the
+deterministic integer transcendentals, and this library's assembly — is derivative work
+by Más Bandwidth LLC.
+
+The library is offered under MIT; the Box3D-derived portions remain MIT in every case.
+Whether additional or alternative terms apply to the fixed-point additions is under review
+with counsel. See `NOTICE`.

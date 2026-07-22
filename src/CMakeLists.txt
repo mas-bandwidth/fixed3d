@@ -109,6 +109,11 @@ set(CMAKE_VISIBILITY_INLINES_HIDDEN 1)
 
 add_library(box3d ${BOX3D_SOURCE_FILES} ${BOX3D_INCLUDE_FILES})
 
+# The deterministic fixed-point transcendentals (b3Atan2, b3ComputeCosSin) come from the
+# vendored `fixed` library. Added via target_sources (not BOX3D_SOURCE_FILES) because it
+# lives outside the src/ tree that source_group() organizes.
+target_sources(box3d PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../extern/fixed/src/fixed_math.c)
+
 # target_link_libraries(box3d PRIVATE eastl)
 
 target_include_directories(box3d

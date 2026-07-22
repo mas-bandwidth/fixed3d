@@ -1,0 +1,20 @@
+fixed — a deterministic fixed-point math library
+
+PROVENANCE
+  Derived from Box3D by Erin Catto (https://github.com/erincatto/box3d), which is
+  licensed under the MIT License. Box3D's copyright and the MIT License (see LICENSE)
+  are retained and apply to all Box3D-derived material in this library.
+
+  The fixed-point conversion -- the b3Fixed type and its arithmetic, the deterministic
+  integer transcendentals (b3ComputeCosSin, b3Atan2), and this library's assembly -- is
+  derivative work by Más Bandwidth LLC.
+
+LICENSE
+  This library is offered under the MIT License (LICENSE). The Box3D-derived portions
+  remain under MIT in every case. Whether Más Bandwidth LLC offers additional or
+  alternative terms for the fixed-point additions is under review with counsel; nothing
+  here removes the MIT grant.
+
+CREDIT
+  Box3D, and the physics and math design this builds on, are the work of Erin Catto.
+  This library would not exist without it.
