@@ -337,7 +337,10 @@ B3_FIXED_INLINE int b3FixFloorToInt( b3Fixed a )
 /// Convert fixed point to an integer, rounding to nearest
 B3_FIXED_INLINE int b3FixRoundToInt( b3Fixed a )
 {
-	return (int)( ( a + B3_FIXED_HALF ) >> B3_FIXED_FRACTION_BITS );
+	// The add is unsigned so the extreme-edge wrap (a near B3_FIXED_MAX) is
+	// defined two's-complement behavior instead of signed-overflow UB. Same
+	// bits on every compiler; the frozen hashes pin it.
+	return (int)( (b3Fixed)( (uint64_t)a + B3_FIXED_HALF ) >> B3_FIXED_FRACTION_BITS );
 }
 
 /// Largest integral fixed-point value not greater than a (like floorf)
@@ -349,7 +352,8 @@ B3_FIXED_INLINE b3Fixed b3FixFloor( b3Fixed a )
 /// Smallest integral fixed-point value not less than a (like ceilf)
 B3_FIXED_INLINE b3Fixed b3FixCeil( b3Fixed a )
 {
-	return ( a + B3_FIXED_ONE - 1 ) & ~( B3_FIXED_ONE - 1 );
+	// Unsigned add: defined wrap at the extreme edge (see b3FixRoundToInt)
+	return (b3Fixed)( (uint64_t)a + B3_FIXED_ONE - 1 ) & ~( B3_FIXED_ONE - 1 );
 }
 
 // Conversions to and from floating point. These are boundary helpers for graphics,
