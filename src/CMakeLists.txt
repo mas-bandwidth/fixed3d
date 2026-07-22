@@ -114,6 +114,9 @@ add_library(box3d ${BOX3D_SOURCE_FILES} ${BOX3D_INCLUDE_FILES})
 target_include_directories(box3d
   PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../include>
+    # Vendored fixed-point library (extern/fixed). box3d gets its fixed-point core from here;
+    # box3d/fixed.h is a shim that includes "fixed/fixed.h". Evolve the library in mas-bandwidth/fixed.
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../extern/fixed/include>
     $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
   PRIVATE
