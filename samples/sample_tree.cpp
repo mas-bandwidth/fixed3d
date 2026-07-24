@@ -5,10 +5,10 @@
 #define _CRT_SECURE_NO_WARNINGS
 #endif
 
-#include "imgui.h"
-#include "utils.h"
-#include "sample.h"
 #include "gfx/draw.h"
+#include "imgui.h"
+#include "sample.h"
+#include "utils.h"
 
 #include "box3d/box3d.h"
 
@@ -63,6 +63,7 @@ public:
 
 		m_closestPoint = b3Pos_zero;
 		m_timeStamp = 1;
+		m_drawLevel = -1;
 		m_doOverlap = false;
 		m_doClosest = false;
 		m_doRay = false;
@@ -90,6 +91,11 @@ public:
 	int ComputeDepths()
 	{
 		m_depths.resize( m_tree.nodeCapacity, 0 );
+
+		if ( m_tree.nodes == nullptr || m_tree.nodeCount == 0 || m_tree.root == B3_NULL_INDEX )
+		{
+			return 0;
+		}
 
 		int* queue = (int*)malloc( m_tree.nodeCount * sizeof( int ) );
 		int front = 0;
@@ -149,6 +155,7 @@ public:
 		FILE* file = fopen( filePath, "r" );
 		if ( file == nullptr )
 		{
+			fprintf( stderr, "Failed to open '%s'\n", filePath );
 			return;
 		}
 
@@ -220,6 +227,13 @@ public:
 			// }
 		}
 
+		fclose( file );
+
+		if ( m_proxies.empty() )
+		{
+			return;
+		}
+
 		printf( "max index = %d\n", maxAreaIndex );
 
 		// constexpr int n = m_isDebug ? 1000 : INT_MAX;
@@ -255,8 +269,19 @@ public:
 		m_proxies.clear();
 
 		{
-			//bool zUp = true;
+			// bool zUp = true;
 			m_tree = b3DynamicTree_Load( m_saveFileName, b3FixFromFloat( m_loadScale ) );
+		}
+
+		// A missing or stale save file loads as an empty tree, which has no root to walk
+		if ( m_tree.nodes == nullptr || m_tree.proxyCount == 0 )
+		{
+			fprintf( stderr, "Failed to load tree '%s'\n", m_saveFileName );
+			m_height = 0;
+			m_drawLevel = -1;
+			m_buildTime = 0.0f;
+			m_areaRatio = 0.0f;
+			return;
 		}
 
 		constexpr int bufferSize = 512;

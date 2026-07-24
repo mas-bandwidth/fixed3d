@@ -1,10 +1,42 @@
 # Box3D Fixed-Point Conversion — Session Handoff
 
 Box3D converted from float to Q48.16 fixed point (internal and external API).
-Baseline float code is commit 2386141. EVERYTHING below is committed and pushed;
+Baseline float code is commit c52908c. EVERYTHING below is committed and pushed;
 there is no pending working-tree state.
 
 ## Current status (as of 2026-07-16 — v1.3.0, MAINTENANCE MODE)
+
+- **PORT RECORD c52908c "Fixes 08 (#98)" (2026-07-24)** — hull builder leak +
+  samples data-folder resilience. Engine: ResolveFaces now retires each
+  deleted face's edge ring AND the face itself back to the free lists (the
+  builder leaked both since the pools were introduced; with our release-safe
+  pool allocators the symptom was pool exhaustion aliasing the last slot and
+  failing large builds, not UB); B3_HULL_LIMIT (255) renamed/fixed to
+  B3_HULL_MAX_COUNT (256 — uint8 indices encode 256 entries, the old cap was
+  off by one), final-count limit checks loosened >= to > (exactly
+  B3_MAX_HULL_VERTICES/FACES/EDGES now allowed; ours are 128, upstream 256 —
+  same off-by-one either way), b3CloneAndTransformHull's reflection edge
+  walk indexes with int + B3_NULL_INDEX instead of uint8_t + UINT8_MAX
+  (UINT8_MAX is a legal edge index), RetireFace gained the link.prev == NULL
+  B3_VALIDATE, work sizes respelled with b3MaxInt (value-identical). Zero
+  simulation impact: all goldens carried over untouched in all four build
+  configs. id.h: B3_IS_NULL / B3_IS_NON_NULL / B3_ID_EQUALS parenthesize
+  their macro arguments. Samples: mesh loading is null-tolerant end to end —
+  LoadTempMesh returns bool, CreateMeshData returns NULL on a missing obj
+  (shared ParseObjFile helper, no more exit(1)), DestroyMeshData is the
+  null-tolerant destroyer, and every CreateMeshData consumer
+  (character/compound/issues/mesh/shapes/tree) guards shape creation, so THE
+  HEADLINE FIX holds here too: the samples app runs from a directory with no
+  data folder (verified: all nine mesh-loading samples exit 0 with data/
+  absent AND present); Compound Village builds meshless with meshCount =
+  meshIndex; sample.cpp ReadFile handles ftell/short-read/malloc failure,
+  FinishRecording reports failed writes, the replay dialog survives NFD_Init
+  failure and a deleted cwd (error_code current_path); sample_tree also
+  fixes a real fclose LEAK in LoadTree, guards ComputeDepths/loads on empty
+  trees, and initializes m_drawLevel. Verified: full suite Release AND
+  Debug+VALIDATE+ASan/UBSan in BOTH narrow and ludicrous builds;
+  conversion_audit.py clean; mesh-loading samples smoked headless from repo
+  root (data present) and from an empty cwd (data absent), all exit 0.
 
 - **PORT RECORD 2386141 "Fixes 07 (#97)" (2026-07-24)** — hull stacking
   stability fix + B3_RESTITUTION_ITERATIONS. THE solver-affecting change:

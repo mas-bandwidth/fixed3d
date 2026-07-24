@@ -1,10 +1,10 @@
 // SPDX-FileCopyrightText: 2025 Erin Catto
 // SPDX-License-Identifier: MIT
 
+#include "gfx/draw.h"
 #include "imgui.h"
 #include "mesh_loader.h"
 #include "sample.h"
-#include "gfx/draw.h"
 
 #include "box3d/box3d.h"
 
@@ -448,6 +448,7 @@ public:
 
 		// --- Building mesh on top of ground ---
 		m_building = CreateMeshData( "data/meshes/building.obj", 1.0f, false, false, true, true );
+		if ( m_building != nullptr )
 		{
 			b3BodyDef bodyDef = b3DefaultBodyDef();
 			bodyDef.position = SamplePos( { B3_FIX( 0.0f ), B3_FIX( 0.1f ), B3_FIX( 0.0f ) } );
@@ -480,10 +481,7 @@ public:
 
 	~CapsuleMeshBug() override
 	{
-		if ( m_building )
-		{
-			b3DestroyMesh( m_building );
-		}
+		DestroyMeshData( m_building );
 	}
 
 	static Sample* Create( SampleContext* context )
