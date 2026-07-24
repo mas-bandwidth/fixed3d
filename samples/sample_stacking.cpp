@@ -420,7 +420,7 @@ public:
 	{
 		if ( m_context->restart == false )
 		{
-			m_camera->SetView( 35.0f, 15.0f, 30.0f, SamplePos( { B3_FIX( 0.0f ), B3_FIX( 10.0f ), B3_FIX( 0.0f ) } ) );
+			m_camera->SetView( 35.0f, 15.0f, 12.0f, SamplePos( { B3_FIX( 0.0f ), B3_FIX( 2.0f ), B3_FIX( 0.0f ) } ) );
 		}
 
 		m_shapeType = b3_hullShape;
@@ -429,42 +429,45 @@ public:
 
 	void CreateStack()
 	{
-		AddGroundBox( 60.0f );
+		AddGroundBox( 20.0f );
 
+		b3ShapeDef shapeDef = b3DefaultShapeDef();
+		shapeDef.baseMaterial.rollingResistance = m_shapeType == b3_capsuleShape ? B3_FIX( 0.1f ) : B3_FIX( 0.05f );
+		b3BodyDef bodyDef = b3DefaultBodyDef();
+		bodyDef.type = b3_dynamicBody;
+
+		b3Fixed h = B3_FIX( 1.0f );
+		b3Fixed r = B3_FIX( 0.1f );
+
+		b3BoxHull box = b3MakeBoxHull( h, r, r );
+		b3Capsule capsule = { { -h, B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, { h, B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, r };
+		int count = 30;
+		for ( int i = 0; i < count; ++i )
 		{
-			b3ShapeDef shapeDef = b3DefaultShapeDef();
-			shapeDef.baseMaterial.rollingResistance = m_shapeType == b3_capsuleShape ? B3_FIX( 0.1f ) : B3_FIX( 0.01f );
-			b3BodyDef bodyDef = b3DefaultBodyDef();
-			bodyDef.type = b3_dynamicBody;
+			b3Fixed alpha = ( i & 1 ) == 1 ? B3_FIX( 0.0f ) : B3_PI / 2;
 
-			b3BoxHull box = b3MakeBoxHull( B3_FIX( 2.5f ), B3_FIX( 0.25f ), B3_FIX( 0.25f ) );
-			b3Capsule capsule = { { B3_FIX( -2.5f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, { B3_FIX( 2.5f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, B3_FIX( 0.25f ) };
+			// h - 2r and (2.1i + 0.5)r are exact in fixed point (integer scaling only)
+			b3Fixed x = ( i & 1 ) == 0 ? h - 2 * r : B3_FIX( 0.0f );
+			b3Fixed z = ( i & 1 ) == 0 ? B3_FIX( 0.0f ) : h - 2 * r;
+			b3Fixed y = ( 21 * i + 5 ) * ( r / 10 );
 
-			for ( int i = 0; i < m_size; ++i )
+			bodyDef.position = SamplePos( { x, y, z } );
+			bodyDef.rotation = b3MakeQuatFromAxisAngle( b3Vec3_axisY, alpha );
+			b3BodyId boxBody1 = b3CreateBody( m_worldId, &bodyDef );
+
+			bodyDef.position = SamplePos( { -x, y, -z } );
+			bodyDef.rotation = b3MakeQuatFromAxisAngle( b3Vec3_axisY, alpha );
+			b3BodyId boxBody2 = b3CreateBody( m_worldId, &bodyDef );
+
+			if ( m_shapeType == b3_capsuleShape )
 			{
-				b3Fixed alpha = ( i & 1 ) == 1 ? B3_FIX( 0.0f ) : B3_PI / 2;
-
-				float x = ( i & 1 ) == 0 ? 1.75f : 0.0f;
-				float z = ( i & 1 ) == 0 ? 0.0f : 1.75f;
-
-				bodyDef.position = SamplePos( { b3FixFromFloat( x ), b3FixFromFloat( 0.5f * i + 0.25f ), b3FixFromFloat( z ) } );
-				bodyDef.rotation = b3MakeQuatFromAxisAngle( b3Vec3_axisY, alpha );
-				b3BodyId boxBody1 = b3CreateBody( m_worldId, &bodyDef );
-
-				bodyDef.position = SamplePos( { b3FixFromFloat( -x ), b3FixFromFloat( 0.5f * i + 0.25f ), b3FixFromFloat( -z ) } );
-				bodyDef.rotation = b3MakeQuatFromAxisAngle( b3Vec3_axisY, alpha );
-				b3BodyId boxBody2 = b3CreateBody( m_worldId, &bodyDef );
-
-				if ( m_shapeType == b3_capsuleShape )
-				{
-					b3CreateCapsuleShape( boxBody1, &shapeDef, &capsule );
-					b3CreateCapsuleShape( boxBody2, &shapeDef, &capsule );
-				}
-				else
-				{
-					b3CreateHullShape( boxBody1, &shapeDef, &box.base );
-					b3CreateHullShape( boxBody2, &shapeDef, &box.base );
-				}
+				b3CreateCapsuleShape( boxBody1, &shapeDef, &capsule );
+				b3CreateCapsuleShape( boxBody2, &shapeDef, &capsule );
+			}
+			else
+			{
+				b3CreateHullShape( boxBody1, &shapeDef, &box.base );
+				b3CreateHullShape( boxBody2, &shapeDef, &box.base );
 			}
 		}
 	}
@@ -495,7 +498,6 @@ public:
 		return new JengaStack( context );
 	}
 
-	static constexpr int m_size = 40;
 	b3ShapeType m_shapeType;
 };
 
@@ -862,3 +864,107 @@ public:
 };
 
 static int samplePyramid2D = RegisterSample( "Stacking", "Pyramid2D", Pyramid2D::Create );
+
+// This stresses the edge-edge handling.
+class EdgeCrossing : public Sample
+{
+public:
+	explicit EdgeCrossing( SampleContext* context )
+		: Sample( context )
+	{
+		if ( context->restart == false )
+		{
+			m_camera->SetView( 0.0f, 25.0f, 10.0f, SampleOrigin() );
+		}
+
+		AddGroundBox( 40.0f );
+
+		b3Vec3 h = { B3_FIX( 0.2f ), B3_FIX( 0.02f ), B3_FIX( 0.04f ) };
+		b3BodyDef bodyDef = b3DefaultBodyDef();
+		bodyDef.type = b3_dynamicBody;
+
+		b3ShapeDef shapeDef = b3DefaultShapeDef();
+
+		b3Vec3 position = { B3_FIX( -10.0f ), B3_FIX( 0.0f ), B3_FIX( -2.0f ) };
+
+		b3BoxHull box1 = b3MakeBoxHull( h.x, h.y, h.z );
+		b3BoxHull box2 = b3MakeBoxHull( h.x, h.z, h.y );
+
+		b3Vec3 axis = b3Normalize( { B3_FIX( 0.1f ), B3_FIX( 0.9f ), B3_FIX( 0.0f ) } );
+
+		// Upstream sweeps float angles -pi..pi in 0.1*pi steps; the integer loop is the
+		// exact fixed-point spelling (21 crossings, B3_PI / 10 is native integer scaling).
+		for ( int i = -10; i <= 10; ++i )
+		{
+			b3Fixed angle = i * ( B3_PI / 10 );
+
+			position.y = h.y;
+			bodyDef.position = SamplePos( position );
+			bodyDef.rotation = b3Quat_identity;
+			b3BodyId bodyId1 = b3CreateBody( m_worldId, &bodyDef );
+			b3CreateHullShape( bodyId1, &shapeDef, &box1.base );
+
+			position.y = 20 * h.y;
+			bodyDef.position = SamplePos( position );
+			bodyDef.rotation = b3MakeQuatFromAxisAngle( axis, angle );
+			b3BodyId boxBody2 = b3CreateBody( m_worldId, &bodyDef );
+
+			b3CreateHullShape( boxBody2, &shapeDef, &box1.base );
+
+			position.x += B3_FIX( 1.0f );
+		}
+
+		position.x = B3_FIX( -10.0f );
+		position.z = B3_FIX( 0.0f );
+
+		for ( int i = -10; i <= 10; ++i )
+		{
+			b3Fixed angle = i * ( B3_PI / 10 );
+
+			position.y = h.z;
+			bodyDef.position = SamplePos( position );
+			bodyDef.rotation = b3Quat_identity;
+			b3BodyId bodyId1 = b3CreateBody( m_worldId, &bodyDef );
+			b3CreateHullShape( bodyId1, &shapeDef, &box2.base );
+
+			position.y = 20 * h.z;
+			bodyDef.position = SamplePos( position );
+			bodyDef.rotation = b3MakeQuatFromAxisAngle( axis, angle );
+			b3BodyId boxBody2 = b3CreateBody( m_worldId, &bodyDef );
+
+			b3CreateHullShape( boxBody2, &shapeDef, &box2.base );
+
+			position.x += B3_FIX( 1.0f );
+		}
+
+		position.x = B3_FIX( -10.0f );
+		position.z = B3_FIX( 2.0f );
+
+		for ( int i = -10; i <= 10; ++i )
+		{
+			b3Fixed angle = i * ( B3_PI / 10 );
+
+			position.y = h.y;
+			bodyDef.position = SamplePos( position );
+			bodyDef.rotation = b3Quat_identity;
+			b3BodyId bodyId1 = b3CreateBody( m_worldId, &bodyDef );
+			b3CreateHullShape( bodyId1, &shapeDef, &box1.base );
+
+			position.y = 20 * h.y;
+			bodyDef.position = SamplePos( position );
+			bodyDef.rotation = b3MakeQuatFromAxisAngle( axis, angle );
+			b3BodyId boxBody2 = b3CreateBody( m_worldId, &bodyDef );
+
+			b3CreateHullShape( boxBody2, &shapeDef, &box2.base );
+
+			position.x += B3_FIX( 1.0f );
+		}
+	}
+
+	static Sample* Create( SampleContext* context )
+	{
+		return new EdgeCrossing( context );
+	}
+};
+
+static int sampleEdgeCrossing = RegisterSample( "Stacking", "Edge Crossing", EdgeCrossing::Create );

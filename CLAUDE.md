@@ -1,10 +1,62 @@
 # Box3D Fixed-Point Conversion — Session Handoff
 
 Box3D converted from float to Q48.16 fixed point (internal and external API).
-Baseline float code is commit dfa5e6a. EVERYTHING below is committed and pushed;
+Baseline float code is commit 2386141. EVERYTHING below is committed and pushed;
 there is no pending working-tree state.
 
 ## Current status (as of 2026-07-16 — v1.3.0, MAINTENANCE MODE)
+
+- **PORT RECORD 2386141 "Fixes 07 (#97)" (2026-07-24)** — hull stacking
+  stability fix + B3_RESTITUTION_ITERATIONS. THE solver-affecting change:
+  b3CollideHulls' full query now always builds the better FACE contact first
+  (plain faceA-vs-faceB comparison, the 0.5*slop A-bias dropped) and replaces
+  it with the edge contact only when the face manifold is empty or the edge
+  axis beats the clipped face separation by a full linearSlop (the 0.90
+  relative tolerance is gone — upstream implemented our own "todo get rid of
+  relative tolerance"); the edge contact builds into a LOCAL cache committed
+  only on success, so a failed edge rebuild no longer wipes the face cache;
+  b3BuildFaceBContact flips the query internally and zeroes the cache on
+  failure. Goldens: WavePile hash 0x6FA2F3B2 narrow / 0xCD74B232 ludicrous
+  (sleep 279 both, unchanged); ragdoll, QuerySpawn, and MeshDrop all carried
+  over unchanged — the blast radius matches upstream exactly (upstream's own
+  test_determinism.c moved only the WavePile values; hull-on-hull scenes
+  only). Struct unification: b3FaceQuery/b3EdgeQuery merged into
+  b3SeparatingAxis (typed, carries the normal); manifold.h documents that
+  upstream's b3AxisQuery/b3ComputeSeparatingAxis/b3GetBestAxis have no
+  counterpart here — the exact-SAT queries return one b3SeparatingAxis per
+  family, and flipped faceB call sites re-express the raw query in the faceB
+  convention (indexA = vertex on A, indexB = face on B; the normal there is
+  decorative, the builders work from indices). Triangle path: public renames
+  b3CollideTriangleAnd{Sphere,Capsule,Hull} with triangle-first args (normal
+  points triangle->shape; mesh_contact.c and sample callers updated),
+  b3QueryHullFace returns the negated normal with faceAxisB index semantics,
+  pushingDown re-expressed on the negated normal (value-identical),
+  separated-axis cache entries store REAL indices instead of the UINT8_MAX
+  sentinels, and the GJK fallback zeroes the cache ("no way to cache this
+  scenario"). B3_RESTITUTION_ITERATIONS: constants.h default 1, config.h
+  advert, solver.c _Static_assert + restitution loop + stage counts + the
+  graphSyncIndex increment uncommented (default-1 behavior identical — the
+  unchanged ragdoll/QuerySpawn/MeshDrop goldens prove it). ALREADY SATISFIED:
+  the contact_solver.c B3_VALIDATE pointCount bound hunks (our maxPointCount
+  loops predate them), the core.h ARMv7 NEON guard (our opt-in SIMD selection
+  already #errors on non-aarch64). N/A: test_sat.c changes and b3GetBestAxis
+  (no b3ComputeSeparatingAxis in this tree). Tests: RidgeCrossingTest
+  re-pinned to the three regimes of the new face-first policy; the
+  edge-regime normal tolerance is 16 ulps (measured 12 ulps at the
+  shallowest admitted crossing, 0.05 rad — upstream's 1e-4 sits under our
+  8-ulp floor). Samples: JengaStack thin-plank rework (integer-scaled
+  placement: h - 2*r, (21*i+5)*(r/10)), new EdgeCrossing (B3_PI/10 integer
+  angle steps replace upstream's float sweep), new RestitutionOvershoot +
+  SlideTwistOffCenterShape (B3_FIX'd, scene-origin discipline, readbacks via
+  SampleLocal), MeshDrop Collide checkbox, RagdollPile random spawn (seed
+  42), FallingRagdolls pause guard mapped onto our existing m_didStep
+  pattern, RollingResistance ground box 80, mover.cpp ratio refactor already
+  satisfied by the dfa5e6a port. CMake: BOX3D_PROFILE/BOX3D_VALIDATE options
+  hoisted above add_subdirectory(src) (first-configure/re-configure parity),
+  lowercase windows.h in timer.c + shared/utils.c for mingw cross builds.
+  Verified: full suite Release AND Debug+VALIDATE+ASan/UBSan in BOTH narrow
+  and ludicrous builds; conversion_audit.py clean over all 103 TUs; headless
+  smoke (240 frames) on every touched sample exit 0.
 
 - **PORT RECORD dfa5e6a "Fixing issues (#94)" (2026-07-20)** — adopted in full
   except where already satisfied. Real engine fixes: compound child contact

@@ -444,7 +444,7 @@ public:
 		m_runCount = 0;
 		m_failure = false;
 		m_autoGenerate = false;
-
+		m_collide = true;
 		m_stepWhilePaused = true;
 
 		Generate();
@@ -553,13 +553,16 @@ public:
 
 		// Don't allow shapes to collide with each other. This
 		// makes isolating failures easier.
-		shapeDef.filter.categoryBits = 2;
-		shapeDef.filter.maskBits = 1;
+		if ( m_collide == false )
+		{
+			shapeDef.filter.categoryBits = 2;
+			shapeDef.filter.maskBits = 1;
+		}
 
 		g_randomSeed = (uint32_t)b3GetTicks();
 
 		bool simulateAll = true;
-		//g_randomSeed = 1910133196;
+		// g_randomSeed = 1910133196;
 
 		m_runCount += 1;
 		m_stepCount = 0;
@@ -625,6 +628,11 @@ public:
 		if ( ImGui::SliderFloat( "Amplitude", &m_groundAmplitude, 0.0f, 1.0f ) )
 		{
 			CreateGround();
+			Generate();
+		}
+
+		if ( ImGui::Checkbox( "Collide", &m_collide ) )
+		{
 			Generate();
 		}
 
@@ -740,6 +748,7 @@ public:
 	int m_runCount;
 	bool m_failure;
 	bool m_autoGenerate;
+	bool m_collide;
 };
 
 static int sampleMeshDrop = RegisterSample( "Continuous", "Mesh Drop", MeshDrop::Create );

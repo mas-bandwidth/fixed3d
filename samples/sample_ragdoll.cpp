@@ -1,10 +1,11 @@
 // SPDX-FileCopyrightText: 2025 Erin Catto
 // SPDX-License-Identifier: MIT
 
+#include "gfx/draw.h"
 #include "human.h"
 #include "imgui.h"
 #include "sample.h"
-#include "gfx/draw.h"
+#include "utils.h"
 
 #include "box3d/box3d.h"
 
@@ -235,9 +236,14 @@ public:
 		m_groundMesh = b3CreateGridMesh( 20, 20, B3_FIX( 1.0f ), 1, true );
 		b3CreateMeshShape( groundId, &shapeDef, m_groundMesh, b3Vec3_one );
 
+		g_randomSeed = 42;
+		b3Fixed a = e_count * B3_FIX( 0.1f );
+		b3Vec3 lower = { -a, -a, -a };
+		b3Vec3 upper = { a, a, a };
 		for ( int i = 0; i < e_count; ++i )
 		{
-			b3Pos position = SamplePos( { b3FixFromFloat( 0.1f * i ), b3FixFromFloat( 2.0f + 0.5f * i ), b3FixFromFloat( -0.1f * i ) } );
+			b3Vec3 offset = RandomVec3( lower, upper );
+			b3Pos position = SamplePos( { offset.x, B3_FIX( 2.0f ), offset.z } );
 			b3Fixed torque = B3_FIX( 10.0f );
 			b3Fixed hertz = B3_FIX( 0.5f );
 			b3Fixed damping = B3_FIX( 0.7f );

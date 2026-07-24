@@ -35,7 +35,10 @@ public:
 	{
 		Sample::Step( );
 
-		if ( m_done == false )
+		// Only advance the scenario on real steps, else pausing would skew the step count
+		// (upstream 2386141 guards on pause/singleStep; m_didStep is this tree's spelling,
+		// already used by the other determinism samples)
+		if ( m_done == false && m_didStep )
 		{
 			m_done = UpdateFallingRagdolls( m_worldId, &m_data );
 			if (m_done)

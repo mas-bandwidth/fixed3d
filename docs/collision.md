@@ -408,9 +408,9 @@ Available collide functions:
 - `b3CollideHullAndSphere`
 - `b3CollideHullAndCapsule`
 - `b3CollideHulls`
-- `b3CollideCapsuleAndTriangle`
-- `b3CollideHullAndTriangle`
-- `b3CollideSphereAndTriangle`
+- `b3CollideTriangleAndCapsule`
+- `b3CollideTriangleAndHull`
+- `b3CollideTriangleAndSphere`
 
 The SAT cache in `b3CollideHulls` warm-starts the separating axis search between
 frames, the same idea as the simplex cache for GJK distance.
