@@ -8,20 +8,18 @@
 
 #define B3_MAX_CLIP_POINTS 64
 
-typedef struct b3FaceQuery
-{
-	b3Fixed separation;
-	int faceIndex;
-	int vertexIndex;
-} b3FaceQuery;
-
-typedef struct b3EdgeQuery
+// Fixed3D note: upstream unified b3FaceQuery/b3EdgeQuery into this struct (Fixes 07,
+// box3d 2386141). Upstream's b3AxisQuery/b3ComputeSeparatingAxis/b3GetBestAxis have no
+// counterpart here — the exact-SAT queries in convex_manifold.c return one
+// b3SeparatingAxis per axis family directly.
+typedef struct b3SeparatingAxis
 {
 	b3Vec3 normal;
 	b3Fixed separation;
 	int indexA;
 	int indexB;
-} b3EdgeQuery;
+	b3SeparatingFeature type;
+} b3SeparatingAxis;
 
 typedef struct b3ClipVertex
 {

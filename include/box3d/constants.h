@@ -130,3 +130,9 @@ B3_API b3Fixed b3GetStallThreshold( void );
 #define B3_CHILD_POWER ( 64 - 2 * B3_SHAPE_POWER )
 #define B3_MAX_SHAPES ( 1 << B3_SHAPE_POWER )
 #define B3_MAX_CHILD_SHAPES ( 1 << B3_CHILD_POWER )
+
+/// Increase this if your application needs more accurate restitution. Doing so will
+/// slow down the simulation. Must be 1 or more.
+#ifndef B3_RESTITUTION_ITERATIONS
+#define B3_RESTITUTION_ITERATIONS 1
+#endif

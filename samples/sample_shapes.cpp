@@ -65,7 +65,7 @@ public:
 			m_camera->SetView( -140.0f, 17.0f, 60.0f, SamplePos( { B3_FIX( 0.0f ), B3_FIX( 7.5f ), B3_FIX( 0.0f ) } ) );
 		}
 
-		AddGroundBox( 50.0f );
+		AddGroundBox( 80.0f );
 
 		b3BodyDef bodyDef = b3DefaultBodyDef();
 		b3ShapeDef shapeDef = b3DefaultShapeDef();
@@ -500,9 +500,10 @@ public:
 		AddGroundBox( 20.0f );
 
 		// Mesh
-		{
-			m_meshData = CreateMeshData( "data/meshes/conveyor.obj", 1.0f, false, true, true, true );
+		m_meshData = CreateMeshData( "data/meshes/conveyor.obj", 1.0f, false, true, true, true );
 
+		if ( m_meshData != nullptr )
+		{
 			int triangleCount = m_meshData->triangleCount;
 
 			uint8_t* materialIndices = (uint8_t*)( (intptr_t)m_meshData + m_meshData->materialOffset );
@@ -621,13 +622,18 @@ public:
 
 	~ConveyorMesh() override
 	{
-		b3DestroyMesh( m_meshData );
+		DestroyMeshData( m_meshData );
 		b3DestroyHull( m_cylinderHull );
 	}
 
 	void Render() override
 	{
 		Sample::Render();
+
+		if ( m_meshData == nullptr )
+		{
+			return;
+		}
 
 		int triangleCount = m_meshData->triangleCount;
 		const b3MeshTriangle* triangles = b3GetMeshTriangles( m_meshData );

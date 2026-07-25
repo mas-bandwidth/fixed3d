@@ -102,6 +102,14 @@ option(BOX3D_DOUBLE_PRECISION "Enable double precision for large worlds" OFF)
 # question: how much slower is it? See the README's LUDICROUS MODE section.
 option(BOX3D_LUDICROUS_MODE "Enable 128-bit positions and broadphase (you don't need this)" OFF)
 
+# These are read by the library build, so they must precede add_subdirectory(src),
+# otherwise the first configure and a re-configure produce different libraries.
+# Top level only, so they stay hidden from FetchContent consumers.
+if(PROJECT_IS_TOP_LEVEL)
+	option(BOX3D_PROFILE "Enable profiling with Tracy" OFF)
+	option(BOX3D_VALIDATE "Enable heavy validation" ON)
+endif()
+
 # Emscripten maps the SSE2 path onto wasm SIMD128. simd.h is a header included by
 # non-library targets like the tests, so these flags must be directory-wide, not
 # PRIVATE to the box3d library.
@@ -165,8 +173,6 @@ if(PROJECT_IS_TOP_LEVEL)
 	option(BOX3D_SAMPLES "Build the Fixed3D samples" ON)
 	option(BOX3D_BENCHMARKS "Build the Fixed3D benchmarks" OFF)
 	option(BOX3D_DOCS "Build the Fixed3D documentation" OFF)
-	option(BOX3D_PROFILE "Enable profiling with Tracy" OFF)
-	option(BOX3D_VALIDATE "Enable heavy validation" ON)
 	option(BOX3D_UNIT_TESTS "Build the Fixed3D unit tests" ON)
 
 	# Enable this for shader development using sokol-shdc.
