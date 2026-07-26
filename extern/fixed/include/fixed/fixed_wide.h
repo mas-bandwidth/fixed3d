@@ -296,6 +296,42 @@ FIX_ALWAYS_INLINE fixVec3 fixClosestPointToAABBWide( fixVec3 point, fixAABBWide 
 	return fixVecClamp( point, lo, hi );
 }
 
+/// Build a wide box from LOCAL points placed at a wide origin.
+///
+/// The companion to fixMakeAABBWide, and the shape box3d actually needs: mesh and hull
+/// vertices are local (Q48.16) even when the body sits a light-year out, so the common
+/// case is narrow points plus a wide base, not an array of wide points. Building the box
+/// narrow first and widening once is also exact and cheaper than widening every point.
+FIX_ALWAYS_INLINE fixAABBWide fixMakeAABBWideAt( const fixVec3* points, int count, fixed_t radius, fixPosWide origin )
+{
+	fixAABB local = fixMakeAABB( points, count, radius );
+	return fixOffsetAABBWide( local, origin );
+}
+
+/// Transform a wide box by a local transform.
+///
+/// Ported from box3d's ludicrous build, and it is the same conservative-bound algorithm
+/// as the narrow fixAABB_Transform: rotate the extents through the absolute matrix, then
+/// rebuild around the transformed center. The centre is computed and re-widened rather
+/// than rotated in place, because the rotation is a local operation and only the extents
+/// need it -- the wide part of the coordinate is a translation the rotation does not see.
+///
+/// NOTE the inherited limitation, stated rather than papered over: the centre narrows to
+/// local range, so a box whose CENTRE exceeds Q48.16 saturates. Extents survive at any
+/// distance (that is the fixAABBWide_Extents fix), but a transform about a distant centre
+/// does not. box3d has the same limitation today; fixing it needs a wide-centre
+/// formulation and belongs in its own change with its own goldens.
+FIX_ALWAYS_INLINE fixAABBWide fixAABBWide_Transform( fixTransform transform, fixAABBWide a )
+{
+	fixVec3 center = fixTransformPoint( transform, fixAABBWide_Center( a ) );
+	fixMatrix3 m = fixMakeMatrixFromQuat( transform.q );
+	fixVec3 extent = fixMulMV( fixAbsMatrix3( m ), fixAABBWide_Extents( a ) );
+	fixVec3 lo = fixVecSub( center, extent );
+	fixVec3 hi = fixVecAdd( center, extent );
+	fixAABBWide out = { fixPosWideFromVec3( lo ), fixPosWideFromVec3( hi ) };
+	return out;
+}
+
 /// Is this a valid wide AABB? Both bounds valid, and lower <= upper on every axis.
 FIX_ALWAYS_INLINE bool fixIsValidAABBWide( fixAABBWide a )
 {
