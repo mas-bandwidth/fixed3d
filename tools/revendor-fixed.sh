@@ -20,8 +20,8 @@ set -euo pipefail
 FIXED_REPO="https://github.com/mas-bandwidth/fixed.git"
 # v1.0.0. Pinned as a SHA rather than the tag name on purpose: a tag can be moved,
 # a commit cannot, and "vendored at v1.0.0" should mean one specific tree forever.
-FIXED_PIN="af73ce22eb5d8459c541c5178c6ef157aefb1b88"
-FIXED_VERSION="v1.1.0"
+FIXED_PIN="ba88f94cb9cc03951533daf7678d8980d4118163"
+FIXED_VERSION="v1.2.0"
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DEST="$ROOT/extern/fixed"

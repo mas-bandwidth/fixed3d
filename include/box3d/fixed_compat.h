@@ -107,6 +107,10 @@ B3_FIXED_INLINE fixInt128 b3Int128ShiftLeft( fixInt128 a, int shift ) { return f
 //     box3d needs one name whose meaning follows its own flag, so it keeps its own.
 #include "fixed/fixed_vec.h"
 #include "fixed/fixed_math.h"
+// b3Pos, b3WorldTransform and b3AABB take their WIDE form from here under
+// BOX3D_LUDICROUS_MODE. Included unconditionally: the library exports both widths on
+// every build and the header is cheap, so there is no #if guarding an #include.
+#include "fixed/fixed_wide.h"
 
 // ---- types ------------------------------------------------------------------------
 typedef fixCosSin                  b3CosSin;
@@ -208,4 +212,101 @@ B3_INLINE fixMatrix3 b3SubMM( fixMatrix3 a, fixMatrix3 b ) { return fixSubMM( a,
 B3_INLINE fixVec3 b3TransformPoint( fixTransform t, fixVec3 v ) { return fixTransformPoint( t, v ); }
 B3_INLINE fixMatrix3 b3Transpose( fixMatrix3 m ) { return fixTranspose( m ); }
 B3_INLINE fixed_t b3UnwindAngle( fixed_t radians ) { return fixUnwindAngle( radians ); }
+
+// ===================================================================================
+// WORLD POSITIONS AND BOUNDING VOLUMES
+// ===================================================================================
+//
+// These two families cross together because they are coupled: the wide b3AABB is built
+// from b3Pos. Moving one while the other stayed produced "assigning to fixPosWide from
+// incompatible type b3Pos" -- and only in the ludicrous configuration; the narrow build
+// compiled fine either way.
+//
+// ONE BEHAVIOUR CHANGE, and it is the only one in the whole extraction: the library's
+// wide extents differences in 128-bit before narrowing, where box3d narrowed first and
+// so reported ZERO extents for any box past Q48.16 range -- at exactly the distances
+// ludicrous mode exists to serve. For any box whose bounds both fit local range the two
+// agree bit-for-bit, so this is invisible to every build that was already correct.
+//
+// SECOND THING WORTH KNOWING, inherited not introduced: the wide b3LerpPosition computes
+// a + t*(b-a) rather than (1-t)*a + t*b, because the latter multiplies an absolute
+// 128-bit coordinate and overflows. That is one rounding instead of two and it is
+// deliberately NOT bit-identical to the narrow build -- the wide build carries its own
+// goldens for it. Do not "fix" the two widths to agree.
+#if defined( BOX3D_LUDICROUS_MODE )
+typedef fixPosWide                 b3Pos;
+typedef fixWorldTransformWide      b3WorldTransform;
+typedef fixAABBWide                b3AABB;
+
+B3_INLINE b3Pos   b3ToPos( b3Vec3 v )                                { return fixPosWideFromVec3( v ); }
+B3_INLINE b3Vec3  b3ToVec3( b3Pos p )                                { return fixPosWideToVec3( p ); }
+B3_INLINE b3Vec3  b3SubPos( b3Pos a, b3Pos b )                       { return fixPosWideSub( a, b ); }
+B3_INLINE b3Pos   b3OffsetPos( b3Pos p, b3Vec3 d )                   { return fixPosWideOffset( p, d ); }
+B3_INLINE b3Pos   b3LerpPosition( b3Pos a, b3Pos b, b3Fixed t )      { return fixLerpPositionWide( a, b, t ); }
+B3_INLINE b3Pos   b3TransformWorldPoint( b3WorldTransform t, b3Vec3 p )
+                                                                     { return fixTransformWorldPointWide( t, p ); }
+B3_INLINE b3Vec3  b3InvTransformWorldPoint( b3WorldTransform t, b3Pos p )
+                                                                     { return fixInvTransformWorldPointWide( t, p ); }
+B3_INLINE b3WorldTransform b3MakeWorldTransform( b3Transform t )     { return fixMakeWorldTransformWide( t ); }
+B3_INLINE b3WorldTransform b3MulWorldTransforms( b3WorldTransform A, b3Transform B )
+                                                                     { return fixMulWorldTransformsWide( A, B ); }
+B3_INLINE b3Transform b3InvMulWorldTransforms( b3WorldTransform A, b3WorldTransform B )
+                                                                     { return fixInvMulWorldTransformsWide( A, B ); }
+B3_INLINE b3Transform b3ToRelativeTransform( b3WorldTransform t, b3Pos base )
+                                                                     { return fixToRelativeTransformWide( t, base ); }
+
+B3_INLINE b3AABB  b3MakeAABB( const b3Vec3* points, int count, b3Fixed radius )
+{
+	// box3d builds boxes from LOCAL vertices; assembled narrow, widened once. This is the
+	// gap fixMakeAABBWideAt was added upstream to close -- fixMakeAABBWide takes wide points.
+	fixPosWide origin = { 0, 0, 0 };
+	return fixMakeAABBWideAt( points, count, radius, origin );
+}
+B3_INLINE bool    b3AABB_Contains( b3AABB a, b3AABB b )              { return fixAABBWide_Contains( a, b ); }
+B3_INLINE b3Fixed b3AABB_Area( b3AABB a )                            { return fixAABBWide_Area( a ); }
+B3_INLINE b3Vec3  b3AABB_Center( b3AABB a )                          { return fixAABBWide_Center( a ); }
+B3_INLINE b3Vec3  b3AABB_Extents( b3AABB a )                         { return fixAABBWide_Extents( a ); }
+B3_INLINE b3AABB  b3AABB_Union( b3AABB a, b3AABB b )                 { return fixAABBWide_Union( a, b ); }
+B3_INLINE b3AABB  b3AABB_Inflate( b3AABB a, b3Fixed e )              { return fixAABBWide_Inflate( a, e ); }
+B3_INLINE bool    b3AABB_Overlaps( b3AABB a, b3AABB b )              { return fixAABBWide_Overlaps( a, b ); }
+B3_INLINE b3AABB  b3AABB_Transform( b3Transform t, b3AABB a )        { return fixAABBWide_Transform( t, a ); }
+B3_INLINE b3Vec3  b3ClosestPointToAABB( b3Vec3 point, b3AABB a )     { return fixClosestPointToAABBWide( point, a ); }
+
+// box3d's local wide min/max, which were a copy of these all along.
+B3_INLINE b3Int128 b3W_min128( b3Int128 a, b3Int128 b )              { return fixWideMin( a, b ); }
+B3_INLINE b3Int128 b3W_max128( b3Int128 a, b3Int128 b )              { return fixWideMax( a, b ); }
+#else
+typedef fixVec3                    b3Pos;
+typedef fixTransform               b3WorldTransform;
+typedef fixAABB                    b3AABB;
+
+B3_INLINE b3Pos   b3ToPos( b3Vec3 v )                                { return v; }
+B3_INLINE b3Vec3  b3ToVec3( b3Pos p )                                { return p; }
+B3_INLINE b3Vec3  b3SubPos( b3Pos a, b3Pos b )                       { return fixVecSub( a, b ); }
+B3_INLINE b3Pos   b3OffsetPos( b3Pos p, b3Vec3 d )                   { return fixVecAdd( p, d ); }
+B3_INLINE b3Pos   b3LerpPosition( b3Pos a, b3Pos b, b3Fixed t )      { return fixLerpPosition( a, b, t ); }
+B3_INLINE b3Pos   b3TransformWorldPoint( b3WorldTransform t, b3Vec3 p )
+                                                                     { return fixTransformWorldPoint( t, p ); }
+B3_INLINE b3Vec3  b3InvTransformWorldPoint( b3WorldTransform t, b3Pos p )
+                                                                     { return fixInvTransformWorldPoint( t, p ); }
+B3_INLINE b3WorldTransform b3MakeWorldTransform( b3Transform t )     { return fixMakeWorldTransform( t ); }
+B3_INLINE b3WorldTransform b3MulWorldTransforms( b3WorldTransform A, b3Transform B )
+                                                                     { return fixMulWorldTransforms( A, B ); }
+B3_INLINE b3Transform b3InvMulWorldTransforms( b3WorldTransform A, b3WorldTransform B )
+                                                                     { return fixInvMulWorldTransforms( A, B ); }
+B3_INLINE b3Transform b3ToRelativeTransform( b3WorldTransform t, b3Pos base )
+                                                                     { return fixToRelativeTransform( t, base ); }
+
+B3_INLINE b3AABB  b3MakeAABB( const b3Vec3* points, int count, b3Fixed radius )
+                                                                     { return fixMakeAABB( points, count, radius ); }
+B3_INLINE bool    b3AABB_Contains( b3AABB a, b3AABB b )              { return fixAABB_Contains( a, b ); }
+B3_INLINE b3Fixed b3AABB_Area( b3AABB a )                            { return fixAABB_Area( a ); }
+B3_INLINE b3Vec3  b3AABB_Center( b3AABB a )                          { return fixAABB_Center( a ); }
+B3_INLINE b3Vec3  b3AABB_Extents( b3AABB a )                         { return fixAABB_Extents( a ); }
+B3_INLINE b3AABB  b3AABB_Union( b3AABB a, b3AABB b )                 { return fixAABB_Union( a, b ); }
+B3_INLINE b3AABB  b3AABB_Inflate( b3AABB a, b3Fixed e )              { return fixAABB_Inflate( a, e ); }
+B3_INLINE bool    b3AABB_Overlaps( b3AABB a, b3AABB b )              { return fixAABB_Overlaps( a, b ); }
+B3_INLINE b3AABB  b3AABB_Transform( b3Transform t, b3AABB a )        { return fixAABB_Transform( t, a ); }
+B3_INLINE b3Vec3  b3ClosestPointToAABB( b3Vec3 point, b3AABB a )     { return fixClosestPointToAABB( point, a ); }
+#endif
 
