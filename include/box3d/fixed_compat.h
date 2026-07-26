@@ -101,13 +101,8 @@ typedef fixVec3                    b3Vec3;
 #define b3Vec3_zero                    fixVec3_zero
 
 // ---- value macros -----------------------------------------------------------------
-#define B3_ASSERT                      FIX_ASSERT
-#define B3_FORCE_INLINE                FIX_FORCE_INLINE
-#define B3_INLINE                      FIX_INLINE
-#define B3_LITERAL                     FIX_LITERAL
 #define B3_MIN_SCALE                   FIX_MIN_SCALE
 #define B3_PI                          FIX_PI
-#define B3_VALIDATE                    FIX_VALIDATE
 
 // ---- inline forwarders ------------------------------------------------------------
 B3_INLINE fixVec3 b3Abs( fixVec3 a ) { return fixVecAbs( a ); }

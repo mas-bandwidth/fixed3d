@@ -15,7 +15,6 @@
  */
 
 /// https://en.wikipedia.org/wiki/Pi
-#define B3_PI B3_FIX( 3.14159265359f )
 
 /// Convenience macro to convert from degrees to radians.
 #define B3_DEG_TO_RAD B3_FIX( 0.01745329251f )
@@ -24,7 +23,6 @@
 #define B3_RAD_TO_DEG B3_FIX( 57.2957795131f )
 
 /// Minimum scale used for scaling collision meshes, etc.
-#define B3_MIN_SCALE B3_FIX( 0.01f )
 // The vector, quaternion, matrix, transform and plane types and their arithmetic
 // come from mas-bandwidth/fixed via box3d/fixed_compat.h, reached through
 // base.h -> fixed.h. Box3D names, signatures, layouts and linkage unchanged:
