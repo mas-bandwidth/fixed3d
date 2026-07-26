@@ -143,6 +143,86 @@ FIX_ALWAYS_INLINE bool fixIsValidWorldTransformWide( fixWorldTransformWide t )
 	return fixIsValidPosWide( t.p ) && fixIsValidQuat( t.q );
 }
 
+// ---- the wide world-position family ------------------------------------------------
+//
+// Ported from box3d's ludicrous build. The narrow forms live in fixed_vec.h and take
+// fixPos; these take fixPosWide, which is the whole reason they exist -- a consumer whose
+// world positions are 128-bit cannot call the narrow ones, and that gap is what stopped
+// box3d's wide configuration from consuming this library at all.
+//
+// Note what is NOT here because it already exists above: fixPosWideSub is the wide
+// SubPos, fixPosWideOffset is the wide OffsetPos, and fixPosWideFromVec3/ToVec3 are the
+// wide ToPos/ToVec3. Adding second names for them would be two spellings of one truth.
+
+/// World position interpolation, wide.
+///
+/// NOT a mechanical widening of the narrow form, and the difference is load-bearing.
+/// The narrow build computes (1-t)*a + t*b. Widened directly that multiplies an
+/// ABSOLUTE 128-bit coordinate, which overflows and truncates. Reformulated as
+/// a + t*(b-a): the difference is in local range, so the multiply is a safe fixMul on
+/// fixed_t and the result adds back onto the 128-bit base.
+///
+/// That is ONE rounding instead of two, so it is deliberately NOT bit-identical to the
+/// narrow build. A consumer running both widths carries separate goldens for this, and
+/// no amount of care will make them agree -- the wide answer is the more accurate one.
+FIX_ALWAYS_INLINE fixPosWide fixLerpPositionWide( fixPosWide a, fixPosWide b, fixed_t t )
+{
+	fixPosWide out = {
+		a.x + fixMul( t, fixWideSubToFixed( b.x, a.x ) ),
+		a.y + fixMul( t, fixWideSubToFixed( b.y, a.y ) ),
+		a.z + fixMul( t, fixWideSubToFixed( b.z, a.z ) ),
+	};
+	return out;
+}
+
+/// Transform a local point into wide world space. Rotation is narrow; only the
+/// translation is wide.
+FIX_ALWAYS_INLINE fixPosWide fixTransformWorldPointWide( fixWorldTransformWide t, fixVec3 p )
+{
+	fixVec3 r = fixRotateVector( t.q, p );
+	return fixPosWideOffset( t.p, r );
+}
+
+/// Transform a wide world position into local space. One wide subtraction, then narrow.
+FIX_ALWAYS_INLINE fixVec3 fixInvTransformWorldPointWide( fixWorldTransformWide t, fixPosWide p )
+{
+	return fixInvRotateVector( t.q, fixPosWideSub( p, t.p ) );
+}
+
+/// Promote a local transform to a wide world transform. Lossless.
+FIX_ALWAYS_INLINE fixWorldTransformWide fixMakeWorldTransformWide( fixTransform t )
+{
+	fixWorldTransformWide w = { fixPosWideFromVec3( t.p ), t.q };
+	return w;
+}
+
+/// Compose a wide world transform with a local transform.
+FIX_ALWAYS_INLINE fixWorldTransformWide fixMulWorldTransformsWide( fixWorldTransformWide A, fixTransform B )
+{
+	fixWorldTransformWide C;
+	C.q = fixMulQuat( A.q, B.q );
+	C.p = fixPosWideOffset( A.p, fixRotateVector( A.q, B.p ) );
+	return C;
+}
+
+/// Relative transform of frame B in frame A -- the narrow-phase boundary. The wide
+/// difference lands in local range for any pair close enough to interact, which is the
+/// entire premise of the wide-position design.
+FIX_ALWAYS_INLINE fixTransform fixInvMulWorldTransformsWide( fixWorldTransformWide A, fixWorldTransformWide B )
+{
+	fixTransform C;
+	C.q = fixInvMulQuat( A.q, B.q );
+	C.p = fixInvRotateVector( A.q, fixPosWideSub( B.p, A.p ) );
+	return C;
+}
+
+/// Shift a wide world transform into the frame of a base position.
+FIX_ALWAYS_INLINE fixTransform fixToRelativeTransformWide( fixWorldTransformWide t, fixPosWide base )
+{
+	fixTransform r = { fixPosWideSub( t.p, base ), t.q };
+	return r;
+}
+
 /// An axis-aligned bounding box in wide (Q112.16) world space.
 ///
 /// The narrow counterpart is fixAABB in fixed_vec.h. Storage, min/max, union, contains
