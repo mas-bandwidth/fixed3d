@@ -12,7 +12,6 @@
 #include BOX3D_USER_CONFIG
 #endif
 #include "config.h"
-#include "fixed.h"
 
 // clang-format off
 // 
@@ -141,6 +140,15 @@ B3_API int b3InternalAssert( const char* condition, const char* fileName, int li
 /// Floating point tolerance checks should use this instead of the regular assertion
 #define B3_VALIDATE( ... ) ( (void)0 )
 #endif
+
+// The fixed-point core, from mas-bandwidth/fixed via box3d/fixed_compat.h.
+//
+// Included HERE and not at the top of this file, which is where it used to sit: the
+// compat header's forwarders are declared B3_INLINE and its exported declarations use
+// B3_API, and both of those are defined above. Including it before them gave
+// "unknown type name 'B3_INLINE'". base.h's own first use of b3Fixed is further down,
+// so this is the earliest point that works and the latest that matters.
+#include "fixed.h"
 
 /// Override the default logging callback.
 B3_API void b3SetLogFcn( b3LogFcn* logFcn );
