@@ -120,6 +120,19 @@ set(FIXED_SOURCE_FILES
 
 add_library(box3d ${BOX3D_SOURCE_FILES} ${BOX3D_INCLUDE_FILES} ${FIXED_SOURCE_FILES})
 
+# Force-include box3d's plumbing in front of the vendored sources. They include only the
+# library's own headers, so the FIX_API that box3d hands down in fixed_compat.h never
+# reaches them -- and with -fvisibility=hidden that left fixAtan2 and fixComputeCosSin as
+# hidden symbols in the shared library, which the public inline forwarders then reference
+# from consumer code. Static links did not notice; the dynamic sample builds failed to
+# link. MSVC spells force-include /FI, everyone else -include.
+if (MSVC)
+	set(FIXED_FORCE_INCLUDE "/FI${CMAKE_CURRENT_SOURCE_DIR}/../include/box3d/fixed_plumbing.h")
+else()
+	set(FIXED_FORCE_INCLUDE "-include${CMAKE_CURRENT_SOURCE_DIR}/../include/box3d/fixed_plumbing.h")
+endif()
+set_source_files_properties(${FIXED_SOURCE_FILES} PROPERTIES COMPILE_OPTIONS "${FIXED_FORCE_INCLUDE}")
+
 # target_link_libraries(box3d PRIVATE eastl)
 
 target_include_directories(box3d

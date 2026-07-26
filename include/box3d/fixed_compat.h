@@ -20,6 +20,36 @@
 // so linkage is unchanged; after inlining the wrapper costs nothing.
 #pragma once
 
+// ---- DOWN: hand box3d's plumbing to the library ------------------------------------
+// FIX_API is the one that MATTERS, and CI is why it is here. box3d builds with
+// -fvisibility=hidden. `fixed` exports fixAtan2 and fixComputeCosSin as FIX_API, which
+// falls back to a bare extern "C" with no export decoration, so they compile into
+// libbox3d as HIDDEN symbols. The inline forwarders below are in a public header, so a
+// consumer inlines them and ends up referencing fixAtan2 directly -- and the samples
+// failed to link against the shared library with "Undefined symbols: _fixAtan2".
+//
+// Static builds never noticed. Only samples-macos-dynamic and samples-windows-dynamic
+// caught it, which is the argument for having dynamic-link jobs at all.
+//
+// Handing B3_API down gives those symbols box3d's export decoration, so they leave the
+// shared library like every other part of box3d's math.
+//
+// This block could not live here before: base.h used to include fixed.h ABOVE its own
+// definition of B3_API. Moving that include below the macro block is what made this
+// possible.
+// All of them together, not just FIX_API: the library guards its whole macro block on
+// `#ifndef FIX_API`, so defining that one alone skips the definitions of FIX_INLINE,
+// FIX_FORCE_INLINE, FIX_LITERAL and FIX_ZERO_INIT with it. (An each-macro-guarded
+// version upstream would be better and is worth doing; handing the set down is correct
+// either way, because these are box3d's compiler conventions and box3d should own them.)
+#define FIX_API          B3_API
+#define FIX_INLINE       B3_INLINE
+#define FIX_FORCE_INLINE B3_FORCE_INLINE
+#define FIX_LITERAL      B3_LITERAL
+#define FIX_ZERO_INIT    B3_ZERO_INIT
+#define FIX_ASSERT       B3_ASSERT
+#define FIX_VALIDATE     B3_VALIDATE
+
 #include "fixed/fixed.h"
 
 #if defined( BOX3D_FIXED_SATURATE ) && !defined( FIX_SATURATE )
