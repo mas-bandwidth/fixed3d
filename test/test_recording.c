@@ -957,6 +957,12 @@ static int TaggedQuery( void )
 	b3RecPlayer_Destroy( player );
 	b3DestroyRecording( loaded );
 	b3DestroyRecording( rec );
+	// Clean up the file this test wrote, as the other two file-writing tests in here
+	// already do. Without it the suite leaves tagged_query_test.b3rec in whatever
+	// directory it was run from -- and *.b3rec is gitignored HERE, so it is invisible in
+	// this repo and only shows up as a stray when someone runs the tests from elsewhere.
+	// Which is exactly how it was found.
+	remove( path );
 	return 0;
 }
 
