@@ -4,7 +4,7 @@ This directory is a **generated copy** of [mas-bandwidth/fixed](https://github.c
 the deterministic fixed-point math library that Fixed3D's own fixed-point core was
 extracted into.
 
-    Pinned at: v1.0.0  (1c23e3d2418a755afd31a276c7a78687650a1b84)
+    Pinned at: v1.1.0  (af73ce22eb5d8459c541c5178c6ef157aefb1b88)
 
 ## Do not edit anything in this directory
 

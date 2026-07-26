@@ -175,13 +175,14 @@ FIX_ALWAYS_INLINE fixInt128 fixInt128Div( fixInt128 a, fixInt128 b )
 /// Multiply two fixed-point numbers with round-to-nearest.
 /// By default the product is not checked for overflow: simulation quantities are
 /// far below the +/-1.4e14 range and the checks cost real time in the solver.
-/// Define BOX3D_FIXED_SATURATE to saturate on overflow instead of wrapping.
+/// Define FIX_SATURATE to saturate on overflow instead of wrapping. (box3d passes its
+/// own BOX3D_FIXED_SATURATE down through its compatibility header.)
 FIX_ALWAYS_INLINE fixed_t fixMul( fixed_t a, fixed_t b )
 {
 	fixInt128 product = (fixInt128)a * b;
 	// Round half up, then shift out the fraction bits (arithmetic shift)
 	fixInt128 r = ( product + FIX_HALF ) >> FIX_FRACTION_BITS;
-#if defined( BOX3D_FIXED_SATURATE )
+#if defined( FIX_SATURATE )
 	if ( r > (fixInt128)INT64_MAX )
 	{
 		return FIX_MAX;

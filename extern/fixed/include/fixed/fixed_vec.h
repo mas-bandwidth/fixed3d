@@ -167,7 +167,7 @@ FIX_INLINE fixInt128 fixDotRaw( fixVec3 a, fixVec3 b )
 FIX_INLINE fixed_t fixFromDotRaw( fixInt128 raw )
 {
 	fixInt128 r = ( raw + FIX_HALF ) >> FIX_FRACTION_BITS;
-#if defined( BOX3D_FIXED_SATURATE )
+#if defined( FIX_SATURATE )
 	if ( r > (fixInt128)INT64_MAX )
 	{
 		return FIX_MAX;
@@ -751,11 +751,17 @@ FIX_INLINE fixInt128 fixCofactor128( fixed_t a, fixed_t b, fixed_t c, fixed_t d 
 /// of this header. The bodies are byte-equivalent.
 ///
 /// Deliberately NOT extracted, and the reason matters:
-///   - fixIsValidPosition / fixIsValidWorldTransform have TWO definitions in fixed3d,
-///     selected by BOX3D_LUDICROUS_MODE, because fixPos changes shape under that flag.
-///     They cannot move until the narrow/wide fixPos design fork is resolved.
-///   - fixIsValidAABB / fixIsValidPlane / fixIsValidRay take collision types (fixAABB,
-///     fixPlane, fixRayCastInput). Those are physics, not fixed-point math, and stay.
+///   - b3IsValidRay takes b3RayCastInput, a box3d collision type. Physics, not
+///     fixed-point math; it stays with the solver.
+///   - b3IsBoundedAABB / b3IsSaneAABB resolve B3_HUGE through box3d's mutable
+///     b3GetLengthUnitsPerMeter() global. They encode world-scale POLICY, and a math
+///     library should hold no opinion about how big a world is.
+///
+/// The position and bounds validators DID move, and the design fork that once blocked
+/// them is resolved: this library exports BOTH widths unconditionally (fixIsValidVec3
+/// and fixIsValidPosWide, fixIsValidAABB and fixIsValidAABBWide), so nothing here is
+/// selected by a compile flag. box3d picks a width in its own compatibility header,
+/// where its own flag belongs.
 
 /// True if a is a representable fixed-point quantity.
 ///
@@ -1157,7 +1163,7 @@ FIX_INLINE fixMatrix3 fixAbsMatrix3( fixMatrix3 m )
 
 /// Make a matrix from a quaternion. This is useful if you need to
 /// rotate many vectors.
-/// The force inline improves the performance of fixShapeDistance.
+/// The force inline improves the performance of b3ShapeDistance (box3d).
 FIX_FORCE_INLINE fixMatrix3 fixMakeMatrixFromQuat( fixQuat q )
 {
 	fixed_t xx = fixMul( q.v.x , q.v.x );
