@@ -144,4 +144,41 @@
 		</Expand>
 	</Type>
 
+	<!-- The fixed-point types are typedefs onto mas-bandwidth/fixed, so a debugger
+	     resolves them to the UNDERLYING name and the b3* rules above never match.
+	     These are the same visualizers keyed on what the debugger actually sees.
+	     Kept alongside the b3* entries rather than replacing them: box3d's own
+	     aggregates still use those names, and a stale rule costs nothing. -->
+	<Type Name="fixVec3">
+		<DisplayString>[ {x}, {y}, {z} ]</DisplayString>
+	</Type>
+
+	<Type Name="fixVec2">
+		<DisplayString>[ {x}, {y} ]</DisplayString>
+	</Type>
+
+	<Type Name="fixQuat">
+		<DisplayString>[ {v}, {s} ]</DisplayString>
+	</Type>
+
+	<Type Name="fixTransform">
+		<DisplayString>[ {p}, {q} ]</DisplayString>
+	</Type>
+
+	<Type Name="fixPosWide">
+		<DisplayString>[ {x}, {y}, {z} ]</DisplayString>
+	</Type>
+
+	<Type Name="fixWorldTransformWide">
+		<DisplayString>[ {p}, {q} ]</DisplayString>
+	</Type>
+
+	<Type Name="fixAABB">
+		<DisplayString>[ {lowerBound} .. {upperBound} ]</DisplayString>
+	</Type>
+
+	<Type Name="fixAABBWide">
+		<DisplayString>[ {lowerBound} .. {upperBound} ]</DisplayString>
+	</Type>
+
 </AutoVisualizer>

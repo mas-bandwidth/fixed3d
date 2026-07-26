@@ -107,13 +107,27 @@ set(BOX3D_INCLUDE_FILES
 set(CMAKE_C_VISIBILITY_PRESET hidden)
 set(CMAKE_VISIBILITY_INLINES_HIDDEN 1)
 
-add_library(box3d ${BOX3D_SOURCE_FILES} ${BOX3D_INCLUDE_FILES})
+# The deterministic fixed-point core, vendored from mas-bandwidth/fixed at
+# extern/fixed and pinned in tools/revendor-fixed.sh. Compiled straight into box3d
+# rather than linked as a separate target: it is box3d's own math, it must land in the
+# same binary for a static consumer, and a separate target would add an install/export
+# rule for something no downstream user should be linking against independently.
+set(FIXED_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../extern/fixed)
+set(FIXED_SOURCE_FILES
+	${FIXED_DIR}/src/fixed_math.c
+	${FIXED_DIR}/src/fixed_vec.c
+)
+
+add_library(box3d ${BOX3D_SOURCE_FILES} ${BOX3D_INCLUDE_FILES} ${FIXED_SOURCE_FILES})
 
 # target_link_libraries(box3d PRIVATE eastl)
 
 target_include_directories(box3d
   PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../include>
+    # PUBLIC, not PRIVATE: box3d/fixed.h includes <fixed/fixed.h>, so every consumer
+    # of box3d's public headers needs this on its include path too.
+    $<BUILD_INTERFACE:${FIXED_DIR}/include>
     $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
   PRIVATE
