@@ -1,0 +1,308 @@
+// SPDX-FileCopyrightText: 2026 Más Bandwidth LLC
+// SPDX-License-Identifier: MIT
+// Wide (Q112.16) fixed-point primitives: 128-bit world coordinates that share
+// fixed_t's 16 fraction bits. Sharing the fraction count is the crux — the
+// boundary between wide world space and Q48.16 local space is then an exact
+// integer subtract plus a range check, never an arithmetic rescale. See
+// fixed3d's docs/design/wide-world-positions.md for the architecture these
+// primitives serve.
+#pragma once
+
+#include "fixed/fixed.h"
+#include "fixed/fixed_vec.h"
+
+#if !FIX_HAS_INT128
+#error "fixed_wide.h requires 128-bit integer support (clang, gcc, or clang-cl)"
+#endif
+
+/// Wide fixed-point scalar: Q112.16 in a 128-bit integer. Same resolution as
+/// fixed_t (1/65536); all 64 extra bits go to integer range (~±2.6e33 units).
+typedef fixInt128 fixedWide_t;
+
+/// Wide world position: three Q112.16 coordinates.
+typedef struct fixPosWide
+{
+	fixedWide_t x, y, z;
+} fixPosWide;
+
+/// Widen a local Q48.16 value to Q112.16. Exact: the fraction points align.
+FIX_ALWAYS_INLINE fixedWide_t fixWideFromFixed( fixed_t a )
+{
+	return (fixedWide_t)a;
+}
+
+/// Narrow a Q112.16 value to local Q48.16, saturating out-of-range values to
+/// INT64_MAX/INT64_MIN. Exact whenever the value fits local range.
+FIX_ALWAYS_INLINE fixed_t fixWideToFixed( fixedWide_t a )
+{
+	if ( a > (fixedWide_t)INT64_MAX )
+	{
+		return INT64_MAX;
+	}
+	if ( a < (fixedWide_t)INT64_MIN )
+	{
+		return INT64_MIN;
+	}
+	return (fixed_t)a;
+}
+
+/// Wide add. Exact 128-bit integer addition.
+FIX_ALWAYS_INLINE fixedWide_t fixWideAdd( fixedWide_t a, fixedWide_t b )
+{
+	return a + b;
+}
+
+/// Wide subtract. Exact 128-bit integer subtraction.
+FIX_ALWAYS_INLINE fixedWide_t fixWideSub( fixedWide_t a, fixedWide_t b )
+{
+	return a - b;
+}
+
+/// Min/max on the wide (128-bit) fixed-point type.
+///
+/// Extracted from fixed3d, where they live behind BOX3D_LUDICROUS_MODE because that is
+/// the only build with 128-bit AABB bounds. Here they are unconditional: this library
+/// exports the wide type on every build, so a consumer selects narrow or wide by which
+/// type it uses, not by a compile flag that changes an ABI.
+FIX_ALWAYS_INLINE fixedWide_t fixWideMin( fixedWide_t a, fixedWide_t b )
+{
+	return a < b ? a : b;
+}
+
+FIX_ALWAYS_INLINE fixedWide_t fixWideMax( fixedWide_t a, fixedWide_t b )
+{
+	return a > b ? a : b;
+}
+
+/// Offset a wide coordinate by a local delta (the once-per-step delta-fold).
+/// Exact: int128 += widened int64, fraction points aligned.
+FIX_ALWAYS_INLINE fixedWide_t fixWideOffset( fixedWide_t a, fixed_t d )
+{
+	return a + (fixedWide_t)d;
+}
+
+/// The boundary operation: difference two wide world coordinates into local
+/// Q48.16 space. Exact whenever the separation fits local range (any contact
+/// pair, joint, or reach-bounded query); saturates otherwise. This is the
+/// fixed-point replacement for float's entire directed-rounding apparatus.
+FIX_ALWAYS_INLINE fixed_t fixWideSubToFixed( fixedWide_t a, fixedWide_t b )
+{
+	return fixWideToFixed( a - b );
+}
+
+/// Widen a local position/vector to a wide world position. Exact.
+FIX_ALWAYS_INLINE fixPosWide fixPosWideFromVec3( fixVec3 v )
+{
+	fixPosWide p = { (fixedWide_t)v.x, (fixedWide_t)v.y, (fixedWide_t)v.z };
+	return p;
+}
+
+/// Narrow a wide position to a local vector, saturating per component.
+FIX_ALWAYS_INLINE fixVec3 fixPosWideToVec3( fixPosWide p )
+{
+	fixVec3 v = { fixWideToFixed( p.x ), fixWideToFixed( p.y ), fixWideToFixed( p.z ) };
+	return v;
+}
+
+/// Difference two wide positions into local space (per-component boundary op).
+FIX_ALWAYS_INLINE fixVec3 fixPosWideSub( fixPosWide a, fixPosWide b )
+{
+	fixVec3 v = { fixWideSubToFixed( a.x, b.x ), fixWideSubToFixed( a.y, b.y ), fixWideSubToFixed( a.z, b.z ) };
+	return v;
+}
+
+/// Offset a wide position by a local delta vector. Exact.
+FIX_ALWAYS_INLINE fixPosWide fixPosWideOffset( fixPosWide p, fixVec3 d )
+{
+	fixPosWide out = { fixWideOffset( p.x, d.x ), fixWideOffset( p.y, d.y ), fixWideOffset( p.z, d.z ) };
+	return out;
+}
+
+/// A world transform with a wide translation. Rotation is frame-local and never needs
+/// range, so the quaternion stays Q48.16.
+typedef struct fixWorldTransformWide
+{
+	fixPosWide p;
+	fixQuat q;
+} fixWorldTransformWide;
+
+/// Is this a valid wide coordinate? Mirrors fixIsValidFixed: every value is a legal
+/// quantity except the 128-bit minimum, which is reserved so negation cannot overflow.
+FIX_ALWAYS_INLINE bool fixIsValidWideCoord( fixedWide_t x )
+{
+	return x != (fixedWide_t)( (fixUInt128)1 << 127 );
+}
+
+FIX_ALWAYS_INLINE bool fixIsValidPosWide( fixPosWide p )
+{
+	return fixIsValidWideCoord( p.x ) && fixIsValidWideCoord( p.y ) && fixIsValidWideCoord( p.z );
+}
+
+FIX_ALWAYS_INLINE bool fixIsValidWorldTransformWide( fixWorldTransformWide t )
+{
+	return fixIsValidPosWide( t.p ) && fixIsValidQuat( t.q );
+}
+
+/// An axis-aligned bounding box in wide (Q112.16) world space.
+///
+/// The narrow counterpart is fixAABB in fixed_vec.h. Storage, min/max, union, contains
+/// and overlap stay 128-bit -- those are the hot broadphase-tree operations. Center and
+/// extents narrow to fixed_t for the fixVec3-returning API, which is exact whenever the
+/// box fits local range.
+typedef struct fixAABBWide
+{
+	fixPosWide lowerBound;
+	fixPosWide upperBound;
+} fixAABBWide;
+
+/// Get the wide AABB of a wide point cloud, expanded by a uniform local radius.
+FIX_ALWAYS_INLINE fixAABBWide fixMakeAABBWide( const fixPosWide* points, int count, fixed_t radius )
+{
+	FIX_ASSERT( count > 0 );
+	fixAABBWide a = { points[0], points[0] };
+	for ( int i = 1; i < count; ++i )
+	{
+		a.lowerBound.x = fixWideMin( a.lowerBound.x, points[i].x );
+		a.lowerBound.y = fixWideMin( a.lowerBound.y, points[i].y );
+		a.lowerBound.z = fixWideMin( a.lowerBound.z, points[i].z );
+		a.upperBound.x = fixWideMax( a.upperBound.x, points[i].x );
+		a.upperBound.y = fixWideMax( a.upperBound.y, points[i].y );
+		a.upperBound.z = fixWideMax( a.upperBound.z, points[i].z );
+	}
+
+	a.lowerBound.x -= radius; a.lowerBound.y -= radius; a.lowerBound.z -= radius;
+	a.upperBound.x += radius; a.upperBound.y += radius; a.upperBound.z += radius;
+
+	return a;
+}
+
+/// Does a fully contain b?
+FIX_ALWAYS_INLINE bool fixAABBWide_Contains( fixAABBWide a, fixAABBWide b )
+{
+	if ( a.lowerBound.x > b.lowerBound.x || b.upperBound.x > a.upperBound.x ) return false;
+	if ( a.lowerBound.y > b.lowerBound.y || b.upperBound.y > a.upperBound.y ) return false;
+	if ( a.lowerBound.z > b.lowerBound.z || b.upperBound.z > a.upperBound.z ) return false;
+	return true;
+}
+
+/// Surface area. The deltas narrow to local range first -- a box whose extent exceeds
+/// Q48.16 range has no meaningful area in fixed_t, and saturating is the honest answer.
+FIX_ALWAYS_INLINE fixed_t fixAABBWide_Area( fixAABBWide a )
+{
+	fixed_t dx = fixWideSubToFixed( a.upperBound.x, a.lowerBound.x );
+	fixed_t dy = fixWideSubToFixed( a.upperBound.y, a.lowerBound.y );
+	fixed_t dz = fixWideSubToFixed( a.upperBound.z, a.lowerBound.z );
+	return fixMul( FIX( 2.0f ) , ( fixMul( dx , dy ) + fixMul( dy , dz ) + fixMul( dz , dx ) ) );
+}
+
+/// Center, in local space.
+///
+/// Ported exactly as box3d has it, INCLUDING the narrowing, because the rounding is
+/// load-bearing: box3d narrows both bounds to fixed_t and then applies the same
+/// half-up fixMulSV( 0.5, ... ) the narrow build uses, so a box expressed either way
+/// yields the same center. An integer >> 1 here would truncate instead of rounding
+/// half-up and would shift the box by up to 1 ULP relative to the narrow build.
+///
+/// Known limitation, inherited deliberately rather than silently repaired: the center
+/// of a box whose coordinates exceed Q48.16 range saturates. Fixing that means
+/// returning a wide center, which is a behaviour change and belongs in its own commit
+/// with its own goldens -- not smuggled in under the word "extract".
+FIX_ALWAYS_INLINE fixVec3 fixAABBWide_Center( fixAABBWide a )
+{
+	fixVec3 lo = fixPosWideToVec3( a.lowerBound );
+	fixVec3 hi = fixPosWideToVec3( a.upperBound );
+	return fixMulSV( FIX( 0.5f ), fixVecAdd( hi, lo ) );
+}
+
+/// Extents (half-widths) in local space. Exact whenever the box's SIZE fits local
+/// range, regardless of how far from the origin the box sits.
+///
+/// NOT a faithful port -- this is a deliberate BUG FIX, called out because everything
+/// else in this extraction is behaviour-preserving. box3d's wide fixAABB_Extents narrows
+/// each bound to fixed_t and then subtracts:
+///
+///     fixMulSV( FIX( 0.5f ), fixVecSub( fixToVec3( a.upperBound ), fixToVec3( a.lowerBound ) ) )
+///
+/// Past Q48.16 range BOTH bounds saturate to INT64_MAX, their difference is zero, and a
+/// perfectly ordinary box reports zero extents -- at exactly the distances ludicrous mode
+/// exists to serve. fixAABB_Transform consumes Extents, so transformed distant boxes
+/// collapse too. box3d's own wide fixAABB_Area already does it the right way round
+/// (difference in 128-bit, then narrow), so this restores consistency within that file
+/// rather than inventing a convention.
+///
+/// For any box whose bounds both fit local range the two forms agree bit-for-bit, which
+/// the narrow/wide correspondence cases in test/aabb_test.c check directly. The fix is
+/// therefore invisible to every build that was already correct.
+FIX_ALWAYS_INLINE fixVec3 fixAABBWide_Extents( fixAABBWide a )
+{
+	fixVec3 d = { fixWideSubToFixed( a.upperBound.x, a.lowerBound.x ),
+	             fixWideSubToFixed( a.upperBound.y, a.lowerBound.y ),
+	             fixWideSubToFixed( a.upperBound.z, a.lowerBound.z ) };
+	return fixMulSV( FIX( 0.5f ), d );
+}
+
+/// Union of two wide boxes.
+FIX_ALWAYS_INLINE fixAABBWide fixAABBWide_Union( fixAABBWide a, fixAABBWide b )
+{
+	fixAABBWide out;
+	out.lowerBound.x = fixWideMin( a.lowerBound.x, b.lowerBound.x );
+	out.lowerBound.y = fixWideMin( a.lowerBound.y, b.lowerBound.y );
+	out.lowerBound.z = fixWideMin( a.lowerBound.z, b.lowerBound.z );
+	out.upperBound.x = fixWideMax( a.upperBound.x, b.upperBound.x );
+	out.upperBound.y = fixWideMax( a.upperBound.y, b.upperBound.y );
+	out.upperBound.z = fixWideMax( a.upperBound.z, b.upperBound.z );
+	return out;
+}
+
+/// Add uniform local padding to a wide box.
+FIX_ALWAYS_INLINE fixAABBWide fixAABBWide_Inflate( fixAABBWide a, fixed_t extension )
+{
+	fixAABBWide out = a;
+	out.lowerBound.x -= extension; out.lowerBound.y -= extension; out.lowerBound.z -= extension;
+	out.upperBound.x += extension; out.upperBound.y += extension; out.upperBound.z += extension;
+	return out;
+}
+
+/// Do two wide boxes overlap?
+FIX_ALWAYS_INLINE bool fixAABBWide_Overlaps( fixAABBWide a, fixAABBWide b )
+{
+	if ( a.upperBound.x < b.lowerBound.x || a.lowerBound.x > b.upperBound.x ) return false;
+	if ( a.upperBound.y < b.lowerBound.y || a.lowerBound.y > b.upperBound.y ) return false;
+	if ( a.upperBound.z < b.lowerBound.z || a.lowerBound.z > b.upperBound.z ) return false;
+	return true;
+}
+
+/// Place a local box at a wide world origin. Exact: fixed-point addition, aligned
+/// fraction points, so no outward rounding is needed -- the translated box is the
+/// translated box.
+FIX_ALWAYS_INLINE fixAABBWide fixOffsetAABBWide( fixAABB localBox, fixPosWide origin )
+{
+	fixAABBWide out;
+	out.lowerBound = fixPosWideOffset( origin, localBox.lowerBound );
+	out.upperBound = fixPosWideOffset( origin, localBox.upperBound );
+	return out;
+}
+
+/// Closest point on a wide box to a LOCAL point.
+///
+/// Ported as box3d has it: the bounds narrow to local space and the clamp happens
+/// there, because the incoming point is local. Clamping wide instead would be a
+/// different function with a different signature, and inventing it here would mean
+/// shipping an untested behaviour change wearing an extraction's clothes.
+FIX_ALWAYS_INLINE fixVec3 fixClosestPointToAABBWide( fixVec3 point, fixAABBWide a )
+{
+	fixVec3 lo = fixPosWideToVec3( a.lowerBound );
+	fixVec3 hi = fixPosWideToVec3( a.upperBound );
+	return fixVecClamp( point, lo, hi );
+}
+
+/// Is this a valid wide AABB? Both bounds valid, and lower <= upper on every axis.
+FIX_ALWAYS_INLINE bool fixIsValidAABBWide( fixAABBWide a )
+{
+	if ( fixIsValidPosWide( a.lowerBound ) == false ) return false;
+	if ( fixIsValidPosWide( a.upperBound ) == false ) return false;
+	if ( a.lowerBound.x > a.upperBound.x ) return false;
+	if ( a.lowerBound.y > a.upperBound.y ) return false;
+	if ( a.lowerBound.z > a.upperBound.z ) return false;
+	return true;
+}
