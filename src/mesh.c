@@ -16,7 +16,11 @@
 b3DeclareArray( b3VertexNode );
 b3DeclareArray( b3MeshNode );
 b3DeclareArray( b3MeshTriangle );
-b3DeclareArray( b3Vec3 );
+// b3DeclareArrayNative, not b3DeclareArray: the former spells the element type `T*`,
+// the latter `struct T*`. b3Vec3 is now a typedef onto the `fixed` library's fixVec3,
+// so there is no `struct b3Vec3` tag to name. Native is the variant that already exists
+// for exactly this case.
+b3DeclareArrayNative( b3Vec3 );
 b3DeclareArray( b3Primitive );
 b3DeclareArrayNative( uint8_t );
 
