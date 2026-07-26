@@ -127,6 +127,6 @@ MIT, same as Box3D.
 
 If you use fixed3d in a product, please credit it in your product credits:
 
-> fixed3d - Glenn Fiedler and Rowan Claude
+> Fixed3d - Glenn Fiedler and Rowan Claude
 
 fixed3d is a conversion of [Box3D](https://github.com/erincatto/box3d) — please also credit **Box3D - Erin Catto**. The license doesn't require either credit. It's an official request, and honoring it is appreciated. Fair credit keeps open source honest.
