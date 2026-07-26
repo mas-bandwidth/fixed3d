@@ -1,101 +1,80 @@
 # Contributing to Fixed3D
 
-This project is open source under the [MIT License](LICENSE). Please read this document
-before opening a pull request — **PRs that skip these steps will be closed.**
+Pull requests are welcome. If a change is good and useful, we will merge it.
 
----
+Fixed3D is a fork of [Box3D](https://github.com/erincatto/box3d) by Erin Catto, and Box3D
+does not take pull requests. That is Erin's call for his project, and a reasonable one. It
+is not our policy here.
 
-## TL;DR
+## Where to send what
 
-1. **Discuss first.** Open an issue (or a [Discussion](../../discussions)) and
-   wait for it to be labeled `ready-for-pr` before writing code.
-2. **Sign the CLA.** A bot will prompt you on your first PR. One signature
-   covers all future contributions.
-3. **Link the issue.** Put `Closes #123` in your PR description. A required
-   check enforces this.
-4. **Follow the style.** C17, no compiler warnings, formatted with
-   `clang-format`.
-5. **Follow the LLM guidelines.** See the LLM guidelines in README.md
+Anything specific to Fixed3D belongs here: the fixed-point conversion, determinism, the
+wide world types, the build, the docs. Open an
+[issue](https://github.com/mas-bandwidth/fixed3d/issues) or send a pull request.
 
----
+Anything wrong with Box3D itself, unrelated to fixed point, is best reported upstream at
+[erincatto/box3d](https://github.com/erincatto/box3d/issues). New Box3D work gets ported
+across, so a fix there arrives here too.
 
-## 1. Discuss before you build
+You do not need permission to open a pull request. For a bug fix or a small improvement,
+just send it. For something large, a new subsystem, an API change, a different solver,
+open an issue first so we can agree on the approach before you spend a weekend on it.
 
-Open an issue or discussion before creating a PR.
+## Determinism is the whole point
 
-I will review the issue or discussion and apply the **`ready-for-pr`** label. Please don't open
-a PR until you get the label.
+Fixed3D exists so a simulation produces bit-identical results on every platform and
+architecture. A change that makes results depend on the compiler, the target
+architecture, or the optimization level defeats the reason this fork exists, and it will
+not be merged however fast it is.
 
-Please wait follow this process. I don't want people wasting time writing a PR that won't be accepted.
+The test suite checks this and CI enforces it: gcc, clang, clang-cl, MinGW and emscripten,
+on Linux, macOS, and Windows x64 and ARM64, under thread, memory, address and
+undefined-behavior sanitizers, plus AVX-512 and 128-bit world position variants. If your
+change turns any of that red, it is not ready. Performance work is very welcome, but it
+has to produce the same bits.
 
----
+## Opening a pull request
 
-## 2. Contributor License Agreement (CLA)
-
-Before your first contribution can be merged, you must sign the project's
-**Individual Contributor License Agreement**. When you open your first pull
-request, a bot will post a link; signing takes about a minute and covers all
-your future contributions.
-
-**What this means:** you retain the copyright to your contribution. The CLA
-grants the project maintainer a broad, perpetual, irrevocable license to use,
-modify, sublicense, and **relicense** your contribution. This lets the project
-adapt its licensing in the future (for example, offering a commercial edition)
-without having to track down every past contributor.
-
-If you're contributing on behalf of an employer, make sure you have the right
-to do so — some employment agreements assign your work to your employer, in
-which case a Corporate CLA may be required. Contact the maintainer if you're
-unsure.
-
-By submitting a contribution you also confirm that it is your original work and
-that you have the right to submit it under these terms.
-
----
-
-## 3. Opening a pull request
-
-Once your issue is labeled `ready-for-pr`:
-
-1. **Fork** the repository and create a branch from `main`:
+1. Fork the repository and branch from `main`.
+2. Keep the pull request to one logical change. If you find yourself touching unrelated
+   things, split them into separate pull requests.
+3. Say in the description what the change does and why.
+4. Build and test locally before you send it:
 
    ```bash
-   git checkout -b fix/short-description
+   ./build.sh
+   ./build/bin/test
    ```
 
-2. Make your change in small, focused commits.
-3. **Reference the issue** in your PR description using a closing keyword:
+   Then make sure CI is green on the pull request.
+5. Match the surrounding code. Library sources are C17, samples are C++20, and CI builds
+   with warnings as errors. The repository ships a `.clang-format`; use it on code you add
+   or edit. Please do not mass-reformat files you are not otherwise changing, because it
+   buries the real change.
 
-   ```text
-   Closes #(Issue Number)
-   ```
+## Contributor Assignment Agreement
 
-   A required status check parses this and will fail if no linked, approved
-   issue is found — the PR cannot be merged without it.
-4. Ensure the full test suite and CI pass.
-5. Fill out the PR template completely.
+Before your first contribution can be merged you need to sign the
+[Contributor Assignment Agreement](https://github.com/mas-bandwidth/.github/blob/main/CAA.md).
+A bot posts the link on your first pull request. Signing is one comment, it takes a
+minute, and it covers everything you contribute to any Más Bandwidth repository after
+that.
 
-Keep PRs scoped to a single logical change. If you find yourself touching
-unrelated things, split them into separate PRs (each with its own approved
-issue).
+Read it before you sign. It is a copyright assignment, a stronger grant than the license a
+CLA usually asks for: you assign copyright in your contribution to Más Bandwidth LLC, and
+you get back a perpetual license to use your own work for any purpose. We ask for it so
+these libraries can be relicensed in future without tracking down every past contributor
+for permission. If your contribution includes third-party material, identify it when you
+submit; that material stays under its own license.
 
----
+Fixed3D is MIT, the same as Box3D, and the Box3D-derived material stays MIT.
 
-## 4. Coding conventions
+## Credit
 
-Source files must be in C17. Samples use C++20. Please follow existing coding
-conventions and use clang format.
+Contributors keep their name in the commit history, and a change worth calling out gets
+called out. The [README](README.md) carries the crediting request that goes the other way,
+for products that ship Fixed3D.
 
----
+## Questions
 
-## 5. Tests and documentation
-
-- Comment your code.
-- Public API must have Doxygen comments.
-
----
-
-## Questions?
-
-Open a [Discussion](../../discussions) — that's the best place for anything not
-covered here. Thanks for helping make Fixed3D better!
+Open an [issue](https://github.com/mas-bandwidth/fixed3d/issues).
