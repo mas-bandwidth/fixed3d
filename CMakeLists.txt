@@ -2,7 +2,7 @@
 include(CMakeDependentOption)
 
 project(box3d
-	VERSION 1.3.0
+	VERSION 1.4.0
 	DESCRIPTION "Fixed3D: Box3D in Q48.16 fixed point"
 	HOMEPAGE_URL "https://github.com/mas-bandwidth/fixed3d"
 	LANGUAGES C CXX
