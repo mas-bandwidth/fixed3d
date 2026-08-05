@@ -4,7 +4,7 @@ Box3D converted from float to Q48.16 fixed point (internal and external API).
 Baseline float code is commit c52908c. EVERYTHING below is committed and pushed;
 there is no pending working-tree state.
 
-## Current status (as of 2026-07-16 — v1.3.0, MAINTENANCE MODE)
+## Current status (as of 2026-08-04 — v1.4.0, MAINTENANCE MODE)
 
 - **PORT RECORD c52908c "Fixes 08 (#98)" (2026-07-24)** — hull builder leak +
   samples data-folder resilience. Engine: ResolveFaces now retires each
