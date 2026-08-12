@@ -644,3 +644,300 @@ bool b3IsValidRay( const b3RayCastInput* input )
 				   b3IsValidFixed( input->maxFraction ) && B3_FIX( 0.0f ) <= input->maxFraction && input->maxFraction < B3_HUGE;
 	return isValid;
 }
+
+
+// ---------------------------------------------------------------------------------------------
+// Fixed-point exp2 / log2 / pow (the deterministic transcendental ladder for the game control
+// path). Determinism over accuracy: every operation is pure integer arithmetic.
+// ---------------------------------------------------------------------------------------------
+
+// 2^(2^-k) in Q32, k = 1..16: the binary-exponentiation table for the fractional part of exp2.
+static const uint64_t b3_exp2Table[16] = {
+	0x000000016A09E668ull, // 2^(2^-1)
+	0x00000001306FE0A3ull, // 2^(2^-2)
+	0x00000001172B83C8ull, // 2^(2^-3)
+	0x000000010B5586D0ull, // 2^(2^-4)
+	0x00000001059B0D31ull, // 2^(2^-5)
+	0x0000000102C9A3E7ull, // 2^(2^-6)
+	0x000000010163DAA0ull, // 2^(2^-7)
+	0x0000000100B1AFA6ull, // 2^(2^-8)
+	0x000000010058C86Eull, // 2^(2^-9)
+	0x00000001002C605Eull, // 2^(2^-10)
+	0x0000000100162F39ull, // 2^(2^-11)
+	0x00000001000B175Full, // 2^(2^-12)
+	0x0000000100058BA0ull, // 2^(2^-13)
+	0x000000010002C5CCull, // 2^(2^-14)
+	0x00000001000162E5ull, // 2^(2^-15)
+	0x000000010000B172ull, // 2^(2^-16)
+};
+
+b3Fixed b3FixLog2( b3Fixed a )
+{
+	if ( a <= 0 )
+	{
+		return INT64_MIN;
+	}
+
+	// integer part: position of the leading bit relative to the fraction point
+	int msb = 63 - __builtin_clzll( (uint64_t)a );
+	int64_t integerPart = (int64_t)( msb - B3_FIXED_FRACTION_BITS );
+
+	// mantissa m in [1, 2), carried in Q2.62 (fits u64: raw in [2^62, 2^63)): the exact binary
+	// digits of log2( m ) fall out of repeated squaring -- square m; if the square reaches
+	// [2, 4), the digit is 1 and the square halves back into [1, 2).
+	uint64_t m;
+	if ( msb <= 62 )
+	{
+		m = (uint64_t)a << ( 62 - msb );
+	}
+	else
+	{
+		m = (uint64_t)a >> ( msb - 62 );
+	}
+
+	uint64_t fraction32 = 0;
+	for ( int i = 0; i < 32; ++i )
+	{
+		b3UInt128 sq = (b3UInt128)m * m;	// Q4.124, value in [1, 4)
+		fraction32 <<= 1;
+		if ( sq >= ( (b3UInt128)1 << 125 ) )
+		{
+			fraction32 |= 1;
+			m = (uint64_t)( sq >> 63 );		// halve back into [1, 2) at Q2.62
+		}
+		else
+		{
+			m = (uint64_t)( sq >> 62 );		// renormalize to Q2.62
+		}
+	}
+
+	// assemble: integer part in Q48.16 plus the 32 exact fraction bits rounded to 16
+	int64_t fraction16 = (int64_t)( ( fraction32 + ( 1ull << 15 ) ) >> 16 );
+	return ( integerPart << B3_FIXED_FRACTION_BITS ) + fraction16;
+}
+
+b3Fixed b3FixExp2( b3Fixed a )
+{
+	// split into integer floor and fractional part in [0, 1)
+	int64_t n = a >> B3_FIXED_FRACTION_BITS;
+	uint64_t f = (uint64_t)( a - ( n << B3_FIXED_FRACTION_BITS ) );	// Q16 fraction, [0, 2^16)
+
+	if ( n >= 47 )
+	{
+		return INT64_MAX;		// saturate: 2^47 is the top of the Q48.16 whole-unit domain
+	}
+
+	if ( n < -17 )
+	{
+		return 0;				// underflow below the smallest representable value
+	}
+
+	// 2^f as a product over the set bits of f, in Q32: r in [ 2^32, 2^33 )
+	uint64_t r = 1ull << 32;
+	for ( int k = 0; k < 16; ++k )
+	{
+		// bit for 2^-( k + 1 ) is fraction bit ( 15 - k )
+		if ( f & ( 1ull << ( 15 - k ) ) )
+		{
+			r = (uint64_t)( ( (b3UInt128)r * b3_exp2Table[k] ) >> 32 );
+		}
+	}
+
+	// scale by 2^n: result raw = r * 2^n / 2^16 (r is Q32, output is Q16)
+	int shift = 16 - (int)n;
+	if ( shift <= 0 )
+	{
+		return (b3Fixed)( r << ( -shift ) );
+	}
+	if ( shift >= 64 )
+	{
+		return 0;
+	}
+	// round to nearest on the dropped bits, the pinned ( raw + half ) >> drop form
+	return (b3Fixed)( ( r + ( 1ull << ( shift - 1 ) ) ) >> shift );
+}
+
+b3Fixed b3FixPow( b3Fixed base, b3Fixed exponent )
+{
+	if ( base <= 0 )
+	{
+		return 0;
+	}
+
+	if ( exponent == 0 )
+	{
+		return B3_FIXED_ONE;
+	}
+
+	return b3FixExp2( b3FixMul( exponent, b3FixLog2( base ) ) );
+}
+
+// ---------------------------------------------------------------------------------------------
+// Q2.30 quaternions
+// ---------------------------------------------------------------------------------------------
+
+b3Quat30 b3Quat30FromQuat( b3Quat q )
+{
+	b3Quat30 result;
+	result.x = b3Fix30FromFix( q.v.x );
+	result.y = b3Fix30FromFix( q.v.y );
+	result.z = b3Fix30FromFix( q.v.z );
+	result.w = b3Fix30FromFix( q.s );
+	return result;
+}
+
+b3Quat b3QuatFromQuat30( b3Quat30 q )
+{
+	b3Quat result;
+	result.v.x = b3FixFromFix30( q.x );
+	result.v.y = b3FixFromFix30( q.y );
+	result.v.z = b3FixFromFix30( q.z );
+	result.s = b3FixFromFix30( q.w );
+	return result;
+}
+
+// one normalized Q2.30 component: raw * 2^30 / length, round to nearest, clamped to [-1, 1]
+static int32_t b3NormalizeComponent30( int64_t raw, uint64_t length )
+{
+	uint64_t magnitude = (uint64_t)( raw < 0 ? -raw : raw );
+	b3UInt128 numerator = ( (b3UInt128)magnitude << B3_FIXED30_FRACTION_BITS ) + ( length >> 1 );
+	uint64_t q = (uint64_t)( numerator / length );
+	if ( q > (uint64_t)B3_FIXED30_ONE )
+	{
+		q = (uint64_t)B3_FIXED30_ONE;		// the rounded divide can overshoot one by an ulp
+	}
+	return raw < 0 ? -(int32_t)q : (int32_t)q;
+}
+
+b3Quat30 b3NormalizeQuat30( b3Quat30 q )
+{
+	int64_t x = q.x.raw;
+	int64_t y = q.y.raw;
+	int64_t z = q.z.raw;
+	int64_t w = q.w.raw;
+
+	// squared length in Q4.60: components are at most 2^31 in magnitude, so each square is at
+	// most 2^62 and the 128-bit accumulate cannot overflow.
+	b3UInt128 lengthSquared =
+		(b3UInt128)( x * x ) + (b3UInt128)( y * y ) + (b3UInt128)( z * z ) + (b3UInt128)( w * w );
+
+	if ( lengthSquared == 0 )
+	{
+		b3Quat30 identity = { { 0 }, { 0 }, { 0 }, { B3_FIXED30_ONE } };
+		return identity;
+	}
+
+	// sqrt of Q4.60 raw is the Q2.30 length raw
+	uint64_t length = b3ISqrt128High( (uint64_t)( lengthSquared >> 64 ), (uint64_t)lengthSquared );
+
+	b3Quat30 result;
+	result.x.raw = b3NormalizeComponent30( x, length );
+	result.y.raw = b3NormalizeComponent30( y, length );
+	result.z.raw = b3NormalizeComponent30( z, length );
+	result.w.raw = b3NormalizeComponent30( w, length );
+	return result;
+}
+
+bool b3IsNormalizedQuat30( b3Quat30 q )
+{
+	int64_t x = q.x.raw;
+	int64_t y = q.y.raw;
+	int64_t z = q.z.raw;
+	int64_t w = q.w.raw;
+
+	b3UInt128 lengthSquared =
+		(b3UInt128)( x * x ) + (b3UInt128)( y * y ) + (b3UInt128)( z * z ) + (b3UInt128)( w * w );
+
+	// |length^2 - 1| < 2^-20 in Q4.60 terms (mirrors b3IsNormalizedQuat's tolerance spirit)
+	b3UInt128 one = (b3UInt128)1 << ( 2 * B3_FIXED30_FRACTION_BITS );
+	b3UInt128 tolerance = (b3UInt128)1 << ( 2 * B3_FIXED30_FRACTION_BITS - 20 );
+	b3UInt128 difference = lengthSquared > one ? lengthSquared - one : one - lengthSquared;
+	return difference < tolerance;
+}
+
+// ---------------------------------------------------------------------------------------------
+// Critically damped smoothing (the game control dynamics on fixed point)
+// ---------------------------------------------------------------------------------------------
+
+b3Fixed b3SmoothCriticallyDamped( b3Fixed current, b3Fixed target, b3Fixed* velocity, b3Fixed smoothTime,
+								  b3Fixed deltaTime )
+{
+	if ( smoothTime <= 0 )
+	{
+		return target;
+	}
+
+	if ( deltaTime <= 0 )
+	{
+		return current;
+	}
+
+	b3Fixed omega = b3FixDiv( 2 * B3_PI, smoothTime );
+	b3Fixed onePlus = B3_FIXED_ONE + b3FixMul( omega, deltaTime );
+	b3Fixed denominator = b3FixMul( onePlus, onePlus );
+
+	b3Fixed spring = b3FixMul( b3FixMul( b3FixMul( omega, omega ), deltaTime ), current - target );
+
+	*velocity = b3FixDiv( *velocity - spring, denominator );
+
+	return current + b3FixMul( *velocity, deltaTime );
+}
+
+b3Fixed b3SmoothCriticallyDampedUpDown( b3Fixed current, b3Fixed target, b3Fixed* velocity, b3Fixed smoothTimeUp,
+										b3Fixed smoothTimeDown, b3Fixed deltaTime )
+{
+	b3Fixed smoothTime = b3FixAbs( target ) >= b3FixAbs( current ) ? smoothTimeUp : smoothTimeDown;
+	return b3SmoothCriticallyDamped( current, target, velocity, smoothTime, deltaTime );
+}
+
+b3Vec3 b3SmoothCriticallyDampedVec3( b3Vec3 current, b3Vec3 target, b3Vec3* velocity, b3Fixed smoothTime,
+									 b3Fixed deltaTime )
+{
+	b3Vec3 result;
+	result.x = b3SmoothCriticallyDamped( current.x, target.x, &velocity->x, smoothTime, deltaTime );
+	result.y = b3SmoothCriticallyDamped( current.y, target.y, &velocity->y, smoothTime, deltaTime );
+	result.z = b3SmoothCriticallyDamped( current.z, target.z, &velocity->z, smoothTime, deltaTime );
+	return result;
+}
+
+b3Vec3 b3SmoothCriticallyDampedUpDownVec3( b3Vec3 current, b3Vec3 target, b3Vec3* velocity, b3Fixed smoothTimeUp,
+										   b3Fixed smoothTimeDown, b3Fixed deltaTime )
+{
+	// ONE smoothing time for the whole vector, selected by length -- not per component
+	b3Fixed smoothTime = b3Length( target ) >= b3Length( current ) ? smoothTimeUp : smoothTimeDown;
+	return b3SmoothCriticallyDampedVec3( current, target, velocity, smoothTime, deltaTime );
+}
+
+// ---------------------------------------------------------------------------------------------
+// Random unit quaternion (Marsaglia rejection sampling: sqrt only, no trig)
+// ---------------------------------------------------------------------------------------------
+
+b3Quat b3MakeRandomQuat( b3RandomFcn* random, void* context )
+{
+	b3Fixed x, y, z, u, v, w;
+
+	do
+	{
+		x = random( context );
+		y = random( context );
+		z = b3FixMul( x, x ) + b3FixMul( y, y );
+	}
+	while ( z >= B3_FIXED_ONE || z == 0 );
+
+	do
+	{
+		u = random( context );
+		v = random( context );
+		w = b3FixMul( u, u ) + b3FixMul( v, v );
+	}
+	while ( w >= B3_FIXED_ONE || w == 0 );
+
+	b3Fixed s = b3FixSqrt( b3FixDiv( B3_FIXED_ONE - z, w ) );
+
+	b3Quat result;
+	result.v.x = x;
+	result.v.y = y;
+	result.v.z = b3FixMul( s, u );
+	result.s = b3FixMul( s, v );
+	return b3NormalizeQuat( result );
+}

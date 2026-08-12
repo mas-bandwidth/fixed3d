@@ -353,4 +353,85 @@ B3_FIXED_INLINE b3Fixed b3FixFromDouble( double x )
 	return (b3Fixed)( d >= 0.0 ? d + 0.5 : d - 0.5 );
 }
 
+//! @cond
+
+// ---------------------------------------------------------------------------------------------
+// Q2.30 packed components (b3Fixed30)
+//
+// A SECOND raw fixed-point domain: 32-bit storage, 2 integer bits (sign included), 30 fraction
+// bits. Built for always-normalized quantities (quaternion components never leave [-1, 1], so
+// nearly all bits go to fraction). The raw value is wrapped in a struct ON PURPOSE: b3Fixed is
+// a bare int64 typedef and Q48.16/Q2.30 raws differ by 2^14, so a bare 32-bit typedef would
+// let a mixup compile silently -- the same trap as assigning a double into a b3Fixed. With the
+// struct, arithmetic and cross-domain assignment refuse to compile; go through the converters.
+//
+// ROUNDING RULE (pinned): dropping bits rounds to nearest via ( raw + ( 1 << ( drop - 1 ) ) ) >> drop,
+// the same form as the floor( v * scale + 0.5 ) wire family.
+// ---------------------------------------------------------------------------------------------
+
+//! @endcond
+
+/// Number of fractional bits in a Q2.30 packed component.
+#define B3_FIXED30_FRACTION_BITS 30
+
+/// One, in Q2.30.
+#define B3_FIXED30_ONE ( (int32_t)1 << B3_FIXED30_FRACTION_BITS )
+
+/// The shift between the Q48.16 and Q2.30 raw domains.
+#define B3_FIXED30_SHIFT ( B3_FIXED30_FRACTION_BITS - B3_FIXED_FRACTION_BITS )
+
+/// A Q2.30 packed fixed-point component: 32-bit storage, 2 integer bits (sign included),
+/// 30 fraction bits. Domain [-2, 2); built for always-normalized quantities. Deliberately a
+/// struct so a Q48.16/Q2.30 raw mixup cannot compile silently.
+typedef struct b3Fixed30
+{
+	int32_t raw;
+} b3Fixed30;
+
+/// Pack Q48.16 to Q2.30. Gains 14 fraction bits (exact for in-range values); values outside
+/// [-2, 2) saturate to the domain bounds.
+B3_FIXED_INLINE b3Fixed30 b3Fix30FromFix( b3Fixed a )
+{
+	int64_t raw = a << B3_FIXED30_SHIFT;
+	if ( a >= ( (b3Fixed)2 << B3_FIXED_FRACTION_BITS ) )
+	{
+		raw = INT32_MAX;
+	}
+	else if ( a < -( (b3Fixed)2 << B3_FIXED_FRACTION_BITS ) )
+	{
+		raw = INT32_MIN;
+	}
+	b3Fixed30 result = { (int32_t)raw };
+	return result;
+}
+
+/// Unpack Q2.30 to Q48.16. Drops 14 fraction bits, rounding to nearest per the pinned rule.
+B3_FIXED_INLINE b3Fixed b3FixFromFix30( b3Fixed30 a )
+{
+	return ( (b3Fixed)a.raw + ( (b3Fixed)1 << ( B3_FIXED30_SHIFT - 1 ) ) ) >> B3_FIXED30_SHIFT;
+}
+
+/// Convert Q2.30 to a double. Exact: every Q2.30 value is representable in a double.
+B3_FIXED_INLINE double b3Fix30ToDouble( b3Fixed30 a )
+{
+	return (double)a.raw / (double)B3_FIXED30_ONE;
+}
+
+/// Convert a double to Q2.30, rounding to nearest, saturating to the domain. A boundary helper.
+B3_FIXED_INLINE b3Fixed30 b3Fix30FromDouble( double x )
+{
+	double d = x * (double)B3_FIXED30_ONE;
+	d = ( d >= 0.0 ? d + 0.5 : d - 0.5 );
+	if ( d >= (double)INT32_MAX )
+	{
+		d = (double)INT32_MAX;
+	}
+	else if ( d <= (double)INT32_MIN )
+	{
+		d = (double)INT32_MIN;
+	}
+	b3Fixed30 result = { (int32_t)d };
+	return result;
+}
+
 /**@}*/ // fixed

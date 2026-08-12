@@ -12,6 +12,284 @@
 // Q48.16 output resolution (1.5e-5) on top.
 #define ATAN_TOL B3_FIX( 0.0001f )
 
+
+
+// ---------------------------------------------------------------------------------------------
+// The game-roster additions (2026-08-12): exp2/log2/pow ladder, Q2.30 quaternions,
+// critically damped smoothing, random quaternions.
+// ---------------------------------------------------------------------------------------------
+
+static int Exp2Log2PowTest( void )
+{
+	// exact powers round-trip exactly
+	ENSURE( b3FixLog2( B3_FIXED_ONE ) == 0 );
+	ENSURE( b3FixLog2( B3_FIX( 2.0f ) ) == B3_FIXED_ONE );
+	ENSURE( b3FixLog2( B3_FIX( 0.5f ) ) == -B3_FIXED_ONE );
+	ENSURE( b3FixExp2( 0 ) == B3_FIXED_ONE );
+	ENSURE( b3FixExp2( B3_FIXED_ONE ) == B3_FIX( 2.0f ) );
+	ENSURE( b3FixExp2( -B3_FIXED_ONE ) == B3_FIX( 0.5f ) );
+
+	// domain edges
+	ENSURE( b3FixLog2( 0 ) == INT64_MIN );
+	ENSURE( b3FixLog2( -B3_FIXED_ONE ) == INT64_MIN );
+	ENSURE( b3FixPow( 0, B3_FIXED_ONE ) == 0 );
+	ENSURE( b3FixPow( -B3_FIXED_ONE, B3_FIXED_ONE ) == 0 );
+	ENSURE( b3FixPow( B3_FIX( 1.5f ), 0 ) == B3_FIXED_ONE );
+	ENSURE( b3FixExp2( B3_FIX( 47.0f ) + 1 ) == INT64_MAX );
+	ENSURE( b3FixExp2( B3_FIX( -18.0f ) ) == 0 );
+
+	// log2 against libm over several magnitudes
+	for ( double t = -14.0; t <= 14.0; t += 0.03125 )
+	{
+		double value = pow( 2.0, t );
+		b3Fixed fixedValue = b3FixFromDouble( value );
+		if ( fixedValue <= 0 )
+		{
+			continue;
+		}
+		double quantized = b3FixToDouble( fixedValue );
+		double expected = log2( quantized );
+		double got = b3FixToDouble( b3FixLog2( fixedValue ) );
+		// exact binary digits rounded to Q48.16: within one output ulp plus input quantization
+		ENSURE( fabs( got - expected ) < 3.1e-5 );
+	}
+
+	// exp2 against libm
+	for ( double t = -16.0; t <= 16.0; t += 0.015625 )
+	{
+		b3Fixed fixedT = b3FixFromDouble( t );
+		double quantized = b3FixToDouble( fixedT );
+		double expected = pow( 2.0, quantized );
+		double got = b3FixToDouble( b3FixExp2( fixedT ) );
+		// relative error: table product carries ~16 rounded Q32 multiplies
+		double scale = expected > 1.0 ? expected : 1.0;
+		ENSURE( fabs( got - expected ) < 3.1e-5 * scale + 3.1e-5 );
+	}
+
+	// pow over the CONTROL DOMAIN ( base in [2^-14, 2], exponent in [1/4, 4] ), against double
+	// pow. The honest bound is COMPOSITE: Q48.16 output quantization dominates small results
+	// (one output ulp is 1.5e-5) and the ladder's relative error dominates large ones, so each
+	// point must satisfy error <= 2 ulps + 1e-4 * expected. Both components are reported; the
+	// documented claim in math_functions.h mirrors this bound.
+	double ulp = 1.0 / (double)B3_FIXED_ONE;
+	double worstRelativeLarge = 0.0;	// over results >= 0.5, where quantization noise < 3.1e-5
+	double worstMargin = 0.0;			// error / ( 2 ulps + 1e-4 * expected ), must stay < 1
+	for ( double b = 0.00006103515625; b <= 2.0; b *= 1.0442737824274138 )	// 2^(1/16) steps
+	{
+		for ( double e = 0.25; e <= 4.0; e += 0.0625 )
+		{
+			b3Fixed fixedBase = b3FixFromDouble( b );
+			b3Fixed fixedExponent = b3FixFromDouble( e );
+			if ( fixedBase <= 0 )
+			{
+				continue;
+			}
+			double expected = pow( b3FixToDouble( fixedBase ), b3FixToDouble( fixedExponent ) );
+			double got = b3FixToDouble( b3FixPow( fixedBase, fixedExponent ) );
+			double error = fabs( got - expected );
+
+			double margin = error / ( 2.0 * ulp + 1.0e-4 * expected );
+			if ( margin > worstMargin )
+			{
+				worstMargin = margin;
+			}
+
+			if ( expected >= 0.5 )
+			{
+				double relative = error / expected;
+				if ( relative > worstRelativeLarge )
+				{
+					worstRelativeLarge = relative;
+				}
+			}
+		}
+	}
+	printf( "  pow over the control domain: worst %.3g relative (results >= 0.5), worst composite margin %.2f of bound\n",
+			worstRelativeLarge, worstMargin );
+	ENSURE( worstRelativeLarge < 1.0e-4 );
+	ENSURE( worstMargin < 1.0 );
+
+	return 0;
+}
+
+static int Quat30Test( void )
+{
+	// pack/unpack round trip: packing gains precision, so Q48.16 -> Q2.30 -> Q48.16 is exact
+	for ( double t = -1.0; t <= 1.0; t += 0.001953125 )
+	{
+		b3Fixed a = b3FixFromDouble( t );
+		b3Fixed back = b3FixFromFix30( b3Fix30FromFix( a ) );
+		ENSURE( back == a );
+	}
+
+	// the pinned rounding rule on unpack: raw 2^13 (half of the drop) rounds up to 1 Q48.16 ulp
+	{
+		b3Fixed30 half = { (int32_t)1 << 13 };
+		ENSURE( b3FixFromFix30( half ) == 1 );
+		b3Fixed30 justUnder = { ( (int32_t)1 << 13 ) - 1 };
+		ENSURE( b3FixFromFix30( justUnder ) == 0 );
+	}
+
+	// pack saturates outside [-2, 2)
+	{
+		b3Fixed30 top = b3Fix30FromFix( B3_FIX( 3.0f ) );
+		ENSURE( top.raw == INT32_MAX );
+		b3Fixed30 bottom = b3Fix30FromFix( B3_FIX( -3.0f ) );
+		ENSURE( bottom.raw == INT32_MIN );
+	}
+
+	// double converters: Q2.30 resolution round trips through double exactly
+	{
+		b3Fixed30 v = b3Fix30FromDouble( 0.333333333333 );
+		double back = b3Fix30ToDouble( v );
+		ENSURE( fabs( back - 0.333333333333 ) < 1.0e-9 );
+		b3Fixed30 again = b3Fix30FromDouble( back );
+		ENSURE( again.raw == v.raw );
+	}
+
+	// normalize IN the Q2.30 domain: unit result at 30-bit precision, components clamped
+	{
+		b3Quat30 q;
+		q.x = b3Fix30FromDouble( 0.3 );
+		q.y = b3Fix30FromDouble( -0.5 );
+		q.z = b3Fix30FromDouble( 0.7 );
+		q.w = b3Fix30FromDouble( 0.4 );
+		b3Quat30 n = b3NormalizeQuat30( q );
+		ENSURE( b3IsNormalizedQuat30( n ) );
+
+		double nx = b3Fix30ToDouble( n.x );
+		double ny = b3Fix30ToDouble( n.y );
+		double nz = b3Fix30ToDouble( n.z );
+		double nw = b3Fix30ToDouble( n.w );
+		double length = sqrt( nx * nx + ny * ny + nz * nz + nw * nw );
+		ENSURE( fabs( length - 1.0 ) < 1.0e-8 );
+
+		// direction preserved
+		double scale = b3Fix30ToDouble( q.x ) / nx;
+		ENSURE( fabs( b3Fix30ToDouble( q.y ) / ny - scale ) < 1.0e-6 );
+
+		// components never exceed one
+		ENSURE( n.x.raw <= B3_FIXED30_ONE && n.x.raw >= -B3_FIXED30_ONE );
+		ENSURE( n.w.raw <= B3_FIXED30_ONE && n.w.raw >= -B3_FIXED30_ONE );
+	}
+
+	// an axis-aligned unit stays exactly unit, and degenerate becomes identity
+	{
+		b3Quat30 axis = { { 0 }, { 0 }, { 0 }, { B3_FIXED30_ONE } };
+		b3Quat30 n = b3NormalizeQuat30( axis );
+		ENSURE( n.w.raw == B3_FIXED30_ONE && n.x.raw == 0 );
+
+		b3Quat30 zero = { { 0 }, { 0 }, { 0 }, { 0 } };
+		b3Quat30 identity = b3NormalizeQuat30( zero );
+		ENSURE( identity.w.raw == B3_FIXED30_ONE );
+	}
+
+	// Q48.16 quaternion pack path
+	{
+		b3Quat q = b3MakeQuatFromAxisAngle( ( b3Vec3 ){ 0, B3_FIXED_ONE, 0 }, B3_FIX( 0.7f ) );
+		b3Quat30 packed = b3Quat30FromQuat( q );
+		b3Quat back = b3QuatFromQuat30( packed );
+		ENSURE( back.v.x == q.v.x && back.v.y == q.v.y && back.v.z == q.v.z && back.s == q.s );
+	}
+
+	return 0;
+}
+
+static int SmoothingTest( void )
+{
+	// the fixed smoothing must track the double-precision formula closely over a control-style
+	// trajectory (stick magnitudes, sub-second smooth times, 60 Hz steps)
+	double current = 0.0, velocity = 0.0;
+	b3Fixed fixedCurrent = 0, fixedVelocity = 0;
+
+	b3Fixed fixedSmoothTime = b3FixFromDouble( 0.25 );
+	b3Fixed fixedDeltaTime = b3FixFromDouble( 1.0 / 60.0 );
+	double smoothTime = 0.25;
+	double deltaTime = b3FixToDouble( fixedDeltaTime );	// compare against the same quantized dt
+
+	for ( int i = 0; i < 240; ++i )
+	{
+		double target = ( i < 120 ) ? 1.0 : -0.5;
+		b3Fixed fixedTarget = b3FixFromDouble( target );
+
+		// the double reference uses the SAME pi constant as B3_PI quantizes from
+		double w = 2.0 * (double)B3_PI / (double)B3_FIXED_ONE / smoothTime;
+		velocity = ( velocity - w * w * deltaTime * ( current - target ) ) /
+				   ( ( 1.0 + w * deltaTime ) * ( 1.0 + w * deltaTime ) );
+		current = current + velocity * deltaTime;
+
+		fixedCurrent = b3SmoothCriticallyDamped( fixedCurrent, fixedTarget, &fixedVelocity, fixedSmoothTime, fixedDeltaTime );
+
+		ENSURE( fabs( b3FixToDouble( fixedCurrent ) - current ) < 0.002 );
+	}
+
+	// converged
+	ENSURE( fabs( b3FixToDouble( fixedCurrent ) - ( -0.5 ) ) < 0.01 );
+
+	// zero smooth time snaps to target; zero dt holds
+	b3Fixed v0 = 0;
+	ENSURE( b3SmoothCriticallyDamped( 0, B3_FIXED_ONE, &v0, 0, fixedDeltaTime ) == B3_FIXED_ONE );
+	ENSURE( b3SmoothCriticallyDamped( 0, B3_FIXED_ONE, &v0, fixedSmoothTime, 0 ) == 0 );
+
+	// up/down selection: moving toward larger magnitude uses the up time
+	{
+		b3Fixed vUp = 0, vRef = 0;
+		b3Fixed up = b3SmoothCriticallyDampedUpDown( 0, B3_FIXED_ONE, &vUp, fixedSmoothTime, b3FixFromDouble( 1.0 ), fixedDeltaTime );
+		b3Fixed reference = b3SmoothCriticallyDamped( 0, B3_FIXED_ONE, &vRef, fixedSmoothTime, fixedDeltaTime );
+		ENSURE( up == reference );
+	}
+
+	// vector variant matches the scalar componentwise
+	{
+		b3Vec3 c = { 0, 0, 0 };
+		b3Vec3 t = { B3_FIX( 0.5f ), -B3_FIX( 0.25f ), 0 };
+		b3Vec3 v = { 0, 0, 0 };
+		b3Fixed sx = 0, sy = 0;
+		b3Fixed vx = 0, vy = 0;
+		for ( int i = 0; i < 60; ++i )
+		{
+			c = b3SmoothCriticallyDampedVec3( c, t, &v, fixedSmoothTime, fixedDeltaTime );
+			sx = b3SmoothCriticallyDamped( sx, t.x, &vx, fixedSmoothTime, fixedDeltaTime );
+			sy = b3SmoothCriticallyDamped( sy, t.y, &vy, fixedSmoothTime, fixedDeltaTime );
+		}
+		ENSURE( c.x == sx && c.y == sy && c.z == 0 );
+	}
+
+	return 0;
+}
+
+// a small deterministic xorshift for the random-quat test
+static b3Fixed RandomFixedSource( void* context )
+{
+	uint64_t* state = (uint64_t*)context;
+	uint64_t x = *state;
+	x ^= x << 13;
+	x ^= x >> 7;
+	x ^= x << 17;
+	*state = x;
+	// uniform in [-1, 1] at Q48.16: 17 bits of entropy mapped onto [-65536, 65536]
+	return (b3Fixed)( (int64_t)( x % ( 2 * 65536 + 1 ) ) - 65536 );
+}
+
+static int RandomQuatTest( void )
+{
+	uint64_t state = 0x123456789ABCDEFull;
+
+	for ( int i = 0; i < 1000; ++i )
+	{
+		b3Quat q = b3MakeRandomQuat( RandomFixedSource, &state );
+		ENSURE( b3IsNormalizedQuat( q ) );
+	}
+
+	// deterministic: same seed, same sequence
+	uint64_t stateA = 42, stateB = 42;
+	b3Quat a = b3MakeRandomQuat( RandomFixedSource, &stateA );
+	b3Quat b = b3MakeRandomQuat( RandomFixedSource, &stateB );
+	ENSURE( a.v.x == b.v.x && a.v.y == b.v.y && a.v.z == b.v.z && a.s == b.s );
+
+	return 0;
+}
+
 int MathTest( void )
 {
 	// Compare the fixed-point trig against double precision references from libm.
@@ -341,6 +619,12 @@ int MathTest( void )
 		ENSURE_SMALL( relAB.p.y - tB.p.y, 8 * B3_FIXED_EPSILON );
 		ENSURE_SMALL( relAB.p.z - tB.p.z, 8 * B3_FIXED_EPSILON );
 	}
+
+	// the game-roster additions
+	RUN_SUBTEST( Exp2Log2PowTest );
+	RUN_SUBTEST( Quat30Test );
+	RUN_SUBTEST( SmoothingTest );
+	RUN_SUBTEST( RandomQuatTest );
 
 	return 0;
 }
