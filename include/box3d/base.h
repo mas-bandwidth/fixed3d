@@ -121,9 +121,14 @@ B3_API void b3SetAssertFcn( b3AssertFcn* assertFcn );
 #define B3_BREAKPOINT assert( 0 )
 #endif
 
-#if !defined( NDEBUG ) || defined( B3_ENABLE_ASSERT )
-/// Internal assertion handler. Allows for host intervention.
+/// Internal assertion handler. Allows for host intervention. Declared and
+/// defined unconditionally — see src/core.c: the B3_ASSERT macro below is
+/// per-TU, but the inline math in these headers is compiled by the CALLER, so
+/// a caller without NDEBUG must be able to link against a library built with
+/// it.
 B3_API int b3InternalAssert( const char* condition, const char* fileName, int lineNumber );
+
+#if !defined( NDEBUG ) || defined( B3_ENABLE_ASSERT )
 /// Assert that a condition is true.
 #define B3_ASSERT( condition )                                                                                                  \
 	( (void)( ( !!( condition ) ) || ( b3InternalAssert( #condition, __FILE__, (int)( __LINE__ ) ), 0 ) ) )

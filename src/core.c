@@ -78,7 +78,22 @@ void b3SetAssertFcn( b3AssertFcn* assertFcn )
 	b3AssertHandler = assertFcn;
 }
 
-#if !defined( NDEBUG ) || defined( B3_ENABLE_ASSERT )
+// DEFINED UNCONDITIONALLY, unlike the B3_ASSERT macro that calls it.
+//
+// The macro is compiled per translation unit: a TU with NDEBUG gets the no-op
+// form, a TU without it gets the real one. That is fine WITHIN this library,
+// but the inline math in the public headers is compiled by the CALLER. An
+// application that builds Fixed3D with NDEBUG for speed while building its own
+// code without it — a completely reasonable combination, and what the space
+// game's CMake does deliberately — ends up referencing b3InternalAssert from
+// its own object files while this file compiled the definition away. The
+// result is an undefined-symbol link failure whose message points at
+// b3MakeQuatFromAxisAngle or b3Lerp and gives no hint that the cause is a
+// mismatched NDEBUG between two sides of an inline function.
+//
+// Always defining it costs one small function that the linker drops when
+// unused, and lets a caller enable assertions on the inline math it calls
+// without forcing the same choice on this library's internals.
 int b3InternalAssert( const char* condition, const char* fileName, int lineNumber )
 {
 	int result = b3AssertHandler( condition, fileName, lineNumber );
@@ -88,7 +103,6 @@ int b3InternalAssert( const char* condition, const char* fileName, int lineNumbe
 	}
 	return result;
 }
-#endif
 
 static void b3DefaultLogFcn( const char* message )
 {
