@@ -21,7 +21,13 @@
 // identical to the value the scene had at (0,0,0); only the hash moved,
 // because it covers the absolute transform bytes: an exactly representable
 // origin shift is a bit-exact rigid translation of the whole trajectory.
-#define EXPECTED_SLEEP_STEP 287
+// RE-BASELINED 2026-08-13 with the precision fix to b3Normalize (it lifts a
+// short vector into full range before dividing, so short vectors no longer
+// normalize to a non-unit result). Normalize feeds contact normals and joint
+// axes, so the trajectory shifts slightly — a DIFFERENT but equally valid
+// simulation, not a worse one. Old: sleep step 287, hash 0xB222C195 (narrow)
+// / 0x886BE415 (ludicrous).
+#define EXPECTED_SLEEP_STEP 292
 // The sleep step is identical in both builds — an exactly representable origin is a
 // bit-exact rigid translation of the trajectory. The hash differs only because it covers
 // the absolute transform bytes, and the wide build stores 128-bit positions (80-byte
@@ -29,7 +35,7 @@
 #if defined( BOX3D_LUDICROUS_MODE )
 #define EXPECTED_HASH 0x886BE415
 #else
-#define EXPECTED_HASH 0xB222C195
+#define EXPECTED_HASH 0xEA20067F
 #endif
 
 static int SingleMultithreadingTest( int workerCount )

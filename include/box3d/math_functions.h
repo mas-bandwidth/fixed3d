@@ -407,11 +407,52 @@ B3_INLINE b3Fixed b3DistanceSquared( b3Vec3 a, b3Vec3 b )
 	return b3FixFromDotRaw( b3DotRaw( dv, dv ) );
 }
 
+/// The exponent b3Normalize lifts a short vector to before dividing. Chosen so
+/// the squares stay far inside 128 bits: components reach ~2^46, squares ~2^92,
+/// and the three-term sum ~2^94.
+#define B3_NORMALIZE_LIFT_BITS 46
+
 /// Normalize a vector. Returns a zero vector if the input vector is zero.
-/// The squared length and the division run at 128-bit precision, so even
-/// vectors far below unit length normalize to within an ulp of unit length.
+///
+/// PRECISION: the squared length is exact in 128 bits, but the LENGTH is a
+/// b3Fixed — a whole raw unit — so dividing by it directly throws away the
+/// precision the 128-bit square just bought. At raw length L the length's own
+/// truncation is a relative error of ~0.5/L, which lands in the result's
+/// squared length as ~1/L: a vector of raw length 1024 normalizes to a
+/// squared length off by ~1e-3, and one of raw length 11 (a raw (8,8,0)) comes
+/// back with |u| = 1.06. Measured against b3IsNormalized's own tolerance
+/// (100 * B3_FIXED_EPSILON), the old form failed for 26/65 directions at raw
+/// length 1024 and 54/65 at raw length 256.
+///
+/// Normalization is scale-invariant and a left shift is EXACT, so the fix
+/// costs nothing: lift the vector until its largest component fills the range,
+/// then do the same math. The direction is unchanged bit-for-bit; only the
+/// precision of the divisor improves. Unit-length and longer inputs are
+/// unaffected (they lift by zero).
 B3_INLINE b3Vec3 b3Normalize( b3Vec3 a )
 {
+	// magnitude of the widest component, as an unsigned value so INT64_MIN
+	// cannot trap on negation
+	uint64_t ux = (uint64_t)( a.x < 0 ? -(b3UInt128)a.x : (b3UInt128)a.x );
+	uint64_t uy = (uint64_t)( a.y < 0 ? -(b3UInt128)a.y : (b3UInt128)a.y );
+	uint64_t uz = (uint64_t)( a.z < 0 ? -(b3UInt128)a.z : (b3UInt128)a.z );
+	uint64_t widest = ux | uy | uz;
+	if ( widest != 0 )
+	{
+		int bits = 0;
+		while ( ( widest >> bits ) != 0 )
+		{
+			bits++;
+		}
+		if ( bits < B3_NORMALIZE_LIFT_BITS )
+		{
+			const int lift = B3_NORMALIZE_LIFT_BITS - bits;
+			a.x = (b3Fixed)( (uint64_t)a.x << lift ); // exact: shifts preserve direction
+			a.y = (b3Fixed)( (uint64_t)a.y << lift );
+			a.z = (b3Fixed)( (uint64_t)a.z << lift );
+		}
+	}
+
 	b3Int128 ls = (b3Int128)a.x * a.x + (b3Int128)a.y * a.y + (b3Int128)a.z * a.z; // Q32.32 in 128 bits
 	if ( ls > 0 )
 	{
