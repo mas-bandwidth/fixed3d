@@ -88,6 +88,9 @@ bool UpdateFallingRagdolls( b3WorldId worldId, FallingRagdollData* data )
 		{
 			int awakeCount = b3World_GetAwakeBodyCount( worldId );
 			assert( awakeCount == 0 );
+			// assert compiles away under NDEBUG, and clang-cl's does not even name its argument,
+			// so the variable reads as unused in an optimized build with warnings as errors.
+			(void)awakeCount;
 
 			data->hash = B3_HASH_INIT;
 			for ( int i = 0; i < RAGDOLL_GRID_COUNT; ++i )
