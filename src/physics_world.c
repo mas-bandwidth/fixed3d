@@ -666,6 +666,10 @@ static void b3CollideTask( int startIndex, int endIndex, int workerIndex, void* 
 		if ( ( isFast == false || isMeshContact == false ) && recycleDistance > B3_FIX( 0.0f ) &&
 			 ( contact->flags & b3_relativeTransformValid ) && ( contact->flags & b3_contactRecycleFlag ) )
 		{
+			// The scalar part of b3InvMulQuat is just the quaternion dot product.
+			// cos(relative_angle/2) = scalar(conj(q1) * q2) = dot(q1, q2)
+			// A small relative angle means this value is close to 1. Need to use abs or square
+			// due to double cover.
 			b3Fixed angleA = b3DotQuat( transformA.q, contact->cachedRotationA );
 			b3Fixed angleB = b3DotQuat( transformB.q, contact->cachedRotationB );
 			b3Fixed angularDistance = b3FixMin( b3FixMul( angleA , angleA ), b3FixMul( angleB , angleB ) );
@@ -1441,17 +1445,19 @@ void b3World_Draw( b3WorldId worldId, b3DebugDraw* draw, uint64_t maskBits )
 				}
 			}
 
-			if ( draw->drawMass && body->type == b3_dynamicBody )
+			if ( draw->drawMass )
 			{
-				b3Vec3 offset = { B3_FIX( 0.05f ), B3_FIX( 0.05f ), B3_FIX( 0.05f ) };
-
 				b3WorldTransform transform = { bodySim->center, bodySim->transform.q };
 				draw->DrawTransformFcn( transform, draw->context );
-				b3Pos p = b3TransformWorldPoint( transform, offset );
 
-				char buffer[32];
-				snprintf( buffer, 32, "%.2f", b3FixToDouble( body->mass ) );
-				draw->DrawStringFcn( p, buffer, b3_colorWhite, draw->context );
+				if ( body->type == b3_dynamicBody )
+				{
+					b3Vec3 offset = { B3_FIX( 0.05f ), B3_FIX( 0.05f ), B3_FIX( 0.05f ) };
+					b3Pos p = b3TransformWorldPoint( transform, offset );
+					char buffer[32];
+					snprintf( buffer, 32, "%.2f", b3FixToDouble( body->mass ) );
+					draw->DrawStringFcn( p, buffer, b3_colorWhite, draw->context );
+				}
 			}
 
 			if ( draw->drawSleep )
