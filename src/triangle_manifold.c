@@ -355,10 +355,14 @@ static void b3BuildTriangleAndCapsuleEdgeContact( b3LocalManifold* manifold, con
 		return;
 	}
 
-	// point1 is on the triangle edge and point2 on the capsule CORE, so the radius pulls point2
-	// back to the capsule surface. Value-identical to the old spelling; taken because it says what
-	// it means, and measured to move no golden.
-	b3Vec3 point = b3Lerp( result.point1, b3MulSub( result.point2, capsule->radius, normal ), B3_FIX( 0.5f ) );
+	// NOT PORTED, deliberately, and the twin of the refusal in b3CollideTriangleAndCapsule below.
+	// Upstream f42be21 moves the radius onto point2 — semantically the tidier reading, since point1
+	// is on the triangle edge and point2 on the capsule core. It is NOT value-identical here:
+	// b3Lerp is fixMul(1-t,a) + fixMul(t,b) with round-half-up, so moving an odd radius term from
+	// one side to the other flips the rounding on 288 of 1156 small-operand combinations, by one
+	// quantum. It moves no golden TODAY, which is not a reason to take a rounding reshuffle that
+	// buys nothing. Do not clean up.
+	b3Vec3 point = b3Lerp( b3MulSub( result.point1, capsule->radius, normal ), result.point2, B3_FIX( 0.5f ) );
 	b3Fixed separation = b3Dot( normal, b3Sub( p1, v1 ) );
 
 	manifold->normal = normal;
@@ -461,10 +465,12 @@ void b3CollideTriangleAndCapsule( b3LocalManifold* manifold, int capacity, const
 		// Create contact from closest points.
 		// NOT PORTED, deliberately: upstream f42be21 rewrites this as
 		//   b3Lerp( pointA, b3MulSub( pointB, radius, delta ), 0.5 )
-		// which is the same value in exact arithmetic — both are (pointA + pointB)/2 - radius*delta/2
-		// — and differs only in rounding. Measured on this tree: taking it moves the ragdoll sleep
-		// step 287 -> 453. That is the b3Lerp rounding lottery this repo already paid for (see the
-		// "deliberately NOT fused" list in CLAUDE.md), spent for no behavioural gain. Do not clean up.
+		// Equal in EXACT arithmetic — both reduce to (pointA + pointB)/2 - radius*delta/2 — but not
+		// in Q48.16, where round-half-up makes the two spellings differ by a quantum whenever the
+		// radius term is odd and the operands differ in parity. Measured on this tree: taking it
+		// moves the ragdoll sleep step 287 -> 453. That is the b3Lerp rounding lottery this repo
+		// already paid for (see the "deliberately NOT fused" list in CLAUDE.md), spent for no
+		// behavioural gain. Do not clean up.
 		b3Vec3 point = b3MulSV( B3_FIX( 0.5f ), b3Add( b3Sub( distanceOutput.pointA, b3MulSV( radius, delta ) ), distanceOutput.pointB ) );
 
 		// Normal points from triangle to capsule.

@@ -1259,6 +1259,105 @@ static int HullCapsuleFaceDeepTest( void )
 	return 0;
 }
 
+// A broad edge-contact oracle sweep: 120 headings over the full circle against a scalene triangle,
+// running CheckEdgeContact on every edge contact that comes back, which rebuilds the normal,
+// separation and point from the REPORTED edge index. This widens the three-yaw coverage of
+// CapsuleTriangleEdgeDeepTest above.
+//
+// WHAT IT DOES NOT DO, stated so nobody reads it as the acceptance it is not: it does not
+// discriminate the f42be21 edge-walk advance (the `v1 = v2; edgeIndex = index;` in the parallel
+// skip). Measured 2026-08-22: that skip requires the capsule core to be simultaneously in the
+// triangle plane and parallel to one of its edges, and with any out-of-plane tilt the plane dot
+// alone puts the test far above tolerance. Instrumented, the skip fires ZERO times across the
+// entire suite; a deliberately constructed in-plane axis-parallel capsule fires it five times and
+// STILL produces byte-identical manifolds either way, because a single skip perturbs exactly one
+// following iteration and that iteration loses the max-separation comparison. The fix is correct
+// and defensive; it is not currently reachable from an observable difference in this tree.
+static int CapsuleTriangleEdgeWalkTest( void )
+{
+	// Scalene on purpose: three distinct edge directions, so each parallel yaw is hit separately.
+	b3Vec3 v1 = { -B3_FIX( 2.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
+	b3Vec3 v2 = { B3_FIX( 2.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
+	b3Vec3 v3 = { -B3_FIX( 0.5f ), B3_FIX( 0.0f ), -B3_FIX( 2.5f ) };
+	b3Vec3 triangle[] = { v1, v2, v3 };
+	b3Vec3 triangleEdges[] = { b3Sub( v2, v1 ), b3Sub( v3, v2 ), b3Sub( v1, v3 ) };
+	b3Vec3 triangleCenter = b3MulSV( b3FixDiv( B3_FIX( 1.0f ), B3_FIX( 3.0f ) ), b3Add( v1, b3Add( v2, v3 ) ) );
+
+	const b3Fixed radius = B3_FIX( 0.08f );
+	const b3Fixed halfLength = B3_FIX( 0.6f );
+
+	int edgeContacts = 0;
+	int parallelYaws = 0;
+
+	// 120 headings over the full circle, so every edge direction is crossed and the yaws either
+	// side of each parallel case are exercised too.
+	for ( int y = 0; y < 120; ++y )
+	{
+		double yaw = ( 2.0 * 3.14159265358979323846 * y ) / 120.0;
+
+		// Track whether this heading is parallel to some triangle edge, so the test can prove it
+		// actually visited the branch it exists to cover.
+		b3Vec3 flat = { b3FixFromDouble( cos( yaw ) ), B3_FIX( 0.0f ), b3FixFromDouble( sin( yaw ) ) };
+		for ( int e = 0; e < 3; ++e )
+		{
+			b3Vec3 dir = b3Normalize( triangleEdges[e] );
+			b3Fixed d = b3FixAbs( b3Dot( flat, dir ) );
+			if ( d > B3_FIX( 0.9995f ) )
+			{
+				parallelYaws += 1;
+				break;
+			}
+		}
+
+		for ( int t = 0; t < 3; ++t )
+		{
+			b3Fixed tilt = B3_FIX( 0.2f ) + t * B3_FIX( 0.1f );
+			double tiltD = b3FixToDouble( tilt );
+			b3Vec3 axis = { b3FixFromDouble( cos( tiltD ) * cos( yaw ) ), b3FixFromDouble( sin( tiltD ) ),
+							b3FixFromDouble( cos( tiltD ) * sin( yaw ) ) };
+
+			// Sit the core just inside the v1 v2 edge so the deep path runs.
+			b3Vec3 mid = { B3_FIX( 0.0f ), B3_FIX( 0.0f ), -B3_FIX( 0.03f ) };
+			b3Vec3 c1 = b3MulAdd( mid, -halfLength, axis );
+			b3Vec3 c2 = b3MulAdd( mid, halfLength, axis );
+			b3Capsule capsule = { c1, c2, radius };
+
+			b3LocalManifoldPoint points[8];
+			b3LocalManifold manifold = { 0 };
+			manifold.points = points;
+			b3SimplexCache cache = { 0 };
+			b3CollideTriangleAndCapsule( &manifold, 8, triangle, &capsule, &cache );
+
+			if ( manifold.pointCount != 1 || manifold.feature < b3_featureEdge1 || manifold.feature > b3_featureEdge3 )
+			{
+				continue;
+			}
+
+			int edgeIndex = manifold.feature - b3_featureEdge1;
+			b3Vec3 capsuleEdge = b3Sub( c2, c1 );
+			b3Vec3 capsuleCenter = b3Lerp( c1, c2, B3_FIX( 0.5f ) );
+			b3Vec3 orientRef = b3Sub( capsuleCenter, triangleCenter );
+
+			// The oracle rebuilds everything from the REPORTED index, which is the thing the
+			// missing advance corrupted.
+			if ( CheckEdgeContact( &manifold, triangle[edgeIndex], triangleEdges[edgeIndex], c1, capsuleEdge, orientRef,
+								   radius, B3_FIX( 1e-4f ), B3_FIX( 1e-4f ), B3_FIX( 2e-4f ) ) != 0 )
+			{
+				return 1;
+			}
+
+			++edgeContacts;
+		}
+	}
+
+	// Guards against the sweep going vacuous. parallelYaws counts headings ALIGNED with an edge,
+	// which is not the same as the skip branch firing — see the note above.
+	ENSURE( parallelYaws > 0 );
+	ENSURE( edgeContacts > 0 );
+
+	return 0;
+}
+
 int ManifoldTest( void )
 {
 	RUN_SUBTEST( CrossedEdgeTest );
@@ -1276,6 +1375,7 @@ int ManifoldTest( void )
 	RUN_SUBTEST( HullCapsuleEdgeDeepTest );
 	RUN_SUBTEST( TriangleHullEdgeSweepTest );
 	RUN_SUBTEST( CapsuleTriangleEdgeDeepTest );
+	RUN_SUBTEST( CapsuleTriangleEdgeWalkTest );
 	RUN_SUBTEST( SphereHullSeamTest );
 	RUN_SUBTEST( CapsuleHullSeamTest );
 	RUN_SUBTEST( CapsuleTriangleFaceDeepTest );

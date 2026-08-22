@@ -49,8 +49,8 @@ The PORT RECORDs below run newest first and are the detail for each step.
   zeroed proxy, so a compound, mesh or height-field visitor with sensor events enabled
   trapped in any validate build and silently reported nothing in release. Measured:
   the new TestSensorVisitorMustBeConvex exits 133 (SIGTRAP) on Debug+VALIDATE with the
-  old rule and 0 with the new one; in Release it does not discriminate, which is
-  stated in the test. B3_MAX_SHAPE_CAST_POINTS becomes B3_MAX_HULL_VERTICES (128 here,
+  old rule and 0 with the new one; in Release, and in any NDEBUG config including the
+  two RelWithDebInfo CI jobs, it does not discriminate — a note in the test says so. B3_MAX_SHAPE_CAST_POINTS becomes B3_MAX_HULL_VERTICES (128 here,
   256 upstream, was a hard 64), so proxies of 65..128 points stop being truncated in
   compound.c, sensor.c and the replay reader — the recording FORMAT is unchanged.
   CMake fp-contract tests the compiler rather than the platform; CI gains

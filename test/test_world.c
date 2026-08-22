@@ -399,6 +399,14 @@ static int TestSensor( void )
 // The case that actually moved is a COMPOUND visitor: the old rule let it through, the new
 // rule does not. A hull visitor in the same place is the control, so a sensor query that
 // silently found nothing could not make the compound half pass by accident.
+//
+// THIS TEST ONLY BITES IN A VALIDATE BUILD, and that is the whole point of the change. Under
+// the old rule a non-convex visitor reached b3MakeShapeProxy, whose switch handles only
+// sphere, capsule and hull: in Debug+VALIDATE it hits B3_ASSERT( false ) and traps (measured:
+// exit 133, SIGTRAP), while in Release it returns a zeroed proxy and quietly reports nothing,
+// which is indistinguishable from the new behaviour. So restoring the old rule fails this test
+// in Debug+VALIDATE and PASSES it in Release and in any NDEBUG config, including the two
+// RelWithDebInfo CI jobs.
 static int TestSensorVisitorMustBeConvex( void )
 {
 	for ( int useCompound = 0; useCompound < 2; ++useCompound )

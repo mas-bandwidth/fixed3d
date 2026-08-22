@@ -1183,8 +1183,10 @@ static int AllOps( void )
 	b3Shape_SetSphere( sphereShapeId, &newSphere );
 	b3Capsule newCapsule = { { B3_FIX( 0.0f ), -B3_FIX( 0.3f ), B3_FIX( 0.0f ) }, { B3_FIX( 0.0f ), B3_FIX( 0.3f ), B3_FIX( 0.0f ) }, B3_FIX( 0.3f ) };
 	b3Shape_SetCapsule( capsuleShapeId, &newCapsule );
-	// Geometry swaps intern into the registry at the record site. The repeated SetHull takes the
-	// shared hull short circuit, which changes nothing and so must leave the stream alone.
+	// Geometry swaps intern into the registry at the record site. The second SetHull takes the
+	// shared-hull short circuit; it is here so the op stream carries a redundant swap and replay
+	// still has to agree. NOTE: AllOps asserts frame counts and non-divergence, not stream shape,
+	// so this line does NOT by itself prove the short circuit keeps the write out of the stream.
 	b3BoxHull swapHull = b3MakeBoxHull( B3_FIX( 0.4f ), B3_FIX( 0.6f ), B3_FIX( 0.4f ) );
 	b3Shape_SetHull( boxShapeId, &swapHull.base );
 	b3Shape_SetHull( boxShapeId, &swapHull.base );
