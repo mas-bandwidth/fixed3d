@@ -395,6 +395,92 @@ static int TestSensor( void )
 	return 0;
 }
 
+// Upstream 3fc20f5 narrowed sensor visitors from "not mesh vs mesh" to "must be convex".
+// The case that actually moved is a COMPOUND visitor: the old rule let it through, the new
+// rule does not. A hull visitor in the same place is the control, so a sensor query that
+// silently found nothing could not make the compound half pass by accident.
+//
+// THIS TEST ONLY BITES IN A VALIDATE BUILD, and that is the whole point of the change. Under
+// the old rule a non-convex visitor reached b3MakeShapeProxy, whose switch handles only
+// sphere, capsule and hull: in Debug+VALIDATE it hits B3_ASSERT( false ) and traps (measured:
+// exit 133, SIGTRAP), while in Release it returns a zeroed proxy and quietly reports nothing,
+// which is indistinguishable from the new behaviour. So restoring the old rule fails this test
+// in Debug+VALIDATE and PASSES it in Release and in any NDEBUG config, including the two
+// RelWithDebInfo CI jobs.
+static int TestSensorVisitorMustBeConvex( void )
+{
+	for ( int useCompound = 0; useCompound < 2; ++useCompound )
+	{
+		b3WorldDef worldDef = b3DefaultWorldDef();
+		b3WorldId worldId = b3CreateWorld( &worldDef );
+
+		// A static box at the origin, as a one-hull compound or as the bare hull.
+		b3BodyDef bodyDef = b3DefaultBodyDef();
+		bodyDef.type = b3_staticBody;
+		b3BodyId visitorBodyId = b3CreateBody( worldId, &bodyDef );
+
+		b3ShapeDef visitorDef = b3DefaultShapeDef();
+		visitorDef.enableSensorEvents = true;
+
+		b3BoxHull box = b3MakeBoxHull( B3_FIX( 1.0f ), B3_FIX( 1.0f ), B3_FIX( 1.0f ) );
+		b3CompoundData* compound = NULL;
+		if ( useCompound )
+		{
+			b3CompoundHullDef hullDef = { .hull = &box.base,
+										  .transform = b3Transform_identity,
+										  .material = b3DefaultSurfaceMaterial() };
+			b3CompoundDef def = { .hulls = &hullDef, .hullCount = 1 };
+			compound = b3CreateCompound( &def );
+			ENSURE( compound != NULL );
+			b3CreateBakedCompoundShape( visitorBodyId, &visitorDef, compound );
+		}
+		else
+		{
+			b3CreateHullShape( visitorBodyId, &visitorDef, &box.base );
+		}
+
+		// A weightless dynamic sensor sphere sitting inside the box, so the overlap is there
+		// from the first step and nothing has to move for it to be found.
+		bodyDef = b3DefaultBodyDef();
+		bodyDef.type = b3_dynamicBody;
+		bodyDef.gravityScale = B3_FIX( 0.0f );
+		b3BodyId sensorId = b3CreateBody( worldId, &bodyDef );
+
+		b3ShapeDef sensorDef = b3DefaultShapeDef();
+		sensorDef.isSensor = true;
+		sensorDef.enableSensorEvents = true;
+		b3Sphere sphere = { { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, B3_FIX( 0.5f ) };
+		b3CreateSphereShape( sensorId, &sensorDef, &sphere );
+
+		int beginCount = 0;
+		b3Fixed timeStep = b3FixDiv( B3_FIX( 1.0f ), B3_FIX( 60.0f ) );
+		for ( int i = 0; i < 4; ++i )
+		{
+			b3World_Step( worldId, timeStep, 4 );
+			beginCount += b3World_GetSensorEvents( worldId ).beginCount;
+		}
+
+		if ( useCompound )
+		{
+			// Non-convex visitor: no events. This is the behaviour change.
+			ENSURE( beginCount == 0 );
+		}
+		else
+		{
+			// Convex visitor at the same place: the sensor really does see it.
+			ENSURE( beginCount == 1 );
+		}
+
+		if ( compound != NULL )
+		{
+			b3DestroyCompound( compound );
+		}
+		b3DestroyWorld( worldId );
+	}
+
+	return 0;
+}
+
 static int TestContactEvents( void )
 {
 	b3WorldDef worldDef = b3DefaultWorldDef();
@@ -1278,6 +1364,7 @@ int WorldTest( void )
 	RUN_SUBTEST( TestWorldCoverage );
 	RUN_SUBTEST( TestExplosion );
 	RUN_SUBTEST( TestSensor );
+	RUN_SUBTEST( TestSensorVisitorMustBeConvex );
 	RUN_SUBTEST( TestContinuousMoveEvent );
 	RUN_SUBTEST( TestContactEvents );
 	RUN_SUBTEST( TestHitEvents );

@@ -413,6 +413,100 @@ static int CreateHullMergeChurnStressTest( void )
 	return 0;
 }
 
+// b3ComputeCosSin is a coarse approximation, so build rotations from libm to keep the
+// analytic corner and plane positions exact.
+static b3Quat ExactQuat( b3Vec3 axis, b3Fixed radians )
+{
+	double half = 0.5 * b3FixToDouble( radians );
+	b3Fixed s = b3FixFromDouble( sin( half ) );
+	b3Fixed c = b3FixFromDouble( cos( half ) );
+	return (b3Quat){ { b3FixMul( s, axis.x ), b3FixMul( s, axis.y ), b3FixMul( s, axis.z ) }, c };
+}
+
+// Corner sign pattern baked by b3MakeTransformedBoxHull, in order.
+static const b3Vec3 s_boxCornerSigns[8] = {
+	{ B3_FIX( 1.0f ), B3_FIX( 1.0f ), B3_FIX( 1.0f ) },	  { -B3_FIX( 1.0f ), B3_FIX( 1.0f ), B3_FIX( 1.0f ) },
+	{ -B3_FIX( 1.0f ), -B3_FIX( 1.0f ), B3_FIX( 1.0f ) },  { B3_FIX( 1.0f ), -B3_FIX( 1.0f ), B3_FIX( 1.0f ) },
+	{ B3_FIX( 1.0f ), B3_FIX( 1.0f ), -B3_FIX( 1.0f ) },  { -B3_FIX( 1.0f ), B3_FIX( 1.0f ), -B3_FIX( 1.0f ) },
+	{ -B3_FIX( 1.0f ), -B3_FIX( 1.0f ), -B3_FIX( 1.0f ) }, { B3_FIX( 1.0f ), -B3_FIX( 1.0f ), -B3_FIX( 1.0f ) },
+};
+
+// The baked box hull is only exercised elsewhere through mass properties, which are analytic
+// and never read boxPoints or boxPlanes. Pin the geometry itself against the transform so an
+// axis swap in the point or plane bake cannot pass silently.
+static int CheckTransformedBox( b3Vec3 h, b3Transform xf )
+{
+	b3BoxHull box = b3MakeTransformedBoxHull( h.x, h.y, h.z, xf );
+
+	// Below-resolution float tolerances floor to eight quanta here (the tree's convention).
+	// The plane offset carries one extra rounding from its dot product, so it gets its own floor.
+	const b3Fixed tol = 8 * B3_FIXED_EPSILON;
+	const b3Fixed offsetTol = 16 * B3_FIXED_EPSILON;
+
+	// Each corner is the transform of the signed half extent.
+	for ( int i = 0; i < 8; ++i )
+	{
+		b3Vec3 local = { b3FixMul( s_boxCornerSigns[i].x, h.x ), b3FixMul( s_boxCornerSigns[i].y, h.y ),
+						 b3FixMul( s_boxCornerSigns[i].z, h.z ) };
+		b3Vec3 expected = b3TransformPoint( xf, local );
+		ENSURE_SMALL( box.boxPoints[i].x - expected.x, tol );
+		ENSURE_SMALL( box.boxPoints[i].y - expected.y, tol );
+		ENSURE_SMALL( box.boxPoints[i].z - expected.z, tol );
+	}
+
+	// Face normals rotate with the box, offsets carry the rotated normal through the translation.
+	b3Vec3 localNormals[6] = {
+		b3Neg( b3Vec3_axisX ), b3Vec3_axisX, b3Neg( b3Vec3_axisY ), b3Vec3_axisY, b3Neg( b3Vec3_axisZ ), b3Vec3_axisZ,
+	};
+	b3Fixed localOffsets[6] = { h.x, h.x, h.y, h.y, h.z, h.z };
+	for ( int i = 0; i < 6; ++i )
+	{
+		b3Vec3 n = b3RotateVector( xf.q, localNormals[i] );
+		b3Fixed offset = localOffsets[i] + b3Dot( n, xf.p );
+		ENSURE_SMALL( box.boxPlanes[i].normal.x - n.x, tol );
+		ENSURE_SMALL( box.boxPlanes[i].normal.y - n.y, tol );
+		ENSURE_SMALL( box.boxPlanes[i].normal.z - n.z, tol );
+		ENSURE_SMALL( box.boxPlanes[i].offset - offset, offsetTol );
+	}
+
+	// NOT PORTED: upstream also mirrors the eight vertices and six normals into vx/vy/vz and
+	// nx/ny/nz SoA lanes for its float SIMD narrow phase. b3BoxHull here has no such lanes
+	// (float SIMD is removed; our opt-in fixed SIMD is narrow-phase only), so those checks
+	// have no analogue.
+
+	// The stored AABB bounds every baked corner.
+	b3AABB pointBox = b3MakeAABB( box.boxPoints, 8, B3_FIX( 0.0f ) );
+	ENSURE( b3AABB_Contains( box.base.aabb, pointBox ) );
+
+	return 0;
+}
+
+static int TransformedBoxHullTest( void )
+{
+	b3Vec3 h = { B3_FIX( 0.25f ), B3_FIX( 0.5f ), B3_FIX( 0.3f ) };
+
+	// Identity.
+	if ( CheckTransformedBox( h, b3Transform_identity ) )
+		return 1;
+
+	// Translation only.
+	b3Transform translated = { { B3_FIX( 0.4f ), -B3_FIX( 0.7f ), B3_FIX( 0.1f ) }, b3Quat_identity };
+	if ( CheckTransformedBox( h, translated ) )
+		return 1;
+
+	// Rotation only. A quarter turn about Y swaps the world X and Z extents.
+	b3Transform rotated = { b3Vec3_zero, ExactQuat( b3Vec3_axisY, B3_PI / 4 ) };
+	if ( CheckTransformedBox( h, rotated ) )
+		return 1;
+
+	// Translation and rotation together.
+	b3Transform transformed = { { B3_FIX( 3.0f ), -B3_FIX( 2.0f ), B3_FIX( 1.5f ) }, ExactQuat( b3Vec3_axisZ, B3_PI / 4 ) };
+	if ( CheckTransformedBox( h, transformed ) )
+		return 1;
+
+	return 0;
+}
+
 static int CreateHullDegenerateTest( void )
 {
 	// Real (non-null) buffer; pointCount < 4 cases are guarded inside Construct().
@@ -530,6 +624,7 @@ int HullTest( void )
 	RUN_SUBTEST( CreateHullSphereStressTest );
 	RUN_SUBTEST( CreateHullMergeChurnStressTest );
 	RUN_SUBTEST( CreateHullDegenerateTest );
+	RUN_SUBTEST( TransformedBoxHullTest );
 	RUN_SUBTEST( CreateHullNearDegenerateTest );
 
 	return 0;

@@ -27,10 +27,16 @@
 // bit-exact rigid translation of the trajectory. The hash differs only because it covers
 // the absolute transform bytes, and the wide build stores 128-bit positions (80-byte
 // b3WorldTransform vs 56-byte), so it carries its own golden. Full 128 bits are hashed.
+// Both hashes moved 2026-08-22 with the f42be21 triangle-face clip fix: the crossing test is a
+// sign comparison now, so a capsule core straddling a triangle edge with both separations under
+// ~0.004 gets its second clip point instead of losing it to a b3FixMul that quantized to zero.
+// Ragdolls rest on the mesh floor, so this is the only scene that moves. Previously 0x886BE415
+// (ludicrous) and 0xB222C195 (narrow). Every sleep step and every other scene carried over
+// unchanged, verified identical for worker counts 1-5 in both builds.
 #if defined( BOX3D_LUDICROUS_MODE )
-#define RAGDOLL_HASH 0x886BE415
+#define RAGDOLL_HASH 0xAD895018
 #else
-#define RAGDOLL_HASH 0xB222C195
+#define RAGDOLL_HASH 0xC9322058
 #endif
 
 // Goldens for the c37cfe4-ported scenarios (wave pile, query spawn, mesh drop).

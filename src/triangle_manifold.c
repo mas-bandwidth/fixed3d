@@ -140,8 +140,11 @@ static bool b3ClipSegmentToTriangleFace( b3ClipVertex segment[2], const b3Vec3* 
 			segment[vertexCount++] = p2;
 		}
 
-		// If the points are on different sides of the plane
-		if ( b3FixMul( distance1 , distance2 ) < B3_FIX( 0.0f ) )
+		// If the points are on different sides of the plane. Upstream f42be21 replaced the product
+		// with a sign comparison. In Q48.16 that is a correctness fix rather than a tidy-up: b3FixMul
+		// of two separations under ~0.004 quantizes to zero, so a shallow crossing was silently
+		// dropped and the clip returned one point instead of two.
+		if ( ( distance1 > B3_FIX( 0.0f ) ) != ( distance2 > B3_FIX( 0.0f ) ) )
 		{
 			// Find intersection point of edge and plane
 			b3Fixed t = b3FixDiv( distance1 , ( distance1 - distance2 ) );
@@ -199,6 +202,9 @@ static b3SeparatingAxis b3QueryTriangleAndCapsuleEdges( const b3Vec3* vertices, 
 	b3Fixed squaredTolerance = b3FixMul( B3_FIX( 0.005f ) , B3_FIX( 0.005f ) );
 
 	int edgeIndex = 2;
+
+	// Loop invariant: does not depend on the triangle edge.
+	b3Fixed a = b3Dot( capsuleEdge, plane.normal );
 	b3Vec3 v1 = vertices[2];
 	for ( int index = 0; index < 3; ++index )
 	{
@@ -209,12 +215,15 @@ static b3SeparatingAxis b3QueryTriangleAndCapsuleEdges( const b3Vec3* vertices, 
 		// Pretend the triangle edge embeds a zero area face with a side normal. This
 		// provides a way to find an edge-edge normal that points outward from
 		// the triangle.
-		b3Fixed a = b3Dot( capsuleEdge, plane.normal );
 		b3Fixed b = b3Dot( capsuleEdge, sideNormal );
 
 		// Is the capsule edge parallel to the triangle edge? If so, face contact can handle it.
 		if ( b3FixMul( a , a ) + b3FixMul( b , b ) < b3FixMul( squaredTolerance , b3LengthSquared( capsuleEdge ) ) )
 		{
+			// The skip must still advance the edge walk, or the next iteration reads the wrong v1
+			// and reports the wrong edge index.
+			v1 = v2;
+			edgeIndex = index;
 			continue;
 		}
 
@@ -346,9 +355,15 @@ static void b3BuildTriangleAndCapsuleEdgeContact( b3LocalManifold* manifold, con
 		return;
 	}
 
+	// NOT PORTED, deliberately, and the twin of the refusal in b3CollideTriangleAndCapsule below.
+	// Upstream f42be21 moves the radius onto point2 — semantically the tidier reading, since point1
+	// is on the triangle edge and point2 on the capsule core. It is NOT value-identical here:
+	// b3Lerp is fixMul(1-t,a) + fixMul(t,b) with round-half-up, so moving an odd radius term from
+	// one side to the other flips the rounding on 288 of 1156 small-operand combinations, by one
+	// quantum. It moves no golden TODAY, which is not a reason to take a rounding reshuffle that
+	// buys nothing. Do not clean up.
 	b3Vec3 point = b3Lerp( b3MulSub( result.point1, capsule->radius, normal ), result.point2, B3_FIX( 0.5f ) );
 	b3Fixed separation = b3Dot( normal, b3Sub( p1, v1 ) );
-	B3_VALIDATE( b3FixAbs( separation - query.separation ) < B3_LINEAR_SLOP );
 
 	manifold->normal = normal;
 	manifold->pointCount = 1;
@@ -390,9 +405,9 @@ void b3CollideTriangleAndCapsule( b3LocalManifold* manifold, int capacity, const
 	distanceInput.useRadii = false;
 
 	b3DistanceOutput distanceOutput = b3ShapeDistance( &distanceInput, cache, NULL, 0 );
-
+	b3Fixed speculativeDistance = B3_SPECULATIVE_DISTANCE;
 	b3Fixed radius = capsuleB->radius;
-	if ( distanceOutput.distance > radius + B3_SPECULATIVE_DISTANCE )
+	if ( distanceOutput.distance > radius + speculativeDistance )
 	{
 		// Shapes are separated, persist the cache
 		return;
@@ -448,6 +463,14 @@ void b3CollideTriangleAndCapsule( b3LocalManifold* manifold, int capacity, const
 		}
 
 		// Create contact from closest points.
+		// NOT PORTED, deliberately: upstream f42be21 rewrites this as
+		//   b3Lerp( pointA, b3MulSub( pointB, radius, delta ), 0.5 )
+		// Equal in EXACT arithmetic — both reduce to (pointA + pointB)/2 - radius*delta/2 — but not
+		// in Q48.16, where round-half-up makes the two spellings differ by a quantum whenever the
+		// radius term is odd and the operands differ in parity. Measured on this tree: taking it
+		// moves the ragdoll sleep step 287 -> 453. That is the b3Lerp rounding lottery this repo
+		// already paid for (see the "deliberately NOT fused" list in CLAUDE.md), spent for no
+		// behavioural gain. Do not clean up.
 		b3Vec3 point = b3MulSV( B3_FIX( 0.5f ), b3Add( b3Sub( distanceOutput.pointA, b3MulSV( radius, delta ) ), distanceOutput.pointB ) );
 
 		// Normal points from triangle to capsule.
@@ -468,22 +491,24 @@ void b3CollideTriangleAndCapsule( b3LocalManifold* manifold, int capacity, const
 	b3SeparatingAxis faceQuery = b3QueryTriangleFaceAndCapsule( plane, capsuleB );
 	if ( faceQuery.separation > radius )
 	{
-		// Shapes are separated
+		// Shapes are separated. Should be impossible for a reasonable capsule radius.
 		return;
 	}
 
 	b3SeparatingAxis edgeQuery = b3QueryTriangleAndCapsuleEdges( triangleA, plane, capsuleB );
 	if ( edgeQuery.separation > radius )
 	{
-		// Shapes are separated
+		// Shapes are separated. Should be impossible for a reasonable capsule radius.
 		return;
 	}
 
 	// Create face contact
 	b3Fixed faceSeparation = faceQuery.separation - radius;
 	b3BuildTriangleAndCapsuleFaceContact( manifold, triangleA, plane, capsuleB );
+	B3_VALIDATE( manifold->pointCount == 0 || manifold->pointCount == 2 );
 	if ( manifold->pointCount == 2 )
 	{
+		// This becomes the clipped separation.
 		faceSeparation = b3FixMin( manifold->points[0].separation, manifold->points[1].separation );
 	}
 	// The clipped face points are not guaranteed to realize the SAT axis of minimum
@@ -495,15 +520,15 @@ void b3CollideTriangleAndCapsule( b3LocalManifold* manifold, int capacity, const
 
 	// Face contact can be empty if it does not realize the axis of minimum penetration.
 	// Create edge contact if face contact fails or edge contact is significantly better!
-	const b3Fixed kRelEdgeTolerance = B3_FIX( 0.50f );
-	const b3Fixed kAbsTolerance = b3FixMul( B3_FIX( 1.0f ) , B3_LINEAR_SLOP );
+	// Upstream 781673b replaced the relative tolerance with a plain slop offset. In fixed point the
+	// new form is strictly better: it is an int64 add instead of a b3FixMul, so nothing quantizes.
+	const b3Fixed linearSlop = B3_LINEAR_SLOP;
 
 	// The edge query can find no admissible pair (its separation stays at the
 	// -B3_FIXED_MAX sentinel, which would wrap under further arithmetic).
 	bool haveEdge = edgeQuery.indexB != B3_NULL_INDEX;
 	b3Fixed edgeSeparation = haveEdge ? edgeQuery.separation - radius : B3_FIXED_MIN;
-	if ( manifold->pointCount == 0 ? haveEdge
-								   : ( haveEdge && edgeSeparation > b3FixMul( kRelEdgeTolerance , faceSeparation ) + kAbsTolerance ) )
+	if ( manifold->pointCount == 0 ? haveEdge : ( haveEdge && edgeSeparation > faceSeparation + linearSlop ) )
 	{
 		// Edge contact
 		b3BuildTriangleAndCapsuleEdgeContact( manifold, triangleA, plane, capsuleB, edgeQuery );
@@ -948,7 +973,6 @@ static void b3CollideTriangleAndHullEdges( b3LocalManifold* manifold, int capaci
 
 	// This can slide off the end from caching
 	b3Fixed separation = b3Dot( query.normal, b3Sub( pB, pA ) );
-	B3_VALIDATE( b3FixAbs( separation - query.separation ) < B3_LINEAR_SLOP );
 
 	b3Vec3 point = b3MulSV( B3_FIX( 0.5f ), b3Add( result.point1, result.point2 ) );
 

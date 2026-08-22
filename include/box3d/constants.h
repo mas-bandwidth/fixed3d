@@ -104,9 +104,6 @@ B3_API b3Fixed b3GetStallThreshold( void );
 /// The maximum number of contact points between two touching shapes.
 #define B3_MAX_MANIFOLD_POINTS 4
 
-/// The maximum number points to use for shape cast proxies (swept point cloud).
-#define B3_MAX_SHAPE_CAST_POINTS 64
-
 /// The number of iterations for gyroscopic torques.
 #ifndef B3_GYROSCOPIC_ITERATIONS
 #define B3_GYROSCOPIC_ITERATIONS 1
@@ -124,6 +121,9 @@ B3_API b3Fixed b3GetStallThreshold( void );
 /// Relative tolerance used to determine if two edges are parallel.
 /// Fixed point: wrap with B3_FIX at use sites (the raw float is the portable constant).
 #define B3_PARALLEL_EDGE_TOL 0.005f
+
+/// The maximum number points to use for shape cast proxies (swept point cloud).
+#define B3_MAX_SHAPE_CAST_POINTS B3_MAX_HULL_VERTICES
 
 /// These generous limits allow for easy hashing. See b3ShapePairKey.
 #define B3_SHAPE_POWER 22

@@ -355,6 +355,116 @@ static int OverlapFilter( void )
 	return 0;
 }
 
+static bool CountOverlapCallback( b3ShapeId shapeId, void* context )
+{
+	(void)shapeId;
+	*(int*)context += 1;
+	return true;
+}
+
+// A box hull proxy built around a world target with a zero origin must hit the same shapes as the
+// same box built at the local origin and queried with the target as origin. This is the origin
+// relative equivalence the world query promises, and the pattern users reach for when they bake a
+// query box with b3MakeTransformedBoxHull.
+static int OverlapHullProxyEquivalence( void )
+{
+	b3WorldDef worldDef = b3DefaultWorldDef();
+	b3WorldId worldId = b3CreateWorld( &worldDef );
+
+	b3BodyDef bodyDef = b3DefaultBodyDef();
+	bodyDef.type = b3_staticBody;
+	bodyDef.position = (b3Pos){ B3_FIX( 10.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
+	b3BodyId bodyId = b3CreateBody( worldId, &bodyDef );
+	b3BoxHull box = b3MakeBoxHull( B3_FIX( 1.0f ), B3_FIX( 1.0f ), B3_FIX( 1.0f ) );
+	b3ShapeDef shapeDef = b3DefaultShapeDef();
+	b3CreateHullShape( bodyId, &shapeDef, &box.base );
+
+	b3World_Step( worldId, B3_FIX( 1.0f ) / 60, 1 );
+
+	b3QueryFilter filter = b3DefaultQueryFilter();
+
+	// Overlapping target: a 10 wide query box centered on the body.
+	{
+		b3Vec3 offset = { B3_FIX( 10.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
+
+		b3BoxHull baked = b3MakeTransformedBoxHull( B3_FIX( 5.0f ), B3_FIX( 5.0f ), B3_FIX( 5.0f ),
+													(b3Transform){ offset, b3Quat_identity } );
+		b3ShapeProxy bakedProxy = { baked.boxPoints, baked.base.vertexCount, B3_FIX( 0.0f ) };
+		int bakedHits = 0;
+		b3World_OverlapShape( worldId, b3Pos_zero, &bakedProxy, filter, CountOverlapCallback, &bakedHits );
+
+		b3Pos origin = b3OffsetPos( b3Pos_zero, offset );
+		b3BoxHull local = b3MakeBoxHull( B3_FIX( 5.0f ), B3_FIX( 5.0f ), B3_FIX( 5.0f ) );
+		b3ShapeProxy localProxy = { local.boxPoints, local.base.vertexCount, B3_FIX( 0.0f ) };
+		int localHits = 0;
+		b3World_OverlapShape( worldId, origin, &localProxy, filter, CountOverlapCallback, &localHits );
+
+		ENSURE( bakedHits == 1 );
+		ENSURE( localHits == bakedHits );
+	}
+
+	// Clearing target: same box far from the body, both formulations agree on the miss.
+	{
+		b3Vec3 offset = { B3_FIX( 100.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
+
+		b3BoxHull baked = b3MakeTransformedBoxHull( B3_FIX( 5.0f ), B3_FIX( 5.0f ), B3_FIX( 5.0f ),
+													(b3Transform){ offset, b3Quat_identity } );
+		b3ShapeProxy bakedProxy = { baked.boxPoints, baked.base.vertexCount, B3_FIX( 0.0f ) };
+		int bakedHits = 0;
+		b3World_OverlapShape( worldId, b3Pos_zero, &bakedProxy, filter, CountOverlapCallback, &bakedHits );
+
+		b3Pos origin = b3OffsetPos( b3Pos_zero, offset );
+		b3BoxHull local = b3MakeBoxHull( B3_FIX( 5.0f ), B3_FIX( 5.0f ), B3_FIX( 5.0f ) );
+		b3ShapeProxy localProxy = { local.boxPoints, local.base.vertexCount, B3_FIX( 0.0f ) };
+		int localHits = 0;
+		b3World_OverlapShape( worldId, origin, &localProxy, filter, CountOverlapCallback, &localHits );
+
+		ENSURE( bakedHits == 0 );
+		ENSURE( localHits == bakedHits );
+	}
+
+	b3DestroyWorld( worldId );
+	return 0;
+}
+
+// A quarter turn baked into the query hull must reach the overlap test. A long thin bar hits a body
+// off the origin when aligned along X and clears it once rotated to lie along Z.
+static int OverlapHullProxyRotation( void )
+{
+	b3WorldDef worldDef = b3DefaultWorldDef();
+	b3WorldId worldId = b3CreateWorld( &worldDef );
+
+	b3BodyDef bodyDef = b3DefaultBodyDef();
+	bodyDef.type = b3_staticBody;
+	bodyDef.position = (b3Pos){ B3_FIX( 3.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
+	b3BodyId bodyId = b3CreateBody( worldId, &bodyDef );
+	b3BoxHull box = b3MakeBoxHull( B3_FIX( 0.5f ), B3_FIX( 0.5f ), B3_FIX( 0.5f ) );
+	b3ShapeDef shapeDef = b3DefaultShapeDef();
+	b3CreateHullShape( bodyId, &shapeDef, &box.base );
+
+	b3World_Step( worldId, B3_FIX( 1.0f ) / 60, 1 );
+
+	b3QueryFilter filter = b3DefaultQueryFilter();
+
+	// Bar long in local X, centered at the origin, reaches the body at x = 3.
+	b3BoxHull aligned = b3MakeTransformedBoxHull( B3_FIX( 4.0f ), B3_FIX( 0.3f ), B3_FIX( 0.3f ), b3Transform_identity );
+	b3ShapeProxy alignedProxy = { aligned.boxPoints, aligned.base.vertexCount, B3_FIX( 0.0f ) };
+	int alignedHits = 0;
+	b3World_OverlapShape( worldId, b3Pos_zero, &alignedProxy, filter, CountOverlapCallback, &alignedHits );
+	ENSURE( alignedHits == 1 );
+
+	// Rotated a quarter turn about Y the long axis points along Z, so the bar no longer reaches x = 3.
+	b3Quat q = b3MakeQuatFromAxisAngle( (b3Vec3){ B3_FIX( 0.0f ), B3_FIX( 1.0f ), B3_FIX( 0.0f ) }, B3_PI / 2 );
+	b3BoxHull turned = b3MakeTransformedBoxHull( B3_FIX( 4.0f ), B3_FIX( 0.3f ), B3_FIX( 0.3f ), (b3Transform){ b3Vec3_zero, q } );
+	b3ShapeProxy turnedProxy = { turned.boxPoints, turned.base.vertexCount, B3_FIX( 0.0f ) };
+	int turnedHits = 0;
+	b3World_OverlapShape( worldId, b3Pos_zero, &turnedProxy, filter, CountOverlapCallback, &turnedHits );
+	ENSURE( turnedHits == 0 );
+
+	b3DestroyWorld( worldId );
+	return 0;
+}
+
 // CollideMover -----------------------------------------------------------------------------
 
 static int MoverTouchesBox( void )
@@ -474,6 +584,8 @@ int BodyQueryTest( void )
 	RUN_SUBTEST( OverlapFalse );
 	RUN_SUBTEST( OverlapRespectsBodyTransform );
 	RUN_SUBTEST( OverlapFilter );
+	RUN_SUBTEST( OverlapHullProxyEquivalence );
+	RUN_SUBTEST( OverlapHullProxyRotation );
 
 	RUN_SUBTEST( MoverTouchesBox );
 	RUN_SUBTEST( MoverSeparated );

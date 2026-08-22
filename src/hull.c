@@ -4,7 +4,7 @@
 // Dirk Gregorius contributed portions of this code
 
 #include "algorithm.h"
-#include "hull_map.h"
+#include "hull.h"
 #include "math_internal.h"
 #include "shape.h"
 
@@ -2792,6 +2792,7 @@ bool b3CompareHullData( const b3HullData* hull1, const b3HullData* hull2 )
 _Static_assert( sizeof( b3HullData ) == 224 + ( sizeof( b3AABB ) - 2 * sizeof( b3Vec3 ) ), "unexpected hull data size" );
 _Static_assert( sizeof( b3BoxHull ) == 720 + ( sizeof( b3AABB ) - 2 * sizeof( b3Vec3 ) ), "unexpected box hull size" );
 
+// Implement b3HullMap.
 #define NAME b3HullMap
 #define KEY_TY const b3HullData*
 #define VAL_TY int
@@ -3228,6 +3229,8 @@ static const b3BoxHull s_boxHull = {
 
 b3BoxHull b3MakeTransformedBoxHull( b3Fixed hx, b3Fixed hy, b3Fixed hz, b3Transform transform )
 {
+	B3_ASSERT( b3IsValidTransform( transform ) );
+
 	b3BoxHull boxHull = s_boxHull;
 
 	b3Fixed minH = b3FixMul( B3_FIX( 0.2f ) , B3_LINEAR_SLOP );
@@ -3335,6 +3338,8 @@ void b3ScaleBox( b3Vec3* halfWidths, b3Transform* transform, b3Vec3 postScale, b
 // todo use new hull scaling technique
 b3BoxHull b3MakeScaledBoxHull( b3Vec3 halfWidths, b3Transform transform, b3Vec3 postScale )
 {
+	B3_ASSERT( b3IsValidTransform( transform ) );
+
 	b3Vec3 h = halfWidths;
 	b3Transform xf = transform;
 	b3ScaleBox( &h, &xf, postScale, b3FixMul( B3_FIX( 4.0f ) , B3_LINEAR_SLOP ) );

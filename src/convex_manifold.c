@@ -1233,19 +1233,6 @@ static bool b3BuildHullFaceAndCapsuleContact( b3LocalManifold* manifold, const b
 	return false;
 }
 
-static inline b3Fixed b3DeepestPointSeparation( const b3LocalManifold* manifold )
-{
-	// Deepest point
-	b3Fixed minSeparation = B3_FIXED_MAX;
-	int pointCount = manifold->pointCount;
-	for ( int i = 0; i < pointCount; ++i )
-	{
-		minSeparation = b3FixMin( minSeparation, manifold->points[i].separation );
-	}
-
-	return minSeparation;
-}
-
 static bool b3BuildHullAndCapsuleEdgeContact( b3LocalManifold* manifold, int capacity, const b3HullData* hullA,
 											  const b3Capsule* capsuleB, b3Transform transformBtoA, b3SeparatingAxis query )
 {
@@ -1410,25 +1397,23 @@ void b3CollideHullAndCapsule( b3LocalManifold* manifold, int capacity, const b3H
 	// Create face contact
 	b3Fixed faceSeparation = faceQuery.separation - capsuleB->radius;
 	b3BuildHullFaceAndCapsuleContact( manifold, hullA, capsuleB, transformBtoA, faceQuery );
-	if ( manifold->pointCount > 1 )
+	B3_VALIDATE( manifold->pointCount == 0 || manifold->pointCount == 2 );
+	if ( manifold->pointCount == 2 )
 	{
-		// If ( Out.PointCount <= 1 ) -> Compare with unclipped separation
-		// If ( Out.PointCount > 1 ) -> Be aggressive and compare with clipped separation
-		// Face contact can be empty if it does not realize the axis of minimum penetration
-		faceSeparation = b3DeepestPointSeparation( manifold );
+		// This becomes the clipped separation.
+		faceSeparation = b3FixMin( manifold->points[0].separation, manifold->points[1].separation );
 	}
-	B3_VALIDATE( faceSeparation <= B3_FIX( 0.0f ) );
 
 	// Face contact can be empty if it does not realize the axis of minimum penetration.
 	// Create edge contact if face contact fails or edge contact is significantly better!
-	const b3Fixed kRelEdgeTolerance = B3_FIX( 0.90f );
-	const b3Fixed kAbsTolerance = b3FixMul( B3_FIX( 0.5f ) , B3_LINEAR_SLOP );
+	// Upstream 781673b replaced the relative tolerance with a plain slop offset. In fixed point the
+	// new form is strictly better: it is an int64 add instead of a b3FixMul, so nothing quantizes.
+	const b3Fixed linearSlop = B3_LINEAR_SLOP;
 	// The edge query can find no admissible pair (its separation stays at the
 	// -B3_FIXED_MAX sentinel, which would wrap under further arithmetic).
 	bool haveEdge = edgeQuery.indexB != B3_NULL_INDEX;
 	b3Fixed edgeSeparation = haveEdge ? edgeQuery.separation - capsuleB->radius : B3_FIXED_MIN;
-	if ( manifold->pointCount == 0 ? haveEdge
-								   : ( haveEdge && edgeSeparation > b3FixMul( kRelEdgeTolerance , faceSeparation ) + kAbsTolerance ) )
+	if ( manifold->pointCount == 0 ? haveEdge : ( haveEdge && edgeSeparation > faceSeparation + linearSlop ) )
 	{
 		// Edge contact
 		b3BuildHullAndCapsuleEdgeContact( manifold, capacity, hullA, capsuleB, transformBtoA, edgeQuery );

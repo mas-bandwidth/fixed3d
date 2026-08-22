@@ -11,7 +11,7 @@
 #include "contact.h"
 #include "core.h"
 #include "ctz.h"
-#include "hull_map.h"
+#include "hull.h"
 #include "island.h"
 #include "joint.h"
 #include "parallel_for.h"
@@ -40,18 +40,21 @@ const b3HullData* b3AddHullToDatabase( b3World* world, const b3HullData* src )
 {
 	b3HullMap* database = world->hullDatabase;
 
-	// Compare by content so an unowned query hull finds the shared copy.
+	// Compare by content to de-duplicate. Not trusting the hash.
 	b3HullMap_itr itr = b3HullMap_get( database, src );
 	if ( b3HullMap_is_end( itr ) == false )
 	{
+		// Bump reference count.
 		itr.data->val += 1;
 		return itr.data->key;
 	}
 
-	b3HullData* owned = b3CloneHull( src );
-	B3_ASSERT( owned != NULL );
-	b3HullMap_insert( database, owned, 1 );
-	return owned;
+	b3HullData* clone = b3CloneHull( src );
+	B3_ASSERT( clone != NULL );
+
+	// Start with reference count of 1.
+	b3HullMap_insert( database, clone, 1 );
+	return clone;
 }
 
 const b3HullData* b3AddOwnedHullToDatabase( b3World* world, b3HullData* owned )
@@ -663,6 +666,10 @@ static void b3CollideTask( int startIndex, int endIndex, int workerIndex, void* 
 		if ( ( isFast == false || isMeshContact == false ) && recycleDistance > B3_FIX( 0.0f ) &&
 			 ( contact->flags & b3_relativeTransformValid ) && ( contact->flags & b3_contactRecycleFlag ) )
 		{
+			// The scalar part of b3InvMulQuat is just the quaternion dot product.
+			// cos(relative_angle/2) = scalar(conj(q1) * q2) = dot(q1, q2)
+			// A small relative angle means this value is close to 1. Need to use abs or square
+			// due to double cover.
 			b3Fixed angleA = b3DotQuat( transformA.q, contact->cachedRotationA );
 			b3Fixed angleB = b3DotQuat( transformB.q, contact->cachedRotationB );
 			b3Fixed angularDistance = b3FixMin( b3FixMul( angleA , angleA ), b3FixMul( angleB , angleB ) );
@@ -1434,21 +1441,23 @@ void b3World_Draw( b3WorldId worldId, b3DebugDraw* draw, uint64_t maskBits )
 				const char* name = b3FindName( &world->names, body->nameId );
 				if ( name != NULL )
 				{
-					draw->DrawStringFcn( p, name, b3_colorOrange, draw->context );
+					draw->DrawStringFcn( p, name, b3_colorWhite, draw->context );
 				}
 			}
 
-			if ( draw->drawMass && body->type == b3_dynamicBody )
+			if ( draw->drawMass )
 			{
-				b3Vec3 offset = { B3_FIX( 0.1f ), B3_FIX( 0.1f ), B3_FIX( 0.1f ) };
-
 				b3WorldTransform transform = { bodySim->center, bodySim->transform.q };
 				draw->DrawTransformFcn( transform, draw->context );
-				b3Pos p = b3TransformWorldPoint( transform, offset );
 
-				char buffer[32];
-				snprintf( buffer, 32, "  %.2f", b3FixToDouble( body->mass ) );
-				draw->DrawStringFcn( p, buffer, b3_colorWhite, draw->context );
+				if ( body->type == b3_dynamicBody )
+				{
+					b3Vec3 offset = { B3_FIX( 0.05f ), B3_FIX( 0.05f ), B3_FIX( 0.05f ) };
+					b3Pos p = b3TransformWorldPoint( transform, offset );
+					char buffer[32];
+					snprintf( buffer, 32, "%.2f", b3FixToDouble( body->mass ) );
+					draw->DrawStringFcn( p, buffer, b3_colorWhite, draw->context );
+				}
 			}
 
 			if ( draw->drawSleep )
