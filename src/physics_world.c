@@ -1437,20 +1437,20 @@ void b3World_Draw( b3WorldId worldId, b3DebugDraw* draw, uint64_t maskBits )
 				const char* name = b3FindName( &world->names, body->nameId );
 				if ( name != NULL )
 				{
-					draw->DrawStringFcn( p, name, b3_colorOrange, draw->context );
+					draw->DrawStringFcn( p, name, b3_colorWhite, draw->context );
 				}
 			}
 
 			if ( draw->drawMass && body->type == b3_dynamicBody )
 			{
-				b3Vec3 offset = { B3_FIX( 0.1f ), B3_FIX( 0.1f ), B3_FIX( 0.1f ) };
+				b3Vec3 offset = { B3_FIX( 0.05f ), B3_FIX( 0.05f ), B3_FIX( 0.05f ) };
 
 				b3WorldTransform transform = { bodySim->center, bodySim->transform.q };
 				draw->DrawTransformFcn( transform, draw->context );
 				b3Pos p = b3TransformWorldPoint( transform, offset );
 
 				char buffer[32];
-				snprintf( buffer, 32, "  %.2f", b3FixToDouble( body->mass ) );
+				snprintf( buffer, 32, "%.2f", b3FixToDouble( body->mass ) );
 				draw->DrawStringFcn( p, buffer, b3_colorWhite, draw->context );
 			}
 
