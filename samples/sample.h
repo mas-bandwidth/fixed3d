@@ -216,6 +216,7 @@ public:
 	// Index 2/3 accounts for the implicit `this`. Catches b3Fixed passed to %f/%g (varargs UB).
 	void DrawTextLine( const char* text, ... ) __attribute__( ( format( printf, 2, 3 ) ) );
 #else
+	B3_PRINTF_FORMAT( 2, 3 )
 	void DrawTextLine( const char* text, ... );
 #endif
 	void ResetProfile();

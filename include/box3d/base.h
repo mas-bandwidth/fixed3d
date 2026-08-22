@@ -68,6 +68,13 @@
 #endif
 // clang-format on
 
+// This is used to validate arguments for functions similar to printf.
+#if defined( __GNUC__ ) || defined( __clang__ )
+#define B3_PRINTF_FORMAT( INDEX1, INDEX2 ) __attribute__( ( format( printf, INDEX1, INDEX2 ) ) )
+#else
+#define B3_PRINTF_FORMAT( INDEX1, INDEX2 )
+#endif
+
 #if defined( BOX3D_VALIDATE ) && !defined( NDEBUG )
 #define B3_ENABLE_VALIDATION 1
 #else

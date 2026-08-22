@@ -55,6 +55,8 @@ void DrawScreenString( int x, int y, Vec4 color, const char* text );
 #if defined( __GNUC__ ) || defined( __clang__ )
 void DrawScreenStringFormat( int x, int y, Vec4 color, const char* fmt, ... ) __attribute__( ( format( printf, 4, 5 ) ) );
 #else
+
+B3_PRINTF_FORMAT( 4, 5 )
 void DrawScreenStringFormat( int x, int y, Vec4 color, const char* fmt, ... );
 #endif
 

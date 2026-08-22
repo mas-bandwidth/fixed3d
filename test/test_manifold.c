@@ -1121,6 +1121,144 @@ static int CapsuleHullSeamTest( void )
 	return 0;
 }
 
+// A capsule core straddling a triangle face inside the interior. The core pierces the plane so the
+// deep path runs, and with the tilt kept small the face stays the axis of minimum penetration, so the
+// clip must return two points on the triangle face. This is the branch that had no coverage.
+static int CapsuleTriangleFaceDeepTest( void )
+{
+	// Triangle in the y = 0 plane, normal +y, centroid at the origin
+	b3Vec3 v1 = { -B3_FIX( 3.0f ), B3_FIX( 0.0f ), -B3_FIX( 2.0f ) };
+	b3Vec3 v2 = { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 4.0f ) };
+	b3Vec3 v3 = { B3_FIX( 3.0f ), B3_FIX( 0.0f ), -B3_FIX( 2.0f ) };
+	b3Vec3 triangle[] = { v1, v2, v3 };
+
+	b3Fixed yaws[] = { B3_FIX( 0.0f ), B3_FIX( 0.6f ), B3_FIX( 1.2f ), B3_FIX( 1.8f ), B3_FIX( 2.4f ) };
+	b3Fixed tilts[] = { B3_FIX( 0.06f ), B3_FIX( 0.1f ), B3_FIX( 0.15f ) };
+	b3Fixed radii[] = { B3_FIX( 0.05f ), B3_FIX( 0.1f ), B3_FIX( 0.2f ) };
+
+	// Bias the center just above the plane so the back side cull passes while the lower endpoint dips through
+	b3Fixed bias = B3_FIX( 0.01f );
+	b3Fixed halfLength = B3_FIX( 1.0f );
+
+	// The analytic endpoint heights are built from libm, so the only error in the expected separation
+	// is the engine's own quantization. Eight quanta is the tree's floor for a below-resolution tolerance.
+	const b3Fixed tol = 8 * B3_FIXED_EPSILON;
+
+	int faceContacts = 0;
+
+	for ( int i = 0; i < ARRAY_COUNT( yaws ); ++i )
+	{
+		for ( int j = 0; j < ARRAY_COUNT( tilts ); ++j )
+		{
+			for ( int r = 0; r < ARRAY_COUNT( radii ); ++r )
+			{
+				// Axis is the in-plane heading tipped up so the segment straddles the plane.
+				// libm rather than b3Sin/b3Cos: this is reference math, not simulation.
+				double tilt = b3FixToDouble( tilts[j] );
+				double yaw = b3FixToDouble( yaws[i] );
+				b3Vec3 axis = { b3FixFromDouble( cos( tilt ) * cos( yaw ) ), b3FixFromDouble( sin( tilt ) ),
+								b3FixFromDouble( cos( tilt ) * sin( yaw ) ) };
+				b3Vec3 center = { B3_FIX( 0.0f ), bias, B3_FIX( 0.0f ) };
+				b3Vec3 c1 = b3MulAdd( center, -halfLength, axis );
+				b3Vec3 c2 = b3MulAdd( center, halfLength, axis );
+				b3Capsule capsule = { c1, c2, radii[r] };
+
+				b3LocalManifoldPoint points[8];
+				b3LocalManifold manifold = { 0 };
+				manifold.points = points;
+				b3SimplexCache cache = { 0 };
+				b3CollideTriangleAndCapsule( &manifold, 8, triangle, &capsule, &cache );
+
+				// Two points on the triangle face with the plane normal
+				ENSURE( manifold.pointCount == 2 );
+				ENSURE( manifold.feature == b3_featureTriangleFace );
+				ENSURE_SMALL( manifold.normal.x, tol );
+				ENSURE_SMALL( manifold.normal.y - B3_FIX( 1.0f ), tol );
+				ENSURE_SMALL( manifold.normal.z, tol );
+
+				// Separations are the endpoint heights pulled in by the radius. The lower endpoint is below
+				// the plane, so the deepest separation is negative.
+				b3Fixed lower = b3FixMin( c1.y, c2.y ) - radii[r];
+				b3Fixed upper = b3FixMax( c1.y, c2.y ) - radii[r];
+				b3Fixed minSep = b3FixMin( manifold.points[0].separation, manifold.points[1].separation );
+				b3Fixed maxSep = b3FixMax( manifold.points[0].separation, manifold.points[1].separation );
+				ENSURE_SMALL( minSep - lower, tol );
+				ENSURE_SMALL( maxSep - upper, tol );
+				ENSURE( minSep < B3_FIX( 0.0f ) );
+
+				++faceContacts;
+			}
+		}
+	}
+
+	// Every configuration must reach the face path
+	ENSURE( faceContacts == ARRAY_COUNT( yaws ) * ARRAY_COUNT( tilts ) * ARRAY_COUNT( radii ) );
+
+	return 0;
+}
+
+// A capsule laid flat with its core below a box top face. The core sits inside the box so the deep
+// path runs, and across a sweep of depths, headings and radii the face clip must return two points.
+static int HullCapsuleFaceDeepTest( void )
+{
+	b3BoxHull hull = b3MakeBoxHull( B3_FIX( 0.5f ), B3_FIX( 0.5f ), B3_FIX( 0.5f ) );
+
+	b3Fixed depths[] = { B3_FIX( 0.1f ), B3_FIX( 0.2f ), B3_FIX( 0.3f ), B3_FIX( 0.4f ), B3_FIX( 0.45f ) };
+	b3Fixed yaws[] = { B3_FIX( 0.0f ), B3_FIX( 0.4f ), B3_FIX( 0.8f ), B3_FIX( 1.2f ) };
+	b3Fixed radii[] = { B3_FIX( 0.1f ), B3_FIX( 0.15f ), B3_FIX( 0.2f ) };
+	b3Fixed offsets[] = { -B3_FIX( 0.1f ), B3_FIX( 0.0f ), B3_FIX( 0.1f ) };
+	b3Fixed halfLength = B3_FIX( 0.3f );
+
+	const b3Fixed tol = 8 * B3_FIXED_EPSILON;
+
+	int faceContacts = 0;
+
+	for ( int i = 0; i < ARRAY_COUNT( depths ); ++i )
+	{
+		for ( int j = 0; j < ARRAY_COUNT( yaws ); ++j )
+		{
+			for ( int r = 0; r < ARRAY_COUNT( radii ); ++r )
+			{
+				for ( int o = 0; o < ARRAY_COUNT( offsets ); ++o )
+				{
+					b3Fixed y = depths[i];
+					double yaw = b3FixToDouble( yaws[j] );
+					b3Vec3 dir = { b3FixFromDouble( cos( yaw ) ), B3_FIX( 0.0f ), b3FixFromDouble( sin( yaw ) ) };
+					b3Vec3 center = { offsets[o], y, B3_FIX( 0.0f ) };
+					b3Vec3 c1 = b3MulAdd( center, -halfLength, dir );
+					b3Vec3 c2 = b3MulAdd( center, halfLength, dir );
+					b3Capsule capsule = { c1, c2, radii[r] };
+
+					b3LocalManifoldPoint points[8];
+					b3LocalManifold manifold = { 0 };
+					manifold.points = points;
+					b3SimplexCache cache = { 0 };
+					b3CollideHullAndCapsule( &manifold, 8, &hull.base, &capsule, b3Transform_identity, &cache );
+
+					// Two points on the top face. The hull path does not tag a feature, so the face is
+					// identified by the normal and the point count.
+					ENSURE( manifold.pointCount == 2 );
+					ENSURE_SMALL( manifold.normal.x, tol );
+					ENSURE_SMALL( manifold.normal.y - B3_FIX( 1.0f ), tol );
+					ENSURE_SMALL( manifold.normal.z, tol );
+
+					// Flat capsule, so both points sit at the same analytic gap
+					b3Fixed expected = ( y - B3_FIX( 0.5f ) ) - radii[r];
+					ENSURE_SMALL( manifold.points[0].separation - expected, tol );
+					ENSURE_SMALL( manifold.points[1].separation - expected, tol );
+					ENSURE( expected < B3_FIX( 0.0f ) );
+
+					++faceContacts;
+				}
+			}
+		}
+	}
+
+	ENSURE( faceContacts == ARRAY_COUNT( depths ) * ARRAY_COUNT( yaws ) * ARRAY_COUNT( radii ) * ARRAY_COUNT( offsets ) );
+
+	return 0;
+}
+
 int ManifoldTest( void )
 {
 	RUN_SUBTEST( CrossedEdgeTest );
@@ -1140,6 +1278,8 @@ int ManifoldTest( void )
 	RUN_SUBTEST( CapsuleTriangleEdgeDeepTest );
 	RUN_SUBTEST( SphereHullSeamTest );
 	RUN_SUBTEST( CapsuleHullSeamTest );
+	RUN_SUBTEST( CapsuleTriangleFaceDeepTest );
+	RUN_SUBTEST( HullCapsuleFaceDeepTest );
 
 	return 0;
 }

@@ -284,9 +284,6 @@ public:
 			return;
 		}
 
-		constexpr int bufferSize = 512;
-		char buffer[bufferSize];
-
 		b3Fixed maxArea = 0;
 		int maxAreaIndex = -1;
 

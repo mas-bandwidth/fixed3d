@@ -1035,7 +1035,7 @@ static void b3RecDispatch_CreateMeshShape( const b3RecArgs_CreateMeshShape* a, b
 		return;
 	}
 	b3RegistrySlot* slot = rdr->slots + id;
-	const b3MeshData* mesh = (const b3MeshData*)b3RecGetLiveMesh( slot );
+	const b3MeshData* mesh = b3RecGetLiveMesh( slot );
 	b3BodyId bodyId = b3RecMakeBodyId( rdr, a->body );
 	b3ShapeId gotId = b3CreateMeshShape( bodyId, &a->def, mesh, a->scale );
 	b3RecCheckShapeId( rdr, gotId, recId );
@@ -1185,7 +1185,7 @@ static void b3RecDispatch_ShapeSetMesh( const b3RecArgs_ShapeSetMesh* a, b3RecRe
 		return;
 	}
 	b3RegistrySlot* slot = rdr->slots + id;
-	const b3MeshData* mesh = (const b3MeshData*)b3RecGetLiveMesh( slot );
+	const b3MeshData* mesh = b3RecGetLiveMesh( slot );
 	b3Shape_SetMesh( b3RecMakeShapeId( rdr, a->shape ), mesh, a->scale );
 }
 
@@ -2635,12 +2635,12 @@ static void b3RecCaptureKeyframe( b3RecPlayer* player )
 	b3World* world = b3GetWorldFromId( player->rdr.replayWorldId );
 	b3RecBuffer buf = { 0 };
 
-	int regCountBefore = player->keyframeRec->registry.count;
+	int regCountBefore = player->keyframeRec->registry.entries.count;
 	B3_UNUSED( regCountBefore );
 
 	b3SerializeWorld( world, &buf, player->keyframeRec );
 	// Registry must not grow: all geometry was pre-seeded and the registry dedups exactly.
-	B3_ASSERT( player->keyframeRec->registry.count == regCountBefore );
+	B3_ASSERT( player->keyframeRec->registry.entries.count == regCountBefore );
 
 	size_t bodyBytes = (size_t)player->bodyIdCount * sizeof( b3BodyId );
 	size_t newBytes = (size_t)buf.capacity + bodyBytes;

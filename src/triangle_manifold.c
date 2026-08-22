@@ -390,9 +390,9 @@ void b3CollideTriangleAndCapsule( b3LocalManifold* manifold, int capacity, const
 	distanceInput.useRadii = false;
 
 	b3DistanceOutput distanceOutput = b3ShapeDistance( &distanceInput, cache, NULL, 0 );
-
+	b3Fixed speculativeDistance = B3_SPECULATIVE_DISTANCE;
 	b3Fixed radius = capsuleB->radius;
-	if ( distanceOutput.distance > radius + B3_SPECULATIVE_DISTANCE )
+	if ( distanceOutput.distance > radius + speculativeDistance )
 	{
 		// Shapes are separated, persist the cache
 		return;
@@ -468,22 +468,24 @@ void b3CollideTriangleAndCapsule( b3LocalManifold* manifold, int capacity, const
 	b3SeparatingAxis faceQuery = b3QueryTriangleFaceAndCapsule( plane, capsuleB );
 	if ( faceQuery.separation > radius )
 	{
-		// Shapes are separated
+		// Shapes are separated. Should be impossible for a reasonable capsule radius.
 		return;
 	}
 
 	b3SeparatingAxis edgeQuery = b3QueryTriangleAndCapsuleEdges( triangleA, plane, capsuleB );
 	if ( edgeQuery.separation > radius )
 	{
-		// Shapes are separated
+		// Shapes are separated. Should be impossible for a reasonable capsule radius.
 		return;
 	}
 
 	// Create face contact
 	b3Fixed faceSeparation = faceQuery.separation - radius;
 	b3BuildTriangleAndCapsuleFaceContact( manifold, triangleA, plane, capsuleB );
+	B3_VALIDATE( manifold->pointCount == 0 || manifold->pointCount == 2 );
 	if ( manifold->pointCount == 2 )
 	{
+		// This becomes the clipped separation.
 		faceSeparation = b3FixMin( manifold->points[0].separation, manifold->points[1].separation );
 	}
 	// The clipped face points are not guaranteed to realize the SAT axis of minimum
@@ -495,15 +497,15 @@ void b3CollideTriangleAndCapsule( b3LocalManifold* manifold, int capacity, const
 
 	// Face contact can be empty if it does not realize the axis of minimum penetration.
 	// Create edge contact if face contact fails or edge contact is significantly better!
-	const b3Fixed kRelEdgeTolerance = B3_FIX( 0.50f );
-	const b3Fixed kAbsTolerance = b3FixMul( B3_FIX( 1.0f ) , B3_LINEAR_SLOP );
+	// Upstream 781673b replaced the relative tolerance with a plain slop offset. In fixed point the
+	// new form is strictly better: it is an int64 add instead of a b3FixMul, so nothing quantizes.
+	const b3Fixed linearSlop = B3_LINEAR_SLOP;
 
 	// The edge query can find no admissible pair (its separation stays at the
 	// -B3_FIXED_MAX sentinel, which would wrap under further arithmetic).
 	bool haveEdge = edgeQuery.indexB != B3_NULL_INDEX;
 	b3Fixed edgeSeparation = haveEdge ? edgeQuery.separation - radius : B3_FIXED_MIN;
-	if ( manifold->pointCount == 0 ? haveEdge
-								   : ( haveEdge && edgeSeparation > b3FixMul( kRelEdgeTolerance , faceSeparation ) + kAbsTolerance ) )
+	if ( manifold->pointCount == 0 ? haveEdge : ( haveEdge && edgeSeparation > faceSeparation + linearSlop ) )
 	{
 		// Edge contact
 		b3BuildTriangleAndCapsuleEdgeContact( manifold, triangleA, plane, capsuleB, edgeQuery );

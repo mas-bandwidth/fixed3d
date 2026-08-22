@@ -125,6 +125,7 @@ void DrawWireCapsule( b3WorldTransform transform, const b3Capsule* capsule, int 
 #if defined( __GNUC__ ) || defined( __clang__ )
 void DrawString3D( b3Pos point, Vec4 color, const char* format, ... ) __attribute__( ( format( printf, 3, 4 ) ) );
 #else
+B3_PRINTF_FORMAT( 3, 4 )
 void DrawString3D( b3Pos point, Vec4 color, const char* format, ... );
 #endif
 
