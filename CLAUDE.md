@@ -1,10 +1,87 @@
 # Box3D Fixed-Point Conversion — Session Handoff
 
 Box3D converted from float to Q48.16 fixed point (internal and external API).
-Baseline float code is commit c52908c. EVERYTHING below is committed and pushed;
-there is no pending working-tree state.
 
-## Current status (as of 2026-08-04 — v1.4.0, MAINTENANCE MODE)
+## THE PORT CURSOR — read this before any Box3D -> Fixed3D pass
+
+**Everything in erincatto/box3d up to and including `3fc20f5` is carried across.**
+`git log 3fc20f5..upstream/main` is the remaining work. (This line replaced
+*"Baseline float code is commit c52908c"* on 2026-08-22 — same claim, said as a cursor.) Two named exceptions, both on
+the issue board rather than buried here, because a cursor with silent holes is worse
+than no cursor:
+
+- **fixed3d#20** — the sample-viewer half of `3fc20f5` (follow cam, world text,
+  stb_truetype, the world_text shader). Held for a bench with a display; no simulation
+  content, so it does not gate the cursor.
+- **fixed3d#21** — `f42be21` is PARTIALLY ported: its triangle-manifold fixes landed
+  2026-08-22, its 64-bit content-hash rework and player API rename did NOT. The cursor
+  therefore does NOT move past `f42be21`, and `30c67b5` (rapidhash) sits behind it.
+
+The PORT RECORDs below run newest first and are the detail for each step.
+
+## Current status (as of 2026-08-22 — v1.4.0, MAINTENANCE MODE)
+
+- **PORT RECORD f42be21 "64-bit hashes (#126)" (2026-08-11) — PARTIAL, triangle
+  manifold only.** PORTED: b3ClipSegmentToTriangleFace tests the crossing by SIGN
+  rather than by the product of the two separations, which in Q48.16 is a
+  quantization fix and not a style change (b3FixMul of two separations under ~0.004
+  goes to zero, dropping a clip point); b3QueryTriangleAndCapsuleEdges hoists the
+  plane dot out of the loop and its parallel-edge skip now advances v1/edgeIndex (a
+  real bug — the next iteration walked from the wrong vertex); the capsule-edge
+  contact point puts the radius on point2, the capsule-core side, value-identical and
+  free; two B3_VALIDATEs upstream dropped; the b3CollideTask quaternion-dot comment
+  and the drawMass restructure. GOLDEN: RAGDOLL_HASH only, 0xB222C195 -> 0xC9322058
+  narrow and 0x886BE415 -> 0xAD895018 ludicrous, every sleep step and every other
+  scene unchanged, identical for worker counts 1-5 in both builds; isolated by
+  bisecting the four hunks one at a time. **NOT PORTED, deliberately:** the deep-path
+  contact point reassociation — the same value in exact arithmetic, and taking it
+  moves the ragdoll sleep step 287 -> 453, which is the b3Lerp rounding lottery in the
+  "deliberately NOT fused" list below. The comment at the site says so; do not tidy it
+  back in. SKIPPED: b3GetVersion (upstream's own version), the B3_FORCE_INLINE
+  annotations (no analogue — our equivalents are one-line forwarders into the vendored
+  `fixed` library), and the new edgeQuery.indexA early return (already satisfied by
+  our `haveEdge` guard). REMAINDER: **fixed3d#21**.
+
+- **PORT RECORD 3fc20f5 "Follow cam (#107)" (2026-07-29) — engine half.** PORTED:
+  sensor visitors must be convex (b3IsConvex in shape.h), **which is a crash fix
+  here** — b3OverlapSensor builds the visitor proxy with b3MakeShapeProxy, whose
+  switch handles only sphere/capsule/hull and otherwise hits B3_ASSERT(false) with a
+  zeroed proxy, so a compound, mesh or height-field visitor with sensor events enabled
+  trapped in any validate build and silently reported nothing in release. Measured:
+  the new TestSensorVisitorMustBeConvex exits 133 (SIGTRAP) on Debug+VALIDATE with the
+  old rule and 0 with the new one; in Release it does not discriminate, which is
+  stated in the test. B3_MAX_SHAPE_CAST_POINTS becomes B3_MAX_HULL_VERTICES (128 here,
+  256 upstream, was a hard 64), so proxies of 65..128 points stop being truncated in
+  compound.c, sensor.c and the replay reader — the recording FORMAT is unchanged.
+  CMake fp-contract tests the compiler rather than the platform; CI gains
+  matrix.config plus macos- and windows-relwithdebinfo (upstream's reason is float
+  contraction, ours is that the goldens are otherwise only checked at -O0); debug draw
+  body names go white and the mass label loses its leading spaces. HELD: the
+  sample-viewer feature, **fixed3d#20**.
+
+- **PORT RECORD 781673b "Fixes 09 (#104)" (2026-07-24).** PORTED: the capsule
+  face/edge admission at BOTH call sites drops the relative edge tolerance for
+  `edgeSeparation > faceSeparation + linearSlop` — strictly better in fixed point,
+  an int64 add where the old form was a b3FixMul — with the face separation taking the
+  clipped min only at pointCount == 2 under upstream's new B3_VALIDATE, and
+  b3DeepestPointSeparation gone with its only caller; NO GOLDEN MOVED, matching
+  upstream not touching its own test_determinism.c. src/hull_map.h renamed to
+  src/hull.h; B3_PRINTF_FORMAT in base.h with core.h and three sample declarations
+  using it; the geometry registry's entries become a b3Array; valid-transform asserts
+  on the two box-hull builders; clang-cl fp-contract and the four clang-cl presets;
+  sample cleanups (the RagdollPile enum becomes m_isDebug ? 8 : 20, four unused
+  three-material arrays drop out of sample_character, two dead locals). Four tests
+  translated to Q48.16 and green — upstream's 1e-5f tolerances are BELOW our 1.5e-5
+  quantum and floor to 8 * B3_FIXED_EPSILON, with 16 for the plane offset's extra
+  rounding. ALREADY SATISFIED (this tree was ahead): recording ops 0x5D/0x5E/0x5F and
+  their whole stack, so B3_REC_VERSION_MINOR stays at 6 where upstream went 3 -> 4;
+  b3Log's printf attribute; the sample printf argument casts, ours to
+  (unsigned long long) where upstream uses (int). NOT PORTED: the SoA half of
+  CheckTransformedBox (b3BoxHull has no vx/nx lanes here), and our stronger
+  B3_VALIDATE( faceSeparation <= B3_SPECULATIVE_DISTANCE ) is kept where upstream
+  deleted its `<= 0.0f` version.
+
+## Older status (as of 2026-08-04 — v1.4.0)
 
 - **PORT RECORD c52908c "Fixes 08 (#98)" (2026-07-24)** — hull builder leak +
   samples data-folder resilience. Engine: ResolveFaces now retires each
