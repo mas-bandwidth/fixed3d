@@ -26,7 +26,8 @@ that looks like ordinary third-party code and is actually load-bearing on determ
 
 ## If the hash function ever does need to change
 
-It is a `B3_REC_VERSION_MAJOR` bump, the same as the 64-bit widening was (major 6).
+It is a `B3_REC_VERSION_MAJOR` bump: the 64-bit widening takes major 7 (major 6 was the
+earlier shape-cast change, which landed on main first).
 Re-measure the determinism goldens afterwards — note that in this tree
 `b3HashWorldState` covers only body transforms and velocities, not geometry hash bytes,
 so a pure hash-function swap is expected to leave them untouched; verify rather than

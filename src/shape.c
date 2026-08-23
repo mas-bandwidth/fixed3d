@@ -358,14 +358,26 @@ b3ShapeId b3CreateCapsuleShape( b3BodyId bodyId, const b3ShapeDef* def, const b3
 
 b3ShapeId b3CreateHullShape( b3BodyId bodyId, const b3ShapeDef* def, const b3HullData* hull )
 {
-	B3_VALIDATE( b3IsValidHull( hull ) );
+	// The version check comes FIRST, before any validator walks this blob: a
+	// stale-version blob is exactly the input this guard exists for, and the
+	// validator would read it under the wrong field offsets to get there.
 	B3_ASSERT( hull->version == B3_HULL_VERSION );
-	B3_ASSERT( hull->hash != 0 );
-
 	if ( hull->version != B3_HULL_VERSION )
 	{
 		return b3_nullShapeId;
 	}
+
+	// A zero hash REFUSES rather than warning: an unhashed blob keys the geometry
+	// database at bucket 0, so every such piece chains there -- the O(n) collapse
+	// the hash exists to prevent, reached from the other side. Asserting alone left
+	// release builds proceeding silently.
+	B3_ASSERT( hull->hash != 0 );
+	if ( hull->hash == 0 )
+	{
+		return b3_nullShapeId;
+	}
+
+	B3_VALIDATE( b3IsValidHull( hull ) );
 
 	b3ShapeId shapeId = b3CreateShape( bodyId, def, hull, b3_hullShape, b3Transform_identity, b3Vec3_one, false );
 	if ( shapeId.index1 != 0 )
@@ -384,14 +396,26 @@ b3ShapeId b3CreateHullShape( b3BodyId bodyId, const b3ShapeDef* def, const b3Hul
 b3ShapeId b3CreateTransformedHullShape( b3BodyId bodyId, const b3ShapeDef* def, const b3HullData* hull, b3Transform transform,
 										b3Vec3 scale )
 {
-	B3_VALIDATE( b3IsValidHull( hull ) );
+	// The version check comes FIRST, before any validator walks this blob: a
+	// stale-version blob is exactly the input this guard exists for, and the
+	// validator would read it under the wrong field offsets to get there.
 	B3_ASSERT( hull->version == B3_HULL_VERSION );
-	B3_ASSERT( hull->hash != 0 );
-
 	if ( hull->version != B3_HULL_VERSION )
 	{
 		return b3_nullShapeId;
 	}
+
+	// A zero hash REFUSES rather than warning: an unhashed blob keys the geometry
+	// database at bucket 0, so every such piece chains there -- the O(n) collapse
+	// the hash exists to prevent, reached from the other side. Asserting alone left
+	// release builds proceeding silently.
+	B3_ASSERT( hull->hash != 0 );
+	if ( hull->hash == 0 )
+	{
+		return b3_nullShapeId;
+	}
+
+	B3_VALIDATE( b3IsValidHull( hull ) );
 
 	b3ShapeId shapeId = b3CreateShape( bodyId, def, hull, b3_hullShape, transform, scale, true );
 	if ( shapeId.index1 != 0 )
@@ -413,14 +437,26 @@ b3ShapeId b3CreateTransformedHullShape( b3BodyId bodyId, const b3ShapeDef* def, 
 
 b3ShapeId b3CreateMeshShape( b3BodyId bodyId, const b3ShapeDef* def, const b3MeshData* mesh, b3Vec3 scale )
 {
-	B3_VALIDATE( b3IsValidMesh( mesh ) );
+	// The version check comes FIRST, before any validator walks this blob: a
+	// stale-version blob is exactly the input this guard exists for, and the
+	// validator would read it under the wrong field offsets to get there.
 	B3_ASSERT( mesh->version == B3_MESH_VERSION );
-	B3_ASSERT( mesh->hash != 0 );
-
 	if ( mesh->version != B3_MESH_VERSION )
 	{
 		return b3_nullShapeId;
 	}
+
+	// A zero hash REFUSES rather than warning: an unhashed blob keys the geometry
+	// database at bucket 0, so every such piece chains there -- the O(n) collapse
+	// the hash exists to prevent, reached from the other side. Asserting alone left
+	// release builds proceeding silently.
+	B3_ASSERT( mesh->hash != 0 );
+	if ( mesh->hash == 0 )
+	{
+		return b3_nullShapeId;
+	}
+
+	B3_VALIDATE( b3IsValidMesh( mesh ) );
 
 	b3ShapeId shapeId = b3CreateShape( bodyId, def, mesh, b3_meshShape, b3Transform_identity, scale, true );
 	if ( shapeId.index1 != 0 )
@@ -438,10 +474,21 @@ b3ShapeId b3CreateMeshShape( b3BodyId bodyId, const b3ShapeDef* def, const b3Mes
 
 b3ShapeId b3CreateHeightFieldShape( b3BodyId bodyId, const b3ShapeDef* def, const b3HeightFieldData* heightField )
 {
+	// The version check comes FIRST, before any validator walks this blob: a
+	// stale-version blob is exactly the input this guard exists for, and the
+	// validator would read it under the wrong field offsets to get there.
 	B3_ASSERT( heightField->version == B3_HEIGHT_FIELD_VERSION );
-	B3_ASSERT( heightField->hash != 0 );
-
 	if ( heightField->version != B3_HEIGHT_FIELD_VERSION )
+	{
+		return b3_nullShapeId;
+	}
+
+	// A zero hash REFUSES rather than warning: an unhashed blob keys the geometry
+	// database at bucket 0, so every such piece chains there -- the O(n) collapse
+	// the hash exists to prevent, reached from the other side. Asserting alone left
+	// release builds proceeding silently.
+	B3_ASSERT( heightField->hash != 0 );
+	if ( heightField->hash == 0 )
 	{
 		return b3_nullShapeId;
 	}

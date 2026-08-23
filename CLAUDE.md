@@ -47,15 +47,29 @@ The PORT RECORDs below run newest first and are the detail for each step.
   `b3AABB` is float-aligned, and it would open four bytes of *unnamed* padding here
   where `b3AABB` is 8-byte aligned. So `byteCount` moves to the END with the other
   int32s in all three structs. Measured sizes: hull **224** and mesh **128** and height
-  field **144** narrow (hull and mesh unchanged from before, height field +8), each
-  exactly +48 under LUDICROUS_MODE. **`b3MeshData` needed `int32_t padding[2]` and the
+  field **144** narrow. **CORRECTED 2026-08-23 by a cold reader and then MEASURED rather
+  than argued: this said "hull and mesh unchanged from before, height field +8" and the
+  mesh half was false.** Compiling a sum-of-members program against `origin/main` and
+  against this branch gives hull **224 -> 224** (genuinely unchanged), mesh **120 -> 128**
+  and height field **136 -> 144**. So two of the three grew by 8, not one. The old mesh
+  number is the interesting one: its members summed to 116, so the narrow build carried
+  **4 bytes of unnamed tail padding** in a struct whose identity is a byte-wise `memcmp` --
+  a pre-existing hazard this port closes rather than creates, and one the old record hid by
+  reporting a size it had not taken. (Measured by compiling a sum-of-members program against
+  each tree, not by arithmetic on the page.) Each new size is exactly +48 under
+  LUDICROUS_MODE. **`b3MeshData` needed `int32_t padding[2]` and the
   static assert is what found it**: under LUDICROUS_MODE `b3AABB` carries int128 bounds,
   which raises the struct's alignment to 16 and left 8 bytes of unnamed tail padding in
   a struct whose identity is a byte-wise `memcmp` — invisible in the narrow build, which
   is why the assert exists. `b3MeshData` and `b3HeightFieldData` now carry size asserts
   of their own; before this only hull and box hull did. Verified mechanically in both
   configs that sum-of-members == `sizeof` for all three, i.e. zero unnamed padding.
-  **RECORDING FORMAT: `B3_REC_VERSION_MAJOR` 5 -> 6, decided rather than defaulted.**
+  **RECORDING FORMAT: `B3_REC_VERSION_MAJOR` 6 -> 7, decided rather than defaulted.**
+  *(This said 5 -> 6 and was made stale by this branch's own rebase: the shape-cast bump
+  took 6 on main first, so reusing 6 would have let interim builds -- major 6, OLD geometry
+  layouts -- accept a post-widening file and misread it. Two independent cold readers found
+  the same window. 7 closes it; a version that spans two incompatible layouts is not a
+  version.)*
   The registry stores those structs as raw blobs, so a version-5 file's geometry cannot
   be reinterpreted under the new layout; a both-widths reader would mean carrying two
   struct layouts forever for replay files that are dev artifacts. Old recordings

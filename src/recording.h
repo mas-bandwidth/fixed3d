@@ -61,19 +61,26 @@ typedef struct b3World b3World;
 
 // Major recording version is bumped when writers change.
 // Major version 4 added b3ShapeDef::enableSpeculativeContact
-// Major version 6 covers TWO writer changes that landed together, either of which a v5
-// reader would misread silently, because only versionMajor is checked:
-//  (a) B3_MAX_SHAPE_CAST_POINTS rose from a hard 64 to B3_MAX_HULL_VERTICES (128), so a
-//      writer can emit more proxy points than a v5 reader's clamp -- the old reader would
-//      consume 64 vectors, then misread the radius and every op after it.
-//  (b) the geometry content hashes widened to 64 bits, which reordered b3HullData,
-//      b3MeshData and b3HeightFieldData. The registry stores those structs as raw blobs,
-//      so a v5 file's geometry cannot be reinterpreted under the new layout.
-// Bumped so old readers REJECT new recordings loudly; old recordings deliberately stop
-// loading. (a) was bumped first and pre-covered (b) by design -- same hole, one major.
+// Major version 6 was the shape-cast bump: B3_MAX_SHAPE_CAST_POINTS rose from a hard 64
+// to B3_MAX_HULL_VERTICES (128), so a writer can emit more proxy points than a v5 reader's
+// clamp -- the old reader would consume 64 vectors, then misread the radius and every op
+// after it, silently, because only versionMajor is checked.
+//
+// Major version 7 is the geometry content hashes widening to 64 bits, which reordered
+// b3HullData, b3MeshData and b3HeightFieldData. The registry stores those structs as raw
+// blobs, so a v6 file's geometry cannot be reinterpreted under the new layout.
+//
+// 7 RATHER THAN REUSING 6, and this is a correction. The v6 comment said it "pre-covered"
+// this widening, which was sound while both changes were expected to land together. They
+// did not: the shape-cast bump merged to main first, so builds exist that report major 6
+// AND carry the OLD geometry layouts. Reusing 6 would let exactly those builds accept a
+// post-widening recording and then reinterpret b3HullData under the old field order --
+// reading byteCount out of the high word of hash -- which is precisely the silent misread
+// the bump exists to prevent. A version that spans two incompatible layouts is not a
+// version. Found by two independent cold readers, which flagged the same interim window.
 // Ruling: Glenn, 2026-08-23 -- "Bump major", with the standing grant "as you see fit
 // now and in the future": recording-format majors are the maintainer's call from here on.
-#define B3_REC_VERSION_MAJOR 6
+#define B3_REC_VERSION_MAJOR 7
 
 // Minor tracks op-stream additions that keep the 48 byte header shape.
 // Minor version 3 added name cache.
