@@ -4,25 +4,117 @@ Box3D converted from float to Q48.16 fixed point (internal and external API).
 
 ## THE PORT CURSOR — read this before any Box3D -> Fixed3D pass
 
-**Everything in erincatto/box3d up to and including `3fc20f5` is carried across.**
-`git log 3fc20f5..upstream/main` is the remaining work. (This line replaced
-*"Baseline float code is commit c52908c"* on 2026-08-22 — same claim, said as a cursor.) Two named exceptions, both on
+**Everything in erincatto/box3d up to and including `30c67b5` is carried across.**
+`git log 30c67b5..upstream/main` is the remaining work. (This line replaced
+*"Baseline float code is commit c52908c"* on 2026-08-22 — same claim, said as a cursor.) One named exception, on
 the issue board rather than buried here, because a cursor with silent holes is worse
 than no cursor:
 
 - **fixed3d#20** — the sample-viewer half of `3fc20f5` (follow cam, world text,
   stb_truetype, the world_text shader). Held for a bench with a display; no simulation
   content, so it does not gate the cursor.
-- **fixed3d#21** — `f42be21` is PARTIALLY ported: its triangle-manifold fixes landed
-  2026-08-22, its 64-bit content-hash rework and player API rename did NOT. The cursor
-  therefore does NOT move past `f42be21`, and `30c67b5` (rapidhash) sits behind it.
+
+*(**fixed3d#21 closes WITH this change, not before it** — `f42be21`'s remainder and
+`30c67b5` are carried across together, so the cursor moves two steps at once. Stated as a
+condition rather than as a fact because this line lands on a branch: a cursor that claims
+a closure the merge has not performed is a false green in the one file the next daily pass
+reads first. Record below.)*
 
 The PORT RECORDs below run newest first and are the detail for each step.
 
-## Current status (as of 2026-08-22 — v1.4.0, MAINTENANCE MODE)
+## Current status (as of 2026-08-23 — v1.4.0, MAINTENANCE MODE)
 
-- **PORT RECORD f42be21 "64-bit hashes (#126)" (2026-08-11) — PARTIAL, triangle
-  manifold only.** PORTED: b3ClipSegmentToTriangleFace tests the crossing by SIGN
+- **PORT RECORD f42be21 (remainder) + 30c67b5 "Fixed the 64-bit hash function (#129)"
+  (2026-08-12) — PORTED as ONE step, 2026-08-23, closing fixed3d#21.** Taken together
+  deliberately: `f42be21` introduced an FNV/splitmix `b3Hash64NonZero` and `30c67b5`
+  replaced it with rapidhash the next day, so porting the first hash and then deleting
+  it would have been wasted motion and a golden re-measure for a function with a
+  one-day lifetime.
+  **PORTED:** geometry content hashes widen 32 -> 64 bits — the `hash` field of
+  `b3HullData`, `b3MeshData` and `b3HeightFieldData` becomes `uint64_t`, `b3NonZeroHash`
+  and `recording.c`'s `b3Hash64Blob` both fold into one shared `b3Hash64NonZero` in
+  core.c, and `b3HashHullData` stops multiplying by the golden-ratio constant it used to
+  spread 32 bits over 64. `src/rapidhash.h` vendored verbatim (568 lines, MIT,
+  Nicoshev/rapidhash V3). Version-mismatch guards in shape.c on all four baked geometry
+  creators (assert, then return `b3_nullShapeId`). The three geometry version constants
+  bumped — **to fresh values of our own, NOT upstream's**, because our blob layouts are
+  not upstream's and sharing a constant would assert a compatibility that does not exist.
+  `bool clockwise` -> `uint8_t` (the content hash covers every byte and `bool`'s width is
+  not fixed by the standard). Public rename `b3RecPlayer_Create`/`_Destroy` ->
+  `b3CreatePlayer`/`b3DestroyPlayer`.
+  **LAYOUTS RE-DERIVED, NOT COPIED, and this was the delicate part.** Upstream's field
+  order puts `byteCount` between `hash` and the AABB; that works upstream because its
+  `b3AABB` is float-aligned, and it would open four bytes of *unnamed* padding here
+  where `b3AABB` is 8-byte aligned. So `byteCount` moves to the END with the other
+  int32s in all three structs. Measured sizes: hull **224** and mesh **128** and height
+  field **144** narrow. **CORRECTED 2026-08-23 by a cold reader and then MEASURED rather
+  than argued: this said "hull and mesh unchanged from before, height field +8" and the
+  mesh half was false.** Compiling a sum-of-members program against `origin/main` and
+  against this branch gives hull **224 -> 224** (genuinely unchanged), mesh **120 -> 128**
+  and height field **136 -> 144**. So two of the three grew by 8, not one. The old mesh
+  number is the interesting one: its members summed to 116, so the narrow build carried
+  **4 bytes of unnamed tail padding** in a struct whose identity is a byte-wise `memcmp` --
+  a pre-existing hazard this port closes rather than creates, and one the old record hid by
+  reporting a size it had not taken. (Measured by compiling a sum-of-members program against
+  each tree, not by arithmetic on the page.) Each new size is exactly +48 under
+  LUDICROUS_MODE. **`b3MeshData` needed `int32_t padding[2]` and the
+  static assert is what found it**: under LUDICROUS_MODE `b3AABB` carries int128 bounds,
+  which raises the struct's alignment to 16 and left 8 bytes of unnamed tail padding in
+  a struct whose identity is a byte-wise `memcmp` — invisible in the narrow build, which
+  is why the assert exists. `b3MeshData` and `b3HeightFieldData` now carry size asserts
+  of their own; before this only hull and box hull did. Verified mechanically in both
+  configs that sum-of-members == `sizeof` for all three, i.e. zero unnamed padding.
+  **RECORDING FORMAT: `B3_REC_VERSION_MAJOR` 6 -> 7, decided rather than defaulted.**
+  *(This said 5 -> 6 and was made stale by this branch's own rebase: the shape-cast bump
+  took 6 on main first, so reusing 6 would have let interim builds -- major 6, OLD geometry
+  layouts -- accept a post-widening file and misread it. Two independent cold readers found
+  the same window. 7 closes it; a version that spans two incompatible layouts is not a
+  version.)*
+  The registry stores those structs as raw blobs, so a version-5 file's geometry cannot
+  be reinterpreted under the new layout; a both-widths reader would mean carrying two
+  struct layouts forever for replay files that are dev artifacts. Old recordings
+  deliberately stop loading.
+  **GOLDENS: NONE MOVED, and that is a checked result rather than a lucky one.**
+  Upstream moved `RAGDOLL_HASH` and `WAVE_PILE_HASH` in `f42be21` and moved *nothing* in
+  `30c67b5` — so the hash swap is simulation-neutral upstream too, and `f42be21`'s
+  movement came from its triangle-manifold content, which this tree already ported on
+  2026-08-22 (and which already moved our RAGDOLL_HASH then). Independently: this tree's
+  `b3HashWorldState` (recording.c) hashes only body transforms and velocities, never
+  geometry hash bytes, so a geometry-hash change *cannot* reach the determinism goldens
+  here. Both accounts agree and all goldens held in both narrow and ludicrous.
+  **TESTS:** upstream's `test/test_hash.c` ported (13 subtests, now 23 suites). Its two
+  float-bit-pattern subtests are re-expressed on `b3Fixed` — `HashFixedSigns` (sign flip
+  is a whole-high-word change in two's-complement Q48.16, not one bit) and
+  `HashFixedUlp` (one raw ULP is `+ B3_FIXED_EPSILON`, a plain add rather than a bit
+  poke) — same hash property, tested against the byte pattern this engine actually
+  bakes. **Proved the suite discriminates**: with `b3Hash64NonZero` stubbed to a
+  length-only mixer, `HashWordFamily` fails and the suite exits 1.
+  **DIVERGENCE, deliberate:** the old `b3RecPlayer_*` spellings survive as thin
+  forwarders (box3d.h + recording_replay.c), which upstream does not have. fixed3d is
+  public and Space Game vendors it, so a hard break on a public header was not worth
+  taking to save two functions; they are marked deprecated and are Glenn's to delete.
+  **SKIPPED:** `b3GetVersion` 0.1.0 -> 0.2.0 (upstream's own version, as before); the
+  `B3_FORCE_INLINE` annotations in math_functions.h and the `b3InvMulWorldTransforms`
+  reorder beside them (no analogue — our equivalents are one-line forwarders in
+  `fixed_compat.h` into the vendored `fixed` library, and annotating them is an
+  unmeasured perf change); the `b3Hash64Blob` width sub-check deleted from
+  `GeometryHashCollision` (it tested the function that no longer exists).
+  **ALSO CARRIED, because the widening reaches them:** the samples geometry registry
+  keys on the content hash and was `uint32_t` — widened, along with the `%08x` format
+  strings that would now be UB on a `uint64_t`. **Verified:** all four configs green
+  (build-port, build-ludicrous, build-debug Debug+VALIDATE+ASan, build-samples), 23
+  suites each, `conversion_audit.py` clean over all 103 TUs.
+  **GUARD ADDED:** `src/rapidhash.h` now has a digest tripwire in
+  `.github/workflows/vendor-drift.yml` plus `src/RAPIDHASH-NOTES.md`. It is deliberately
+  the *opposite* guard to `extern/fixed`'s: that one checks the copy still MATCHES
+  upstream, this one checks it has not CHANGED, because these bytes are the content hash
+  of every hull, mesh and height field and silently following a newer rapidhash would
+  re-key every geometry and invalidate every recording. Proved it fails on a one-line
+  edit.
+
+- **PORT RECORD f42be21 "64-bit hashes (#126)" (2026-08-11) — the triangle-manifold
+  half, landed 2026-08-22. Its remainder landed 2026-08-23; see the record above.**
+  PORTED: b3ClipSegmentToTriangleFace tests the crossing by SIGN
   rather than by the product of the two separations, which in Q48.16 is a
   quantization fix and not a style change (b3FixMul of two separations under ~0.004
   goes to zero, dropping a clip point); b3QueryTriangleAndCapsuleEdges hoists the
@@ -40,7 +132,7 @@ The PORT RECORDs below run newest first and are the detail for each step.
   back in. SKIPPED: b3GetVersion (upstream's own version), the B3_FORCE_INLINE
   annotations (no analogue — our equivalents are one-line forwarders into the vendored
   `fixed` library), and the new edgeQuery.indexA early return (already satisfied by
-  our `haveEdge` guard). REMAINDER: **fixed3d#21**.
+  our `haveEdge` guard). REMAINDER: landed 2026-08-23, fixed3d#21 CLOSED.
 
 - **PORT RECORD 3fc20f5 "Follow cam (#107)" (2026-07-29) — engine half.** PORTED:
   sensor visitors must be convex (b3IsConvex in shape.h), **which is a crash fix
@@ -304,7 +396,7 @@ The PORT RECORDs below run newest first and are the detail for each step.
   float render boundary; the engine passes its own origin-invariance
   thesis for Mesh Drop exactly like every other sample. NO open
   investigations remain.
-- **ALL 22 test suites pass** in Release (`./build-fixed2/bin/test`, ~1.1 s) AND
+- **ALL 23 test suites pass** (HashTest added 2026-08-23) in Release (`./build-fixed2/bin/test`, ~1.1 s) AND
   in Debug + B3_VALIDATE + ASan/UBSan (exit 0, zero sanitizer reports). Single
   suite: `./build-fixed2/bin/test <SuiteName>`.
 - **BOX3D_LUDICROUS_MODE (2026-07-15/16) — ONE opt-in flag, 128-bit positions

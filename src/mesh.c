@@ -1776,11 +1776,17 @@ b3MeshData* b3CreateMesh( const b3MeshDef* def, int* degenerateTriangleIndices, 
 	b3Array_Destroy( indices );
 	b3Array_Destroy( vertices );
 
+	// Must ensure the hash is 0 so it doesn't contribute to itself.
 	mesh->hash = 0;
-	mesh->hash = b3NonZeroHash( b3Hash( B3_HASH_INIT, (uint8_t*)mesh, mesh->byteCount ) );
+	mesh->hash = b3Hash64NonZero( (uint8_t*)mesh, mesh->byteCount );
 
 	return mesh;
 }
+
+// Mesh identity covers every byte of the blob, so the header carries no unnamed padding.
+// This locks the layout; re-audit padding if the size changes. The b3AABB term is the
+// LUDICROUS_MODE widening, exactly as in hull.c.
+_Static_assert( sizeof( b3MeshData ) == 128 + ( sizeof( b3AABB ) - 2 * sizeof( b3Vec3 ) ), "unexpected mesh data size" );
 
 void b3DestroyMesh( b3MeshData* mesh )
 {

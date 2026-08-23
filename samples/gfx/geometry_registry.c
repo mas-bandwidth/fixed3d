@@ -16,7 +16,7 @@
 
 typedef struct Entry
 {
-	uint32_t hash;
+	uint64_t hash;
 	int refCount; // 0 means free
 	sg_buffer vbo;
 	sg_buffer ibo;
@@ -164,7 +164,7 @@ void DestroyMeshRegistry( void )
 	sg_destroy_buffer( s_geom.instBuf );
 }
 
-MeshHandle FindMesh( uint32_t hash )
+MeshHandle FindMesh( uint64_t hash )
 {
 	if ( hash == 0u )
 	{
@@ -200,7 +200,7 @@ static int FindFreeSlot( void )
 	return s_geom.entryCount++;
 }
 
-MeshHandle RegisterMesh( uint32_t hash, const MeshVertex* vertices, int vertexCount, const uint32_t* indices,
+MeshHandle RegisterMesh( uint64_t hash, const MeshVertex* vertices, int vertexCount, const uint32_t* indices,
 								int indexCount, const char* debugLabel )
 {
 	assert( hash != 0u );

@@ -147,12 +147,6 @@ void* b3GrowAlloc( void* oldMem, int oldSize, int newSize );
 B3_PRINTF_FORMAT( 1, 2 )
 void b3Log( const char* format, ... );
 
-// Geometry content hashes reserve zero to mean unhashed
-static inline uint32_t b3NonZeroHash( uint32_t hash )
-{
-	return hash != 0 ? hash : 1;
-}
-
 typedef struct b3Mutex b3Mutex;
 b3Mutex* b3CreateMutex( void );
 void b3DestroyMutex( b3Mutex* m );
@@ -172,3 +166,8 @@ b3Thread* b3CreateThread( b3ThreadFunction* function, void* context, const char*
 void b3JoinThread( b3Thread* t );
 
 void b3StrCpy( char* dst, int size, const char* src );
+
+// Geometry content hash. Reserves zero to mean unhashed, so a hashed blob can be told
+// from a zeroed one. rapidhash is pure integer and normalizes byte order on big-endian,
+// so this is bit-identical on every platform we build for.
+uint64_t b3Hash64NonZero( const uint8_t* bytes, int n );

@@ -2186,7 +2186,7 @@ static int b3RecDispatchOne( b3RecReader* rdr )
 
 bool b3ValidateReplay( const void* data, int size, int workerCount )
 {
-	b3RecPlayer* player = b3RecPlayer_Create( data, size, workerCount );
+	b3RecPlayer* player = b3CreatePlayer( data, size, workerCount );
 	if ( player == NULL )
 	{
 		return false;
@@ -2201,7 +2201,7 @@ bool b3ValidateReplay( const void* data, int size, int workerCount )
 	}
 
 	bool ok = player->rdr.ok && player->rdr.diverged == false;
-	b3RecPlayer_Destroy( player );
+	b3DestroyPlayer( player );
 	return ok;
 }
 
@@ -2620,7 +2620,7 @@ static void b3RecSeedKeyframeRegistry( b3RecPlayer* player )
 		{
 			memcpy( copy, slot->bytes, (size_t)slot->byteCount );
 		}
-		uint64_t h = b3Hash64Blob( slot->bytes, slot->byteCount );
+		uint64_t h = b3Hash64NonZero( slot->bytes, slot->byteCount );
 		uint32_t id = b3AppendGeometry( reg, slot->kind, h, copy, slot->byteCount );
 		// Seeding in order without dedup keeps id == slot index.
 		B3_ASSERT( id == (uint32_t)i );
@@ -2744,11 +2744,11 @@ static b3WorldId b3RecPlayerCreateWorld( const b3RecPlayer* player )
 	return b3CreateWorld( &worldDef );
 }
 
-b3RecPlayer* b3RecPlayer_Create( const void* data, int size, int workerCount )
+b3RecPlayer* b3CreatePlayer( const void* data, int size, int workerCount )
 {
 	if ( data == NULL || size < (int)sizeof( b3RecHeader ) )
 	{
-		printf( "b3RecPlayer_Create: recording too small\n" );
+		printf( "b3CreatePlayer: recording too small\n" );
 		return NULL;
 	}
 
@@ -2757,20 +2757,20 @@ b3RecPlayer* b3RecPlayer_Create( const void* data, int size, int workerCount )
 
 	if ( hdr.magic != B3_REC_MAGIC )
 	{
-		printf( "b3RecPlayer_Create: bad magic 0x%08X\n", hdr.magic );
+		printf( "b3CreatePlayer: bad magic 0x%08X\n", hdr.magic );
 		return NULL;
 	}
 	// Only the major version is breaking. Minor bumps are additive op-stream changes that keep the
 	// header shape, and the dispatcher skips opcodes it doesn't know, so a minor mismatch still loads.
 	if ( hdr.versionMajor != B3_REC_VERSION_MAJOR )
 	{
-		printf( "b3RecPlayer_Create: version mismatch %u.%u vs %u.%u\n", hdr.versionMajor, hdr.versionMinor, B3_REC_VERSION_MAJOR,
+		printf( "b3CreatePlayer: version mismatch %u.%u vs %u.%u\n", hdr.versionMajor, hdr.versionMinor, B3_REC_VERSION_MAJOR,
 				B3_REC_VERSION_MINOR );
 		return NULL;
 	}
 	if ( hdr.pointerWidth != (uint8_t)sizeof( void* ) )
 	{
-		printf( "b3RecPlayer_Create: pointer width mismatch %u vs %u\n", hdr.pointerWidth, (unsigned)sizeof( void* ) );
+		printf( "b3CreatePlayer: pointer width mismatch %u vs %u\n", hdr.pointerWidth, (unsigned)sizeof( void* ) );
 		return NULL;
 	}
 	// The position wire is one word per axis at 8, two at 16; a mismatch would silently misread
@@ -2780,7 +2780,7 @@ b3RecPlayer* b3RecPlayer_Create( const void* data, int size, int workerCount )
 		unsigned buildAxis = (unsigned)sizeof( ( (b3Pos*)0 )->x );
 		if ( fileAxis != buildAxis )
 		{
-			printf( "b3RecPlayer_Create: position precision mismatch (recording %u-byte axis, build %u-byte). "
+			printf( "b3CreatePlayer: position precision mismatch (recording %u-byte axis, build %u-byte). "
 					"A wide-position recording needs a BOX3D_LUDICROUS_MODE build and vice versa.\n",
 					fileAxis, buildAxis );
 			return NULL;
@@ -2788,14 +2788,14 @@ b3RecPlayer* b3RecPlayer_Create( const void* data, int size, int workerCount )
 	}
 	if ( hdr.bigEndian != 0 )
 	{
-		printf( "b3RecPlayer_Create: big-endian recording not supported\n" );
+		printf( "b3CreatePlayer: big-endian recording not supported\n" );
 		return NULL;
 	}
 
 	// Every recording is snapshot-seeded: the seed blob sits between the header and the op stream.
 	if ( hdr.snapshotSize == 0 )
 	{
-		printf( "b3RecPlayer_Create: missing snapshot seed\n" );
+		printf( "b3CreatePlayer: missing snapshot seed\n" );
 		return NULL;
 	}
 
@@ -2806,7 +2806,7 @@ b3RecPlayer* b3RecPlayer_Create( const void* data, int size, int workerCount )
 
 	if ( headerEnd64 < sizeof( b3RecHeader ) || headerEnd64 > registryEnd64 || registryEnd64 > (uint64_t)size )
 	{
-		printf( "b3RecPlayer_Create: corrupt offsets\n" );
+		printf( "b3CreatePlayer: corrupt offsets\n" );
 		return NULL;
 	}
 
@@ -2878,7 +2878,7 @@ b3RecPlayer* b3RecPlayer_Create( const void* data, int size, int workerCount )
 		b3World* replayWorld = b3GetWorldFromId( worldId );
 		if ( b3DeserializeIntoShell( copy + snapStart, snapSize, replayWorld, &player->rdr ) == false )
 		{
-			printf( "b3RecPlayer_Create: snapshot deserialization failed\n" );
+			printf( "b3CreatePlayer: snapshot deserialization failed\n" );
 			b3DestroyWorld( worldId );
 			b3RecFreeSlots( player->rdr.slots, player->rdr.slotCount );
 			if ( player->rdr.tags != NULL )
@@ -2911,7 +2911,7 @@ b3RecPlayer* b3RecPlayer_Create( const void* data, int size, int workerCount )
 	return player;
 }
 
-void b3RecPlayer_Destroy( b3RecPlayer* player )
+void b3DestroyPlayer( b3RecPlayer* player )
 {
 	if ( player == NULL )
 	{
@@ -2993,6 +2993,18 @@ void b3RecPlayer_Destroy( b3RecPlayer* player )
 	b3SetLengthUnitsPerMeter( player->previousLengthScale );
 
 	b3Free( player, sizeof( b3RecPlayer ) );
+}
+
+// Deprecated spellings. Fixed3D-only forwarders, see box3d.h — upstream renamed these in
+// f42be21 with no compatibility shim. Delete once every consumer has moved.
+b3RecPlayer* b3RecPlayer_Create( const void* data, int size, int workerCount )
+{
+	return b3CreatePlayer( data, size, workerCount );
+}
+
+void b3RecPlayer_Destroy( b3RecPlayer* player )
+{
+	b3DestroyPlayer( player );
 }
 
 bool b3RecPlayer_StepFrame( b3RecPlayer* player )

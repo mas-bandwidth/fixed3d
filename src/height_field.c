@@ -469,11 +469,18 @@ b3HeightFieldData* b3CreateHeightField( const b3HeightFieldDef* data )
 	b3Free( decompressedHeights, heightCount * sizeof( b3Fixed ) );
 
 	// Content hash over the whole blob with the hash field zeroed, like b3HullData/b3MeshData.
+	// Must ensure the hash is 0 so it doesn't contribute to itself.
 	hf->hash = 0;
-	hf->hash = b3NonZeroHash( b3Hash( B3_HASH_INIT, (const uint8_t*)hf, hf->byteCount ) );
+	hf->hash = b3Hash64NonZero( (const uint8_t*)hf, hf->byteCount );
 
 	return hf;
 }
+
+// Height field identity covers every byte of the blob, so the header carries explicit
+// padding. This locks the layout; re-audit padding if the size changes. The b3AABB term
+// is the LUDICROUS_MODE widening, exactly as in hull.c.
+_Static_assert( sizeof( b3HeightFieldData ) == 144 + ( sizeof( b3AABB ) - 2 * sizeof( b3Vec3 ) ),
+				"unexpected height field data size" );
 
 _Static_assert( b3_concaveEdge3 == 4 * b3_concaveEdge1, "bit math" );
 _Static_assert( b3_inverseConcaveEdge3 == 4 * b3_inverseConcaveEdge1, "bit math" );

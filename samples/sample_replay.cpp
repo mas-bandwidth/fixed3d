@@ -298,7 +298,7 @@ public:
 	{
 		if ( m_player != nullptr )
 		{
-			b3RecPlayer_Destroy( m_player );
+			b3DestroyPlayer( m_player );
 			m_player = nullptr;
 		}
 		m_replayWorldId = b3_nullWorldId;
@@ -334,7 +334,7 @@ public:
 		if ( recording != nullptr )
 		{
 			m_player =
-				b3RecPlayer_Create( b3Recording_GetData( recording ), b3Recording_GetSize( recording ), m_context->workerCount );
+				b3CreatePlayer( b3Recording_GetData( recording ), b3Recording_GetSize( recording ), m_context->workerCount );
 			b3DestroyRecording( recording );
 		}
 		else
