@@ -1950,7 +1950,7 @@ typedef struct b3HullFace
 } b3HullFace;
 
 /// 64-bit hull version. Useful for validating serialized data.
-#define B3_HULL_VERSION 0x9D4716CE3793900Eull
+#define B3_HULL_VERSION 0x5C0B7E41A9D3F218ull
 
 /// A convex hull.
 /// @note This data structure has data hanging off the end and cannot be directly copied.
@@ -1959,11 +1959,8 @@ typedef struct b3HullData
 	/// Version must be first and match B3_HULL_VERSION
 	uint64_t version;
 
-	/// The total number of bytes for this hull.
-	int byteCount;
-
 	/// Hash of this hull (this field is zero when the hash is computed).
-	uint32_t hash;
+	uint64_t hash;
 
 	/// Axis-aligned box in local space.
 	b3AABB aabb;
@@ -1984,36 +1981,37 @@ typedef struct b3HullData
 	b3Matrix3 centralInertia;
 
 	/// The vertex count.
-	int vertexCount;
+	int32_t vertexCount;
 
 	/// Offset of the vertex array in bytes from the struct address.
-	int vertexOffset;
+	int32_t vertexOffset;
 
 	/// Offset of the point array in bytes from the struct address.
-	int pointOffset;
+	int32_t pointOffset;
 
 	/// This is the half-edge count (double the edge count)
-	int edgeCount;
+	int32_t edgeCount;
 
 	/// Offset of the edge array in bytes from the struct address.
-	int edgeOffset;
+	int32_t edgeOffset;
 
 	/// The face count. Hulls faces are convex polygons.
-	int faceCount;
+	int32_t faceCount;
 
 	/// Offset of the face array in bytes from the struct address.
-	int faceOffset;
+	int32_t faceOffset;
 
 	/// Offset of the face plane array in bytes from the struct address.
-	int planeOffset;
+	int32_t planeOffset;
+
+	/// The total number of bytes for this hull.
+	int32_t byteCount;
 
 	/// Explicit padding. Hull identity is a content hash and memcmp over raw bytes,
-	/// so there must be no unnamed padding for struct copies to scramble.
-	int padding;
-
-	/// More explicit padding: with 8 byte fixed-point scalars the struct must
-	/// round up to a multiple of 8 with no unnamed tail padding.
-	int padding2;
+	/// so there must be no unnamed padding for struct copies to scramble. With 8 byte
+	/// fixed-point scalars the struct rounds up to a multiple of 8, so one int32 of
+	/// tail padding is required here where upstream needs none.
+	int32_t padding;
 } b3HullData;
 
 /// Efficient box hull
@@ -2072,7 +2070,7 @@ typedef struct b3MeshDef
 } b3MeshDef;
 
 /// 64-bit mesh version. Useful for validating serialized data.
-#define B3_MESH_VERSION 0xABD11AB62A6E886Dull
+#define B3_MESH_VERSION 0x71E4C2D5380BA96Full
 
 /// Triangle mesh edge flags.
 typedef enum b3MeshEdgeFlags
@@ -2146,11 +2144,8 @@ typedef struct b3MeshData
 	/// Version must be first.
 	uint64_t version;
 
-	/// The total number of bytes for this mesh.
-	int byteCount;
-
 	/// Hash of this mesh (this field is zero when the hash is computed)
-	uint32_t hash;
+	uint64_t hash;
 
 	/// Local axis-aligned box.
 	b3AABB bounds;
@@ -2159,37 +2154,47 @@ typedef struct b3MeshData
 	b3Fixed surfaceArea;
 
 	/// The height of the bounding volume hierarchy.
-	int treeHeight;
+	int32_t treeHeight;
 
 	/// The number of degenerate triangles. Diagnostic.
-	int degenerateCount;
+	int32_t degenerateCount;
 
 	/// Offset of the node array in bytes from the struct address.
-	int nodeOffset;
+	int32_t nodeOffset;
 
 	/// The number of BVH nodes.
-	int nodeCount;
+	int32_t nodeCount;
 
 	/// Offset of the vertex array in bytes from the struct address.
-	int vertexOffset;
+	int32_t vertexOffset;
 
 	/// The number of vertices.
-	int vertexCount;
+	int32_t vertexCount;
 
 	/// Offset of the triangle array in bytes from the struct address.
-	int triangleOffset;
+	int32_t triangleOffset;
 
 	/// The number of triangles.
-	int triangleCount;
+	int32_t triangleCount;
 
 	/// Offset of the material array in bytes from the struct address.
-	int materialOffset;
+	int32_t materialOffset;
 
 	/// The number of materials.
-	int materialCount;
+	int32_t materialCount;
 
 	/// Offset of the triangle flag array in bytes from the struct address.
-	int flagsOffset;
+	int32_t flagsOffset;
+
+	/// The total number of bytes for this mesh. Last, with the other int32s, because
+	/// an 8 byte aligned b3AABB cannot follow a lone int32 without unnamed padding.
+	int32_t byteCount;
+
+	/// Explicit padding. Identity is a content hash over raw bytes, so there must be no
+	/// unnamed padding. Two int32s rather than none: under BOX3D_LUDICROUS_MODE b3AABB
+	/// carries int128 bounds, which raises the struct's alignment to 16 and would leave
+	/// 8 bytes of unnamed tail padding here. Eight explicit bytes satisfy both configs.
+	int32_t padding[2];
 } b3MeshData;
 
 /// This allows mesh data to be re-used with different scales.
@@ -2250,7 +2255,7 @@ typedef struct b3HeightFieldDef
 #define B3_HEIGHT_FIELD_HOLE 0xFF
 
 /// 64-bit height-field version. Useful for validating serialized data.
-#define B3_HEIGHT_FIELD_VERSION 0x8B18CBD138A6BC84ull
+#define B3_HEIGHT_FIELD_VERSION 0x2F93A6E0C41D7B85ull
 
 /// A height field with compressed storage.
 /// @note This data structure has data hanging off the end and cannot be directly copied.
@@ -2259,11 +2264,8 @@ typedef struct b3HeightFieldData
 	/// Version must be first and match B3_HEIGHT_FIELD_VERSION
 	uint64_t version;
 
-	/// The total number of bytes for this height field.
-	int byteCount;
-
 	/// Hash of this height field (this field is zero when the hash is computed).
-	uint32_t hash;
+	uint64_t hash;
 
 	/// The local axis-aligned bounding box.
 	b3AABB aabb;
@@ -2281,29 +2283,34 @@ typedef struct b3HeightFieldData
 	b3Vec3 scale;
 
 	/// The number of grid columns along the local x-axis.
-	int columnCount;
+	int32_t columnCount;
 
 	/// The number of grid rows along the local z-axis.
-	int rowCount;
+	int32_t rowCount;
 
 	/// Offset of the compressed height array in bytes from the struct address.
 	/// uint16_t, one per grid point.
-	int heightsOffset;
+	int32_t heightsOffset;
 
 	/// Offset of the material index array in bytes from the struct address.
 	/// uint8_t, one per cell.
-	int materialOffset;
+	int32_t materialOffset;
 
 	/// Offset of the flag array in bytes from the struct address.
 	/// uint8_t, one per triangle.
-	int flagsOffset;
+	int32_t flagsOffset;
 
-	/// Triangle winding.
-	bool clockwise;
+	/// The total number of bytes for this height field. Last, with the other int32s,
+	/// so the 8 byte aligned b3AABB above needs no unnamed padding in front of it.
+	int32_t byteCount;
+
+	/// Triangle winding. uint8_t rather than bool because the content hash covers
+	/// every byte and bool's width is not fixed by the standard.
+	uint8_t clockwise;
 
 	/// Explicit padding. Identity is a content hash over raw bytes, so there must
 	/// be no unnamed padding for struct copies to scramble.
-	uint8_t padding[3];
+	uint8_t padding[7];
 } b3HeightFieldData;
 
 /**@}*/ // height_field

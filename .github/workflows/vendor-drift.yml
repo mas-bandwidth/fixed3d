@@ -36,3 +36,20 @@ jobs:
             echo "::error::tools/revendor-fixed.sh and extern/fixed/NOTES.md disagree about the pinned commit"
             exit 1
           fi
+
+      - name: Check src/rapidhash.h is unmodified
+        # The opposite guard to the one above, and deliberately so. extern/fixed must MATCH
+        # upstream; rapidhash must NOT silently follow it. Its bytes are the content hash of
+        # every hull, mesh and height field, so any change to them changes every geometry
+        # hash and invalidates the hashes baked into existing recordings. src/RAPIDHASH-NOTES.md
+        # says what to do when it genuinely needs to move (a B3_REC_VERSION_MAJOR bump).
+        run: |
+          set -euo pipefail
+          expected="$(grep -oE 'sha256 [0-9a-f]{64}' src/RAPIDHASH-NOTES.md | grep -oE '[0-9a-f]{64}')"
+          actual="$(shasum -a 256 src/rapidhash.h | cut -d' ' -f1)"
+          echo "expected: $expected"
+          echo "actual  : $actual"
+          if [ "$expected" != "$actual" ]; then
+            echo "::error::src/rapidhash.h does not match the digest in src/RAPIDHASH-NOTES.md. Changing it changes every geometry content hash — see that file."
+            exit 1
+          fi

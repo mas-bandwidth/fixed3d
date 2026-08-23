@@ -61,11 +61,16 @@ typedef struct b3World b3World;
 
 // Major recording version is bumped when writers change.
 // Major version 4 added b3ShapeDef::enableSpeculativeContact
-// 6: B3_MAX_SHAPE_CAST_POINTS rose from a hard 64 to B3_MAX_HULL_VERTICES (128), so a
-// writer can emit more proxy points than a v5 reader's clamp -- the old reader would
-// consume 64 vectors, then misread the radius and every op after it, silently, because
-// only versionMajor is checked. Bumped so old readers REJECT new recordings loudly
-// instead. Also pre-covers the 32-to-64-bit geometry hash widening, same hole.
+// Major version 6 covers TWO writer changes that landed together, either of which a v5
+// reader would misread silently, because only versionMajor is checked:
+//  (a) B3_MAX_SHAPE_CAST_POINTS rose from a hard 64 to B3_MAX_HULL_VERTICES (128), so a
+//      writer can emit more proxy points than a v5 reader's clamp -- the old reader would
+//      consume 64 vectors, then misread the radius and every op after it.
+//  (b) the geometry content hashes widened to 64 bits, which reordered b3HullData,
+//      b3MeshData and b3HeightFieldData. The registry stores those structs as raw blobs,
+//      so a v5 file's geometry cannot be reinterpreted under the new layout.
+// Bumped so old readers REJECT new recordings loudly; old recordings deliberately stop
+// loading. (a) was bumped first and pre-covered (b) by design -- same hole, one major.
 // Ruling: Glenn, 2026-08-23 -- "Bump major", with the standing grant "as you see fit
 // now and in the future": recording-format majors are the maintainer's call from here on.
 #define B3_REC_VERSION_MAJOR 6
@@ -395,8 +400,6 @@ uint32_t b3RecInternHull( b3Recording* rec, const b3HullData* hull );
 uint32_t b3RecInternMesh( b3Recording* rec, const b3MeshData* mesh );
 uint32_t b3RecInternHeightField( b3Recording* rec, const b3HeightFieldData* hf );
 uint32_t b3RecInternCompound( b3Recording* rec, const b3CompoundData* compound );
-
-uint64_t b3Hash64Blob( const uint8_t* bytes, int n );
 
 // Lifecycle engine-side hooks
 void b3StartRecordingIntoBuffer( b3World* world, b3Recording* recording );

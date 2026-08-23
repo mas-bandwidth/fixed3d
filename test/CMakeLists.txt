@@ -12,6 +12,7 @@ set(BOX3D_TEST_FILES
     test_determinism.c
     test_fixed_abi.c
     test_distance.c
+    test_hash.c
     test_height_field.c
     test_hull.c
     test_id.c

@@ -2747,7 +2747,7 @@ b3HullData* b3CreateHull( const b3Vec3* points, int pointCount, int maxVertexCou
 	}
 
 	hull->hash = 0;
-	hull->hash = b3NonZeroHash( b3Hash( B3_HASH_INIT, (uint8_t*)hull, hull->byteCount ) );
+	hull->hash = b3Hash64NonZero( (uint8_t*)hull, hull->byteCount );
 
 	return hull;
 }
@@ -2767,9 +2767,7 @@ b3HullData* b3CloneHull( const b3HullData* hull )
 
 uint64_t b3HashHullData( const b3HullData* hull )
 {
-	// The baked content hash already covers byteCount. Spread the 32 bits across 64 so the table
-	// can use the high bits for its fast reject fragment.
-	return (uint64_t)hull->hash * 0x9E3779B97F4A7C15ull;
+	return hull->hash;
 }
 
 bool b3CompareHullData( const b3HullData* hull1, const b3HullData* hull2 )
@@ -2953,7 +2951,7 @@ b3HullData* b3CloneAndTransformHull( const b3HullData* original, b3Transform tra
 	}
 
 	hull->hash = 0;
-	hull->hash = b3NonZeroHash( b3Hash( B3_HASH_INIT, (uint8_t*)hull, hull->byteCount ) );
+	hull->hash = b3Hash64NonZero( (uint8_t*)hull, hull->byteCount );
 
 	B3_VALIDATE( b3IsValidHull( hull ) );
 
@@ -3265,7 +3263,8 @@ b3BoxHull b3MakeTransformedBoxHull( b3Fixed hx, b3Fixed hy, b3Fixed hz, b3Transf
 	boxHull.boxPoints[7] = b3TransformPoint( transform, (b3Vec3){ h.x, -h.y, -h.z } );
 
 	boxHull.base.hash = 0;
-	boxHull.base.hash = b3NonZeroHash( b3Hash( B3_HASH_INIT, (uint8_t*)&boxHull, sizeof( b3BoxHull ) ) );
+	// Must ensure the hash is 0 so it doesn't contribute to itself.
+	boxHull.base.hash = b3Hash64NonZero( (uint8_t*)&boxHull.base, boxHull.base.byteCount );
 
 	return boxHull;
 }
