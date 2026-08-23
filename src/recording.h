@@ -61,7 +61,14 @@ typedef struct b3World b3World;
 
 // Major recording version is bumped when writers change.
 // Major version 4 added b3ShapeDef::enableSpeculativeContact
-#define B3_REC_VERSION_MAJOR 5
+// 6: B3_MAX_SHAPE_CAST_POINTS rose from a hard 64 to B3_MAX_HULL_VERTICES (128), so a
+// writer can emit more proxy points than a v5 reader's clamp -- the old reader would
+// consume 64 vectors, then misread the radius and every op after it, silently, because
+// only versionMajor is checked. Bumped so old readers REJECT new recordings loudly
+// instead. Also pre-covers the 32-to-64-bit geometry hash widening, same hole.
+// Ruling: Glenn, 2026-08-23 -- "Bump major", with the standing grant "as you see fit
+// now and in the future": recording-format majors are the maintainer's call from here on.
+#define B3_REC_VERSION_MAJOR 6
 
 // Minor tracks op-stream additions that keep the 48 byte header shape.
 // Minor version 3 added name cache.
