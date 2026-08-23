@@ -14,8 +14,11 @@ than no cursor:
   stb_truetype, the world_text shader). Held for a bench with a display; no simulation
   content, so it does not gate the cursor.
 
-*(**fixed3d#21 is CLOSED as of 2026-08-23** — `f42be21`'s remainder and `30c67b5`
-landed together, so the cursor moved two steps at once. Record below.)*
+*(**fixed3d#21 closes WITH this change, not before it** — `f42be21`'s remainder and
+`30c67b5` are carried across together, so the cursor moves two steps at once. Stated as a
+condition rather than as a fact because this line lands on a branch: a cursor that claims
+a closure the merge has not performed is a false green in the one file the next daily pass
+reads first. Record below.)*
 
 The PORT RECORDs below run newest first and are the detail for each step.
 
