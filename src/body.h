@@ -7,6 +7,8 @@
 #include "box3d/math_functions.h"
 #include "box3d/types.h"
 
+#include "inverse.h"
+
 typedef struct b3World b3World;
 
 enum b3BodyFlags

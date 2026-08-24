@@ -97,10 +97,14 @@ static void b3IntegrateVelocitiesTask( b3SolverBlock block, b3StepContext* conte
 		// Gravity scale will be zero for kinematic bodies
 		b3Fixed gravityScale = sim->invMass > B3_FIX( 0.0f ) ? sim->gravityScale : B3_FIX( 0.0f );
 
-		b3Vec3 linearVelocityDelta = b3Blend2( b3FixMul( h , sim->invMass ), sim->force, b3FixMul( h , gravityScale ), gravity );
+		// The force term crosses out of the inverse scale (invMass * force is a velocity);
+		// the gravity term never entered it. So they are formed separately rather than
+		// through b3Blend2, which would have to apply one shift to both.
+		b3Vec3 linearVelocityDelta =
+			b3Add( b3InvMulSV( b3FixMul( h, sim->invMass ), sim->force ), b3MulSV( b3FixMul( h, gravityScale ), gravity ) );
 		v = b3MulAdd( linearVelocityDelta, linearDamping, v );
 
-		b3Vec3 angularVelocityDelta = b3MulSV( h, b3MulMV( sim->invInertiaWorld, sim->torque ) );
+		b3Vec3 angularVelocityDelta = b3MulSV( h, b3InvMulMV( sim->invInertiaWorld, sim->torque ) );
 		w = b3MulAdd( angularVelocityDelta, angularDamping, w );
 
 		// Gyroscopic torque by solving this nonlinear equation using Newton-Raphson.
