@@ -408,21 +408,27 @@ static int InverseMassQuantumFloor( void )
 	b3BodyDef bodyDef = b3DefaultBodyDef();
 	bodyDef.type = b3_dynamicBody;
 
-	// At the line: 1 / 65,536 is exactly one quantum, with no clamping involved.
+	// 65,536 was the old cliff -- the largest mass whose inverse was representable at all.
+	// It is now unremarkable, and the point of these two cases is that it no longer marks
+	// anything: the inverse is exact on both sides of it.
 	{
 		b3BodyId bodyId = b3CreateBody( worldId, &bodyDef );
 		b3MassData massData = { B3_FIX( 65536.0f ), b3Vec3_zero, kDiagInertia };
 		b3Body_SetMassData( bodyId, massData );
-		ENSURE( b3Body_GetInverseMass( bodyId ) == 1 );
+		ENSURE( b3Body_GetInverseMassPrecise( bodyId ) == ( (int64_t)1 << 24 ) );
+		ENSURE( b3Body_GetInverseMass( bodyId ) == B3_FIXED_EPSILON );
 	}
 
-	// One unit past it, where the true inverse is 0.99998 of a quantum. Truncation gives
-	// zero; the floor gives the smallest inverse mass this format has.
+	// One unit past it. The stored inverse is a real, graded value -- the whole point of
+	// the wider format -- while the legacy getter truncates it to zero, which is the
+	// documented lossiness rather than a body that stopped moving.
 	{
 		b3BodyId bodyId = b3CreateBody( worldId, &bodyDef );
 		b3MassData massData = { B3_FIX( 65537.0f ), b3Vec3_zero, kDiagInertia };
 		b3Body_SetMassData( bodyId, massData );
-		ENSURE( b3Body_GetInverseMass( bodyId ) == 1 );
+		ENSURE( b3Body_GetInverseMassPrecise( bodyId ) > 0 );
+		ENSURE( b3Body_GetInverseMassPrecise( bodyId ) < ( (int64_t)1 << 24 ) );
+		ENSURE( b3Body_GetInverseMass( bodyId ) == 0 );
 	}
 
 	// Far past it, the case space actually contains. Still dynamic, still movable.
@@ -430,7 +436,7 @@ static int InverseMassQuantumFloor( void )
 		b3BodyId bodyId = b3CreateBody( worldId, &bodyDef );
 		b3MassData massData = { B3_FIX( 1.0e7f ), b3Vec3_zero, kDiagInertia };
 		b3Body_SetMassData( bodyId, massData );
-		ENSURE( b3Body_GetInverseMass( bodyId ) > 0 );
+		ENSURE( b3Body_GetInverseMassPrecise( bodyId ) > 0 );
 	}
 
 	// And the floor is a floor, not a rewrite: an ordinary mass is unaffected.
@@ -447,7 +453,7 @@ static int InverseMassQuantumFloor( void )
 		b3BodyDef staticDef = b3DefaultBodyDef();
 		staticDef.type = b3_staticBody;
 		b3BodyId bodyId = b3CreateBody( worldId, &staticDef );
-		ENSURE( b3Body_GetInverseMass( bodyId ) == 0 );
+		ENSURE( b3Body_GetInverseMassPrecise( bodyId ) == 0 );
 	}
 
 	// Zero mass on a dynamic body is not a large mass and must not be floored -- the
@@ -456,7 +462,7 @@ static int InverseMassQuantumFloor( void )
 		b3BodyId bodyId = b3CreateBody( worldId, &bodyDef );
 		b3MassData massData = { B3_FIX( 0.0f ), b3Vec3_zero, b3Mat3_zero };
 		b3Body_SetMassData( bodyId, massData );
-		ENSURE( b3Body_GetInverseMass( bodyId ) == 0 );
+		ENSURE( b3Body_GetInverseMassPrecise( bodyId ) == 0 );
 	}
 
 	b3DestroyWorld( worldId );
@@ -482,7 +488,7 @@ static int InverseMassQuantumFloorFromShapes( void )
 	b3CreateHullShape( bodyId, &shapeDef, &hull.base );
 
 	ENSURE( b3Body_GetMass( bodyId ) > B3_FIX( 65536.0f ) );
-	ENSURE( b3Body_GetInverseMass( bodyId ) > 0 );
+	ENSURE( b3Body_GetInverseMassPrecise( bodyId ) > 0 );
 
 	b3DestroyWorld( worldId );
 	return 0;
@@ -517,8 +523,8 @@ static int InverseInertiaScaleEnvelope( void )
 	b3WorldDef worldDef = b3DefaultWorldDef();
 	b3WorldId worldId = b3CreateWorld( &worldDef );
 
-	// Cube sides spanning both cliffs, in half units so the arithmetic below is exact.
-	static const int halfSides[] = { 2, 10, 22, 26, 27, 40, 75, 88, 160, 240, 500, 1000 };
+	// Cube sides spanning the whole useful range, in half units so the arithmetic is exact.
+	static const int halfSides[] = { 2, 10, 22, 26, 27, 40, 75, 88, 160, 240, 500, 734, 1000 };
 
 	b3Fixed previousDiagonal = B3_FIXED_MAX;
 
@@ -542,11 +548,22 @@ static int InverseInertiaScaleEnvelope( void )
 		b3MassData massData = { (b3Fixed)massRaw, b3Vec3_zero, inertia };
 		b3Body_SetMassData( bodyId, massData );
 
-		// The body is created at identity rotation, so the world inverse tensor IS the
-		// local one here -- the similarity transform is by the identity matrix.
-		b3Matrix3 invLocal = b3Body_GetWorldInverseRotationalInertia( bodyId );
+		// Created at identity rotation, so the world tensor IS the local one here.
+		b3Matrix3 invLocal = b3Body_GetWorldInverseRotationalInertiaPrecise( bodyId );
 
-		// Never negative, on any entry of a diagonal tensor's inverse.
+		// THE ORACLE, and it shares no arithmetic with the implementation: for a diagonal
+		// tensor the inverse entry is exactly 2^(16 + fractionBits) / inertiaRaw,
+		// truncated toward zero. An equality at every size, including the sizes where the
+		// right answer is zero.
+		// 2^(16 + fraction bits) is 2^56 at the current format and fits an int64 with room
+		// to spare, so the oracle needs no wide arithmetic of its own -- which is the
+		// point of it.
+		b3Fixed expected = (b3Fixed)( ( (int64_t)1 << ( 16 + b3GetInverseFractionBits() ) ) / inertiaRaw );
+		ENSURE( invLocal.cx.x == expected );
+		ENSURE( invLocal.cy.y == expected );
+		ENSURE( invLocal.cz.z == expected );
+
+		// Never negative, and a diagonal tensor inverts to a diagonal one.
 		ENSURE( invLocal.cx.x >= 0 && invLocal.cy.y >= 0 && invLocal.cz.z >= 0 );
 		ENSURE( invLocal.cx.y == 0 && invLocal.cx.z == 0 );
 		ENSURE( invLocal.cy.x == 0 && invLocal.cy.z == 0 );
@@ -556,32 +573,40 @@ static int InverseInertiaScaleEnvelope( void )
 		ENSURE( invLocal.cx.x <= previousDiagonal );
 		previousDiagonal = invLocal.cx.x;
 
+		// THE UNLOCK. Everything from side 13.5 to side 250 used to be zero -- rotation
+		// locked, spin never damping -- and is now a real graded value. This is the
+		// acceptance criterion for the whole widening, so it is asserted per size rather
+		// than described.
+		if ( s2 <= 500 )
+		{
+			ENSURE( invLocal.cx.x > 0 );
+		}
+
 		// The world tensor is a similarity transform of the local one, so it inherits the
-		// same contract. Rotating the body must not manufacture a negative entry or
-		// resurrect a refused tensor.
+		// contract. Rotating must not manufacture a negative entry.
 		b3Body_SetTransform( bodyId, (b3Pos){ B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) },
 							 b3MakeQuatFromAxisAngle( b3Normalize( (b3Vec3){ B3_FIX( 1.0f ), B3_FIX( 2.0f ), B3_FIX( 3.0f ) } ),
 													  B3_FIX( 0.7f ) ) );
 
-		b3Matrix3 invWorld = b3Body_GetWorldInverseRotationalInertia( bodyId );
+		b3Matrix3 invWorld = b3Body_GetWorldInverseRotationalInertiaPrecise( bodyId );
 		ENSURE( invWorld.cx.x >= 0 && invWorld.cy.y >= 0 && invWorld.cz.z >= 0 );
 
 		if ( invLocal.cx.x == 0 )
 		{
-			// A refused tensor stays refused -- through the transform change above, and
-			// through a step of the world, which recomputes the world tensor from the
-			// local one without a guard of its own.
+			// Past the line the refusal still has to stick, through a transform change and
+			// through a step of the world.
 			ENSURE( invWorld.cx.x == 0 && invWorld.cy.y == 0 && invWorld.cz.z == 0 );
 
 			b3World_Step( worldId, B3_FIX( 1.0f ) / 60, 4 );
 
-			invWorld = b3Body_GetWorldInverseRotationalInertia( bodyId );
+			invWorld = b3Body_GetWorldInverseRotationalInertiaPrecise( bodyId );
 			ENSURE( invWorld.cx.x == 0 && invWorld.cy.y == 0 && invWorld.cz.z == 0 );
 		}
 	}
 
-	// The walk has to have arrived at zero rather than merely stayed small, or the
-	// monotonicity above would be satisfied by a constant.
+	// The walk still has to arrive at zero, or the monotonicity above would be satisfied
+	// by a constant. The line has moved from about side 13 to about side 367 -- a factor
+	// of 28 in length, and of 17 million in inertia.
 	ENSURE( previousDiagonal == 0 );
 
 	b3DestroyWorld( worldId );

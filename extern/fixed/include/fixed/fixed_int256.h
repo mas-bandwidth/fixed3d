@@ -197,41 +197,256 @@ FIX_ALWAYS_INLINE fixUInt256 fixUInt256MulU128ByU64( fixUInt128 a, uint64_t b )
 	return fixUInt256Add( shifted, fixUInt256FromU128( lowPart ) );
 }
 
-/// Exact unsigned division with remainder. Shift-subtract, entered at the highest bit
-/// that can contribute, so the loop length tracks the operands rather than the type.
-/// A zero divisor yields a zero quotient and remainder: every caller in this library
-/// tests the divisor first, and returning rather than trapping keeps a caller's mistake
-/// from killing a process.
+/// Number of leading zero bits, written out rather than taken from a builtin so the
+/// plain-MSVC arm needs no intrinsic and every arm folds the same way.
+FIX_ALWAYS_INLINE int fixCountLeadingZeros64( uint64_t x )
+{
+	if ( x == 0 )
+	{
+		return 64;
+	}
+
+	int n = 0;
+	if ( ( x >> 32 ) == 0 ) { n += 32; x <<= 32; }
+	if ( ( x >> 48 ) == 0 ) { n += 16; x <<= 16; }
+	if ( ( x >> 56 ) == 0 ) { n += 8; x <<= 8; }
+	if ( ( x >> 60 ) == 0 ) { n += 4; x <<= 4; }
+	if ( ( x >> 62 ) == 0 ) { n += 2; x <<= 2; }
+	if ( ( x >> 63 ) == 0 ) { n += 1; }
+	return n;
+}
+
+FIX_ALWAYS_INLINE void fixUInt256ToLimbs( fixUInt256 a, uint64_t limbs[4] )
+{
+	limbs[0] = fixUInt128Lo( a.lo );
+	limbs[1] = fixUInt128Hi( a.lo );
+	limbs[2] = fixUInt128Lo( a.hi );
+	limbs[3] = fixUInt128Hi( a.hi );
+}
+
+FIX_ALWAYS_INLINE fixUInt256 fixUInt256FromLimbs( const uint64_t limbs[4] )
+{
+	fixUInt256 r;
+	r.lo = fixUInt128Make( limbs[1], limbs[0] );
+	r.hi = fixUInt128Make( limbs[3], limbs[2] );
+	return r;
+}
+
+/// Internal: shift a limb left by s, bringing in the top s bits of the limb below.
+/// The s == 0 case is spelled out because `x >> 64` is undefined, and that is the single
+/// most common way to get a normalizing shift wrong.
+FIX_ALWAYS_INLINE uint64_t fixShiftInLimb( uint64_t high, uint64_t low, int s )
+{
+	if ( s == 0 )
+	{
+		return high;
+	}
+
+	return ( high << s ) | ( low >> ( 64 - s ) );
+}
+
+/// Exact unsigned division with remainder: Knuth Algorithm D over 64-bit limbs.
+///
+/// This was a shift-subtract loop -- one iteration per bit of the dividend, around two
+/// hundred of them, each doing 256-bit shifts, compares and subtracts. Exact, and slow in
+/// a place that matters: a consumer storing inverse quantities at a wider scale puts a 3x3
+/// solve of large values in a per-substep path, and every one of those divisions landed
+/// here. Algorithm D replaces the bit loop with at most three 128-by-64 divides.
+///
+/// A zero divisor yields a zero quotient and remainder rather than trapping: every caller
+/// in this library tests the divisor first, and returning keeps a caller's mistake from
+/// killing a process. That contract is unchanged.
+///
+/// The three parts that are easy to get wrong, and how each is handled here:
+///
+///   NORMALIZATION shifts the divisor so its top limb has its top bit set, which is what
+///   bounds the quotient estimate's error at two. The shift of zero is spelled out
+///   separately in fixShiftInLimb, because `x >> 64` is undefined behavior and a
+///   normalized divisor is exactly the input that asks for it.
+///
+///   THE ESTIMATE can exceed the true quotient limb by at most two once normalized, and
+///   the loop below walks it down using the next limb of each operand. The rare case
+///   where the top limbs are equal is handled by starting at the largest possible limb
+///   rather than by dividing, since that division would overflow.
+///
+///   THE ADD-BACK fires when the estimate was still one too large after correction, which
+///   happens for roughly one input in 2^63. It is the step most likely to be missing from
+///   an implementation that passes a casual test, so test/int256_division_test.c carries
+///   constructed vectors for it rather than hoping a random sweep lands on one.
 FIX_ALWAYS_INLINE void fixUInt256DivMod( fixUInt256 dividend, fixUInt256 divisor, fixUInt256* quotientOut, fixUInt256* remainderOut )
 {
-	fixUInt256 quotient;
-	quotient.hi = FIX_UINT128_ZERO;
-	quotient.lo = FIX_UINT128_ZERO;
-	fixUInt256 remainder = quotient;
+	uint64_t u[4], v[4];
+	fixUInt256ToLimbs( dividend, u );
+	fixUInt256ToLimbs( divisor, v );
 
-	if ( fixUInt256IsZero( divisor ) )
+	uint64_t q[4] = { 0, 0, 0, 0 };
+
+	int n = 4;
+	while ( n > 0 && v[n - 1] == 0 ) { n--; }
+
+	if ( n == 0 )
 	{
-		*quotientOut = quotient;
-		*remainderOut = remainder;
+		fixUInt256 zero;
+		zero.hi = FIX_UINT128_ZERO;
+		zero.lo = FIX_UINT128_ZERO;
+		*quotientOut = zero;
+		*remainderOut = zero;
 		return;
 	}
 
-	for ( int i = fixUInt256BitLength( dividend ) - 1; i >= 0; --i )
+	int m = 4;
+	while ( m > 0 && u[m - 1] == 0 ) { m--; }
+
+	if ( m < n )
 	{
-		remainder = fixUInt256Shl( remainder, 1 );
-		if ( fixUInt256Bit( dividend, i ) )
+		// The quotient is zero and the dividend is the remainder. Also covers a zero
+		// dividend, where m is 0.
+		fixUInt256 zero;
+		zero.hi = FIX_UINT128_ZERO;
+		zero.lo = FIX_UINT128_ZERO;
+		*quotientOut = zero;
+		*remainderOut = dividend;
+		return;
+	}
+
+	if ( n == 1 )
+	{
+		// Short division: one 128-by-64 divide per limb, the remainder feeding the next.
+		// The precondition of fixUInt128DivRemBy64 holds inductively because each
+		// remainder is already below the divisor.
+		uint64_t rest = 0;
+		for ( int i = m - 1; i >= 0; i-- )
 		{
-			remainder = fixUInt256Add( remainder, fixUInt256FromU64( 1 ) );
+			q[i] = fixUInt128DivRemBy64( fixUInt128Make( rest, u[i] ), v[0], &rest );
 		}
-		if ( fixUInt256Ge( remainder, divisor ) )
+
+		*quotientOut = fixUInt256FromLimbs( q );
+		*remainderOut = fixUInt256FromU64( rest );
+		return;
+	}
+
+	// Normalize. un needs one limb more than the dividend for the bits shifted out of it.
+	int s = fixCountLeadingZeros64( v[n - 1] );
+
+	uint64_t vn[4];
+	for ( int i = n - 1; i > 0; i-- ) { vn[i] = fixShiftInLimb( v[i], v[i - 1], s ); }
+	vn[0] = v[0] << s;
+
+	uint64_t un[5];
+	un[m] = s == 0 ? 0 : ( u[m - 1] >> ( 64 - s ) );
+	for ( int i = m - 1; i > 0; i-- ) { un[i] = fixShiftInLimb( u[i], u[i - 1], s ); }
+	un[0] = u[0] << s;
+
+	for ( int j = m - n; j >= 0; j-- )
+	{
+		uint64_t qhat;
+		uint64_t rhat;
+		bool rhatFits;
+
+		if ( un[j + n] >= vn[n - 1] )
 		{
-			remainder = fixUInt256Sub( remainder, divisor );
-			quotient = fixUInt256Add( quotient, fixUInt256Shl( fixUInt256FromU64( 1 ), i ) );
+			// The estimate would be the base itself, which does not fit a limb; start at
+			// the largest limb there is and let the correction below walk it down.
+			qhat = UINT64_MAX;
+
+			fixUInt128 numerator = fixUInt128Make( un[j + n], un[j + n - 1] );
+			fixUInt128 product = fixUInt128MulU64( qhat, vn[n - 1] );
+			fixUInt128 rest = fixUInt128Sub( numerator, product );
+			rhatFits = fixUInt128Hi( rest ) == 0;
+			rhat = fixUInt128Lo( rest );
+		}
+		else
+		{
+			qhat = fixUInt128DivRemBy64( fixUInt128Make( un[j + n], un[j + n - 1] ), vn[n - 1], &rhat );
+			rhatFits = true;
+		}
+
+		// Walk the estimate down while it is provably too large. Once rhat leaves 64 bits
+		// the test cannot fire again, so the loop stops there.
+		while ( rhatFits && qhat != 0 &&
+				fixUInt128Gt( fixUInt128MulU64( qhat, vn[n - 2] ), fixUInt128Make( rhat, un[j + n - 2] ) ) )
+		{
+			qhat--;
+			fixUInt128 widened = fixUInt128Add( fixUInt128FromU64( rhat ), fixUInt128FromU64( vn[n - 1] ) );
+			rhatFits = fixUInt128Hi( widened ) == 0;
+			rhat = fixUInt128Lo( widened );
+		}
+
+		// Multiply and subtract, carrying the borrow at 128 bits so the wrap cases need no
+		// reasoning about which of two subtractions overflowed.
+		uint64_t borrow = 0;
+		uint64_t carry = 0;
+		for ( int i = 0; i < n; i++ )
+		{
+			fixUInt128 product = fixUInt128Add( fixUInt128MulU64( qhat, vn[i] ), fixUInt128FromU64( carry ) );
+			carry = fixUInt128Hi( product );
+
+			fixUInt128 left = fixUInt128FromU64( un[i + j] );
+			fixUInt128 right = fixUInt128Add( fixUInt128FromU64( fixUInt128Lo( product ) ), fixUInt128FromU64( borrow ) );
+			if ( fixUInt128Ge( left, right ) )
+			{
+				un[i + j] = fixUInt128Lo( fixUInt128Sub( left, right ) );
+				borrow = 0;
+			}
+			else
+			{
+				un[i + j] = fixUInt128Lo( fixUInt128Sub( fixUInt128Add( left, fixUInt128Shl( fixUInt128FromU64( 1 ), 64 ) ), right ) );
+				borrow = 1;
+			}
+		}
+
+		bool negative;
+		{
+			fixUInt128 left = fixUInt128FromU64( un[j + n] );
+			fixUInt128 right = fixUInt128Add( fixUInt128FromU64( carry ), fixUInt128FromU64( borrow ) );
+			if ( fixUInt128Ge( left, right ) )
+			{
+				un[j + n] = fixUInt128Lo( fixUInt128Sub( left, right ) );
+				negative = false;
+			}
+			else
+			{
+				un[j + n] = fixUInt128Lo( fixUInt128Sub( fixUInt128Add( left, fixUInt128Shl( fixUInt128FromU64( 1 ), 64 ) ), right ) );
+				negative = true;
+			}
+		}
+
+		q[j] = qhat;
+
+#ifdef FIX_INT256_NO_ADDBACK
+		// The negative control removes the add-back, which is the rarest branch here and
+		// the one an implementation is most likely to be missing. The control build MUST
+		// fail: if it passes, the suite has stopped reaching this path and has gone blind
+		// on it -- which is exactly what happened to an earlier version of the test, whose
+		// hand-written "add-back vectors" reached this branch zero times.
+		negative = false;
+#endif
+
+		if ( negative )
+		{
+			// The estimate was one too large after all: give the limb back and add the
+			// divisor in again. The carry out of that addition cancels the borrow above.
+			q[j] = qhat - 1;
+
+			uint64_t addCarry = 0;
+			for ( int i = 0; i < n; i++ )
+			{
+				fixUInt128 sum = fixUInt128Add( fixUInt128Add( fixUInt128FromU64( un[i + j] ), fixUInt128FromU64( vn[i] ) ),
+												fixUInt128FromU64( addCarry ) );
+				un[i + j] = fixUInt128Lo( sum );
+				addCarry = fixUInt128Hi( sum );
+			}
+			un[j + n] += addCarry;
 		}
 	}
 
-	*quotientOut = quotient;
-	*remainderOut = remainder;
+	// Denormalize the remainder. Limbs at or above n are zero by construction.
+	uint64_t r[4] = { 0, 0, 0, 0 };
+	for ( int i = 0; i < n - 1; i++ ) { r[i] = ( un[i] >> s ) | ( s == 0 ? 0 : ( un[i + 1] << ( 64 - s ) ) ); }
+	r[n - 1] = un[n - 1] >> s;
+
+	*quotientOut = fixUInt256FromLimbs( q );
+	*remainderOut = fixUInt256FromLimbs( r );
 }
 
 /// True if a two's complement 256-bit value is negative.

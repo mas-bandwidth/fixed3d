@@ -8,6 +8,8 @@
 #include "box3d/collision.h"
 #include "box3d/math_functions.h"
 
+#include "inverse.h"
+
 struct b3Sweep;
 struct b3Plane;
 
@@ -363,6 +365,26 @@ static inline b3Matrix2 b3Invert2( b3Matrix2 m )
 	}
 
 	return B3_LITERAL( b3Matrix2 ){ { B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, { B3_FIX( 0.0f ), B3_FIX( 0.0f ) } };
+}
+
+/// A 2x2 inverse across the two scales: the tangent (friction) mass, built from an
+/// inverse-scaled k and used as an ordinary mass. Same shift as the 3x3 for the same
+/// reason, and 128 bits is enough here because a 2x2 determinant is two products rather
+/// than a cofactor against a third entry.
+static inline b3Matrix2 b3Invert2AcrossScales( b3Matrix2 m )
+{
+	b3Int128 det = fixInt128Sub( fixInt128MulI64( m.cx.x, m.cy.y ), fixInt128MulI64( m.cx.y, m.cy.x ) );
+	if ( fixInt128Eq( det, FIX_INT128_ZERO ) )
+	{
+		return B3_LITERAL( b3Matrix2 ){ { B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, { B3_FIX( 0.0f ), B3_FIX( 0.0f ) } };
+	}
+
+	const int shift = B3_FIXED_FRACTION_BITS + B3_INVERSE_FRACTION_BITS;
+
+	return B3_LITERAL( b3Matrix2 ){
+		{ fixDivShifted( fixInt128FromI64( m.cy.y ), shift, det ), fixDivShifted( fixInt128FromI64( -m.cx.y ), shift, det ) },
+		{ fixDivShifted( fixInt128FromI64( -m.cy.x ), shift, det ), fixDivShifted( fixInt128FromI64( m.cx.x ), shift, det ) },
+	};
 }
 
 // Assumes positive semi-definite

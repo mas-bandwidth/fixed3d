@@ -336,7 +336,7 @@ void b3PreparePrismaticJoint( b3JointSim* base, b3StepContext* context )
 	joint->frameB.p = b3RotateVector( bodySimB->transform.q, b3Sub( base->localFrameB.p, bodySimB->localCenter ) );
 
 	joint->deltaCenter = b3SubPos( bodySimB->center, bodySimA->center );
-	joint->rotationMass = b3InvertMatrix( invInertiaSum );
+	joint->rotationMass = b3InvertAcrossScales( invInertiaSum );
 
 	// Initial joint axes in world space
 	b3Matrix3 matrixA = b3MakeMatrixFromQuat( joint->frameA.q );
@@ -401,10 +401,10 @@ void b3WarmStartPrismaticJoint( b3JointSim* base, b3StepContext* context )
 	b3Vec3 wA = stateA->angularVelocity;
 	b3Vec3 vB = stateB->linearVelocity;
 	b3Vec3 wB = stateB->angularVelocity;
-	vA = b3MulSub( vA, mA, P );
-	wA = b3Sub( wA, b3MulMV( iA, LA ) );
-	vB = b3MulAdd( vB, mB, P );
-	wB = b3Add( wB, b3MulMV( iB, LB ) );
+	vA = b3Sub( vA, b3InvMulSV( mA, P ) );
+	wA = b3Sub( wA, b3InvMulMV( iA, LA ) );
+	vB = b3Add( vB, b3InvMulSV( mB, P ) );
+	wB = b3Add( wB, b3InvMulMV( iB, LB ) );
 
 	if ( stateA->flags & b3_dynamicFlag )
 	{
@@ -454,7 +454,7 @@ void b3SolvePrismaticJoint( b3JointSim* base, b3StepContext* context, bool useBi
 
 	// The axial effective mass must be fresh to avoid divergence when the joint is stressed
 	b3Fixed ka = mA + mB + b3Dot( sAx, b3MulMV( iA, sAx ) ) + b3Dot( sBx, b3MulMV( iB, sBx ) );
-	b3Fixed axialMass = ka > B3_FIX( 0.0f ) ? b3FixDiv( B3_FIX( 1.0f ) , ka ) : B3_FIX( 0.0f );
+	b3Fixed axialMass = ka > B3_FIX( 0.0f ) ? b3InvReciprocal( ka ) : B3_FIX( 0.0f );
 
 	// Solve spring
 	if ( joint->enableSpring && fixedRotation == false )
@@ -475,10 +475,10 @@ void b3SolvePrismaticJoint( b3JointSim* base, b3StepContext* context, bool useBi
 		b3Vec3 LA = b3MulSV( deltaImpulse, sAx );
 		b3Vec3 LB = b3MulSV( deltaImpulse, sBx );
 
-		vA = b3MulSub( vA, mA, P );
-		wA = b3Sub( wA, b3MulMV( iA, LA ) );
-		vB = b3MulAdd( vB, mB, P );
-		wB = b3Add( wB, b3MulMV( iB, LB ) );
+		vA = b3Sub( vA, b3InvMulSV( mA, P ) );
+		wA = b3Sub( wA, b3InvMulMV( iA, LA ) );
+		vB = b3Add( vB, b3InvMulSV( mB, P ) );
+		wB = b3Add( wB, b3InvMulMV( iB, LB ) );
 	}
 
 	if ( joint->enableMotor && fixedRotation == false )
@@ -497,10 +497,10 @@ void b3SolvePrismaticJoint( b3JointSim* base, b3StepContext* context, bool useBi
 		b3Vec3 LA = b3MulSV( deltaImpulse, sAx );
 		b3Vec3 LB = b3MulSV( deltaImpulse, sBx );
 
-		vA = b3MulSub( vA, mA, P );
-		wA = b3Sub( wA, b3MulMV( iA, LA ) );
-		vB = b3MulAdd( vB, mB, P );
-		wB = b3Add( wB, b3MulMV( iB, LB ) );
+		vA = b3Sub( vA, b3InvMulSV( mA, P ) );
+		wA = b3Sub( wA, b3InvMulMV( iA, LA ) );
+		vB = b3Add( vB, b3InvMulSV( mB, P ) );
+		wB = b3Add( wB, b3InvMulMV( iB, LB ) );
 	}
 
 	if ( joint->enableLimit && fixedRotation == false )
@@ -539,10 +539,10 @@ void b3SolvePrismaticJoint( b3JointSim* base, b3StepContext* context, bool useBi
 				b3Vec3 LA = b3MulSV( deltaImpulse, sAx );
 				b3Vec3 LB = b3MulSV( deltaImpulse, sBx );
 
-				vA = b3MulSub( vA, mA, P );
-				wA = b3Sub( wA, b3MulMV( iA, LA ) );
-				vB = b3MulAdd( vB, mB, P );
-				wB = b3Add( wB, b3MulMV( iB, LB ) );
+				vA = b3Sub( vA, b3InvMulSV( mA, P ) );
+				wA = b3Sub( wA, b3InvMulMV( iA, LA ) );
+				vB = b3Add( vB, b3InvMulSV( mB, P ) );
+				wB = b3Add( wB, b3InvMulMV( iB, LB ) );
 			}
 			else
 			{
@@ -584,10 +584,10 @@ void b3SolvePrismaticJoint( b3JointSim* base, b3StepContext* context, bool useBi
 				b3Vec3 LA = b3MulSV( negDeltaImpulse, sAx );
 				b3Vec3 LB = b3MulSV( negDeltaImpulse, sBx );
 
-				vA = b3MulSub( vA, mA, P );
-				wA = b3Sub( wA, b3MulMV( iA, LA ) );
-				vB = b3MulAdd( vB, mB, P );
-				wB = b3Add( wB, b3MulMV( iB, LB ) );
+				vA = b3Sub( vA, b3InvMulSV( mA, P ) );
+				wA = b3Sub( wA, b3InvMulMV( iA, LA ) );
+				vB = b3Add( vB, b3InvMulSV( mB, P ) );
+				wB = b3Add( wB, b3InvMulMV( iB, LB ) );
 			}
 			else
 			{
@@ -624,8 +624,8 @@ void b3SolvePrismaticJoint( b3JointSim* base, b3StepContext* context, bool useBi
 			b3MulSV( impulseScale, joint->angularImpulse ) );
 		joint->angularImpulse = b3Add( joint->angularImpulse, impulse );
 
-		wA = b3Sub( wA, b3MulMV( iA, impulse ) );
-		wB = b3Add( wB, b3MulMV( iB, impulse ) );
+		wA = b3Sub( wA, b3InvMulMV( iA, impulse ) );
+		wB = b3Add( wB, b3InvMulMV( iB, impulse ) );
 	}
 
 	// Solve point-to-line constraint
@@ -667,10 +667,10 @@ void b3SolvePrismaticJoint( b3JointSim* base, b3StepContext* context, bool useBi
 
 		b3Vec3 P = b3Blend2( deltaImpulse.x, perpY, deltaImpulse.y, perpZ );
 
-		vA = b3MulSub( vA, mA, P );
-		wA = b3Sub( wA, b3MulMV( iA, b3Blend2( deltaImpulse.x, sAy, deltaImpulse.y, sAz ) ) );
-		vB = b3MulAdd( vB, mB, P );
-		wB = b3Add( wB, b3MulMV( iB, b3Blend2( deltaImpulse.x, sBy, deltaImpulse.y, sBz ) ) );
+		vA = b3Sub( vA, b3InvMulSV( mA, P ) );
+		wA = b3Sub( wA, b3InvMulMV( iA, b3Blend2( deltaImpulse.x, sAy, deltaImpulse.y, sAz ) ) );
+		vB = b3Add( vB, b3InvMulSV( mB, P ) );
+		wB = b3Add( wB, b3InvMulMV( iB, b3Blend2( deltaImpulse.x, sBy, deltaImpulse.y, sBz ) ) );
 	}
 
 	B3_ASSERT( b3IsValidVec3( vA ) );

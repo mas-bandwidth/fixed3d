@@ -69,10 +69,16 @@ b3BodySim* b3GetBodySim( b3World* world, b3Body* body )
 // The single writer is the point. Two fields holding two views of one quantity drift the
 // moment one of them is assigned somewhere the other is not, and this is the only
 // function that assigns either.
-static void b3SetLocalInverseInertia( b3BodySim* bodySim, b3Matrix3 invInertiaLocal )
+static void b3SetLocalInverseInertia( b3BodySim* bodySim, b3Matrix3 invInertiaLocal, b3Matrix3 inertiaLocal )
 {
 	bodySim->invInertiaLocal = invInertiaLocal;
-	bodySim->inertiaLocal = b3InvertMatrix( invInertiaLocal );
+
+	// The gyroscopic solve wants the inertia, and now that the inverse is stored at a
+	// wider scale the two are no longer a shift apart -- so it is handed the tensor the
+	// caller already has rather than recovered by inverting the inverse. That is both
+	// cheaper and more accurate: the round trip used to lose a rounding in each
+	// direction, and for a large body it lost the value entirely.
+	bodySim->inertiaLocal = inertiaLocal;
 }
 
 b3BodyState* b3GetBodyState( b3World* world, b3Body* body )
@@ -247,7 +253,7 @@ b3BodyId b3CreateBody( b3WorldId worldId, const b3BodyDef* def )
 	bodySim->force = b3Vec3_zero;
 	bodySim->torque = b3Vec3_zero;
 	bodySim->invMass = B3_FIX( 0.0f );
-	b3SetLocalInverseInertia( bodySim, b3Mat3_zero );
+	b3SetLocalInverseInertia( bodySim, b3Mat3_zero, b3Mat3_zero );
 	bodySim->minExtent = B3_HUGE;
 	bodySim->maxExtent = b3Vec3_zero;
 	bodySim->linearDamping = def->linearDamping;
@@ -824,7 +830,7 @@ static b3Fixed b3InverseMass( b3Fixed mass )
 		return B3_FIX( 0.0f );
 	}
 
-	return b3FixMax( b3FixDiv( B3_FIX( 1.0f ), mass ), 1 );
+	return b3FixMax( b3InvFromRatio( mass ), B3_INVERSE_EPSILON );
 }
 
 static void b3FloorInertia( b3Matrix3* inertia, b3Fixed mass )
@@ -851,7 +857,7 @@ void b3UpdateBodyMassData( b3World* world, b3Body* body )
 	body->inertia = b3Mat3_zero;
 
 	bodySim->invMass = B3_FIX( 0.0f );
-	b3SetLocalInverseInertia( bodySim, b3Mat3_zero );
+	b3SetLocalInverseInertia( bodySim, b3Mat3_zero, b3Mat3_zero );
 	bodySim->invInertiaWorld = b3Mat3_zero;
 	bodySim->localCenter = b3Vec3_zero;
 	bodySim->minExtent = B3_HUGE;
@@ -941,10 +947,9 @@ void b3UpdateBodyMassData( b3World* world, b3Body* body )
 
 	b3FloorInertia( &body->inertia, body->mass );
 
-	// b3InvertT computes its determinant at full 128-bit precision internally and
-	// returns a zero matrix if the inertia is singular. A Q48.16 determinant would
-	// underflow for small bodies.
-	b3SetLocalInverseInertia( bodySim, b3InvertT( body->inertia ) );
+	// Inverted at the inverse scale, which is the whole reason a large body has a usable
+	// inverse inertia at all. Returns a zero matrix for a singular tensor.
+	b3SetLocalInverseInertia( bodySim, b3InvertAcrossScales( body->inertia ), body->inertia );
 	if ( bodySim->invInertiaLocal.cx.x > 0 || bodySim->invInertiaLocal.cy.y > 0 || bodySim->invInertiaLocal.cz.z > 0 )
 	{
 		b3Matrix3 rotationMatrix = b3MakeMatrixFromQuat( bodySim->transform.q );
@@ -959,7 +964,7 @@ void b3UpdateBodyMassData( b3World* world, b3Body* body )
 		// the refusal lasted exactly until the next step and then undid itself. Zeroing
 		// both is what makes the decision stick. b3Body_SetMassData already did this;
 		// this path was the asymmetric one.
-		b3SetLocalInverseInertia( bodySim, b3Mat3_zero );
+		b3SetLocalInverseInertia( bodySim, b3Mat3_zero, b3Mat3_zero );
 		bodySim->invInertiaWorld = b3Mat3_zero;
 	}
 
@@ -994,7 +999,7 @@ void b3UpdateBodyMassData( b3World* world, b3Body* body )
 	if ( ( bodySim->flags & b3_fixedRotation ) == b3_fixedRotation )
 	{
 		body->inertia = b3Mat3_zero;
-		b3SetLocalInverseInertia( bodySim, b3Mat3_zero );
+		b3SetLocalInverseInertia( bodySim, b3Mat3_zero, b3Mat3_zero );
 		bodySim->invInertiaWorld = b3Mat3_zero;
 	}
 }
@@ -1398,7 +1403,7 @@ void b3Body_ApplyLinearImpulse( b3BodyId bodyId, b3Vec3 impulse, b3Pos point, bo
 		b3BodyState* state = b3Array_Get( set->bodyStates, localIndex );
 		b3BodySim* bodySim = b3Array_Get( set->bodySims, localIndex );
 
-		state->linearVelocity = b3MulAdd( state->linearVelocity, bodySim->invMass, impulse );
+		state->linearVelocity = b3Add( state->linearVelocity, b3InvMulSV( bodySim->invMass, impulse ) );
 
 		b3Fixed maxLinearSpeed = world->maxLinearSpeed;
 		if ( b3LengthSquared( state->linearVelocity ) > b3FixMul( maxLinearSpeed , maxLinearSpeed ) )
@@ -1406,7 +1411,7 @@ void b3Body_ApplyLinearImpulse( b3BodyId bodyId, b3Vec3 impulse, b3Pos point, bo
 			state->linearVelocity = b3MulSV( maxLinearSpeed, b3Normalize( state->linearVelocity ) );
 		}
 
-		b3Vec3 delta = b3MulMV( bodySim->invInertiaWorld, b3Cross( b3SubPos( point, bodySim->center ), impulse ) );
+		b3Vec3 delta = b3InvMulMV( bodySim->invInertiaWorld, b3Cross( b3SubPos( point, bodySim->center ), impulse ) );
 		state->angularVelocity = b3Add( state->angularVelocity, delta );
 	}
 }
@@ -1432,7 +1437,7 @@ void b3Body_ApplyLinearImpulseToCenter( b3BodyId bodyId, b3Vec3 impulse, bool wa
 		b3SolverSet* set = b3Array_Get( world->solverSets, b3_awakeSet );
 		b3BodyState* state = b3Array_Get( set->bodyStates, localIndex );
 		b3BodySim* bodySim = b3Array_Get( set->bodySims, localIndex );
-		state->linearVelocity = b3MulAdd( state->linearVelocity, bodySim->invMass, impulse );
+		state->linearVelocity = b3Add( state->linearVelocity, b3InvMulSV( bodySim->invMass, impulse ) );
 
 		b3Fixed maxLinearSpeed = world->maxLinearSpeed;
 		if ( b3LengthSquared( state->linearVelocity ) > b3FixMul( maxLinearSpeed , maxLinearSpeed ) )
@@ -1777,7 +1782,7 @@ b3Fixed b3Body_GetInverseMass( b3BodyId bodyId )
 	b3World* world = b3GetWorld( bodyId.world0 );
 	b3Body* body = b3GetBodyFullId( world, bodyId );
 	b3BodySim* sim = b3GetBodySim( world, body );
-	return sim->invMass;
+	return b3FixedFromInv( sim->invMass );
 }
 
 b3Matrix3 b3Body_GetWorldInverseRotationalInertia( b3BodyId bodyId )
@@ -1785,7 +1790,28 @@ b3Matrix3 b3Body_GetWorldInverseRotationalInertia( b3BodyId bodyId )
 	b3World* world = b3GetWorld( bodyId.world0 );
 	b3Body* body = b3GetBodyFullId( world, bodyId );
 	b3BodySim* sim = b3GetBodySim( world, body );
+	return b3FixedFromInvMatrix( sim->invInertiaWorld );
+}
+
+b3Fixed b3Body_GetInverseMassPrecise( b3BodyId bodyId )
+{
+	b3World* world = b3GetWorld( bodyId.world0 );
+	b3Body* body = b3GetBodyFullId( world, bodyId );
+	b3BodySim* sim = b3GetBodySim( world, body );
+	return sim->invMass;
+}
+
+b3Matrix3 b3Body_GetWorldInverseRotationalInertiaPrecise( b3BodyId bodyId )
+{
+	b3World* world = b3GetWorld( bodyId.world0 );
+	b3Body* body = b3GetBodyFullId( world, bodyId );
+	b3BodySim* sim = b3GetBodySim( world, body );
 	return sim->invInertiaWorld;
+}
+
+int b3GetInverseFractionBits( void )
+{
+	return B3_INVERSE_FRACTION_BITS;
 }
 
 b3Vec3 b3Body_GetLocalCenter( b3BodyId bodyId )
@@ -1845,10 +1871,9 @@ void b3Body_SetMassData( b3BodyId bodyId, b3MassData massData )
 
 	b3FloorInertia( &body->inertia, body->mass );
 
-	// b3InvertT computes its determinant at full 128-bit precision internally and
-	// returns a zero matrix if the inertia is singular. A Q48.16 determinant would
-	// underflow for small bodies.
-	b3SetLocalInverseInertia( bodySim, b3InvertT( body->inertia ) );
+	// Inverted at the inverse scale, which is the whole reason a large body has a usable
+	// inverse inertia at all. Returns a zero matrix for a singular tensor.
+	b3SetLocalInverseInertia( bodySim, b3InvertAcrossScales( body->inertia ), body->inertia );
 	if ( bodySim->invInertiaLocal.cx.x > 0 || bodySim->invInertiaLocal.cy.y > 0 || bodySim->invInertiaLocal.cz.z > 0 )
 	{
 		b3Matrix3 rotationMatrix = b3MakeMatrixFromQuat( bodySim->transform.q );
@@ -1856,7 +1881,7 @@ void b3Body_SetMassData( b3BodyId bodyId, b3MassData massData )
 	}
 	else
 	{
-		b3SetLocalInverseInertia( bodySim, b3Mat3_zero );
+		b3SetLocalInverseInertia( bodySim, b3Mat3_zero, b3Mat3_zero );
 		bodySim->invInertiaWorld = b3Mat3_zero;
 	}
 
@@ -1864,7 +1889,7 @@ void b3Body_SetMassData( b3BodyId bodyId, b3MassData massData )
 	if ( ( bodySim->flags & b3_fixedRotation ) == b3_fixedRotation )
 	{
 		body->inertia = b3Mat3_zero;
-		b3SetLocalInverseInertia( bodySim, b3Mat3_zero );
+		b3SetLocalInverseInertia( bodySim, b3Mat3_zero, b3Mat3_zero );
 		bodySim->invInertiaWorld = b3Mat3_zero;
 	}
 

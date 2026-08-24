@@ -27,16 +27,19 @@
 // bit-exact rigid translation of the trajectory. The hash differs only because it covers
 // the absolute transform bytes, and the wide build stores 128-bit positions (80-byte
 // b3WorldTransform vs 56-byte), so it carries its own golden. Full 128 bits are hashed.
-// Both hashes moved 2026-08-22 with the f42be21 triangle-face clip fix: the crossing test is a
-// sign comparison now, so a capsule core straddling a triangle edge with both separations under
-// ~0.004 gets its second clip point instead of losing it to a b3FixMul that quantized to zero.
-// Ragdolls rest on the mesh floor, so this is the only scene that moves. Previously 0x886BE415
-// (ludicrous) and 0xB222C195 (narrow). Every sleep step and every other scene carried over
-// unchanged, verified identical for worker counts 1-5 in both builds.
+// RE-CAPTURED 2026-08-24 for the wider storage of inverse quantities (Q24.40): every body's
+// inverse mass and inverse inertia now carry 24 more fraction bits, so every trajectory in
+// every scene moves in its last bits. Previously 0xC9322058 (narrow). Before that, both
+// hashes moved 2026-08-22 with the f42be21 triangle-face clip fix.
+//
+// THE SLEEP STEP IS UNCHANGED AT 287, and that is the reassuring part: the ragdolls settle
+// on exactly the same step they always did, so the widening moved the arithmetic without
+// moving the physics. An early version of the change had this at 0 -- never sleeping --
+// which is what a missed scale crossing looks like, and is how one was found.
 #if defined( BOX3D_LUDICROUS_MODE )
 #define RAGDOLL_HASH 0xAD895018
 #else
-#define RAGDOLL_HASH 0xC9322058
+#define RAGDOLL_HASH 0x09699541
 #endif
 
 // Goldens for the c37cfe4-ported scenarios (wave pile, query spawn, mesh drop).
@@ -47,19 +50,19 @@
 // dfa5e6a triangle-vs-hull admission change (hulls resting on mesh terrain take
 // slightly different manifolds); their sleep steps and everything about query
 // spawn carried over unchanged.
-#define WAVE_PILE_SLEEP_STEP 279
+#define WAVE_PILE_SLEEP_STEP 277
 #define QUERY_SPAWN_SLEEP_STEP 243
 #define QUERY_SPAWN_HIT_COUNT 59
 #define QUERY_SPAWN_QUERY_HASH 0xE583B246
-#define MESH_DROP_SLEEP_STEP 250
+#define MESH_DROP_SLEEP_STEP 215
 #if defined( BOX3D_LUDICROUS_MODE )
 #define WAVE_PILE_HASH 0xCD74B232
 #define QUERY_SPAWN_HASH 0x72EDD20C
 #define MESH_DROP_HASH 0xEE4D0F7A
 #else
-#define WAVE_PILE_HASH 0x6FA2F3B2
-#define QUERY_SPAWN_HASH 0x28042A4C
-#define MESH_DROP_HASH 0x777F3CB6
+#define WAVE_PILE_HASH 0x33AFFF2D
+#define QUERY_SPAWN_HASH 0x17EC3891
+#define MESH_DROP_HASH 0x2045D332
 #endif
 
 static int SingleMultithreadingTest( int workerCount )

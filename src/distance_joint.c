@@ -294,7 +294,7 @@ void b3PrepareDistanceJoint( b3JointSim* base, b3StepContext* context )
 	b3Vec3 crA = b3Cross( rA, axis );
 	b3Vec3 crB = b3Cross( rB, axis );
 	b3Fixed k = mA + mB + b3Dot( crA, b3MulMV( iA, crA ) ) + b3Dot( crB, b3MulMV( iB, crB ) );
-	joint->axialMass = k > B3_FIX( 0.0f ) ? b3FixDiv( B3_FIX( 1.0f ) , k ) : B3_FIX( 0.0f );
+	joint->axialMass = k > B3_FIX( 0.0f ) ? b3InvReciprocal( k ) : B3_FIX( 0.0f );
 
 	joint->distanceSoftness = b3MakeSoft( joint->hertz, joint->dampingRatio, context->h );
 
@@ -335,14 +335,14 @@ void b3WarmStartDistanceJoint( b3JointSim* base, b3StepContext* context )
 
 	if ( stateA->flags & b3_dynamicFlag )
 	{
-		stateA->linearVelocity = b3MulSub( stateA->linearVelocity, mA, P );
-		stateA->angularVelocity = b3Sub( stateA->angularVelocity, b3MulMV( iA, b3Cross( rA, P ) ) );
+		stateA->linearVelocity = b3Sub( stateA->linearVelocity, b3InvMulSV( mA, P ) );
+		stateA->angularVelocity = b3Sub( stateA->angularVelocity, b3InvMulMV( iA, b3Cross( rA, P ) ) );
 	}
 
 	if ( stateB->flags & b3_dynamicFlag )
 	{
-		stateB->linearVelocity = b3MulAdd( stateB->linearVelocity, mB, P );
-		stateB->angularVelocity = b3Add( stateB->angularVelocity, b3MulMV( iB, b3Cross( rB, P ) ) );
+		stateB->linearVelocity = b3Add( stateB->linearVelocity, b3InvMulSV( mB, P ) );
+		stateB->angularVelocity = b3Add( stateB->angularVelocity, b3InvMulMV( iB, b3Cross( rB, P ) ) );
 	}
 }
 
@@ -400,10 +400,10 @@ void b3SolveDistanceJoint( b3JointSim* base, b3StepContext* context, bool useBia
 			impulse = joint->impulse - oldImpulse;
 
 			b3Vec3 P = b3MulSV( impulse, axis );
-			vA = b3MulSub( vA, mA, P );
-			wA = b3Sub( wA, b3MulMV( iA, b3Cross( rA, P ) ) );
-			vB = b3MulAdd( vB, mB, P );
-			wB = b3Add( wB, b3MulMV( iB, b3Cross( rB, P ) ) );
+			vA = b3Sub( vA, b3InvMulSV( mA, P ) );
+			wA = b3Sub( wA, b3InvMulMV( iA, b3Cross( rA, P ) ) );
+			vB = b3Add( vB, b3InvMulSV( mB, P ) );
+			wB = b3Add( wB, b3InvMulMV( iB, b3Cross( rB, P ) ) );
 		}
 
 		if ( joint->enableLimit )
@@ -436,10 +436,10 @@ void b3SolveDistanceJoint( b3JointSim* base, b3StepContext* context, bool useBia
 				joint->lowerImpulse = newImpulse;
 
 				b3Vec3 P = b3MulSV( impulse, axis );
-				vA = b3MulSub( vA, mA, P );
-				wA = b3Sub( wA, b3MulMV( iA, b3Cross( rA, P ) ) );
-				vB = b3MulAdd( vB, mB, P );
-				wB = b3Add( wB, b3MulMV( iB, b3Cross( rB, P ) ) );
+				vA = b3Sub( vA, b3InvMulSV( mA, P ) );
+				wA = b3Sub( wA, b3InvMulMV( iA, b3Cross( rA, P ) ) );
+				vB = b3Add( vB, b3InvMulSV( mB, P ) );
+				wB = b3Add( wB, b3InvMulMV( iB, b3Cross( rB, P ) ) );
 			}
 
 			// upper
@@ -470,10 +470,10 @@ void b3SolveDistanceJoint( b3JointSim* base, b3StepContext* context, bool useBia
 				joint->upperImpulse = newImpulse;
 
 				b3Vec3 P = b3MulSV( -impulse, axis );
-				vA = b3MulSub( vA, mA, P );
-				wA = b3Sub( wA, b3MulMV( iA, b3Cross( rA, P ) ) );
-				vB = b3MulAdd( vB, mB, P );
-				wB = b3Add( wB, b3MulMV( iB, b3Cross( rB, P ) ) );
+				vA = b3Sub( vA, b3InvMulSV( mA, P ) );
+				wA = b3Sub( wA, b3InvMulMV( iA, b3Cross( rA, P ) ) );
+				vB = b3Add( vB, b3InvMulSV( mB, P ) );
+				wB = b3Add( wB, b3InvMulMV( iB, b3Cross( rB, P ) ) );
 			}
 		}
 
@@ -488,10 +488,10 @@ void b3SolveDistanceJoint( b3JointSim* base, b3StepContext* context, bool useBia
 			impulse = joint->motorImpulse - oldImpulse;
 
 			b3Vec3 P = b3MulSV( impulse, axis );
-			vA = b3MulSub( vA, mA, P );
-			wA = b3Sub( wA, b3MulMV( iA, b3Cross( rA, P ) ) );
-			vB = b3MulAdd( vB, mB, P );
-			wB = b3Add( wB, b3MulMV( iB, b3Cross( rB, P ) ) );
+			vA = b3Sub( vA, b3InvMulSV( mA, P ) );
+			wA = b3Sub( wA, b3InvMulMV( iA, b3Cross( rA, P ) ) );
+			vB = b3Add( vB, b3InvMulSV( mB, P ) );
+			wB = b3Add( wB, b3InvMulMV( iB, b3Cross( rB, P ) ) );
 		}
 	}
 	else
@@ -516,10 +516,10 @@ void b3SolveDistanceJoint( b3JointSim* base, b3StepContext* context, bool useBia
 		joint->impulse += impulse;
 
 		b3Vec3 P = b3MulSV( impulse, axis );
-		vA = b3MulSub( vA, mA, P );
-		wA = b3Sub( wA, b3MulMV( iA, b3Cross( rA, P ) ) );
-		vB = b3MulAdd( vB, mB, P );
-		wB = b3Add( wB, b3MulMV( iB, b3Cross( rB, P ) ) );
+		vA = b3Sub( vA, b3InvMulSV( mA, P ) );
+		wA = b3Sub( wA, b3InvMulMV( iA, b3Cross( rA, P ) ) );
+		vB = b3Add( vB, b3InvMulSV( mB, P ) );
+		wB = b3Add( wB, b3InvMulMV( iB, b3Cross( rB, P ) ) );
 	}
 
 	if ( stateA->flags & b3_dynamicFlag )

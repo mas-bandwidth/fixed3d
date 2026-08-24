@@ -304,7 +304,7 @@ void b3PrepareRevoluteJoint( b3JointSim* base, b3StepContext* context )
 		// Rotation axis is the z-axis of body A.
 		b3Vec3 rotationAxisZ = b3RotateVector( joint->frameA.q, b3Vec3_axisZ );
 		b3Fixed k = b3Dot( rotationAxisZ, b3MulMV( invInertiaSum, rotationAxisZ ) );
-		joint->axialMass = k > B3_FIX( 0.0f ) ? b3FixDiv( B3_FIX( 1.0f ) , k ) : B3_FIX( 0.0f );
+		joint->axialMass = k > B3_FIX( 0.0f ) ? b3InvReciprocal( k ) : B3_FIX( 0.0f );
 		joint->rotationAxisZ = rotationAxisZ;
 	}
 
@@ -361,11 +361,11 @@ void b3WarmStartRevoluteJoint( b3JointSim* base, b3StepContext* context )
 		b3Add( b3MulSV( joint->perpImpulse.x, joint->perpAxisX ), b3MulSV( joint->perpImpulse.y, joint->perpAxisY ) );
 	angularImpulse = b3MulAdd( angularImpulse, axialImpulse, joint->rotationAxisZ );
 
-	vA = b3MulSub( vA, mA, joint->linearImpulse );
-	wA = b3Sub( wA, b3MulMV( iA, b3Add( b3Cross( rA, joint->linearImpulse ), angularImpulse ) ) );
+	vA = b3Sub( vA, b3InvMulSV( mA, joint->linearImpulse ) );
+	wA = b3Sub( wA, b3InvMulMV( iA, b3Add( b3Cross( rA, joint->linearImpulse ), angularImpulse ) ) );
 
-	vB = b3MulAdd( vB, mB, joint->linearImpulse );
-	wB = b3Add( wB, b3MulMV( iB, b3Add( b3Cross( rB, joint->linearImpulse ), angularImpulse ) ) );
+	vB = b3Add( vB, b3InvMulSV( mB, joint->linearImpulse ) );
+	wB = b3Add( wB, b3InvMulMV( iB, b3Add( b3Cross( rB, joint->linearImpulse ), angularImpulse ) ) );
 
 	if ( stateA->flags & b3_dynamicFlag )
 	{
@@ -427,8 +427,8 @@ void b3SolveRevoluteJoint( b3JointSim* base, b3StepContext* context, bool useBia
 		b3Fixed deltaImpulse = b3FixMul( b3FixMul( -massScale , joint->axialMass ) , ( cdot + bias ) ) - b3FixMul( impulseScale , joint->springImpulse );
 		joint->springImpulse += deltaImpulse;
 
-		wA = b3MulSub( wA, deltaImpulse, b3MulMV( iA, joint->rotationAxisZ ) );
-		wB = b3MulAdd( wB, deltaImpulse, b3MulMV( iB, joint->rotationAxisZ ) );
+		wA = b3Sub( wA, b3InvMulSV( deltaImpulse, b3MulMV( iA, joint->rotationAxisZ ) ) );
+		wB = b3Add( wB, b3InvMulSV( deltaImpulse, b3MulMV( iB, joint->rotationAxisZ ) ) );
 	}
 
 	if ( joint->enableMotor && fixedRotation == false )
@@ -442,8 +442,8 @@ void b3SolveRevoluteJoint( b3JointSim* base, b3StepContext* context, bool useBia
 		deltaImpulse = newImpulse - joint->motorImpulse;
 		joint->motorImpulse = newImpulse;
 
-		wA = b3MulSub( wA, deltaImpulse, b3MulMV( iA, joint->rotationAxisZ ) );
-		wB = b3MulAdd( wB, deltaImpulse, b3MulMV( iB, joint->rotationAxisZ ) );
+		wA = b3Sub( wA, b3InvMulSV( deltaImpulse, b3MulMV( iA, joint->rotationAxisZ ) ) );
+		wB = b3Add( wB, b3InvMulSV( deltaImpulse, b3MulMV( iB, joint->rotationAxisZ ) ) );
 	}
 
 	if ( joint->enableLimit && fixedRotation == false )
@@ -478,8 +478,8 @@ void b3SolveRevoluteJoint( b3JointSim* base, b3StepContext* context, bool useBia
 			joint->lowerImpulse = b3FixMax( oldImpulse + deltaImpulse, B3_FIX( 0.0f ) );
 			deltaImpulse = joint->lowerImpulse - oldImpulse;
 
-			wA = b3MulSub( wA, deltaImpulse, b3MulMV( iA, axis ) );
-			wB = b3MulAdd( wB, deltaImpulse, b3MulMV( iB, axis ) );
+			wA = b3Sub( wA, b3InvMulSV( deltaImpulse, b3MulMV( iA, axis ) ) );
+			wB = b3Add( wB, b3InvMulSV( deltaImpulse, b3MulMV( iB, axis ) ) );
 		}
 
 		// Upper limit
@@ -508,8 +508,8 @@ void b3SolveRevoluteJoint( b3JointSim* base, b3StepContext* context, bool useBia
 			deltaImpulse = joint->upperImpulse - oldImpulse;
 
 			// sign flipped on applied impulse
-			wA = b3MulAdd( wA, deltaImpulse, b3MulMV( iA, axis ) );
-			wB = b3MulSub( wB, deltaImpulse, b3MulMV( iB, axis ) );
+			wA = b3Add( wA, b3InvMulSV( deltaImpulse, b3MulMV( iA, axis ) ) );
+			wB = b3Sub( wB, b3InvMulSV( deltaImpulse, b3MulMV( iB, axis ) ) );
 		}
 	}
 
@@ -551,8 +551,8 @@ void b3SolveRevoluteJoint( b3JointSim* base, b3StepContext* context, bool useBia
 		joint->perpImpulse = b3Add2( joint->perpImpulse, deltaImpulse );
 
 		b3Vec3 angularImpulse = b3Add( b3MulSV( deltaImpulse.x, perpAxisX ), b3MulSV( deltaImpulse.y, perpAxisY ) );
-		wA = b3Sub( wA, b3MulMV( iA, angularImpulse ) );
-		wB = b3Add( wB, b3MulMV( iB, angularImpulse ) );
+		wA = b3Sub( wA, b3InvMulMV( iA, angularImpulse ) );
+		wB = b3Add( wB, b3InvMulMV( iB, angularImpulse ) );
 	}
 
 	// Solve point-to-point constraint
@@ -587,15 +587,15 @@ void b3SolveRevoluteJoint( b3JointSim* base, b3StepContext* context, bool useBia
 		k.cy.y += mA + mB;
 		k.cz.z += mA + mB;
 
-		b3Vec3 b = b3Solve3( k, b3Add( cdot, bias ) );
+		b3Vec3 b = b3Solve3AcrossScales( k, b3Add( cdot, bias ) );
 
 		b3Vec3 impulse = b3Sub( b3MulSV( -massScale, b ), b3MulSV( impulseScale, joint->linearImpulse ) );
 		joint->linearImpulse = b3Add( joint->linearImpulse, impulse );
 
-		vA = b3MulSub( vA, mA, impulse );
-		wA = b3Sub( wA, b3MulMV( iA, b3Cross( rA, impulse ) ) );
-		vB = b3MulAdd( vB, mB, impulse );
-		wB = b3Add( wB, b3MulMV( iB, b3Cross( rB, impulse ) ) );
+		vA = b3Sub( vA, b3InvMulSV( mA, impulse ) );
+		wA = b3Sub( wA, b3InvMulMV( iA, b3Cross( rA, impulse ) ) );
+		vB = b3Add( vB, b3InvMulSV( mB, impulse ) );
+		wB = b3Add( wB, b3InvMulMV( iB, b3Cross( rB, impulse ) ) );
 	}
 
 	if ( stateA->flags & b3_dynamicFlag )

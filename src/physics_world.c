@@ -3429,11 +3429,11 @@ static bool ExplosionCallback( int proxyId, uint64_t userData, void* context )
 	b3SolverSet* set = b3Array_Get( world->solverSets, b3_awakeSet );
 	b3BodyState* state = b3Array_Get( set->bodyStates, localIndex );
 	b3BodySim* bodySim = b3Array_Get( set->bodySims, localIndex );
-	state->linearVelocity = b3MulAdd( state->linearVelocity, bodySim->invMass, impulse );
+	state->linearVelocity = b3Add( state->linearVelocity, b3InvMulSV( bodySim->invMass, impulse ) );
 
 	// Lever arm from the center of mass to the closest point, rotated to world
 	b3Vec3 r = b3RotateVector( xf.q, b3Sub( closestPoint, bodySim->localCenter ) );
-	state->angularVelocity = b3Add( state->angularVelocity, b3MulMV( bodySim->invInertiaWorld, b3Cross( r, impulse ) ) );
+	state->angularVelocity = b3Add( state->angularVelocity, b3InvMulMV( bodySim->invInertiaWorld, b3Cross( r, impulse ) ) );
 
 	return true;
 }

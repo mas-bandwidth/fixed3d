@@ -226,7 +226,7 @@ void b3PrepareMotorJoint( b3JointSim* base, b3StepContext* context )
 	joint->linearSpring = b3MakeSoft( joint->linearHertz, joint->linearDampingRatio, context->h );
 	joint->angularSpring = b3MakeSoft( joint->angularHertz, joint->angularDampingRatio, context->h );
 
-	joint->angularMass = b3InvertMatrix( invInertiaSum );
+	joint->angularMass = b3InvertAcrossScales( invInertiaSum );
 
 	if ( context->enableWarmStarting == false )
 	{
@@ -260,10 +260,10 @@ void b3WarmStartMotorJoint( b3JointSim* base, b3StepContext* context )
 	b3Vec3 linearImpulse = b3Add( joint->linearVelocityImpulse, joint->linearSpringImpulse );
 	b3Vec3 angularImpulse = b3Add( joint->angularVelocityImpulse, joint->angularSpringImpulse );
 
-	stateA->linearVelocity = b3MulSub( stateA->linearVelocity, mA, linearImpulse );
-	stateA->angularVelocity = b3Sub( stateA->angularVelocity, b3MulMV( iA, b3Add( b3Cross( rA, linearImpulse ), angularImpulse ) ) );
-	stateB->linearVelocity = b3MulAdd( stateB->linearVelocity, mB, linearImpulse );
-	stateB->angularVelocity = b3Add( stateB->angularVelocity, b3MulMV( iB, b3Add( b3Cross( rB, linearImpulse ), angularImpulse ) ) );
+	stateA->linearVelocity = b3Sub( stateA->linearVelocity, b3InvMulSV( mA, linearImpulse ) );
+	stateA->angularVelocity = b3Sub( stateA->angularVelocity, b3InvMulMV( iA, b3Add( b3Cross( rA, linearImpulse ), angularImpulse ) ) );
+	stateB->linearVelocity = b3Add( stateB->linearVelocity, b3InvMulSV( mB, linearImpulse ) );
+	stateB->angularVelocity = b3Add( stateB->angularVelocity, b3InvMulMV( iB, b3Add( b3Cross( rB, linearImpulse ), angularImpulse ) ) );
 }
 
 void b3SolveMotorJoint( b3JointSim* base, b3StepContext* context )
@@ -321,8 +321,8 @@ void b3SolveMotorJoint( b3JointSim* base, b3StepContext* context )
 		}
 		impulse = b3Sub( joint->angularSpringImpulse, oldImpulse );
 
-		wA = b3Sub( wA, b3MulMV( iA, impulse ) );
-		wB = b3Add( wB, b3MulMV( iB, impulse ) );
+		wA = b3Sub( wA, b3InvMulMV( iA, impulse ) );
+		wB = b3Add( wB, b3InvMulMV( iB, impulse ) );
 	}
 
 	// angular velocity
@@ -340,8 +340,8 @@ void b3SolveMotorJoint( b3JointSim* base, b3StepContext* context )
 		}
 		impulse = b3Sub( joint->angularVelocityImpulse, oldImpulse );
 
-		wA = b3Sub( wA, b3MulMV( iA, impulse ) );
-		wB = b3Add( wB, b3MulMV( iB, impulse ) );
+		wA = b3Sub( wA, b3InvMulMV( iA, impulse ) );
+		wB = b3Add( wB, b3InvMulMV( iB, impulse ) );
 	}
 
 	b3Vec3 rA = b3RotateVector( stateA->deltaRotation, joint->frameA.p );
@@ -370,7 +370,7 @@ void b3SolveMotorJoint( b3JointSim* base, b3StepContext* context )
 		k.cy.y += mA + mB;
 		k.cz.z += mA + mB;
 
-		b3Vec3 b = b3Solve3( k, b3Add( cdot, bias ) );
+		b3Vec3 b = b3Solve3AcrossScales( k, b3Add( cdot, bias ) );
 
 		b3Vec3 oldImpulse = joint->linearSpringImpulse;
 		b3Vec3 impulse = b3MulSub( b3MulSV( -massScale, b ), impulseScale, oldImpulse );
@@ -384,10 +384,10 @@ void b3SolveMotorJoint( b3JointSim* base, b3StepContext* context )
 
 		impulse = b3Sub( joint->linearSpringImpulse, oldImpulse );
 
-		vA = b3MulSub( vA, mA, impulse );
-		wA = b3Sub( wA, b3MulMV( iA, b3Cross( rA, impulse ) ) );
-		vB = b3MulAdd( vB, mB, impulse );
-		wB = b3Add( wB, b3MulMV( iB, b3Cross( rB, impulse ) ) );
+		vA = b3Sub( vA, b3InvMulSV( mA, impulse ) );
+		wA = b3Sub( wA, b3InvMulMV( iA, b3Cross( rA, impulse ) ) );
+		vB = b3Add( vB, b3InvMulSV( mB, impulse ) );
+		wB = b3Add( wB, b3InvMulMV( iB, b3Cross( rB, impulse ) ) );
 	}
 
 	// linear velocity
@@ -405,7 +405,7 @@ void b3SolveMotorJoint( b3JointSim* base, b3StepContext* context )
 		k.cy.y += mA + mB;
 		k.cz.z += mA + mB;
 
-		b3Vec3 b = b3Solve3( k, cdot );
+		b3Vec3 b = b3Solve3AcrossScales( k, cdot );
 		b3Vec3 impulse = b3Neg( b );
 
 		b3Vec3 oldImpulse = joint->linearVelocityImpulse;
@@ -419,10 +419,10 @@ void b3SolveMotorJoint( b3JointSim* base, b3StepContext* context )
 
 		impulse = b3Sub( joint->linearVelocityImpulse, oldImpulse );
 
-		vA = b3MulSub( vA, mA, impulse );
-		wA = b3Sub( wA, b3MulMV( iA, b3Cross( rA, impulse ) ) );
-		vB = b3MulAdd( vB, mB, impulse );
-		wB = b3Add( wB, b3MulMV( iB, b3Cross( rB, impulse ) ) );
+		vA = b3Sub( vA, b3InvMulSV( mA, impulse ) );
+		wA = b3Sub( wA, b3InvMulMV( iA, b3Cross( rA, impulse ) ) );
+		vB = b3Add( vB, b3InvMulSV( mB, impulse ) );
+		wB = b3Add( wB, b3InvMulMV( iB, b3Cross( rB, impulse ) ) );
 	}
 
 	if ( stateA->flags & b3_dynamicFlag )
