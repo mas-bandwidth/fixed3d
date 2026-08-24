@@ -384,8 +384,215 @@ static int SetMassDataConsistentVelocity( void )
 	return 0;
 }
 
+// Zero inverse mass has exactly one meaning in this engine: the body is static. It must
+// never also mean "your mass was large", which is what b3FixDiv( 1, mass ) produced --
+// truncating toward zero, so every mass above 65,536 units inverted to exactly 0 and the
+// body became immovable by any impulse while still reporting itself dynamic. A silent
+// dynamic-to-static category flip, and it diverges from the float reference, where 1/huge
+// is tiny but never zero.
+//
+// The boundary is pinned on both sides because it is the whole point: 65,536 is the
+// largest mass whose inverse is representable in Q48.16, and one unit past it the honest
+// answer is one quantum rather than none.
+//
+// COARSENESS NEAR THE CEILING is real and deliberate. One quantum of inverse mass is an
+// effective mass of 65,536, and the next quantum up is 32,768 -- so masses in that range
+// do not resolve. A consumer wanting graded response keeps configured masses well under
+// the ceiling; a consumer past it gets a body that is very heavy rather than one that is
+// secretly nailed down.
+static int InverseMassQuantumFloor( void )
+{
+	b3WorldDef worldDef = b3DefaultWorldDef();
+	b3WorldId worldId = b3CreateWorld( &worldDef );
+
+	b3BodyDef bodyDef = b3DefaultBodyDef();
+	bodyDef.type = b3_dynamicBody;
+
+	// At the line: 1 / 65,536 is exactly one quantum, with no clamping involved.
+	{
+		b3BodyId bodyId = b3CreateBody( worldId, &bodyDef );
+		b3MassData massData = { B3_FIX( 65536.0f ), b3Vec3_zero, kDiagInertia };
+		b3Body_SetMassData( bodyId, massData );
+		ENSURE( b3Body_GetInverseMass( bodyId ) == 1 );
+	}
+
+	// One unit past it, where the true inverse is 0.99998 of a quantum. Truncation gives
+	// zero; the floor gives the smallest inverse mass this format has.
+	{
+		b3BodyId bodyId = b3CreateBody( worldId, &bodyDef );
+		b3MassData massData = { B3_FIX( 65537.0f ), b3Vec3_zero, kDiagInertia };
+		b3Body_SetMassData( bodyId, massData );
+		ENSURE( b3Body_GetInverseMass( bodyId ) == 1 );
+	}
+
+	// Far past it, the case space actually contains. Still dynamic, still movable.
+	{
+		b3BodyId bodyId = b3CreateBody( worldId, &bodyDef );
+		b3MassData massData = { B3_FIX( 1.0e7f ), b3Vec3_zero, kDiagInertia };
+		b3Body_SetMassData( bodyId, massData );
+		ENSURE( b3Body_GetInverseMass( bodyId ) > 0 );
+	}
+
+	// And the floor is a floor, not a rewrite: an ordinary mass is unaffected.
+	{
+		b3BodyId bodyId = b3CreateBody( worldId, &bodyDef );
+		b3MassData massData = { B3_FIX( 4.0f ), b3Vec3_zero, kDiagInertia };
+		b3Body_SetMassData( bodyId, massData );
+		ENSURE( b3Body_GetInverseMass( bodyId ) == b3FixDiv( B3_FIX( 1.0f ), B3_FIX( 4.0f ) ) );
+	}
+
+	// A static body keeps zero inverse mass through its own explicit path, which is the
+	// distinction the floor exists to protect.
+	{
+		b3BodyDef staticDef = b3DefaultBodyDef();
+		staticDef.type = b3_staticBody;
+		b3BodyId bodyId = b3CreateBody( worldId, &staticDef );
+		ENSURE( b3Body_GetInverseMass( bodyId ) == 0 );
+	}
+
+	// Zero mass on a dynamic body is not a large mass and must not be floored -- the
+	// engine reads it as the degenerate case it is.
+	{
+		b3BodyId bodyId = b3CreateBody( worldId, &bodyDef );
+		b3MassData massData = { B3_FIX( 0.0f ), b3Vec3_zero, b3Mat3_zero };
+		b3Body_SetMassData( bodyId, massData );
+		ENSURE( b3Body_GetInverseMass( bodyId ) == 0 );
+	}
+
+	b3DestroyWorld( worldId );
+	return 0;
+}
+
+// The same floor on the path that computes mass from shapes and density rather than
+// taking it from the caller, which is how a real heavy body is usually built. A 40-unit
+// box at density 1 masses 64,000 -- under the line -- so the density is raised to carry
+// it past.
+static int InverseMassQuantumFloorFromShapes( void )
+{
+	b3WorldDef worldDef = b3DefaultWorldDef();
+	b3WorldId worldId = b3CreateWorld( &worldDef );
+
+	b3BodyDef bodyDef = b3DefaultBodyDef();
+	bodyDef.type = b3_dynamicBody;
+	b3BodyId bodyId = b3CreateBody( worldId, &bodyDef );
+
+	b3BoxHull hull = b3MakeBoxHull( B3_FIX( 20.0f ), B3_FIX( 20.0f ), B3_FIX( 20.0f ) );
+	b3ShapeDef shapeDef = b3DefaultShapeDef();
+	shapeDef.density = B3_FIX( 10.0f );
+	b3CreateHullShape( bodyId, &shapeDef, &hull.base );
+
+	ENSURE( b3Body_GetMass( bodyId ) > B3_FIX( 65536.0f ) );
+	ENSURE( b3Body_GetInverseMass( bodyId ) > 0 );
+
+	b3DestroyWorld( worldId );
+	return 0;
+}
+
+// THE INVERSE INERTIA SCALE ENVELOPE.
+//
+// Inertia grows as the fifth power of size, so a body 20 times larger has an inertia
+// 3.2 million times larger, and the inverse the solver actually uses runs off the bottom
+// of Q48.16 long before anything else complains. Every dynamic body in this repository's
+// samples is under 2.5 units, a factor of five inside the range where the arithmetic was
+// correct, which is exactly why the failure past it went unseen for so long.
+//
+// What is asserted here is the contract, not a particular number:
+//
+//   - An inverse inertia is NEVER NEGATIVE. The tensor is positive-definite, so its
+//     inverse is too, and a negative diagonal is a body that accelerates against its own
+//     torque. This is what the wide arm used to produce -- measured at cube side 250 as
+//     an inverse of the wrong sign and 1.13e9 times the true magnitude.
+//   - It never grows with the body. A larger body has a smaller inverse inertia, at every
+//     size, monotonically. A wrapped reduction breaks that immediately.
+//   - Past the representability line it is exactly zero, and it STAYS zero through a
+//     transform change and a world step, which is where a refused tensor used to come
+//     back to life.
+//
+// The line falls at 65,536 units of inertia, which for a uniform cube of density 1 is
+// about 13.1 units on a side. A zero inverse inertia means the body does not rotate --
+// which is a real limitation of the storage format, and a separate question from this
+// test, which is only that the engine is honest about it rather than wrong about it.
+static int InverseInertiaScaleEnvelope( void )
+{
+	b3WorldDef worldDef = b3DefaultWorldDef();
+	b3WorldId worldId = b3CreateWorld( &worldDef );
+
+	// Cube sides spanning both cliffs, in half units so the arithmetic below is exact.
+	static const int halfSides[] = { 2, 10, 22, 26, 27, 40, 75, 88, 160, 240, 500, 1000 };
+
+	b3Fixed previousDiagonal = B3_FIXED_MAX;
+
+	for ( int i = 0; i < ARRAY_COUNT( halfSides ); ++i )
+	{
+		// Uniform solid cube of density 1: mass = s^3 and inertia = s^5/6, built from
+		// integers so the input carries no conversion error of its own.
+		int64_t s2 = halfSides[i];
+		int64_t massRaw = ( s2 * s2 * s2 * 65536 ) / 8;
+		int64_t inertiaRaw = ( ( ( s2 * s2 * s2 * s2 ) / 3 ) * s2 * 1024 );
+
+		b3Matrix3 inertia = b3Mat3_zero;
+		inertia.cx.x = (b3Fixed)inertiaRaw;
+		inertia.cy.y = (b3Fixed)inertiaRaw;
+		inertia.cz.z = (b3Fixed)inertiaRaw;
+
+		b3BodyDef bodyDef = b3DefaultBodyDef();
+		bodyDef.type = b3_dynamicBody;
+		b3BodyId bodyId = b3CreateBody( worldId, &bodyDef );
+
+		b3MassData massData = { (b3Fixed)massRaw, b3Vec3_zero, inertia };
+		b3Body_SetMassData( bodyId, massData );
+
+		// The body is created at identity rotation, so the world inverse tensor IS the
+		// local one here -- the similarity transform is by the identity matrix.
+		b3Matrix3 invLocal = b3Body_GetWorldInverseRotationalInertia( bodyId );
+
+		// Never negative, on any entry of a diagonal tensor's inverse.
+		ENSURE( invLocal.cx.x >= 0 && invLocal.cy.y >= 0 && invLocal.cz.z >= 0 );
+		ENSURE( invLocal.cx.y == 0 && invLocal.cx.z == 0 );
+		ENSURE( invLocal.cy.x == 0 && invLocal.cy.z == 0 );
+		ENSURE( invLocal.cz.x == 0 && invLocal.cz.y == 0 );
+
+		// Monotone: a bigger body never has a bigger inverse inertia.
+		ENSURE( invLocal.cx.x <= previousDiagonal );
+		previousDiagonal = invLocal.cx.x;
+
+		// The world tensor is a similarity transform of the local one, so it inherits the
+		// same contract. Rotating the body must not manufacture a negative entry or
+		// resurrect a refused tensor.
+		b3Body_SetTransform( bodyId, (b3Pos){ B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) },
+							 b3MakeQuatFromAxisAngle( b3Normalize( (b3Vec3){ B3_FIX( 1.0f ), B3_FIX( 2.0f ), B3_FIX( 3.0f ) } ),
+													  B3_FIX( 0.7f ) ) );
+
+		b3Matrix3 invWorld = b3Body_GetWorldInverseRotationalInertia( bodyId );
+		ENSURE( invWorld.cx.x >= 0 && invWorld.cy.y >= 0 && invWorld.cz.z >= 0 );
+
+		if ( invLocal.cx.x == 0 )
+		{
+			// A refused tensor stays refused -- through the transform change above, and
+			// through a step of the world, which recomputes the world tensor from the
+			// local one without a guard of its own.
+			ENSURE( invWorld.cx.x == 0 && invWorld.cy.y == 0 && invWorld.cz.z == 0 );
+
+			b3World_Step( worldId, B3_FIX( 1.0f ) / 60, 4 );
+
+			invWorld = b3Body_GetWorldInverseRotationalInertia( bodyId );
+			ENSURE( invWorld.cx.x == 0 && invWorld.cy.y == 0 && invWorld.cz.z == 0 );
+		}
+	}
+
+	// The walk has to have arrived at zero rather than merely stayed small, or the
+	// monotonicity above would be satisfied by a constant.
+	ENSURE( previousDiagonal == 0 );
+
+	b3DestroyWorld( worldId );
+	return 0;
+}
+
 int BodyTest( void )
 {
+	RUN_SUBTEST( InverseMassQuantumFloor );
+	RUN_SUBTEST( InverseInertiaScaleEnvelope );
+	RUN_SUBTEST( InverseMassQuantumFloorFromShapes );
 	RUN_SUBTEST( FarSingleSphereMass );
 	RUN_SUBTEST( FarCubeSphereMass );
 	RUN_SUBTEST( DeferredMassExtents );

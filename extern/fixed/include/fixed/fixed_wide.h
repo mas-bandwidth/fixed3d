@@ -11,12 +11,14 @@
 #include "fixed/fixed.h"
 #include "fixed/fixed_vec.h"
 
-#if !FIX_HAS_INT128
-#error "fixed_wide.h requires 128-bit integer support (clang, gcc, or clang-cl)"
-#endif
-
 /// Wide fixed-point scalar: Q112.16 in a 128-bit integer. Same resolution as
 /// fixed_t (1/65536); all 64 extra bits go to integer range (~±2.6e33 units).
+///
+/// On a compiler with __int128 this is that type and the operators work on it directly.
+/// On plain MSVC it is the emulated pair from fixed_int128.h and the operators do not,
+/// so PORTABLE CONSUMER CODE USES THE FUNCTIONS BELOW rather than `+` and `<`. Every
+/// operation this header needs has a named form for exactly that reason, comparisons
+/// included.
 typedef fixInt128 fixedWide_t;
 
 /// Wide world position: three Q112.16 coordinates.
@@ -28,34 +30,67 @@ typedef struct fixPosWide
 /// Widen a local Q48.16 value to Q112.16. Exact: the fraction points align.
 FIX_ALWAYS_INLINE fixedWide_t fixWideFromFixed( fixed_t a )
 {
-	return (fixedWide_t)a;
+	return fixInt128FromI64( a );
 }
 
 /// Narrow a Q112.16 value to local Q48.16, saturating out-of-range values to
 /// INT64_MAX/INT64_MIN. Exact whenever the value fits local range.
 FIX_ALWAYS_INLINE fixed_t fixWideToFixed( fixedWide_t a )
 {
-	if ( a > (fixedWide_t)INT64_MAX )
+	if ( fixInt128Gt( a, fixInt128FromI64( INT64_MAX ) ) )
 	{
 		return INT64_MAX;
 	}
-	if ( a < (fixedWide_t)INT64_MIN )
+	if ( fixInt128Lt( a, fixInt128FromI64( INT64_MIN ) ) )
 	{
 		return INT64_MIN;
 	}
-	return (fixed_t)a;
+	return (fixed_t)fixInt128ToI64( a );
 }
 
 /// Wide add. Exact 128-bit integer addition.
 FIX_ALWAYS_INLINE fixedWide_t fixWideAdd( fixedWide_t a, fixedWide_t b )
 {
-	return a + b;
+	return fixInt128Add( a, b );
 }
 
 /// Wide subtract. Exact 128-bit integer subtraction.
 FIX_ALWAYS_INLINE fixedWide_t fixWideSub( fixedWide_t a, fixedWide_t b )
 {
-	return a - b;
+	return fixInt128Sub( a, b );
+}
+
+/// Wide comparison. These exist because `<` does not compile on the emulated
+/// representation: a consumer that compares wide coordinates portably needs a name.
+FIX_ALWAYS_INLINE bool fixWideEq( fixedWide_t a, fixedWide_t b )
+{
+	return fixInt128Eq( a, b );
+}
+
+FIX_ALWAYS_INLINE bool fixWideLt( fixedWide_t a, fixedWide_t b )
+{
+	return fixInt128Lt( a, b );
+}
+
+FIX_ALWAYS_INLINE bool fixWideGt( fixedWide_t a, fixedWide_t b )
+{
+	return fixInt128Gt( a, b );
+}
+
+FIX_ALWAYS_INLINE bool fixWideLe( fixedWide_t a, fixedWide_t b )
+{
+	return fixInt128Le( a, b );
+}
+
+FIX_ALWAYS_INLINE bool fixWideGe( fixedWide_t a, fixedWide_t b )
+{
+	return fixInt128Ge( a, b );
+}
+
+/// Wide negation.
+FIX_ALWAYS_INLINE fixedWide_t fixWideNeg( fixedWide_t a )
+{
+	return fixInt128Neg( a );
 }
 
 /// Min/max on the wide (128-bit) fixed-point type.
@@ -66,19 +101,19 @@ FIX_ALWAYS_INLINE fixedWide_t fixWideSub( fixedWide_t a, fixedWide_t b )
 /// type it uses, not by a compile flag that changes an ABI.
 FIX_ALWAYS_INLINE fixedWide_t fixWideMin( fixedWide_t a, fixedWide_t b )
 {
-	return a < b ? a : b;
+	return fixInt128Lt( a, b ) ? a : b;
 }
 
 FIX_ALWAYS_INLINE fixedWide_t fixWideMax( fixedWide_t a, fixedWide_t b )
 {
-	return a > b ? a : b;
+	return fixInt128Gt( a, b ) ? a : b;
 }
 
 /// Offset a wide coordinate by a local delta (the once-per-step delta-fold).
 /// Exact: int128 += widened int64, fraction points aligned.
 FIX_ALWAYS_INLINE fixedWide_t fixWideOffset( fixedWide_t a, fixed_t d )
 {
-	return a + (fixedWide_t)d;
+	return fixInt128Add( a, fixInt128FromI64( d ) );
 }
 
 /// The boundary operation: difference two wide world coordinates into local
@@ -87,13 +122,13 @@ FIX_ALWAYS_INLINE fixedWide_t fixWideOffset( fixedWide_t a, fixed_t d )
 /// fixed-point replacement for float's entire directed-rounding apparatus.
 FIX_ALWAYS_INLINE fixed_t fixWideSubToFixed( fixedWide_t a, fixedWide_t b )
 {
-	return fixWideToFixed( a - b );
+	return fixWideToFixed( fixInt128Sub( a, b ) );
 }
 
 /// Widen a local position/vector to a wide world position. Exact.
 FIX_ALWAYS_INLINE fixPosWide fixPosWideFromVec3( fixVec3 v )
 {
-	fixPosWide p = { (fixedWide_t)v.x, (fixedWide_t)v.y, (fixedWide_t)v.z };
+	fixPosWide p = { fixInt128FromI64( v.x ), fixInt128FromI64( v.y ), fixInt128FromI64( v.z ) };
 	return p;
 }
 
@@ -130,7 +165,7 @@ typedef struct fixWorldTransformWide
 /// quantity except the 128-bit minimum, which is reserved so negation cannot overflow.
 FIX_ALWAYS_INLINE bool fixIsValidWideCoord( fixedWide_t x )
 {
-	return x != (fixedWide_t)( (fixUInt128)1 << 127 );
+	return !fixInt128Eq( x, fixInt128Make( UINT64_C( 0x8000000000000000 ), 0 ) );
 }
 
 FIX_ALWAYS_INLINE bool fixIsValidPosWide( fixPosWide p )
@@ -168,9 +203,9 @@ FIX_ALWAYS_INLINE bool fixIsValidWorldTransformWide( fixWorldTransformWide t )
 FIX_ALWAYS_INLINE fixPosWide fixLerpPositionWide( fixPosWide a, fixPosWide b, fixed_t t )
 {
 	fixPosWide out = {
-		a.x + fixMul( t, fixWideSubToFixed( b.x, a.x ) ),
-		a.y + fixMul( t, fixWideSubToFixed( b.y, a.y ) ),
-		a.z + fixMul( t, fixWideSubToFixed( b.z, a.z ) ),
+		fixWideOffset( a.x, fixMul( t, fixWideSubToFixed( b.x, a.x ) ) ),
+		fixWideOffset( a.y, fixMul( t, fixWideSubToFixed( b.y, a.y ) ) ),
+		fixWideOffset( a.z, fixMul( t, fixWideSubToFixed( b.z, a.z ) ) ),
 	};
 	return out;
 }
@@ -250,8 +285,15 @@ FIX_ALWAYS_INLINE fixAABBWide fixMakeAABBWide( const fixPosWide* points, int cou
 		a.upperBound.z = fixWideMax( a.upperBound.z, points[i].z );
 	}
 
-	a.lowerBound.x -= radius; a.lowerBound.y -= radius; a.lowerBound.z -= radius;
-	a.upperBound.x += radius; a.upperBound.y += radius; a.upperBound.z += radius;
+	// Subtracting the widened radius rather than offsetting by its negation: the two agree
+	// everywhere except at INT64_MIN, where negating a fixed_t has no value.
+	fixedWide_t wideRadius = fixWideFromFixed( radius );
+	a.lowerBound.x = fixWideSub( a.lowerBound.x, wideRadius );
+	a.lowerBound.y = fixWideSub( a.lowerBound.y, wideRadius );
+	a.lowerBound.z = fixWideSub( a.lowerBound.z, wideRadius );
+	a.upperBound.x = fixWideAdd( a.upperBound.x, wideRadius );
+	a.upperBound.y = fixWideAdd( a.upperBound.y, wideRadius );
+	a.upperBound.z = fixWideAdd( a.upperBound.z, wideRadius );
 
 	return a;
 }
@@ -259,9 +301,9 @@ FIX_ALWAYS_INLINE fixAABBWide fixMakeAABBWide( const fixPosWide* points, int cou
 /// Does a fully contain b?
 FIX_ALWAYS_INLINE bool fixAABBWide_Contains( fixAABBWide a, fixAABBWide b )
 {
-	if ( a.lowerBound.x > b.lowerBound.x || b.upperBound.x > a.upperBound.x ) return false;
-	if ( a.lowerBound.y > b.lowerBound.y || b.upperBound.y > a.upperBound.y ) return false;
-	if ( a.lowerBound.z > b.lowerBound.z || b.upperBound.z > a.upperBound.z ) return false;
+	if ( fixWideGt( a.lowerBound.x, b.lowerBound.x ) || fixWideGt( b.upperBound.x, a.upperBound.x ) ) return false;
+	if ( fixWideGt( a.lowerBound.y, b.lowerBound.y ) || fixWideGt( b.upperBound.y, a.upperBound.y ) ) return false;
+	if ( fixWideGt( a.lowerBound.z, b.lowerBound.z ) || fixWideGt( b.upperBound.z, a.upperBound.z ) ) return false;
 	return true;
 }
 
@@ -337,18 +379,23 @@ FIX_ALWAYS_INLINE fixAABBWide fixAABBWide_Union( fixAABBWide a, fixAABBWide b )
 /// Add uniform local padding to a wide box.
 FIX_ALWAYS_INLINE fixAABBWide fixAABBWide_Inflate( fixAABBWide a, fixed_t extension )
 {
+	fixedWide_t wideExtension = fixWideFromFixed( extension );
 	fixAABBWide out = a;
-	out.lowerBound.x -= extension; out.lowerBound.y -= extension; out.lowerBound.z -= extension;
-	out.upperBound.x += extension; out.upperBound.y += extension; out.upperBound.z += extension;
+	out.lowerBound.x = fixWideSub( out.lowerBound.x, wideExtension );
+	out.lowerBound.y = fixWideSub( out.lowerBound.y, wideExtension );
+	out.lowerBound.z = fixWideSub( out.lowerBound.z, wideExtension );
+	out.upperBound.x = fixWideAdd( out.upperBound.x, wideExtension );
+	out.upperBound.y = fixWideAdd( out.upperBound.y, wideExtension );
+	out.upperBound.z = fixWideAdd( out.upperBound.z, wideExtension );
 	return out;
 }
 
 /// Do two wide boxes overlap?
 FIX_ALWAYS_INLINE bool fixAABBWide_Overlaps( fixAABBWide a, fixAABBWide b )
 {
-	if ( a.upperBound.x < b.lowerBound.x || a.lowerBound.x > b.upperBound.x ) return false;
-	if ( a.upperBound.y < b.lowerBound.y || a.lowerBound.y > b.upperBound.y ) return false;
-	if ( a.upperBound.z < b.lowerBound.z || a.lowerBound.z > b.upperBound.z ) return false;
+	if ( fixWideLt( a.upperBound.x, b.lowerBound.x ) || fixWideGt( a.lowerBound.x, b.upperBound.x ) ) return false;
+	if ( fixWideLt( a.upperBound.y, b.lowerBound.y ) || fixWideGt( a.lowerBound.y, b.upperBound.y ) ) return false;
+	if ( fixWideLt( a.upperBound.z, b.lowerBound.z ) || fixWideGt( a.lowerBound.z, b.upperBound.z ) ) return false;
 	return true;
 }
 
@@ -417,8 +464,8 @@ FIX_ALWAYS_INLINE bool fixIsValidAABBWide( fixAABBWide a )
 {
 	if ( fixIsValidPosWide( a.lowerBound ) == false ) return false;
 	if ( fixIsValidPosWide( a.upperBound ) == false ) return false;
-	if ( a.lowerBound.x > a.upperBound.x ) return false;
-	if ( a.lowerBound.y > a.upperBound.y ) return false;
-	if ( a.lowerBound.z > a.upperBound.z ) return false;
+	if ( fixWideGt( a.lowerBound.x, a.upperBound.x ) ) return false;
+	if ( fixWideGt( a.lowerBound.y, a.upperBound.y ) ) return false;
+	if ( fixWideGt( a.lowerBound.z, a.upperBound.z ) ) return false;
 	return true;
 }

@@ -112,8 +112,10 @@ static void b3IntegrateVelocitiesTask( b3SolverBlock block, b3StepContext* conte
 			b3Quat q0 = sim->transform.q;
 			b3Quat q = b3MulQuat( state->deltaRotation, q0 );
 
-			// todo wasteful computation
-			b3Matrix3 inertiaLocal = b3InvertMatrix( sim->invInertiaLocal );
+			// Cached when the mass data was set, because it cannot change between
+			// substeps: this was b3InvertMatrix( sim->invInertiaLocal ) here, nine
+			// 128-bit divisions per body per substep to recompute a constant.
+			b3Matrix3 inertiaLocal = sim->inertiaLocal;
 
 			// Compute local angular velocity
 			b3Vec3 omega1 = b3InvRotateVector( q, w );
