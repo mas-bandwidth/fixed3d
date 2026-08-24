@@ -38,7 +38,15 @@ jobs:
             # inverse change itself contributing 0.4s of that. Optimized builds are
             # unaffected or faster. Tracked as mas-bandwidth/fixed#18; when that lands,
             # this comes back down rather than staying quietly generous.
-            timeout: 20
+            #
+            # 20 was still not enough -- the test step alone ran 18m47s without
+            # finishing, against roughly 2 minutes on main, which is a much worse ratio
+            # than the 1.94x measured in a plain Debug build. MSan with
+            # -fsanitize-memory-track-origins amplifies this library's shape (many small
+            # calls passing vectors and matrices by value) far more than an uninstrumented
+            # build does. 40 is set to let the job finish and report a real number rather
+            # than to be comfortable.
+            timeout: 40
             args: '-DCMAKE_CXX_COMPILER=clang++-18 -DCMAKE_C_COMPILER=clang-18 -DCMAKE_C_FLAGS="-fsanitize=memory -fsanitize-memory-track-origins=1 -fno-omit-frame-pointer" -DCMAKE_CXX_FLAGS="-fsanitize=memory -fsanitize-memory-track-origins=1 -fno-omit-frame-pointer" -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=memory"'
             test: ./bin/test
             msan-options: abort_on_error=1:halt_on_error=1
