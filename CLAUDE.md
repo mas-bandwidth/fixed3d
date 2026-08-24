@@ -14,11 +14,14 @@ than no cursor:
   stb_truetype, the world_text shader). Held for a bench with a display; no simulation
   content, so it does not gate the cursor.
 
-*(**fixed3d#21 closes WITH this change, not before it** — `f42be21`'s remainder and
-`30c67b5` are carried across together, so the cursor moves two steps at once. Stated as a
-condition rather than as a fact because this line lands on a branch: a cursor that claims
-a closure the merge has not performed is a false green in the one file the next daily pass
-reads first. Record below.)*
+*(~~**fixed3d#21 closes WITH this change, not before it**~~ — **DISCHARGED 2026-08-25, verified
+rather than assumed: the branch merged and fixed3d#21 is CLOSED, so the cursor above states a
+fact and no longer a promise.** `f42be21`'s remainder and `30c67b5` were carried across
+together and the cursor moved two steps at once. The condition is struck rather than deleted
+because its reason is the reusable part and still true: **a cursor that claims a closure the
+merge has not performed is a false green in the one file the next daily pass reads first** —
+so a cursor line written on a branch says *closes with*, and the run that merges it comes back
+and says *closed*. Record below.)*
 
 The PORT RECORDs below run newest first and are the detail for each step.
 
