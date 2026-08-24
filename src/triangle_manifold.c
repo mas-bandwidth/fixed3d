@@ -228,8 +228,21 @@ static b3SeparatingAxis b3QueryTriangleAndCapsuleEdges( const b3Vec3* vertices, 
 		}
 
 		// Similar to hull vs hull (b3QueryEdgeDirections)
+		//
+		// THE SIGN TEST IS A SIGN TEST, not a product. This asked whether a and b have
+		// opposite signs by computing a*b and comparing to zero -- and b3FixMul quantizes,
+		// so a product below one ULP reads as exactly zero no matter what its true sign
+		// was. Measured here with a = -3751 and b = -4 raw: both negative, true product
+		// +0.229, and b3FixMul returns 0, which satisfies "<= 0" and sends a same-sign
+		// pair down the opposite-sign branch. That branch then computes t = b/(b - a),
+		// which is only in [0, 1] when the signs really do differ, and it came out at
+		// -0.001053 -- an out-of-range interpolation parameter.
+		//
+		// This is hard-won rule 7 in CLAUDE.md ("squared-tolerance guards collapse; use
+		// d > 0 directly") applied to a product of two different values rather than a
+		// square. Comparing the signs directly is exact for every input and cheaper.
 		b3Vec3 axis;
-		if ( b3FixMul( a , b ) <= B3_FIX( 0.0f ) )
+		if ( ( a > B3_FIX( 0.0f ) && b > B3_FIX( 0.0f ) ) == false && ( a < B3_FIX( 0.0f ) && b < B3_FIX( 0.0f ) ) == false )
 		{
 			b3Fixed t = b3FixDiv( b , ( b - a ) );
 			axis = b3Lerp( sideNormal, plane.normal, t );

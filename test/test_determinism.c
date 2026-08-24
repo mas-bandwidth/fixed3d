@@ -27,12 +27,15 @@
 // bit-exact rigid translation of the trajectory. The hash differs only because it covers
 // the absolute transform bytes, and the wide build stores 128-bit positions (80-byte
 // b3WorldTransform vs 56-byte), so it carries its own golden. Full 128 bits are hashed.
-// Both hashes moved 2026-08-22 with the f42be21 triangle-face clip fix: the crossing test is a
-// sign comparison now, so a capsule core straddling a triangle edge with both separations under
-// ~0.004 gets its second clip point instead of losing it to a b3FixMul that quantized to zero.
-// Ragdolls rest on the mesh floor, so this is the only scene that moves. Previously 0x886BE415
-// (ludicrous) and 0xB222C195 (narrow). Every sleep step and every other scene carried over
-// unchanged, verified identical for worker counts 1-5 in both builds.
+// RE-CAPTURED 2026-08-24 for the wider storage of inverse quantities (Q24.40): every body's
+// inverse mass and inverse inertia now carry 24 more fraction bits, so every trajectory in
+// every scene moves in its last bits. Previously 0xC9322058 (narrow). Before that, both
+// hashes moved 2026-08-22 with the f42be21 triangle-face clip fix.
+//
+// THE SLEEP STEP IS UNCHANGED AT 287, and that is the reassuring part: the ragdolls settle
+// on exactly the same step they always did, so the widening moved the arithmetic without
+// moving the physics. An early version of the change had this at 0 -- never sleeping --
+// which is what a missed scale crossing looks like, and is how one was found.
 #if defined( BOX3D_LUDICROUS_MODE )
 #define RAGDOLL_HASH 0xAD895018
 #else
