@@ -462,7 +462,7 @@ void b3PrepareWheelJoint( b3JointSim* base, b3StepContext* context )
 
 		b3Fixed k = base->invMassA + base->invMassB + b3Dot( rAn, b3MulMV( base->invIA, rAn ) ) +
 				  b3Dot( rBn, b3MulMV( base->invIB, rBn ) );
-		joint->suspensionMass = k > B3_FIX( 0.0f ) ? b3FixDiv( B3_FIX( 1.0f ) , k ) : B3_FIX( 0.0f );
+		joint->suspensionMass = k > B3_FIX( 0.0f ) ? b3InvReciprocal( k ) : B3_FIX( 0.0f );
 	}
 
 	joint->suspensionSoftness = b3MakeSoft( joint->suspensionHertz, joint->suspensionDampingRatio, context->h );
@@ -472,7 +472,7 @@ void b3PrepareWheelJoint( b3JointSim* base, b3StepContext* context )
 		// Rotation axis is the z-axis of body A.
 		b3Vec3 spinAxis = matrixB.cz;
 		b3Fixed k = b3Dot( spinAxis, b3MulMV( invInertiaSum, spinAxis ) );
-		joint->spinMass = k > B3_FIX( 0.0f ) ? b3FixDiv( B3_FIX( 1.0f ) , k ) : B3_FIX( 0.0f );
+		joint->spinMass = k > B3_FIX( 0.0f ) ? b3InvReciprocal( k ) : B3_FIX( 0.0f );
 	}
 
 	{
@@ -485,7 +485,7 @@ void b3PrepareWheelJoint( b3JointSim* base, b3StepContext* context )
 			b3MulSV( den, b3Cross( matrixB.cz, b3Sub( b3MulSV( -cs, matrixA.cy ), b3MulSV( ss, matrixA.cz ) ) ) );
 
 		b3Fixed k = b3Dot( steeringAxis, b3MulMV( invInertiaSum, steeringAxis ) );
-		joint->steeringMass = k > B3_FIX( 0.0f ) ? b3FixDiv( B3_FIX( 1.0f ) , k ) : B3_FIX( 0.0f );
+		joint->steeringMass = k > B3_FIX( 0.0f ) ? b3InvReciprocal( k ) : B3_FIX( 0.0f );
 	}
 
 	if ( context->enableWarmStarting == false )
@@ -584,14 +584,14 @@ void b3WarmStartWheelJoint( b3JointSim* base, b3StepContext* context )
 
 	if ( stateA->flags & b3_dynamicFlag )
 	{
-		stateA->linearVelocity = b3MulSub( stateA->linearVelocity, mA, linearImpulse );
-		stateA->angularVelocity = b3Sub( stateA->angularVelocity, b3MulMV( iA, b3Add( angularImpulseA, angularImpulse ) ) );
+		stateA->linearVelocity = b3Sub( stateA->linearVelocity, b3InvMulSV( mA, linearImpulse ) );
+		stateA->angularVelocity = b3Sub( stateA->angularVelocity, b3InvMulMV( iA, b3Add( angularImpulseA, angularImpulse ) ) );
 	}
 
 	if ( stateB->flags & b3_dynamicFlag )
 	{
-		stateB->linearVelocity = b3MulAdd( stateB->linearVelocity, mB, linearImpulse );
-		stateB->angularVelocity = b3Add( stateB->angularVelocity, b3MulMV( iB, b3Add( angularImpulseB, angularImpulse ) ) );
+		stateB->linearVelocity = b3Add( stateB->linearVelocity, b3InvMulSV( mB, linearImpulse ) );
+		stateB->angularVelocity = b3Add( stateB->angularVelocity, b3InvMulMV( iB, b3Add( angularImpulseB, angularImpulse ) ) );
 	}
 }
 
@@ -667,8 +667,8 @@ void b3SolveWheelJoint( b3JointSim* base, b3StepContext* context, bool useBias )
 		joint->spinImpulse = b3FixClamp( joint->spinImpulse + impulse, -maxImpulse, maxImpulse );
 		impulse = joint->spinImpulse - oldImpulse;
 
-		wA = b3Sub( wA, b3MulMV( iA, b3MulSV( impulse, spinAxis ) ) );
-		wB = b3Add( wB, b3MulMV( iB, b3MulSV( impulse, spinAxis ) ) );
+		wA = b3Sub( wA, b3InvMulMV( iA, b3MulSV( impulse, spinAxis ) ) );
+		wB = b3Add( wB, b3InvMulMV( iB, b3MulSV( impulse, spinAxis ) ) );
 	}
 
 	// suspension
@@ -688,10 +688,10 @@ void b3SolveWheelJoint( b3JointSim* base, b3StepContext* context, bool useBias )
 		b3Vec3 angularImpulseA = b3MulSV( impulse, sAx );
 		b3Vec3 angularImpulseB = b3MulSV( impulse, sBx );
 
-		vA = b3MulSub( vA, mA, linearImpulse );
-		wA = b3Sub( wA, b3MulMV( iA, angularImpulseA ) );
-		vB = b3MulAdd( vB, mB, linearImpulse );
-		wB = b3Add( wB, b3MulMV( iB, angularImpulseB ) );
+		vA = b3Sub( vA, b3InvMulSV( mA, linearImpulse ) );
+		wA = b3Sub( wA, b3InvMulMV( iA, angularImpulseA ) );
+		vB = b3Add( vB, b3InvMulSV( mB, linearImpulse ) );
+		wB = b3Add( wB, b3InvMulMV( iB, angularImpulseB ) );
 	}
 
 	// steering
@@ -713,8 +713,8 @@ void b3SolveWheelJoint( b3JointSim* base, b3StepContext* context, bool useBias )
 			joint->steeringSpringImpulse = b3FixClamp( oldImpulse + impulse, -maxImpulse, maxImpulse );
 			impulse = joint->steeringSpringImpulse - oldImpulse;
 
-			wA = b3Sub( wA, b3MulMV( iA, b3MulSV( impulse, steeringAxis ) ) );
-			wB = b3Add( wB, b3MulMV( iB, b3MulSV( impulse, steeringAxis ) ) );
+			wA = b3Sub( wA, b3InvMulMV( iA, b3MulSV( impulse, steeringAxis ) ) );
+			wB = b3Add( wB, b3InvMulMV( iB, b3MulSV( impulse, steeringAxis ) ) );
 		}
 
 		if ( joint->enableSteeringLimit )
@@ -744,8 +744,8 @@ void b3SolveWheelJoint( b3JointSim* base, b3StepContext* context, bool useBias )
 				joint->lowerSteeringImpulse = b3FixMax( oldImpulse + impulse, B3_FIX( 0.0f ) );
 				impulse = joint->lowerSteeringImpulse - oldImpulse;
 
-				wA = b3Sub( wA, b3MulMV( iA, b3MulSV( impulse, steeringAxis ) ) );
-				wB = b3Add( wB, b3MulMV( iB, b3MulSV( impulse, steeringAxis ) ) );
+				wA = b3Sub( wA, b3InvMulMV( iA, b3MulSV( impulse, steeringAxis ) ) );
+				wB = b3Add( wB, b3InvMulMV( iB, b3MulSV( impulse, steeringAxis ) ) );
 			}
 
 			// Upper limit
@@ -778,8 +778,8 @@ void b3SolveWheelJoint( b3JointSim* base, b3StepContext* context, bool useBias )
 				impulse = joint->upperSteeringImpulse - oldImpulse;
 
 				// sign flipped on applied impulse
-				wA = b3Add( wA, b3MulMV( iA, b3MulSV( impulse, steeringAxis ) ) );
-				wB = b3Sub( wB, b3MulMV( iB, b3MulSV( impulse, steeringAxis ) ) );
+				wA = b3Add( wA, b3InvMulMV( iA, b3MulSV( impulse, steeringAxis ) ) );
+				wB = b3Sub( wB, b3InvMulMV( iB, b3MulSV( impulse, steeringAxis ) ) );
 			}
 		}
 	}
@@ -815,10 +815,10 @@ void b3SolveWheelJoint( b3JointSim* base, b3StepContext* context, bool useBias )
 			b3Vec3 angularImpulseA = b3MulSV( impulse, sAx );
 			b3Vec3 angularImpulseB = b3MulSV( impulse, sBx );
 
-			vA = b3MulSub( vA, mA, linearImpulse );
-			wA = b3Sub( wA, b3MulMV( iA, angularImpulseA ) );
-			vB = b3MulAdd( vB, mB, linearImpulse );
-			wB = b3Add( wB, b3MulMV( iB, angularImpulseB ) );
+			vA = b3Sub( vA, b3InvMulSV( mA, linearImpulse ) );
+			wA = b3Sub( wA, b3InvMulMV( iA, angularImpulseA ) );
+			vB = b3Add( vB, b3InvMulSV( mB, linearImpulse ) );
+			wB = b3Add( wB, b3InvMulMV( iB, angularImpulseB ) );
 		}
 
 		// Upper limit
@@ -855,10 +855,10 @@ void b3SolveWheelJoint( b3JointSim* base, b3StepContext* context, bool useBias )
 			b3Vec3 angularImpulseB = b3MulSV( impulse, sBx );
 
 			// sign flipped on applied impulse
-			vA = b3MulAdd( vA, mA, linearImpulse );
-			wA = b3Add( wA, b3MulMV( iA, angularImpulseA ) );
-			vB = b3MulSub( vB, mB, linearImpulse );
-			wB = b3Sub( wB, b3MulMV( iB, angularImpulseB ) );
+			vA = b3Add( vA, b3InvMulSV( mA, linearImpulse ) );
+			wA = b3Add( wA, b3InvMulMV( iA, angularImpulseA ) );
+			vB = b3Sub( vB, b3InvMulSV( mB, linearImpulse ) );
+			wB = b3Sub( wB, b3InvMulMV( iB, angularImpulseB ) );
 		}
 	}
 
@@ -884,7 +884,7 @@ void b3SolveWheelJoint( b3JointSim* base, b3StepContext* context, bool useBias )
 
 			b3Matrix3 invInertiaSum = b3AddMM( iA, iB );
 			b3Fixed k = b3Dot( u, b3MulMV( invInertiaSum, u ) );
-			b3Fixed perpMass = k > B3_FIX( 0.0f ) ? b3FixDiv( B3_FIX( 1.0f ) , k ) : B3_FIX( 0.0f );
+			b3Fixed perpMass = k > B3_FIX( 0.0f ) ? b3InvReciprocal( k ) : B3_FIX( 0.0f );
 
 			b3Fixed deltaImpulse = b3FixMul( b3FixMul( -massScale , perpMass ) , ( cdot + bias ) ) - b3FixMul( impulseScale , joint->angularImpulse.x );
 			joint->angularImpulse.x += deltaImpulse;
@@ -931,8 +931,8 @@ void b3SolveWheelJoint( b3JointSim* base, b3StepContext* context, bool useBias )
 			joint->angularImpulse = (b3Vec2){ oldImpulse.x + deltaImpulse.x, oldImpulse.y + deltaImpulse.y };
 
 			b3Vec3 angularImpulse = b3Blend2( deltaImpulse.x, perpAxisX, deltaImpulse.y, perpAxisY );
-			wA = b3Sub( wA, b3MulMV( iA, angularImpulse ) );
-			wB = b3Add( wB, b3MulMV( iB, angularImpulse ) );
+			wA = b3Sub( wA, b3InvMulMV( iA, angularImpulse ) );
+			wB = b3Add( wB, b3InvMulMV( iB, angularImpulse ) );
 		}
 	}
 
@@ -975,10 +975,10 @@ void b3SolveWheelJoint( b3JointSim* base, b3StepContext* context, bool useBias )
 
 		b3Vec3 linearImpulse = b3Blend2( deltaImpulse.x, perpY, deltaImpulse.y, perpZ );
 
-		vA = b3MulSub( vA, mA, linearImpulse );
-		wA = b3Sub( wA, b3MulMV( iA, b3Blend2( deltaImpulse.x, sAy, deltaImpulse.y, sAz ) ) );
-		vB = b3MulAdd( vB, mB, linearImpulse );
-		wB = b3Add( wB, b3MulMV( iB, b3Blend2( deltaImpulse.x, sBy, deltaImpulse.y, sBz ) ) );
+		vA = b3Sub( vA, b3InvMulSV( mA, linearImpulse ) );
+		wA = b3Sub( wA, b3InvMulMV( iA, b3Blend2( deltaImpulse.x, sAy, deltaImpulse.y, sAz ) ) );
+		vB = b3Add( vB, b3InvMulSV( mB, linearImpulse ) );
+		wB = b3Add( wB, b3InvMulMV( iB, b3Blend2( deltaImpulse.x, sBy, deltaImpulse.y, sBz ) ) );
 	}
 
 	if ( stateA->flags & b3_dynamicFlag )

@@ -341,7 +341,7 @@ void b3PrepareSphericalJoint( b3JointSim* base, b3StepContext* context )
 		// Swing axis may be zero
 		b3Vec3 swingAxis = b3Normalize( b3Cross( coneAxis, twistAxis ) );
 		b3Fixed k = b3Dot( swingAxis, b3MulMV( invInertiaSum, swingAxis ) );
-		joint->swingMass = k > B3_FIX( 0.0f ) ? b3FixDiv( B3_FIX( 1.0f ) , k ) : B3_FIX( 0.0f );
+		joint->swingMass = k > B3_FIX( 0.0f ) ? b3InvReciprocal( k ) : B3_FIX( 0.0f );
 		joint->swingAxis = swingAxis;
 	}
 
@@ -355,13 +355,13 @@ void b3PrepareSphericalJoint( b3JointSim* base, b3StepContext* context )
 		b3Vec3 perpAxis = b3Cross( swingAxis, coneAxis );
 		b3Vec3 twistJacobian = b3MulAdd( coneAxis, tanThetaOver2, perpAxis );
 		b3Fixed k = b3Dot( twistJacobian, b3MulMV( invInertiaSum, twistJacobian ) );
-		joint->twistMass = k > B3_FIX( 0.0f ) ? b3FixDiv( B3_FIX( 1.0f ) , k ) : B3_FIX( 0.0f );
+		joint->twistMass = k > B3_FIX( 0.0f ) ? b3InvReciprocal( k ) : B3_FIX( 0.0f );
 		joint->twistJacobian = twistJacobian;
 	}
 
 	if ( base->fixedRotation == false )
 	{
-		joint->rotationMass = b3InvertMatrix( invInertiaSum );
+		joint->rotationMass = b3InvertAcrossScales( invInertiaSum );
 	}
 	else
 	{
@@ -410,11 +410,11 @@ void b3WarmStartSphericalJoint( b3JointSim* base, b3StepContext* context )
 	angularImpulse = b3MulSub( angularImpulse, joint->swingImpulse, joint->swingAxis );
 	angularImpulse = b3MulAdd( angularImpulse, joint->lowerTwistImpulse - joint->upperTwistImpulse, joint->twistJacobian );
 
-	vA = b3MulSub( vA, mA, joint->linearImpulse );
-	wA = b3Sub( wA, b3MulMV( iA, b3Add( b3Cross( rA, joint->linearImpulse ), angularImpulse ) ) );
+	vA = b3Sub( vA, b3InvMulSV( mA, joint->linearImpulse ) );
+	wA = b3Sub( wA, b3InvMulMV( iA, b3Add( b3Cross( rA, joint->linearImpulse ), angularImpulse ) ) );
 
-	vB = b3MulAdd( vB, mB, joint->linearImpulse );
-	wB = b3Add( wB, b3MulMV( iB, b3Add( b3Cross( rB, joint->linearImpulse ), angularImpulse ) ) );
+	vB = b3Add( vB, b3InvMulSV( mB, joint->linearImpulse ) );
+	wB = b3Add( wB, b3InvMulMV( iB, b3Add( b3Cross( rB, joint->linearImpulse ), angularImpulse ) ) );
 
 	if ( stateA->flags & b3_dynamicFlag )
 	{
@@ -470,8 +470,8 @@ void b3SolveSphericalJoint( b3JointSim* base, b3StepContext* context, bool useBi
 								   impulseScale, joint->springImpulse );
 		joint->springImpulse = b3Add( joint->springImpulse, impulse );
 
-		wA = b3Sub( wA, b3MulMV( iA, impulse ) );
-		wB = b3Add( wB, b3MulMV( iB, impulse ) );
+		wA = b3Sub( wA, b3InvMulMV( iA, impulse ) );
+		wB = b3Add( wB, b3InvMulMV( iB, impulse ) );
 	}
 
 	if ( joint->enableMotor && fixedRotation == false )
@@ -490,8 +490,8 @@ void b3SolveSphericalJoint( b3JointSim* base, b3StepContext* context, bool useBi
 		lambda = b3Sub( newImpulse, joint->motorImpulse );
 		joint->motorImpulse = newImpulse;
 
-		wA = b3Sub( wA, b3MulMV( iA, lambda ) );
-		wB = b3Add( wB, b3MulMV( iB, lambda ) );
+		wA = b3Sub( wA, b3InvMulMV( iA, lambda ) );
+		wB = b3Add( wB, b3InvMulMV( iB, lambda ) );
 	}
 
 	if ( joint->enableTwistLimit && fixedRotation == false )
@@ -634,15 +634,15 @@ void b3SolveSphericalJoint( b3JointSim* base, b3StepContext* context, bool useBi
 		k.cy.y += mA + mB;
 		k.cz.z += mA + mB;
 
-		b3Vec3 b = b3Solve3( k, b3Add( cdot, bias ) );
+		b3Vec3 b = b3Solve3AcrossScales( k, b3Add( cdot, bias ) );
 
 		b3Vec3 impulse = b3MulSub( b3MulSV( -massScale, b ), impulseScale, joint->linearImpulse );
 		joint->linearImpulse = b3Add( joint->linearImpulse, impulse );
 
-		vA = b3MulSub( vA, mA, impulse );
-		wA = b3Sub( wA, b3MulMV( iA, b3Cross( rA, impulse ) ) );
-		vB = b3MulAdd( vB, mB, impulse );
-		wB = b3Add( wB, b3MulMV( iB, b3Cross( rB, impulse ) ) );
+		vA = b3Sub( vA, b3InvMulSV( mA, impulse ) );
+		wA = b3Sub( wA, b3InvMulMV( iA, b3Cross( rA, impulse ) ) );
+		vB = b3Add( vB, b3InvMulSV( mB, impulse ) );
+		wB = b3Add( wB, b3InvMulMV( iB, b3Cross( rB, impulse ) ) );
 	}
 
 	if ( stateA->flags & b3_dynamicFlag )

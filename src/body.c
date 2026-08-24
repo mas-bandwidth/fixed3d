@@ -949,7 +949,7 @@ void b3UpdateBodyMassData( b3World* world, b3Body* body )
 
 	// Inverted at the inverse scale, which is the whole reason a large body has a usable
 	// inverse inertia at all. Returns a zero matrix for a singular tensor.
-	b3SetLocalInverseInertia( bodySim, b3InvertInertiaWide( body->inertia ), body->inertia );
+	b3SetLocalInverseInertia( bodySim, b3InvertAcrossScales( body->inertia ), body->inertia );
 	if ( bodySim->invInertiaLocal.cx.x > 0 || bodySim->invInertiaLocal.cy.y > 0 || bodySim->invInertiaLocal.cz.z > 0 )
 	{
 		b3Matrix3 rotationMatrix = b3MakeMatrixFromQuat( bodySim->transform.q );
@@ -1793,6 +1793,27 @@ b3Matrix3 b3Body_GetWorldInverseRotationalInertia( b3BodyId bodyId )
 	return b3FixedFromInvMatrix( sim->invInertiaWorld );
 }
 
+b3Fixed b3Body_GetInverseMassPrecise( b3BodyId bodyId )
+{
+	b3World* world = b3GetWorld( bodyId.world0 );
+	b3Body* body = b3GetBodyFullId( world, bodyId );
+	b3BodySim* sim = b3GetBodySim( world, body );
+	return sim->invMass;
+}
+
+b3Matrix3 b3Body_GetWorldInverseRotationalInertiaPrecise( b3BodyId bodyId )
+{
+	b3World* world = b3GetWorld( bodyId.world0 );
+	b3Body* body = b3GetBodyFullId( world, bodyId );
+	b3BodySim* sim = b3GetBodySim( world, body );
+	return sim->invInertiaWorld;
+}
+
+int b3GetInverseFractionBits( void )
+{
+	return B3_INVERSE_FRACTION_BITS;
+}
+
 b3Vec3 b3Body_GetLocalCenter( b3BodyId bodyId )
 {
 	b3World* world = b3GetWorld( bodyId.world0 );
@@ -1852,7 +1873,7 @@ void b3Body_SetMassData( b3BodyId bodyId, b3MassData massData )
 
 	// Inverted at the inverse scale, which is the whole reason a large body has a usable
 	// inverse inertia at all. Returns a zero matrix for a singular tensor.
-	b3SetLocalInverseInertia( bodySim, b3InvertInertiaWide( body->inertia ), body->inertia );
+	b3SetLocalInverseInertia( bodySim, b3InvertAcrossScales( body->inertia ), body->inertia );
 	if ( bodySim->invInertiaLocal.cx.x > 0 || bodySim->invInertiaLocal.cy.y > 0 || bodySim->invInertiaLocal.cz.z > 0 )
 	{
 		b3Matrix3 rotationMatrix = b3MakeMatrixFromQuat( bodySim->transform.q );

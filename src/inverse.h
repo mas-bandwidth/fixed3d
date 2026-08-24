@@ -126,6 +126,16 @@ B3_INLINE b3Fixed b3FixedFromInv( b3Fixed a )
 /// hardware divide gives the exact truncated reciprocal and no 128-bit arithmetic is
 /// involved. A zero denominator returns zero: zero mass is the degenerate body, not
 /// infinity, and every caller here already treats it that way.
+///
+/// SATURATES at the top of the format. The small-body bound in the analysis above is the
+/// one input this engine does not enforce for itself -- inertia has b3FloorInertia, but
+/// mass has no floor at all, so a caller may hand over a mass whose inverse does not fit.
+/// Q24.40 holds inverse quantities up to 8.39e6, which is a body of mass 1.19e-7 -- a
+/// sphere of about 3mm at density 1, far below the 4cm scale where this engine's inertia
+/// already needs flooring. Below that the answer clamps to the largest inverse there is,
+/// so such a body is VERY LIGHT rather than wrapped to something of arbitrary sign. That
+/// turns the one assumption in the format choice into an enforced invariant, which is the
+/// same move b3InverseMass makes at the other end of the range.
 B3_INLINE b3Fixed b3InvFromRatio( b3Fixed a )
 {
 	if ( a == 0 )
@@ -133,7 +143,18 @@ B3_INLINE b3Fixed b3InvFromRatio( b3Fixed a )
 		return 0;
 	}
 
-	return ( (int64_t)1 << ( B3_FIXED_FRACTION_BITS + B3_INVERSE_FRACTION_BITS ) ) / a;
+	b3Int128 ratio = fixInt128Div( fixInt128ShiftLeft( fixInt128FromI64( 1 ), B3_FIXED_FRACTION_BITS + B3_INVERSE_FRACTION_BITS ),
+								  fixInt128FromI64( a ) );
+	if ( fixInt128Gt( ratio, fixInt128FromI64( B3_FIXED_MAX ) ) )
+	{
+		return B3_FIXED_MAX;
+	}
+	if ( fixInt128Lt( ratio, fixInt128FromI64( -B3_FIXED_MAX ) ) )
+	{
+		return -B3_FIXED_MAX;
+	}
+
+	return (b3Fixed)fixInt128ToI64( ratio );
 }
 
 /// 1 / k, where k is an inverse quantity and the answer is an ordinary one: the effective
@@ -179,7 +200,11 @@ B3_INLINE b3Matrix3 b3FixedFromInvMatrix( b3Matrix3 m )
 	return out;
 }
 
-/// The inverse of an inertia tensor, computed DIRECTLY at the inverse scale.
+/// A 3x3 inverse that CROSSES THE TWO SCALES, in either direction: an ordinary tensor in
+/// gives an inverse-scaled one out, and an inverse-scaled one in gives an ordinary one
+/// out. The same routine serves both, and that is not a coincidence -- inverting a
+/// 2^40-scaled matrix down to 2^16 needs the same shift as inverting a 2^16 matrix up to
+/// 2^40, because the shift is the SUM of the two scales either way.
 ///
 /// The obvious implementation -- invert to Q48.16 and shift left by 24 -- is exactly the
 /// thing this format exists to avoid: the Q48.16 inverse of a large tensor is already
@@ -194,7 +219,7 @@ B3_INLINE b3Matrix3 b3FixedFromInvMatrix( b3Matrix3 m )
 /// about its cost is that it is finite.
 ///
 /// A singular tensor gives the zero matrix, as everywhere else in this engine.
-B3_INLINE b3Matrix3 b3InvertInertiaWide( b3Matrix3 m )
+B3_INLINE b3Matrix3 b3InvertAcrossScales( b3Matrix3 m )
 {
 	fixInt128 c00 = fixCofactor128( m.cy.y, m.cz.z, m.cy.z, m.cz.y );
 	fixInt128 c01 = fixCofactor128( m.cy.z, m.cz.x, m.cy.x, m.cz.z );
@@ -240,6 +265,51 @@ B3_INLINE b3Vec3 b3InvMulMV( b3Matrix3 m, b3Vec3 v )
 		b3InvMul( m.cx.x, v.x ) + b3InvMul( m.cy.x, v.y ) + b3InvMul( m.cz.x, v.z ),
 		b3InvMul( m.cx.y, v.x ) + b3InvMul( m.cy.y, v.y ) + b3InvMul( m.cz.y, v.z ),
 		b3InvMul( m.cx.z, v.x ) + b3InvMul( m.cy.z, v.y ) + b3InvMul( m.cz.z, v.z ),
+	};
+	return out;
+}
+
+
+/// Solve an inverse-scaled system for an ORDINARY result: the joints' impulse solves,
+/// where k is a per-mass matrix and the right-hand side is a velocity.
+///
+/// The shift here is 40 and not 56, which is the one place the two scales do not simply
+/// add: the right-hand side is already an ordinary value, so it contributes 16 of the
+/// scale itself. Carried at 256 bits because a cofactor of inverse-scaled entries reaches
+/// 2^107 for the smallest body this format admits, and the shift takes it past 128.
+B3_INLINE b3Vec3 b3Solve3AcrossScales( b3Matrix3 m, b3Vec3 a )
+{
+	fixInt128 c00 = fixCofactor128( m.cy.y, m.cz.z, m.cy.z, m.cz.y );
+	fixInt128 c01 = fixCofactor128( m.cy.z, m.cz.x, m.cy.x, m.cz.z );
+	fixInt128 c02 = fixCofactor128( m.cy.x, m.cz.y, m.cy.y, m.cz.x );
+	fixInt128 c10 = fixCofactor128( m.cz.y, m.cx.z, m.cz.z, m.cx.y );
+	fixInt128 c11 = fixCofactor128( m.cz.z, m.cx.x, m.cz.x, m.cx.z );
+	fixInt128 c12 = fixCofactor128( m.cz.x, m.cx.y, m.cz.y, m.cx.x );
+	fixInt128 c20 = fixCofactor128( m.cx.y, m.cy.z, m.cx.z, m.cy.y );
+	fixInt128 c21 = fixCofactor128( m.cx.z, m.cy.x, m.cx.x, m.cy.z );
+	fixInt128 c22 = fixCofactor128( m.cx.x, m.cy.y, m.cx.y, m.cy.x );
+
+	fixUInt256 det = fixUInt256Add( fixUInt256Add( fixInt256MulI128ByI64( c00, m.cx.x ), fixInt256MulI128ByI64( c10, m.cy.x ) ),
+									fixInt256MulI128ByI64( c20, m.cz.x ) );
+	if ( fixUInt256IsZero( det ) )
+	{
+		return b3Vec3_zero;
+	}
+
+	bool negative = fixInt256IsNegative( det );
+	fixUInt256 absDet = fixInt256Abs( det );
+
+	fixUInt256 nx = fixUInt256Add( fixUInt256Add( fixInt256MulI128ByI64( c00, a.x ), fixInt256MulI128ByI64( c01, a.y ) ),
+								   fixInt256MulI128ByI64( c02, a.z ) );
+	fixUInt256 ny = fixUInt256Add( fixUInt256Add( fixInt256MulI128ByI64( c10, a.x ), fixInt256MulI128ByI64( c11, a.y ) ),
+								   fixInt256MulI128ByI64( c12, a.z ) );
+	fixUInt256 nz = fixUInt256Add( fixUInt256Add( fixInt256MulI128ByI64( c20, a.x ), fixInt256MulI128ByI64( c21, a.y ) ),
+								   fixInt256MulI128ByI64( c22, a.z ) );
+
+	b3Vec3 out = {
+		fixDivShifted256( nx, B3_INVERSE_FRACTION_BITS, absDet, negative ),
+		fixDivShifted256( ny, B3_INVERSE_FRACTION_BITS, absDet, negative ),
+		fixDivShifted256( nz, B3_INVERSE_FRACTION_BITS, absDet, negative ),
 	};
 	return out;
 }

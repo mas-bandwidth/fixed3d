@@ -142,8 +142,8 @@ void b3WarmStartParallelJoint( b3JointSim* base, b3StepContext* context )
 
 	b3Vec3 angularImpulse = b3Blend2( joint->perpImpulse.x, joint->perpAxisX, joint->perpImpulse.y, joint->perpAxisY );
 
-	wA = b3Sub( wA, b3MulMV( iA, angularImpulse ) );
-	wB = b3Add( wB, b3MulMV( iB, angularImpulse ) );
+	wA = b3Sub( wA, b3InvMulMV( iA, angularImpulse ) );
+	wB = b3Add( wB, b3InvMulMV( iB, angularImpulse ) );
 
 	if ( stateA->flags & b3_dynamicFlag )
 	{
@@ -224,8 +224,8 @@ void b3SolveParallelJoint( b3JointSim* base, b3StepContext* context )
 		deltaImpulse = b3Sub2( joint->perpImpulse, oldImpulse );
 
 		b3Vec3 angularImpulse = b3Blend2( deltaImpulse.x, perpAxisX, deltaImpulse.y, perpAxisY );
-		wA = b3Sub( wA, b3MulMV( iA, angularImpulse ) );
-		wB = b3Add( wB, b3MulMV( iB, angularImpulse ) );
+		wA = b3Sub( wA, b3InvMulMV( iA, angularImpulse ) );
+		wB = b3Add( wB, b3InvMulMV( iB, angularImpulse ) );
 	}
 
 	if ( stateA->flags & b3_dynamicFlag )

@@ -157,7 +157,7 @@ void b3PrepareContacts_Mesh( b3SolverBlock block, b3StepContext* context )
 			contactConstraint->invMassB = mB;
 			// The 128-bit matrix inversion is only needed when rolling resistance is active
 			contactConstraint->rollingMass =
-				contact->rollingResistance > B3_FIX( 0.0f ) ? b3InvertMatrix( b3AddMM( iA, iB ) ) : b3Mat3_zero;
+				contact->rollingResistance > B3_FIX( 0.0f ) ? b3InvertAcrossScales( b3AddMM( iA, iB ) ) : b3Mat3_zero;
 			contactConstraint->softness =
 				( contact->flags & b3_contactStaticFlag ) != 0 ? context->staticSoftness : context->contactSoftness;
 			contactConstraint->friction = contact->friction;
@@ -209,7 +209,7 @@ void b3PrepareContacts_Mesh( b3SolverBlock block, b3StepContext* context )
 					b3Vec3 rnA = b3Cross( rA, normal );
 					b3Vec3 rnB = b3Cross( rB, normal );
 					b3Fixed kNormal = mA + mB + b3Dot( rnA, b3MulMV( iA, rnA ) ) + b3Dot( rnB, b3MulMV( iB, rnB ) );
-					cp->normalMass = kNormal > B3_FIX( 0.0f ) ? b3FixDiv( B3_FIX( 1.0f ) , kNormal ) : B3_FIX( 0.0f );
+					cp->normalMass = kNormal > B3_FIX( 0.0f ) ? b3InvReciprocal( kNormal ) : B3_FIX( 0.0f );
 
 					// Save relative velocity for restitution
 					b3Vec3 vrA = b3Add( vA, b3Cross( wA, rA ) );
@@ -251,14 +251,14 @@ void b3PrepareContacts_Mesh( b3SolverBlock block, b3StepContext* context )
 					k.cy.y = mA + mB + b3Dot( rtA2, b3MulMV( iA, rtA2 ) ) + b3Dot( rtB2, b3MulMV( iB, rtB2 ) );
 					k.cx.y = k.cy.x = b3Dot( rtA1, b3MulMV( iA, rtA2 ) ) + b3Dot( rtB1, b3MulMV( iB, rtB2 ) );
 
-					constraint->tangentMass = b3Invert2( k );
+					constraint->tangentMass = b3Invert2AcrossScales( k );
 					constraint->frictionImpulse.x = b3FixMul( warmStartScale , b3Dot( manifold->frictionImpulse, tangent1 ) );
 					constraint->frictionImpulse.y = b3FixMul( warmStartScale , b3Dot( manifold->frictionImpulse, tangent2 ) );
 				}
 
 				{
 					b3Fixed k = b3Dot( normal, b3MulMV( b3AddMM( iA, iB ), normal ) );
-					constraint->twistMass = k > B3_FIX( 0.0f ) ? b3FixDiv( B3_FIX( 1.0f ) , k ) : B3_FIX( 0.0f );
+					constraint->twistMass = k > B3_FIX( 0.0f ) ? b3InvReciprocal( k ) : B3_FIX( 0.0f );
 					constraint->twistImpulse = b3FixMul( warmStartScale , manifold->twistImpulse );
 				}
 
@@ -325,10 +325,10 @@ void b3WarmStartContacts_Mesh( b3SolverBlock block, b3StepContext* context )
 				b3Vec3 rB = cp->rB;
 
 				b3Vec3 impulse = b3MulSV( cp->normalImpulse, normal );
-				wA = b3Sub( wA, b3MulMV( iA, b3Cross( rA, impulse ) ) );
-				vA = b3MulSub( vA, mA, impulse );
-				wB = b3Add( wB, b3MulMV( iB, b3Cross( rB, impulse ) ) );
-				vB = b3MulAdd( vB, mB, impulse );
+				wA = b3Sub( wA, b3InvMulMV( iA, b3Cross( rA, impulse ) ) );
+				vA = b3Sub( vA, b3InvMulSV( mA, impulse ) );
+				wB = b3Add( wB, b3InvMulMV( iB, b3Cross( rB, impulse ) ) );
+				vB = b3Add( vB, b3InvMulSV( mB, impulse ) );
 			}
 
 			// Central friction
@@ -338,24 +338,24 @@ void b3WarmStartContacts_Mesh( b3SolverBlock block, b3StepContext* context )
 				b3Vec3 impulse = b3MulSV( constraint->frictionImpulse.x, constraint->tangent1 );
 				impulse = b3Add( impulse, b3MulSV( constraint->frictionImpulse.y, constraint->tangent2 ) );
 
-				wA = b3Sub( wA, b3MulMV( iA, b3Cross( rA, impulse ) ) );
-				vA = b3MulSub( vA, mA, impulse );
-				wB = b3Add( wB, b3MulMV( iB, b3Cross( rB, impulse ) ) );
-				vB = b3MulAdd( vB, mB, impulse );
+				wA = b3Sub( wA, b3InvMulMV( iA, b3Cross( rA, impulse ) ) );
+				vA = b3Sub( vA, b3InvMulSV( mA, impulse ) );
+				wB = b3Add( wB, b3InvMulMV( iB, b3Cross( rB, impulse ) ) );
+				vB = b3Add( vB, b3InvMulSV( mB, impulse ) );
 			}
 
 			// Central twist friction
 			{
 				b3Vec3 impulse = b3MulSV( constraint->twistImpulse, constraint->normal );
-				wA = b3Sub( wA, b3MulMV( iA, impulse ) );
-				wB = b3Add( wB, b3MulMV( iB, impulse ) );
+				wA = b3Sub( wA, b3InvMulMV( iA, impulse ) );
+				wB = b3Add( wB, b3InvMulMV( iB, impulse ) );
 			}
 
 			// Rolling resistance
 			{
 				b3Vec3 impulse = constraint->rollingImpulse;
-				wA = b3Sub( wA, b3MulMV( iA, impulse ) );
-				wB = b3Add( wB, b3MulMV( iB, impulse ) );
+				wA = b3Sub( wA, b3InvMulMV( iA, impulse ) );
+				wB = b3Add( wB, b3InvMulMV( iB, impulse ) );
 			}
 		}
 
@@ -692,11 +692,11 @@ void b3SolveContacts_Mesh( b3SolverBlock block, b3StepContext* context, bool use
 
 				// apply normal impulse
 				b3Vec3 P = b3MulSV( deltaImpulse, normal );
-				vA = b3MulSub( vA, mA, P );
-				wA = b3Sub( wA, b3MulMV( iA, b3Cross( rA, P ) ) );
+				vA = b3Sub( vA, b3InvMulSV( mA, P ) );
+				wA = b3Sub( wA, b3InvMulMV( iA, b3Cross( rA, P ) ) );
 
-				vB = b3MulAdd( vB, mB, P );
-				wB = b3Add( wB, b3MulMV( iB, b3Cross( rB, P ) ) );
+				vB = b3Add( vB, b3InvMulSV( mB, P ) );
+				wB = b3Add( wB, b3InvMulMV( iB, b3Cross( rB, P ) ) );
 			}
 
 			// No friction when applying bias
@@ -716,8 +716,8 @@ void b3SolveContacts_Mesh( b3SolverBlock block, b3StepContext* context, bool use
 				constraint->twistImpulse = b3FixClamp( oldImpulse + deltaImpulse, -maxImpulse, maxImpulse );
 				deltaImpulse = constraint->twistImpulse - oldImpulse;
 
-				wA = b3Sub( wA, b3MulMV( iA, b3MulSV( deltaImpulse, constraint->normal ) ) );
-				wB = b3Add( wB, b3MulMV( iB, b3MulSV( deltaImpulse, constraint->normal ) ) );
+				wA = b3Sub( wA, b3InvMulMV( iA, b3MulSV( deltaImpulse, constraint->normal ) ) );
+				wB = b3Add( wB, b3InvMulMV( iB, b3MulSV( deltaImpulse, constraint->normal ) ) );
 			}
 
 			// Rolling resistance
@@ -753,8 +753,8 @@ void b3SolveContacts_Mesh( b3SolverBlock block, b3StepContext* context, bool use
 
 				deltaImpulse = b3Sub( constraint->rollingImpulse, oldImpulse );
 
-				wA = b3Sub( wA, b3MulMV( iA, deltaImpulse ) );
-				wB = b3Add( wB, b3MulMV( iB, deltaImpulse ) );
+				wA = b3Sub( wA, b3InvMulMV( iA, deltaImpulse ) );
+				wB = b3Add( wB, b3InvMulMV( iB, deltaImpulse ) );
 			}
 
 			// Central friction
@@ -814,10 +814,10 @@ void b3SolveContacts_Mesh( b3SolverBlock block, b3StepContext* context, bool use
 
 				// Apply delta impulse
 				b3Vec3 P = b3Blend2( deltaImpulse.x, tangent1, deltaImpulse.y, tangent2 );
-				vA = b3MulSub( vA, mA, P );
-				wA = b3Sub( wA, b3MulMV( iA, b3Cross( rA, P ) ) );
-				vB = b3MulAdd( vB, mB, P );
-				wB = b3Add( wB, b3MulMV( iB, b3Cross( rB, P ) ) );
+				vA = b3Sub( vA, b3InvMulSV( mA, P ) );
+				wA = b3Sub( wA, b3InvMulMV( iA, b3Cross( rA, P ) ) );
+				vB = b3Add( vB, b3InvMulSV( mB, P ) );
+				wB = b3Add( wB, b3InvMulMV( iB, b3Cross( rB, P ) ) );
 			}
 		}
 
@@ -917,10 +917,10 @@ void b3ApplyRestitution_Mesh( b3SolverBlock block, b3StepContext* context )
 
 				// apply contact impulse
 				b3Vec3 P = b3MulSV( impulse, normal );
-				vA = b3MulSub( vA, mA, P );
-				wA = b3Sub( wA, b3MulMV( iA, b3Cross( rA, P ) ) );
-				vB = b3MulAdd( vB, mB, P );
-				wB = b3Add( wB, b3MulMV( iB, b3Cross( rB, P ) ) );
+				vA = b3Sub( vA, b3InvMulSV( mA, P ) );
+				wA = b3Sub( wA, b3InvMulMV( iA, b3Cross( rA, P ) ) );
+				vB = b3Add( vB, b3InvMulSV( mB, P ) );
+				wB = b3Add( wB, b3InvMulMV( iB, b3Cross( rB, P ) ) );
 			}
 
 			if ( stateA->flags & b3_dynamicFlag )
@@ -1142,6 +1142,14 @@ static inline b3Vec3W b3WidenVW( b3Vec3WN a )
 
 // Store one lane of a narrow field. Values are bounded by hull extents; the
 // clamp keeps a pathological world deterministic instead of wrapping.
+// Store one lane of a FULL-WIDTH field. The inverse-scaled Jacobian rows live at full
+// width (see the struct comments), so they need this rather than b3StoreNarrow -- which
+// would clamp them to int32 and destroy the precision the wider scale exists to provide.
+static inline void b3StoreWideLane( b3FloatW* target, int lane, b3Fixed value )
+{
+	( (int64_t*)target )[lane] = value;
+}
+
 static inline void b3StoreNarrow( b3FloatWN* target, int lane, b3Fixed value )
 {
 	B3_ASSERT( -INT32_MAX <= value && value <= INT32_MAX );
@@ -1901,6 +1909,75 @@ static inline b3Vec3W b3MulMVFullW( const b3Matrix3FullW* m, b3Vec3W a )
 	};
 }
 
+// ================================================================================
+// CROSSING THE INVERSE SCALE, WIDE.
+//
+// The wide constraint carries inverse quantities and rows built from them -- invMass*n,
+// invI*cross(r,n), invI*n -- all of which stay in the inverse scale, because b3MulW
+// shifts by 16 (see src/inverse.h). These are the operations that take one of those and
+// produce an ORDINARY velocity, so they shift by B3_INVERSE_FRACTION_BITS instead.
+//
+// All of them are PER-PRODUCT, not fused, and that is a requirement rather than a
+// preference: the scalar path uses b3InvMulMV, which rounds per product, and the scalar
+// and wide paths must agree bit for bit or the determinism goldens diverge by worker
+// count. Fusing these would be a real optimization and it is not available here.
+// ================================================================================
+
+static inline b3FloatW b3InvMulW( b3FloatW a, b3FloatW b )
+{
+	return b3MakeW( b3InvMul( a.x, b.x ), b3InvMul( a.y, b.y ), b3InvMul( a.z, b.z ), b3InvMul( a.w, b.w ) );
+}
+
+/// 1 / k per lane, where k is inverse-scaled and the effective mass is ordinary.
+static inline b3FloatW b3InvReciprocalW( b3FloatW a )
+{
+	return b3MakeW( b3InvReciprocal( a.x ), b3InvReciprocal( a.y ), b3InvReciprocal( a.z ), b3InvReciprocal( a.w ) );
+}
+
+// a - s * b, where s or b carries the inverse scale and the result is a velocity.
+static inline b3Vec3W b3InvMulSubSVW( b3Vec3W a, b3FloatW s, b3Vec3W b )
+{
+	return (b3Vec3W){ b3SubW( a.X, b3InvMulW( s, b.X ) ), b3SubW( a.Y, b3InvMulW( s, b.Y ) ),
+					  b3SubW( a.Z, b3InvMulW( s, b.Z ) ) };
+}
+
+// a + s * b, likewise.
+static inline b3Vec3W b3InvMulAddSVW( b3Vec3W a, b3FloatW s, b3Vec3W b )
+{
+	return (b3Vec3W){ b3AddW( a.X, b3InvMulW( s, b.X ) ), b3AddW( a.Y, b3InvMulW( s, b.Y ) ),
+					  b3AddW( a.Z, b3InvMulW( s, b.Z ) ) };
+}
+
+// a - m * b, where m is an inverse inertia and the result is an angular velocity.
+static inline b3Vec3W b3InvMulSubMVW( b3Vec3W a, b3SymMatrix3W m, b3Vec3W b )
+{
+	return (b3Vec3W){
+		b3SubW( a.X, b3AddW( b3AddW( b3InvMulW( m.cxx, b.X ), b3InvMulW( m.cxy, b.Y ) ), b3InvMulW( m.cxz, b.Z ) ) ),
+		b3SubW( a.Y, b3AddW( b3AddW( b3InvMulW( m.cxy, b.X ), b3InvMulW( m.cyy, b.Y ) ), b3InvMulW( m.cyz, b.Z ) ) ),
+		b3SubW( a.Z, b3AddW( b3AddW( b3InvMulW( m.cxz, b.X ), b3InvMulW( m.cyz, b.Y ) ), b3InvMulW( m.czz, b.Z ) ) ),
+	};
+}
+
+// a + m * b, likewise.
+static inline b3Vec3W b3InvMulAddMVW( b3Vec3W a, b3SymMatrix3W m, b3Vec3W b )
+{
+	return (b3Vec3W){
+		b3AddW( a.X, b3AddW( b3AddW( b3InvMulW( m.cxx, b.X ), b3InvMulW( m.cxy, b.Y ) ), b3InvMulW( m.cxz, b.Z ) ) ),
+		b3AddW( a.Y, b3AddW( b3AddW( b3InvMulW( m.cxy, b.X ), b3InvMulW( m.cyy, b.Y ) ), b3InvMulW( m.cyz, b.Z ) ) ),
+		b3AddW( a.Z, b3AddW( b3AddW( b3InvMulW( m.cxz, b.X ), b3InvMulW( m.cyz, b.Y ) ), b3InvMulW( m.czz, b.Z ) ) ),
+	};
+}
+
+// m * a for a full (non-symmetric) inverse tensor, giving an ordinary vector.
+static inline b3Vec3W b3InvMulMVFullW( const b3Matrix3FullW* m, b3Vec3W a )
+{
+	return (b3Vec3W){
+		b3AddW( b3AddW( b3InvMulW( m->cxx, a.X ), b3InvMulW( m->cyx, a.Y ) ), b3InvMulW( m->czx, a.Z ) ),
+		b3AddW( b3AddW( b3InvMulW( m->cxy, a.X ), b3InvMulW( m->cyy, a.Y ) ), b3InvMulW( m->czy, a.Z ) ),
+		b3AddW( b3AddW( b3InvMulW( m->cxz, a.X ), b3InvMulW( m->cyz, a.Y ) ), b3InvMulW( m->czz, a.Z ) ),
+	};
+}
+
 // Symmetric 2x2 times vec2 with the scalar b3MulMV2 rounding: per-product
 // rounding, plain adds. The fused b3MulMV2W does not match b3MulMV2.
 static inline b3Vec2W b3MulMV2UnfusedW( b3SymMatrix2W m, b3Vec2W a )
@@ -1940,7 +2017,13 @@ typedef struct b3ContactConstraintPointWide
 	// Each 128-bit fixed multiply costs several ops, so trading memory for
 	// multiplies pays here (unlike the float SIMD solver).
 	b3Vec3WN rnAs, rnBs;
-	b3Vec3WN iRnAs, iRnBs;
+
+	// FULL WIDTH, unlike their neighbours. These carry the inverse scale (see
+	// src/inverse.h), so a typical value is around 2^40 raw and does not fit the int32
+	// the narrow fields use -- it would clamp, not round. The narrow-storage audit that
+	// justified Q16.16 measured ORDINARY Jacobian terms bounded by hull extents; an
+	// inverse-derived row is a different quantity and is not covered by it.
+	b3Vec3W iRnAs, iRnBs;
 
 	b3FloatW baseSeparations;
 	b3FloatW normalImpulses;
@@ -1965,9 +2048,12 @@ typedef struct b3ContactConstraintWide
 	// invI * normal for the twist impulse, cross(origin, tangent) for central
 	// friction.
 	b3Vec3WN normal;
-	b3Vec3WN mNormalA, mNormalB;
-	b3Vec3WN iNormalA, iNormalB;
 	b3Vec3WN rtA1s, rtA2s, rtB1s, rtB2s;
+
+	// FULL WIDTH for the same reason as iRnAs above: invMass * normal and invI * normal
+	// both carry the inverse scale and overflow int32.
+	b3Vec3W mNormalA, mNormalB;
+	b3Vec3W iNormalA, iNormalB;
 
 	// todo test computing the tangents on the fly, at least tangent2
 	// ^ measured and REJECTED 2026-07-13 (branch tangent2-on-the-fly): bit-identical
@@ -2694,7 +2780,7 @@ void b3PrepareContacts_Convex( b3SolverBlock block, b3StepContext* context )
 				b3Vec3W iRnB = b3MulMVFullW( &iBW, rnB );
 				b3FloatW kNormal = b3AddW( b3AddW( mAW, mBW ), b3AddW( b3DotW( rnA, iRnA ), b3DotW( rnB, iRnB ) ) );
 				__mmask8 kPositive = _mm256_cmpgt_epi64_mask( kNormal.v, _mm256_setzero_si256() );
-				cp->normalMasses = b3MaskKeepW( laneValid & kPositive, b3DivW( oneW, kNormal ) );
+				cp->normalMasses = b3MaskKeepW( laneValid & kPositive, b3InvReciprocalW( kNormal ) );
 
 				B3_AUDIT_V3W( b3_auditAnchor, rA );
 				B3_AUDIT_V3W( b3_auditAnchor, rB );
@@ -2707,8 +2793,8 @@ void b3PrepareContacts_Convex( b3SolverBlock block, b3StepContext* context )
 				// Precomputed normal Jacobian rows for the solve and warm start
 				b3StoreNarrowVW( &cp->rnAs, rnA );
 				b3StoreNarrowVW( &cp->rnBs, rnB );
-				b3StoreNarrowVW( &cp->iRnAs, iRnA );
-				b3StoreNarrowVW( &cp->iRnBs, iRnB );
+				cp->iRnAs = (iRnA );
+				cp->iRnBs = (iRnB );
 
 				// Save relative velocity for restitution
 				b3Vec3W vrA = b3AddVW( vAW, b3CrossUnfusedW( wAW, rA ) );
@@ -2726,8 +2812,8 @@ void b3PrepareContacts_Convex( b3SolverBlock block, b3StepContext* context )
 				b3StoreNarrowVW( &cp->anchorBs, b3ZeroVW() );
 				b3StoreNarrowVW( &cp->rnAs, b3ZeroVW() );
 				b3StoreNarrowVW( &cp->rnBs, b3ZeroVW() );
-				b3StoreNarrowVW( &cp->iRnAs, b3ZeroVW() );
-				b3StoreNarrowVW( &cp->iRnBs, b3ZeroVW() );
+				cp->iRnAs = (b3ZeroVW() );
+				cp->iRnBs = (b3ZeroVW() );
 				cp->baseSeparations = b3ZeroW();
 				cp->normalImpulses = b3ZeroW();
 				cp->totalNormalImpulses = b3ZeroW();
@@ -2771,8 +2857,8 @@ void b3PrepareContacts_Convex( b3SolverBlock block, b3StepContext* context )
 			// Precomputed linear normal Jacobian
 			b3Vec3W mNormalAW = b3MulSVW( mAW, normalW );
 			b3Vec3W mNormalBW = b3MulSVW( mBW, normalW );
-			b3StoreNarrowVW( &constraint->mNormalA, mNormalAW );
-			b3StoreNarrowVW( &constraint->mNormalB, mNormalBW );
+			constraint->mNormalA = (mNormalAW );
+			constraint->mNormalB = (mNormalBW );
 
 			B3_AUDIT_V3W( b3_auditMNormal, mNormalAW );
 			B3_AUDIT_V3W( b3_auditMNormal, mNormalBW );
@@ -2797,7 +2883,7 @@ void b3PrepareContacts_Convex( b3SolverBlock block, b3StepContext* context )
 					k.cx.x = ( (b3Fixed*)&kxx )[lane];
 					k.cy.y = ( (b3Fixed*)&kyy )[lane];
 					k.cx.y = k.cy.x = ( (b3Fixed*)&kxy )[lane];
-					b3Matrix2 tangentMass = b3Invert2( k );
+					b3Matrix2 tangentMass = b3Invert2AcrossScales( k );
 
 					( (b3Fixed*)&constraint->tangentMass.cxx )[lane] = tangentMass.cx.x;
 					( (b3Fixed*)&constraint->tangentMass.cxy )[lane] = tangentMass.cx.y;
@@ -2812,12 +2898,12 @@ void b3PrepareContacts_Convex( b3SolverBlock block, b3StepContext* context )
 				// Precomputed angular normal Jacobian, also used for the twist mass
 				b3Vec3W iNormalAW = b3MulMVFullW( &iAW, normalW );
 				b3Vec3W iNormalBW = b3MulMVFullW( &iBW, normalW );
-				b3StoreNarrowVW( &constraint->iNormalA, iNormalAW );
-				b3StoreNarrowVW( &constraint->iNormalB, iNormalBW );
+				constraint->iNormalA = (iNormalAW );
+				constraint->iNormalB = (iNormalBW );
 
 				b3FloatW kTwist = b3AddW( b3DotW( normalW, iNormalAW ), b3DotW( normalW, iNormalBW ) );
 				__mmask8 kPositive = _mm256_cmpgt_epi64_mask( kTwist.v, _mm256_setzero_si256() );
-				constraint->twistMass = b3MaskKeepW( kPositive, b3DivW( oneW, kTwist ) );
+				constraint->twistMass = b3MaskKeepW( kPositive, b3InvReciprocalW( kTwist ) );
 				constraint->twistImpulse = b3MulW( warmStartScaleW, twistImpulseW );
 
 				B3_AUDIT_V3W( b3_auditINormal, iNormalAW );
@@ -2830,7 +2916,7 @@ void b3PrepareContacts_Convex( b3SolverBlock block, b3StepContext* context )
 				for ( int lane = 0; lane < laneCount; ++lane )
 				{
 					b3Matrix3 rollingMass = laneRollingResistance[lane] > B3_FIX( 0.0f )
-												? b3InvertMatrix( b3AddMM( iAFull[lane], iBFull[lane] ) )
+												? b3InvertAcrossScales( b3AddMM( iAFull[lane], iBFull[lane] ) )
 												: b3Mat3_zero;
 
 					( (b3Fixed*)&constraint->rollingMass.cxx )[lane] = rollingMass.cx.x;
@@ -3069,7 +3155,7 @@ void b3PrepareContacts_Convex( b3SolverBlock block, b3StepContext* context )
 					b3Vec3 iRnA = b3MulMV( iA, rnA );
 					b3Vec3 iRnB = b3MulMV( iB, rnB );
 					b3Fixed kNormal = mA + mB + b3Dot( rnA, iRnA ) + b3Dot( rnB, iRnB );
-					( (b3Fixed*)&cp->normalMasses )[lane] = kNormal > B3_FIX( 0.0f ) ? b3FixDiv( B3_FIX( 1.0f ) , kNormal ) : B3_FIX( 0.0f );
+					( (b3Fixed*)&cp->normalMasses )[lane] = kNormal > B3_FIX( 0.0f ) ? b3InvReciprocal( kNormal ) : B3_FIX( 0.0f );
 
 					B3_AUDIT_V3( b3_auditAnchor, rA );
 					B3_AUDIT_V3( b3_auditAnchor, rB );
@@ -3090,12 +3176,12 @@ void b3PrepareContacts_Convex( b3SolverBlock block, b3StepContext* context )
 					b3StoreNarrow( &cp->rnBs.X, lane, rnB.x );
 					b3StoreNarrow( &cp->rnBs.Y, lane, rnB.y );
 					b3StoreNarrow( &cp->rnBs.Z, lane, rnB.z );
-					b3StoreNarrow( &cp->iRnAs.X, lane, iRnA.x );
-					b3StoreNarrow( &cp->iRnAs.Y, lane, iRnA.y );
-					b3StoreNarrow( &cp->iRnAs.Z, lane, iRnA.z );
-					b3StoreNarrow( &cp->iRnBs.X, lane, iRnB.x );
-					b3StoreNarrow( &cp->iRnBs.Y, lane, iRnB.y );
-					b3StoreNarrow( &cp->iRnBs.Z, lane, iRnB.z );
+					b3StoreWideLane( &cp->iRnAs.X, lane, iRnA.x );
+					b3StoreWideLane( &cp->iRnAs.Y, lane, iRnA.y );
+					b3StoreWideLane( &cp->iRnAs.Z, lane, iRnA.z );
+					b3StoreWideLane( &cp->iRnBs.X, lane, iRnB.x );
+					b3StoreWideLane( &cp->iRnBs.Y, lane, iRnB.y );
+					b3StoreWideLane( &cp->iRnBs.Z, lane, iRnB.z );
 
 					// Save relative velocity for restitution
 					b3Vec3 vrA = b3Add( vA, b3Cross( wA, rA ) );
@@ -3137,12 +3223,12 @@ void b3PrepareContacts_Convex( b3SolverBlock block, b3StepContext* context )
 				// Precomputed linear normal Jacobian
 				b3Vec3 mNormalA = b3MulSV( mA, normal );
 				b3Vec3 mNormalB = b3MulSV( mB, normal );
-				b3StoreNarrow( &constraint->mNormalA.X, lane, mNormalA.x );
-				b3StoreNarrow( &constraint->mNormalA.Y, lane, mNormalA.y );
-				b3StoreNarrow( &constraint->mNormalA.Z, lane, mNormalA.z );
-				b3StoreNarrow( &constraint->mNormalB.X, lane, mNormalB.x );
-				b3StoreNarrow( &constraint->mNormalB.Y, lane, mNormalB.y );
-				b3StoreNarrow( &constraint->mNormalB.Z, lane, mNormalB.z );
+				b3StoreWideLane( &constraint->mNormalA.X, lane, mNormalA.x );
+				b3StoreWideLane( &constraint->mNormalA.Y, lane, mNormalA.y );
+				b3StoreWideLane( &constraint->mNormalA.Z, lane, mNormalA.z );
+				b3StoreWideLane( &constraint->mNormalB.X, lane, mNormalB.x );
+				b3StoreWideLane( &constraint->mNormalB.Y, lane, mNormalB.y );
+				b3StoreWideLane( &constraint->mNormalB.Z, lane, mNormalB.z );
 
 				B3_AUDIT_V3( b3_auditMNormal, mNormalA );
 				B3_AUDIT_V3( b3_auditMNormal, mNormalB );
@@ -3156,7 +3242,7 @@ void b3PrepareContacts_Convex( b3SolverBlock block, b3StepContext* context )
 					k.cx.x = mA + mB + b3Dot( rtA1, b3MulMV( iA, rtA1 ) ) + b3Dot( rtB1, b3MulMV( iB, rtB1 ) );
 					k.cy.y = mA + mB + b3Dot( rtA2, b3MulMV( iA, rtA2 ) ) + b3Dot( rtB2, b3MulMV( iB, rtB2 ) );
 					k.cx.y = k.cy.x = b3Dot( rtA1, b3MulMV( iA, rtA2 ) ) + b3Dot( rtB1, b3MulMV( iB, rtB2 ) );
-					b3Matrix2 tangentMass = b3Invert2( k );
+					b3Matrix2 tangentMass = b3Invert2AcrossScales( k );
 
 					( (b3Fixed*)&constraint->tangentMass.cxx )[lane] = tangentMass.cx.x;
 					( (b3Fixed*)&constraint->tangentMass.cxy )[lane] = tangentMass.cx.y;
@@ -3172,15 +3258,15 @@ void b3PrepareContacts_Convex( b3SolverBlock block, b3StepContext* context )
 					// Precomputed angular normal Jacobian, also used for the twist mass
 					b3Vec3 iNormalA = b3MulMV( iA, normal );
 					b3Vec3 iNormalB = b3MulMV( iB, normal );
-					b3StoreNarrow( &constraint->iNormalA.X, lane, iNormalA.x );
-					b3StoreNarrow( &constraint->iNormalA.Y, lane, iNormalA.y );
-					b3StoreNarrow( &constraint->iNormalA.Z, lane, iNormalA.z );
-					b3StoreNarrow( &constraint->iNormalB.X, lane, iNormalB.x );
-					b3StoreNarrow( &constraint->iNormalB.Y, lane, iNormalB.y );
-					b3StoreNarrow( &constraint->iNormalB.Z, lane, iNormalB.z );
+					b3StoreWideLane( &constraint->iNormalA.X, lane, iNormalA.x );
+					b3StoreWideLane( &constraint->iNormalA.Y, lane, iNormalA.y );
+					b3StoreWideLane( &constraint->iNormalA.Z, lane, iNormalA.z );
+					b3StoreWideLane( &constraint->iNormalB.X, lane, iNormalB.x );
+					b3StoreWideLane( &constraint->iNormalB.Y, lane, iNormalB.y );
+					b3StoreWideLane( &constraint->iNormalB.Z, lane, iNormalB.z );
 
 					b3Fixed k = b3Dot( normal, iNormalA ) + b3Dot( normal, iNormalB );
-					( (b3Fixed*)&constraint->twistMass )[lane] = k > B3_FIX( 0.0f ) ? b3FixDiv( B3_FIX( 1.0f ) , k ) : B3_FIX( 0.0f );
+					( (b3Fixed*)&constraint->twistMass )[lane] = k > B3_FIX( 0.0f ) ? b3InvReciprocal( k ) : B3_FIX( 0.0f );
 					( (b3Fixed*)&constraint->twistImpulse )[lane] = b3FixMul( warmStartScale , manifold->twistImpulse );
 
 					B3_AUDIT_V3( b3_auditINormal, iNormalA );
@@ -3191,7 +3277,7 @@ void b3PrepareContacts_Convex( b3SolverBlock block, b3StepContext* context )
 				{
 					// The 128-bit matrix inversion is only needed when rolling resistance is active
 					b3Matrix3 rollingMass =
-						contact->rollingResistance > B3_FIX( 0.0f ) ? b3InvertMatrix( b3AddMM( iA, iB ) ) : b3Mat3_zero;
+						contact->rollingResistance > B3_FIX( 0.0f ) ? b3InvertAcrossScales( b3AddMM( iA, iB ) ) : b3Mat3_zero;
 
 					( (b3Fixed*)&constraint->rollingMass.cxx )[lane] = rollingMass.cx.x;
 					( (b3Fixed*)&constraint->rollingMass.cxy )[lane] = rollingMass.cx.y;
@@ -3221,12 +3307,12 @@ void b3PrepareContacts_Convex( b3SolverBlock block, b3StepContext* context )
 					b3StoreNarrow( &cp->rnBs.X, lane, B3_FIX( 0.0f ) );
 					b3StoreNarrow( &cp->rnBs.Y, lane, B3_FIX( 0.0f ) );
 					b3StoreNarrow( &cp->rnBs.Z, lane, B3_FIX( 0.0f ) );
-					b3StoreNarrow( &cp->iRnAs.X, lane, B3_FIX( 0.0f ) );
-					b3StoreNarrow( &cp->iRnAs.Y, lane, B3_FIX( 0.0f ) );
-					b3StoreNarrow( &cp->iRnAs.Z, lane, B3_FIX( 0.0f ) );
-					b3StoreNarrow( &cp->iRnBs.X, lane, B3_FIX( 0.0f ) );
-					b3StoreNarrow( &cp->iRnBs.Y, lane, B3_FIX( 0.0f ) );
-					b3StoreNarrow( &cp->iRnBs.Z, lane, B3_FIX( 0.0f ) );
+					b3StoreWideLane( &cp->iRnAs.X, lane, B3_FIX( 0.0f ) );
+					b3StoreWideLane( &cp->iRnAs.Y, lane, B3_FIX( 0.0f ) );
+					b3StoreWideLane( &cp->iRnAs.Z, lane, B3_FIX( 0.0f ) );
+					b3StoreWideLane( &cp->iRnBs.X, lane, B3_FIX( 0.0f ) );
+					b3StoreWideLane( &cp->iRnBs.Y, lane, B3_FIX( 0.0f ) );
+					b3StoreWideLane( &cp->iRnBs.Z, lane, B3_FIX( 0.0f ) );
 					( (b3Fixed*)&cp->baseSeparations )[lane] = B3_FIX( 0.0f );
 					( (b3Fixed*)&cp->normalImpulses )[lane] = B3_FIX( 0.0f );
 					( (b3Fixed*)&cp->totalNormalImpulses )[lane] = B3_FIX( 0.0f );
@@ -3268,10 +3354,10 @@ void b3WarmStartContacts_Convex( b3SolverBlock block, b3StepContext* context )
 		{
 			b3ContactConstraintPointWide* cp = c->points + j;
 
-			bA.v = b3MulSubSVW( bA.v, cp->normalImpulses, b3WidenVW( c->mNormalA ) );
-			bA.w = b3MulSubSVW( bA.w, cp->normalImpulses, b3WidenVW( cp->iRnAs ) );
-			bB.v = b3MulAddSVW( bB.v, cp->normalImpulses, b3WidenVW( c->mNormalB ) );
-			bB.w = b3MulAddSVW( bB.w, cp->normalImpulses, b3WidenVW( cp->iRnBs ) );
+			bA.v = b3InvMulSubSVW( bA.v, cp->normalImpulses, c->mNormalA );
+			bA.w = b3InvMulSubSVW( bA.w, cp->normalImpulses, cp->iRnAs );
+			bB.v = b3InvMulAddSVW( bB.v, cp->normalImpulses, c->mNormalB );
+			bB.w = b3InvMulAddSVW( bB.w, cp->normalImpulses, cp->iRnBs );
 		}
 
 		// Central friction
@@ -3285,23 +3371,23 @@ void b3WarmStartContacts_Convex( b3SolverBlock block, b3StepContext* context )
 			b3Vec3W LB = b3MulSVW( c->frictionImpulse.x, b3WidenVW( c->rtB1s ) );
 			LB = b3MulAddSVW( LB, c->frictionImpulse.y, b3WidenVW( c->rtB2s ) );
 
-			bA.w = b3MulSubMVW( bA.w, c->invIA, LA );
-			bA.v = b3MulSubSVW( bA.v, c->invMassA, impulse );
-			bB.w = b3MulAddMVW( bB.w, c->invIB, LB );
-			bB.v = b3MulAddSVW( bB.v, c->invMassB, impulse );
+			bA.w = b3InvMulSubMVW( bA.w, c->invIA, LA );
+			bA.v = b3InvMulSubSVW( bA.v, c->invMassA, impulse );
+			bB.w = b3InvMulAddMVW( bB.w, c->invIB, LB );
+			bB.v = b3InvMulAddSVW( bB.v, c->invMassB, impulse );
 		}
 
 		// Central twist friction
 		{
-			bA.w = b3MulSubSVW( bA.w, c->twistImpulse, b3WidenVW( c->iNormalA ) );
-			bB.w = b3MulAddSVW( bB.w, c->twistImpulse, b3WidenVW( c->iNormalB ) );
+			bA.w = b3InvMulSubSVW( bA.w, c->twistImpulse, c->iNormalA );
+			bB.w = b3InvMulAddSVW( bB.w, c->twistImpulse, c->iNormalB );
 		}
 
 		// Rolling resistance
 		{
 			b3Vec3W impulse = c->rollingImpulse;
-			bA.w = b3MulSubMVW( bA.w, c->invIA, impulse );
-			bB.w = b3MulAddMVW( bB.w, c->invIB, impulse );
+			bA.w = b3InvMulSubMVW( bA.w, c->invIA, impulse );
+			bB.w = b3InvMulAddMVW( bB.w, c->invIB, impulse );
 		}
 
 		b3ScatterBodies( states, c->indexA, &bA );
@@ -3409,10 +3495,10 @@ void b3SolveContacts_Convex( b3SolverBlock block, b3StepContext* context, bool u
 			B3_AUDIT_W( b3_auditTotalNormalImpulse, cp->totalNormalImpulses );
 
 			// Apply contact impulse through the precomputed Jacobian rows
-			bA.v = b3MulSubSVW( bA.v, deltaImpulse, b3WidenVW( c->mNormalA ) );
-			bA.w = b3MulSubSVW( bA.w, deltaImpulse, b3WidenVW( cp->iRnAs ) );
-			bB.v = b3MulAddSVW( bB.v, deltaImpulse, b3WidenVW( c->mNormalB ) );
-			bB.w = b3MulAddSVW( bB.w, deltaImpulse, b3WidenVW( cp->iRnBs ) );
+			bA.v = b3InvMulSubSVW( bA.v, deltaImpulse, c->mNormalA );
+			bA.w = b3InvMulSubSVW( bA.w, deltaImpulse, cp->iRnAs );
+			bB.v = b3InvMulAddSVW( bB.v, deltaImpulse, c->mNormalB );
+			bB.w = b3InvMulAddSVW( bB.w, deltaImpulse, cp->iRnBs );
 		}
 
 		// No friction when applying bias
@@ -3459,8 +3545,8 @@ void b3SolveContacts_Convex( b3SolverBlock block, b3StepContext* context, bool u
 
 				deltaImpulse = b3SubVW( c->rollingImpulse, oldImpulse );
 
-				bA.w = b3MulSubMVW( bA.w, c->invIA, deltaImpulse );
-				bB.w = b3MulAddMVW( bB.w, c->invIB, deltaImpulse );
+				bA.w = b3InvMulSubMVW( bA.w, c->invIA, deltaImpulse );
+				bB.w = b3InvMulAddMVW( bB.w, c->invIB, deltaImpulse );
 			}
 
 			// Central twist friction
@@ -3473,8 +3559,8 @@ void b3SolveContacts_Convex( b3SolverBlock block, b3StepContext* context, bool u
 				c->twistImpulse = b3SymClampW( b3AddW( oldImpulse, deltaImpulse ), maxLambda );
 				deltaImpulse = b3SubW( c->twistImpulse, oldImpulse );
 
-				bA.w = b3MulSubSVW( bA.w, deltaImpulse, b3WidenVW( c->iNormalA ) );
-				bB.w = b3MulAddSVW( bB.w, deltaImpulse, b3WidenVW( c->iNormalB ) );
+				bA.w = b3InvMulSubSVW( bA.w, deltaImpulse, c->iNormalA );
+				bB.w = b3InvMulAddSVW( bB.w, deltaImpulse, c->iNormalB );
 			}
 
 			// Central friction
@@ -3546,10 +3632,10 @@ void b3SolveContacts_Convex( b3SolverBlock block, b3StepContext* context, bool u
 									  b3MulSVW( deltaImpulse.y, b3WidenVW( c->rtA2s ) ) );
 				b3Vec3W LB = b3AddVW( b3MulSVW( deltaImpulse.x, b3WidenVW( c->rtB1s ) ),
 									  b3MulSVW( deltaImpulse.y, b3WidenVW( c->rtB2s ) ) );
-				bA.w = b3MulSubMVW( bA.w, c->invIA, LA );
-				bA.v = b3MulSubSVW( bA.v, c->invMassA, P );
-				bB.w = b3MulAddMVW( bB.w, c->invIB, LB );
-				bB.v = b3MulAddSVW( bB.v, c->invMassB, P );
+				bA.w = b3InvMulSubMVW( bA.w, c->invIA, LA );
+				bA.v = b3InvMulSubSVW( bA.v, c->invMassA, P );
+				bB.w = b3InvMulAddMVW( bB.w, c->invIB, LB );
+				bB.v = b3InvMulAddSVW( bB.v, c->invMassB, P );
 			}
 		}
 
@@ -3613,10 +3699,10 @@ void b3ApplyRestitution_Convex( b3SolverBlock block, b3StepContext* context )
 			cp->totalNormalImpulses = b3AddW( cp->totalNormalImpulses, deltaImpulse );
 
 			// Apply contact impulse through the precomputed Jacobian rows
-			bA.v = b3MulSubSVW( bA.v, deltaImpulse, b3WidenVW( c->mNormalA ) );
-			bA.w = b3MulSubSVW( bA.w, deltaImpulse, b3WidenVW( cp->iRnAs ) );
-			bB.v = b3MulAddSVW( bB.v, deltaImpulse, b3WidenVW( c->mNormalB ) );
-			bB.w = b3MulAddSVW( bB.w, deltaImpulse, b3WidenVW( cp->iRnBs ) );
+			bA.v = b3InvMulSubSVW( bA.v, deltaImpulse, c->mNormalA );
+			bA.w = b3InvMulSubSVW( bA.w, deltaImpulse, cp->iRnAs );
+			bB.v = b3InvMulAddSVW( bB.v, deltaImpulse, c->mNormalB );
+			bB.w = b3InvMulAddSVW( bB.w, deltaImpulse, cp->iRnBs );
 		}
 
 		b3ScatterBodies( states, c->indexA, &bA );
@@ -3922,7 +4008,7 @@ void b3PrepareContacts_MeshWide( b3SolverBlock block, b3StepContext* context )
 
 				// The 128-bit matrix inversion is only needed when rolling resistance is active
 				b3Matrix3 rollingMass =
-					contact->rollingResistance > B3_FIX( 0.0f ) ? b3InvertMatrix( b3AddMM( iA, iB ) ) : b3Mat3_zero;
+					contact->rollingResistance > B3_FIX( 0.0f ) ? b3InvertAcrossScales( b3AddMM( iA, iB ) ) : b3Mat3_zero;
 				( (b3Fixed*)&constraint->rollingMass.cxx )[lane] = rollingMass.cx.x;
 				( (b3Fixed*)&constraint->rollingMass.cxy )[lane] = rollingMass.cx.y;
 				( (b3Fixed*)&constraint->rollingMass.cxz )[lane] = rollingMass.cx.z;
@@ -3998,7 +4084,7 @@ void b3PrepareContacts_MeshWide( b3SolverBlock block, b3StepContext* context )
 						b3Vec3 rnB = b3Cross( rB, normal );
 						b3Fixed kNormal = mA + mB + b3Dot( rnA, b3MulMV( iA, rnA ) ) + b3Dot( rnB, b3MulMV( iB, rnB ) );
 						( (b3Fixed*)&cp->normalMass )[lane] =
-							kNormal > B3_FIX( 0.0f ) ? b3FixDiv( B3_FIX( 1.0f ), kNormal ) : B3_FIX( 0.0f );
+							kNormal > B3_FIX( 0.0f ) ? b3InvReciprocal( kNormal ) : B3_FIX( 0.0f );
 
 						// Save relative velocity for restitution
 						b3Vec3 vrA = b3Add( vA, b3Cross( wA, rA ) );
@@ -4040,7 +4126,7 @@ void b3PrepareContacts_MeshWide( b3SolverBlock block, b3StepContext* context )
 						k.cy.y = mA + mB + b3Dot( rtA2, b3MulMV( iA, rtA2 ) ) + b3Dot( rtB2, b3MulMV( iB, rtB2 ) );
 						k.cx.y = k.cy.x = b3Dot( rtA1, b3MulMV( iA, rtA2 ) ) + b3Dot( rtB1, b3MulMV( iB, rtB2 ) );
 
-						b3Matrix2 tangentMass = b3Invert2( k );
+						b3Matrix2 tangentMass = b3Invert2AcrossScales( k );
 						B3_ASSERT( tangentMass.cx.y == tangentMass.cy.x );
 						( (b3Fixed*)&slot->tangentMass.cxx )[lane] = tangentMass.cx.x;
 						( (b3Fixed*)&slot->tangentMass.cxy )[lane] = tangentMass.cx.y;
@@ -4055,7 +4141,7 @@ void b3PrepareContacts_MeshWide( b3SolverBlock block, b3StepContext* context )
 					{
 						b3Fixed k = b3Dot( normal, b3MulMV( b3AddMM( iA, iB ), normal ) );
 						( (b3Fixed*)&slot->twistMass )[lane] =
-							k > B3_FIX( 0.0f ) ? b3FixDiv( B3_FIX( 1.0f ), k ) : B3_FIX( 0.0f );
+							k > B3_FIX( 0.0f ) ? b3InvReciprocal( k ) : B3_FIX( 0.0f );
 						( (b3Fixed*)&slot->twistImpulse )[lane] = b3FixMul( warmStartScale, manifold->twistImpulse );
 					}
 
@@ -4101,10 +4187,10 @@ void b3WarmStartContacts_MeshWide( b3SolverBlock block, b3StepContext* context )
 				b3ManifoldConstraintPointMeshWide* cp = m->points + j;
 
 				b3Vec3W impulse = b3MulSVW( cp->normalImpulse, normal );
-				bA.w = b3SubVW( bA.w, b3MulMVFullW( &c->invIA, b3CrossUnfusedW( cp->rA, impulse ) ) );
-				bA.v = b3MulSubSVW( bA.v, c->invMassA, impulse );
-				bB.w = b3AddVW( bB.w, b3MulMVFullW( &c->invIB, b3CrossUnfusedW( cp->rB, impulse ) ) );
-				bB.v = b3MulAddSVW( bB.v, c->invMassB, impulse );
+				bA.w = b3SubVW( bA.w, b3InvMulMVFullW( &c->invIA, b3CrossUnfusedW( cp->rA, impulse ) ) );
+				bA.v = b3InvMulSubSVW( bA.v, c->invMassA, impulse );
+				bB.w = b3AddVW( bB.w, b3InvMulMVFullW( &c->invIB, b3CrossUnfusedW( cp->rB, impulse ) ) );
+				bB.v = b3InvMulAddSVW( bB.v, c->invMassB, impulse );
 			}
 
 			// Central friction
@@ -4112,24 +4198,24 @@ void b3WarmStartContacts_MeshWide( b3SolverBlock block, b3StepContext* context )
 				b3Vec3W impulse = b3MulSVW( m->frictionImpulse.x, m->tangent1 );
 				impulse = b3AddVW( impulse, b3MulSVW( m->frictionImpulse.y, m->tangent2 ) );
 
-				bA.w = b3SubVW( bA.w, b3MulMVFullW( &c->invIA, b3CrossUnfusedW( m->centerA, impulse ) ) );
-				bA.v = b3MulSubSVW( bA.v, c->invMassA, impulse );
-				bB.w = b3AddVW( bB.w, b3MulMVFullW( &c->invIB, b3CrossUnfusedW( m->centerB, impulse ) ) );
-				bB.v = b3MulAddSVW( bB.v, c->invMassB, impulse );
+				bA.w = b3SubVW( bA.w, b3InvMulMVFullW( &c->invIA, b3CrossUnfusedW( m->centerA, impulse ) ) );
+				bA.v = b3InvMulSubSVW( bA.v, c->invMassA, impulse );
+				bB.w = b3AddVW( bB.w, b3InvMulMVFullW( &c->invIB, b3CrossUnfusedW( m->centerB, impulse ) ) );
+				bB.v = b3InvMulAddSVW( bB.v, c->invMassB, impulse );
 			}
 
 			// Central twist friction
 			{
 				b3Vec3W impulse = b3MulSVW( m->twistImpulse, normal );
-				bA.w = b3SubVW( bA.w, b3MulMVFullW( &c->invIA, impulse ) );
-				bB.w = b3AddVW( bB.w, b3MulMVFullW( &c->invIB, impulse ) );
+				bA.w = b3SubVW( bA.w, b3InvMulMVFullW( &c->invIA, impulse ) );
+				bB.w = b3AddVW( bB.w, b3InvMulMVFullW( &c->invIB, impulse ) );
 			}
 
 			// Rolling resistance
 			{
 				b3Vec3W impulse = m->rollingImpulse;
-				bA.w = b3SubVW( bA.w, b3MulMVFullW( &c->invIA, impulse ) );
-				bB.w = b3AddVW( bB.w, b3MulMVFullW( &c->invIB, impulse ) );
+				bA.w = b3SubVW( bA.w, b3InvMulMVFullW( &c->invIA, impulse ) );
+				bB.w = b3AddVW( bB.w, b3InvMulMVFullW( &c->invIB, impulse ) );
 			}
 		}
 
@@ -4232,10 +4318,10 @@ void b3SolveContacts_MeshWide( b3SolverBlock block, b3StepContext* context, bool
 
 				// apply normal impulse
 				b3Vec3W P = b3MulSVW( deltaImpulse, normal );
-				bA.v = b3MulSubSVW( bA.v, c->invMassA, P );
-				bA.w = b3SubVW( bA.w, b3MulMVFullW( &c->invIA, b3CrossUnfusedW( rA, P ) ) );
-				bB.v = b3MulAddSVW( bB.v, c->invMassB, P );
-				bB.w = b3AddVW( bB.w, b3MulMVFullW( &c->invIB, b3CrossUnfusedW( rB, P ) ) );
+				bA.v = b3InvMulSubSVW( bA.v, c->invMassA, P );
+				bA.w = b3SubVW( bA.w, b3InvMulMVFullW( &c->invIA, b3CrossUnfusedW( rA, P ) ) );
+				bB.v = b3InvMulAddSVW( bB.v, c->invMassB, P );
+				bB.w = b3AddVW( bB.w, b3InvMulMVFullW( &c->invIB, b3CrossUnfusedW( rB, P ) ) );
 			}
 
 			// No friction when applying bias
@@ -4256,8 +4342,8 @@ void b3SolveContacts_MeshWide( b3SolverBlock block, b3StepContext* context, bool
 				deltaImpulse = b3SubW( m->twistImpulse, oldImpulse );
 
 				b3Vec3W P = b3MulSVW( deltaImpulse, normal );
-				bA.w = b3SubVW( bA.w, b3MulMVFullW( &c->invIA, P ) );
-				bB.w = b3AddVW( bB.w, b3MulMVFullW( &c->invIB, P ) );
+				bA.w = b3SubVW( bA.w, b3InvMulMVFullW( &c->invIA, P ) );
+				bB.w = b3AddVW( bB.w, b3InvMulMVFullW( &c->invIB, P ) );
 			}
 
 			// Rolling resistance. The rolling mass and resistance are per-contact,
@@ -4297,8 +4383,8 @@ void b3SolveContacts_MeshWide( b3SolverBlock block, b3StepContext* context, bool
 
 				deltaImpulse = b3SubVW( rollingImpulse, oldImpulse );
 
-				bA.w = b3SubVW( bA.w, b3MulMVFullW( &c->invIA, deltaImpulse ) );
-				bB.w = b3AddVW( bB.w, b3MulMVFullW( &c->invIB, deltaImpulse ) );
+				bA.w = b3SubVW( bA.w, b3InvMulMVFullW( &c->invIA, deltaImpulse ) );
+				bB.w = b3AddVW( bB.w, b3InvMulMVFullW( &c->invIB, deltaImpulse ) );
 			}
 
 			// Central friction
@@ -4351,10 +4437,10 @@ void b3SolveContacts_MeshWide( b3SolverBlock block, b3StepContext* context, bool
 
 				// Apply delta impulse
 				b3Vec3W P = b3AddVW( b3MulSVW( deltaImpulse.x, tangent1 ), b3MulSVW( deltaImpulse.y, tangent2 ) );
-				bA.v = b3MulSubSVW( bA.v, c->invMassA, P );
-				bA.w = b3SubVW( bA.w, b3MulMVFullW( &c->invIA, b3CrossUnfusedW( rA, P ) ) );
-				bB.v = b3MulAddSVW( bB.v, c->invMassB, P );
-				bB.w = b3AddVW( bB.w, b3MulMVFullW( &c->invIB, b3CrossUnfusedW( rB, P ) ) );
+				bA.v = b3InvMulSubSVW( bA.v, c->invMassA, P );
+				bA.w = b3SubVW( bA.w, b3InvMulMVFullW( &c->invIA, b3CrossUnfusedW( rA, P ) ) );
+				bB.v = b3InvMulAddSVW( bB.v, c->invMassB, P );
+				bB.w = b3AddVW( bB.w, b3InvMulMVFullW( &c->invIB, b3CrossUnfusedW( rB, P ) ) );
 			}
 		}
 
@@ -4422,10 +4508,10 @@ void b3ApplyRestitution_MeshWide( b3SolverBlock block, b3StepContext* context )
 
 				// apply contact impulse
 				b3Vec3W P = b3MulSVW( impulse, normal );
-				bA.v = b3MulSubSVW( bA.v, c->invMassA, P );
-				bA.w = b3SubVW( bA.w, b3MulMVFullW( &c->invIA, b3CrossUnfusedW( cp->rA, P ) ) );
-				bB.v = b3MulAddSVW( bB.v, c->invMassB, P );
-				bB.w = b3AddVW( bB.w, b3MulMVFullW( &c->invIB, b3CrossUnfusedW( cp->rB, P ) ) );
+				bA.v = b3InvMulSubSVW( bA.v, c->invMassA, P );
+				bA.w = b3SubVW( bA.w, b3InvMulMVFullW( &c->invIA, b3CrossUnfusedW( cp->rA, P ) ) );
+				bB.v = b3InvMulAddSVW( bB.v, c->invMassB, P );
+				bB.w = b3AddVW( bB.w, b3InvMulMVFullW( &c->invIB, b3CrossUnfusedW( cp->rB, P ) ) );
 			}
 		}
 

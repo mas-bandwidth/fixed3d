@@ -120,7 +120,7 @@ void b3PrepareWeldJoint( b3JointSim* base, b3StepContext* context )
 	joint->frameB.p = b3RotateVector( bodySimB->transform.q, b3Sub( base->localFrameB.p, bodySimB->localCenter ) );
 
 	joint->deltaCenter = b3SubPos( bodySimB->center, bodySimA->center );
-	joint->angularMass = b3InvertMatrix( invInertiaSum );
+	joint->angularMass = b3InvertAcrossScales( invInertiaSum );
 
 	if ( joint->linearHertz == B3_FIX( 0.0f ) )
 	{
@@ -172,11 +172,11 @@ void b3WarmStartWeldJoint( b3JointSim* base, b3StepContext* context )
 	b3Vec3 rA = b3RotateVector( stateA->deltaRotation, joint->frameA.p );
 	b3Vec3 rB = b3RotateVector( stateB->deltaRotation, joint->frameB.p );
 
-	vA = b3MulSub( vA, mA, joint->linearImpulse );
-	wA = b3Sub( wA, b3MulMV( iA, b3Add( b3Cross( rA, joint->linearImpulse ), joint->angularImpulse ) ) );
+	vA = b3Sub( vA, b3InvMulSV( mA, joint->linearImpulse ) );
+	wA = b3Sub( wA, b3InvMulMV( iA, b3Add( b3Cross( rA, joint->linearImpulse ), joint->angularImpulse ) ) );
 
-	vB = b3MulAdd( vB, mB, joint->linearImpulse );
-	wB = b3Add( wB, b3MulMV( iB, b3Add( b3Cross( rB, joint->linearImpulse ), joint->angularImpulse ) ) );
+	vB = b3Add( vB, b3InvMulSV( mB, joint->linearImpulse ) );
+	wB = b3Add( wB, b3InvMulMV( iB, b3Add( b3Cross( rB, joint->linearImpulse ), joint->angularImpulse ) ) );
 
 	if ( stateA->flags & b3_dynamicFlag )
 	{
@@ -243,8 +243,8 @@ void b3SolveWeldJoint( b3JointSim* base, b3StepContext* context, bool useBias )
 		b3Vec3 impulse = b3MulSub( b3MulSV( -massScale, b3MulMV( joint->angularMass, b3Add( cdot, bias ) ) ), impulseScale, joint->angularImpulse );
 		joint->angularImpulse = b3Add( joint->angularImpulse, impulse );
 
-		wA = b3Sub( wA, b3MulMV( iA, impulse ) );
-		wB = b3Add( wB, b3MulMV( iB, impulse ) );
+		wA = b3Sub( wA, b3InvMulMV( iA, impulse ) );
+		wB = b3Add( wB, b3InvMulMV( iB, impulse ) );
 	}
 
 	// linear constraint
@@ -279,15 +279,15 @@ void b3SolveWeldJoint( b3JointSim* base, b3StepContext* context, bool useBias )
 		k.cy.y += mA + mB;
 		k.cz.z += mA + mB;
 
-		b3Vec3 b = b3Solve3( k, b3Add( cdot, bias ) );
+		b3Vec3 b = b3Solve3AcrossScales( k, b3Add( cdot, bias ) );
 
 		b3Vec3 impulse = b3MulSub( b3MulSV( -massScale, b ), impulseScale, joint->linearImpulse );
 		joint->linearImpulse = b3Add( joint->linearImpulse, impulse );
 
-		vA = b3MulSub( vA, mA, impulse );
-		wA = b3Sub( wA, b3MulMV( iA, b3Cross( rA, impulse ) ) );
-		vB = b3MulAdd( vB, mB, impulse );
-		wB = b3Add( wB, b3MulMV( iB, b3Cross( rB, impulse ) ) );
+		vA = b3Sub( vA, b3InvMulSV( mA, impulse ) );
+		wA = b3Sub( wA, b3InvMulMV( iA, b3Cross( rA, impulse ) ) );
+		vB = b3Add( vB, b3InvMulSV( mB, impulse ) );
+		wB = b3Add( wB, b3InvMulMV( iB, b3Cross( rB, impulse ) ) );
 	}
 
 	if ( stateA->flags & b3_dynamicFlag )

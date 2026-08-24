@@ -633,11 +633,38 @@ B3_API b3Fixed b3Body_GetMass( b3BodyId bodyId );
 /// Get the rotational inertia of the body in local space, usually in kg*m^2
 B3_API b3Matrix3 b3Body_GetLocalRotationalInertia( b3BodyId bodyId );
 
-/// Get the inverse mass of the body, usually in 1/kilograms
+/// Get the inverse mass of the body, usually in 1/kilograms.
+///
+/// LOSSY FOR HEAVY BODIES, and unavoidably so: the solver stores inverse quantities with
+/// more fraction bits than b3Fixed has, because Q48.16 holds no positive value below
+/// 1/65536 and the inverse mass of anything above 65,536 units is smaller than that. The
+/// value returned here is that internal value converted to b3Fixed, truncated toward
+/// zero, so a heavy body reads ZERO from this function while being perfectly movable in
+/// the simulation. Use b3Body_GetInverseMassPrecise to see what the solver actually has.
 B3_API b3Fixed b3Body_GetInverseMass( b3BodyId bodyId );
 
-/// Get the inverse rotational inertia of the body in world space, usually in 1/kg*m^2
+/// Get the inverse rotational inertia of the body in world space, usually in 1/kg*m^2.
+/// Lossy in the same way and for the same reason as b3Body_GetInverseMass.
 B3_API b3Matrix3 b3Body_GetWorldInverseRotationalInertia( b3BodyId bodyId );
+
+/// PROVISIONAL API -- the shape of this pair is not settled.
+///
+/// The inverse mass and world inverse rotational inertia at the precision the solver
+/// stores them: fixed-point with b3GetInverseFractionBits() fraction bits rather than
+/// b3Fixed's 16. These exist because the two functions above cannot represent the inverse
+/// of a heavy body at all, and reporting zero for a body that moves is worse than
+/// reporting an awkward unit.
+///
+/// Added rather than substituted deliberately: nothing above changes meaning, signature
+/// or behaviour for any existing caller. If the eventual answer is a different type, a
+/// different unit or a different name, these can be withdrawn without having broken
+/// anything in the meantime.
+B3_API b3Fixed b3Body_GetInverseMassPrecise( b3BodyId bodyId );
+B3_API b3Matrix3 b3Body_GetWorldInverseRotationalInertiaPrecise( b3BodyId bodyId );
+
+/// The number of fraction bits in the values returned by the two functions above.
+/// Exposed as a function so the internal format constant is not part of the ABI.
+B3_API int b3GetInverseFractionBits( void );
 
 /// Get the center of mass position of the body in local space
 B3_API b3Vec3 b3Body_GetLocalCenter( b3BodyId bodyId );
