@@ -10,9 +10,12 @@
 // b3FixMul and B3_FIX, because STAYING DROP-IN COMPATIBLE WITH BOX3D IS A DESIGN GOAL
 // of this fork -- the public interface is not ours to evolve to suit a dependency.
 //
-// GENERATED. Every name below was read out of the previous box3d/fixed.h and mapped
-// through the rename that moved the library off the b3 prefix, so the set is exactly
-// what box3d defined before -- no more, no less.
+// The bulk of this file is GENERATED: every name in the sections marked so was read out
+// of the previous box3d/fixed.h and mapped through the rename that moved the library off
+// the b3 prefix, so that set is exactly what box3d defined before -- no more, no less.
+// Sections marked ADDED carry the same mapping applied by hand to parts of `fixed` that
+// box3d had no name for yet, and they follow the same rule: box3d's spelling, the
+// library's arithmetic, no second implementation anywhere.
 //
 // Forwarders rather than #defines: a macro would stop b3FixMul being a declared
 // identifier, so debuggers would show fixMul and a consumer could no longer name
@@ -94,6 +97,31 @@ B3_FIXED_INLINE int b3FixTruncToInt( fixed_t a ) { return fixTruncToInt( a ); }
 B3_FIXED_INLINE uint64_t b3ISqrt128High( uint64_t hi, uint64_t lo ) { return fixISqrt128High( hi, lo ); }
 B3_FIXED_INLINE fixInt128 b3Int128Div( fixInt128 a, fixInt128 b ) { return fixInt128Div( a, b ); }
 B3_FIXED_INLINE fixInt128 b3Int128ShiftLeft( fixInt128 a, int shift ) { return fixInt128ShiftLeft( a, shift ); }
+
+// ---- ADDED: the Q2.30 packed scalar domain ----------------------------------------
+// A SECOND raw fixed-point domain: 32-bit storage, 2 integer bits (sign included), 30
+// fraction bits. Built for always-normalized quantities -- a quaternion component never
+// leaves [-1, 1], so nearly every bit can go to fraction. box3d's use for it is
+// b3Quat30 (math_functions.h), the storage form the game puts on the wire.
+//
+// The type is a STRUCT on purpose, upstream and here: b3Fixed is a bare int64 typedef
+// and the Q48.16 and Q2.30 raws differ by 2^14, so a bare 32-bit typedef would let a
+// mixup compile silently -- the same trap as assigning a double into a b3Fixed. Wrapped,
+// arithmetic and cross-domain assignment refuse to compile and the converters below are
+// the only way across.
+//
+// ROUNDING RULE (pinned upstream): dropping bits rounds to nearest via
+// ( raw + ( 1 << ( drop - 1 ) ) ) >> drop, the same form as the wire's quantizers.
+typedef fixed30_t              b3Fixed30;
+
+#define B3_FIXED30_FRACTION_BITS   FIX30_FRACTION_BITS
+#define B3_FIXED30_ONE             FIX30_ONE
+#define B3_FIXED30_SHIFT           FIX30_SHIFT
+
+B3_FIXED_INLINE b3Fixed30 b3Fix30FromFix( fixed_t a ) { return fix30FromFix( a ); }
+B3_FIXED_INLINE fixed_t b3FixFromFix30( b3Fixed30 a ) { return fixFromFix30( a ); }
+B3_FIXED_INLINE double b3Fix30ToDouble( b3Fixed30 a ) { return fix30ToDouble( a ); }
+B3_FIXED_INLINE b3Fixed30 b3Fix30FromDouble( double x ) { return fix30FromDouble( x ); }
 
 // ===================================================================================
 // VECTORS, ROTATION, AND THE AGGREGATES BUILT ON THEM

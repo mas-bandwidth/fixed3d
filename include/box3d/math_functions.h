@@ -80,6 +80,85 @@ B3_API b3Fixed b3Atan2( b3Fixed y, b3Fixed x );
 /// for cross-platform determinism.
 B3_API b3CosSin b3ComputeCosSin( b3Fixed radians );
 
+/// Base-2 logarithm of a positive fixed-point number. Returns the most negative
+/// representable value for inputs <= 0. Implemented with pure integer squaring
+/// (exact binary digits, rounded to Q48.16 output) for cross-platform determinism.
+B3_API b3Fixed b3FixLog2( b3Fixed a );
+
+/// Two raised to a fixed-point power. Saturates on overflow (exponents >= 47),
+/// underflows to zero. Pure integer table product for cross-platform determinism.
+B3_API b3Fixed b3FixExp2( b3Fixed a );
+
+/// A positive fixed-point base raised to a fixed-point exponent, via
+/// exp2( exponent * log2( base ) ). Returns 0 for base <= 0 (the game's damage/
+/// control conventions want a hard floor, not a NaN analogue). Deterministic over
+/// accuracy. Measured against double pow over the control domain ( base in
+/// [2^-14, 2], exponent in [1/4, 4] ): error <= 2 output ulps + 1e-4 * result
+/// at every grid point (the two terms are Q48.16 output quantization, which
+/// dominates small results, and the exp2/log2 ladder error, which dominates
+/// large ones); results >= 0.5 stay within ~5e-5 relative. MathTest pins both.
+B3_API b3Fixed b3FixPow( b3Fixed base, b3Fixed exponent );
+
+// ---------------------------------------------------------------------------------------------
+// Q2.30 quaternions: 32-bit packed components for always-normalized rotations.
+// Storage precision protects the wire and accumulated math; physics consumes
+// rotations at Q48.16 through the pack/unpack pair (see fixed_compat.h, b3Fixed30).
+// ---------------------------------------------------------------------------------------------
+
+/// A rotation quaternion with Q2.30 packed components (16 bytes; always keep it normalized).
+typedef struct b3Quat30
+{
+	b3Fixed30 x, y, z, w;
+} b3Quat30;
+
+/// Pack a Q48.16 quaternion to Q2.30 (gains precision; saturating, exact in [-2, 2)).
+B3_API b3Quat30 b3Quat30FromQuat( b3Quat q );
+
+/// Unpack a Q2.30 quaternion to Q48.16 (drops 14 fraction bits, round to nearest).
+B3_API b3Quat b3QuatFromQuat30( b3Quat30 q );
+
+/// Normalize a quaternion IN the Q2.30 domain, at full 30-bit fraction precision --
+/// normalizing at Q48.16 and repacking would waste 14 of the storage's fraction bits.
+/// Components are clamped to [-1, 1] on output (the truncated-divide overshoot can
+/// otherwise exceed one by an ulp). A degenerate (zero) quaternion becomes identity.
+B3_API b3Quat30 b3NormalizeQuat30( b3Quat30 q );
+
+/// Is this Q2.30 quaternion normalized within tolerance?
+B3_API bool b3IsNormalizedQuat30( b3Quat30 q );
+
+// ---------------------------------------------------------------------------------------------
+// Critically damped smoothing on fixed point (the game control dynamics, deterministic).
+// Mirrors the double-precision formula: omega = 2 pi / smoothTime;
+// velocity = ( velocity - omega^2 * dt * ( current - target ) ) / ( 1 + omega * dt )^2;
+// result = current + velocity * dt.
+// ---------------------------------------------------------------------------------------------
+
+/// Critically damped smoothing toward a target. Updates velocity in place.
+B3_API b3Fixed b3SmoothCriticallyDamped( b3Fixed current, b3Fixed target, b3Fixed* velocity, b3Fixed smoothTime,
+										 b3Fixed deltaTime );
+
+/// Critically damped smoothing with separate smoothing times for moving up (toward a larger
+/// magnitude) and down. The time is selected by comparing |target| to |current|.
+B3_API b3Fixed b3SmoothCriticallyDampedUpDown( b3Fixed current, b3Fixed target, b3Fixed* velocity, b3Fixed smoothTimeUp,
+											   b3Fixed smoothTimeDown, b3Fixed deltaTime );
+
+/// Vector critically damped smoothing toward a target. Updates velocity in place.
+B3_API b3Vec3 b3SmoothCriticallyDampedVec3( b3Vec3 current, b3Vec3 target, b3Vec3* velocity, b3Fixed smoothTime,
+											b3Fixed deltaTime );
+
+/// Vector critically damped smoothing with up/down smoothing times, selected by comparing
+/// the target length to the current length (one time for the whole vector, not per component).
+B3_API b3Vec3 b3SmoothCriticallyDampedUpDownVec3( b3Vec3 current, b3Vec3 target, b3Vec3* velocity, b3Fixed smoothTimeUp,
+												  b3Fixed smoothTimeDown, b3Fixed deltaTime );
+
+/// A uniform random source for b3MakeRandomQuat: returns a fixed-point value in [-1, 1].
+typedef b3Fixed b3RandomFcn( void* context );
+
+/// A uniformly random unit quaternion by Marsaglia rejection sampling -- pure fixed point,
+/// sqrt only, no trig, so the draw is cross-platform deterministic given a deterministic
+/// random source. Consumes a variable number of draws (expected ~2.6).
+B3_API b3Quat b3MakeRandomQuat( b3RandomFcn* random, void* context );
+
 /// Extract a quaternion from a rotation matrix.
 B3_API b3Quat b3MakeQuatFromMatrix( const b3Matrix3* m );
 
