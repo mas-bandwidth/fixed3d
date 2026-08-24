@@ -36,7 +36,7 @@
 #if defined( BOX3D_LUDICROUS_MODE )
 #define RAGDOLL_HASH 0xAD895018
 #else
-#define RAGDOLL_HASH 0xC9322058
+#define RAGDOLL_HASH 0x09699541
 #endif
 
 // Goldens for the c37cfe4-ported scenarios (wave pile, query spawn, mesh drop).
@@ -47,19 +47,19 @@
 // dfa5e6a triangle-vs-hull admission change (hulls resting on mesh terrain take
 // slightly different manifolds); their sleep steps and everything about query
 // spawn carried over unchanged.
-#define WAVE_PILE_SLEEP_STEP 279
+#define WAVE_PILE_SLEEP_STEP 277
 #define QUERY_SPAWN_SLEEP_STEP 243
 #define QUERY_SPAWN_HIT_COUNT 59
 #define QUERY_SPAWN_QUERY_HASH 0xE583B246
-#define MESH_DROP_SLEEP_STEP 250
+#define MESH_DROP_SLEEP_STEP 215
 #if defined( BOX3D_LUDICROUS_MODE )
 #define WAVE_PILE_HASH 0xCD74B232
 #define QUERY_SPAWN_HASH 0x72EDD20C
 #define MESH_DROP_HASH 0xEE4D0F7A
 #else
-#define WAVE_PILE_HASH 0x6FA2F3B2
-#define QUERY_SPAWN_HASH 0x28042A4C
-#define MESH_DROP_HASH 0x777F3CB6
+#define WAVE_PILE_HASH 0x33AFFF2D
+#define QUERY_SPAWN_HASH 0x17EC3891
+#define MESH_DROP_HASH 0x2045D332
 #endif
 
 static int SingleMultithreadingTest( int workerCount )

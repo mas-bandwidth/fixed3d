@@ -889,8 +889,8 @@ void b3SolveWheelJoint( b3JointSim* base, b3StepContext* context, bool useBias )
 			b3Fixed deltaImpulse = b3FixMul( b3FixMul( -massScale , perpMass ) , ( cdot + bias ) ) - b3FixMul( impulseScale , joint->angularImpulse.x );
 			joint->angularImpulse.x += deltaImpulse;
 
-			wA = b3MulSub( wA, deltaImpulse, b3MulMV( iA, u ) );
-			wB = b3MulAdd( wB, deltaImpulse, b3MulMV( iB, u ) );
+			wA = b3Sub( wA, b3InvMulSV( deltaImpulse, b3MulMV( iA, u ) ) );
+			wB = b3Add( wB, b3InvMulSV( deltaImpulse, b3MulMV( iB, u ) ) );
 		}
 		else
 		{

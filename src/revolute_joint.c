@@ -427,8 +427,8 @@ void b3SolveRevoluteJoint( b3JointSim* base, b3StepContext* context, bool useBia
 		b3Fixed deltaImpulse = b3FixMul( b3FixMul( -massScale , joint->axialMass ) , ( cdot + bias ) ) - b3FixMul( impulseScale , joint->springImpulse );
 		joint->springImpulse += deltaImpulse;
 
-		wA = b3MulSub( wA, deltaImpulse, b3MulMV( iA, joint->rotationAxisZ ) );
-		wB = b3MulAdd( wB, deltaImpulse, b3MulMV( iB, joint->rotationAxisZ ) );
+		wA = b3Sub( wA, b3InvMulSV( deltaImpulse, b3MulMV( iA, joint->rotationAxisZ ) ) );
+		wB = b3Add( wB, b3InvMulSV( deltaImpulse, b3MulMV( iB, joint->rotationAxisZ ) ) );
 	}
 
 	if ( joint->enableMotor && fixedRotation == false )
@@ -442,8 +442,8 @@ void b3SolveRevoluteJoint( b3JointSim* base, b3StepContext* context, bool useBia
 		deltaImpulse = newImpulse - joint->motorImpulse;
 		joint->motorImpulse = newImpulse;
 
-		wA = b3MulSub( wA, deltaImpulse, b3MulMV( iA, joint->rotationAxisZ ) );
-		wB = b3MulAdd( wB, deltaImpulse, b3MulMV( iB, joint->rotationAxisZ ) );
+		wA = b3Sub( wA, b3InvMulSV( deltaImpulse, b3MulMV( iA, joint->rotationAxisZ ) ) );
+		wB = b3Add( wB, b3InvMulSV( deltaImpulse, b3MulMV( iB, joint->rotationAxisZ ) ) );
 	}
 
 	if ( joint->enableLimit && fixedRotation == false )
@@ -478,8 +478,8 @@ void b3SolveRevoluteJoint( b3JointSim* base, b3StepContext* context, bool useBia
 			joint->lowerImpulse = b3FixMax( oldImpulse + deltaImpulse, B3_FIX( 0.0f ) );
 			deltaImpulse = joint->lowerImpulse - oldImpulse;
 
-			wA = b3MulSub( wA, deltaImpulse, b3MulMV( iA, axis ) );
-			wB = b3MulAdd( wB, deltaImpulse, b3MulMV( iB, axis ) );
+			wA = b3Sub( wA, b3InvMulSV( deltaImpulse, b3MulMV( iA, axis ) ) );
+			wB = b3Add( wB, b3InvMulSV( deltaImpulse, b3MulMV( iB, axis ) ) );
 		}
 
 		// Upper limit
@@ -508,8 +508,8 @@ void b3SolveRevoluteJoint( b3JointSim* base, b3StepContext* context, bool useBia
 			deltaImpulse = joint->upperImpulse - oldImpulse;
 
 			// sign flipped on applied impulse
-			wA = b3MulAdd( wA, deltaImpulse, b3MulMV( iA, axis ) );
-			wB = b3MulSub( wB, deltaImpulse, b3MulMV( iB, axis ) );
+			wA = b3Add( wA, b3InvMulSV( deltaImpulse, b3MulMV( iA, axis ) ) );
+			wB = b3Sub( wB, b3InvMulSV( deltaImpulse, b3MulMV( iB, axis ) ) );
 		}
 	}
 

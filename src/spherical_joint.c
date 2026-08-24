@@ -526,8 +526,8 @@ void b3SolveSphericalJoint( b3JointSim* base, b3StepContext* context, bool useBi
 			joint->lowerTwistImpulse = b3FixMax( oldImpulse + deltaImpulse, B3_FIX( 0.0f ) );
 			deltaImpulse = joint->lowerTwistImpulse - oldImpulse;
 
-			wA = b3MulSub( wA, deltaImpulse, b3MulMV( iA, twistJacobian ) );
-			wB = b3MulAdd( wB, deltaImpulse, b3MulMV( iB, twistJacobian ) );
+			wA = b3Sub( wA, b3InvMulSV( deltaImpulse, b3MulMV( iA, twistJacobian ) ) );
+			wB = b3Add( wB, b3InvMulSV( deltaImpulse, b3MulMV( iB, twistJacobian ) ) );
 		}
 
 		// Upper limit
@@ -556,8 +556,8 @@ void b3SolveSphericalJoint( b3JointSim* base, b3StepContext* context, bool useBi
 			deltaImpulse = joint->upperTwistImpulse - oldImpulse;
 
 			// sign flipped on applied impulse
-			wA = b3MulAdd( wA, deltaImpulse, b3MulMV( iA, twistJacobian ) );
-			wB = b3MulSub( wB, deltaImpulse, b3MulMV( iB, twistJacobian ) );
+			wA = b3Add( wA, b3InvMulSV( deltaImpulse, b3MulMV( iA, twistJacobian ) ) );
+			wB = b3Sub( wB, b3InvMulSV( deltaImpulse, b3MulMV( iB, twistJacobian ) ) );
 		}
 	}
 
@@ -597,8 +597,8 @@ void b3SolveSphericalJoint( b3JointSim* base, b3StepContext* context, bool useBi
 		deltaImpulse = joint->swingImpulse - oldImpulse;
 
 		// sign flipped on applied impulse
-		wA = b3MulAdd( wA, deltaImpulse, b3MulMV( iA, swingAxis ) );
-		wB = b3MulSub( wB, deltaImpulse, b3MulMV( iB, swingAxis ) );
+		wA = b3Add( wA, b3InvMulSV( deltaImpulse, b3MulMV( iA, swingAxis ) ) );
+		wB = b3Sub( wB, b3InvMulSV( deltaImpulse, b3MulMV( iB, swingAxis ) ) );
 	}
 
 	// Solve point-to-point constraint
