@@ -1609,43 +1609,6 @@ static inline b3FloatW b3Dot3W( b3FloatW a, b3FloatW b, b3FloatW c, b3FloatW d, 
 #endif
 }
 
-// acc + a*b + c*d + e*f
-static inline b3FloatW b3AddDot3W( b3FloatW acc, b3FloatW a, b3FloatW b, b3FloatW c, b3FloatW d, b3FloatW e, b3FloatW f )
-{
-#if defined( B3_SIMD_AVX512 )
-	// (acc << 16) is a multiple of 2^16, so the single rounded shift splits
-	// exactly: b3FixFromDotRaw((acc << 16) + S) == acc + b3FixFromDotRaw(S)
-	return b3AddW( acc, b3Dot3W( a, b, c, d, e, f ) );
-#else
-	return (b3FloatW){
-		b3FixFromDotRaw( b3Int128ShiftLeft( (b3Int128)acc.x, B3_FIXED_FRACTION_BITS ) + (b3Int128)a.x * b.x + (b3Int128)c.x * d.x + (b3Int128)e.x * f.x ),
-		b3FixFromDotRaw( b3Int128ShiftLeft( (b3Int128)acc.y, B3_FIXED_FRACTION_BITS ) + (b3Int128)a.y * b.y + (b3Int128)c.y * d.y + (b3Int128)e.y * f.y ),
-		b3FixFromDotRaw( b3Int128ShiftLeft( (b3Int128)acc.z, B3_FIXED_FRACTION_BITS ) + (b3Int128)a.z * b.z + (b3Int128)c.z * d.z + (b3Int128)e.z * f.z ),
-		b3FixFromDotRaw( b3Int128ShiftLeft( (b3Int128)acc.w, B3_FIXED_FRACTION_BITS ) + (b3Int128)a.w * b.w + (b3Int128)c.w * d.w + (b3Int128)e.w * f.w ),
-	};
-#endif
-}
-
-// acc - (a*b + c*d + e*f)
-static inline b3FloatW b3SubDot3W( b3FloatW acc, b3FloatW a, b3FloatW b, b3FloatW c, b3FloatW d, b3FloatW e, b3FloatW f )
-{
-#if defined( B3_SIMD_AVX512 )
-	// Round-half-up is not odd-symmetric, so accumulate the negated sum and
-	// round that, exactly like the scalar (acc << 16) - ab - cd - ef.
-	b3DotAccAVX sum = b3DotBeginAVX( a.v, b.v );
-	sum = b3DotAddAVX( sum, c.v, d.v );
-	sum = b3DotAddAVX( sum, e.v, f.v );
-	return b3AddW( acc, (b3FloatW){ .v = b3DotFinishAVX( b3DotNegAVX( sum ) ) } );
-#else
-	return (b3FloatW){
-		b3FixFromDotRaw( b3Int128ShiftLeft( (b3Int128)acc.x, B3_FIXED_FRACTION_BITS ) - (b3Int128)a.x * b.x - (b3Int128)c.x * d.x - (b3Int128)e.x * f.x ),
-		b3FixFromDotRaw( b3Int128ShiftLeft( (b3Int128)acc.y, B3_FIXED_FRACTION_BITS ) - (b3Int128)a.y * b.y - (b3Int128)c.y * d.y - (b3Int128)e.y * f.y ),
-		b3FixFromDotRaw( b3Int128ShiftLeft( (b3Int128)acc.z, B3_FIXED_FRACTION_BITS ) - (b3Int128)a.z * b.z - (b3Int128)c.z * d.z - (b3Int128)e.z * f.z ),
-		b3FixFromDotRaw( b3Int128ShiftLeft( (b3Int128)acc.w, B3_FIXED_FRACTION_BITS ) - (b3Int128)a.w * b.w - (b3Int128)c.w * d.w - (b3Int128)e.w * f.w ),
-	};
-#endif
-}
-
 // Relative velocity along an axis using precomputed cross(r, axis) rows:
 // dot(dv, axis) + dot(wB, rbxa) - dot(wA, raxa), nine products accumulated
 // at 128 bits with a single rounding.
@@ -1684,12 +1647,6 @@ static inline b3FloatW b3RelVelocityW( b3Vec3W dv, b3Vec3W axis, b3Vec3W wB, b3V
 static inline b3Vec3W b3MulSVW( b3FloatW s, b3Vec3W a )
 {
 	return (b3Vec3W){ b3MulW( s, a.X ), b3MulW( s, a.Y ), b3MulW( s, a.Z ) };
-}
-
-// a - s * b
-static inline b3Vec3W b3MulSubSVW( b3Vec3W a, b3FloatW s, b3Vec3W b )
-{
-	return (b3Vec3W){ b3SubW( a.X, b3MulW( s, b.X ) ), b3SubW( a.Y, b3MulW( s, b.Y ) ), b3SubW( a.Z, b3MulW( s, b.Z ) ) };
 }
 
 // a + s * b
@@ -1748,26 +1705,6 @@ static inline b3Vec3W b3MulMVW( b3SymMatrix3W m, b3Vec3W a )
 	};
 
 	return b;
-}
-
-// a - m * b
-static inline b3Vec3W b3MulSubMVW( b3Vec3W a, b3SymMatrix3W m, b3Vec3W b )
-{
-	return (b3Vec3W){
-		b3SubDot3W( a.X, m.cxx, b.X, m.cxy, b.Y, m.cxz, b.Z ),
-		b3SubDot3W( a.Y, m.cxy, b.X, m.cyy, b.Y, m.cyz, b.Z ),
-		b3SubDot3W( a.Z, m.cxz, b.X, m.cyz, b.Y, m.czz, b.Z ),
-	};
-}
-
-// a + m * b
-static inline b3Vec3W b3MulAddMVW( b3Vec3W a, b3SymMatrix3W m, b3Vec3W b )
-{
-	return (b3Vec3W){
-		b3AddDot3W( a.X, m.cxx, b.X, m.cxy, b.Y, m.cxz, b.Z ),
-		b3AddDot3W( a.Y, m.cxy, b.X, m.cyy, b.Y, m.cyz, b.Z ),
-		b3AddDot3W( a.Z, m.cxz, b.X, m.cyz, b.Y, m.czz, b.Z ),
-	};
 }
 
 static inline b3FloatW b3DotW( b3Vec3W a, b3Vec3W b )
@@ -1928,11 +1865,15 @@ static inline b3FloatW b3InvMulW( b3FloatW a, b3FloatW b )
 	return b3MakeW( b3InvMul( a.x, b.x ), b3InvMul( a.y, b.y ), b3InvMul( a.z, b.z ), b3InvMul( a.w, b.w ) );
 }
 
-/// 1 / k per lane, where k is inverse-scaled and the effective mass is ordinary.
+/// 1 / k per lane, where k is inverse-scaled and the effective mass is ordinary. Guarded
+/// because its only callers are in the AVX-512 constraint prepare -- every other build
+/// reaches the same arithmetic through the scalar b3InvReciprocal, lane by lane.
+#if defined( B3_SIMD_AVX512 )
 static inline b3FloatW b3InvReciprocalW( b3FloatW a )
 {
 	return b3MakeW( b3InvReciprocal( a.x ), b3InvReciprocal( a.y ), b3InvReciprocal( a.z ), b3InvReciprocal( a.w ) );
 }
+#endif
 
 // a - s * b, where s or b carries the inverse scale and the result is a velocity.
 static inline b3Vec3W b3InvMulSubSVW( b3Vec3W a, b3FloatW s, b3Vec3W b )
