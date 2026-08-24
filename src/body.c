@@ -783,6 +783,33 @@ int b3Body_CollideMover( b3BodyId bodyId, b3BodyPlaneResult* bodyPlanes, int pla
 // (a 4 cm box has inertia below the Q48.16 resolution). Floor the diagonal so
 // such bodies keep a finite, stable rotational response instead of a singular
 // inertia that locks rotation and prevents spin from ever damping.
+// The inverse of a finite dynamic mass, floored at one quantum.
+//
+// b3FixDiv truncates toward zero, so 1/mass is exactly 0 for every mass above 65,536
+// units. Zero inverse mass is how this engine spells STATIC -- it is what the static path
+// assigns deliberately -- so letting the arithmetic produce it turns a heavy body into an
+// immovable one that still reports itself dynamic. That is a category flip rather than a
+// rounding error, and it diverges from the float original, where 1/huge is tiny but never
+// zero.
+//
+// Flooring costs accuracy that Q48.16 does not have to give in the first place: one
+// quantum of inverse mass is an effective mass of 65,536 and the next is 32,768, so
+// nothing in that range resolves. A body past the line is therefore VERY HEAVY rather
+// than correctly heavy -- and very heavy is the answer that keeps the meaning of zero
+// intact. Consumers wanting graded response keep masses under the ceiling.
+//
+// Zero and negative mass are passed through untouched: they are the degenerate input, not
+// a large one, and the callers already treat them as such.
+static b3Fixed b3InverseMass( b3Fixed mass )
+{
+	if ( mass <= B3_FIX( 0.0f ) )
+	{
+		return B3_FIX( 0.0f );
+	}
+
+	return b3FixMax( b3FixDiv( B3_FIX( 1.0f ), mass ), 1 );
+}
+
 static void b3FloorInertia( b3Matrix3* inertia, b3Fixed mass )
 {
 	if ( mass > 0 )
@@ -873,8 +900,8 @@ void b3UpdateBodyMassData( b3World* world, b3Body* body )
 	// Compute center of mass.
 	if ( body->mass > B3_FIX( 0.0f ) )
 	{
-		bodySim->invMass = b3FixDiv( B3_FIX( 1.0f ) , body->mass );
-		localCenter = b3MulSV( bodySim->invMass, localCenter );
+		bodySim->invMass = b3InverseMass( body->mass );
+		localCenter = b3MulSV( b3FixDiv( B3_FIX( 1.0f ), body->mass ), localCenter );
 	}
 
 	// Second loop to accumulate the rotational inertia about the center of mass
@@ -1777,7 +1804,7 @@ void b3Body_SetMassData( b3BodyId bodyId, b3MassData massData )
 	b3Pos center = b3TransformWorldPoint( bodySim->transform, massData.center );
 	bodySim->center = center;
 	bodySim->center0 = center;
-	bodySim->invMass = body->mass > B3_FIX( 0.0f ) ? b3FixDiv( B3_FIX( 1.0f ) , body->mass ) : B3_FIX( 0.0f );
+	bodySim->invMass = b3InverseMass( body->mass );
 
 	// Update center of mass velocity
 	b3BodyState* state = b3GetBodyState( world, body );

@@ -384,8 +384,114 @@ static int SetMassDataConsistentVelocity( void )
 	return 0;
 }
 
+// Zero inverse mass has exactly one meaning in this engine: the body is static. It must
+// never also mean "your mass was large", which is what b3FixDiv( 1, mass ) produced --
+// truncating toward zero, so every mass above 65,536 units inverted to exactly 0 and the
+// body became immovable by any impulse while still reporting itself dynamic. A silent
+// dynamic-to-static category flip, and it diverges from the float reference, where 1/huge
+// is tiny but never zero.
+//
+// The boundary is pinned on both sides because it is the whole point: 65,536 is the
+// largest mass whose inverse is representable in Q48.16, and one unit past it the honest
+// answer is one quantum rather than none.
+//
+// COARSENESS NEAR THE CEILING is real and deliberate. One quantum of inverse mass is an
+// effective mass of 65,536, and the next quantum up is 32,768 -- so masses in that range
+// do not resolve. A consumer wanting graded response keeps configured masses well under
+// the ceiling; a consumer past it gets a body that is very heavy rather than one that is
+// secretly nailed down.
+static int InverseMassQuantumFloor( void )
+{
+	b3WorldDef worldDef = b3DefaultWorldDef();
+	b3WorldId worldId = b3CreateWorld( &worldDef );
+
+	b3BodyDef bodyDef = b3DefaultBodyDef();
+	bodyDef.type = b3_dynamicBody;
+
+	// At the line: 1 / 65,536 is exactly one quantum, with no clamping involved.
+	{
+		b3BodyId bodyId = b3CreateBody( worldId, &bodyDef );
+		b3MassData massData = { B3_FIX( 65536.0f ), b3Vec3_zero, kDiagInertia };
+		b3Body_SetMassData( bodyId, massData );
+		ENSURE( b3Body_GetInverseMass( bodyId ) == 1 );
+	}
+
+	// One unit past it, where the true inverse is 0.99998 of a quantum. Truncation gives
+	// zero; the floor gives the smallest inverse mass this format has.
+	{
+		b3BodyId bodyId = b3CreateBody( worldId, &bodyDef );
+		b3MassData massData = { B3_FIX( 65537.0f ), b3Vec3_zero, kDiagInertia };
+		b3Body_SetMassData( bodyId, massData );
+		ENSURE( b3Body_GetInverseMass( bodyId ) == 1 );
+	}
+
+	// Far past it, the case space actually contains. Still dynamic, still movable.
+	{
+		b3BodyId bodyId = b3CreateBody( worldId, &bodyDef );
+		b3MassData massData = { B3_FIX( 1.0e7f ), b3Vec3_zero, kDiagInertia };
+		b3Body_SetMassData( bodyId, massData );
+		ENSURE( b3Body_GetInverseMass( bodyId ) > 0 );
+	}
+
+	// And the floor is a floor, not a rewrite: an ordinary mass is unaffected.
+	{
+		b3BodyId bodyId = b3CreateBody( worldId, &bodyDef );
+		b3MassData massData = { B3_FIX( 4.0f ), b3Vec3_zero, kDiagInertia };
+		b3Body_SetMassData( bodyId, massData );
+		ENSURE( b3Body_GetInverseMass( bodyId ) == b3FixDiv( B3_FIX( 1.0f ), B3_FIX( 4.0f ) ) );
+	}
+
+	// A static body keeps zero inverse mass through its own explicit path, which is the
+	// distinction the floor exists to protect.
+	{
+		b3BodyDef staticDef = b3DefaultBodyDef();
+		staticDef.type = b3_staticBody;
+		b3BodyId bodyId = b3CreateBody( worldId, &staticDef );
+		ENSURE( b3Body_GetInverseMass( bodyId ) == 0 );
+	}
+
+	// Zero mass on a dynamic body is not a large mass and must not be floored -- the
+	// engine reads it as the degenerate case it is.
+	{
+		b3BodyId bodyId = b3CreateBody( worldId, &bodyDef );
+		b3MassData massData = { B3_FIX( 0.0f ), b3Vec3_zero, b3Mat3_zero };
+		b3Body_SetMassData( bodyId, massData );
+		ENSURE( b3Body_GetInverseMass( bodyId ) == 0 );
+	}
+
+	b3DestroyWorld( worldId );
+	return 0;
+}
+
+// The same floor on the path that computes mass from shapes and density rather than
+// taking it from the caller, which is how a real heavy body is usually built. A 40-unit
+// box at density 1 masses 64,000 -- under the line -- so the density is raised to carry
+// it past.
+static int InverseMassQuantumFloorFromShapes( void )
+{
+	b3WorldDef worldDef = b3DefaultWorldDef();
+	b3WorldId worldId = b3CreateWorld( &worldDef );
+
+	b3BodyDef bodyDef = b3DefaultBodyDef();
+	bodyDef.type = b3_dynamicBody;
+	b3BodyId bodyId = b3CreateBody( worldId, &bodyDef );
+
+	b3BoxHull hull = b3MakeBoxHull( B3_FIX( 20.0f ), B3_FIX( 20.0f ), B3_FIX( 20.0f ) );
+	b3ShapeDef shapeDef = b3DefaultShapeDef();
+	shapeDef.density = B3_FIX( 10.0f );
+	b3CreateHullShape( bodyId, &shapeDef, &hull.base );
+
+	ENSURE( b3Body_GetMass( bodyId ) > B3_FIX( 65536.0f ) );
+	ENSURE( b3Body_GetInverseMass( bodyId ) > 0 );
+
+	b3DestroyWorld( worldId );
+	return 0;
+}
+
 int BodyTest( void )
 {
+	RUN_SUBTEST( InverseMassQuantumFloor );
+	RUN_SUBTEST( InverseMassQuantumFloorFromShapes );
 	RUN_SUBTEST( FarSingleSphereMass );
 	RUN_SUBTEST( FarCubeSphereMass );
 	RUN_SUBTEST( DeferredMassExtents );
