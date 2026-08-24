@@ -52,6 +52,13 @@ jobs:
             msan-options: abort_on_error=1:halt_on_error=1
           - name: macos
             os: macos-latest
+            # 1m56s on main, past the 4-minute default on the inverse-widening branch.
+            # The widening puts 256-bit arithmetic on solver paths, and ASan/UBSan
+            # instrument exactly that shape hardest -- an optimized build pays about 15%
+            # on the joint-heavy benchmarks, this one pays more than double. Raised so the
+            # job reports a result rather than a timeout; the cost itself is part of what
+            # that branch is being judged on, not something to hide behind a limit.
+            timeout: 12
             args: -DBOX3D_SANITIZE=ON
             test: ./bin/test
           # Pure MSVC cannot build the fixed-point core (no __int128); all
