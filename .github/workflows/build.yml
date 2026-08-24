@@ -30,22 +30,26 @@ jobs:
             test: ./bin/test
           - name: ubuntu-clang-msan
             os: ubuntu-latest
-            # 10 until the fixed v1.3.0 pin move, which made the Debug test binary
-            # about twice as slow and pushed this job from 8m22s to over the limit --
-            # a red check with no sanitizer finding in it. The cost is in the vendored
-            # library's unoptimized codegen, not in this repository and not in the
-            # inverse work: measured at 19.54s -> 37.84s across the pin, with the
-            # inverse change itself contributing 0.4s of that. Optimized builds are
-            # unaffected or faster. Tracked as mas-bandwidth/fixed#18; when that lands,
-            # this comes back down rather than staying quietly generous.
+            # 10 until the fixed v1.3.0 pin move, which turned this into a red check with
+            # no sanitizer finding in it. 40 is set for the OBSERVED SPREAD, not for a
+            # single measurement: 8m22s before the pin, then 14m02s, then over 25m, on
+            # runners that differ by roughly 2x for the same commit. A limit picked from
+            # one sample of a distribution this wide just fails later and looks like a
+            # regression -- which is what setting it to 25 from the 14m02s run did.
             #
-            # 20 was still not enough -- the test step alone ran 18m47s without
-            # finishing, against roughly 2 minutes on main, which is a much worse ratio
-            # than the 1.94x measured in a plain Debug build. MSan with
-            # -fsanitize-memory-track-origins amplifies this library's shape (many small
-            # calls passing vectors and matrices by value) far more than an uninstrumented
-            # build does. 40 is set to let the job finish and report a real number rather
-            # than to be comfortable.
+            # The cost is in the vendored library and not in this repository: measured
+            # across the pin at 19.54s -> 37.84s for a plain Debug test run, with the
+            # inverse work contributing 0.4s of the 18. The mechanism is fixMul, which
+            # moved from native __int128 operators to seam calls. Both spellings inline,
+            # so that was the wrong question -- at -O0 each inlined call materialises its
+            # operands to the stack, and that is exactly the traffic
+            # -fsanitize-memory-track-origins instruments most heavily, which is why this
+            # job is hit harder than the 1.94x an uninstrumented Debug build shows.
+            # Optimized builds are unaffected or faster.
+            #
+            # Tracked as mas-bandwidth/fixed#18, where restoring native operators in
+            # fixMul alone is measured to recover two thirds of it. This limit comes back
+            # down when that lands rather than staying quietly generous.
             timeout: 40
             args: '-DCMAKE_CXX_COMPILER=clang++-18 -DCMAKE_C_COMPILER=clang-18 -DCMAKE_C_FLAGS="-fsanitize=memory -fsanitize-memory-track-origins=1 -fno-omit-frame-pointer" -DCMAKE_CXX_FLAGS="-fsanitize=memory -fsanitize-memory-track-origins=1 -fno-omit-frame-pointer" -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=memory"'
             test: ./bin/test
