@@ -50,10 +50,6 @@ FIX_ALWAYS_INLINE double fixTimeToSeconds( fixTime t )
 /// Scale a time by a Q48.16 factor, rounding to nearest. 128-bit interior.
 FIX_ALWAYS_INLINE fixTime fixTimeMulFixed( fixTime t, fixed_t s )
 {
-#if FIX_HAS_INT128
-	fixInt128 product = (fixInt128)t * s;
-	return (fixTime)( ( product + FIX_HALF ) >> FIX_FRACTION_BITS );
-#else
-#error "fixTimeMulFixed requires 128-bit integer support"
-#endif
+	fixInt128 product = fixInt128MulI64( t, s );
+	return (fixTime)fixInt128ToI64( fixInt128Shr( fixInt128Add( product, fixInt128FromI64( FIX_HALF ) ), FIX_FRACTION_BITS ) );
 }

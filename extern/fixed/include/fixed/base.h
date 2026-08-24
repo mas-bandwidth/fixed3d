@@ -7,37 +7,64 @@
 // vocabulary rather than sharing a namespace with them.
 #pragma once
 
+// EACH MACRO IS GUARDED SEPARATELY, and that is the whole point of the shape below.
+//
+// These were previously wrapped in one `#ifndef FIX_API` around the entire block, which
+// looked equivalent and is not: a consumer that supplies only FIX_API -- the common case,
+// because FIX_API is the one that carries an export decoration -- silently loses
+// FIX_INLINE, FIX_FORCE_INLINE, FIX_LITERAL and FIX_ZERO_INIT along with it. The failure
+// is a wall of "unknown type name 'FIX_INLINE'" pointing at this header, from a consumer
+// who touched exactly one macro and reasonably expected to override exactly one.
+//
+// box3d hit this while vendoring the library and had to hand the whole set down to work
+// around it. Guarding per macro means a consumer overrides what it means to override.
 #include <stdbool.h>
-// Guarded so a consumer that needs its own definitions -- an export decoration on
-// FIX_API, a different inline policy -- can supply them before including this header
-// and have them win. Standalone users of `fixed` get the definitions below.
-#ifndef FIX_API
+
 #ifdef __cplusplus
-	#define FIX_API extern "C"
-	#define FIX_INLINE inline
-	#if defined( _MSC_VER )
-		#define FIX_FORCE_INLINE __forceinline
-	#elif defined( __GNUC__ ) || defined( __clang__ )
-		#define FIX_FORCE_INLINE inline __attribute__((always_inline))
-	#else
-		#define FIX_FORCE_INLINE inline
+	#ifndef FIX_API
+		#define FIX_API extern "C"
 	#endif
-	#define FIX_LITERAL(T) T
-	#define FIX_ZERO_INIT {}
+	#ifndef FIX_INLINE
+		#define FIX_INLINE inline
+	#endif
+	#ifndef FIX_FORCE_INLINE
+		#if defined( _MSC_VER )
+			#define FIX_FORCE_INLINE __forceinline
+		#elif defined( __GNUC__ ) || defined( __clang__ )
+			#define FIX_FORCE_INLINE inline __attribute__((always_inline))
+		#else
+			#define FIX_FORCE_INLINE inline
+		#endif
+	#endif
+	#ifndef FIX_LITERAL
+		#define FIX_LITERAL(T) T
+	#endif
+	#ifndef FIX_ZERO_INIT
+		#define FIX_ZERO_INIT {}
+	#endif
 #else
-	#define FIX_API
-	#define FIX_INLINE static inline
-	#if defined( _MSC_VER )
-		#define FIX_FORCE_INLINE static __forceinline
-	#elif defined( __GNUC__ ) || defined( __clang__ )
-		#define FIX_FORCE_INLINE static inline __attribute__((always_inline))
-	#else
-		#define FIX_FORCE_INLINE static inline
+	#ifndef FIX_API
+		#define FIX_API
 	#endif
-	#define FIX_LITERAL(T) (T)
-	#define FIX_ZERO_INIT {0}
+	#ifndef FIX_INLINE
+		#define FIX_INLINE static inline
+	#endif
+	#ifndef FIX_FORCE_INLINE
+		#if defined( _MSC_VER )
+			#define FIX_FORCE_INLINE static __forceinline
+		#elif defined( __GNUC__ ) || defined( __clang__ )
+			#define FIX_FORCE_INLINE static inline __attribute__((always_inline))
+		#else
+			#define FIX_FORCE_INLINE static inline
+		#endif
+	#endif
+	#ifndef FIX_LITERAL
+		#define FIX_LITERAL(T) (T)
+	#endif
+	#ifndef FIX_ZERO_INIT
+		#define FIX_ZERO_INIT {0}
+	#endif
 #endif
-#endif // FIX_API
 
 // Guarded assert hooks: a consumer that defines these first wins, so it can route
 // this library's assertions into its own diagnostics. Standalone users of `fixed`
