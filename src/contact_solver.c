@@ -1145,10 +1145,16 @@ static inline b3Vec3W b3WidenVW( b3Vec3WN a )
 // Store one lane of a FULL-WIDTH field. The inverse-scaled Jacobian rows live at full
 // width (see the struct comments), so they need this rather than b3StoreNarrow -- which
 // would clamp them to int32 and destroy the precision the wider scale exists to provide.
+//
+// Only the lane-at-a-time prepare needs it. The AVX-512 prepare builds those rows as
+// whole vectors and assigns them in one go, so the helper is dead there and the guard
+// says so rather than leaving -Wunused-function to say it.
+#if !defined( B3_SIMD_AVX512 )
 static inline void b3StoreWideLane( b3FloatW* target, int lane, b3Fixed value )
 {
 	( (int64_t*)target )[lane] = value;
 }
+#endif
 
 static inline void b3StoreNarrow( b3FloatWN* target, int lane, b3Fixed value )
 {
