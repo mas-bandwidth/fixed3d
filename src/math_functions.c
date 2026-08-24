@@ -644,3 +644,199 @@ bool b3IsValidRay( const b3RayCastInput* input )
 				   b3IsValidFixed( input->maxFraction ) && B3_FIX( 0.0f ) <= input->maxFraction && input->maxFraction < B3_HUGE;
 	return isValid;
 }
+
+// ---------------------------------------------------------------------------------------------
+// The deterministic transcendental ladder, under box3d's names.
+//
+// The arithmetic itself lives in `fixed` (extern/fixed, fixLog2/fixExp2/fixPow): pure
+// integer squaring for log2, a pure integer table product for exp2, and pow composed from
+// the two. These are B3_API exports rather than header inlines, so they are declared in
+// math_functions.h and forwarded here -- fixed_compat.h cannot hold them, because base.h
+// includes fixed.h before B3_API exists.
+// ---------------------------------------------------------------------------------------------
+
+b3Fixed b3FixLog2( b3Fixed a )
+{
+	return fixLog2( a );
+}
+
+b3Fixed b3FixExp2( b3Fixed a )
+{
+	return fixExp2( a );
+}
+
+b3Fixed b3FixPow( b3Fixed base, b3Fixed exponent )
+{
+	return fixPow( base, exponent );
+}
+
+// ---------------------------------------------------------------------------------------------
+// Q2.30 quaternions
+//
+// The SCALAR half of Q2.30 is the library's (b3Fixed30 and its converters, fixed_compat.h).
+// The quaternion built on it is box3d's, the way b3Quat is: box3d owns its rotation types.
+// ---------------------------------------------------------------------------------------------
+
+b3Quat30 b3Quat30FromQuat( b3Quat q )
+{
+	b3Quat30 result;
+	result.x = b3Fix30FromFix( q.v.x );
+	result.y = b3Fix30FromFix( q.v.y );
+	result.z = b3Fix30FromFix( q.v.z );
+	result.w = b3Fix30FromFix( q.s );
+	return result;
+}
+
+b3Quat b3QuatFromQuat30( b3Quat30 q )
+{
+	b3Quat result;
+	result.v.x = b3FixFromFix30( q.x );
+	result.v.y = b3FixFromFix30( q.y );
+	result.v.z = b3FixFromFix30( q.z );
+	result.s = b3FixFromFix30( q.w );
+	return result;
+}
+
+// Squared length of a Q2.30 quaternion as a 128-bit ( high, low ) pair, in Q4.60.
+//
+// Carried as two uint64s rather than a 128-bit type on purpose. Each component is an
+// int32, so each square is at most 2^62 and four of them can reach 2^64 exactly -- one
+// bit past a uint64, and only when every component is INT32_MIN, which is precisely the
+// input a "surely it fits" argument gets wrong. Two words with an explicit carry is
+// exact for every input and needs no 128-bit division, which is the operation ClangCL
+// cannot link.
+static void b3Quat30LengthSquared( b3Quat30 q, uint64_t* high, uint64_t* low )
+{
+	const int64_t x = q.x.raw;
+	const int64_t y = q.y.raw;
+	const int64_t z = q.z.raw;
+	const int64_t w = q.w.raw;
+
+	const uint64_t squares[4] = {
+		(uint64_t)( x * x ),
+		(uint64_t)( y * y ),
+		(uint64_t)( z * z ),
+		(uint64_t)( w * w ),
+	};
+
+	uint64_t lo = 0;
+	uint64_t hi = 0;
+	for ( int i = 0; i < 4; ++i )
+	{
+		lo += squares[i];
+		hi += ( lo < squares[i] ) ? 1u : 0u;
+	}
+
+	*high = hi;
+	*low = lo;
+}
+
+b3Quat30 b3NormalizeQuat30( b3Quat30 q )
+{
+	uint64_t high, low;
+	b3Quat30LengthSquared( q, &high, &low );
+
+	if ( high == 0 && low == 0 )
+	{
+		b3Quat30 identity = { { 0 }, { 0 }, { 0 }, { B3_FIXED30_ONE } };
+		return identity;
+	}
+
+	// the square root of a Q4.60 raw is the Q2.30 length raw
+	const uint64_t length = b3ISqrt128High( high, low );
+
+	b3Quat30 result;
+	result.x.raw = fixNormalizeComponent30( q.x.raw, length );
+	result.y.raw = fixNormalizeComponent30( q.y.raw, length );
+	result.z.raw = fixNormalizeComponent30( q.z.raw, length );
+	result.w.raw = fixNormalizeComponent30( q.w.raw, length );
+	return result;
+}
+
+bool b3IsNormalizedQuat30( b3Quat30 q )
+{
+	uint64_t high, low;
+	b3Quat30LengthSquared( q, &high, &low );
+
+	// one is 2^60 in Q4.60, so a normalized quaternion has nothing in the high word
+	if ( high != 0 )
+	{
+		return false;
+	}
+
+	// |length^2 - 1| < 2^-20, mirroring b3IsNormalizedQuat's tolerance
+	const uint64_t one = (uint64_t)1 << ( 2 * B3_FIXED30_FRACTION_BITS );
+	const uint64_t tolerance = (uint64_t)1 << ( 2 * B3_FIXED30_FRACTION_BITS - 20 );
+	const uint64_t difference = low > one ? low - one : one - low;
+	return difference < tolerance;
+}
+
+// ---------------------------------------------------------------------------------------------
+// Critically damped smoothing
+//
+// Scalar arithmetic from `fixed`; the vector forms are box3d's, because b3Vec3 is.
+// ---------------------------------------------------------------------------------------------
+
+b3Fixed b3SmoothCriticallyDamped( b3Fixed current, b3Fixed target, b3Fixed* velocity, b3Fixed smoothTime,
+								  b3Fixed deltaTime )
+{
+	return fixSmoothCriticallyDamped( current, target, velocity, smoothTime, deltaTime );
+}
+
+b3Fixed b3SmoothCriticallyDampedUpDown( b3Fixed current, b3Fixed target, b3Fixed* velocity, b3Fixed smoothTimeUp,
+										b3Fixed smoothTimeDown, b3Fixed deltaTime )
+{
+	return fixSmoothCriticallyDampedUpDown( current, target, velocity, smoothTimeUp, smoothTimeDown, deltaTime );
+}
+
+b3Vec3 b3SmoothCriticallyDampedVec3( b3Vec3 current, b3Vec3 target, b3Vec3* velocity, b3Fixed smoothTime,
+									 b3Fixed deltaTime )
+{
+	b3Vec3 result;
+	result.x = b3SmoothCriticallyDamped( current.x, target.x, &velocity->x, smoothTime, deltaTime );
+	result.y = b3SmoothCriticallyDamped( current.y, target.y, &velocity->y, smoothTime, deltaTime );
+	result.z = b3SmoothCriticallyDamped( current.z, target.z, &velocity->z, smoothTime, deltaTime );
+	return result;
+}
+
+b3Vec3 b3SmoothCriticallyDampedUpDownVec3( b3Vec3 current, b3Vec3 target, b3Vec3* velocity, b3Fixed smoothTimeUp,
+										   b3Fixed smoothTimeDown, b3Fixed deltaTime )
+{
+	// ONE smoothing time for the whole vector, selected by length -- not per component
+	b3Fixed smoothTime = b3Length( target ) >= b3Length( current ) ? smoothTimeUp : smoothTimeDown;
+	return b3SmoothCriticallyDampedVec3( current, target, velocity, smoothTime, deltaTime );
+}
+
+// ---------------------------------------------------------------------------------------------
+// Random unit quaternion (Marsaglia rejection sampling: sqrt only, no trig)
+// ---------------------------------------------------------------------------------------------
+
+b3Quat b3MakeRandomQuat( b3RandomFcn* random, void* context )
+{
+	b3Fixed x, y, z, u, v, w;
+
+	do
+	{
+		x = random( context );
+		y = random( context );
+		z = b3FixMul( x, x ) + b3FixMul( y, y );
+	}
+	while ( z >= B3_FIXED_ONE || z == 0 );
+
+	do
+	{
+		u = random( context );
+		v = random( context );
+		w = b3FixMul( u, u ) + b3FixMul( v, v );
+	}
+	while ( w >= B3_FIXED_ONE || w == 0 );
+
+	b3Fixed s = b3FixSqrt( b3FixDiv( B3_FIXED_ONE - z, w ) );
+
+	b3Quat result;
+	result.v.x = x;
+	result.v.y = y;
+	result.v.z = b3FixMul( s, u );
+	result.s = b3FixMul( s, v );
+	return b3NormalizeQuat( result );
+}
