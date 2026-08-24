@@ -933,6 +933,18 @@ void b3UpdateBodyMassData( b3World* world, b3Body* body )
 		b3Matrix3 rotationMatrix = b3MakeMatrixFromQuat( bodySim->transform.q );
 		bodySim->invInertiaWorld = b3MulMM( b3MulMM( rotationMatrix, bodySim->invInertiaLocal ), b3Transpose( rotationMatrix ) );
 	}
+	else
+	{
+		// A REFUSED TENSOR MUST NOT SURVIVE IN THE LOCAL FIELD. This branch used to leave
+		// invInertiaLocal holding the very matrix the test above just rejected, and only
+		// invInertiaWorld was withheld -- but the world tensor is recomputed from the
+		// local one, unguarded, by the solver every step and by b3Body_SetTransform, so
+		// the refusal lasted exactly until the next step and then undid itself. Zeroing
+		// both is what makes the decision stick. b3Body_SetMassData already did this;
+		// this path was the asymmetric one.
+		bodySim->invInertiaLocal = b3Mat3_zero;
+		bodySim->invInertiaWorld = b3Mat3_zero;
+	}
 
 	// Move center of mass.
 	b3Pos oldCenter = bodySim->center;
