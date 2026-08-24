@@ -607,6 +607,53 @@ FIX_ALWAYS_INLINE fixUInt128 fixUInt128Sub( fixUInt128 a, fixUInt128 b ) { retur
 FIX_ALWAYS_INLINE fixUInt128 fixUInt128Mul( fixUInt128 a, fixUInt128 b ) { return a * b; }
 FIX_ALWAYS_INLINE fixUInt128 fixUInt128MulU64( uint64_t a, uint64_t b ) { return (fixUInt128)a * b; }
 FIX_ALWAYS_INLINE fixUInt128 fixUInt128Neg( fixUInt128 a ) { return -a; }
+
+/// Divide a 128-bit value by a 64-bit divisor, returning the quotient and, through the
+/// pointer, the remainder.
+///
+/// PRECONDITION: fixUInt128Hi( a ) < d. That is what makes the quotient fit in 64 bits,
+/// and it is the caller's job -- this is the inner primitive of Knuth Algorithm D, whose
+/// normalization step establishes exactly that invariant, rather than a general-purpose
+/// divide. Violating it on the native arm truncates; there is no check, because the one
+/// caller proves the precondition and a branch here would sit inside the division loop.
+FIX_ALWAYS_INLINE uint64_t fixUInt128DivRemBy64( fixUInt128 a, uint64_t d, uint64_t* remainder )
+{
+#if defined( __x86_64__ )
+	// The hardware 128/64 divide, which is exactly this operation. divq traps when the
+	// quotient overflows 64 bits, and the precondition above -- high half below the
+	// divisor -- is precisely what rules that out, so it cannot fault here. volatile for
+	// the same reason fixInt128Div needs it: a non-volatile asm is assumed side-effect
+	// free and can be hoisted above the guard that makes it safe.
+	uint64_t quotient, rest;
+	uint64_t high = (uint64_t)( a >> 64 );
+	uint64_t low = (uint64_t)a;
+	__asm__ volatile( "divq %[v]" : "=a"( quotient ), "=d"( rest ) : [v] "r"( d ), "a"( low ), "d"( high ) );
+	*remainder = rest;
+	return quotient;
+#elif defined( _WIN32 )
+	// ClangCL does not link compiler-rt builtins, so native 128-bit division (__udivti3)
+	// is unavailable and this arm restores shift-subtract. Bit-identical, and reached only
+	// on Windows targets without the instruction above -- arm64 clang-cl today. The same
+	// reasoning and the same fallback as fixInt128Div.
+	fixUInt128 quotient = 0;
+	fixUInt128 rest = 0;
+	for ( int i = 127; i >= 0; i-- )
+	{
+		rest = ( rest << 1 ) | ( ( a >> i ) & 1 );
+		if ( rest >= (fixUInt128)d )
+		{
+			rest -= (fixUInt128)d;
+			quotient |= ( (fixUInt128)1 ) << i;
+		}
+	}
+	*remainder = (uint64_t)rest;
+	return (uint64_t)quotient;
+#else
+	fixUInt128 quotient = a / d;
+	*remainder = (uint64_t)( a - quotient * d );
+	return (uint64_t)quotient;
+#endif
+}
 // The shifts are the plain operators, with no guard on the count. That is deliberate and
 // it is the one place the two arms differ: a shift count outside [0, 127] is undefined
 // behavior for native __int128, so there is no native answer for the emulation to match,
@@ -675,6 +722,22 @@ FIX_ALWAYS_INLINE fixUInt128 fixUInt128Sub( fixUInt128 a, fixUInt128 b ) { retur
 FIX_ALWAYS_INLINE fixUInt128 fixUInt128Mul( fixUInt128 a, fixUInt128 b ) { return fixEmuUInt128Mul( a, b ); }
 FIX_ALWAYS_INLINE fixUInt128 fixUInt128MulU64( uint64_t a, uint64_t b ) { return fixEmuUInt128MulU64( a, b ); }
 FIX_ALWAYS_INLINE fixUInt128 fixUInt128Neg( fixUInt128 a ) { return fixEmuUInt128Neg( a ); }
+
+/// Divide a 128-bit value by a 64-bit divisor, returning the quotient and, through the
+/// pointer, the remainder.
+///
+/// PRECONDITION: fixUInt128Hi( a ) < d. That is what makes the quotient fit in 64 bits,
+/// and it is the caller's job -- this is the inner primitive of Knuth Algorithm D, whose
+/// normalization step establishes exactly that invariant, rather than a general-purpose
+/// divide. Violating it on the native arm truncates; there is no check, because the one
+/// caller proves the precondition and a branch here would sit inside the division loop.
+FIX_ALWAYS_INLINE uint64_t fixUInt128DivRemBy64( fixUInt128 a, uint64_t d, uint64_t* remainder )
+{
+	fixEmuUInt128 quotient, rest;
+	fixEmuUInt128DivMod( a, fixEmuUInt128FromU64( d ), &quotient, &rest );
+	*remainder = fixEmuUInt128Lo( rest );
+	return fixEmuUInt128Lo( quotient );
+}
 FIX_ALWAYS_INLINE fixUInt128 fixUInt128Shl( fixUInt128 a, int shift ) { return fixEmuUInt128Shl( a, shift ); }
 FIX_ALWAYS_INLINE fixUInt128 fixUInt128Shr( fixUInt128 a, int shift ) { return fixEmuUInt128Shr( a, shift ); }
 FIX_ALWAYS_INLINE fixUInt128 fixUInt128Or( fixUInt128 a, fixUInt128 b ) { return fixEmuUInt128Or( a, b ); }
