@@ -416,7 +416,7 @@ static int InverseMassQuantumFloor( void )
 		b3MassData massData = { B3_FIX( 65536.0f ), b3Vec3_zero, kDiagInertia };
 		b3Body_SetMassData( bodyId, massData );
 		ENSURE( b3Body_GetInverseMassPrecise( bodyId ) == ( (int64_t)1 << 24 ) );
-		ENSURE( b3Body_GetInverseMass( bodyId ) == 1 );
+		ENSURE( b3Body_GetInverseMass( bodyId ) == B3_FIXED_EPSILON );
 	}
 
 	// One unit past it. The stored inverse is a real, graded value -- the whole point of
