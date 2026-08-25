@@ -42,9 +42,27 @@ jobs:
             # The result job at the end of this file is the third layer: it turns a
             # cancelled leg anywhere in this matrix into a failing required check.
             #
-            # PROVISIONAL: these limits are replaced from this branch's own measured runs.
+            # 35m IS SET FROM THE OBSERVED SPREAD, not from one sample -- #34 picked 25
+            # from a single 14m02s run and the very next CI run failed at 25m18s. Five
+            # runs of this leg on the fixed v1.3.2 pin, test step only:
+            #
+            #   5m35s   21m47s   23m46s   23m59s   25m27s
+            #
+            # A 4.6x spread on identical code, and the last of those is a run with
+            # nothing else of mine in flight, so the slow mode is the runner and not
+            # contention. The fast sample is the outlier; roughly 24m is the honest
+            # expectation. 35m is about 1.4x the worst seen, which is the headroom a
+            # distribution this wide needs. timeout-minutes sits above it as the backstop.
+            #
+            # For contrast, the same step on the v1.3.1 pin ran 38m52s WITHOUT FINISHING.
+            # The cost is in the vendored library rather than here: mas-bandwidth/fixed
+            # v1.3.2 put fixMul back on native __int128 operators, worth ~40% of a plain
+            # Debug run and more than that under -fsanitize-memory-track-origins, which
+            # instruments exactly the per-call stack traffic that was being added.
+            # mas-bandwidth/fixed#18 stays open for the rest of it (the fixInt128
+            # reductions in fixed_vec.h); this limit can come down again when that lands.
             timeout: 40
-            test-timeout: 30m
+            test-timeout: 35m
             args: '-DCMAKE_CXX_COMPILER=clang++-18 -DCMAKE_C_COMPILER=clang-18 -DCMAKE_C_FLAGS="-fsanitize=memory -fsanitize-memory-track-origins=1 -fno-omit-frame-pointer" -DCMAKE_CXX_FLAGS="-fsanitize=memory -fsanitize-memory-track-origins=1 -fno-omit-frame-pointer" -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=memory"'
             test: ./bin/test
             msan-options: abort_on_error=1:halt_on_error=1
