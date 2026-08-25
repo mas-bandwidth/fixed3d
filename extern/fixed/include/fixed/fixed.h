@@ -173,11 +173,39 @@ FIX_ALWAYS_INLINE fixInt128 fixInt128Div( fixInt128 a, fixInt128 b )
 /// far below the +/-1.4e14 range and the checks cost real time in the solver.
 /// Define FIX_SATURATE to saturate on overflow instead of wrapping. (box3d passes its
 /// own BOX3D_FIXED_SATURATE down through its compatibility header.)
+///
+/// THE ROUNDING EXPRESSION IS WRITTEN TWICE, and the native spelling is not an
+/// alternative implementation -- it is the seam's own native bodies substituted by hand:
+///
+///   fixInt128MulI64( a, b )   ==  (fixInt128)a * b
+///   fixInt128Add( x, y )      ==  (fixInt128)( (fixUInt128)x + (fixUInt128)y )
+///   fixInt128Shr( x, n )      ==  x >> n
+///
+/// so the two arms cannot compute different values; the whole test suite runs a second
+/// time under FIX_FORCE_EMULATED_INT128 against the same frozen hashes to hold that.
+/// The unsigned round trip in the add is copied along with everything else, because it is
+/// what keeps the overflow behavior defined -- see the note above fixInt128Add.
+///
+/// WHY THE DUPLICATION EARNS ITS KEEP HERE AND NOWHERE ELSE. FIX_ALWAYS_INLINE makes both
+/// spellings inline, so "is it inlined?" is the wrong question: at -O0 an inlined body is
+/// still compiled naively, and each call materializes its operand and its result to a
+/// stack slot. Three inlined calls with stores and reloads between them, on the most
+/// frequently executed function in the library, cost 40% of an unoptimized consumer's
+/// entire test run (fixed3d's Debug suite: 40s on the seam spelling, 24s on this one) --
+/// and far more than that under a sanitizer, which instruments exactly that stack traffic.
+/// AT -O2 THE FORK IS INVISIBLE: both spellings fold to the same instructions, checked by
+/// compiling fixed3d's 83 optimized objects each way and finding them byte-identical.
+/// The saturation tail deliberately stays on the seam: it is off by default, cold when
+/// on, and duplicating it would buy nothing.
 FIX_ALWAYS_INLINE fixed_t fixMul( fixed_t a, fixed_t b )
 {
-	fixInt128 product = fixInt128MulI64( a, b );
 	// Round half up, then shift out the fraction bits (arithmetic shift)
+#if FIX_INT128_EMULATED
+	fixInt128 product = fixInt128MulI64( a, b );
 	fixInt128 r = fixInt128Shr( fixInt128Add( product, fixInt128FromI64( FIX_HALF ) ), FIX_FRACTION_BITS );
+#else
+	fixInt128 r = (fixInt128)( (fixUInt128)( (fixInt128)a * b ) + (fixUInt128)(fixInt128)FIX_HALF ) >> FIX_FRACTION_BITS;
+#endif
 #if defined( FIX_SATURATE )
 	if ( fixInt128Gt( r, fixInt128FromI64( INT64_MAX ) ) )
 	{
