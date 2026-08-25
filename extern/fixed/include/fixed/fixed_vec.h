@@ -400,7 +400,7 @@ FIX_INLINE bool fixIsNormalizedQuat( fixQuat q )
 /// Rotate a vector.
 /// Kept in the two-cross form: fused single-rounding variants of this and
 /// fixVecLerp/fixMulMV/fixCross perturb knife-edge equilibria (mesh-drop sleep,
-/// convex pile SAT cache). See the round-3 notes in CLAUDE.md.
+/// convex pile SAT cache).
 FIX_INLINE fixVec3 fixRotateVector( fixQuat q, fixVec3 v )
 {
 	// v + 2 * cross(q.v, cross(q.v, v) + q.s * v)
@@ -1002,7 +1002,7 @@ FIX_INLINE fixVec3 fixMulMV( fixMatrix3 m, fixVec3 a )
 {
 	// Kept as per-product rounding: the single-rounding form shifted the SAT
 	// edge-query geometry by an ulp and put convex hull piles into a persistent
-	// cache-miss regime (convex_pile +40%). See the round-3 notes in CLAUDE.md.
+	// cache-miss regime (convex_pile +40%).
 	fixVec3 b = {
 		fixMul( m.cx.x , a.x ) + fixMul( m.cy.x , a.y ) + fixMul( m.cz.x , a.z ),
 		fixMul( m.cx.y , a.x ) + fixMul( m.cy.y , a.y ) + fixMul( m.cz.y , a.z ),

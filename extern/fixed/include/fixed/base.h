@@ -1,10 +1,9 @@
 // SPDX-FileCopyrightText: 2025-2026 Erin Catto -- derived from Box3D (https://github.com/erincatto/box3d)
 // SPDX-FileCopyrightText: 2026 Más Bandwidth LLC -- fixed-point conversion
 // SPDX-License-Identifier: MIT
-// Minimal macro base for the fixed library. Originally lifted from box3d/base.h so
-// box3d could depend on this library without renaming its API -- that premise is gone:
-// nothing here is named b3 any more, and a consumer wraps these types in its own
-// vocabulary rather than sharing a namespace with them.
+// Minimal macro base for the fixed library, derived from box3d/base.h. Nothing here is
+// named b3: a consumer wraps these types in its own vocabulary rather than sharing a
+// namespace with them.
 #pragma once
 
 // EACH MACRO IS GUARDED SEPARATELY, and that is the whole point of the shape below.
