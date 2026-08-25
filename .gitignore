@@ -7,6 +7,7 @@ settings.ini
 .DS_Store
 CMakeUserPresets.json
 .cache/
+__pycache__/
 .idea/
 .claude/
 .tmp/

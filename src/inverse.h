@@ -113,8 +113,8 @@ B3_INLINE b3Fixed b3InvFromFixed( b3Fixed a )
 }
 
 /// An inverse quantity seen as an ordinary Q48.16 value, truncating toward zero. Lossy by
-/// construction: this is the conversion that used to be the storage, and it is what the
-/// public API returns to callers who ask for an inverse mass.
+/// construction, and it is what the public API returns to callers who ask for an inverse
+/// mass.
 B3_INLINE b3Fixed b3FixedFromInv( b3Fixed a )
 {
 	return a >> B3_INVERSE_EXTRA_BITS;
@@ -188,9 +188,9 @@ B3_INLINE b3Vec3 b3InvMulSV( b3Fixed a, b3Vec3 v )
 	return out;
 }
 
-/// A whole inverse tensor seen as ordinary Q48.16, for the public getters. Lossy in
-/// exactly the way the old storage was: a large body's inverse inertia reads zero here,
-/// which is now a property of the reporting rather than of the simulation.
+/// A whole inverse tensor seen as ordinary Q48.16, for the public getters. Lossy: a large
+/// body's inverse inertia reads zero here, which is a property of the reporting rather
+/// than of the simulation.
 B3_INLINE b3Matrix3 b3FixedFromInvMatrix( b3Matrix3 m )
 {
 	b3Matrix3 out;
