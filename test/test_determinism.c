@@ -18,38 +18,27 @@
 // Golden values for the fixed-point build. Fixed-point math is exactly
 // reproducible across platforms and worker counts, so these hold everywhere.
 // The scene builds at GetSceneOrigin() — 100 km out on every axis — so this
-// test also enforces determinism far from the origin. The sleep step is
-// identical to the value the scene had at (0,0,0); only the hash moved,
-// because it covers the absolute transform bytes: an exactly representable
-// origin shift is a bit-exact rigid translation of the whole trajectory.
-#define RAGDOLL_SLEEP_STEP 287
-// The sleep step is identical in both builds — an exactly representable origin is a
-// bit-exact rigid translation of the trajectory. The hash differs only because it covers
-// the absolute transform bytes, and the wide build stores 128-bit positions (80-byte
-// b3WorldTransform vs 56-byte), so it carries its own golden. Full 128 bits are hashed.
-// RE-CAPTURED 2026-08-24 for the wider storage of inverse quantities (Q24.40): every body's
-// inverse mass and inverse inertia now carry 24 more fraction bits, so every trajectory in
-// every scene moves in its last bits. Previously 0xC9322058 (narrow). Before that, both
-// hashes moved 2026-08-22 with the f42be21 triangle-face clip fix.
+// test also enforces determinism far from the origin.
 //
-// THE SLEEP STEP IS UNCHANGED AT 287, and that is the reassuring part: the ragdolls settle
-// on exactly the same step they always did, so the widening moved the arithmetic without
-// moving the physics. An early version of the change had this at 0 -- never sleeping --
-// which is what a missed scale crossing looks like, and is how one was found.
+// The sleep step is shared by both builds: an exactly representable origin shift is a
+// bit-exact rigid translation of the whole trajectory, so the scene settles on the same
+// step it would at (0,0,0). Only the hash is per-build, because it covers the absolute
+// transform bytes and the wide build stores 128-bit positions (80-byte b3WorldTransform
+// vs 56-byte). Full 128 bits are hashed.
+//
+// A SLEEP STEP OF 0 MEANS THE RAGDOLLS NEVER SETTLED, which is what a missed scale
+// crossing looks like from here. Read a zero as that before re-capturing anything.
+#define RAGDOLL_SLEEP_STEP 287
 #if defined( BOX3D_LUDICROUS_MODE )
 #define RAGDOLL_HASH 0xAD895018
 #else
 #define RAGDOLL_HASH 0x09699541
 #endif
 
-// Goldens for the c37cfe4-ported scenarios (wave pile, query spawn, mesh drop).
-// Fixed-point goldens hold across platforms and worker counts by construction.
-// The sleep steps are shared between builds; the hashes cover absolute transform
-// bytes, so the ludicrous build (128-bit positions, 80-byte b3WorldTransform)
-// carries its own values. The wave pile and mesh drop hashes moved with the
-// dfa5e6a triangle-vs-hull admission change (hulls resting on mesh terrain take
-// slightly different manifolds); their sleep steps and everything about query
-// spawn carried over unchanged.
+// Goldens for the wave pile, query spawn and mesh drop scenarios. Fixed-point goldens
+// hold across platforms and worker counts by construction. The sleep steps are shared
+// between builds; the hashes cover absolute transform bytes, so the ludicrous build
+// (128-bit positions, 80-byte b3WorldTransform) carries its own values.
 #define WAVE_PILE_SLEEP_STEP 277
 #define QUERY_SPAWN_SLEEP_STEP 243
 #define QUERY_SPAWN_HIT_COUNT 59

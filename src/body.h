@@ -211,15 +211,14 @@ typedef struct b3BodySim
 	b3Matrix3 invInertiaWorld;
 
 	// The local inertia the gyroscopic solve needs, which is b3InvertMatrix of the field
-	// above. It is stored rather than derived because the solver used to recover it by
-	// inverting the inverse ONCE PER BODY PER SUBSTEP -- nine 128-bit divisions to
-	// recompute a value that cannot change between substeps, and the code said so with a
-	// "todo wasteful computation". Both fields are written together, by b3SetLocalInverseInertia
-	// alone, so they cannot drift apart.
+	// above. It is stored rather than derived because deriving it means inverting the
+	// inverse ONCE PER BODY PER SUBSTEP -- nine 128-bit divisions for a value that cannot
+	// change between substeps. Both fields are written together, by
+	// b3SetLocalInverseInertia alone, so they cannot drift apart.
 	//
 	// Deliberately the ROUND TRIP and not body->inertia, which is the same quantity by
-	// mathematics and a different one by rounding. Storing the round trip is what makes
-	// the hoist bit-identical to the recomputation it replaces.
+	// mathematics and a different one by rounding. Storing the round trip is what keeps
+	// this bit-identical to inverting on demand.
 	b3Matrix3 inertiaLocal;
 
 	b3Fixed minExtent;
