@@ -86,11 +86,6 @@ FIX_ALWAYS_INLINE fixUInt256 fixUInt256Neg( fixUInt256 a )
 	return fixUInt256Sub( zero, a );
 }
 
-FIX_ALWAYS_INLINE bool fixUInt256Eq( fixUInt256 a, fixUInt256 b )
-{
-	return fixUInt128Eq( a.hi, b.hi ) && fixUInt128Eq( a.lo, b.lo );
-}
-
 FIX_ALWAYS_INLINE bool fixUInt256Lt( fixUInt256 a, fixUInt256 b )
 {
 	if ( !fixUInt128Eq( a.hi, b.hi ) )
