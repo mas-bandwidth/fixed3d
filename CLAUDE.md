@@ -579,16 +579,15 @@ The PORT RECORDs below run newest first and are the detail for each step.
   foundation.md gained a b3Fixed primer section; overview.md gained a
   fork note up top. hello.md and simulation.md explain the two B3_FIX
   traps inline (bare literal truncates 65536x; %f on a b3Fixed is UB).
-- **Determinism goldens**: sleepStep=287, hash=0xB222C195, verified bit-identical
-  across 1-5 workers. Hash updated 2026-07-15 for the 0.8 AU scene origin;
-  sleepStep has carried over unchanged through FOUR origin moves
-  (origin→100 km→120,000 km→1.2e11 m), each an exactly representable rigid
-  translation. Prior hashes: 0x228A3865 (120,000 km), 0xE7D52285 (100 km) (see
-  the scene-origin bullet below); sleepStep is UNCHANGED from the origin-scene
-  value because an exactly representable origin shift is a bit-exact rigid
-  translation of the whole trajectory — only the absolute transform bytes the
-  hash covers moved. Any solver-affecting change invalidates these, see the
-  test conventions section for how to regenerate.
+- **Determinism goldens**: ragdoll sleepStep=312, hash=0xC745DFFF (ludicrous
+  0x5A1D71FF), verified bit-identical across 1-5 workers. The full set lives in
+  `test/test_determinism.c` (wave pile, query spawn, mesh drop carry their own).
+  Re-derived for the fixed v1.4.0 pin (the lift-before-divide fixNormalize fix
+  moves contact normals and joint axes — a ruled baseline move, fixed#20). An
+  exactly representable origin shift is a bit-exact rigid translation of the
+  whole trajectory, so origin moves change only the hash, never the sleep step.
+  Any solver-affecting change invalidates these, see the test conventions
+  section for how to regenerate.
 - **Scene origin invariant (2026-07-14, from Glenn: "we should always work
   there"; moved to 120,000 km the same day to match vanilla-double's maximum
   world — a ±120,000 km cube with ~1 m float-broadphase padding, per Erin —
@@ -1431,16 +1430,14 @@ Fixes landed in session 2 (beyond the session-1 list):
   `b3Sin`/`b3Cos` (the deterministic approximations carry ~1e-3 error and were
   never meant as references — see `ExactQuat` in test_manifold.c, the cylinder
   expectations in test_hull.c, and the trig comparisons in test_math.c).
-- Determinism goldens (`test/test_determinism.c`): `RAGDOLL_SLEEP_STEP 287`,
-  `RAGDOLL_HASH 0xB222C195` (macros renamed from EXPECTED_* in the dfa5e6a
-  port, following upstream; hash updated 2026-07-15 for the 0.8 AU scene
-  origin, previously 0x228A3865 at 120,000 km and 0xE7D52285 at 100 km; the
-  sleep step carried over unchanged through all four origin moves because
-  the shift is a bit-exact rigid translation; previously 0x6FA8A4C5 for the
-  e961bfb friction-center port; verified bit-identical across 1-5 workers).
-  Any solver-affecting change invalidates these: rerun, take the printed
-  values, confirm they're identical for all worker counts
-  before updating.
+- Determinism goldens (`test/test_determinism.c`): `RAGDOLL_SLEEP_STEP 312`,
+  `RAGDOLL_HASH 0xC745DFFF` standard / `0x5A1D71FF` ludicrous, with wave pile,
+  query spawn and mesh drop goldens alongside them (sleep steps shared between
+  builds; hashes per-build because they cover absolute transform bytes;
+  verified bit-identical across all worker counts, two clean generation runs
+  each build). Any solver-affecting change invalidates these: rerun, take the
+  printed values, confirm they're identical for all worker counts and that two
+  generation runs agree before updating.
 - `ATAN_TOL` in test_math.c is `B3_FIX(0.0001f)` (poly error + output quantization).
 
 ## Conversion tooling (copies in `tools/fixed-point/`, originals were in a

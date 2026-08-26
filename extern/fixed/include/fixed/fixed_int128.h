@@ -590,13 +590,16 @@ typedef fixEmuUInt128 fixUInt128;
 // The vocabulary. Every 128-bit operation in this library goes through one of these
 // names, which is what makes the emulated arm possible at all.
 //
-// ONE FUNCTION IS EXEMPT, and it is written down here so the exemption stays countable:
-// fixMul in fixed.h spells its rounding expression a second time in bare native
-// operators, under `#if FIX_INT128_EMULATED`, because at -O0 the per-call stack traffic
-// of the seam spelling costs a consumer 40% of its debug test run. It is a transcription
-// of these bodies rather than a second algorithm, and the emulated build of the entire
-// test suite asserts the same frozen hashes, so the two arms cannot drift apart in
-// silence. Anything else reaching for a bare operator should use these names instead.
+// A COUNTED SET OF FUNCTIONS IS EXEMPT, written down here so the exemptions stay
+// countable: fixMul in fixed.h, and the solver-rate reductions in fixed_vec.h --
+// fixDotRaw, fixFromDotRaw, fixDotQuat, fixMulQuat and fixInvMulQuat -- each spell their
+// expression a second time in bare native operators, under `#if FIX_INT128_EMULATED`,
+// because at -O0 the per-call stack traffic of the seam spelling costs a consumer's
+// debug test run about 40%. Every native spelling is a transcription of these bodies
+// rather than a second algorithm -- including the unsigned round trips that keep the
+// overflow behavior defined -- and the emulated build of the entire test suite asserts
+// the same frozen hashes, so the arms cannot drift apart in silence. Anything else
+// reaching for a bare operator should use these names instead.
 //
 // On the native arm each one is a FIX_ALWAYS_INLINE one-liner over the operator it
 // replaced, so -O2 code generation is unchanged. That is checked rather than asserted:
