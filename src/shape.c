@@ -825,7 +825,7 @@ b3ShapeExtent b3ComputeShapeExtent( const b3Shape* shape, b3Vec3 localCenter )
 			b3Vec3 c1 = b3Sub( shape->capsule.center1, localCenter );
 			b3Vec3 c2 = b3Sub( shape->capsule.center2, localCenter );
 			b3Vec3 r = { radius, radius, radius };
-			extent.maxExtent = b3Add( b3Max( c1, c2 ), r );
+			extent.maxExtent = b3Add( b3Max( b3Abs( c1 ), b3Abs( c2 ) ), r );
 		}
 		break;
 
@@ -845,9 +845,9 @@ b3ShapeExtent b3ComputeShapeExtent( const b3Shape* shape, b3Vec3 localCenter )
 		{
 			b3Fixed radius = shape->sphere.radius;
 			extent.minExtent = radius;
+			b3Vec3 h = b3Abs( b3Sub( shape->sphere.center, localCenter ) );
 			b3Vec3 r = { radius, radius, radius };
-			b3Vec3 p = b3Add( b3Sub( shape->sphere.center, localCenter ), r );
-			extent.maxExtent = b3Abs( b3Sub( p, localCenter ) );
+			extent.maxExtent = b3Add( h, r );
 		}
 		break;
 
@@ -863,7 +863,7 @@ b3ShapeExtent b3ComputeShapeExtent( const b3Shape* shape, b3Vec3 localCenter )
 			b3Fixed r2 = b3Length( b3Sub( b3BoundToVec3( aabb.upperBound ), localCenter ) );
 			extent.minExtent = b3FixMin( r1, r2 );
 			b3Vec3 p = b3FarthestPointOnAABB( aabb, localCenter );
-			extent.maxExtent = b3Abs( p );
+			extent.maxExtent = b3Abs( b3Sub( p, localCenter ) );
 		}
 		break;
 
