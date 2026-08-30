@@ -753,7 +753,6 @@ static void b3ReduceManifoldPoints( b3LocalManifold* manifold, int capacity, b3L
 	// Step 2: Find farthest point in 2D
 	bestScore = B3_FIX( 0.0f );
 	bestIndex = B3_NULL_INDEX;
-	b3Fixed maxDistanceSquared = B3_FIX( 0.0f );
 
 	for ( int index = 0; index < count; ++index )
 	{
@@ -761,7 +760,6 @@ static void b3ReduceManifoldPoints( b3LocalManifold* manifold, int capacity, b3L
 		b3Vec3 d = b3Sub( p, a );
 		b3Vec3 v = b3MulSub( d, b3Dot( d, normal ), normal );
 		b3Fixed distanceSquared = b3LengthSquared( v );
-		maxDistanceSquared = b3FixMax( maxDistanceSquared, distanceSquared );
 		b3Fixed separation = b3FixMax( B3_FIX( 0.0f ), -points[index].separation );
 		b3Fixed score = distanceSquared + b3FixMul( b3FixMul( B3_FIX( 4.0f ) , separation ) , separation );
 		if ( b3FixMul( bias , score ) > bestScore )

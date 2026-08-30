@@ -797,6 +797,15 @@ B3_API int b3Body_GetContactData( b3BodyId bodyId, b3ContactData* contactData, i
 /// If there are no shapes attached then the returned AABB is empty and centered on the body origin.
 B3_API b3AABB b3Body_ComputeAABB( b3BodyId bodyId );
 
+/// The minimum distance from any shape to the shape centroid.
+B3_API b3Fixed b3Body_GetMinExtent( b3BodyId bodyId );
+
+/// The maximum extent vector from any point on the body shapes to the center of mass.
+B3_API b3Vec3 b3Body_GetMaxExtent( b3BodyId bodyId );
+
+/// The maximum extent vector from any point on the body shapes to the body origin. Conservative.
+B3_API b3Vec3 b3Body_GetMaxExtentOrigin( b3BodyId bodyId );
+
 /// Get the closest point on a body to a world target.
 B3_API b3Fixed b3Body_GetClosestPoint( b3BodyId bodyId, b3Vec3* result, b3Vec3 target );
 
@@ -1113,6 +1122,9 @@ B3_API void* b3Joint_GetUserData( b3JointId jointId );
 
 /// Wake the bodies connect to this joint
 B3_API void b3Joint_WakeBodies( b3JointId jointId );
+
+/// Is the joint awake? If true then an attached body is awake.
+B3_API bool b3Joint_IsAwake( b3JointId jointId );
 
 /// Get the current constraint force for this joint
 B3_API b3Vec3 b3Joint_GetConstraintForce( b3JointId jointId );

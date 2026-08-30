@@ -2577,3 +2577,27 @@ bool b3ShouldBodiesCollide( b3World* world, b3Body* bodyA, b3Body* bodyB )
 
 	return true;
 }
+
+b3Fixed b3Body_GetMinExtent( b3BodyId bodyId )
+{
+	b3World* world = b3GetWorld( bodyId.world0 );
+	b3Body* body = b3GetBodyFullId( world, bodyId );
+	b3BodySim* bodySim = b3GetBodySim( world, body );
+	return bodySim->minExtent;
+}
+
+b3Vec3 b3Body_GetMaxExtent( b3BodyId bodyId )
+{
+	b3World* world = b3GetWorld( bodyId.world0 );
+	b3Body* body = b3GetBodyFullId( world, bodyId );
+	b3BodySim* bodySim = b3GetBodySim( world, body );
+	return bodySim->maxExtent;
+}
+
+b3Vec3 b3Body_GetMaxExtentOrigin( b3BodyId bodyId )
+{
+	b3World* world = b3GetWorld( bodyId.world0 );
+	b3Body* body = b3GetBodyFullId( world, bodyId );
+	b3BodySim* bodySim = b3GetBodySim( world, body );
+	return b3Add( bodySim->maxExtent, b3Abs( bodySim->localCenter ) );
+}
