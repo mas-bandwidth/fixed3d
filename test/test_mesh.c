@@ -531,6 +531,75 @@ static int MeshScaledWinding( void )
 	return 0;
 }
 
+// A flat one-quad mesh in the XZ plane, facing up (+Y)
+#define PLATE_VERTEX_COUNT 4
+#define PLATE_TRIANGLE_COUNT 2
+
+static b3MeshData* MakePlate( void )
+{
+	static b3Vec3 vertices[PLATE_VERTEX_COUNT] = {
+		{ -B3_FIX( 2.0f ), B3_FIX( 0.0f ), -B3_FIX( 2.0f ) },
+		{ B3_FIX( 2.0f ), B3_FIX( 0.0f ), -B3_FIX( 2.0f ) },
+		{ B3_FIX( 2.0f ), B3_FIX( 0.0f ), B3_FIX( 2.0f ) },
+		{ -B3_FIX( 2.0f ), B3_FIX( 0.0f ), B3_FIX( 2.0f ) },
+	};
+
+	// CCW seen from above, so the surface normal is +Y
+	static int32_t indices[3 * PLATE_TRIANGLE_COUNT] = { 0, 3, 1, 1, 3, 2 };
+
+	b3MeshDef def = { 0 };
+	def.vertices = vertices;
+	def.indices = indices;
+	def.vertexCount = PLATE_VERTEX_COUNT;
+	def.triangleCount = PLATE_TRIANGLE_COUNT;
+	return b3CreateMesh( &def, NULL, 0 );
+}
+
+// Cast a small sphere along a translation and report whether it hit the plate
+static bool CastSphereAtPlate( b3MeshData* data, b3Vec3 start, b3Vec3 translation )
+{
+	b3Mesh mesh = { data, { B3_FIX( 1.0f ), B3_FIX( 1.0f ), B3_FIX( 1.0f ) } };
+
+	b3Vec3 points[1] = { start };
+	b3ShapeCastInput input = { 0 };
+	input.proxy = (b3ShapeProxy){ points, 1, B3_FIX( 0.1f ) };
+	input.translation = translation;
+	input.maxFraction = B3_FIX( 1.0f );
+	input.canEncroach = false;
+
+	b3CastOutput output = b3ShapeCastMesh( &mesh, &input );
+	return output.hit;
+}
+
+// Back-side culling. Upstream added it to shape casts against meshes and height fields, and
+// this is the ONLY test that makes it fire: instrumented across the whole suite before this
+// existed, the cull ran 1992 times and fired 0 times, so every determinism golden held for
+// the uninteresting reason that nothing was ever culled. An unmoved golden is not evidence
+// about a branch that never taken.
+static int MeshBackSideCull( void )
+{
+	b3MeshData* plate = MakePlate();
+	ENSURE( plate != NULL );
+
+	// From above, moving down: the front side. Still hits.
+	b3Vec3 above = { B3_FIX( 0.0f ), B3_FIX( 1.0f ), B3_FIX( 0.0f ) };
+	b3Vec3 down = { B3_FIX( 0.0f ), -B3_FIX( 2.0f ), B3_FIX( 0.0f ) };
+	ENSURE( CastSphereAtPlate( plate, above, down ) == true );
+
+	// From below, moving up: the back side. Culled.
+	b3Vec3 below = { B3_FIX( 0.0f ), -B3_FIX( 1.0f ), B3_FIX( 0.0f ) };
+	b3Vec3 up = { B3_FIX( 0.0f ), B3_FIX( 2.0f ), B3_FIX( 0.0f ) };
+	ENSURE( CastSphereAtPlate( plate, below, up ) == false );
+
+	// A cast that starts below and never reaches the plate misses either way, which keeps
+	// the case above from passing merely because the sphere fell short.
+	b3Vec3 shortUp = { B3_FIX( 0.0f ), B3_FIX( 0.1f ), B3_FIX( 0.0f ) };
+	ENSURE( CastSphereAtPlate( plate, below, shortUp ) == false );
+
+	b3DestroyMesh( plate );
+	return 0;
+}
+
 // The built in creators fill their own def, so a missed stride shows up here
 static int MeshCreators( void )
 {
@@ -571,6 +640,7 @@ int MeshTest( void )
 	RUN_SUBTEST( MeshClockWiseStrideWeld );
 	RUN_SUBTEST( MeshDegenerateReport );
 	RUN_SUBTEST( MeshScaledWinding );
+	RUN_SUBTEST( MeshBackSideCull );
 	RUN_SUBTEST( MeshCreators );
 
 	return 0;

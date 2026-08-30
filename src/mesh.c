@@ -2197,8 +2197,24 @@ b3CastOutput b3ShapeCastMesh( const b3Mesh* mesh, const b3ShapeCastInput* input 
 					b3V32 triangleMin = b3SubV( b3MinV( v1, b3MinV( v2, v3 ) ), shapeExtent );
 					b3V32 triangleMax = b3AddV( b3MaxV( v1, b3MaxV( v2, v3 ) ), shapeExtent );
 
-					// Test triangle-ray overlap in scaled space
-					if ( b3TestBoundsOverlap( triangleMin, triangleMax, rayMin, rayMax ) )
+					// Test extended triangle vs ray bounds overlap in scaled space. Skip edge tests.
+					bool overlap = b3TestBoundsOverlap( triangleMin, triangleMax, rayMin, rayMax );
+					if ( overlap == false )
+					{
+						continue;
+					}
+
+					// This test is in scaled space. Vertices and center are scaled.
+					// A zero signed volume means either a coplanar center or a triangle whose
+					// fixed-point cross product quantized away; both land on the front side,
+					// so culling fails OPEN and degrades to the old uncalled behaviour.
+					b3Fixed signedVolume = b3SignedVolume( vertex1, vertex2, vertex3, center );
+					if ( signedVolume < B3_FIX( 0.0f ) )
+					{
+						// Backside
+						continue;
+					}
+
 					{
 						// Collide shape with triangle in scaled space
 						b3Vec3 origin = vertex1;
@@ -2326,6 +2342,7 @@ int b3CollideMoverAndMesh( b3PlaneResult* planes, int capacity, const b3Mesh* sh
 
 	b3SimplexCache cache = { 0 };
 	b3Fixed radius = mover->radius;
+	b3Vec3 center = b3Lerp( mover->center1, mover->center2, B3_FIX( 0.5f ) );
 
 	b3V32 center1 = b3LoadV( &mover->center1.x );
 	b3V32 center2 = b3LoadV( &mover->center2.x );
@@ -2335,6 +2352,7 @@ int b3CollideMoverAndMesh( b3PlaneResult* planes, int capacity, const b3Mesh* sh
 
 	// Scale may have reflection so min/max may become invalid when unscaled
 	b3Vec3 meshScale = shape->scale;
+	bool ccw = b3IsScaleCounterClockwise( meshScale );
 	b3V32 scale = b3LoadV( &meshScale.x );
 	b3V32 invScale = b3DivV( b3_oneV, scale );
 	b3V32 temp1 = b3MulV( invScale, boundsMin );
@@ -2372,6 +2390,12 @@ int b3CollideMoverAndMesh( b3PlaneResult* planes, int capacity, const b3Mesh* sh
 					b3Vec3 vertex1 = vertices[triangle.index1];
 					b3Vec3 vertex2 = vertices[triangle.index2];
 					b3Vec3 vertex3 = vertices[triangle.index3];
+
+					if ( ccw == false )
+					{
+						B3_SWAP( vertex2, vertex3 );
+					}
+
 					b3V32 v1 = b3LoadV( &vertex1.x );
 					b3V32 v2 = b3LoadV( &vertex2.x );
 					b3V32 v3 = b3LoadV( &vertex3.x );
@@ -2379,10 +2403,20 @@ int b3CollideMoverAndMesh( b3PlaneResult* planes, int capacity, const b3Mesh* sh
 					// Test triangle bounds overlap in unscaled space
 					if ( b3TestBoundsTriangleOverlap( invScaledBoundsCenter, invScaledBoundsExtent, v1, v2, v3 ) )
 					{
-						// Compute shape distance in scaled space. Winding order doesn't matter.
-						// todo implement one-sided collision?
+						// Compute shape distance in scaled space.
 						b3Vec3 triangleVertices[] = { b3Mul( meshScale, vertex1 ), b3Mul( meshScale, vertex2 ),
 													  b3Mul( meshScale, vertex3 ) };
+
+						// Vertices and center are in scaled space. A zero signed volume lands on
+						// the front side, so the cull fails OPEN in fixed point.
+						b3Fixed signedVolume =
+							b3SignedVolume( triangleVertices[0], triangleVertices[1], triangleVertices[2], center );
+						if ( signedVolume < B3_FIX( 0.0f ) )
+						{
+							// Backside
+							continue;
+						}
+
 						distanceInput.proxyA = (b3ShapeProxy){ triangleVertices, 3, B3_FIX( 0.0f ) };
 
 						// reset the cache
@@ -2393,7 +2427,7 @@ int b3CollideMoverAndMesh( b3PlaneResult* planes, int capacity, const b3Mesh* sh
 
 						if ( distanceOutput.distance == B3_FIX( 0.0f ) )
 						{
-							// todo SAT
+							// deep overlap
 						}
 						else if ( distanceOutput.distance <= mover->radius )
 						{
@@ -2482,7 +2516,7 @@ void b3QueryMesh( const b3Mesh* mesh, b3AABB bounds, b3MeshQueryFcn* fcn, void* 
 					b3V32 v2 = b3LoadV( &vertex2.x );
 					b3V32 v3 = b3LoadV( &vertex3.x );
 
-					// Perform triangle overlap test in unscaled space. Winding order doesn't matter.
+					// Perform triangle overlap test in unscaled space.
 					// todo it is possible that some margins are getting scaled
 					if ( b3TestBoundsTriangleOverlap( invScaledBoundsCenter, invScaledBoundsExtent, v1, v2, v3 ) )
 					{
