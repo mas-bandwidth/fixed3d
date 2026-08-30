@@ -525,6 +525,157 @@ static int RayCastBruteForce( void )
 	return 0;
 }
 
+// Flat 3x3 vertex field at y = 0, one cell material per entry. Caller destroys.
+static b3HeightFieldData* MakeFlatField( uint8_t* materials, bool clockwise )
+{
+	b3Fixed heights[9] = { 0 };
+
+	b3HeightFieldDef def = { 0 };
+	def.heights = heights;
+	def.materialIndices = materials;
+	def.scale = (b3Vec3){ B3_FIX( 1.0f ), B3_FIX( 1.0f ), B3_FIX( 1.0f ) };
+	def.countX = 3;
+	def.countZ = 3;
+	def.globalMinimumHeight = -B3_FIX( 1.0f );
+	def.globalMaximumHeight = B3_FIX( 1.0f );
+	def.clockwiseWinding = clockwise;
+
+	return b3CreateHeightField( &def );
+}
+
+static int ShapeCastBackside( void )
+{
+	uint8_t materials[4] = { 1, 0, 0, 0 };
+	b3HeightFieldData* hf = MakeFlatField( materials, false );
+	ENSURE( hf != NULL );
+
+	// Falling onto the front (upper) face reports the hit, the triangle, and its material.
+	// The surface sits at y = 0, so a sphere of radius 0.2 stops with its center at y = 0.2.
+	b3Vec3 above = { B3_FIX( 0.3f ), B3_FIX( 5.0f ), B3_FIX( 0.25f ) };
+	b3ShapeCastInput down = { 0 };
+	down.proxy = (b3ShapeProxy){ &above, 1, B3_FIX( 0.2f ) };
+	down.translation = (b3Vec3){ B3_FIX( 0.0f ), -B3_FIX( 10.0f ), B3_FIX( 0.0f ) };
+	down.maxFraction = B3_FIX( 1.0f );
+
+	b3CastOutput out = b3ShapeCastHeightField( hf, &down );
+	ENSURE( out.hit == true );
+	ENSURE_SMALL( out.fraction - B3_FIX( 0.48f ), B3_FIX( 0.01f ) );
+	ENSURE( out.normal.y > B3_FIX( 0.99f ) );
+	ENSURE( out.triangleIndex == 0 || out.triangleIndex == 1 );
+	ENSURE( out.materialIndex == 1 );
+
+	// Rising from behind the face is culled
+	b3Vec3 below = { B3_FIX( 0.3f ), -B3_FIX( 5.0f ), B3_FIX( 0.25f ) };
+	b3ShapeCastInput up = { 0 };
+	up.proxy = (b3ShapeProxy){ &below, 1, B3_FIX( 0.2f ) };
+	up.translation = (b3Vec3){ B3_FIX( 0.0f ), B3_FIX( 10.0f ), B3_FIX( 0.0f ) };
+	up.maxFraction = B3_FIX( 1.0f );
+
+	b3CastOutput missed = b3ShapeCastHeightField( hf, &up );
+	ENSURE( missed.hit == false );
+
+	b3DestroyHeightField( hf );
+	return 0;
+}
+
+// A clockwise height field faces down. Shape cast backside culling must respect the flag:
+// a rising sphere hits from below, not from above.
+static int ShapeCastClockwiseWinding( void )
+{
+	uint8_t materials[4] = { 1, 0, 0, 0 };
+	b3HeightFieldData* hf = MakeFlatField( materials, true );
+	ENSURE( hf != NULL );
+
+	b3Vec3 below = { B3_FIX( 0.3f ), -B3_FIX( 5.0f ), B3_FIX( 0.25f ) };
+	b3ShapeCastInput up = { 0 };
+	up.proxy = (b3ShapeProxy){ &below, 1, B3_FIX( 0.2f ) };
+	up.translation = (b3Vec3){ B3_FIX( 0.0f ), B3_FIX( 10.0f ), B3_FIX( 0.0f ) };
+	up.maxFraction = B3_FIX( 1.0f );
+
+	b3CastOutput out = b3ShapeCastHeightField( hf, &up );
+	ENSURE( out.hit == true );
+	ENSURE_SMALL( out.fraction - B3_FIX( 0.48f ), B3_FIX( 0.01f ) );
+	ENSURE( out.normal.y < -B3_FIX( 0.99f ) );
+	ENSURE( out.triangleIndex == 0 || out.triangleIndex == 1 );
+	ENSURE( out.materialIndex == 1 );
+
+	b3Vec3 above = { B3_FIX( 0.3f ), B3_FIX( 5.0f ), B3_FIX( 0.25f ) };
+	b3ShapeCastInput down = { 0 };
+	down.proxy = (b3ShapeProxy){ &above, 1, B3_FIX( 0.2f ) };
+	down.translation = (b3Vec3){ B3_FIX( 0.0f ), -B3_FIX( 10.0f ), B3_FIX( 0.0f ) };
+	down.maxFraction = B3_FIX( 1.0f );
+
+	b3CastOutput missed = b3ShapeCastHeightField( hf, &down );
+	ENSURE( missed.hit == false );
+
+	b3DestroyHeightField( hf );
+	return 0;
+}
+
+// Ray casts run through the shape cast. The default winding faces up, so a ray from below is
+// the back side and gets culled.
+static int RayCastBackside( void )
+{
+	uint8_t materials[4] = { 1, 0, 0, 0 };
+	b3HeightFieldData* hf = MakeFlatField( materials, false );
+	ENSURE( hf != NULL );
+
+	b3RayCastInput down = { 0 };
+	down.origin = (b3Vec3){ B3_FIX( 0.3f ), B3_FIX( 5.0f ), B3_FIX( 0.25f ) };
+	down.translation = (b3Vec3){ B3_FIX( 0.0f ), -B3_FIX( 10.0f ), B3_FIX( 0.0f ) };
+	down.maxFraction = B3_FIX( 1.0f );
+
+	b3CastOutput out = b3RayCastHeightField( hf, &down );
+	ENSURE( out.hit == true );
+	ENSURE_SMALL( out.fraction - B3_FIX( 0.5f ), B3_FIX( 0.001f ) );
+	ENSURE( out.normal.y > B3_FIX( 0.99f ) );
+	ENSURE( out.triangleIndex == 0 || out.triangleIndex == 1 );
+	ENSURE( out.materialIndex == 1 );
+
+	b3RayCastInput up = { 0 };
+	up.origin = (b3Vec3){ B3_FIX( 0.3f ), -B3_FIX( 5.0f ), B3_FIX( 0.25f ) };
+	up.translation = (b3Vec3){ B3_FIX( 0.0f ), B3_FIX( 10.0f ), B3_FIX( 0.0f ) };
+	up.maxFraction = B3_FIX( 1.0f );
+
+	b3CastOutput missed = b3RayCastHeightField( hf, &up );
+	ENSURE( missed.hit == false );
+
+	b3DestroyHeightField( hf );
+	return 0;
+}
+
+// A clockwise field faces down. The winding swap already flips the triangle, so the ray normal
+// must not be flipped a second time.
+static int RayCastClockwiseWinding( void )
+{
+	uint8_t materials[4] = { 1, 0, 0, 0 };
+	b3HeightFieldData* hf = MakeFlatField( materials, true );
+	ENSURE( hf != NULL );
+
+	b3RayCastInput up = { 0 };
+	up.origin = (b3Vec3){ B3_FIX( 0.3f ), -B3_FIX( 5.0f ), B3_FIX( 0.25f ) };
+	up.translation = (b3Vec3){ B3_FIX( 0.0f ), B3_FIX( 10.0f ), B3_FIX( 0.0f ) };
+	up.maxFraction = B3_FIX( 1.0f );
+
+	b3CastOutput out = b3RayCastHeightField( hf, &up );
+	ENSURE( out.hit == true );
+	ENSURE_SMALL( out.fraction - B3_FIX( 0.5f ), B3_FIX( 0.001f ) );
+	ENSURE( out.normal.y < -B3_FIX( 0.99f ) );
+	ENSURE( out.triangleIndex == 0 || out.triangleIndex == 1 );
+	ENSURE( out.materialIndex == 1 );
+
+	b3RayCastInput down = { 0 };
+	down.origin = (b3Vec3){ B3_FIX( 0.3f ), B3_FIX( 5.0f ), B3_FIX( 0.25f ) };
+	down.translation = (b3Vec3){ B3_FIX( 0.0f ), -B3_FIX( 10.0f ), B3_FIX( 0.0f ) };
+	down.maxFraction = B3_FIX( 1.0f );
+
+	b3CastOutput missed = b3RayCastHeightField( hf, &down );
+	ENSURE( missed.hit == false );
+
+	b3DestroyHeightField( hf );
+	return 0;
+}
+
 int HeightFieldTest( void )
 {
 	RUN_SUBTEST( HeightFieldCreate );
@@ -536,6 +687,10 @@ int HeightFieldTest( void )
 	RUN_SUBTEST( ShapeCastVerticalStraddle );
 	RUN_SUBTEST( ShapeCastBruteForce );
 	RUN_SUBTEST( RayCastBruteForce );
+	RUN_SUBTEST( ShapeCastBackside );
+	RUN_SUBTEST( ShapeCastClockwiseWinding );
+	RUN_SUBTEST( RayCastBackside );
+	RUN_SUBTEST( RayCastClockwiseWinding );
 
 	return 0;
 }
