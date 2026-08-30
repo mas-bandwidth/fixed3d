@@ -20,6 +20,7 @@ set(BOX3D_TEST_FILES
     test_large_world.c
     test_macros.h
     test_manifold.c
+    test_mesh.c
     test_math.c
 	test_mover.c
     test_name_cache.c

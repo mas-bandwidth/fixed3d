@@ -8,6 +8,7 @@
 #include "id.h"
 #include "math_functions.h"
 
+#include <stddef.h>
 #include <stdint.h>
 
 #define B3_DEFAULT_CATEGORY_BITS UINT64_MAX
@@ -2066,7 +2067,12 @@ typedef struct b3MeshDef
 	/// Triangle vertices
 	b3Vec3* vertices;
 
-	/// Triangle vertex indices. 3 for each triangle. CCW winding.
+	/// Stride in bytes between vertices. Use 0 for contiguous vertices. Must be a multiple
+	/// of alignof( b3Vec3 ), which is 8 here because b3Fixed is 64 bits, not the 4 that a
+	/// single precision build would allow.
+	size_t stride;
+
+	/// Triangle vertex indices. 3 for each triangle. CCW winding unless CW is indicated below.
 	int32_t* indices;
 
 	/// Triangle material index. 1 per triangle. Indexes into b3ShapeDef::materials.
@@ -2092,6 +2098,9 @@ typedef struct b3MeshDef
 
 	/// Compute triangle adjacency information using shared edges
 	bool identifyEdges;
+
+	/// Input indices have clockWise winding order.
+	bool clockWiseWinding;
 } b3MeshDef;
 
 /// 64-bit mesh version. Useful for validating serialized data.
