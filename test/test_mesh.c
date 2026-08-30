@@ -444,6 +444,93 @@ static int MeshDegenerateReport( void )
 	return 0;
 }
 
+// Winding under a scaled mesh. b3QueryMesh reports each triangle in winding order, so the
+// sign of the reported normal is a direct read of the winding decision -- no culling, no
+// solver, nothing else in the way.
+typedef struct WindingContext
+{
+	int triangleCount;
+	int upCount;
+} WindingContext;
+
+static bool CountWinding( b3Vec3 a, b3Vec3 b, b3Vec3 c, int triangleIndex, void* context )
+{
+	(void)triangleIndex;
+	WindingContext* wc = (WindingContext*)context;
+	b3Vec3 normal = b3Cross( b3Sub( b, a ), b3Sub( c, a ) );
+	wc->triangleCount += 1;
+	if ( normal.y > B3_FIX( 0.0f ) )
+	{
+		wc->upCount += 1;
+	}
+
+	return true;
+}
+
+static int QueryWindingUpCount( b3MeshData* data, b3Vec3 scale, int* triangleCount )
+{
+	b3Mesh mesh = { data, scale };
+	b3AABB bounds = {
+		{ -B3_FIX( 1000.0f ), -B3_FIX( 1000.0f ), -B3_FIX( 1000.0f ) },
+		{ B3_FIX( 1000.0f ), B3_FIX( 1000.0f ), B3_FIX( 1000.0f ) },
+	};
+
+	WindingContext wc = { 0, 0 };
+	b3QueryMesh( &mesh, bounds, CountWinding, &wc );
+	*triangleCount = wc.triangleCount;
+	return wc.upCount;
+}
+
+// THE INVARIANT: a scale changes a mesh's size and handedness, never which way its surface
+// faces. A mirroring scale flips the geometric normal, and the winding swap exists to undo
+// exactly that -- so an upward facing valley must report upward facing triangles under
+// every legal scale, positive or reflected, large or small.
+//
+// The decision is the SIGN of the scale determinant, and forming that determinant with
+// b3FixMul quantizes to zero for legal small scales. Measured in Q48.16: the product of
+// (0.01, 0.01, 0.01) is exactly 0, and so is the product of (0.01, 0.01, -0.01). A test on
+// the product then answers wrongly for both, in opposite directions.
+static int MeshScaledWinding( void )
+{
+	b3Vec3 vertices[VALLEY_VERTEX_COUNT];
+	int32_t indices[3 * VALLEY_TRIANGLE_COUNT];
+	MakeValley( vertices, indices );
+
+	b3MeshDef def = MakeValleyDef( vertices, indices );
+	b3MeshData* data = b3CreateMesh( &def, NULL, 0 );
+	ENSURE( data != NULL );
+
+	b3Vec3 scales[] = {
+		// Determinant safely positive: holds under any spelling, so it is the reference
+		{ B3_FIX( 1.0f ), B3_FIX( 1.0f ), B3_FIX( 1.0f ) },
+
+		// Determinant safely negative: also holds under any spelling
+		{ B3_FIX( 1.0f ), B3_FIX( 1.0f ), -B3_FIX( 1.0f ) },
+
+		// Determinant positive, product quantizes to zero. Upstream's `product > 0` reads
+		// this as clockwise and swaps every triangle.
+		{ B3_FIX( 0.01f ), B3_FIX( 0.01f ), B3_FIX( 0.01f ) },
+
+		// Determinant negative, product quantizes to zero. The older `product < 0` reads
+		// this as counter clockwise and fails to swap.
+		{ B3_FIX( 0.01f ), B3_FIX( 0.01f ), -B3_FIX( 0.01f ) },
+
+		// Non-uniform, two reflected axes, determinant positive and small
+		{ -B3_FIX( 0.02f ), B3_FIX( 0.01f ), -B3_FIX( 0.05f ) },
+	};
+
+	for ( int i = 0; i < ARRAY_COUNT( scales ); ++i )
+	{
+		int count = 0;
+		int up = QueryWindingUpCount( data, scales[i], &count );
+		ENSURE( count == VALLEY_TRIANGLE_COUNT );
+		ENSURE( up == VALLEY_TRIANGLE_COUNT );
+	}
+
+	b3DestroyMesh( data );
+	return 0;
+}
+
 // The built in creators fill their own def, so a missed stride shows up here
 static int MeshCreators( void )
 {
@@ -483,6 +570,7 @@ int MeshTest( void )
 	RUN_SUBTEST( MeshClockWiseIgnored );
 	RUN_SUBTEST( MeshClockWiseStrideWeld );
 	RUN_SUBTEST( MeshDegenerateReport );
+	RUN_SUBTEST( MeshScaledWinding );
 	RUN_SUBTEST( MeshCreators );
 
 	return 0;

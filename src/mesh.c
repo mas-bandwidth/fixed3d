@@ -1967,6 +1967,26 @@ b3AABB b3ComputeMeshAABB( const b3MeshData* shape, b3Transform transform, b3Vec3
 	return b3AABB_Transform( transform, bounds );
 }
 
+// Winding follows the SIGN of the scale determinant sx*sy*sz. Upstream can take that
+// product directly, but b3FixMul of three legal scales quantizes to zero long before any
+// component is zero -- measured, a plain uniform 0.01 scale gives a product of exactly 0 --
+// and both spellings of the product test then answer wrongly, in opposite directions:
+// upstream's `product > 0` calls it clockwise and swaps every triangle, while the older
+// `product < 0` calls a small REFLECTED scale counter clockwise. The sign of a product is
+// the parity of its negative factors, so compare signs and never form the product. Zero is
+// the one case where a component really is zero, which is a degenerate scale; it lands on
+// the not-CCW side, matching upstream's `product > 0` in exact arithmetic.
+static inline bool b3IsScaleCounterClockwise( b3Vec3 scale )
+{
+	if ( scale.x == B3_FIX( 0.0f ) || scale.y == B3_FIX( 0.0f ) || scale.z == B3_FIX( 0.0f ) )
+	{
+		return false;
+	}
+
+	int negativeCount = ( scale.x < B3_FIX( 0.0f ) ) + ( scale.y < B3_FIX( 0.0f ) ) + ( scale.z < B3_FIX( 0.0f ) );
+	return ( negativeCount & 1 ) == 0;
+}
+
 b3CastOutput b3RayCastMesh( const b3Mesh* mesh, const b3RayCastInput* input )
 {
 	const b3MeshData* data = mesh->data;
@@ -1983,7 +2003,7 @@ b3CastOutput b3RayCastMesh( const b3Mesh* mesh, const b3RayCastInput* input )
 
 	b3V32 scale = b3LoadV( &meshScale.x );
 	b3V32 invScale = b3DivV( b3_oneV, scale );
-	bool clockwise = b3FixMul( b3FixMul( meshScale.x , meshScale.y ) , meshScale.z ) < B3_FIX( 0.0f );
+	bool ccw = b3IsScaleCounterClockwise( meshScale );
 
 	// Use the inverse scaled ray for traversal of the BVH
 	b3V32 invScaledRayStart = b3MulV( invScale, rayStart );
@@ -2023,15 +2043,15 @@ b3CastOutput b3RayCastMesh( const b3Mesh* mesh, const b3RayCastInput* input )
 					b3Vec3 vertex2, vertex3;
 
 					// The CPU should predict this branch
-					if ( clockwise )
-					{
-						vertex2 = b3Mul( meshScale, vertices[triangle.index3] );
-						vertex3 = b3Mul( meshScale, vertices[triangle.index2] );
-					}
-					else
+					if ( ccw )
 					{
 						vertex2 = b3Mul( meshScale, vertices[triangle.index2] );
 						vertex3 = b3Mul( meshScale, vertices[triangle.index3] );
+					}
+					else
+					{
+						vertex2 = b3Mul( meshScale, vertices[triangle.index3] );
+						vertex3 = b3Mul( meshScale, vertices[triangle.index2] );
 					}
 
 					// Collide ray with triangle in scaled space
@@ -2117,7 +2137,7 @@ b3CastOutput b3ShapeCastMesh( const b3Mesh* mesh, const b3ShapeCastInput* input 
 	b3V32 scale = b3LoadV( &meshScale.x );
 	b3V32 invScale = b3DivV( b3_oneV, scale );
 	b3V32 absInvScale = b3AbsV( invScale );
-	bool clockwise = b3FixMul( b3FixMul( meshScale.x , meshScale.y ) , meshScale.z ) < B3_FIX( 0.0f );
+	bool ccw = b3IsScaleCounterClockwise( meshScale );
 
 	// Use the inverse scaled shape cast for traversal of the BVH
 	b3V32 invScaledRayStart = b3MulV( invScale, rayStart );
@@ -2159,15 +2179,15 @@ b3CastOutput b3ShapeCastMesh( const b3Mesh* mesh, const b3ShapeCastInput* input 
 					b3Vec3 vertex2, vertex3;
 
 					// The CPU should predict this branch
-					if ( clockwise )
-					{
-						vertex2 = b3Mul( meshScale, vertices[triangle.index3] );
-						vertex3 = b3Mul( meshScale, vertices[triangle.index2] );
-					}
-					else
+					if ( ccw )
 					{
 						vertex2 = b3Mul( meshScale, vertices[triangle.index2] );
 						vertex3 = b3Mul( meshScale, vertices[triangle.index3] );
+					}
+					else
+					{
+						vertex2 = b3Mul( meshScale, vertices[triangle.index3] );
+						vertex3 = b3Mul( meshScale, vertices[triangle.index2] );
 					}
 
 					b3V32 v1 = b3LoadV( &vertex1.x );
@@ -2414,7 +2434,7 @@ int b3CollideMoverAndMesh( b3PlaneResult* planes, int capacity, const b3Mesh* sh
 void b3QueryMesh( const b3Mesh* mesh, b3AABB bounds, b3MeshQueryFcn* fcn, void* context )
 {
 	b3Vec3 meshScale = mesh->scale;
-	bool clockwise = b3FixMul( b3FixMul( meshScale.x , meshScale.y ) , meshScale.z ) > B3_FIX( 0.0f );
+	bool ccw = b3IsScaleCounterClockwise( meshScale );
 
 	// Scale may have reflection so min/max may become invalid when unscaled
 	b3V32 scale = b3LoadV( &meshScale.x );
@@ -2468,7 +2488,7 @@ void b3QueryMesh( const b3Mesh* mesh, b3AABB bounds, b3MeshQueryFcn* fcn, void* 
 					{
 						b3Vec3 a = b3Mul( meshScale, vertex1 );
 						b3Vec3 b, c;
-						if ( clockwise )
+						if ( ccw )
 						{
 							b = b3Mul( meshScale, vertex2 );
 							c = b3Mul( meshScale, vertex3 );
