@@ -300,6 +300,9 @@ b3PlaneResult b3RecR_PLANERESULT( b3RecReader* rdr )
 	v.plane.normal = b3RecR_VEC3( rdr );
 	v.plane.offset = b3RecR_F32( rdr );
 	v.point = b3RecR_VEC3( rdr );
+	v.triangleIndex = b3RecR_I32( rdr );
+	v.childIndex = b3RecR_I32( rdr );
+	v.materialIndex = b3RecR_I32( rdr );
 	return v;
 }
 
@@ -1812,7 +1815,8 @@ static bool b3RecReplayPlaneTrampoline( b3ShapeId id, const b3PlaneResult* plane
 		const b3RecRecordedHit* h = &rc->hits[rc->cursor + i];
 		if ( b3RecVec3Differs( h->plane.plane.normal, planes[i].plane.normal ) ||
 			 b3RecF32Differs( h->plane.plane.offset, planes[i].plane.offset ) ||
-			 b3RecVec3Differs( h->plane.point, planes[i].point ) )
+			 b3RecVec3Differs( h->plane.point, planes[i].point ) || h->plane.triangleIndex != planes[i].triangleIndex ||
+			 h->plane.childIndex != planes[i].childIndex || h->plane.materialIndex != planes[i].materialIndex )
 		{
 			rc->rdr->diverged = true;
 		}
