@@ -18,12 +18,12 @@ than no cursor. Named exceptions, on the issue board rather than buried here:
   stb_truetype, the world_text shader). Held for a bench with a display; no simulation
   content, so it does not gate the cursor.
 
-- **the samples half of `47d7f7c`** — `sample_character.cpp`, `sample_issues.cpp`,
+- **fixed3d#47 — the samples half of `47d7f7c`** — `sample_character.cpp`, `sample_issues.cpp`,
   `sample_joint.cpp` and `samples/mover.*`. Held on the same ground as #20: sample-app
   content, no simulation content, so it does not gate the cursor. The samples tree still
   BUILDS clean against the new API (verified after a forced header rebuild).
 
-- **the remainder of `47d7f7c`'s test additions** — upstream's `test_mover.c` block and
+- **fixed3d#48 — the remainder of `47d7f7c`'s test additions** — upstream's `test_mover.c` block and
   the three `test_body_query.c` TOI cases beyond the four ported here. These are ADDITIONAL
   coverage of engine changes that already landed WITH tests of their own; named rather than
   silently skipped, because a cursor with unnamed holes is worse than no cursor.
