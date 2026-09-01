@@ -676,6 +676,44 @@ static int RayCastClockwiseWinding( void )
 	return 0;
 }
 
+// The MOVER cull on the height field, which no test made fire before this one. The
+// shape-cast cull is covered by ShapeCastBackside above; instrumenting every cull site
+// across the suite showed b3CollideMoverAndHeightField reached and never fired. A wrong
+// sign here drops a character mover's ground contact, and every determinism golden holds
+// regardless because nothing in the corpus is ever culled.
+static int CollideMoverOnField( b3HeightFieldData* hf, b3Fixed y )
+{
+	b3Capsule mover = {
+		{ B3_FIX( 0.3f ), y - B3_FIX( 0.05f ), B3_FIX( 0.25f ) },
+		{ B3_FIX( 0.3f ), y + B3_FIX( 0.05f ), B3_FIX( 0.25f ) },
+		B3_FIX( 0.25f ),
+	};
+
+	b3PlaneResult planes[8] = { 0 };
+	return b3CollideMoverAndHeightField( planes, ARRAY_COUNT( planes ), hf, &mover );
+}
+
+static int MoverHeightFieldBackSideCull( void )
+{
+	b3HeightFieldData* hf = MakeFlatField( NULL, false );
+	ENSURE( hf != NULL );
+
+	// Above the surface and within the mover radius: front side, so a plane is reported.
+	ENSURE( CollideMoverOnField( hf, B3_FIX( 0.2f ) ) > 0 );
+
+	// The same distance below: back side, so the cull drops it.
+	ENSURE( CollideMoverOnField( hf, -B3_FIX( 0.2f ) ) == 0 );
+
+	// Out of range below, so the culled case above cannot be passing merely by distance.
+	ENSURE( CollideMoverOnField( hf, -B3_FIX( 3.0f ) ) == 0 );
+
+	// Out of range above, so the in-range case is reporting contact and not everything.
+	ENSURE( CollideMoverOnField( hf, B3_FIX( 3.0f ) ) == 0 );
+
+	b3DestroyHeightField( hf );
+	return 0;
+}
+
 int HeightFieldTest( void )
 {
 	RUN_SUBTEST( HeightFieldCreate );
@@ -691,6 +729,8 @@ int HeightFieldTest( void )
 	RUN_SUBTEST( ShapeCastClockwiseWinding );
 	RUN_SUBTEST( RayCastBackside );
 	RUN_SUBTEST( RayCastClockwiseWinding );
+
+	RUN_SUBTEST( MoverHeightFieldBackSideCull );
 
 	return 0;
 }

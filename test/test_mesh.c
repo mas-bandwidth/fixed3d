@@ -233,8 +233,14 @@ static int MeshBadStride( void )
 	// told apart from a mesh that failed for some other reason -- an earlier version of
 	// this test read zeroes through the bad stride, collapsed every triangle, and passed
 	// against a build that never checked alignment at all.
-	uint8_t aligned[VALLEY_VERTEX_COUNT * 64];
-	uint8_t misaligned[VALLEY_VERTEX_COUNT * 28 + 32];
+	// _Alignas because the buffers are cast to b3Vec3* and read through as 64-bit members.
+	// A bare uint8_t array is 1-aligned by the language, so the "aligned" control would be
+	// aligned only by the luck of the frame layout -- and ASan does not check alignment, so
+	// the config this runs under would not catch it. Stating the alignment makes the aligned
+	// buffer aligned by construction and the 28-stride offsets misaligned by construction,
+	// which is what the test claims is the only variable between them.
+	_Alignas( b3Vec3 ) uint8_t aligned[VALLEY_VERTEX_COUNT * 64];
+	_Alignas( b3Vec3 ) uint8_t misaligned[VALLEY_VERTEX_COUNT * 28 + 32];
 	memset( aligned, 0, sizeof( aligned ) );
 	memset( misaligned, 0, sizeof( misaligned ) );
 	for ( int i = 0; i < VALLEY_VERTEX_COUNT; ++i )
