@@ -998,6 +998,15 @@ void b3Joint_WakeBodies( b3JointId jointId )
 	world->locked = false;
 }
 
+bool b3Joint_IsAwake( b3JointId jointId )
+{
+	b3World* world = b3GetWorld( jointId.world0 );
+	b3Joint* joint = b3GetJointFullId( world, jointId );
+
+	// Cheaper than checking if the bodies are awake.
+	return joint->setIndex == b3_awakeSet;
+}
+
 void b3GetJointReaction( b3World* world, b3JointSim* sim, b3Fixed invTimeStep, b3Fixed* force, b3Fixed* torque )
 {
 	b3Fixed linearImpulse = B3_FIX( 0.0f );

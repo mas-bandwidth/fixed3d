@@ -22,3 +22,13 @@ build-fixed2/
 .fetchcontent-cache/
 build*/
 bench-*/
+
+# rowan-github and the other rowan-tools wrappers write their run logs to tending/ in
+# whatever repo they are invoked from. Bench state, never repo content -- ignored with a
+# reason rather than left untracked, so a broad `git add` cannot sweep tool logs into a
+# public repo.
+tending/
+
+# Upstream ignores its agent instructions file; ours is CLAUDE.md and is tracked on purpose
+# (it carries the port cursor), so only upstream's name is ignored here.
+AGENTS.md

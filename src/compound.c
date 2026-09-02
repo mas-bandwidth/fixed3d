@@ -408,7 +408,9 @@ b3CompoundData* b3CreateCompound( const b3CompoundDef* def )
 			// No effort to share mesh materials. It would be easier to do if the number of materials was limited.
 			B3_ASSERT( meshData->materialCount == meshDef->materialCount );
 
-			for ( int j = 0; j < meshDef->materialCount; ++j )
+			int meshMaterialCount = b3MinInt( meshDef->materialCount, B3_MAX_COMPOUND_MESH_MATERIALS );
+
+			for ( int j = 0; j < meshMaterialCount; ++j )
 			{
 				// Look for an existing material (staged, see the capsule loop)
 				b3SurfaceMaterial* candidate = materials + materialCount;
@@ -1187,6 +1189,10 @@ static bool b3CompoundMoverCallback( int proxyId, uint64_t userData, void* conte
 	{
 		planes[i].plane.normal = b3RotateVector( child.transform.q, planes[i].plane.normal );
 		planes[i].point = b3TransformPoint( child.transform, planes[i].point );
+
+		planes[i].childIndex = childIndex;
+		int childMaterialIndex = b3MinInt( planes[i].materialIndex, B3_MAX_COMPOUND_MESH_MATERIALS - 1 );
+		planes[i].materialIndex = child.materialIndices[childMaterialIndex];
 	}
 
 	moverContext->planeCount += planeCount;

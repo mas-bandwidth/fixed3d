@@ -567,6 +567,133 @@ static int MoverCapacity( void )
 	return 0;
 }
 
+// TimeOfImpactMover ------------------------------------------------------------------------
+
+// The mover capsule is expressed in the query frame, so a core segment starting at the origin
+// stands the character on the query point. Targets sit on the sweep line at y = 0.
+static b3Capsule MakeStandingMover( void )
+{
+	return (b3Capsule){ { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) },
+						{ B3_FIX( 0.0f ), B3_FIX( 1.0f ), B3_FIX( 0.0f ) },
+						B3_FIX( 0.25f ) };
+}
+
+static int MoverTOIHitsBox( void )
+{
+	b3BodyId bodyId;
+	b3WorldId worldId = CreateQueryWorld( &bodyId );
+
+	b3BoxHull box = b3MakeBoxHull( B3_FIX( 0.5f ), B3_FIX( 0.5f ), B3_FIX( 0.5f ) );
+	b3ShapeDef shapeDef = b3DefaultShapeDef();
+	b3ShapeId shapeId = b3CreateHullShape( bodyId, &shapeDef, &box.base );
+
+	// Face at x = 4.5, mover radius 0.25, so 4.25 of the 10 unit sweep is free.
+	b3Capsule mover = MakeStandingMover();
+	b3WorldTransform bodyTransform = IdentityAt( B3_FIX( 5.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) );
+	b3Vec3 translation = { B3_FIX( 10.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
+	b3BodyTOIResult result =
+		b3Body_TimeOfImpactMover( bodyId, b3Pos_zero, &mover, translation, b3DefaultQueryFilter(), bodyTransform, bodyTransform );
+
+	ENSURE_SMALL( result.fraction - B3_FIX( 0.425f ), B3_FIX( 0.01f ) );
+	ENSURE( b3IsNormalized( result.normal ) );
+	ENSURE_SMALL( result.normal.x + B3_FIX( 1.0f ), B3_FIX( 0.001f ) );
+
+	// The result carries a shape id, so the hit shape must come back identified.
+	ENSURE( b3Shape_IsValid( result.shapeId ) );
+	ENSURE( result.shapeId.index1 == shapeId.index1 );
+	ENSURE( result.shapeId.generation == shapeId.generation );
+
+	b3DestroyWorld( worldId );
+	return 0;
+}
+
+static int MoverTOISeparated( void )
+{
+	b3BodyId bodyId;
+	b3WorldId worldId = CreateQueryWorld( &bodyId );
+
+	b3BoxHull box = b3MakeBoxHull( B3_FIX( 0.5f ), B3_FIX( 0.5f ), B3_FIX( 0.5f ) );
+	b3ShapeDef shapeDef = b3DefaultShapeDef();
+	b3CreateHullShape( bodyId, &shapeDef, &box.base );
+
+	// Sweeping along +Y holds the X gap at 4.25 for the whole interval.
+	b3Capsule mover = MakeStandingMover();
+	b3WorldTransform bodyTransform = IdentityAt( B3_FIX( 5.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) );
+	b3Vec3 translation = { B3_FIX( 0.0f ), B3_FIX( 10.0f ), B3_FIX( 0.0f ) };
+	b3BodyTOIResult result =
+		b3Body_TimeOfImpactMover( bodyId, b3Pos_zero, &mover, translation, b3DefaultQueryFilter(), bodyTransform, bodyTransform );
+
+	ENSURE( result.fraction == B3_FIX( 1.0f ) );
+	ENSURE( b3Shape_IsValid( result.shapeId ) == false );
+
+	b3DestroyWorld( worldId );
+	return 0;
+}
+
+static int MoverTOIOverlapped( void )
+{
+	b3BodyId bodyId;
+	b3WorldId worldId = CreateQueryWorld( &bodyId );
+
+	b3BoxHull box = b3MakeBoxHull( B3_FIX( 0.5f ), B3_FIX( 0.5f ), B3_FIX( 0.5f ) );
+	b3ShapeDef shapeDef = b3DefaultShapeDef();
+	b3CreateHullShape( bodyId, &shapeDef, &box.base );
+
+	// Mover starts buried in the box, so there is no free interval to search.
+	b3Capsule mover = MakeStandingMover();
+	b3WorldTransform bodyTransform = IdentityAt( B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) );
+	b3Vec3 translation = { B3_FIX( 10.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
+	b3BodyTOIResult result =
+		b3Body_TimeOfImpactMover( bodyId, b3Pos_zero, &mover, translation, b3DefaultQueryFilter(), bodyTransform, bodyTransform );
+
+	// Overlap should be ignored.
+	ENSURE( result.fraction == B3_FIX( 1.0f ) );
+	ENSURE( B3_IS_NULL( result.shapeId ) );
+
+	b3DestroyWorld( worldId );
+	return 0;
+}
+
+// Two shapes on the sweep line must resolve to the nearer one whatever order the shape list
+// hands them to the loop. Shapes are pushed on the head of the list, so the two bodies below
+// walk their shapes in opposite orders.
+static int MoverTOIClosestShape( void )
+{
+	b3BodyId nearFirstId;
+	b3WorldId worldId = CreateQueryWorld( &nearFirstId );
+
+	b3BodyDef bodyDef = b3DefaultBodyDef();
+	b3BodyId nearLastId = b3CreateBody( worldId, &bodyDef );
+
+	b3ShapeDef shapeDef = b3DefaultShapeDef();
+	b3Sphere nearSphere = { { B3_FIX( 5.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, B3_FIX( 0.5f ) };
+	b3Sphere farSphere = { { B3_FIX( 9.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, B3_FIX( 0.5f ) };
+
+	b3ShapeId nearFirstHit = b3CreateSphereShape( nearFirstId, &shapeDef, &nearSphere );
+	b3CreateSphereShape( nearFirstId, &shapeDef, &farSphere );
+
+	b3CreateSphereShape( nearLastId, &shapeDef, &farSphere );
+	b3ShapeId nearLastHit = b3CreateSphereShape( nearLastId, &shapeDef, &nearSphere );
+
+	b3Capsule mover = MakeStandingMover();
+	b3WorldTransform bodyTransform = IdentityAt( B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) );
+	b3Vec3 translation = { B3_FIX( 10.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
+
+	b3BodyTOIResult nearFirst = b3Body_TimeOfImpactMover( nearFirstId, b3Pos_zero, &mover, translation, b3DefaultQueryFilter(),
+														 bodyTransform, bodyTransform );
+	b3BodyTOIResult nearLast = b3Body_TimeOfImpactMover( nearLastId, b3Pos_zero, &mover, translation, b3DefaultQueryFilter(),
+														bodyTransform, bodyTransform );
+
+	ENSURE_SMALL( nearFirst.fraction - B3_FIX( 0.425f ), B3_FIX( 0.01f ) );
+	ENSURE( nearFirst.shapeId.index1 == nearFirstHit.index1 );
+
+	ENSURE_SMALL( nearLast.fraction - nearFirst.fraction, B3_FIX( 0.0001f ) );
+	ENSURE( nearLast.shapeId.index1 == nearLastHit.index1 );
+
+	b3DestroyWorld( worldId );
+	return 0;
+}
+
 int BodyQueryTest( void )
 {
 	RUN_SUBTEST( CastRayHitsSphere );
@@ -591,6 +718,10 @@ int BodyQueryTest( void )
 	RUN_SUBTEST( MoverSeparated );
 	RUN_SUBTEST( MoverRotatedBody );
 	RUN_SUBTEST( MoverCapacity );
+	RUN_SUBTEST( MoverTOIHitsBox );
+	RUN_SUBTEST( MoverTOISeparated );
+	RUN_SUBTEST( MoverTOIOverlapped );
+	RUN_SUBTEST( MoverTOIClosestShape );
 
 	return 0;
 }

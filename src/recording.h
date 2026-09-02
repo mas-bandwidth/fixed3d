@@ -80,7 +80,12 @@ typedef struct b3World b3World;
 // version. Found by two independent cold readers, which flagged the same interim window.
 // Ruling: Glenn, 2026-08-23 -- "Bump major", with the standing grant "as you see fit
 // now and in the future": recording-format majors are the maintainer's call from here on.
-#define B3_REC_VERSION_MAJOR 7
+// Major version 8 widens b3PlaneResult with triangleIndex, childIndex and materialIndex.
+// The mover plane batches written by b3World_CollideMover and b3Body_CollideMover gain
+// three int32 fields per hit, so a v7 reader walking a v8 stream desynchronises at the
+// first plane and every op after it. Upstream box3d made the same widening its own major
+// bump (4 -> 5); ours is 8 because this fork's major counter is ahead.
+#define B3_REC_VERSION_MAJOR 8
 
 // Minor tracks op-stream additions that keep the 48 byte header shape.
 // Minor version 3 added name cache.

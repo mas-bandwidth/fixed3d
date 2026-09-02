@@ -233,6 +233,76 @@ static int MoverHullDeepOverlap( void )
 	return 0;
 }
 
+// Back-side culling on the MOVER paths. The shape-cast cull has MeshBackSideCull in
+// test_mesh.c; instrumenting every cull site across the whole suite showed the two
+// b3CollideMoverAnd* sites reached and never fired, so until these two subtests existed
+// the highest consequence cull in the change -- a character mover's contact planes --
+// was carried by inspection alone. A wrong sign here is a character falling through a
+// floor, and no determinism golden can see it because nothing in the corpus is culled.
+
+#define MOVER_PLATE_VERTEX_COUNT 4
+#define MOVER_PLATE_TRIANGLE_COUNT 2
+
+// A flat plate in the y = 0 plane, wound CCW seen from above, so its front face is +Y.
+static b3MeshData* MakeMoverPlate( void )
+{
+	static b3Vec3 vertices[MOVER_PLATE_VERTEX_COUNT] = {
+		{ -B3_FIX( 2.0f ), B3_FIX( 0.0f ), -B3_FIX( 2.0f ) },
+		{ B3_FIX( 2.0f ), B3_FIX( 0.0f ), -B3_FIX( 2.0f ) },
+		{ B3_FIX( 2.0f ), B3_FIX( 0.0f ), B3_FIX( 2.0f ) },
+		{ -B3_FIX( 2.0f ), B3_FIX( 0.0f ), B3_FIX( 2.0f ) },
+	};
+
+	static int32_t indices[3 * MOVER_PLATE_TRIANGLE_COUNT] = { 0, 3, 1, 1, 3, 2 };
+
+	b3MeshDef def = { 0 };
+	def.vertices = vertices;
+	def.indices = indices;
+	def.vertexCount = MOVER_PLATE_VERTEX_COUNT;
+	def.triangleCount = MOVER_PLATE_TRIANGLE_COUNT;
+	return b3CreateMesh( &def, NULL, 0 );
+}
+
+// Collide a short vertical mover centred at height y against the plate, and report how
+// many contact planes come back.
+static int CollideMoverAtHeight( b3MeshData* data, b3Fixed y )
+{
+	b3Mesh mesh = { data, { B3_FIX( 1.0f ), B3_FIX( 1.0f ), B3_FIX( 1.0f ) } };
+
+	b3Capsule mover = {
+		{ B3_FIX( 0.0f ), y - B3_FIX( 0.05f ), B3_FIX( 0.0f ) },
+		{ B3_FIX( 0.0f ), y + B3_FIX( 0.05f ), B3_FIX( 0.0f ) },
+		B3_FIX( 0.25f ),
+	};
+
+	b3PlaneResult planes[8] = { 0 };
+	return b3CollideMoverAndMesh( planes, ARRAY_COUNT( planes ), &mesh, &mover );
+}
+
+static int MoverMeshBackSideCull( void )
+{
+	b3MeshData* plate = MakeMoverPlate();
+	ENSURE( plate != NULL );
+
+	// Above the plate and within the mover radius: the front side, so a plane is reported.
+	ENSURE( CollideMoverAtHeight( plate, B3_FIX( 0.2f ) ) > 0 );
+
+	// Below the plate, the same distance away: the back side, so the cull drops it.
+	ENSURE( CollideMoverAtHeight( plate, -B3_FIX( 0.2f ) ) == 0 );
+
+	// Far below, out of range either way. Without this the case above could pass merely
+	// by being too far from the plate to touch it, which would make the cull untested
+	// while looking green.
+	ENSURE( CollideMoverAtHeight( plate, -B3_FIX( 3.0f ) ) == 0 );
+
+	// And far above, out of range on the front side, so the in-range case above is
+	// reporting contact rather than reporting everything.
+	ENSURE( CollideMoverAtHeight( plate, B3_FIX( 3.0f ) ) == 0 );
+
+	b3DestroyMesh( plate );
+	return 0;
+}
+
 int MoverTest( void )
 {
 	RUN_SUBTEST( GamePlanes );
@@ -250,6 +320,8 @@ int MoverTest( void )
 	RUN_SUBTEST( MoverHullSeparated );
 	RUN_SUBTEST( MoverHullTouching );
 	RUN_SUBTEST( MoverHullDeepOverlap );
+
+	RUN_SUBTEST( MoverMeshBackSideCull );
 
 	return 0;
 }

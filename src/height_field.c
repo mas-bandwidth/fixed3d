@@ -776,8 +776,11 @@ b3CastOutput b3ShapeCastHeightField( const b3HeightFieldData* heightField, const
 	castBounds.lowerBound = b3Vec3ToBound( b3Sub( b3Min( centerStart, centerEnd ), shapeExtents ) );
 	castBounds.upperBound = b3Vec3ToBound( b3Add( b3Max( centerStart, centerEnd ), shapeExtents ) );
 
+	// The ray origin is the center of the shape.
 	b3V32 rayOrigin = b3LoadV( &shapeStart.x );
 	b3V32 rayTranslation = b3LoadV( &shapeTranslation.x );
+
+	bool clockwise = heightField->clockwise;
 
 	while ( true )
 	{
@@ -835,6 +838,11 @@ b3CastOutput b3ShapeCastHeightField( const b3HeightFieldData* heightField, const
 				b3Vec3 point21 = corners[2];
 				b3Vec3 point22 = corners[3];
 
+				if ( clockwise )
+				{
+					B3_SWAP( point12, point21 );
+				}
+
 				// I know the min/max x and z values, but not the min/max heights.
 				b3AABB bounds;
 				bounds.lowerBound = b3Vec3ToBound( b3Min( b3Min( point11, point12 ), b3Min( point21, point22 ) ) );
@@ -854,18 +862,8 @@ b3CastOutput b3ShapeCastHeightField( const b3HeightFieldData* heightField, const
 					// Ray cast
 					{
 						b3V32 vertex1 = b3LoadV( &point11.x );
-						b3V32 vertex2, vertex3;
-
-						if ( heightField->clockwise )
-						{
-							vertex2 = b3LoadV( &point12.x );
-							vertex3 = b3LoadV( &point21.x );
-						}
-						else
-						{
-							vertex2 = b3LoadV( &point21.x );
-							vertex3 = b3LoadV( &point12.x );
-						}
+						b3V32 vertex2 = b3LoadV( &point21.x );
+						b3V32 vertex3 = b3LoadV( &point12.x );
 
 						b3Fixed alpha = b3IntersectRayTriangle( rayOrigin, rayTranslation, vertex1, vertex2, vertex3 );
 						B3_ASSERT( b3FixFromInt( 0 ) <= alpha && alpha <= B3_FIX( 1.0f ) );
@@ -874,7 +872,7 @@ b3CastOutput b3ShapeCastHeightField( const b3HeightFieldData* heightField, const
 						{
 							b3Vec3 edge1 = b3Sub( point21, point11 );
 							b3Vec3 edge2 = b3Sub( point12, point11 );
-							b3Vec3 normal = heightField->clockwise ? b3Cross( edge2, edge1 ) : b3Cross( edge1, edge2 );
+							b3Vec3 normal = b3Cross( edge1, edge2 );
 
 							result.point = b3MulAdd( shapeStart, alpha, shapeTranslation );
 							result.normal = b3Normalize( normal );
@@ -888,18 +886,8 @@ b3CastOutput b3ShapeCastHeightField( const b3HeightFieldData* heightField, const
 
 					{
 						b3V32 vertex1 = b3LoadV( &point22.x );
-						b3V32 vertex2, vertex3;
-
-						if ( heightField->clockwise )
-						{
-							vertex2 = b3LoadV( &point21.x );
-							vertex3 = b3LoadV( &point12.x );
-						}
-						else
-						{
-							vertex2 = b3LoadV( &point12.x );
-							vertex3 = b3LoadV( &point21.x );
-						}
+						b3V32 vertex2 = b3LoadV( &point12.x );
+						b3V32 vertex3 = b3LoadV( &point21.x );
 
 						b3Fixed alpha = b3IntersectRayTriangle( rayOrigin, rayTranslation, vertex1, vertex2, vertex3 );
 						B3_ASSERT( b3FixFromInt( 0 ) <= alpha && alpha <= B3_FIX( 1.0f ) );
@@ -908,7 +896,7 @@ b3CastOutput b3ShapeCastHeightField( const b3HeightFieldData* heightField, const
 						{
 							b3Vec3 edge1 = b3Sub( point22, point21 );
 							b3Vec3 edge2 = b3Sub( point12, point21 );
-							b3Vec3 normal = heightField->clockwise ? b3Cross( edge2, edge1 ) : b3Cross( edge1, edge2 );
+							b3Vec3 normal = b3Cross( edge1, edge2 );
 
 							result.point = b3MulAdd( shapeStart, alpha, shapeTranslation );
 							result.normal = b3Normalize( normal );
@@ -923,44 +911,56 @@ b3CastOutput b3ShapeCastHeightField( const b3HeightFieldData* heightField, const
 				else
 				{
 					// Shape cast
-					// todo back-side culling
 					{
-						// Shift origin to first vertex
-						b3Vec3 origin = point11;
-						b3Vec3 triangleVertices[] = { b3Vec3_zero, b3Sub( point21, origin ), b3Sub( point12, origin ) };
-						pairInput.proxyA = (b3ShapeProxy){ triangleVertices, 3, B3_FIX( 0.0f ) };
-						pairInput.maxFraction = bestFraction;
-						pairInput.transform.p = b3Neg( origin );
+						// shapeStart is the center of the proxy. A zero signed volume lands on
+						// the front side, so the cull fails OPEN in fixed point.
+						b3Fixed signedVolume = b3SignedVolume( point11, point21, point12, shapeStart );
 
-						b3CastOutput pairOutput = b3ShapeCast( &pairInput );
-
-						if ( pairOutput.hit )
+						if ( signedVolume >= B3_FIX( 0.0f ) )
 						{
-							bestFraction = pairOutput.fraction;
-							result = pairOutput;
-							result.point = b3Add( result.point, origin );
-							result.triangleIndex = triangleIndex1;
-							result.materialIndex = materialIndex;
+							// Shift origin to first vertex
+							b3Vec3 origin = point11;
+							b3Vec3 triangleVertices[] = { b3Vec3_zero, b3Sub( point21, origin ), b3Sub( point12, origin ) };
+							pairInput.proxyA = (b3ShapeProxy){ triangleVertices, 3, B3_FIX( 0.0f ) };
+							pairInput.maxFraction = bestFraction;
+							pairInput.transform.p = b3Neg( origin );
+
+							b3CastOutput pairOutput = b3ShapeCast( &pairInput );
+
+							if ( pairOutput.hit )
+							{
+								bestFraction = pairOutput.fraction;
+								result = pairOutput;
+								result.point = b3Add( result.point, origin );
+								result.triangleIndex = triangleIndex1;
+								result.materialIndex = materialIndex;
+							}
 						}
 					}
 
 					{
-						// Shift origin to first vertex
-						b3Vec3 origin = point21;
-						b3Vec3 triangleVertices[] = { b3Vec3_zero, b3Sub( point22, origin ), b3Sub( point12, origin ) };
-						pairInput.proxyA = (b3ShapeProxy){ triangleVertices, 3, B3_FIX( 0.0f ) };
-						pairInput.maxFraction = bestFraction;
-						pairInput.transform.p = b3Neg( origin );
+						// shapeStart is the center of the proxy.
+						b3Fixed signedVolume = b3SignedVolume( point21, point22, point12, shapeStart );
 
-						b3CastOutput pairOutput = b3ShapeCast( &pairInput );
-
-						if ( pairOutput.hit )
+						if ( signedVolume >= B3_FIX( 0.0f ) )
 						{
-							bestFraction = pairOutput.fraction;
-							result = pairOutput;
-							result.point = b3Add( result.point, origin );
-							result.triangleIndex = triangleIndex2;
-							result.materialIndex = materialIndex;
+							// Shift origin to first vertex
+							b3Vec3 origin = point21;
+							b3Vec3 triangleVertices[] = { b3Vec3_zero, b3Sub( point22, origin ), b3Sub( point12, origin ) };
+							pairInput.proxyA = (b3ShapeProxy){ triangleVertices, 3, B3_FIX( 0.0f ) };
+							pairInput.maxFraction = bestFraction;
+							pairInput.transform.p = b3Neg( origin );
+
+							b3CastOutput pairOutput = b3ShapeCast( &pairInput );
+
+							if ( pairOutput.hit )
+							{
+								bestFraction = pairOutput.fraction;
+								result = pairOutput;
+								result.point = b3Add( result.point, origin );
+								result.triangleIndex = triangleIndex2;
+								result.materialIndex = materialIndex;
+							}
 						}
 					}
 				}
@@ -1221,6 +1221,7 @@ int b3CollideMoverAndHeightField( b3PlaneResult* planes, int capacity, const b3H
 	b3SimplexCache cache = { 0 };
 
 	b3Fixed radius = mover->radius;
+	b3Vec3 center = b3Lerp( mover->center1, mover->center2, B3_FIX( 0.5f ) );
 	b3V32 center1 = b3LoadV( &mover->center1.x );
 	b3V32 center2 = b3LoadV( &mover->center2.x );
 	b3V32 r = b3SplatV( radius );
@@ -1239,6 +1240,8 @@ int b3CollideMoverAndHeightField( b3PlaneResult* planes, int capacity, const b3H
 	int maxRow = (int)b3FixTruncToInt( b3FixFloor( b3FixDiv( localMaxZ , scale.z ) ) );
 	int minCol = (int)b3FixTruncToInt( b3FixFloor( b3FixDiv( localMinX , scale.x ) ) );
 	int maxCol = (int)b3FixTruncToInt( b3FixFloor( b3FixDiv( localMaxX , scale.x ) ) );
+
+	bool clockWise = shape->clockwise;
 
 	int planeCount = 0;
 
@@ -1273,12 +1276,18 @@ int b3CollideMoverAndHeightField( b3PlaneResult* planes, int capacity, const b3H
 			b3Vec3 point21 = corners[2];
 			b3Vec3 point22 = corners[3];
 
+			if ( clockWise )
+			{
+				B3_SWAP( point12, point21 );
+			}
+
 			b3V32 v11 = b3LoadV( &point11.x );
 			b3V32 v12 = b3LoadV( &point12.x );
 			b3V32 v21 = b3LoadV( &point21.x );
 			b3V32 v22 = b3LoadV( &point22.x );
 
-			if ( b3TestBoundsTriangleOverlap( boundsCenter, boundsExtent, v11, v21, v12 ) )
+			bool overlap1 = b3TestBoundsTriangleOverlap( boundsCenter, boundsExtent, v11, v21, v12 );
+			if ( overlap1 && b3SignedVolume( point11, point21, point12, center ) >= B3_FIX( 0.0f ) )
 			{
 				b3Vec3 triangleVertices[] = { point11, point21, point12 };
 				distanceInput.proxyA = (b3ShapeProxy){ triangleVertices, 3, B3_FIX( 0.0f ) };
@@ -1291,12 +1300,13 @@ int b3CollideMoverAndHeightField( b3PlaneResult* planes, int capacity, const b3H
 
 				if ( distanceOutput.distance == B3_FIX( 0.0f ) )
 				{
-					// todo SAT
+					// deep overlap
 				}
 				else if ( distanceOutput.distance <= mover->radius )
 				{
+					int triangleIndex = 2 * cellIndex;
 					b3Plane plane = { distanceOutput.normal, mover->radius - distanceOutput.distance };
-					planes[planeCount] = (b3PlaneResult){ plane, distanceOutput.pointA };
+					planes[planeCount] = (b3PlaneResult){ plane, distanceOutput.pointA, triangleIndex, 0, material };
 					planeCount += 1;
 
 					if ( planeCount == capacity )
@@ -1306,7 +1316,8 @@ int b3CollideMoverAndHeightField( b3PlaneResult* planes, int capacity, const b3H
 				}
 			}
 
-			if ( b3TestBoundsTriangleOverlap( boundsCenter, boundsExtent, v21, v22, v12 ) )
+			bool overlap2 = b3TestBoundsTriangleOverlap( boundsCenter, boundsExtent, v21, v22, v12 );
+			if ( overlap2 && b3SignedVolume( point22, point12, point21, center ) >= B3_FIX( 0.0f ) )
 			{
 				b3Vec3 triangleVertices[] = { point22, point12, point21 };
 				distanceInput.proxyA = (b3ShapeProxy){ triangleVertices, 3, B3_FIX( 0.0f ) };
@@ -1319,12 +1330,13 @@ int b3CollideMoverAndHeightField( b3PlaneResult* planes, int capacity, const b3H
 
 				if ( distanceOutput.distance == B3_FIX( 0.0f ) )
 				{
-					// todo SAT
+					// deep overlap
 				}
 				else if ( distanceOutput.distance <= mover->radius )
 				{
+					int triangleIndex = 2 * cellIndex + 1;
 					b3Plane plane = { distanceOutput.normal, mover->radius - distanceOutput.distance };
-					planes[planeCount] = (b3PlaneResult){ plane, distanceOutput.pointA };
+					planes[planeCount] = (b3PlaneResult){ plane, distanceOutput.pointA, triangleIndex, 0, material };
 					planeCount += 1;
 
 					if ( planeCount == capacity )

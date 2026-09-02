@@ -4,15 +4,29 @@ Box3D converted from float to Q48.16 fixed point (internal and external API).
 
 ## THE PORT CURSOR — read this before any Box3D -> Fixed3D pass
 
-**Everything in erincatto/box3d up to and including `30c67b5` is carried across.**
-`git log 30c67b5..upstream/main` is the remaining work. (This line replaced
+**Everything in erincatto/box3d up to and including `47d7f7c` is carried across —
+THIS LINE ADVANCES WITH THE MERGE OF `port/47d7f7c-clockwise-mover`, NOT BEFORE.**
+`git log 47d7f7c..upstream/main` is the remaining work. Until that branch merges the
+true cursor is `30c67b5`, and the run that merges it comes back and strikes this
+clause — the same discipline the discharged `fixed3d#21` note below records, applied
+to itself rather than only remembered. (This line replaced
 *"Baseline float code is commit c52908c"* on 2026-08-22 — same claim, said as a cursor.) One named exception, on
 the issue board rather than buried here, because a cursor with silent holes is worse
-than no cursor:
+than no cursor. Named exceptions, on the issue board rather than buried here:
 
 - **fixed3d#20** — the sample-viewer half of `3fc20f5` (follow cam, world text,
   stb_truetype, the world_text shader). Held for a bench with a display; no simulation
   content, so it does not gate the cursor.
+
+- **fixed3d#47 — the samples half of `47d7f7c`** — `sample_character.cpp`, `sample_issues.cpp`,
+  `sample_joint.cpp` and `samples/mover.*`. Held on the same ground as #20: sample-app
+  content, no simulation content, so it does not gate the cursor. The samples tree still
+  BUILDS clean against the new API (verified after a forced header rebuild).
+
+- **fixed3d#48 — the remainder of `47d7f7c`'s test additions** — upstream's `test_mover.c` block and
+  the three `test_body_query.c` TOI cases beyond the four ported here. These are ADDITIONAL
+  coverage of engine changes that already landed WITH tests of their own; named rather than
+  silently skipped, because a cursor with unnamed holes is worse than no cursor.
 
 *(~~**fixed3d#21 closes WITH this change, not before it**~~ — **DISCHARGED 2026-08-25, verified
 rather than assumed: the branch merged and fixed3d#21 is CLOSED, so the cursor above states a
@@ -25,7 +39,91 @@ and says *closed*. Record below.)*
 
 The PORT RECORDs below run newest first and are the detail for each step.
 
-## Current status (as of 2026-08-23 — v1.4.0, MAINTENANCE MODE)
+## Current status (as of 2026-08-31 — v1.4.0, MAINTENANCE MODE)
+
+- **PORT RECORD 47d7f7c "clockwise option, joint is awake (#130)" (2026-08-29) —
+  PORTED in seven steps, 2026-08-31.** 2,466 upstream insertions; the whole engine
+  half is across, the samples half is held above. Each step built and ran narrow,
+  ludicrous and Debug+VALIDATE+ASan before the next began.
+
+  **TWO FIXED-POINT DECISIONS, and the first is the one that matters.**
+
+  **(1) MESH WINDING MUST NOT USE THE SCALE PRODUCT.** Upstream renames its winding
+  boolean from `clockwise = sx*sy*sz < 0` to `ccw = sx*sy*sz > 0` and swaps the branch
+  bodies. In float those differ only when a component is exactly zero. Here `b3FixMul`
+  of three legal scales quantizes to zero far earlier — MEASURED, raw product values:
+  (1,1,1) = 65536, (1,1,-1) = -65536, (0.2,0.2,-0.2) = -524, (0.05,0.05,-0.05) = -8,
+  **(0.01,0.01,-0.01) = 0 and (0.01,0.01,0.01) = 0**. So a plain uniform 1 cm scale has a
+  determinant product of exactly zero, and upstream's new spelling reads it as clockwise
+  and swaps every triangle in every ray cast, shape cast and query. **Porting it verbatim
+  would have been a regression.** The old `< 0` spelling is wrong the other way, on small
+  REFLECTED scales. `b3IsScaleCounterClockwise` compares SIGNS — the sign of a product is
+  the parity of its negative factors — and equals upstream's `product > 0` in exact
+  arithmetic. Applied at all three sites, which also fixes a pre-existing inconsistency
+  where two used `< 0` and the third `> 0`.
+
+  **(2) MESH VERTEX STRIDE ALIGNMENT IS 8, NOT 4.** Upstream rejects a stride that is not
+  a multiple of 4, the alignment of a single precision `b3Vec3`. Measured here by
+  compiling a sizeof/alignof program in both configs: `b3Vec3` is **24 bytes, alignment
+  8**, in narrow AND `LUDICROUS_MODE`. Upstream's check would accept a stride of 28 and
+  load every vertex misaligned, so the check is spelled against `_Alignof( b3Vec3 )`.
+
+  **PORTED:** `b3MeshDef` gains `stride` and `clockWiseWinding` (threaded through the
+  strided copy, the spatial hash and the welder; clockwise swapped once at bake time);
+  `b3PlaneResult` gains `triangleIndex`, `childIndex` and `materialIndex`, filled by mesh
+  and height field, clamped in `b3CollideMover`, remapped through the child material table
+  in the compound callback; back-side culling via `b3SignedVolume` on `b3ShapeCastMesh`,
+  `b3CollideMoverAndMesh`, `b3ShapeCastHeightField` and `b3CollideMoverAndHeightField`;
+  the height field's per-triangle winding branch collapses to one corner swap;
+  `b3Body_TimeOfImpactMover` and `b3BodyTOIResult` (fraction as `b3Fixed`);
+  `b3Joint_IsAwake`; `b3Body_GetMinExtent` / `GetMaxExtent` / `GetMaxExtentOrigin`;
+  three real extent bugs (capsule max without `b3Abs`, sphere subtracting the local
+  center twice, mesh measuring from the body origin); `b3ShapeDistance` fills its whole
+  output on every return and caches the simplex last; `b3TimeOfImpact` fills point and
+  normal on the overlapped state; the degenerate-report off-by-one; two `b3Array` leaks;
+  `B3_MAX_MESH_CONTACT_TRIANGLES` becomes a public `#ifndef` tunable; dead code in
+  `b3ReduceManifoldPoints` and `b3OverlapShape`.
+
+  **CULLING FAILS OPEN, deliberately.** `b3SignedVolume` is a `b3Cross` fed to a `b3Dot`.
+  `b3Dot` is fused raw-128 but `b3Cross` is on this tree's do-not-fuse list, so each cross
+  component rounds and a small enough triangle quantizes the whole signed volume to zero.
+  Upstream's comparison already puts zero on the FRONT side, so the degenerate case stops
+  culling rather than silently dropping contacts on tiny geometry. The upstream spelling is
+  kept exactly rather than tightened.
+
+  **RECORDING FORMAT: `B3_REC_VERSION_MAJOR` 7 -> 8.** The mover plane batches gain three
+  int32 fields per hit, so a v7 reader walking a v8 stream desynchronises at the first
+  plane and every op after it. Upstream made the same widening its own major bump, 4 -> 5;
+  ours is 8 because this fork's counter is ahead.
+
+  **GOLDENS: NONE MOVED, and for back-side culling that was NOT evidence until it was
+  measured.** Instrumenting every cull site and running the whole suite: the branch was
+  reached **1992 times and fired 0 times**. Every golden held for the uninteresting reason
+  that nothing in the corpus is ever culled. `MeshBackSideCull` is the test that makes it
+  fire (counters then read 1996 tested, 2 fired). Winding and stride move no golden because
+  both new fields default to the old behaviour; extents bound behaviour rather than
+  producing it.
+
+  **TESTS: `test/test_mesh.c` is new** (upstream's, in Q48.16, plus five cases of our own:
+  zero stride, bad stride, the degenerate report, scaled winding, back-side culling), plus
+  `ShapeExtents` in `test_body.c`, four back-side/winding cases in `test_height_field.c`,
+  and four TOI cases in `test_body_query.c`. 24 suites.
+
+  **RED FIRST, and two controls were GREEN on the first attempt, which is the finding.**
+  Every claim was seen failing by neutering the code it tests, one at a time, with the
+  neuter ASSERTED to have matched the source rather than assumed. `MeshDegenerateReport`
+  asserted only slot 0, which the old ordering also fills — the difference is the LAST slot.
+  `MeshBadStride` returned NULL under the neutered build for the wrong reason (the bad
+  stride overran its buffer and collapsed the mesh instead of being refused); it now casts
+  two packings of the same valley so alignment is the only variable. Both were rewritten
+  until the control actually went red. A pass never seen failing is evidence about the
+  runner, not the job.
+
+  **VERIFIED:** all four configs green — build-port, build-ludicrous, build-debug
+  (Debug+VALIDATE+ASan), build-samples.
+
+
+## Older status (as of 2026-08-23 — v1.4.0, MAINTENANCE MODE)
 
 - **PORT RECORD f42be21 (remainder) + 30c67b5 "Fixed the 64-bit hash function (#129)"
   (2026-08-12) — PORTED as ONE step, 2026-08-23, closing fixed3d#21.** Taken together

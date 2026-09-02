@@ -613,6 +613,111 @@ static int InverseInertiaScaleEnvelope( void )
 	return 0;
 }
 
+// Extents bound the shapes about the center of mass, per axis. An offset shape must count its
+// offset, not just its own size. Upstream's tolerances of 1e-5 sit BELOW this engine's
+// 1.5e-5 quantum, so they are floored to 8 * B3_FIXED_EPSILON per the tree's convention.
+static int ShapeExtents( void )
+{
+	const b3Fixed tol = 8 * B3_FIXED_EPSILON;
+	const b3Fixed meshTol = B3_FIX( 0.0001f );
+
+	b3WorldDef worldDef = b3DefaultWorldDef();
+	b3WorldId worldId = b3CreateWorld( &worldDef );
+
+	b3ShapeDef shapeDef = b3DefaultShapeDef();
+	shapeDef.density = B3_FIX( 1.0f );
+
+	// Kinematic bodies measure from the body origin
+	b3BodyDef bodyDef = b3DefaultBodyDef();
+	bodyDef.type = b3_kinematicBody;
+
+	b3BodyId capsuleId = b3CreateBody( worldId, &bodyDef );
+	b3Capsule capsule = { { -B3_FIX( 2.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) },
+						  { -B3_FIX( 1.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) },
+						  B3_FIX( 0.2f ) };
+	b3CreateCapsuleShape( capsuleId, &shapeDef, &capsule );
+
+	// Both capsule centers sit on the -x side of the origin, so a componentwise max without
+	// b3Abs picks the NEARER end and under-reports the extent by a whole unit.
+	b3Vec3 maxExtent = b3Body_GetMaxExtent( capsuleId );
+	ENSURE_SMALL( maxExtent.x - B3_FIX( 2.2f ), tol );
+	ENSURE_SMALL( maxExtent.y - B3_FIX( 0.2f ), tol );
+	ENSURE_SMALL( maxExtent.z - B3_FIX( 0.2f ), tol );
+	ENSURE_SMALL( b3Body_GetMinExtent( capsuleId ) - B3_FIX( 0.2f ), tol );
+
+	b3BodyId sphereId = b3CreateBody( worldId, &bodyDef );
+	b3Sphere sphere = { { B3_FIX( 1.0f ), B3_FIX( 2.0f ), B3_FIX( 3.0f ) }, B3_FIX( 0.5f ) };
+	b3CreateSphereShape( sphereId, &shapeDef, &sphere );
+
+	maxExtent = b3Body_GetMaxExtent( sphereId );
+	ENSURE_SMALL( maxExtent.x - B3_FIX( 1.5f ), tol );
+	ENSURE_SMALL( maxExtent.y - B3_FIX( 2.5f ), tol );
+	ENSURE_SMALL( maxExtent.z - B3_FIX( 3.5f ), tol );
+	ENSURE_SMALL( b3Body_GetMinExtent( sphereId ) - B3_FIX( 0.5f ), tol );
+
+	// Dynamic bodies measure from the center of mass. A light sphere hung off a cube pulls the
+	// center toward it, so the far side of the sphere is the widest point.
+	bodyDef.type = b3_dynamicBody;
+	b3BodyId cubeId = b3CreateBody( worldId, &bodyDef );
+	b3BoxHull cube = b3MakeCubeHull( B3_FIX( 0.5f ) );
+	b3CreateHullShape( cubeId, &shapeDef, &cube.base );
+	b3Sphere offsetSphere = { { B3_FIX( 1.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, B3_FIX( 0.2f ) };
+	b3CreateSphereShape( cubeId, &shapeDef, &offsetSphere );
+
+	b3Vec3 localCenter = b3Body_GetLocalCenter( cubeId );
+	ENSURE( B3_FIX( 0.0f ) < localCenter.x && localCenter.x < B3_FIX( 0.5f ) );
+
+	maxExtent = b3Body_GetMaxExtent( cubeId );
+	ENSURE_SMALL( maxExtent.x - ( B3_FIX( 1.2f ) - localCenter.x ), tol );
+	ENSURE_SMALL( maxExtent.y - B3_FIX( 0.5f ), tol );
+	ENSURE_SMALL( maxExtent.z - B3_FIX( 0.5f ), tol );
+	ENSURE_SMALL( b3Body_GetMinExtent( cubeId ) - B3_FIX( 0.2f ), tol );
+
+	b3Vec3 originExtent = b3Body_GetMaxExtentOrigin( cubeId );
+	ENSURE_SMALL( originExtent.x - B3_FIX( 1.2f ), tol );
+	ENSURE_SMALL( originExtent.y - B3_FIX( 0.5f ), tol );
+	ENSURE_SMALL( originExtent.z - B3_FIX( 0.5f ), tol );
+
+	// A mesh has no mass, so the sphere alone places the center at x = 1 and the far edge of the
+	// mesh at x = -3 is four units out.
+	b3Vec3 vertices[6] = {
+		{ -B3_FIX( 3.0f ), B3_FIX( 0.0f ), -B3_FIX( 1.0f ) },
+		{ -B3_FIX( 2.0f ), B3_FIX( 0.0f ), B3_FIX( 1.0f ) },
+		{ -B3_FIX( 1.0f ), B3_FIX( 0.0f ), -B3_FIX( 1.0f ) },
+		{ B3_FIX( 1.0f ), B3_FIX( 0.0f ), -B3_FIX( 1.0f ) },
+		{ B3_FIX( 2.0f ), B3_FIX( 0.0f ), B3_FIX( 1.0f ) },
+		{ B3_FIX( 3.0f ), B3_FIX( 0.0f ), -B3_FIX( 1.0f ) },
+	};
+	int32_t indices[6] = { 0, 1, 2, 3, 4, 5 };
+	b3MeshDef meshDef = { 0 };
+	meshDef.vertices = vertices;
+	meshDef.stride = sizeof( b3Vec3 );
+	meshDef.indices = indices;
+	meshDef.vertexCount = 6;
+	meshDef.triangleCount = 2;
+	b3MeshData* mesh = b3CreateMesh( &meshDef, NULL, 0 );
+	ENSURE( mesh != NULL );
+
+	b3BodyId meshId = b3CreateBody( worldId, &bodyDef );
+	b3CreateSphereShape( meshId, &shapeDef, &offsetSphere );
+	b3Vec3 unitScale = { B3_FIX( 1.0f ), B3_FIX( 1.0f ), B3_FIX( 1.0f ) };
+	b3CreateMeshShape( meshId, &shapeDef, mesh, unitScale );
+
+	localCenter = b3Body_GetLocalCenter( meshId );
+	ENSURE_SMALL( localCenter.x - B3_FIX( 1.0f ), tol );
+
+	// Without subtracting the local center this reports |p| rather than |p - c|
+	maxExtent = b3Body_GetMaxExtent( meshId );
+	ENSURE_SMALL( maxExtent.x - B3_FIX( 4.0f ), meshTol );
+	ENSURE_SMALL( maxExtent.y - B3_FIX( 0.2f ), meshTol );
+	ENSURE_SMALL( maxExtent.z - B3_FIX( 1.0f ), meshTol );
+	ENSURE_SMALL( b3Body_GetMinExtent( meshId ) - B3_FIX( 0.2f ), tol );
+
+	b3DestroyWorld( worldId );
+	b3DestroyMesh( mesh );
+	return 0;
+}
+
 int BodyTest( void )
 {
 	RUN_SUBTEST( InverseMassQuantumFloor );
@@ -626,5 +731,6 @@ int BodyTest( void )
 	RUN_SUBTEST( SetMassDataFixedRotation );
 	RUN_SUBTEST( SetMassDataZeroMass );
 	RUN_SUBTEST( SetMassDataConsistentVelocity );
+	RUN_SUBTEST( ShapeExtents );
 	return 0;
 }

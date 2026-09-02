@@ -8,6 +8,7 @@
 #include "id.h"
 #include "math_functions.h"
 
+#include <stddef.h>
 #include <stdint.h>
 
 #define B3_DEFAULT_CATEGORY_BITS UINT64_MAX
@@ -1798,6 +1799,15 @@ typedef struct b3PlaneResult
 	/// Closest point on the shape. May not be unique.
 	b3Vec3 point;
 
+	/// The index of the mesh or height field triangle hit.
+	int triangleIndex;
+
+	/// The index of the compound child shape.
+	int childIndex;
+
+	/// The material index.
+	int materialIndex;
+
 } b3PlaneResult;
 
 /// These are collision planes that can be fed to b3SolvePlanes. Normally
@@ -1837,6 +1847,22 @@ typedef struct b3BodyPlaneResult
 	/// The plane result.
 	b3PlaneResult result;
 } b3BodyPlaneResult;
+
+/// Body time of impact result for movers.
+typedef struct b3BodyTOIResult
+{
+	/// The hit point in world space.
+	b3Pos point;
+
+	/// The hit normal. Points from the body to the mover.
+	b3Vec3 normal;
+
+	/// The sweep time of the collision.
+	b3Fixed fraction;
+
+	/// The hit shape.
+	b3ShapeId shapeId;
+} b3BodyTOIResult;
 
 /// Used to collect collision planes for character movers.
 /// Return true to continue gathering planes.
@@ -2041,7 +2067,12 @@ typedef struct b3MeshDef
 	/// Triangle vertices
 	b3Vec3* vertices;
 
-	/// Triangle vertex indices. 3 for each triangle. CCW winding.
+	/// Stride in bytes between vertices. Use 0 for contiguous vertices. Must be a multiple
+	/// of alignof( b3Vec3 ), which is 8 here because b3Fixed is 64 bits, not the 4 that a
+	/// single precision build would allow.
+	size_t stride;
+
+	/// Triangle vertex indices. 3 for each triangle. CCW winding unless CW is indicated below.
 	int32_t* indices;
 
 	/// Triangle material index. 1 per triangle. Indexes into b3ShapeDef::materials.
@@ -2067,6 +2098,9 @@ typedef struct b3MeshDef
 
 	/// Compute triangle adjacency information using shared edges
 	bool identifyEdges;
+
+	/// Input indices have clockWise winding order.
+	bool clockWiseWinding;
 } b3MeshDef;
 
 /// 64-bit mesh version. Useful for validating serialized data.
