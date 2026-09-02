@@ -4,15 +4,19 @@ Box3D converted from float to Q48.16 fixed point (internal and external API).
 
 ## THE PORT CURSOR — read this before any Box3D -> Fixed3D pass
 
-**Everything in erincatto/box3d up to and including `47d7f7c` is carried across —
-THIS LINE ADVANCES WITH THE MERGE OF `port/47d7f7c-clockwise-mover`, NOT BEFORE.**
-`git log 47d7f7c..upstream/main` is the remaining work. Until that branch merges the
-true cursor is `30c67b5`, and the run that merges it comes back and strikes this
-clause — the same discipline the discharged `fixed3d#21` note below records, applied
-to itself rather than only remembered. (This line replaced
-*"Baseline float code is commit c52908c"* on 2026-08-22 — same claim, said as a cursor.) One named exception, on
-the issue board rather than buried here, because a cursor with silent holes is worse
-than no cursor. Named exceptions, on the issue board rather than buried here:
+**Everything in erincatto/box3d up to and including `47d7f7c` is carried across.**
+`git log 47d7f7c..upstream/main` is the remaining work.
+
+*(~~THIS LINE ADVANCES WITH THE MERGE OF `port/47d7f7c-clockwise-mover`, NOT BEFORE~~ —
+**DISCHARGED 2026-09-03, verified rather than assumed: `port/47d7f7c-clockwise-mover`
+merged as `61fe62f` (fixed3d#46), so the cursor above states a fact and no longer a
+promise.** From 2026-08-31 until that merge the true cursor was `30c67b5` and this line
+said so; the run that merged the branch came back and struck the clause, which is the
+`fixed3d#21` discipline recorded below applied to itself. This line replaced *"Baseline
+float code is commit c52908c"* on 2026-08-22 — same claim, said as a cursor.)*
+
+Named exceptions, on the issue board rather than buried here, because a cursor with
+silent holes is worse than no cursor:
 
 - **fixed3d#20** — the sample-viewer half of `3fc20f5` (follow cam, world text,
   stb_truetype, the world_text shader). Held for a bench with a display; no simulation
@@ -121,6 +125,18 @@ The PORT RECORDs below run newest first and are the detail for each step.
 
   **VERIFIED:** all four configs green — build-port, build-ludicrous, build-debug
   (Debug+VALIDATE+ASan), build-samples.
+
+  **COLD READ (floor 8), 2026-09-01, and it had NOT run when the PR was opened on
+  2026-08-30.** Two independent readers, Opus 5 and Fable 5, given the diff, the commit
+  messages and the fork's invariants and nothing else, briefed to refute. Neither found a
+  defect that blocks the merge on correctness; both found the same real coverage gap — the
+  two MOVER back-side cull sites had never been observed firing (the step-4b counters said
+  so: 1992 reached / 0 fired, then 1996 / 2 after `MeshBackSideCull`, and 4 evaluations
+  with 2 fires is one shape cast's two triangles, so the mover pair was untested). Closed
+  red-first in `6899e1b` by `MoverMeshBackSideCull` and `MoverHeightFieldBackSideCull`.
+  Five confirmed findings were FILED rather than folded in, each a determinism-relevant
+  judgment: **fixed3d#49–#53**. Merged 2026-09-03 as `61fe62f` (fixed3d#46) with all
+  twenty CI legs green. The full reader account is the PR's comment.
 
 
 ## Older status (as of 2026-08-23 — v1.4.0, MAINTENANCE MODE)
