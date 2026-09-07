@@ -1,0 +1,1651 @@
+{
+  "base_commit": "1e58adf90f87c09b7973492fd2aa689ad51651be",
+  "platform": "Apple M3 Ultra, macOS 26.6.2, Apple Clang 21, arm64, RelWithDebInfo -O2 thin LTO; NEON narrow phase enabled",
+  "workload": "Independent paired cubes with collision filtering; world-step time only, excluding creation, state hashing and force reads. All trials retained. Single-worker CPU-clock variant has the same simulation as tools/benchmark/joint_modes.c.",
+  "single_worker": {
+    "pairs": 1024,
+    "frames": 720,
+    "workers": 1,
+    "size": 1,
+    "runs": [
+      {
+        "mode": 0,
+        "trial": 0,
+        "binary": "before",
+        "ms": 1143.519333,
+        "cpu_ms": 1138.33,
+        "state_sha256": "1e36422ff29a3418e219cd55610904cdf7994cdf499e8f59b4738cf3e3bc48eb"
+      },
+      {
+        "mode": 0,
+        "trial": 1,
+        "binary": "after",
+        "ms": 945.570435,
+        "cpu_ms": 945.55,
+        "state_sha256": "1e36422ff29a3418e219cd55610904cdf7994cdf499e8f59b4738cf3e3bc48eb"
+      },
+      {
+        "mode": 0,
+        "trial": 2,
+        "binary": "after",
+        "ms": 939.012939,
+        "cpu_ms": 939.057,
+        "state_sha256": "1e36422ff29a3418e219cd55610904cdf7994cdf499e8f59b4738cf3e3bc48eb"
+      },
+      {
+        "mode": 0,
+        "trial": 3,
+        "binary": "before",
+        "ms": 1119.790039,
+        "cpu_ms": 1119.72,
+        "state_sha256": "1e36422ff29a3418e219cd55610904cdf7994cdf499e8f59b4738cf3e3bc48eb"
+      },
+      {
+        "mode": 0,
+        "trial": 4,
+        "binary": "before",
+        "ms": 1125.475418,
+        "cpu_ms": 1125.29,
+        "state_sha256": "1e36422ff29a3418e219cd55610904cdf7994cdf499e8f59b4738cf3e3bc48eb"
+      },
+      {
+        "mode": 0,
+        "trial": 5,
+        "binary": "after",
+        "ms": 944.619583,
+        "cpu_ms": 944.703,
+        "state_sha256": "1e36422ff29a3418e219cd55610904cdf7994cdf499e8f59b4738cf3e3bc48eb"
+      },
+      {
+        "mode": 5,
+        "trial": 0,
+        "binary": "before",
+        "ms": 1542.934296,
+        "cpu_ms": 1542.898,
+        "state_sha256": "1292cdc89dc7372890ea04ed28fdee50d14f6135684701173736cc568b05a4fc"
+      },
+      {
+        "mode": 5,
+        "trial": 1,
+        "binary": "after",
+        "ms": 1320.318512,
+        "cpu_ms": 1320.179,
+        "state_sha256": "1292cdc89dc7372890ea04ed28fdee50d14f6135684701173736cc568b05a4fc"
+      },
+      {
+        "mode": 5,
+        "trial": 2,
+        "binary": "after",
+        "ms": 1312.9599,
+        "cpu_ms": 1312.944,
+        "state_sha256": "1292cdc89dc7372890ea04ed28fdee50d14f6135684701173736cc568b05a4fc"
+      },
+      {
+        "mode": 5,
+        "trial": 3,
+        "binary": "before",
+        "ms": 1548.191849,
+        "cpu_ms": 1547.389,
+        "state_sha256": "1292cdc89dc7372890ea04ed28fdee50d14f6135684701173736cc568b05a4fc"
+      },
+      {
+        "mode": 5,
+        "trial": 4,
+        "binary": "before",
+        "ms": 1553.46698,
+        "cpu_ms": 1552.727,
+        "state_sha256": "1292cdc89dc7372890ea04ed28fdee50d14f6135684701173736cc568b05a4fc"
+      },
+      {
+        "mode": 5,
+        "trial": 5,
+        "binary": "after",
+        "ms": 1319.234497,
+        "cpu_ms": 1318.787,
+        "state_sha256": "1292cdc89dc7372890ea04ed28fdee50d14f6135684701173736cc568b05a4fc"
+      },
+      {
+        "mode": 2,
+        "trial": 0,
+        "binary": "before",
+        "ms": 1916.014221,
+        "cpu_ms": 1915.108,
+        "state_sha256": "5467252e2b6a7311ac856bd17f49b1e2907ab81ff041cb0db62da274c3d4bb97"
+      },
+      {
+        "mode": 2,
+        "trial": 1,
+        "binary": "after",
+        "ms": 1867.13559,
+        "cpu_ms": 1865.092,
+        "state_sha256": "5467252e2b6a7311ac856bd17f49b1e2907ab81ff041cb0db62da274c3d4bb97"
+      },
+      {
+        "mode": 2,
+        "trial": 2,
+        "binary": "after",
+        "ms": 1856.40506,
+        "cpu_ms": 1853.614,
+        "state_sha256": "5467252e2b6a7311ac856bd17f49b1e2907ab81ff041cb0db62da274c3d4bb97"
+      },
+      {
+        "mode": 2,
+        "trial": 3,
+        "binary": "before",
+        "ms": 1940.099289,
+        "cpu_ms": 1937.197,
+        "state_sha256": "5467252e2b6a7311ac856bd17f49b1e2907ab81ff041cb0db62da274c3d4bb97"
+      },
+      {
+        "mode": 2,
+        "trial": 4,
+        "binary": "before",
+        "ms": 1947.016098,
+        "cpu_ms": 1943.323,
+        "state_sha256": "5467252e2b6a7311ac856bd17f49b1e2907ab81ff041cb0db62da274c3d4bb97"
+      },
+      {
+        "mode": 2,
+        "trial": 5,
+        "binary": "after",
+        "ms": 1880.460526,
+        "cpu_ms": 1878.093,
+        "state_sha256": "5467252e2b6a7311ac856bd17f49b1e2907ab81ff041cb0db62da274c3d4bb97"
+      },
+      {
+        "mode": 4,
+        "trial": 0,
+        "binary": "before",
+        "ms": 1631.243347,
+        "cpu_ms": 1629.078,
+        "state_sha256": "e6a638546462a618e98c4d77969c208ea4f5881e5bf24fb927bcbeb63b25476c"
+      },
+      {
+        "mode": 4,
+        "trial": 1,
+        "binary": "after",
+        "ms": 1500.732086,
+        "cpu_ms": 1498.702,
+        "state_sha256": "e6a638546462a618e98c4d77969c208ea4f5881e5bf24fb927bcbeb63b25476c"
+      },
+      {
+        "mode": 4,
+        "trial": 2,
+        "binary": "after",
+        "ms": 1497.23941,
+        "cpu_ms": 1495.425,
+        "state_sha256": "e6a638546462a618e98c4d77969c208ea4f5881e5bf24fb927bcbeb63b25476c"
+      },
+      {
+        "mode": 4,
+        "trial": 3,
+        "binary": "before",
+        "ms": 1622.79744,
+        "cpu_ms": 1620.592,
+        "state_sha256": "e6a638546462a618e98c4d77969c208ea4f5881e5bf24fb927bcbeb63b25476c"
+      },
+      {
+        "mode": 4,
+        "trial": 4,
+        "binary": "before",
+        "ms": 1613.544128,
+        "cpu_ms": 1609.494,
+        "state_sha256": "e6a638546462a618e98c4d77969c208ea4f5881e5bf24fb927bcbeb63b25476c"
+      },
+      {
+        "mode": 4,
+        "trial": 5,
+        "binary": "after",
+        "ms": 1477.302063,
+        "cpu_ms": 1475.404,
+        "state_sha256": "e6a638546462a618e98c4d77969c208ea4f5881e5bf24fb927bcbeb63b25476c"
+      },
+      {
+        "mode": 1,
+        "trial": 0,
+        "binary": "before",
+        "ms": 3420.73436,
+        "cpu_ms": 3415.584,
+        "state_sha256": "ee2ee1df337700950917ad4d4e4e072dbd45f1e69264ab5d54516867e224c370"
+      },
+      {
+        "mode": 1,
+        "trial": 1,
+        "binary": "after",
+        "ms": 3378.435318,
+        "cpu_ms": 3372.963,
+        "state_sha256": "ee2ee1df337700950917ad4d4e4e072dbd45f1e69264ab5d54516867e224c370"
+      },
+      {
+        "mode": 1,
+        "trial": 2,
+        "binary": "after",
+        "ms": 3404.77359,
+        "cpu_ms": 3398.935,
+        "state_sha256": "ee2ee1df337700950917ad4d4e4e072dbd45f1e69264ab5d54516867e224c370"
+      },
+      {
+        "mode": 1,
+        "trial": 3,
+        "binary": "before",
+        "ms": 3850.195328,
+        "cpu_ms": 3517.598,
+        "state_sha256": "ee2ee1df337700950917ad4d4e4e072dbd45f1e69264ab5d54516867e224c370"
+      },
+      {
+        "mode": 1,
+        "trial": 4,
+        "binary": "before",
+        "ms": 3406.354721,
+        "cpu_ms": 3401.883,
+        "state_sha256": "ee2ee1df337700950917ad4d4e4e072dbd45f1e69264ab5d54516867e224c370"
+      },
+      {
+        "mode": 1,
+        "trial": 5,
+        "binary": "after",
+        "ms": 3402.436874,
+        "cpu_ms": 3396.869,
+        "state_sha256": "ee2ee1df337700950917ad4d4e4e072dbd45f1e69264ab5d54516867e224c370"
+      },
+      {
+        "mode": 3,
+        "trial": 0,
+        "binary": "before",
+        "ms": 1993.844009,
+        "cpu_ms": 1991.219,
+        "state_sha256": "1e0d868e1cff03ca9c357c668f267e864973e64427f3685d40960cf50674ba7c"
+      },
+      {
+        "mode": 3,
+        "trial": 1,
+        "binary": "after",
+        "ms": 1998.770477,
+        "cpu_ms": 1996.419,
+        "state_sha256": "1e0d868e1cff03ca9c357c668f267e864973e64427f3685d40960cf50674ba7c"
+      },
+      {
+        "mode": 3,
+        "trial": 2,
+        "binary": "after",
+        "ms": 2007.862854,
+        "cpu_ms": 2005.071,
+        "state_sha256": "1e0d868e1cff03ca9c357c668f267e864973e64427f3685d40960cf50674ba7c"
+      },
+      {
+        "mode": 3,
+        "trial": 3,
+        "binary": "before",
+        "ms": 2005.578964,
+        "cpu_ms": 2002.808,
+        "state_sha256": "1e0d868e1cff03ca9c357c668f267e864973e64427f3685d40960cf50674ba7c"
+      },
+      {
+        "mode": 3,
+        "trial": 4,
+        "binary": "before",
+        "ms": 2269.03064,
+        "cpu_ms": 2069.879,
+        "state_sha256": "1e0d868e1cff03ca9c357c668f267e864973e64427f3685d40960cf50674ba7c"
+      },
+      {
+        "mode": 3,
+        "trial": 5,
+        "binary": "after",
+        "ms": 2017.639633,
+        "cpu_ms": 2013.041,
+        "state_sha256": "1e0d868e1cff03ca9c357c668f267e864973e64427f3685d40960cf50674ba7c"
+      }
+    ]
+  },
+  "earlier_four_worker_probe": {
+    "pairs": 2048,
+    "frames": 1440,
+    "workers": 4,
+    "size": 1,
+    "runs": [
+      {
+        "mode": 0,
+        "repeat": 0,
+        "binary": "before",
+        "ms": 1352.086273,
+        "state_sha256": "7bd1259d31000af2437917dcc2ee0304cb542a1916fbaa9c026a8fe140776e86"
+      },
+      {
+        "mode": 0,
+        "repeat": 1,
+        "binary": "after",
+        "ms": 1183.839798,
+        "state_sha256": "7bd1259d31000af2437917dcc2ee0304cb542a1916fbaa9c026a8fe140776e86"
+      },
+      {
+        "mode": 0,
+        "repeat": 2,
+        "binary": "after",
+        "ms": 1451.923599,
+        "state_sha256": "7bd1259d31000af2437917dcc2ee0304cb542a1916fbaa9c026a8fe140776e86"
+      },
+      {
+        "mode": 0,
+        "repeat": 3,
+        "binary": "before",
+        "ms": 1438.135422,
+        "state_sha256": "7bd1259d31000af2437917dcc2ee0304cb542a1916fbaa9c026a8fe140776e86"
+      },
+      {
+        "mode": 0,
+        "repeat": 4,
+        "binary": "before",
+        "ms": 1400.849243,
+        "state_sha256": "7bd1259d31000af2437917dcc2ee0304cb542a1916fbaa9c026a8fe140776e86"
+      },
+      {
+        "mode": 0,
+        "repeat": 5,
+        "binary": "after",
+        "ms": 1543.262436,
+        "state_sha256": "7bd1259d31000af2437917dcc2ee0304cb542a1916fbaa9c026a8fe140776e86"
+      },
+      {
+        "mode": 2,
+        "repeat": 0,
+        "binary": "before",
+        "ms": 2213.956024,
+        "state_sha256": "d68605bf31bb509ec35f7ab1c266bcd2f5119764765e448abfaee5e2cb38f1d7"
+      },
+      {
+        "mode": 2,
+        "repeat": 1,
+        "binary": "after",
+        "ms": 2387.216949,
+        "state_sha256": "d68605bf31bb509ec35f7ab1c266bcd2f5119764765e448abfaee5e2cb38f1d7"
+      },
+      {
+        "mode": 2,
+        "repeat": 2,
+        "binary": "after",
+        "ms": 2183.576599,
+        "state_sha256": "d68605bf31bb509ec35f7ab1c266bcd2f5119764765e448abfaee5e2cb38f1d7"
+      },
+      {
+        "mode": 2,
+        "repeat": 3,
+        "binary": "before",
+        "ms": 2114.16983,
+        "state_sha256": "d68605bf31bb509ec35f7ab1c266bcd2f5119764765e448abfaee5e2cb38f1d7"
+      },
+      {
+        "mode": 2,
+        "repeat": 4,
+        "binary": "before",
+        "ms": 2109.441071,
+        "state_sha256": "d68605bf31bb509ec35f7ab1c266bcd2f5119764765e448abfaee5e2cb38f1d7"
+      },
+      {
+        "mode": 2,
+        "repeat": 5,
+        "binary": "after",
+        "ms": 2134.941803,
+        "state_sha256": "d68605bf31bb509ec35f7ab1c266bcd2f5119764765e448abfaee5e2cb38f1d7"
+      },
+      {
+        "mode": 4,
+        "repeat": 0,
+        "binary": "before",
+        "ms": 1868.78923,
+        "state_sha256": "781714330a9081a13d2bca602a45478a8c5717e89f3c8c0fec29dc6ae694e237"
+      },
+      {
+        "mode": 4,
+        "repeat": 1,
+        "binary": "after",
+        "ms": 1732.249283,
+        "state_sha256": "781714330a9081a13d2bca602a45478a8c5717e89f3c8c0fec29dc6ae694e237"
+      },
+      {
+        "mode": 4,
+        "repeat": 2,
+        "binary": "after",
+        "ms": 1678.515823,
+        "state_sha256": "781714330a9081a13d2bca602a45478a8c5717e89f3c8c0fec29dc6ae694e237"
+      },
+      {
+        "mode": 4,
+        "repeat": 3,
+        "binary": "before",
+        "ms": 1782.933319,
+        "state_sha256": "781714330a9081a13d2bca602a45478a8c5717e89f3c8c0fec29dc6ae694e237"
+      },
+      {
+        "mode": 4,
+        "repeat": 4,
+        "binary": "before",
+        "ms": 1775.786789,
+        "state_sha256": "781714330a9081a13d2bca602a45478a8c5717e89f3c8c0fec29dc6ae694e237"
+      },
+      {
+        "mode": 4,
+        "repeat": 5,
+        "binary": "after",
+        "ms": 1670.949265,
+        "state_sha256": "781714330a9081a13d2bca602a45478a8c5717e89f3c8c0fec29dc6ae694e237"
+      },
+      {
+        "mode": 5,
+        "repeat": 0,
+        "binary": "before",
+        "ms": 1771.094391,
+        "state_sha256": "d974a7df833ceca7d814c1570f6763a0762f30049aacd0679d51da2dabae01e8"
+      },
+      {
+        "mode": 5,
+        "repeat": 1,
+        "binary": "after",
+        "ms": 1780.747223,
+        "state_sha256": "d974a7df833ceca7d814c1570f6763a0762f30049aacd0679d51da2dabae01e8"
+      },
+      {
+        "mode": 5,
+        "repeat": 2,
+        "binary": "after",
+        "ms": 2107.927734,
+        "state_sha256": "d974a7df833ceca7d814c1570f6763a0762f30049aacd0679d51da2dabae01e8"
+      },
+      {
+        "mode": 5,
+        "repeat": 3,
+        "binary": "before",
+        "ms": 2387.381058,
+        "state_sha256": "d974a7df833ceca7d814c1570f6763a0762f30049aacd0679d51da2dabae01e8"
+      },
+      {
+        "mode": 5,
+        "repeat": 4,
+        "binary": "before",
+        "ms": 2251.907333,
+        "state_sha256": "d974a7df833ceca7d814c1570f6763a0762f30049aacd0679d51da2dabae01e8"
+      },
+      {
+        "mode": 5,
+        "repeat": 5,
+        "binary": "after",
+        "ms": 1537.796463,
+        "state_sha256": "d974a7df833ceca7d814c1570f6763a0762f30049aacd0679d51da2dabae01e8"
+      },
+      {
+        "mode": 1,
+        "repeat": 0,
+        "binary": "before",
+        "ms": 4107.483612,
+        "state_sha256": "21518ac78d98b24a5ff52cf26f3788ab01a9df8fba5ff22a19e51b62dc88575d"
+      },
+      {
+        "mode": 1,
+        "repeat": 1,
+        "binary": "after",
+        "ms": 4280.751511,
+        "state_sha256": "21518ac78d98b24a5ff52cf26f3788ab01a9df8fba5ff22a19e51b62dc88575d"
+      },
+      {
+        "mode": 1,
+        "repeat": 2,
+        "binary": "after",
+        "ms": 3968.431152,
+        "state_sha256": "21518ac78d98b24a5ff52cf26f3788ab01a9df8fba5ff22a19e51b62dc88575d"
+      },
+      {
+        "mode": 1,
+        "repeat": 3,
+        "binary": "before",
+        "ms": 4910.026764,
+        "state_sha256": "21518ac78d98b24a5ff52cf26f3788ab01a9df8fba5ff22a19e51b62dc88575d"
+      },
+      {
+        "mode": 1,
+        "repeat": 4,
+        "binary": "before",
+        "ms": 3815.430389,
+        "state_sha256": "21518ac78d98b24a5ff52cf26f3788ab01a9df8fba5ff22a19e51b62dc88575d"
+      },
+      {
+        "mode": 1,
+        "repeat": 5,
+        "binary": "after",
+        "ms": 3920.884262,
+        "state_sha256": "21518ac78d98b24a5ff52cf26f3788ab01a9df8fba5ff22a19e51b62dc88575d"
+      },
+      {
+        "mode": 3,
+        "repeat": 0,
+        "binary": "before",
+        "ms": 2329.390411,
+        "state_sha256": "3c33e2b700d06ed85766a8a32a69c4989d84127659dcfb5092ee9f6b71e96542"
+      },
+      {
+        "mode": 3,
+        "repeat": 1,
+        "binary": "after",
+        "ms": 2611.417053,
+        "state_sha256": "3c33e2b700d06ed85766a8a32a69c4989d84127659dcfb5092ee9f6b71e96542"
+      },
+      {
+        "mode": 3,
+        "repeat": 2,
+        "binary": "after",
+        "ms": 2215.978439,
+        "state_sha256": "3c33e2b700d06ed85766a8a32a69c4989d84127659dcfb5092ee9f6b71e96542"
+      },
+      {
+        "mode": 3,
+        "repeat": 3,
+        "binary": "before",
+        "ms": 2668.894012,
+        "state_sha256": "3c33e2b700d06ed85766a8a32a69c4989d84127659dcfb5092ee9f6b71e96542"
+      },
+      {
+        "mode": 3,
+        "repeat": 4,
+        "binary": "before",
+        "ms": 2502.502563,
+        "state_sha256": "3c33e2b700d06ed85766a8a32a69c4989d84127659dcfb5092ee9f6b71e96542"
+      },
+      {
+        "mode": 3,
+        "repeat": 5,
+        "binary": "after",
+        "ms": 2477.239731,
+        "state_sha256": "3c33e2b700d06ed85766a8a32a69c4989d84127659dcfb5092ee9f6b71e96542"
+      }
+    ],
+    "binary_sha256": {
+      "before": "4a92768a9a62c77269c74a744a5ba435157a85b2e22a3b850d9c7cfe2d890333",
+      "after": "f3cda8e9a3f26858c244f8b5c41801adc0a3dc15337585dac0a450f7af4ee3e4"
+    }
+  },
+  "earlier_orientation_only_probe": {
+    "runs": [
+      {
+        "mode": 0,
+        "repeat": 0,
+        "binary": "before",
+        "ms": 97.196106,
+        "state_sha256": "c0a6ce00a2b52f2625eddcc5aa3d00e5419614300aae1ccc99dade9ea130ea36"
+      },
+      {
+        "mode": 0,
+        "repeat": 1,
+        "binary": "after",
+        "ms": 96.303497,
+        "state_sha256": "c0a6ce00a2b52f2625eddcc5aa3d00e5419614300aae1ccc99dade9ea130ea36"
+      },
+      {
+        "mode": 0,
+        "repeat": 2,
+        "binary": "after",
+        "ms": 92.426056,
+        "state_sha256": "c0a6ce00a2b52f2625eddcc5aa3d00e5419614300aae1ccc99dade9ea130ea36"
+      },
+      {
+        "mode": 0,
+        "repeat": 3,
+        "binary": "before",
+        "ms": 97.623352,
+        "state_sha256": "c0a6ce00a2b52f2625eddcc5aa3d00e5419614300aae1ccc99dade9ea130ea36"
+      },
+      {
+        "mode": 2,
+        "repeat": 0,
+        "binary": "before",
+        "ms": 148.50882,
+        "state_sha256": "84cee0057361e610c3ec03a3625a2db96ce373aa27303c21bc5081318164199b"
+      },
+      {
+        "mode": 2,
+        "repeat": 1,
+        "binary": "after",
+        "ms": 147.877029,
+        "state_sha256": "84cee0057361e610c3ec03a3625a2db96ce373aa27303c21bc5081318164199b"
+      },
+      {
+        "mode": 2,
+        "repeat": 2,
+        "binary": "after",
+        "ms": 147.783752,
+        "state_sha256": "84cee0057361e610c3ec03a3625a2db96ce373aa27303c21bc5081318164199b"
+      },
+      {
+        "mode": 2,
+        "repeat": 3,
+        "binary": "before",
+        "ms": 154.307373,
+        "state_sha256": "84cee0057361e610c3ec03a3625a2db96ce373aa27303c21bc5081318164199b"
+      },
+      {
+        "mode": 4,
+        "repeat": 0,
+        "binary": "before",
+        "ms": 133.24707,
+        "state_sha256": "3cc87c8bafeb2f00ea7fc8b5d5c062e2ad90830297cb22430ad550d215f49ce7"
+      },
+      {
+        "mode": 4,
+        "repeat": 1,
+        "binary": "after",
+        "ms": 126.402298,
+        "state_sha256": "3cc87c8bafeb2f00ea7fc8b5d5c062e2ad90830297cb22430ad550d215f49ce7"
+      },
+      {
+        "mode": 4,
+        "repeat": 2,
+        "binary": "after",
+        "ms": 125.293472,
+        "state_sha256": "3cc87c8bafeb2f00ea7fc8b5d5c062e2ad90830297cb22430ad550d215f49ce7"
+      },
+      {
+        "mode": 4,
+        "repeat": 3,
+        "binary": "before",
+        "ms": 127.085876,
+        "state_sha256": "3cc87c8bafeb2f00ea7fc8b5d5c062e2ad90830297cb22430ad550d215f49ce7"
+      },
+      {
+        "mode": 5,
+        "repeat": 0,
+        "binary": "before",
+        "ms": 124.768509,
+        "state_sha256": "c3e4c68a0a2ccdd4dd445094ae9043c0f47335205b05cfbe21805da86a9007ce"
+      },
+      {
+        "mode": 5,
+        "repeat": 1,
+        "binary": "after",
+        "ms": 119.075485,
+        "state_sha256": "c3e4c68a0a2ccdd4dd445094ae9043c0f47335205b05cfbe21805da86a9007ce"
+      },
+      {
+        "mode": 5,
+        "repeat": 2,
+        "binary": "after",
+        "ms": 120.663437,
+        "state_sha256": "c3e4c68a0a2ccdd4dd445094ae9043c0f47335205b05cfbe21805da86a9007ce"
+      },
+      {
+        "mode": 5,
+        "repeat": 3,
+        "binary": "before",
+        "ms": 131.324341,
+        "state_sha256": "c3e4c68a0a2ccdd4dd445094ae9043c0f47335205b05cfbe21805da86a9007ce"
+      },
+      {
+        "mode": 1,
+        "repeat": 0,
+        "binary": "before",
+        "ms": 249.695526,
+        "state_sha256": "0886ea498fad2302266abe93dbeeebc8047b6ce90610216de0304e353fc0d7a4"
+      },
+      {
+        "mode": 1,
+        "repeat": 1,
+        "binary": "after",
+        "ms": 300.825104,
+        "state_sha256": "0886ea498fad2302266abe93dbeeebc8047b6ce90610216de0304e353fc0d7a4"
+      },
+      {
+        "mode": 1,
+        "repeat": 2,
+        "binary": "after",
+        "ms": 270.117752,
+        "state_sha256": "0886ea498fad2302266abe93dbeeebc8047b6ce90610216de0304e353fc0d7a4"
+      },
+      {
+        "mode": 1,
+        "repeat": 3,
+        "binary": "before",
+        "ms": 253.428864,
+        "state_sha256": "0886ea498fad2302266abe93dbeeebc8047b6ce90610216de0304e353fc0d7a4"
+      },
+      {
+        "mode": 3,
+        "repeat": 0,
+        "binary": "before",
+        "ms": 196.048691,
+        "state_sha256": "dbd2a409dd673a4e550c4b762a60667f651f238e1b51779424cf02e9f4de7043"
+      },
+      {
+        "mode": 3,
+        "repeat": 1,
+        "binary": "after",
+        "ms": 165.675644,
+        "state_sha256": "dbd2a409dd673a4e550c4b762a60667f651f238e1b51779424cf02e9f4de7043"
+      },
+      {
+        "mode": 3,
+        "repeat": 2,
+        "binary": "after",
+        "ms": 164.382263,
+        "state_sha256": "dbd2a409dd673a4e550c4b762a60667f651f238e1b51779424cf02e9f4de7043"
+      },
+      {
+        "mode": 3,
+        "repeat": 3,
+        "binary": "before",
+        "ms": 158.781906,
+        "state_sha256": "dbd2a409dd673a4e550c4b762a60667f651f238e1b51779424cf02e9f4de7043"
+      }
+    ],
+    "binary_sha256": {
+      "before": "4a92768a9a62c77269c74a744a5ba435157a85b2e22a3b850d9c7cfe2d890333",
+      "after": "18019e2fbfeed5eba450455e72566c81648499020360f0232b8881345ee49b2a"
+    }
+  },
+  "parity": {
+    "pairs": 32,
+    "frames": 240,
+    "rows": [
+      {
+        "size": 1,
+        "mode": 0,
+        "workers": 1,
+        "binary": "before",
+        "sha256": "ed4086ccd9634a9d6a791b56f45c4238e223e801b06817660088c949543b463d",
+        "frames": 240
+      },
+      {
+        "size": 1,
+        "mode": 0,
+        "workers": 1,
+        "binary": "after",
+        "sha256": "ed4086ccd9634a9d6a791b56f45c4238e223e801b06817660088c949543b463d",
+        "frames": 240
+      },
+      {
+        "size": 1,
+        "mode": 0,
+        "workers": 4,
+        "binary": "before",
+        "sha256": "ed4086ccd9634a9d6a791b56f45c4238e223e801b06817660088c949543b463d",
+        "frames": 240
+      },
+      {
+        "size": 1,
+        "mode": 0,
+        "workers": 4,
+        "binary": "after",
+        "sha256": "ed4086ccd9634a9d6a791b56f45c4238e223e801b06817660088c949543b463d",
+        "frames": 240
+      },
+      {
+        "size": 1,
+        "mode": 1,
+        "workers": 1,
+        "binary": "before",
+        "sha256": "5ae1a390edd6e544e4763965a84c9889f6dd84972a4b84cbc7c584ffa91c8f56",
+        "frames": 240
+      },
+      {
+        "size": 1,
+        "mode": 1,
+        "workers": 1,
+        "binary": "after",
+        "sha256": "5ae1a390edd6e544e4763965a84c9889f6dd84972a4b84cbc7c584ffa91c8f56",
+        "frames": 240
+      },
+      {
+        "size": 1,
+        "mode": 1,
+        "workers": 4,
+        "binary": "before",
+        "sha256": "5ae1a390edd6e544e4763965a84c9889f6dd84972a4b84cbc7c584ffa91c8f56",
+        "frames": 240
+      },
+      {
+        "size": 1,
+        "mode": 1,
+        "workers": 4,
+        "binary": "after",
+        "sha256": "5ae1a390edd6e544e4763965a84c9889f6dd84972a4b84cbc7c584ffa91c8f56",
+        "frames": 240
+      },
+      {
+        "size": 1,
+        "mode": 2,
+        "workers": 1,
+        "binary": "before",
+        "sha256": "ca9574f916731bfa3b0ef458be2102585124d9af73c12898072b775dd8914706",
+        "frames": 240
+      },
+      {
+        "size": 1,
+        "mode": 2,
+        "workers": 1,
+        "binary": "after",
+        "sha256": "ca9574f916731bfa3b0ef458be2102585124d9af73c12898072b775dd8914706",
+        "frames": 240
+      },
+      {
+        "size": 1,
+        "mode": 2,
+        "workers": 4,
+        "binary": "before",
+        "sha256": "ca9574f916731bfa3b0ef458be2102585124d9af73c12898072b775dd8914706",
+        "frames": 240
+      },
+      {
+        "size": 1,
+        "mode": 2,
+        "workers": 4,
+        "binary": "after",
+        "sha256": "ca9574f916731bfa3b0ef458be2102585124d9af73c12898072b775dd8914706",
+        "frames": 240
+      },
+      {
+        "size": 1,
+        "mode": 3,
+        "workers": 1,
+        "binary": "before",
+        "sha256": "92f5f05e8b1bfbf981e496f1114d2fe1326230e5083c09d59df0e069ba563c72",
+        "frames": 240
+      },
+      {
+        "size": 1,
+        "mode": 3,
+        "workers": 1,
+        "binary": "after",
+        "sha256": "92f5f05e8b1bfbf981e496f1114d2fe1326230e5083c09d59df0e069ba563c72",
+        "frames": 240
+      },
+      {
+        "size": 1,
+        "mode": 3,
+        "workers": 4,
+        "binary": "before",
+        "sha256": "92f5f05e8b1bfbf981e496f1114d2fe1326230e5083c09d59df0e069ba563c72",
+        "frames": 240
+      },
+      {
+        "size": 1,
+        "mode": 3,
+        "workers": 4,
+        "binary": "after",
+        "sha256": "92f5f05e8b1bfbf981e496f1114d2fe1326230e5083c09d59df0e069ba563c72",
+        "frames": 240
+      },
+      {
+        "size": 1,
+        "mode": 4,
+        "workers": 1,
+        "binary": "before",
+        "sha256": "615470ce5d6bfd1b3166199f986dc055d64970efb5fc2fc71404f6d3b3cbb6e0",
+        "frames": 240
+      },
+      {
+        "size": 1,
+        "mode": 4,
+        "workers": 1,
+        "binary": "after",
+        "sha256": "615470ce5d6bfd1b3166199f986dc055d64970efb5fc2fc71404f6d3b3cbb6e0",
+        "frames": 240
+      },
+      {
+        "size": 1,
+        "mode": 4,
+        "workers": 4,
+        "binary": "before",
+        "sha256": "615470ce5d6bfd1b3166199f986dc055d64970efb5fc2fc71404f6d3b3cbb6e0",
+        "frames": 240
+      },
+      {
+        "size": 1,
+        "mode": 4,
+        "workers": 4,
+        "binary": "after",
+        "sha256": "615470ce5d6bfd1b3166199f986dc055d64970efb5fc2fc71404f6d3b3cbb6e0",
+        "frames": 240
+      },
+      {
+        "size": 1,
+        "mode": 5,
+        "workers": 1,
+        "binary": "before",
+        "sha256": "717afd839117cff4542fb148d8eb02b7218ea10c215d66d9e562a0cacd400948",
+        "frames": 240
+      },
+      {
+        "size": 1,
+        "mode": 5,
+        "workers": 1,
+        "binary": "after",
+        "sha256": "717afd839117cff4542fb148d8eb02b7218ea10c215d66d9e562a0cacd400948",
+        "frames": 240
+      },
+      {
+        "size": 1,
+        "mode": 5,
+        "workers": 4,
+        "binary": "before",
+        "sha256": "717afd839117cff4542fb148d8eb02b7218ea10c215d66d9e562a0cacd400948",
+        "frames": 240
+      },
+      {
+        "size": 1,
+        "mode": 5,
+        "workers": 4,
+        "binary": "after",
+        "sha256": "717afd839117cff4542fb148d8eb02b7218ea10c215d66d9e562a0cacd400948",
+        "frames": 240
+      },
+      {
+        "size": 1,
+        "mode": 6,
+        "workers": 1,
+        "binary": "before",
+        "sha256": "031c2551d1da754ce05ced12f95fbe3429bdfddddcaa0c8711fb24ab8e4d3361",
+        "frames": 240
+      },
+      {
+        "size": 1,
+        "mode": 6,
+        "workers": 1,
+        "binary": "after",
+        "sha256": "031c2551d1da754ce05ced12f95fbe3429bdfddddcaa0c8711fb24ab8e4d3361",
+        "frames": 240
+      },
+      {
+        "size": 1,
+        "mode": 6,
+        "workers": 4,
+        "binary": "before",
+        "sha256": "031c2551d1da754ce05ced12f95fbe3429bdfddddcaa0c8711fb24ab8e4d3361",
+        "frames": 240
+      },
+      {
+        "size": 1,
+        "mode": 6,
+        "workers": 4,
+        "binary": "after",
+        "sha256": "031c2551d1da754ce05ced12f95fbe3429bdfddddcaa0c8711fb24ab8e4d3361",
+        "frames": 240
+      },
+      {
+        "size": 1,
+        "mode": 7,
+        "workers": 1,
+        "binary": "before",
+        "sha256": "48f6fbce524b01c36ced338e8f7106a389f9072dc3eb898cc3aec5f375f9bd26",
+        "frames": 240
+      },
+      {
+        "size": 1,
+        "mode": 7,
+        "workers": 1,
+        "binary": "after",
+        "sha256": "48f6fbce524b01c36ced338e8f7106a389f9072dc3eb898cc3aec5f375f9bd26",
+        "frames": 240
+      },
+      {
+        "size": 1,
+        "mode": 7,
+        "workers": 4,
+        "binary": "before",
+        "sha256": "48f6fbce524b01c36ced338e8f7106a389f9072dc3eb898cc3aec5f375f9bd26",
+        "frames": 240
+      },
+      {
+        "size": 1,
+        "mode": 7,
+        "workers": 4,
+        "binary": "after",
+        "sha256": "48f6fbce524b01c36ced338e8f7106a389f9072dc3eb898cc3aec5f375f9bd26",
+        "frames": 240
+      },
+      {
+        "size": 1,
+        "mode": 8,
+        "workers": 1,
+        "binary": "before",
+        "sha256": "f3122fe828bdf20c432dbc2e776d5bd2caa5c6fa7bf0e4dec5e6855e6aa0c978",
+        "frames": 240
+      },
+      {
+        "size": 1,
+        "mode": 8,
+        "workers": 1,
+        "binary": "after",
+        "sha256": "f3122fe828bdf20c432dbc2e776d5bd2caa5c6fa7bf0e4dec5e6855e6aa0c978",
+        "frames": 240
+      },
+      {
+        "size": 1,
+        "mode": 8,
+        "workers": 4,
+        "binary": "before",
+        "sha256": "f3122fe828bdf20c432dbc2e776d5bd2caa5c6fa7bf0e4dec5e6855e6aa0c978",
+        "frames": 240
+      },
+      {
+        "size": 1,
+        "mode": 8,
+        "workers": 4,
+        "binary": "after",
+        "sha256": "f3122fe828bdf20c432dbc2e776d5bd2caa5c6fa7bf0e4dec5e6855e6aa0c978",
+        "frames": 240
+      },
+      {
+        "size": 250,
+        "mode": 0,
+        "workers": 1,
+        "binary": "before",
+        "sha256": "a57028135e3001b722a2e39a7a1015c79731ad904114ada83b0a183ba767a6d8",
+        "frames": 240
+      },
+      {
+        "size": 250,
+        "mode": 0,
+        "workers": 1,
+        "binary": "after",
+        "sha256": "a57028135e3001b722a2e39a7a1015c79731ad904114ada83b0a183ba767a6d8",
+        "frames": 240
+      },
+      {
+        "size": 250,
+        "mode": 0,
+        "workers": 4,
+        "binary": "before",
+        "sha256": "a57028135e3001b722a2e39a7a1015c79731ad904114ada83b0a183ba767a6d8",
+        "frames": 240
+      },
+      {
+        "size": 250,
+        "mode": 0,
+        "workers": 4,
+        "binary": "after",
+        "sha256": "a57028135e3001b722a2e39a7a1015c79731ad904114ada83b0a183ba767a6d8",
+        "frames": 240
+      },
+      {
+        "size": 250,
+        "mode": 1,
+        "workers": 1,
+        "binary": "before",
+        "sha256": "cc3b175ea8f81d3bbb187fc1a659dc8eb532e299e7db22d123b224ac745fa1bd",
+        "frames": 240
+      },
+      {
+        "size": 250,
+        "mode": 1,
+        "workers": 1,
+        "binary": "after",
+        "sha256": "cc3b175ea8f81d3bbb187fc1a659dc8eb532e299e7db22d123b224ac745fa1bd",
+        "frames": 240
+      },
+      {
+        "size": 250,
+        "mode": 1,
+        "workers": 4,
+        "binary": "before",
+        "sha256": "cc3b175ea8f81d3bbb187fc1a659dc8eb532e299e7db22d123b224ac745fa1bd",
+        "frames": 240
+      },
+      {
+        "size": 250,
+        "mode": 1,
+        "workers": 4,
+        "binary": "after",
+        "sha256": "cc3b175ea8f81d3bbb187fc1a659dc8eb532e299e7db22d123b224ac745fa1bd",
+        "frames": 240
+      },
+      {
+        "size": 250,
+        "mode": 2,
+        "workers": 1,
+        "binary": "before",
+        "sha256": "0b5e999218cd188373f8227f0d2d7cb5572487da64fbf59644f97cc853530bca",
+        "frames": 240
+      },
+      {
+        "size": 250,
+        "mode": 2,
+        "workers": 1,
+        "binary": "after",
+        "sha256": "0b5e999218cd188373f8227f0d2d7cb5572487da64fbf59644f97cc853530bca",
+        "frames": 240
+      },
+      {
+        "size": 250,
+        "mode": 2,
+        "workers": 4,
+        "binary": "before",
+        "sha256": "0b5e999218cd188373f8227f0d2d7cb5572487da64fbf59644f97cc853530bca",
+        "frames": 240
+      },
+      {
+        "size": 250,
+        "mode": 2,
+        "workers": 4,
+        "binary": "after",
+        "sha256": "0b5e999218cd188373f8227f0d2d7cb5572487da64fbf59644f97cc853530bca",
+        "frames": 240
+      },
+      {
+        "size": 250,
+        "mode": 3,
+        "workers": 1,
+        "binary": "before",
+        "sha256": "54f943dda5d2554baceccb3079c45a18a60ffb17cfb88d1a7661bb3e5df4e3db",
+        "frames": 240
+      },
+      {
+        "size": 250,
+        "mode": 3,
+        "workers": 1,
+        "binary": "after",
+        "sha256": "54f943dda5d2554baceccb3079c45a18a60ffb17cfb88d1a7661bb3e5df4e3db",
+        "frames": 240
+      },
+      {
+        "size": 250,
+        "mode": 3,
+        "workers": 4,
+        "binary": "before",
+        "sha256": "54f943dda5d2554baceccb3079c45a18a60ffb17cfb88d1a7661bb3e5df4e3db",
+        "frames": 240
+      },
+      {
+        "size": 250,
+        "mode": 3,
+        "workers": 4,
+        "binary": "after",
+        "sha256": "54f943dda5d2554baceccb3079c45a18a60ffb17cfb88d1a7661bb3e5df4e3db",
+        "frames": 240
+      },
+      {
+        "size": 250,
+        "mode": 4,
+        "workers": 1,
+        "binary": "before",
+        "sha256": "1e666795362d2e8ac1a062de90b06f49cd3bbb4e8fdd8efcfc9da32615ee1d34",
+        "frames": 240
+      },
+      {
+        "size": 250,
+        "mode": 4,
+        "workers": 1,
+        "binary": "after",
+        "sha256": "1e666795362d2e8ac1a062de90b06f49cd3bbb4e8fdd8efcfc9da32615ee1d34",
+        "frames": 240
+      },
+      {
+        "size": 250,
+        "mode": 4,
+        "workers": 4,
+        "binary": "before",
+        "sha256": "1e666795362d2e8ac1a062de90b06f49cd3bbb4e8fdd8efcfc9da32615ee1d34",
+        "frames": 240
+      },
+      {
+        "size": 250,
+        "mode": 4,
+        "workers": 4,
+        "binary": "after",
+        "sha256": "1e666795362d2e8ac1a062de90b06f49cd3bbb4e8fdd8efcfc9da32615ee1d34",
+        "frames": 240
+      },
+      {
+        "size": 250,
+        "mode": 5,
+        "workers": 1,
+        "binary": "before",
+        "sha256": "ee45cf9a848083f2cc37c18d8dc6ae43e6b686aabb655b07b5754eb0f1e53d02",
+        "frames": 240
+      },
+      {
+        "size": 250,
+        "mode": 5,
+        "workers": 1,
+        "binary": "after",
+        "sha256": "ee45cf9a848083f2cc37c18d8dc6ae43e6b686aabb655b07b5754eb0f1e53d02",
+        "frames": 240
+      },
+      {
+        "size": 250,
+        "mode": 5,
+        "workers": 4,
+        "binary": "before",
+        "sha256": "ee45cf9a848083f2cc37c18d8dc6ae43e6b686aabb655b07b5754eb0f1e53d02",
+        "frames": 240
+      },
+      {
+        "size": 250,
+        "mode": 5,
+        "workers": 4,
+        "binary": "after",
+        "sha256": "ee45cf9a848083f2cc37c18d8dc6ae43e6b686aabb655b07b5754eb0f1e53d02",
+        "frames": 240
+      },
+      {
+        "size": 250,
+        "mode": 6,
+        "workers": 1,
+        "binary": "before",
+        "sha256": "16d7f08fa7b259a127f43d40209103d58bcb02ca3b304af2d43fc9a53ad0b80b",
+        "frames": 240
+      },
+      {
+        "size": 250,
+        "mode": 6,
+        "workers": 1,
+        "binary": "after",
+        "sha256": "16d7f08fa7b259a127f43d40209103d58bcb02ca3b304af2d43fc9a53ad0b80b",
+        "frames": 240
+      },
+      {
+        "size": 250,
+        "mode": 6,
+        "workers": 4,
+        "binary": "before",
+        "sha256": "16d7f08fa7b259a127f43d40209103d58bcb02ca3b304af2d43fc9a53ad0b80b",
+        "frames": 240
+      },
+      {
+        "size": 250,
+        "mode": 6,
+        "workers": 4,
+        "binary": "after",
+        "sha256": "16d7f08fa7b259a127f43d40209103d58bcb02ca3b304af2d43fc9a53ad0b80b",
+        "frames": 240
+      },
+      {
+        "size": 250,
+        "mode": 7,
+        "workers": 1,
+        "binary": "before",
+        "sha256": "5d12066d4e6800e34966cf03e8aceb380b8b4b10bdf29989f5d386e77788a12a",
+        "frames": 240
+      },
+      {
+        "size": 250,
+        "mode": 7,
+        "workers": 1,
+        "binary": "after",
+        "sha256": "5d12066d4e6800e34966cf03e8aceb380b8b4b10bdf29989f5d386e77788a12a",
+        "frames": 240
+      },
+      {
+        "size": 250,
+        "mode": 7,
+        "workers": 4,
+        "binary": "before",
+        "sha256": "5d12066d4e6800e34966cf03e8aceb380b8b4b10bdf29989f5d386e77788a12a",
+        "frames": 240
+      },
+      {
+        "size": 250,
+        "mode": 7,
+        "workers": 4,
+        "binary": "after",
+        "sha256": "5d12066d4e6800e34966cf03e8aceb380b8b4b10bdf29989f5d386e77788a12a",
+        "frames": 240
+      },
+      {
+        "size": 250,
+        "mode": 8,
+        "workers": 1,
+        "binary": "before",
+        "sha256": "a72870857fb07a1c3908395888e3a72dd9579ede7eb517d8b3c6245c2bc4bda4",
+        "frames": 240
+      },
+      {
+        "size": 250,
+        "mode": 8,
+        "workers": 1,
+        "binary": "after",
+        "sha256": "a72870857fb07a1c3908395888e3a72dd9579ede7eb517d8b3c6245c2bc4bda4",
+        "frames": 240
+      },
+      {
+        "size": 250,
+        "mode": 8,
+        "workers": 4,
+        "binary": "before",
+        "sha256": "a72870857fb07a1c3908395888e3a72dd9579ede7eb517d8b3c6245c2bc4bda4",
+        "frames": 240
+      },
+      {
+        "size": 250,
+        "mode": 8,
+        "workers": 4,
+        "binary": "after",
+        "sha256": "a72870857fb07a1c3908395888e3a72dd9579ede7eb517d8b3c6245c2bc4bda4",
+        "frames": 240
+      }
+    ],
+    "tool_sha256": "f01ad48acb20da9dc467684dace23561baafd2e303e16529cdbcbd1ddc5585d6"
+  },
+  "excluded_contact_experiments": {
+    "pointer-matrix": {
+      "source_diff": "diff --git a/src/contact_solver.c b/src/contact_solver.c\nindex 86ff61c..2591939 100644\n--- a/src/contact_solver.c\n+++ b/src/contact_solver.c\n@@ -1798,12 +1798,12 @@ static inline b3Matrix3W b3MakeMatrixFromQuatW( b3QuatW q )\n }\n \n // m * v, one rounding per row\n-static inline b3Vec3W b3MulMV3W( b3Matrix3W m, b3Vec3W v )\n+static inline b3Vec3W b3MulMV3W( const b3Matrix3W* m, b3Vec3W v )\n {\n \treturn (b3Vec3W){\n-\t\tb3Dot3W( m.rx.X, v.X, m.rx.Y, v.Y, m.rx.Z, v.Z ),\n-\t\tb3Dot3W( m.ry.X, v.X, m.ry.Y, v.Y, m.ry.Z, v.Z ),\n-\t\tb3Dot3W( m.rz.X, v.X, m.rz.Y, v.Y, m.rz.Z, v.Z ),\n+\t\tb3Dot3W( m->rx.X, v.X, m->rx.Y, v.Y, m->rx.Z, v.Z ),\n+\t\tb3Dot3W( m->ry.X, v.X, m->ry.Y, v.Y, m->ry.Z, v.Z ),\n+\t\tb3Dot3W( m->rz.X, v.X, m->rz.Y, v.Y, m->rz.Z, v.Z ),\n \t};\n }\n \n@@ -1896,22 +1896,22 @@ static inline b3Vec3W b3InvMulAddSVW( b3Vec3W a, b3FloatW s, b3Vec3W b )\n }\n \n // a - m * b, where m is an inverse inertia and the result is an angular velocity.\n-static inline b3Vec3W b3InvMulSubMVW( b3Vec3W a, b3SymMatrix3W m, b3Vec3W b )\n+static inline b3Vec3W b3InvMulSubMVW( b3Vec3W a, const b3SymMatrix3W* m, b3Vec3W b )\n {\n \treturn (b3Vec3W){\n-\t\tb3SubW( a.X, b3AddW( b3AddW( b3InvMulW( m.cxx, b.X ), b3InvMulW( m.cxy, b.Y ) ), b3InvMulW( m.cxz, b.Z ) ) ),\n-\t\tb3SubW( a.Y, b3AddW( b3AddW( b3InvMulW( m.cxy, b.X ), b3InvMulW( m.cyy, b.Y ) ), b3InvMulW( m.cyz, b.Z ) ) ),\n-\t\tb3SubW( a.Z, b3AddW( b3AddW( b3InvMulW( m.cxz, b.X ), b3InvMulW( m.cyz, b.Y ) ), b3InvMulW( m.czz, b.Z ) ) ),\n+\t\tb3SubW( a.X, b3AddW( b3AddW( b3InvMulW( m->cxx, b.X ), b3InvMulW( m->cxy, b.Y ) ), b3InvMulW( m->cxz, b.Z ) ) ),\n+\t\tb3SubW( a.Y, b3AddW( b3AddW( b3InvMulW( m->cxy, b.X ), b3InvMulW( m->cyy, b.Y ) ), b3InvMulW( m->cyz, b.Z ) ) ),\n+\t\tb3SubW( a.Z, b3AddW( b3AddW( b3InvMulW( m->cxz, b.X ), b3InvMulW( m->cyz, b.Y ) ), b3InvMulW( m->czz, b.Z ) ) ),\n \t};\n }\n \n // a + m * b, likewise.\n-static inline b3Vec3W b3InvMulAddMVW( b3Vec3W a, b3SymMatrix3W m, b3Vec3W b )\n+static inline b3Vec3W b3InvMulAddMVW( b3Vec3W a, const b3SymMatrix3W* m, b3Vec3W b )\n {\n \treturn (b3Vec3W){\n-\t\tb3AddW( a.X, b3AddW( b3AddW( b3InvMulW( m.cxx, b.X ), b3InvMulW( m.cxy, b.Y ) ), b3InvMulW( m.cxz, b.Z ) ) ),\n-\t\tb3AddW( a.Y, b3AddW( b3AddW( b3InvMulW( m.cxy, b.X ), b3InvMulW( m.cyy, b.Y ) ), b3InvMulW( m.cyz, b.Z ) ) ),\n-\t\tb3AddW( a.Z, b3AddW( b3AddW( b3InvMulW( m.cxz, b.X ), b3InvMulW( m.cyz, b.Y ) ), b3InvMulW( m.czz, b.Z ) ) ),\n+\t\tb3AddW( a.X, b3AddW( b3AddW( b3InvMulW( m->cxx, b.X ), b3InvMulW( m->cxy, b.Y ) ), b3InvMulW( m->cxz, b.Z ) ) ),\n+\t\tb3AddW( a.Y, b3AddW( b3AddW( b3InvMulW( m->cxy, b.X ), b3InvMulW( m->cyy, b.Y ) ), b3InvMulW( m->cyz, b.Z ) ) ),\n+\t\tb3AddW( a.Z, b3AddW( b3AddW( b3InvMulW( m->cxz, b.X ), b3InvMulW( m->cyz, b.Y ) ), b3InvMulW( m->czz, b.Z ) ) ),\n \t};\n }\n \n@@ -3322,9 +3322,9 @@ void b3WarmStartContacts_Convex( b3SolverBlock block, b3StepContext* context )\n \t\t\tb3Vec3W LB = b3MulSVW( c->frictionImpulse.x, b3WidenVW( c->rtB1s ) );\n \t\t\tLB = b3MulAddSVW( LB, c->frictionImpulse.y, b3WidenVW( c->rtB2s ) );\n \n-\t\t\tbA.w = b3InvMulSubMVW( bA.w, c->invIA, LA );\n+\t\t\tbA.w = b3InvMulSubMVW( bA.w, &c->invIA, LA );\n \t\t\tbA.v = b3InvMulSubSVW( bA.v, c->invMassA, impulse );\n-\t\t\tbB.w = b3InvMulAddMVW( bB.w, c->invIB, LB );\n+\t\t\tbB.w = b3InvMulAddMVW( bB.w, &c->invIB, LB );\n \t\t\tbB.v = b3InvMulAddSVW( bB.v, c->invMassB, impulse );\n \t\t}\n \n@@ -3337,8 +3337,8 @@ void b3WarmStartContacts_Convex( b3SolverBlock block, b3StepContext* context )\n \t\t// Rolling resistance\n \t\t{\n \t\t\tb3Vec3W impulse = c->rollingImpulse;\n-\t\t\tbA.w = b3InvMulSubMVW( bA.w, c->invIA, impulse );\n-\t\t\tbB.w = b3InvMulAddMVW( bB.w, c->invIB, impulse );\n+\t\t\tbA.w = b3InvMulSubMVW( bA.w, &c->invIA, impulse );\n+\t\t\tbB.w = b3InvMulAddMVW( bB.w, &c->invIB, impulse );\n \t\t}\n \n \t\tb3ScatterBodies( states, c->indexA, &bA );\n@@ -3393,8 +3393,8 @@ void b3SolveContacts_Convex( b3SolverBlock block, b3StepContext* context, bool u\n \t\t\tfor ( int pointIndex = 0; pointIndex < c->maxPointCount; ++pointIndex )\n \t\t\t{\n \t\t\t\tb3ContactConstraintPointWide* cp = c->points + pointIndex;\n-\t\t\t\tb3Vec3W rsA = b3MulMV3W( rotA, b3WidenVW( cp->anchorAs ) );\n-\t\t\t\tb3Vec3W rsB = b3MulMV3W( rotB, b3WidenVW( cp->anchorBs ) );\n+\t\t\t\tb3Vec3W rsA = b3MulMV3W( &rotA, b3WidenVW( cp->anchorAs ) );\n+\t\t\t\tb3Vec3W rsB = b3MulMV3W( &rotB, b3WidenVW( cp->anchorBs ) );\n \t\t\t\tb3Vec3W ds = b3AddVW( dp, b3SubVW( rsB, rsA ) );\n \t\t\t\tcp->cachedSeparations = b3AddW( b3DotW( normal, ds ), cp->baseSeparations );\n \t\t\t}\n@@ -3498,8 +3498,8 @@ void b3SolveContacts_Convex( b3SolverBlock block, b3StepContext* context, bool u\n \n \t\t\t\tdeltaImpulse = b3SubVW( c->rollingImpulse, oldImpulse );\n \n-\t\t\t\tbA.w = b3InvMulSubMVW( bA.w, c->invIA, deltaImpulse );\n-\t\t\t\tbB.w = b3InvMulAddMVW( bB.w, c->invIB, deltaImpulse );\n+\t\t\t\tbA.w = b3InvMulSubMVW( bA.w, &c->invIA, deltaImpulse );\n+\t\t\t\tbB.w = b3InvMulAddMVW( bB.w, &c->invIB, deltaImpulse );\n \t\t\t}\n \n \t\t\t// Central twist friction\n@@ -3585,9 +3585,9 @@ void b3SolveContacts_Convex( b3SolverBlock block, b3StepContext* context, bool u\n \t\t\t\t\t\t\t\t\t  b3MulSVW( deltaImpulse.y, b3WidenVW( c->rtA2s ) ) );\n \t\t\t\tb3Vec3W LB = b3AddVW( b3MulSVW( deltaImpulse.x, b3WidenVW( c->rtB1s ) ),\n \t\t\t\t\t\t\t\t\t  b3MulSVW( deltaImpulse.y, b3WidenVW( c->rtB2s ) ) );\n-\t\t\t\tbA.w = b3InvMulSubMVW( bA.w, c->invIA, LA );\n+\t\t\t\tbA.w = b3InvMulSubMVW( bA.w, &c->invIA, LA );\n \t\t\t\tbA.v = b3InvMulSubSVW( bA.v, c->invMassA, P );\n-\t\t\t\tbB.w = b3InvMulAddMVW( bB.w, c->invIB, LB );\n+\t\t\t\tbB.w = b3InvMulAddMVW( bB.w, &c->invIB, LB );\n \t\t\t\tbB.v = b3InvMulAddSVW( bB.v, c->invMassB, P );\n \t\t\t}\n \t\t}\n",
+      "started": "2026-09-07T18:50:30-0400",
+      "binaries": {
+        "before": {
+          "sha256": "7273e1173d4a0a468f39724e38f069dc32cedb05ae31cc64e9e5480a5ed2f3d4"
+        },
+        "after": {
+          "sha256": "9f3a7e2dcba08d713a24dc5d50adfc350ac6209aceef1fda6646cc6e156cb3af"
+        }
+      },
+      "rows": [
+        {
+          "scene": "large_pyramid",
+          "runs": [
+            {
+              "binary": "before",
+              "ms": 1607.33,
+              "counters": "body 5051 / shape 5051 / contact 14950 / joint 0 / stack 16633104"
+            },
+            {
+              "binary": "after",
+              "ms": 1637.15,
+              "counters": "body 5051 / shape 5051 / contact 14950 / joint 0 / stack 16633104"
+            },
+            {
+              "binary": "after",
+              "ms": 1713.08,
+              "counters": "body 5051 / shape 5051 / contact 14950 / joint 0 / stack 16633104"
+            },
+            {
+              "binary": "before",
+              "ms": 2574.04,
+              "counters": "body 5051 / shape 5051 / contact 14950 / joint 0 / stack 16633104"
+            }
+          ],
+          "medians_ms": {
+            "before": 2090.685,
+            "after": 1675.115
+          }
+        },
+        {
+          "scene": "many_pyramids",
+          "runs": [
+            {
+              "binary": "before",
+              "ms": 1669.95,
+              "counters": "body 10781 / shape 10781 / contact 28420 / joint 0 / stack 31601072"
+            },
+            {
+              "binary": "after",
+              "ms": 1566.91,
+              "counters": "body 10781 / shape 10781 / contact 28420 / joint 0 / stack 31601072"
+            },
+            {
+              "binary": "after",
+              "ms": 1586.73,
+              "counters": "body 10781 / shape 10781 / contact 28420 / joint 0 / stack 31601072"
+            },
+            {
+              "binary": "before",
+              "ms": 1810.55,
+              "counters": "body 10781 / shape 10781 / contact 28420 / joint 0 / stack 31601072"
+            }
+          ],
+          "medians_ms": {
+            "before": 1740.25,
+            "after": 1576.8200000000002
+          }
+        },
+        {
+          "scene": "washer",
+          "runs": [
+            {
+              "binary": "before",
+              "ms": 14469.0,
+              "counters": "body 8002 / shape 8041 / contact 40576 / joint 0 / stack 19101392"
+            },
+            {
+              "binary": "after",
+              "ms": 14997.1,
+              "counters": "body 8002 / shape 8041 / contact 40576 / joint 0 / stack 19101392"
+            },
+            {
+              "binary": "after",
+              "ms": 17181.6,
+              "counters": "body 8002 / shape 8041 / contact 40576 / joint 0 / stack 19101392"
+            },
+            {
+              "binary": "before",
+              "ms": 17106.5,
+              "counters": "body 8002 / shape 8041 / contact 40576 / joint 0 / stack 19101392"
+            }
+          ],
+          "medians_ms": {
+            "before": 15787.75,
+            "after": 16089.349999999999
+          }
+        }
+      ],
+      "finished": "2026-09-07T18:51:49-0400"
+    },
+    "compare-copy-paths": {
+      "source_diff": "diff --git a/src/contact_solver.c b/src/contact_solver.c\nindex 86ff61c..91ef9dd 100644\n--- a/src/contact_solver.c\n+++ b/src/contact_solver.c\n@@ -1618,33 +1618,36 @@ static inline b3FloatW b3Dot3W( b3FloatW a, b3FloatW b, b3FloatW c, b3FloatW d,\n // Relative velocity along an axis using precomputed cross(r, axis) rows:\n // dot(dv, axis) + dot(wB, rbxa) - dot(wA, raxa), nine products accumulated\n // at 128 bits with a single rounding.\n-static inline b3FloatW b3RelVelocityW( b3Vec3W dv, b3Vec3W axis, b3Vec3W wB, b3Vec3W rbxa, b3Vec3W wA, b3Vec3W raxa )\n+static inline b3FloatW b3RelVelocityW( b3Vec3W dv, const b3Vec3WN* axis, const b3Vec3W* wB, const b3Vec3WN* rbxa, const b3Vec3W* wA, const b3Vec3WN* raxa )\n {\n #if defined( B3_SIMD_AVX512 )\n-\tb3DotAccAVX sum = b3DotBeginAVX( dv.X.v, axis.X.v );\n-\tsum = b3DotAddAVX( sum, dv.Y.v, axis.Y.v );\n-\tsum = b3DotAddAVX( sum, dv.Z.v, axis.Z.v );\n-\tsum = b3DotAddAVX( sum, wB.X.v, rbxa.X.v );\n-\tsum = b3DotAddAVX( sum, wB.Y.v, rbxa.Y.v );\n-\tsum = b3DotAddAVX( sum, wB.Z.v, rbxa.Z.v );\n-\tsum = b3DotSubAVX( sum, wA.X.v, raxa.X.v );\n-\tsum = b3DotSubAVX( sum, wA.Y.v, raxa.Y.v );\n-\tsum = b3DotSubAVX( sum, wA.Z.v, raxa.Z.v );\n+\tb3Vec3W axisW = b3WidenVW( *axis );\n+\tb3Vec3W rbxaW = b3WidenVW( *rbxa );\n+\tb3Vec3W raxaW = b3WidenVW( *raxa );\n+\tb3DotAccAVX sum = b3DotBeginAVX( dv.X.v, axisW.X.v );\n+\tsum = b3DotAddAVX( sum, dv.Y.v, axisW.Y.v );\n+\tsum = b3DotAddAVX( sum, dv.Z.v, axisW.Z.v );\n+\tsum = b3DotAddAVX( sum, wB->X.v, rbxaW.X.v );\n+\tsum = b3DotAddAVX( sum, wB->Y.v, rbxaW.Y.v );\n+\tsum = b3DotAddAVX( sum, wB->Z.v, rbxaW.Z.v );\n+\tsum = b3DotSubAVX( sum, wA->X.v, raxaW.X.v );\n+\tsum = b3DotSubAVX( sum, wA->Y.v, raxaW.Y.v );\n+\tsum = b3DotSubAVX( sum, wA->Z.v, raxaW.Z.v );\n \treturn (b3FloatW){ .v = b3DotFinishAVX( sum ) };\n #else\n \treturn (b3FloatW){\n-\t\tb3FixFromDotRaw( (b3Int128)dv.X.x * axis.X.x + (b3Int128)dv.Y.x * axis.Y.x + (b3Int128)dv.Z.x * axis.Z.x +\n-\t\t\t\t\t\t (b3Int128)wB.X.x * rbxa.X.x + (b3Int128)wB.Y.x * rbxa.Y.x + (b3Int128)wB.Z.x * rbxa.Z.x -\n-\t\t\t\t\t\t (b3Int128)wA.X.x * raxa.X.x - (b3Int128)wA.Y.x * raxa.Y.x - (b3Int128)wA.Z.x * raxa.Z.x ),\n-\t\tb3FixFromDotRaw( (b3Int128)dv.X.y * axis.X.y + (b3Int128)dv.Y.y * axis.Y.y + (b3Int128)dv.Z.y * axis.Z.y +\n-\t\t\t\t\t\t (b3Int128)wB.X.y * rbxa.X.y + (b3Int128)wB.Y.y * rbxa.Y.y + (b3Int128)wB.Z.y * rbxa.Z.y -\n-\t\t\t\t\t\t (b3Int128)wA.X.y * raxa.X.y - (b3Int128)wA.Y.y * raxa.Y.y - (b3Int128)wA.Z.y * raxa.Z.y ),\n-\t\tb3FixFromDotRaw( (b3Int128)dv.X.z * axis.X.z + (b3Int128)dv.Y.z * axis.Y.z + (b3Int128)dv.Z.z * axis.Z.z +\n-\t\t\t\t\t\t (b3Int128)wB.X.z * rbxa.X.z + (b3Int128)wB.Y.z * rbxa.Y.z + (b3Int128)wB.Z.z * rbxa.Z.z -\n-\t\t\t\t\t\t (b3Int128)wA.X.z * raxa.X.z - (b3Int128)wA.Y.z * raxa.Y.z - (b3Int128)wA.Z.z * raxa.Z.z ),\n-\t\tb3FixFromDotRaw( (b3Int128)dv.X.w * axis.X.w + (b3Int128)dv.Y.w * axis.Y.w + (b3Int128)dv.Z.w * axis.Z.w +\n-\t\t\t\t\t\t (b3Int128)wB.X.w * rbxa.X.w + (b3Int128)wB.Y.w * rbxa.Y.w + (b3Int128)wB.Z.w * rbxa.Z.w -\n-\t\t\t\t\t\t (b3Int128)wA.X.w * raxa.X.w - (b3Int128)wA.Y.w * raxa.Y.w - (b3Int128)wA.Z.w * raxa.Z.w ),\n+\t\tb3FixFromDotRaw( (b3Int128)dv.X.x * axis->X.x + (b3Int128)dv.Y.x * axis->Y.x + (b3Int128)dv.Z.x * axis->Z.x +\n+\t\t\t\t\t\t (b3Int128)wB->X.x * rbxa->X.x + (b3Int128)wB->Y.x * rbxa->Y.x + (b3Int128)wB->Z.x * rbxa->Z.x -\n+\t\t\t\t\t\t (b3Int128)wA->X.x * raxa->X.x - (b3Int128)wA->Y.x * raxa->Y.x - (b3Int128)wA->Z.x * raxa->Z.x ),\n+\t\tb3FixFromDotRaw( (b3Int128)dv.X.y * axis->X.y + (b3Int128)dv.Y.y * axis->Y.y + (b3Int128)dv.Z.y * axis->Z.y +\n+\t\t\t\t\t\t (b3Int128)wB->X.y * rbxa->X.y + (b3Int128)wB->Y.y * rbxa->Y.y + (b3Int128)wB->Z.y * rbxa->Z.y -\n+\t\t\t\t\t\t (b3Int128)wA->X.y * raxa->X.y - (b3Int128)wA->Y.y * raxa->Y.y - (b3Int128)wA->Z.y * raxa->Z.y ),\n+\t\tb3FixFromDotRaw( (b3Int128)dv.X.z * axis->X.z + (b3Int128)dv.Y.z * axis->Y.z + (b3Int128)dv.Z.z * axis->Z.z +\n+\t\t\t\t\t\t (b3Int128)wB->X.z * rbxa->X.z + (b3Int128)wB->Y.z * rbxa->Y.z + (b3Int128)wB->Z.z * rbxa->Z.z -\n+\t\t\t\t\t\t (b3Int128)wA->X.z * raxa->X.z - (b3Int128)wA->Y.z * raxa->Y.z - (b3Int128)wA->Z.z * raxa->Z.z ),\n+\t\tb3FixFromDotRaw( (b3Int128)dv.X.w * axis->X.w + (b3Int128)dv.Y.w * axis->Y.w + (b3Int128)dv.Z.w * axis->Z.w +\n+\t\t\t\t\t\t (b3Int128)wB->X.w * rbxa->X.w + (b3Int128)wB->Y.w * rbxa->Y.w + (b3Int128)wB->Z.w * rbxa->Z.w -\n+\t\t\t\t\t\t (b3Int128)wA->X.w * raxa->X.w - (b3Int128)wA->Y.w * raxa->Y.w - (b3Int128)wA->Z.w * raxa->Z.w ),\n \t};\n #endif\n }\n@@ -3427,8 +3430,7 @@ void b3SolveContacts_Convex( b3SolverBlock block, b3StepContext* context, bool u\n \n \t\t\t// Relative velocity at contact, projected on the normal through the\n \t\t\t// precomputed cross(r, normal) rows with a single rounding\n-\t\t\tb3FloatW vn = b3RelVelocityW( b3SubVW( bB.v, bA.v ), normal, bB.w, b3WidenVW( cp->rnBs ), bA.w,\n-\t\t\t\t\t\t\t\t\t\t  b3WidenVW( cp->rnAs ) );\n+\t\t\tb3FloatW vn = b3RelVelocityW( b3SubVW( bB.v, bA.v ), &c->normal, &bB.w, &cp->rnBs, &bA.w, &cp->rnAs );\n \n \t\t\t// Compute normal impulse\n \t\t\tb3FloatW negImpulse = b3AddW( b3MulW( cp->normalMasses, b3AddW( b3MulW( pointMassScale, vn ), bias ) ),\n@@ -3525,9 +3527,9 @@ void b3SolveContacts_Convex( b3SolverBlock block, b3StepContext* context, bool u\n \t\t\t\t// cross(origin, tangent) rows, one rounding per axis\n \t\t\t\tb3Vec3W dv = b3SubVW( bB.v, bA.v );\n \t\t\t\tb3Vec2W vt = {\n-\t\t\t\t\tb3SubW( b3RelVelocityW( dv, tangent1, bB.w, b3WidenVW( c->rtB1s ), bA.w, b3WidenVW( c->rtA1s ) ),\n+\t\t\t\t\tb3SubW( b3RelVelocityW( dv, &c->tangent1, &bB.w, &c->rtB1s, &bA.w, &c->rtA1s ),\n \t\t\t\t\t\t\tc->tangentVelocity1 ),\n-\t\t\t\t\tb3SubW( b3RelVelocityW( dv, tangent2, bB.w, b3WidenVW( c->rtB2s ), bA.w, b3WidenVW( c->rtA2s ) ),\n+\t\t\t\t\tb3SubW( b3RelVelocityW( dv, &c->tangent2, &bB.w, &c->rtB2s, &bA.w, &c->rtA2s ),\n \t\t\t\t\t\t\tc->tangentVelocity2 ),\n \t\t\t\t};\n \n@@ -3639,8 +3641,7 @@ void b3ApplyRestitution_Convex( b3SolverBlock block, b3StepContext* context )\n \t\t\tb3FloatW mass = b3BlendW( cp->normalMasses, zero, mask );\n \n \t\t\t// Relative velocity at contact through the precomputed Jacobian rows\n-\t\t\tb3FloatW vn = b3RelVelocityW( b3SubVW( bB.v, bA.v ), b3WidenVW( c->normal ), bB.w, b3WidenVW( cp->rnBs ),\n-\t\t\t\t\t\t\t\t\t\t  bA.w, b3WidenVW( cp->rnAs ) );\n+\t\t\tb3FloatW vn = b3RelVelocityW( b3SubVW( bB.v, bA.v ), &c->normal, &bB.w, &cp->rnBs, &bA.w, &cp->rnAs );\n \n \t\t\t// Compute normal impulse\n \t\t\tb3FloatW negImpulse = b3MulW( mass, b3AddW( vn, b3MulW( c->restitution, cp->relativeVelocities ) ) );\n",
+      "started": "2026-09-07T18:52:08-0400",
+      "binaries": {
+        "before": {
+          "sha256": "7273e1173d4a0a468f39724e38f069dc32cedb05ae31cc64e9e5480a5ed2f3d4"
+        },
+        "matrix": {
+          "sha256": "9f3a7e2dcba08d713a24dc5d50adfc350ac6209aceef1fda6646cc6e156cb3af"
+        },
+        "relative": {
+          "sha256": "50c3e05c99e5ec2c7688c427581ed917610bd3137f2876348f0b9060f76967de"
+        }
+      },
+      "rows": [
+        {
+          "scene": "large_pyramid",
+          "runs": [
+            {
+              "binary": "before",
+              "ms": 1808.62,
+              "counters": "body 5051 / shape 5051 / contact 14950 / joint 0 / stack 16633104"
+            },
+            {
+              "binary": "matrix",
+              "ms": 1813.0,
+              "counters": "body 5051 / shape 5051 / contact 14950 / joint 0 / stack 16633104"
+            },
+            {
+              "binary": "relative",
+              "ms": 1792.13,
+              "counters": "body 5051 / shape 5051 / contact 14950 / joint 0 / stack 16633104"
+            },
+            {
+              "binary": "relative",
+              "ms": 1721.0,
+              "counters": "body 5051 / shape 5051 / contact 14950 / joint 0 / stack 16633104"
+            },
+            {
+              "binary": "matrix",
+              "ms": 1724.32,
+              "counters": "body 5051 / shape 5051 / contact 14950 / joint 0 / stack 16633104"
+            },
+            {
+              "binary": "before",
+              "ms": 1707.92,
+              "counters": "body 5051 / shape 5051 / contact 14950 / joint 0 / stack 16633104"
+            }
+          ],
+          "medians_ms": {
+            "before": 1758.27,
+            "matrix": 1768.6599999999999,
+            "relative": 1756.565
+          }
+        },
+        {
+          "scene": "many_pyramids",
+          "runs": [
+            {
+              "binary": "before",
+              "ms": 1610.92,
+              "counters": "body 10781 / shape 10781 / contact 28420 / joint 0 / stack 31601072"
+            },
+            {
+              "binary": "matrix",
+              "ms": 1644.52,
+              "counters": "body 10781 / shape 10781 / contact 28420 / joint 0 / stack 31601072"
+            },
+            {
+              "binary": "relative",
+              "ms": 1627.72,
+              "counters": "body 10781 / shape 10781 / contact 28420 / joint 0 / stack 31601072"
+            },
+            {
+              "binary": "relative",
+              "ms": 1578.64,
+              "counters": "body 10781 / shape 10781 / contact 28420 / joint 0 / stack 31601072"
+            },
+            {
+              "binary": "matrix",
+              "ms": 1599.61,
+              "counters": "body 10781 / shape 10781 / contact 28420 / joint 0 / stack 31601072"
+            },
+            {
+              "binary": "before",
+              "ms": 1590.84,
+              "counters": "body 10781 / shape 10781 / contact 28420 / joint 0 / stack 31601072"
+            }
+          ],
+          "medians_ms": {
+            "before": 1600.88,
+            "matrix": 1622.065,
+            "relative": 1603.18
+          }
+        },
+        {
+          "scene": "washer",
+          "runs": [
+            {
+              "binary": "before",
+              "ms": 14240.1,
+              "counters": "body 8002 / shape 8041 / contact 40576 / joint 0 / stack 19101392"
+            },
+            {
+              "binary": "matrix",
+              "ms": 14197.7,
+              "counters": "body 8002 / shape 8041 / contact 40576 / joint 0 / stack 19101392"
+            },
+            {
+              "binary": "relative",
+              "ms": 14585.1,
+              "counters": "body 8002 / shape 8041 / contact 40576 / joint 0 / stack 19101392"
+            },
+            {
+              "binary": "relative",
+              "ms": 14549.8,
+              "counters": "body 8002 / shape 8041 / contact 40576 / joint 0 / stack 19101392"
+            },
+            {
+              "binary": "matrix",
+              "ms": 13743.1,
+              "counters": "body 8002 / shape 8041 / contact 40576 / joint 0 / stack 19101392"
+            },
+            {
+              "binary": "before",
+              "ms": 14495.3,
+              "counters": "body 8002 / shape 8041 / contact 40576 / joint 0 / stack 19101392"
+            }
+          ],
+          "medians_ms": {
+            "before": 14367.7,
+            "matrix": 13970.400000000001,
+            "relative": 14567.45
+          }
+        }
+      ],
+      "finished": "2026-09-07T18:53:55-0400"
+    }
+  },
+  "tool_sha256": "f01ad48acb20da9dc467684dace23561baafd2e303e16529cdbcbd1ddc5585d6",
+  "single_worker_binary_sha256": {
+    "before": "a32cd817e3615631d60e49dbc645b9832714da90c7577333b603cf66476ad203",
+    "after": "3838d78a67fa6ac80a4d71574aa149118fe5e51042477b23becb0c547cf0eaad"
+  },
+  "summary": [
+    {
+      "mode": 0,
+      "name": "Angular-velocity motor",
+      "medians_ms": {
+        "before": 1125.475418,
+        "after": 944.619583
+      },
+      "cpu_medians_ms": {
+        "before": 1125.29,
+        "after": 944.703
+      },
+      "runtime_reduction_percent": 16.06928344302585
+    },
+    {
+      "mode": 5,
+      "name": "Linear-only motor",
+      "medians_ms": {
+        "before": 1548.191849,
+        "after": 1319.234497
+      },
+      "cpu_medians_ms": {
+        "before": 1547.389,
+        "after": 1318.787
+      },
+      "runtime_reduction_percent": 14.788693800958008
+    },
+    {
+      "mode": 2,
+      "name": "Rigid weld",
+      "medians_ms": {
+        "before": 1940.099289,
+        "after": 1867.13559
+      },
+      "cpu_medians_ms": {
+        "before": 1937.197,
+        "after": 1865.092
+      },
+      "runtime_reduction_percent": 3.7608229338410903
+    },
+    {
+      "mode": 4,
+      "name": "Rotation-locked weld",
+      "medians_ms": {
+        "before": 1622.79744,
+        "after": 1497.23941
+      },
+      "cpu_medians_ms": {
+        "before": 1620.592,
+        "after": 1495.425
+      },
+      "runtime_reduction_percent": 7.7371350795327976
+    },
+    {
+      "mode": 1,
+      "name": "Motor with springs active",
+      "medians_ms": {
+        "before": 3420.73436,
+        "after": 3402.436874
+      },
+      "cpu_medians_ms": {
+        "before": 3415.584,
+        "after": 3396.869
+      },
+      "runtime_reduction_percent": 0.5348993541842817
+    },
+    {
+      "mode": 3,
+      "name": "Soft weld",
+      "medians_ms": {
+        "before": 2005.578964,
+        "after": 2007.862854
+      },
+      "cpu_medians_ms": {
+        "before": 2002.808,
+        "after": 2005.071
+      },
+      "runtime_reduction_percent": -0.1138768425973602
+    }
+  ]
+}

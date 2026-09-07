@@ -79,6 +79,13 @@ and removes known-zero matrix products. It adds 128 bytes per group of four
 convex constraints. All 4,800 additional state hashes and 80 repeated captures
 match the preceding build exactly.
 
+A [follow-up joint pass](benchmark/2026-09-07-joint-feature-performance.md)
+skips unused work for disabled motor features and weld relaxation. Targeted
+**single-worker** cases improve by 16.1% for angular-velocity motors, 14.8% for
+linear-only motors, and 3.8–7.7% for rigid or rotation-locked welds. All 8,640
+additional before/after state-and-force hashes match, including runtime feature
+changes. The full-suite float ratio above has not been remeasured for this pass.
+
 These are measurements on a shared workstation. Small scene differences are
 inconclusive; the library repair also changes trajectories and contact counts.
 The percentage improvements above measure separate changes and are not additive.
