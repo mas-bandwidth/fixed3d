@@ -11,6 +11,8 @@
 #include "body.h"
 #include "physics_world.h"
 
+#include <math.h>
+
 
 // b3UpdateBodyMassData shifts each shape's inertia to the body center of mass with the parallel
 // axis theorem. When shapes sit far from the body origin the shift term dwarfs the central inertia,
@@ -494,6 +496,51 @@ static int InverseMassQuantumFloorFromShapes( void )
 	return 0;
 }
 
+static int AsteroidImpulseResponse( void )
+{
+	// Space Game's laser impulse has magnitude equal to the prop's mass. A
+	// density-one cube must therefore gain one unit/s of linear velocity,
+	// with off-centre spin bounded by inverse-inertia/output quantization.
+	const int sides[] = { 1, 10, 250 };
+	for ( int i = 0; i < ARRAY_COUNT( sides ); ++i )
+	{
+		double side = sides[i];
+		double mass = side * side * side;
+		double inertia = mass * side * side / 6.0;
+		b3WorldDef worldDef = b3DefaultWorldDef();
+		worldDef.gravity = b3Vec3_zero;
+		worldDef.enableSleep = false;
+		b3WorldId worldId = b3CreateWorld( &worldDef );
+		b3BodyDef bodyDef = b3DefaultBodyDef();
+		bodyDef.type = b3_dynamicBody;
+		b3BodyId bodyId = b3CreateBody( worldId, &bodyDef );
+		b3Fixed half = b3FixFromDouble( side / 2.0 );
+		b3BoxHull hull = b3MakeBoxHull( half, half, half );
+		b3ShapeDef shapeDef = b3DefaultShapeDef();
+		shapeDef.density = B3_FIXED_ONE;
+		b3CreateHullShape( bodyId, &shapeDef, &hull.base );
+		ENSURE( b3Body_GetInverseMassPrecise( bodyId ) > 0 );
+		b3Matrix3 invI = b3Body_GetWorldInverseRotationalInertiaPrecise( bodyId );
+		ENSURE( invI.cx.x > 0 && invI.cy.y > 0 && invI.cz.z > 0 );
+		b3Vec3 impulse = { 0, 0, -b3Body_GetMass( bodyId ) };
+		b3Pos point = b3ToPos( (b3Vec3){ half / 2, half / 4, half } );
+		b3Body_ApplyLinearImpulse( bodyId, impulse, point, false );
+		b3Vec3 v = b3Body_GetLinearVelocity( bodyId );
+		b3Vec3 w = b3Body_GetAngularVelocity( bodyId );
+		double quantum = 1.0 / 65536.0;
+		double inverseScale = 1099511627776.0; // 2^40 is part of the range contract.
+		ENSURE( fabs( b3FixToDouble( v.z ) + 1.0 ) <= mass / inverseScale + quantum );
+		ENSURE( v.x == 0 && v.y == 0 && w.z == 0 );
+		double tx = -mass * side / 8.0;
+		double ty = mass * side / 4.0;
+		ENSURE( fabs( b3FixToDouble( w.x ) - tx / inertia ) <= fabs( tx ) / inverseScale + 16 * quantum );
+		ENSURE( fabs( b3FixToDouble( w.y ) - ty / inertia ) <= fabs( ty ) / inverseScale + 16 * quantum );
+		ENSURE( w.x < 0 && w.y > 0 );
+		b3DestroyWorld( worldId );
+	}
+	return 0;
+}
+
 // THE INVERSE INERTIA SCALE ENVELOPE.
 //
 // Inertia grows as the fifth power of size, so a body 20 times larger has an inertia
@@ -751,6 +798,7 @@ int BodyTest( void )
 	RUN_SUBTEST( AngularImpulseInverseScale );
 	RUN_SUBTEST( InverseMassQuantumFloor );
 	RUN_SUBTEST( InverseInertiaScaleEnvelope );
+	RUN_SUBTEST( AsteroidImpulseResponse );
 	RUN_SUBTEST( InverseMassQuantumFloorFromShapes );
 	RUN_SUBTEST( FarSingleSphereMass );
 	RUN_SUBTEST( FarCubeSphereMass );

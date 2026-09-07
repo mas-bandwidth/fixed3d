@@ -358,6 +358,46 @@ static int Solve2InverseScaleTest( void )
 	return 0;
 }
 
+static int Solve3InverseScaleTest( void )
+{
+	// K = s * [[4,1,0],[1,3,1],[0,1,2]], b = s * [5,-3,5]
+	// has x = [2,-3,4]. The largest cases require 256-bit intermediates.
+	const int bits[] = { 24, 32, 40, 41, 54, 60 };
+	for ( int i = 0; i < ARRAY_COUNT( bits ); ++i )
+	{
+		for ( int sign = -1; sign <= 1; sign += 2 )
+		{
+			b3Fixed s = sign * ( (b3Fixed)1 << bits[i] );
+			b3Fixed r = sign * ( (b3Fixed)1 << ( bits[i] - B3_INVERSE_EXTRA_BITS ) );
+			b3Matrix3 m = { { 4 * s, s, 0 }, { s, 3 * s, s }, { 0, s, 2 * s } };
+			b3Vec3 x = b3Solve3AcrossScales( m, (b3Vec3){ 5 * r, -3 * r, 5 * r } );
+			ENSURE( x.x == B3_FIX( 2.0f ) && x.y == -B3_FIX( 3.0f ) && x.z == B3_FIX( 4.0f ) );
+			x = b3Solve3AcrossScales( m, b3Vec3_zero );
+			ENSURE( x.x == 0 && x.y == 0 && x.z == 0 );
+		}
+	}
+
+	// Asteroid-scale inverse values retain their low quanta. Converting them
+	// back to Q48.16 before solving would erase the response entirely.
+	b3Matrix3 small = { { 6, 0, 0 }, { 0, 70369, 0 }, { 0, 0, 6 } };
+	b3Vec3 x = b3Solve3AcrossScales( small, (b3Vec3){ 1, -1, 2 } );
+	ENSURE( x.x == ( (int64_t)1 << 40 ) / 6 );
+	ENSURE( x.y == -( ( (int64_t)1 << 40 ) / 70369 ) );
+	ENSURE( x.z == ( (int64_t)2 << 40 ) / 6 );
+
+	b3Fixed s = (b3Fixed)1 << 40;
+	b3Matrix3 diagonal = { { s, 0, 0 }, { 0, s, 0 }, { 0, 0, s } };
+	for ( int raw = 63; raw <= 65; ++raw )
+	{
+		x = b3Solve3AcrossScales( diagonal, (b3Vec3){ raw, -raw, raw } );
+		ENSURE( x.x == raw && x.y == -raw && x.z == raw );
+	}
+	b3Matrix3 singular = { { s, s, s }, { s, s, s }, { s, s, s } };
+	x = b3Solve3AcrossScales( singular, (b3Vec3){ B3_FIXED_ONE, -B3_FIXED_ONE, B3_FIXED_ONE } );
+	ENSURE( x.x == 0 && x.y == 0 && x.z == 0 );
+	return 0;
+}
+
 // Exercise the repaired contracts through the b3 forwarders and both AABB
 // representations, so a stale vendor pin or integration cannot hide behind
 // the upstream library's own tests.
@@ -397,6 +437,7 @@ static int VendoredFixedTest( void )
 int MathTest( void )
 {
 	RUN_SUBTEST( Solve2InverseScaleTest );
+	RUN_SUBTEST( Solve3InverseScaleTest );
 	RUN_SUBTEST( VendoredFixedTest );
 	// Compare the fixed-point trig against double precision references from libm.
 	// The fixed-point results carry the approximation error of the underlying

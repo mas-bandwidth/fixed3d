@@ -12,8 +12,8 @@ This fork exists to answer two questions:
    was *entirely* fixed point?**
 2. **Exactly how much slower would it be?**
 
-The answers: This repository and **2× slower** (geometric mean over the full benchmark suite,
-measured on Apple silicon and on AMD Zen 4).
+The answers: This repository and currently about **2.4× float runtime in scalar mode**,
+or **2.3× with NEON**, measured over the full benchmark suite on Apple M3 Ultra.
 
 What you get in exchange is one thing: a truly huge world with uniform precision everywhere.
 
@@ -29,35 +29,53 @@ casts, the mass properties, the recording format. The float SIMD is gone (it
 grew back on AVX-512 and NEON — same bits, just faster). In
 exchange, resolution is a uniform 1/65536 everywhere in a ±1.4×10¹⁴ meter
 world, every step is still bit-exact on every platform (Box3D already
-was — see below), and all 22 unit test suites still pass.
+was — see below), and all 24 unit test suites still pass.
 
 ## Profile results: fixed point vs. single precision floating point
 
-`benchmark -t=4 -w=4 -r=2` (4 workers, min of 2 runs, continuous collision on),
-Apple M3 Ultra, macOS 26.5.1, Apple clang 21, RelWithDebInfo, Ninja.
-Measured 2026-07-13 at the current build defaults; all three columns were
-re-run in the same session, float included.
+Measured 2026-09-07 on Apple M3 Ultra, macOS 26.6.2, Apple Clang 21,
+RelWithDebInfo (`-O2`, thin LTO), four workers, continuous collision enabled.
+The table uses median whole-scene runtimes from alternating processes;
+commands, all trials, binary hashes and rechecks are in the
+[measurement record](benchmark/2026-09-07-integrated-performance.md).
 
-- **float** = Box3D at `e961bfb` (single precision, NEON SIMD)
-- **fixed** = this tree, scalar int64 lanes
-- **fixed+NEON** = this tree with `-DBOX3D_NEON=ON` (narrow phase only)
+- **Float:** Box3D `47d7f7c`, single precision with default NEON.
+- **Fixed:** this tree with fixed `2f1ed91`, scalar defaults.
+- **Fixed+NEON:** the same tree with `-DBOX3D_NEON=ON` (narrow phase).
 
-| Benchmark     | float (ms) | fixed (ms) | fixed+NEON (ms) | fixed/float | NEON/float | NEON speedup |
-|---------------|-----------:|-----------:|----------------:|------------:|-----------:|-------------:|
-| convex_pile   |   13,725.4 |   21,391.2 |        10,316.8 |       1.6× |  **0.75×** |        2.07× |
-| joint_grid    |      276.7 |      789.1 |           785.3 |       2.9× |      2.8× |        1.00× |
-| junkyard      |    4,875.1 |    9,859.1 |         8,750.3 |       2.0× |      1.8× |        1.13× |
-| large_pyramid |      547.8 |    1,676.9 |         1,625.0 |       3.1× |      3.0× |        1.03× |
-| large_world   |       13.4 |       23.5 |            23.9 |       1.8× |      1.8× |        0.98× |
-| many_pyramids |      518.0 |    1,681.5 |         1,651.8 |       3.2× |      3.2× |        1.02× |
-| rain          |      610.5 |    1,289.0 |         1,286.1 |       2.1× |      2.1× |        1.00× |
-| trees25       |      234.5 |      358.7 |           348.4 |       1.5× |      1.5× |        1.03× |
-| trees50       |      117.5 |      196.5 |           195.0 |       1.7× |      1.7× |        1.01× |
-| trees100      |       84.2 |      154.1 |           149.0 |       1.8× |      1.8× |        1.03× |
-| washer        |    6,896.4 |   13,599.9 |        13,606.9 |       2.0× |      2.0× |        1.00× |
+| Benchmark | Float (ms) | Fixed (ms) | Fixed+NEON (ms) | Fixed/float | NEON/float |
+|---|---:|---:|---:|---:|---:|
+| convex_pile | 3,574.5 | 10,828.7 | 7,020.1 | 3.03× | 1.96× |
+| joint_grid | 267.3 | 719.7 | 719.0 | 2.69× | 2.69× |
+| junkyard | 3,530.0 | 8,382.3 | 7,953.3 | 2.37× | 2.25× |
+| large_pyramid | 468.2 | 1,550.7 | 1,597.0 | 3.31× | 3.41× |
+| large_world | 12.4 | 24.3 | 24.7 | 1.95× | 1.99× |
+| many_pyramids | 472.4 | 1,570.2 | 1,588.5 | 3.32× | 3.36× |
+| rain | 566.1 | 1,376.6 | 1,351.7 | 2.43× | 2.39× |
+| trees100 | 84.7 | 151.6 | 146.9 | 1.79× | 1.74× |
+| trees50 | 106.7 | 210.4 | 208.3 | 1.97× | 1.95× |
+| trees25 | 233.3 | 399.4 | 396.9 | 1.71× | 1.70× |
+| washer | 6,770.4 | 13,694.0 | 13,806.2 | 2.02× | 2.04× |
 
-Geometric mean: 2.07× slower scalar, 1.90× with NEON. I expect this to worsen to around 2.5× as any
-worthwhile optimizations found during this exercise are backported to the real Box3D.
+Geometric mean: **2.36× float runtime for scalar**, **2.25× with NEON**,
+or about **42% and 44% of float throughput**. The
+[July measurements](benchmark/2026-07-13-readme-results.md) used an older float
+revision; their approximately 50% figure is historical.
+
+The latest work moved the needle in three measured places:
+
+- Exact scalar hull-edge rejection cut Convex Pile runtime by **11.3%** on the old library.
+- The repaired fixed library cut geometric-mean runtime by **15.0%** against the already optimized old-library scalar build.
+- Skipping exactly zero joint corrections cut Joint Grid runtime by **18.7%** in the grouped recheck.
+
+The joint shortcut preserves exact results and the full 256-bit path for
+nonzero solves. The 40-bit inverse scale remains essential for large asteroids
+to respond to impulses. All 24 suites pass locally in Debug, optimized scalar,
+NEON, wide positions and ASan+UBSan, including asteroid-response tests.
+
+These are measurements on a shared workstation. Small scene differences are
+inconclusive; the library repair also changes trajectories and contact counts.
+The percentage improvements above measure separate changes and are not additive.
 
 ## Should I use this?
 
@@ -77,7 +95,7 @@ already does:
 
 If your world genuinely outruns what large positions plus broadphase
 padding cover, this library is the answer to your problem. Be sure that is
-your problem before paying 2× for it.
+your problem before paying the performance cost for it.
 
 For everything else, Box3D almost certainly does what you need: <https://github.com/erincatto/box3d>
 
