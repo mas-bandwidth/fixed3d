@@ -13,7 +13,7 @@ Apple M3 Ultra, macOS 26.6.2, Apple Clang 21.0.0, arm64, RelWithDebInfo/O2, thin
 - Final scalar/NEON: `8f52c1898dc0c26c009b9f5c16554587d1448c26`, fixed `2f1ed91`.
 - Float Box3D: `47d7f7cc7e091142c08d11dc7d2e493c5d34f536`, default NEON.
 
-Two runs per scene and binary, old/pre-solver/final/neon/float/float/neon/final/pre-solver/old order, four workers, continuous collision enabled, median runtime. Scenes with an initial within-binary spread over 5% received three additional balanced runs of every binary; their final medians include all five trials, with no discarded observations. Separate processes and working directories preserve each run. No local builds, tests or captures ran during timing. The raw JSON preserves every observation, executable SHA256, final counters and any rechecks. This is a shared workstation; small differences and short-scene percentages are inconclusive.
+Two runs per scene and binary, old/pre-solver/final/neon/float/float/neon/final/pre-solver/old order, four workers, continuous collision enabled, median runtime. Scenes with an initial within-binary spread over 5% received three additional balanced runs of every binary; their final medians include all five trials, with no discarded observations. Separate processes and working directories preserve each run. No builds, tests or captures from this task ran during timing. The raw JSON preserves every observation, executable SHA256, final counters and any rechecks. This is a shared workstation; small differences and short-scene percentages are inconclusive.
 
 | Scene | Old library scalar (ms) | New library before joint shortcut (ms) | Final scalar (ms) | Final NEON (ms) | Float (ms) |
 |---|---:|---:|---:|---:|---:|
