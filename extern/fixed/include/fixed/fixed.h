@@ -263,6 +263,18 @@ FIX_ALWAYS_INLINE fixed_t fixDiv( fixed_t a, fixed_t b )
 /// Exact integer square root of an unsigned 128 bit value (helper for fixSqrt).
 FIX_ALWAYS_INLINE uint64_t fixISqrt128High( uint64_t hi, uint64_t lo )
 {
+	// Up to 104 input bits the double seed has at most a few raw units of
+	// error and fits uint64_t. Repair against the full integer input, exactly
+	// as in the 64-bit arm. Lifted vector/quaternion norms land in this range.
+	if ( hi != 0 && hi < ( UINT64_C( 1 ) << 40 ) )
+	{
+		fixUInt128 n = fixUInt128Make( hi, lo );
+		uint64_t r = (uint64_t)FIX_SQRT_SEED( (double)hi * 18446744073709551616.0 + (double)lo );
+		while ( fixUInt128Gt( fixUInt128MulU64( r, r ), n ) ) { --r; }
+		while ( fixUInt128Le( fixUInt128MulU64( r + 1, r + 1 ), n ) ) { ++r; }
+		return r;
+	}
+
 	if ( hi == 0 )
 	{
 		// Common case: 64 bit input. Seed with the hardware double sqrt (an exact,
@@ -278,11 +290,16 @@ FIX_ALWAYS_INLINE uint64_t fixISqrt128High( uint64_t hi, uint64_t lo )
 		{
 			r = 0xFFFFFFFFu;
 		}
-		while ( r > 0 && fixUInt128Gt( fixUInt128MulU64( r, r ), fixUInt128FromU64( lo ) ) )
+		// r <= UINT32_MAX, so its square fits uint64_t. After the downward
+		// repair, lo-r*r is nonnegative. The next square is <= lo exactly
+		// when that remainder exceeds 2*r; this avoids forming (r+1)^2,
+		// which would overflow at r == UINT32_MAX. At that endpoint the
+		// remainder is at most 2*r, so the upward repair cannot overflow r.
+		while ( r * r > lo )
 		{
 			r -= 1;
 		}
-		while ( fixUInt128Le( fixUInt128MulU64( r + 1, r + 1 ), fixUInt128FromU64( lo ) ) )
+		while ( lo - r * r > 2 * r )
 		{
 			r += 1;
 		}

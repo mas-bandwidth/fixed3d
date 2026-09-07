@@ -95,8 +95,16 @@ FIX_ALWAYS_INLINE double fixDequantize( int64_t raw, int64_t scale )
 FIX_ALWAYS_INLINE int64_t fixQuantizeClamped( double value, int64_t scale, int64_t minRaw, int64_t maxRaw )
 {
 	FIX_ASSERT( minRaw <= maxRaw );
+	FIX_ASSERT( scale > 0 );
 
-	int64_t raw = fixQuantize( value, scale );
+	double scaled = value * (double)scale;
+	double rounded = scaled >= 0.0 ? scaled + 0.5 : scaled - 0.5;
+	// Check the storage range before casting. (double)INT64_MAX is 2^63,
+	// so an inclusive comparison against that value is essential. Compare
+	// the caller's exact int64 bounds AFTER conversion, not as doubles.
+	if ( rounded >= 9223372036854775808.0 ) return maxRaw;
+	if ( rounded <= -9223372036854775808.0 ) return minRaw;
+	int64_t raw = (int64_t)rounded;
 
 	if ( raw < minRaw )
 	{

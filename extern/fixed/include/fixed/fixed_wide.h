@@ -317,50 +317,37 @@ FIX_ALWAYS_INLINE fixed_t fixAABBWide_Area( fixAABBWide a )
 	return fixMul( FIX( 2.0f ) , ( fixMul( dx , dy ) + fixMul( dy , dz ) + fixMul( dz , dx ) ) );
 }
 
-/// Center, in local space.
-///
-/// Ported exactly as box3d has it, INCLUDING the narrowing, because the rounding is
-/// load-bearing: box3d narrows both bounds to fixed_t and then applies the same
-/// half-up fixMulSV( 0.5, ... ) the narrow build uses, so a box expressed either way
-/// yields the same center. An integer >> 1 here would truncate instead of rounding
-/// half-up and would shift the box by up to 1 ULP relative to the narrow build.
-///
-/// Known limitation, inherited deliberately rather than silently repaired: the center
-/// of a box whose coordinates exceed Q48.16 range saturates. Fixing that means
-/// returning a wide center, which is a behaviour change and belongs in its own commit
-/// with its own goldens -- not smuggled in under the word "extract".
+/// Center, in local space, rounded half up. Average at full width before
+/// narrowing, splitting each endpoint first so even a full-range wide sum
+/// cannot overflow. A center outside the local domain saturates to FIX_MIN/MAX.
 FIX_ALWAYS_INLINE fixVec3 fixAABBWide_Center( fixAABBWide a )
 {
-	fixVec3 lo = fixPosWideToVec3( a.lowerBound );
-	fixVec3 hi = fixPosWideToVec3( a.upperBound );
-	return fixMulSV( FIX( 0.5f ), fixVecAdd( hi, lo ) );
+	fixInt128 lx = fixInt128Shr( a.lowerBound.x, 1 ), ux = fixInt128Shr( a.upperBound.x, 1 );
+	fixInt128 ly = fixInt128Shr( a.lowerBound.y, 1 ), uy = fixInt128Shr( a.upperBound.y, 1 );
+	fixInt128 lz = fixInt128Shr( a.lowerBound.z, 1 ), uz = fixInt128Shr( a.upperBound.z, 1 );
+	fixVec3 out = {
+		fixAABBNarrowBound( fixInt128Add( fixInt128Add( lx, ux ), fixInt128FromU64( ( fixInt128Lo( a.lowerBound.x ) | fixInt128Lo( a.upperBound.x ) ) & 1 ) ) ),
+		fixAABBNarrowBound( fixInt128Add( fixInt128Add( ly, uy ), fixInt128FromU64( ( fixInt128Lo( a.lowerBound.y ) | fixInt128Lo( a.upperBound.y ) ) & 1 ) ) ),
+		fixAABBNarrowBound( fixInt128Add( fixInt128Add( lz, uz ), fixInt128FromU64( ( fixInt128Lo( a.lowerBound.z ) | fixInt128Lo( a.upperBound.z ) ) & 1 ) ) ),
+	};
+	return out;
 }
 
-/// Extents (half-widths) in local space. Exact whenever the box's SIZE fits local
-/// range, regardless of how far from the origin the box sits.
-///
-/// NOT a faithful port -- this is a deliberate BUG FIX, called out because everything
-/// else in this extraction is behaviour-preserving. box3d's wide fixAABB_Extents narrows
-/// each bound to fixed_t and then subtracts:
-///
-///     fixMulSV( FIX( 0.5f ), fixVecSub( fixToVec3( a.upperBound ), fixToVec3( a.lowerBound ) ) )
-///
-/// Past Q48.16 range BOTH bounds saturate to INT64_MAX, their difference is zero, and a
-/// perfectly ordinary box reports zero extents -- at exactly the distances ludicrous mode
-/// exists to serve. fixAABB_Transform consumes Extents, so transformed distant boxes
-/// collapse too. box3d's own wide fixAABB_Area already does it the right way round
-/// (difference in 128-bit, then narrow), so this restores consistency within that file
-/// rather than inventing a convention.
-///
-/// For any box whose bounds both fit local range the two forms agree bit-for-bit, which
-/// the narrow/wide correspondence cases in test/aabb_test.c check directly. The fix is
-/// therefore invisible to every build that was already correct.
+// Internal: subtract as unsigned (ordered endpoints have a non-negative
+// difference up to 128 bits), halve and round before narrowing. A representable
+// half-width survives even when the full width exceeds the local domain.
+FIX_ALWAYS_INLINE fixed_t fixWideHalfExtent( fixedWide_t lower, fixedWide_t upper )
+{
+	fixUInt128 difference = fixInt128ToUnsigned( fixWideSub( upper, lower ) );
+	fixUInt128 half = fixUInt128Add( fixUInt128Shr( difference, 1 ), fixUInt128FromU64( fixUInt128Lo( difference ) & 1 ) );
+	return fixUInt128Gt( half, fixUInt128FromU64( (uint64_t)FIX_MAX ) ) ? FIX_MAX : (fixed_t)fixUInt128Lo( half );
+}
+
+/// Half-widths rounded half up, saturated to FIX_MAX, independent of distance.
 FIX_ALWAYS_INLINE fixVec3 fixAABBWide_Extents( fixAABBWide a )
 {
-	fixVec3 d = { fixWideSubToFixed( a.upperBound.x, a.lowerBound.x ),
-	             fixWideSubToFixed( a.upperBound.y, a.lowerBound.y ),
-	             fixWideSubToFixed( a.upperBound.z, a.lowerBound.z ) };
-	return fixMulSV( FIX( 0.5f ), d );
+	return FIX_LITERAL( fixVec3 ){ fixWideHalfExtent( a.lowerBound.x, a.upperBound.x ),
+		fixWideHalfExtent( a.lowerBound.y, a.upperBound.y ), fixWideHalfExtent( a.lowerBound.z, a.upperBound.z ) };
 }
 
 /// Union of two wide boxes.
@@ -435,27 +422,14 @@ FIX_ALWAYS_INLINE fixAABBWide fixMakeAABBWideAt( const fixVec3* points, int coun
 	return fixOffsetAABBWide( local, origin );
 }
 
-/// Transform a wide box by a local transform.
-///
-/// Ported from box3d's ludicrous build, and it is the same conservative-bound algorithm
-/// as the narrow fixAABB_Transform: rotate the extents through the absolute matrix, then
-/// rebuild around the transformed center. The centre is computed and re-widened rather
-/// than rotated in place, because the rotation is a local operation and only the extents
-/// need it -- the wide part of the coordinate is a translation the rotation does not see.
-///
-/// NOTE the inherited limitation, stated rather than papered over: the centre narrows to
-/// local range, so a box whose CENTRE exceeds Q48.16 saturates. Extents survive at any
-/// distance (that is the fixAABBWide_Extents fix), but a transform about a distant centre
-/// does not. box3d has the same limitation today; fixing it needs a wide-centre
-/// formulation and belongs in its own change with its own goldens.
+/// Transform a wide box by a local transform, with the same unrounded
+/// coefficients and outward error allowance as fixAABB_Transform.
+/// The inherited local-center limit remains: a center outside Q48.16 saturates
+/// before rotation. Extents are computed from the full-width difference.
 FIX_ALWAYS_INLINE fixAABBWide fixAABBWide_Transform( fixTransform transform, fixAABBWide a )
 {
-	fixVec3 center = fixTransformPoint( transform, fixAABBWide_Center( a ) );
-	fixMatrix3 m = fixMakeMatrixFromQuat( transform.q );
-	fixVec3 extent = fixMulMV( fixAbsMatrix3( m ), fixAABBWide_Extents( a ) );
-	fixVec3 lo = fixVecSub( center, extent );
-	fixVec3 hi = fixVecAdd( center, extent );
-	fixAABBWide out = { fixPosWideFromVec3( lo ), fixPosWideFromVec3( hi ) };
+	fixAABB local = fixTransformAABBCenterExtents( transform, fixAABBWide_Center( a ), fixAABBWide_Extents( a ) );
+	fixAABBWide out = { fixPosWideFromVec3( local.lowerBound ), fixPosWideFromVec3( local.upperBound ) };
 	return out;
 }
 
