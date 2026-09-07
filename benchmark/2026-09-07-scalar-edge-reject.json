@@ -1,0 +1,789 @@
+{
+  "base_commit": "0b27fe38879e0dc45bddf447b92fb9c23c8e3db0",
+  "implementation_commit": "bb6f23cd5f5dd17023d03f257fdfa7097122e4b6",
+  "fixed_pin": "a0fa624d739790844af34499381c55abaa65180f",
+  "configuration": "Apple M3 Ultra, arm64 Apple Clang, RelWithDebInfo, -O2, thin LTO, four workers, NEON off",
+  "caution": "This is a shared workstation. Only the Convex Pile gain was consistent across all grouped before/after trials. Smaller scene differences are inconclusive.",
+  "binaries": {
+    "before": {
+      "path": "/Users/glenn/Documents/ChatGPT/stella 2/work/fixed3d-review/_bench/benchmark-corrected",
+      "sha256": "e77837f4ff560df982bf9b7bd7cc621700955fba8620f79a9a82a96e24932c36"
+    },
+    "after": {
+      "path": "/Users/glenn/Documents/ChatGPT/stella 2/work/fixed3d-review/_bench/optimization/benchmark-final",
+      "sha256": "4a9da5c6f7f5d2bdd7a332f5ba6253aaf8ef5b8c9792d490154787da590f7c75"
+    }
+  },
+  "final_grouped_recheck": {
+    "method": "Three per binary per scene, before/after/after/before/before/after, four workers",
+    "rows": [
+      {
+        "scene": "convex_pile",
+        "times_ms": {
+          "before": [
+            14382.9,
+            14274.2,
+            14203.2
+          ],
+          "after": [
+            12631.0,
+            12684.7,
+            12655.6
+          ]
+        },
+        "medians_ms": {
+          "before": 14274.2,
+          "after": 12655.6
+        },
+        "runtime_change_percent": -11.339339507643164,
+        "counters_match": true
+      },
+      {
+        "scene": "junkyard",
+        "times_ms": {
+          "before": [
+            10353.1,
+            10289.8,
+            10142.5
+          ],
+          "after": [
+            10121.1,
+            10167.6,
+            10189.6
+          ]
+        },
+        "medians_ms": {
+          "before": 10289.8,
+          "after": 10167.6
+        },
+        "runtime_change_percent": -1.187583820871141,
+        "counters_match": true
+      },
+      {
+        "scene": "many_pyramids",
+        "times_ms": {
+          "before": [
+            1724.84,
+            1704.81,
+            1691.45
+          ],
+          "after": [
+            1724.6,
+            1687.97,
+            1715.95
+          ]
+        },
+        "medians_ms": {
+          "before": 1704.81,
+          "after": 1715.95
+        },
+        "runtime_change_percent": 0.6534452519635581,
+        "counters_match": true
+      },
+      {
+        "scene": "rain",
+        "times_ms": {
+          "before": [
+            1367.63,
+            1385.23,
+            1414.33
+          ],
+          "after": [
+            1372.94,
+            1381.57,
+            1402.9
+          ]
+        },
+        "medians_ms": {
+          "before": 1385.23,
+          "after": 1381.57
+        },
+        "runtime_change_percent": -0.26421605076414334,
+        "counters_match": true
+      },
+      {
+        "scene": "trees100",
+        "times_ms": {
+          "before": [
+            189.242,
+            206.846,
+            195.584
+          ],
+          "after": [
+            187.583,
+            190.757,
+            193.291
+          ]
+        },
+        "medians_ms": {
+          "before": 195.584,
+          "after": 190.757
+        },
+        "runtime_change_percent": -2.467993291884818,
+        "counters_match": true
+      },
+      {
+        "scene": "large_world",
+        "times_ms": {
+          "before": [
+            25.1679,
+            24.9671,
+            25.5735
+          ],
+          "after": [
+            25.3505,
+            25.2782,
+            25.8768
+          ]
+        },
+        "medians_ms": {
+          "before": 25.1679,
+          "after": 25.3505
+        },
+        "runtime_change_percent": 0.7255273582619237,
+        "counters_match": true
+      }
+    ]
+  },
+  "earlier_candidate_exploration": {
+    "base_commit": "0b27fe38879e0dc45bddf447b92fb9c23c8e3db0",
+    "implementation_commit": "d010dd00a45b5d8661a77bb8c977cd51aa88d819",
+    "fixed_pin": "a0fa624d739790844af34499381c55abaa65180f",
+    "caution": "Shared workstation noise affected the full sweep and short runs. Only the Convex Pile gain was consistent across all grouped before/after trials. Do not infer an overall speedup from the full-sweep geometric mean.",
+    "full_sweep": {
+      "method": "Before/after/after/before, four workers, default scalar RelWithDebInfo with thin LTO on Apple M3 Ultra",
+      "binaries": {
+        "before": {
+          "path": "/Users/glenn/Documents/ChatGPT/stella 2/work/fixed3d-review/_bench/benchmark-corrected",
+          "sha256": "e77837f4ff560df982bf9b7bd7cc621700955fba8620f79a9a82a96e24932c36"
+        },
+        "after": {
+          "path": "/Users/glenn/Documents/ChatGPT/stella 2/work/fixed3d-review/_bench/optimization/benchmark-int64",
+          "sha256": "c51aed76142ccb068a89cbbd57c1e37c28f338f825ddb10fb9c2ebda26c96cc2"
+        }
+      },
+      "rows": [
+        {
+          "scene": "convex_pile",
+          "times_ms": {
+            "before": [
+              14511.9,
+              14997.0
+            ],
+            "after": [
+              13037.2,
+              12944.7
+            ]
+          },
+          "medians_ms": {
+            "before": 14754.45,
+            "after": 12990.95
+          },
+          "runtime_change_percent": -11.952326247335554,
+          "counters_match": true
+        },
+        {
+          "scene": "joint_grid",
+          "times_ms": {
+            "before": [
+              932.465,
+              1003.53
+            ],
+            "after": [
+              938.935,
+              923.022
+            ]
+          },
+          "medians_ms": {
+            "before": 967.9975,
+            "after": 930.9784999999999
+          },
+          "runtime_change_percent": -3.8242867362777266,
+          "counters_match": true
+        },
+        {
+          "scene": "junkyard",
+          "times_ms": {
+            "before": [
+              10642.3,
+              12040.2
+            ],
+            "after": [
+              10780.1,
+              12420.1
+            ]
+          },
+          "medians_ms": {
+            "before": 11341.25,
+            "after": 11600.1
+          },
+          "runtime_change_percent": 2.2823762812741233,
+          "counters_match": true
+        },
+        {
+          "scene": "large_pyramid",
+          "times_ms": {
+            "before": [
+              1789.57,
+              1918.49
+            ],
+            "after": [
+              1782.08,
+              1882.1
+            ]
+          },
+          "medians_ms": {
+            "before": 1854.03,
+            "after": 1832.09
+          },
+          "runtime_change_percent": -1.1833681224144188,
+          "counters_match": true
+        },
+        {
+          "scene": "large_world",
+          "times_ms": {
+            "before": [
+              25.5235,
+              25.1156
+            ],
+            "after": [
+              25.2244,
+              28.6279
+            ]
+          },
+          "medians_ms": {
+            "before": 25.31955,
+            "after": 26.92615
+          },
+          "runtime_change_percent": 6.345294446386296,
+          "counters_match": true
+        },
+        {
+          "scene": "many_pyramids",
+          "times_ms": {
+            "before": [
+              1705.55,
+              1754.0
+            ],
+            "after": [
+              1726.73,
+              2068.21
+            ]
+          },
+          "medians_ms": {
+            "before": 1729.775,
+            "after": 1897.47
+          },
+          "runtime_change_percent": 9.694613461288304,
+          "counters_match": true
+        },
+        {
+          "scene": "rain",
+          "times_ms": {
+            "before": [
+              1477.62,
+              1464.43
+            ],
+            "after": [
+              1448.67,
+              1573.37
+            ]
+          },
+          "medians_ms": {
+            "before": 1471.025,
+            "after": 1511.02
+          },
+          "runtime_change_percent": 2.718852500807256,
+          "counters_match": true
+        },
+        {
+          "scene": "trees100",
+          "times_ms": {
+            "before": [
+              209.129,
+              390.479
+            ],
+            "after": [
+              197.922,
+              207.472
+            ]
+          },
+          "medians_ms": {
+            "before": 299.804,
+            "after": 202.697
+          },
+          "runtime_change_percent": -32.390161572227186,
+          "counters_match": true
+        },
+        {
+          "scene": "trees50",
+          "times_ms": {
+            "before": [
+              337.235,
+              435.955
+            ],
+            "after": [
+              326.55,
+              326.667
+            ]
+          },
+          "medians_ms": {
+            "before": 386.595,
+            "after": 326.6085
+          },
+          "runtime_change_percent": -15.516625926357053,
+          "counters_match": true
+        },
+        {
+          "scene": "trees25",
+          "times_ms": {
+            "before": [
+              697.386,
+              738.378
+            ],
+            "after": [
+              674.963,
+              676.439
+            ]
+          },
+          "medians_ms": {
+            "before": 717.8820000000001,
+            "after": 675.701
+          },
+          "runtime_change_percent": -5.87575673996562,
+          "counters_match": true
+        },
+        {
+          "scene": "washer",
+          "times_ms": {
+            "before": [
+              16286.4,
+              17641.1
+            ],
+            "after": [
+              16274.4,
+              16632.7
+            ]
+          },
+          "medians_ms": {
+            "before": 16963.75,
+            "after": 16453.55
+          },
+          "runtime_change_percent": -3.007589713359371,
+          "counters_match": true
+        }
+      ],
+      "geomean_runtime_ratio": 0.9446911460760578
+    },
+    "grouped_recheck": {
+      "method": "Three per binary per scene, before/after/after/before/before/after, four workers",
+      "rows": [
+        {
+          "scene": "convex_pile",
+          "times_ms": {
+            "before": [
+              14873.9,
+              14666.3,
+              14553.1
+            ],
+            "after": [
+              13361.8,
+              13713.7,
+              12864.4
+            ]
+          },
+          "medians_ms": {
+            "before": 14666.3,
+            "after": 13361.8
+          },
+          "runtime_change_percent": -8.89454054533182,
+          "counters_match": true
+        },
+        {
+          "scene": "junkyard",
+          "times_ms": {
+            "before": [
+              10863.9,
+              10988.8,
+              11336.7
+            ],
+            "after": [
+              11064.9,
+              10827.0,
+              12335.1
+            ]
+          },
+          "medians_ms": {
+            "before": 10988.8,
+            "after": 11064.9
+          },
+          "runtime_change_percent": 0.6925232964472894,
+          "counters_match": true
+        },
+        {
+          "scene": "many_pyramids",
+          "times_ms": {
+            "before": [
+              2241.6,
+              1948.24,
+              2010.75
+            ],
+            "after": [
+              2052.4,
+              1980.81,
+              2063.83
+            ]
+          },
+          "medians_ms": {
+            "before": 2010.75,
+            "after": 2052.4
+          },
+          "runtime_change_percent": 2.071366405570063,
+          "counters_match": true
+        },
+        {
+          "scene": "rain",
+          "times_ms": {
+            "before": [
+              1716.86,
+              1767.2,
+              1732.98
+            ],
+            "after": [
+              1860.85,
+              1713.89,
+              1713.79
+            ]
+          },
+          "medians_ms": {
+            "before": 1732.98,
+            "after": 1713.89
+          },
+          "runtime_change_percent": -1.1015707047975165,
+          "counters_match": true
+        },
+        {
+          "scene": "trees100",
+          "times_ms": {
+            "before": [
+              221.847,
+              245.925,
+              217.483
+            ],
+            "after": [
+              231.248,
+              295.395,
+              271.579
+            ]
+          },
+          "medians_ms": {
+            "before": 221.847,
+            "after": 271.579
+          },
+          "runtime_change_percent": 22.41725152920706,
+          "counters_match": true
+        },
+        {
+          "scene": "large_world",
+          "times_ms": {
+            "before": [
+              31.5634,
+              44.7111,
+              28.2437
+            ],
+            "after": [
+              61.79,
+              28.2471,
+              31.6187
+            ]
+          },
+          "medians_ms": {
+            "before": 31.5634,
+            "after": 31.6187
+          },
+          "runtime_change_percent": 0.1752029249066922,
+          "counters_match": true
+        }
+      ]
+    },
+    "trees_longer_recheck": {
+      "scene": "trees100",
+      "method": "before/after/after/before, 10 repetitions per process, four workers",
+      "times_ms": {
+        "before": [
+          239.815,
+          240.126,
+          238.675,
+          236.294,
+          234.4,
+          235.176,
+          241.702,
+          235.636,
+          237.671,
+          233.393,
+          239.214,
+          240.497,
+          239.29,
+          236.13,
+          236.222,
+          232.608,
+          237.679,
+          234.302,
+          233.939,
+          232.707
+        ],
+        "after": [
+          233.978,
+          235.439,
+          232.406,
+          240.582,
+          240.753,
+          239.401,
+          234.74,
+          238.636,
+          229.676,
+          231.601,
+          228.263,
+          228.418,
+          232.985,
+          232.974,
+          235.432,
+          234.991,
+          230.378,
+          233.415,
+          234.358,
+          236.546
+        ]
+      },
+      "medians_ms": {
+        "before": 236.258,
+        "after": 234.168
+      },
+      "runtime_change_percent": -0.8846261290622937
+    },
+    "visual_parity": {
+      "frames": 120,
+      "repeat_per_binary": 2,
+      "capture_count": 80,
+      "builds": {
+        "before": "c3e59992658bca8fd80850c9ca4354d1d93f2181b5ea5ebe5ff961b004a613eb",
+        "after": "413e4c4ef956725101232d5623b4c0ac188eaa2c98553bce2ecece06ff991872"
+      },
+      "pixel_hash": "SHA256 of ASCII RGBA:WIDTHxHEIGHT followed by NUL and decoded RGBA bytes",
+      "rows": [
+        {
+          "sample": "Collision/Distance Debug",
+          "pixel_sha256": "c2efb9df2a8a59212e25b2c48f2039cf0321e0a27168fbbddc0f0e3def136c6e",
+          "all_four_captures_identical": true
+        },
+        {
+          "sample": "Collision/Shape Distance",
+          "pixel_sha256": "163cefe5ee4bde624ec79301a89dd8fec266f59d7c793e228aecc0943bd93834",
+          "all_four_captures_identical": true
+        },
+        {
+          "sample": "Determinism/Falling Ragdolls",
+          "pixel_sha256": "b1b349f7bb13d8cb2dda8649b968e600f2b47557524b474c34c4a926b9657f1d",
+          "all_four_captures_identical": true
+        },
+        {
+          "sample": "Joints/Ball and Chain",
+          "pixel_sha256": "05414d397b19f3818b2b30e7150404d29e49fe679d1867077d14baf587fc6a89",
+          "all_four_captures_identical": true
+        },
+        {
+          "sample": "Joints/Bridge",
+          "pixel_sha256": "2f00f9b401f3788fe9cee5550e08e2ecf50c4f0d746c9e13fa369aa99750ecf9",
+          "all_four_captures_identical": true
+        },
+        {
+          "sample": "Joints/Distance Joint",
+          "pixel_sha256": "77961532f714e0538b52a22e1ad79ff77ad359b9ef58cb053c37d88a286440ff",
+          "all_four_captures_identical": true
+        },
+        {
+          "sample": "Joints/Door",
+          "pixel_sha256": "d9143295e53c2f76dc142f9bc0ea433892525e8dbec974ad299d16000f73df1c",
+          "all_four_captures_identical": true
+        },
+        {
+          "sample": "Joints/Driving",
+          "pixel_sha256": "4a8f5f97ea9093bf284f83f9002fa53036730f67d3e5c81e01ba058f71dbee9c",
+          "all_four_captures_identical": true
+        },
+        {
+          "sample": "Joints/Filter",
+          "pixel_sha256": "76aee13b7d45545dbcb260337f3bf72cba63cbffe4c3707fd3a37adaf14fc829",
+          "all_four_captures_identical": true
+        },
+        {
+          "sample": "Joints/Gear Lift",
+          "pixel_sha256": "9cf1ca53eec7d2e665cc8a67415949809956e96f2c86dbf0c61acfe2270ae092",
+          "all_four_captures_identical": true
+        },
+        {
+          "sample": "Joints/Motion Locks",
+          "pixel_sha256": "0e97c91e801cd1d011ffaad5c846920f869af58d0091aeb10f8356fe12d32a24",
+          "all_four_captures_identical": true
+        },
+        {
+          "sample": "Joints/Motor Joint",
+          "pixel_sha256": "e4094ab8ec57c6f0ef248d3e9efd0c955629b5d0c7e560a63f9e91609eef1477",
+          "all_four_captures_identical": true
+        },
+        {
+          "sample": "Joints/Parallel Spring",
+          "pixel_sha256": "62a15f34cea73b733b83cd71cd78ddbc3d5bb0d6eae292e6e7d20f420c004cc8",
+          "all_four_captures_identical": true
+        },
+        {
+          "sample": "Joints/Prismatic",
+          "pixel_sha256": "e3d22889461d941c34fb30419a35eeb1a1b56eddb92f3eb52f34668c94b6983a",
+          "all_four_captures_identical": true
+        },
+        {
+          "sample": "Joints/Revolute",
+          "pixel_sha256": "6f2e38375e1871d7d578062bc87b837f04a8dad102ab2fb1a8615a42b8140179",
+          "all_four_captures_identical": true
+        },
+        {
+          "sample": "Joints/Spherical",
+          "pixel_sha256": "e3d22889461d941c34fb30419a35eeb1a1b56eddb92f3eb52f34668c94b6983a",
+          "all_four_captures_identical": true
+        },
+        {
+          "sample": "Joints/Top Down Friction",
+          "pixel_sha256": "f80d6ee44e9d0d1ac6eca5ae3e3d1989d26d222b049033deb550e04520d69b7f",
+          "all_four_captures_identical": true
+        },
+        {
+          "sample": "Joints/Weld",
+          "pixel_sha256": "e3d22889461d941c34fb30419a35eeb1a1b56eddb92f3eb52f34668c94b6983a",
+          "all_four_captures_identical": true
+        },
+        {
+          "sample": "Joints/Wheel",
+          "pixel_sha256": "d37bc980055bb39a4a5a9904d06c32ddae16a8048b7e322ef7325bfab31a1be8",
+          "all_four_captures_identical": true
+        },
+        {
+          "sample": "Stacking/Box Stack",
+          "pixel_sha256": "28aaa8686b52e698ac18cb06ca8f08e380dfefb28d57b707cb972322f209ed86",
+          "all_four_captures_identical": true
+        }
+      ]
+    }
+  },
+  "visual_parity": {
+    "frames": 120,
+    "repeat_per_binary": 2,
+    "capture_count": 80,
+    "build_sha256": {
+      "before": "c3e59992658bca8fd80850c9ca4354d1d93f2181b5ea5ebe5ff961b004a613eb",
+      "after": "c6a18279c5b201078901fcc5d71a6bab28a334ae8b573a2aab661e5ae841ef4d"
+    },
+    "pixel_hash": "SHA256 of ASCII RGBA:WIDTHxHEIGHT followed by NUL and decoded RGBA bytes",
+    "rows": [
+      {
+        "sample": "Collision/Distance Debug",
+        "pixel_sha256": "c2efb9df2a8a59212e25b2c48f2039cf0321e0a27168fbbddc0f0e3def136c6e",
+        "all_four_captures_identical": true
+      },
+      {
+        "sample": "Collision/Shape Distance",
+        "pixel_sha256": "163cefe5ee4bde624ec79301a89dd8fec266f59d7c793e228aecc0943bd93834",
+        "all_four_captures_identical": true
+      },
+      {
+        "sample": "Determinism/Falling Ragdolls",
+        "pixel_sha256": "b1b349f7bb13d8cb2dda8649b968e600f2b47557524b474c34c4a926b9657f1d",
+        "all_four_captures_identical": true
+      },
+      {
+        "sample": "Joints/Ball and Chain",
+        "pixel_sha256": "05414d397b19f3818b2b30e7150404d29e49fe679d1867077d14baf587fc6a89",
+        "all_four_captures_identical": true
+      },
+      {
+        "sample": "Joints/Bridge",
+        "pixel_sha256": "2f00f9b401f3788fe9cee5550e08e2ecf50c4f0d746c9e13fa369aa99750ecf9",
+        "all_four_captures_identical": true
+      },
+      {
+        "sample": "Joints/Distance Joint",
+        "pixel_sha256": "77961532f714e0538b52a22e1ad79ff77ad359b9ef58cb053c37d88a286440ff",
+        "all_four_captures_identical": true
+      },
+      {
+        "sample": "Joints/Door",
+        "pixel_sha256": "d9143295e53c2f76dc142f9bc0ea433892525e8dbec974ad299d16000f73df1c",
+        "all_four_captures_identical": true
+      },
+      {
+        "sample": "Joints/Driving",
+        "pixel_sha256": "4a8f5f97ea9093bf284f83f9002fa53036730f67d3e5c81e01ba058f71dbee9c",
+        "all_four_captures_identical": true
+      },
+      {
+        "sample": "Joints/Filter",
+        "pixel_sha256": "76aee13b7d45545dbcb260337f3bf72cba63cbffe4c3707fd3a37adaf14fc829",
+        "all_four_captures_identical": true
+      },
+      {
+        "sample": "Joints/Gear Lift",
+        "pixel_sha256": "9cf1ca53eec7d2e665cc8a67415949809956e96f2c86dbf0c61acfe2270ae092",
+        "all_four_captures_identical": true
+      },
+      {
+        "sample": "Joints/Motion Locks",
+        "pixel_sha256": "0e97c91e801cd1d011ffaad5c846920f869af58d0091aeb10f8356fe12d32a24",
+        "all_four_captures_identical": true
+      },
+      {
+        "sample": "Joints/Motor Joint",
+        "pixel_sha256": "e4094ab8ec57c6f0ef248d3e9efd0c955629b5d0c7e560a63f9e91609eef1477",
+        "all_four_captures_identical": true
+      },
+      {
+        "sample": "Joints/Parallel Spring",
+        "pixel_sha256": "62a15f34cea73b733b83cd71cd78ddbc3d5bb0d6eae292e6e7d20f420c004cc8",
+        "all_four_captures_identical": true
+      },
+      {
+        "sample": "Joints/Prismatic",
+        "pixel_sha256": "e3d22889461d941c34fb30419a35eeb1a1b56eddb92f3eb52f34668c94b6983a",
+        "all_four_captures_identical": true
+      },
+      {
+        "sample": "Joints/Revolute",
+        "pixel_sha256": "6f2e38375e1871d7d578062bc87b837f04a8dad102ab2fb1a8615a42b8140179",
+        "all_four_captures_identical": true
+      },
+      {
+        "sample": "Joints/Spherical",
+        "pixel_sha256": "e3d22889461d941c34fb30419a35eeb1a1b56eddb92f3eb52f34668c94b6983a",
+        "all_four_captures_identical": true
+      },
+      {
+        "sample": "Joints/Top Down Friction",
+        "pixel_sha256": "f80d6ee44e9d0d1ac6eca5ae3e3d1989d26d222b049033deb550e04520d69b7f",
+        "all_four_captures_identical": true
+      },
+      {
+        "sample": "Joints/Weld",
+        "pixel_sha256": "e3d22889461d941c34fb30419a35eeb1a1b56eddb92f3eb52f34668c94b6983a",
+        "all_four_captures_identical": true
+      },
+      {
+        "sample": "Joints/Wheel",
+        "pixel_sha256": "d37bc980055bb39a4a5a9904d06c32ddae16a8048b7e322ef7325bfab31a1be8",
+        "all_four_captures_identical": true
+      },
+      {
+        "sample": "Stacking/Box Stack",
+        "pixel_sha256": "28aaa8686b52e698ac18cb06ca8f08e380dfefb28d57b707cb972322f209ed86",
+        "all_four_captures_identical": true
+      }
+    ]
+  }
+}
