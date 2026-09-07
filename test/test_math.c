@@ -358,9 +358,46 @@ static int Solve2InverseScaleTest( void )
 	return 0;
 }
 
+// Exercise the repaired contracts through the b3 forwarders and both AABB
+// representations, so a stale vendor pin or integration cannot hide behind
+// the upstream library's own tests.
+static int VendoredFixedTest( void )
+{
+	b3Fixed length;
+	b3Vec3 n = b3GetLengthAndNormalize( &length, (b3Vec3){ 1, 1, 1 } );
+	ENSURE( length == 1 );
+	ENSURE( b3IsNormalized( n ) );
+	ENSURE( b3IsNormalizedQuat( b3NormalizeQuat( (b3Quat){ { 1, 1, 0 }, 0 } ) ) );
+	ENSURE( !b3IsNormalized( (b3Vec3){ (b3Fixed)1 << 40, B3_FIXED_ONE, 0 } ) );
+
+	b3Fixed angle;
+	b3Quat small = { { 128, 0, 0 }, B3_FIXED_ONE };
+	b3Vec3 axis = b3GetAxisAngle( &angle, small );
+	ENSURE( angle > 0 && b3IsNormalized( axis ) );
+	ENSURE( b3GetSwingAngle( small ) > 0 );
+
+	b3Vec3 far = { (b3Fixed)1 << 62, 0, 0 };
+	b3AABB point = { b3ToPos( far ), b3ToPos( far ) };
+	ENSURE( b3AABB_Center( point ).x == far.x );
+	ENSURE( b3AABB_Extents( point ).x == 0 );
+
+	b3Fixed extent = B3_FIX( 8.0f );
+	b3AABB box = { b3ToPos( (b3Vec3){ -extent, -extent, -extent } ),
+		b3ToPos( (b3Vec3){ extent, extent, extent } ) };
+	b3Transform t = { { 0, 0, 0 }, { { 0, 0, 46341 }, 46341 } };
+	b3AABB bound = b3AABB_Transform( t, box );
+	b3Vec3 p = b3TransformPoint( t, (b3Vec3){ extent, 0, 0 } );
+	b3Vec3 lower = b3ToVec3( bound.lowerBound ), upper = b3ToVec3( bound.upperBound );
+	ENSURE( lower.x <= p.x && p.x <= upper.x );
+	ENSURE( lower.y <= p.y && p.y <= upper.y );
+	ENSURE( lower.z <= p.z && p.z <= upper.z );
+	return 0;
+}
+
 int MathTest( void )
 {
 	RUN_SUBTEST( Solve2InverseScaleTest );
+	RUN_SUBTEST( VendoredFixedTest );
 	// Compare the fixed-point trig against double precision references from libm.
 	// The fixed-point results carry the approximation error of the underlying
 	// polynomial plus Q48.16 output quantization (about 1.5e-5).

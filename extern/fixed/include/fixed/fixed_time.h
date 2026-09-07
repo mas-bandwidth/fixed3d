@@ -28,8 +28,9 @@ FIX_ALWAYS_INLINE fixTime fixTimeFromFixed( fixed_t seconds )
 /// Convert Q32.32 time to Q48.16 seconds, rounding to nearest.
 FIX_ALWAYS_INLINE fixed_t fixTimeToFixed( fixTime t )
 {
-	return ( t + ( (fixTime)1 << ( FIX_TIME_FRACTION_BITS - FIX_FRACTION_BITS - 1 ) ) ) >>
-		   ( FIX_TIME_FRACTION_BITS - FIX_FRACTION_BITS );
+	// Split before rounding: the quotient fits even when t + half would not.
+	const int shift = FIX_TIME_FRACTION_BITS - FIX_FRACTION_BITS;
+	return ( t >> shift ) + ( ( t & ( ( (fixTime)1 << shift ) - 1 ) ) >= ( (fixTime)1 << ( shift - 1 ) ) );
 }
 
 /// Convert seconds (double) to Q32.32 time, rounding to nearest. Init/tooling
