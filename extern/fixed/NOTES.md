@@ -4,7 +4,14 @@ This directory is a **generated copy** of [mas-bandwidth/fixed](https://github.c
 the deterministic fixed-point math library that Fixed3D's own fixed-point core was
 extracted into.
 
-    Pinned at: v1.4.0  (a0fa624d739790844af34499381c55abaa65180f)
+    Pinned at: unreleased-2f1ed91  (2f1ed913374ab047c061c66f5be737715f7d87b5)
+
+This tested snapshot contains the numerical repairs and exact square-root
+optimizations in [fixed #28](https://github.com/mas-bandwidth/fixed/pull/28).
+It fixes transformed-bound containment, normalization precision/range,
+small-angle extraction, validators, midpoint arithmetic and boundary conversions.
+The square-root optimization preserves exact result bits. This pin is a commit,
+not a published release tag; consumer determinism checks cover integration.
 
 ## Do not edit anything in this directory
 

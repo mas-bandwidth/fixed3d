@@ -202,12 +202,13 @@ FIX_INLINE fixed_t fixDot( fixVec3 a, fixVec3 b )
 	return fixFromDotRaw( fixDotRaw( a, b ) );
 }
 
-/// Vector length. Computed from the exact 128-bit sum of squared components, so
-/// it is accurate even for vectors far below unit length.
+/// Vector length. Computed from the exact unsigned 128-bit sum of squared
+/// components; saturates to FIX_MAX when the length exceeds fixed_t range.
 FIX_INLINE fixed_t fixLength( fixVec3 v )
 {
 	fixInt128 ls = fixDotRaw( v, v ); // Q32.32 in 128 bits
-	return (fixed_t)fixISqrt128High( fixInt128Hi( ls ), fixInt128Lo( ls ) );
+	uint64_t length = fixISqrt128High( fixInt128Hi( ls ), fixInt128Lo( ls ) );
+	return length > (uint64_t)FIX_MAX ? FIX_MAX : (fixed_t)length;
 }
 
 /// Vector length squared. One rounding on the exact 128-bit sum of squares.
@@ -235,11 +236,59 @@ FIX_INLINE fixed_t fixDistanceSquared( fixVec3 a, fixVec3 b )
 /// and the three-term sum ~2^94.
 #define FIX_NORMALIZE_LIFT_BITS 46
 
+// Internal: precision lift shared by vector and quaternion normalization.
+FIX_INLINE int fixNormalizationLift( uint64_t components )
+{
+	FIX_ASSERT( components != 0 );
+#if defined( __GNUC__ ) || defined( __clang__ )
+	int lift = FIX_NORMALIZE_LIFT_BITS - 64 + __builtin_clzll( components );
+#else
+	int lift = FIX_NORMALIZE_LIFT_BITS - ( 64 - fixCountLeadingZeros64( components ) );
+#endif
+	return lift > 0 ? lift : 0;
+}
+
+// A full-range norm can exceed INT64_MAX even though every component fits.
+// Keep that divisor positive; ordinary inputs retain fixDiv's hardware fast path.
+FIX_INLINE fixed_t fixNormalizeByLength( fixed_t component, uint64_t length )
+{
+	if ( length <= (uint64_t)FIX_MAX ) return fixDiv( component, (fixed_t)length );
+	return fixInt128ToI64( fixInt128Div( fixInt128ShiftLeft( fixInt128FromI64( component ), FIX_FRACTION_BITS ),
+		fixInt128FromU64( length ) ) );
+}
+
+// Specialize away the optional output on the normalize-only hot path.
+FIX_FORCE_INLINE fixVec3 fixNormalizeWithLength( fixVec3 a, fixed_t* originalLength )
+{
+	uint64_t ux = a.x < 0 ? -(uint64_t)a.x : (uint64_t)a.x;
+	uint64_t uy = a.y < 0 ? -(uint64_t)a.y : (uint64_t)a.y;
+	uint64_t uz = a.z < 0 ? -(uint64_t)a.z : (uint64_t)a.z;
+	if ( ( ux | uy | uz ) == 0 )
+	{
+		if ( originalLength != NULL ) *originalLength = 0;
+		return fixVec3_zero;
+	}
+	int lift = fixNormalizationLift( ux | uy | uz );
+	a.x = fixShiftLeft( a.x, lift );
+	a.y = fixShiftLeft( a.y, lift );
+	a.z = fixShiftLeft( a.z, lift );
+	// Three squared int64 magnitudes fit UNSIGNED 128 bits, not signed 128.
+	fixInt128 ls = fixDotRaw( a, a );
+	uint64_t length = fixISqrt128High( fixInt128Hi( ls ), fixInt128Lo( ls ) );
+	if ( originalLength != NULL )
+	{
+		uint64_t unlifted = length >> lift;
+		*originalLength = unlifted > (uint64_t)FIX_MAX ? FIX_MAX : (fixed_t)unlifted;
+	}
+	return FIX_LITERAL( fixVec3 ){ fixNormalizeByLength( a.x, length ), fixNormalizeByLength( a.y, length ),
+		fixNormalizeByLength( a.z, length ) };
+}
+
 /// Normalize a vector. Returns a zero vector if the input vector is zero.
 ///
-/// PRECISION: the squared length is exact in 128 bits, but the length is a fixed_t --
-/// a whole raw unit -- with a relative truncation error of ~0.5/L at raw length L,
-/// which would land in the result's squared length as ~1/L. Normalization is
+/// PRECISION: the squared length is exact in unsigned 128 bits, but its integer
+/// root has a relative truncation error below 1/L at raw length L, which can
+/// dominate a short vector's normalized result. Normalization is
 /// scale-invariant and a left shift is EXACT, so the vector is lifted until its
 /// widest component fills the range before the same math runs: the direction is
 /// unchanged bit for bit, only the divisor's precision improves. The result is unit
@@ -249,61 +298,35 @@ FIX_INLINE fixed_t fixDistanceSquared( fixVec3 a, fixVec3 b )
 /// by zero and are untouched.
 FIX_INLINE fixVec3 fixNormalize( fixVec3 a )
 {
-	// magnitude of the widest component, as an unsigned value so the negation is
-	// defined for every input
-	uint64_t ux = a.x < 0 ? ( 0u - (uint64_t)a.x ) : (uint64_t)a.x;
-	uint64_t uy = a.y < 0 ? ( 0u - (uint64_t)a.y ) : (uint64_t)a.y;
-	uint64_t uz = a.z < 0 ? ( 0u - (uint64_t)a.z ) : (uint64_t)a.z;
-	uint64_t widest = ux | uy | uz;
-	if ( widest != 0 )
-	{
-		int bits = 0;
-		while ( ( widest >> bits ) != 0 )
-		{
-			bits++;
-		}
-		if ( bits < FIX_NORMALIZE_LIFT_BITS )
-		{
-			const int lift = FIX_NORMALIZE_LIFT_BITS - bits;
-			a.x = fixShiftLeft( a.x, lift ); // exact: shifts preserve direction
-			a.y = fixShiftLeft( a.y, lift );
-			a.z = fixShiftLeft( a.z, lift );
-		}
-	}
-
-	fixInt128 ls = fixDotRaw( a, a ); // Q32.32 in 128 bits
-	if ( fixInt128Gt( ls, FIX_INT128_ZERO ) )
-	{
-		fixed_t length = (fixed_t)fixISqrt128High( fixInt128Hi( ls ), fixInt128Lo( ls ) );
-		// fixDiv computes the same truncating 128-bit quotient, with a single
-		// hardware divide when the component fits in 47 bits (the common case)
-		fixVec3 u = {
-			fixDiv( a.x, length ),
-			fixDiv( a.y, length ),
-			fixDiv( a.z, length ),
-		};
-		return u;
-	}
-
-	return FIX_LITERAL( fixVec3 ){ FIX( 0.0f ), FIX( 0.0f ), FIX( 0.0f ) };
+	return fixNormalizeWithLength( a, NULL );
 }
 
-/// Normalize a vector and return the length. Returns a zero vector
-/// if the input is zero.
+/// Normalize a vector and return the length (saturated to FIX_MAX if needed).
+/// Zero input returns zero length and vector. The direction is unit within
+/// fixIsNormalized's tolerance; short inputs use a lifted divisor.
 FIX_INLINE fixVec3 fixGetLengthAndNormalize( fixed_t* length, fixVec3 a )
 {
-	*length = fixLength( a );
-	if ( *length < FIX_EPSILON )
+	fixInt128 ls = fixDotRaw( a, a );
+	uint64_t rawLength = fixISqrt128High( fixInt128Hi( ls ), fixInt128Lo( ls ) );
+	// The norm bounds every component. Below 2^47 the three shifted
+	// numerators fit int64, so one range check replaces three fixDiv guards.
+	if ( rawLength >= FIX_HALF && rawLength < ( UINT64_C( 1 ) << 47 ) )
 	{
-		return fixVec3_zero;
+		fixed_t divisor = (fixed_t)rawLength;
+		*length = divisor;
+		return FIX_LITERAL( fixVec3 ){ fixShiftLeft( a.x, FIX_FRACTION_BITS ) / divisor,
+			fixShiftLeft( a.y, FIX_FRACTION_BITS ) / divisor, fixShiftLeft( a.z, FIX_FRACTION_BITS ) / divisor };
 	}
-
-	fixVec3 n = {
-		fixDiv( a.x, *length ),
-		fixDiv( a.y, *length ),
-		fixDiv( a.z, *length ),
-	};
-	return n;
+	// At half a unit or above, flooring the length contributes less than
+	// 1/32768 relative error. Keep this common one-sqrt path and its existing
+	// rounding; short inputs need the lifted divisor instead.
+	if ( rawLength >= FIX_HALF )
+	{
+		*length = rawLength > (uint64_t)FIX_MAX ? FIX_MAX : (fixed_t)rawLength;
+		return FIX_LITERAL( fixVec3 ){ fixNormalizeByLength( a.x, rawLength ),
+			fixNormalizeByLength( a.y, rawLength ), fixNormalizeByLength( a.z, rawLength ) };
+	}
+	return fixNormalizeWithLength( a, length );
 }
 
 /// Get a unit vector that is perpendicular to the supplied vector.
@@ -325,9 +348,17 @@ FIX_INLINE fixVec3 fixPerp( fixVec3 a )
 	return fixNormalize( p );
 }
 
+// Internal guard: a normalized component cannot exceed this range. Reject
+// before squaring so a wrapping or saturating norm cannot pass validation.
+FIX_INLINE bool fixInUnitComponentRange( fixed_t a )
+{
+	return a >= -FIX_ONE - 100 * FIX_EPSILON && a <= FIX_ONE + 100 * FIX_EPSILON;
+}
+
 /// Is a vector normalized? In other words, does it have unit length?
 FIX_INLINE bool fixIsNormalized( fixVec3 a )
 {
+	if ( !fixInUnitComponentRange( a.x ) || !fixInUnitComponentRange( a.y ) || !fixInUnitComponentRange( a.z ) ) return false;
 	fixed_t aa = fixDot( a, a );
 	return fixAbs( FIX( 1.0f ) - aa ) < 100 * FIX_EPSILON;
 }
@@ -447,6 +478,8 @@ FIX_INLINE fixVec3 fixSafeScale( fixVec3 a )
 /// Does the supplied quaternion have unit length?
 FIX_INLINE bool fixIsNormalizedQuat( fixQuat q )
 {
+	if ( !fixInUnitComponentRange( q.v.x ) || !fixInUnitComponentRange( q.v.y ) ||
+		 !fixInUnitComponentRange( q.v.z ) || !fixInUnitComponentRange( q.s ) ) return false;
 	fixed_t qq = fixMul( q.v.x , q.v.x ) + fixMul( q.v.y , q.v.y ) + fixMul( q.v.z , q.v.z ) + fixMul( q.s , q.s );
 	return FIX( 1.0f ) - 100 * FIX_EPSILON < qq && qq < FIX( 1.0f ) + 100 * FIX_EPSILON;
 }
@@ -583,18 +616,41 @@ FIX_INLINE fixQuat fixNegateQuat( fixQuat q )
 FIX_INLINE fixQuat fixNormalizeQuat( fixQuat q )
 {
 	fixInt128 ls = fixInt128Add( fixDotRaw( q.v, q.v ), fixInt128MulI64( q.s, q.s ) );
-	if ( fixInt128Gt( ls, FIX_INT128_ZERO ) )
+	uint64_t length = fixISqrt128High( fixInt128Hi( ls ), fixInt128Lo( ls ) );
+	if ( length >= FIX_HALF && length < ( UINT64_C( 1 ) << 47 ) )
 	{
-		fixed_t length = (fixed_t)fixISqrt128High( fixInt128Hi( ls ), fixInt128Lo( ls ) );
-		// fixDiv computes the same truncating quotient, with a single hardware
-		// divide for the near-unit components this always sees
+		fixed_t divisor = (fixed_t)length;
+		return FIX_LITERAL( fixQuat ){ { fixShiftLeft( q.v.x, FIX_FRACTION_BITS ) / divisor, fixShiftLeft( q.v.y, FIX_FRACTION_BITS ) / divisor,
+			fixShiftLeft( q.v.z, FIX_FRACTION_BITS ) / divisor }, fixShiftLeft( q.s, FIX_FRACTION_BITS ) / divisor };
+	}
+	// Preserve the common near-unit path, including one-quantum rotation
+	// components that unnecessary rescaling could truncate away.
+	if ( length >= FIX_HALF )
+	{
+		return FIX_LITERAL( fixQuat ){ { fixNormalizeByLength( q.v.x, length ), fixNormalizeByLength( q.v.y, length ),
+			fixNormalizeByLength( q.v.z, length ) }, fixNormalizeByLength( q.s, length ) };
+	}
+	uint64_t ux = q.v.x < 0 ? -(uint64_t)q.v.x : (uint64_t)q.v.x;
+	uint64_t uy = q.v.y < 0 ? -(uint64_t)q.v.y : (uint64_t)q.v.y;
+	uint64_t uz = q.v.z < 0 ? -(uint64_t)q.v.z : (uint64_t)q.v.z;
+	uint64_t us = q.s < 0 ? -(uint64_t)q.s : (uint64_t)q.s;
+	if ( ( ux | uy | uz | us ) == 0 ) return fixQuat_identity;
+	int lift = fixNormalizationLift( ux | uy | uz | us );
+	q.v.x = fixShiftLeft( q.v.x, lift );
+	q.v.y = fixShiftLeft( q.v.y, lift );
+	q.v.z = fixShiftLeft( q.v.z, lift );
+	q.s = fixShiftLeft( q.s, lift );
+	ls = fixInt128Add( fixDotRaw( q.v, q.v ), fixInt128MulI64( q.s, q.s ) );
+	if ( !fixInt128Eq( ls, FIX_INT128_ZERO ) )
+	{
+		length = fixISqrt128High( fixInt128Hi( ls ), fixInt128Lo( ls ) );
 		fixQuat qn = {
 			{
-				fixDiv( q.v.x, length ),
-				fixDiv( q.v.y, length ),
-				fixDiv( q.v.z, length ),
+				fixNormalizeByLength( q.v.x, length ),
+				fixNormalizeByLength( q.v.y, length ),
+				fixNormalizeByLength( q.v.z, length ),
 			},
-			fixDiv( q.s, length ),
+			fixNormalizeByLength( q.s, length ),
 		};
 		return qn;
 	}
@@ -614,13 +670,11 @@ FIX_INLINE fixQuat fixMakeQuatFromAxisAngle( fixVec3 axis, fixed_t radians )
 /// Get the axis and angle from a quaternion. Assumes the quaternion is normalized.
 FIX_INLINE fixVec3 fixGetAxisAngle( fixed_t* radians, fixQuat q )
 {
-	fixed_t length = fixSqrt( fixMul( q.v.x , q.v.x ) + fixMul( q.v.y , q.v.y ) + fixMul( q.v.z , q.v.z ) );
+	fixed_t length = fixLength( q.v );
 	*radians = fixMul( FIX( 2.0f ) , fixAtan2( length, q.s ) );
 	if ( length > FIX( 0.0f ) )
 	{
-		fixed_t invLength = fixDiv( FIX( 1.0f ) , length );
-		fixVec3 axis = { fixMul( invLength , q.v.x ), fixMul( invLength , q.v.y ), fixMul( invLength , q.v.z ) };
-		return axis;
+		return fixNormalize( q.v );
 	}
 
 	return fixVec3_zero;
@@ -629,7 +683,7 @@ FIX_INLINE fixVec3 fixGetAxisAngle( fixed_t* radians, fixQuat q )
 /// Get the angle for a quaternion in radians
 FIX_INLINE fixed_t fixGetQuatAngle( fixQuat q )
 {
-	fixed_t length = fixSqrt( fixMul( q.v.x , q.v.x ) + fixMul( q.v.y , q.v.y ) + fixMul( q.v.z , q.v.z ) );
+	fixed_t length = fixLength( q.v );
 	return fixMul( FIX( 2.0f ) , fixAtan2( length, q.s ) );
 }
 
@@ -654,8 +708,8 @@ FIX_INLINE fixed_t fixGetTwistAngle( fixQuat q )
 FIX_INLINE fixed_t fixGetSwingAngle( fixQuat q )
 {
 	// Polarity should not matter because all terms are squared.
-	fixed_t x = fixSqrt( fixMul( q.v.z , q.v.z ) + fixMul( q.s , q.s ) );
-	fixed_t y = fixSqrt( fixMul( q.v.x , q.v.x ) + fixMul( q.v.y , q.v.y ) );
+	fixed_t x = fixLength( FIX_LITERAL( fixVec3 ){ q.v.z, q.s, 0 } );
+	fixed_t y = fixLength( FIX_LITERAL( fixVec3 ){ q.v.x, q.v.y, 0 } );
 	fixed_t swing = fixMul( FIX( 2.0f ) , fixAtan2( y, x ) );
 	FIX_ASSERT( FIX( 0.0f ) <= swing && swing <= FIX_PI + 2 * FIX_EPSILON );
 	return swing;
@@ -1005,16 +1059,30 @@ FIX_INLINE fixed_t fixAABB_Area( fixAABB a )
 	return fixMul( FIX( 2.0f ) , ( fixMul( delta.x , delta.y ) + fixMul( delta.y , delta.z ) + fixMul( delta.z , delta.x ) ) );
 }
 
+// Internal half-up arithmetic. Splitting before adding/subtracting keeps
+// intermediates in range for valid fixed_t endpoints (which exclude INT64_MIN).
+FIX_INLINE fixed_t fixHalfSum( fixed_t a, fixed_t b )
+{
+	return ( a >> 1 ) + ( b >> 1 ) + ( ( a | b ) & 1 );
+}
+
+FIX_INLINE fixed_t fixHalfDifference( fixed_t a, fixed_t b )
+{
+	return ( a >> 1 ) - ( b >> 1 ) + ( ( a & 1 ) & ~( b & 1 ) );
+}
+
 /// Get the center of an axis-aligned bounding box.
 FIX_INLINE fixVec3 fixAABB_Center( fixAABB a )
 {
-	return fixMulSV( FIX( 0.5f ), fixVecAdd( a.upperBound, a.lowerBound ) );
+	return FIX_LITERAL( fixVec3 ){ fixHalfSum( a.upperBound.x, a.lowerBound.x ),
+		fixHalfSum( a.upperBound.y, a.lowerBound.y ), fixHalfSum( a.upperBound.z, a.lowerBound.z ) };
 }
 
 /// Get the extents (half-widths) of an axis-aligned bounding box.
 FIX_INLINE fixVec3 fixAABB_Extents( fixAABB a )
 {
-	return fixMulSV( FIX( 0.5f ), fixVecSub( a.upperBound, a.lowerBound ) );
+	return FIX_LITERAL( fixVec3 ){ fixHalfDifference( a.upperBound.x, a.lowerBound.x ),
+		fixHalfDifference( a.upperBound.y, a.lowerBound.y ), fixHalfDifference( a.upperBound.z, a.lowerBound.z ) };
 }
 
 /// Get the union of two axis-aligned bounding boxes.
@@ -1482,19 +1550,60 @@ FIX_FORCE_INLINE fixMatrix3 fixMakeMatrixFromQuat( fixQuat q )
 	};
 }
 
+// Internal: saturate a bound only after the full calculation, reserving INT64_MIN.
+FIX_INLINE fixed_t fixAABBNarrowBound( fixInt128 value )
+{
+	if ( fixInt128Gt( value, fixInt128FromI64( FIX_MAX ) ) ) return FIX_MAX;
+	if ( fixInt128Lt( value, fixInt128FromI64( FIX_MIN ) ) ) return FIX_MIN;
+	return fixInt128ToI64( value );
+}
+
+// row contains UNROUNDED Q32.32 rotation coefficients. Keep both the center
+// and the radius wide, then round lower down and upper up exactly once.
+FIX_INLINE void fixAABBTransformAxis( fixVec3 row, fixVec3 center, fixVec3 extent, fixed_t translation,
+	fixed_t error, fixed_t* lower, fixed_t* upper )
+{
+	fixInt128 c = fixDotRaw( row, center );
+	fixInt128 r = fixDotRaw( fixVecAbs( row ), extent );
+	fixInt128 lo = fixInt128Shr( fixInt128Sub( c, r ), 32 );
+	fixInt128 hi = fixInt128Shr( fixInt128Add( fixInt128Add( c, r ), fixInt128FromU64( UINT32_MAX ) ), 32 );
+	*lower = fixAABBNarrowBound( fixInt128Sub( fixInt128Add( lo, fixInt128FromI64( translation ) ), fixInt128FromI64( error ) ) );
+	*upper = fixAABBNarrowBound( fixInt128Add( fixInt128Add( hi, fixInt128FromI64( translation ) ), fixInt128FromI64( error ) ) );
+}
+
+FIX_INLINE fixAABB fixTransformAABBCenterExtents( fixTransform t, fixVec3 center, fixVec3 extent )
+{
+	FIX_ASSERT( fixIsNormalizedQuat( t.q ) );
+	// These raw products fit int64 for a normalized quaternion. Rounding them
+	// to Q48.16 first would lose an error proportional to the size of the box.
+	fixed_t x = t.q.v.x, y = t.q.v.y, z = t.q.v.z, w = t.q.s;
+	fixed_t xx = x*x, yy = y*y, zz = z*z, xy = x*y, xz = x*z, yz = y*z;
+	fixed_t xw = x*w, yw = y*w, zw = z*w;
+	fixed_t one = (fixed_t)1 << 32;
+	fixVec3 rowX = { one - 2*(yy+zz), 2*(xy-zw), 2*(xz+yw) };
+	fixVec3 rowY = { 2*(xy+zw), one - 2*(xx+zz), 2*(yz-xw) };
+	fixVec3 rowZ = { 2*(xz-yw), 2*(yz+xw), one - 2*(xx+yy) };
+	// Bound the public two-cross rotation's integer rounding, in raw units:
+	// inner cross <= 1, addition of w*v <= 1.5, outer cross <=
+	// 1 + 1.5*(|q_j|+|q_k|), final factor two is exact. Thus <= 7
+	// for a quaternion within the normalization tolerance. With both relevant
+	// vector components zero the coordinate is unchanged and has no error.
+	fixAABB out;
+	fixAABBTransformAxis( rowX, center, extent, t.p.x, ( y | z ) == 0 ? 0 : 7, &out.lowerBound.x, &out.upperBound.x );
+	fixAABBTransformAxis( rowY, center, extent, t.p.y, ( x | z ) == 0 ? 0 : 7, &out.lowerBound.y, &out.upperBound.y );
+	fixAABBTransformAxis( rowZ, center, extent, t.p.z, ( x | y ) == 0 ? 0 : 7, &out.lowerBound.z, &out.upperBound.z );
+	return out;
+}
+
 /// Transform an axis-aligned bounding box. This can create a larger box than if you
 /// recomputed the AABB of the original shape with the transform applied.
 ///
-/// Defined here rather than beside the other AABB operations because it needs
-/// fixTransformPoint, fixMakeMatrixFromQuat, fixAbsMatrix3 and fixMulMV, all of which are
-/// declared further down this header than the AABB block.
+/// Uses unrounded coefficients and outward rounding to enclose the public
+/// point transform, including its integer rounding error. Requires a normalized
+/// quaternion and representable point-rotation intermediates.
 FIX_INLINE fixAABB fixAABB_Transform( fixTransform transform, fixAABB a )
 {
-	fixVec3 center = fixTransformPoint( transform, fixAABB_Center( a ) );
-	fixMatrix3 m = fixMakeMatrixFromQuat( transform.q );
-	fixVec3 extent = fixMulMV( fixAbsMatrix3( m ), fixAABB_Extents( a ) );
-	fixAABB out = { fixVecSub( center, extent ), fixVecAdd( center, extent ) };
-	return out;
+	return fixTransformAABBCenterExtents( transform, fixAABB_Center( a ), fixAABB_Extents( a ) );
 }
 
 /// Get the closest point on an axis-aligned bounding box.
