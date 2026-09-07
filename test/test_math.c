@@ -323,8 +323,44 @@ static int RandomQuatTest( void )
 	return 0;
 }
 
+static int Solve2InverseScaleTest( void )
+{
+	// K = s * [[3, 1], [1, 2]], b = s * [3, -4] has x = [2, -3].
+	// The largest case needs more than 128 bits after shifting its numerator.
+	const int bits[] = { 32, 40, 54 };
+	for ( int i = 0; i < ARRAY_COUNT( bits ); ++i )
+	{
+		b3Fixed scale = (b3Fixed)1 << bits[i];
+		b3Fixed rhsScale = (b3Fixed)1 << ( bits[i] - B3_INVERSE_EXTRA_BITS );
+		b3Matrix2 m = { { 3 * scale, scale }, { scale, 2 * scale } };
+		b3Vec2 b = { 3 * rhsScale, -4 * rhsScale };
+		b3Vec2 x = b3Solve2AcrossScales( m, b );
+		ENSURE( x.x == B3_FIX( 2.0f ) );
+		ENSURE( x.y == -B3_FIX( 3.0f ) );
+	}
+
+	// Straddle the int128 numerator limit on both signs. Both arithmetic paths
+	// must truncate the same exact quotient toward zero.
+	b3Fixed diagonal = (b3Fixed)1 << 47;
+	b3Matrix2 m = { { diagonal, 0 }, { 0, diagonal } };
+	for ( int delta = -1; delta <= 1; ++delta )
+	{
+		b3Fixed rhs = ( (b3Fixed)1 << 40 ) + delta;
+		b3Vec2 x = b3Solve2AcrossScales( m, (b3Vec2){ rhs, -rhs } );
+		b3Fixed expected = ( (b3Fixed)1 << 33 ) - ( delta < 0 ? 1 : 0 );
+		ENSURE( x.x == expected );
+		ENSURE( x.y == -expected );
+	}
+
+	b3Matrix2 singular = { { diagonal, diagonal }, { diagonal, diagonal } };
+	b3Vec2 x = b3Solve2AcrossScales( singular, (b3Vec2){ B3_FIXED_ONE, -B3_FIXED_ONE } );
+	ENSURE( x.x == 0 && x.y == 0 );
+	return 0;
+}
+
 int MathTest( void )
 {
+	RUN_SUBTEST( Solve2InverseScaleTest );
 	// Compare the fixed-point trig against double precision references from libm.
 	// The fixed-point results carry the approximation error of the underlying
 	// polynomial plus Q48.16 output quantization (about 1.5e-5).

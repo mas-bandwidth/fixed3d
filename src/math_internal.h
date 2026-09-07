@@ -405,6 +405,31 @@ static inline b3Vec2 b3Solve2( b3Matrix2 m, b3Vec2 b )
 	return B3_LITERAL( b3Vec2 ){ B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
 }
 
+// Solve K*x = b with inverse-scaled K and ordinary b/x. The numerator has
+// 40+16 fractional bits and the determinant has 80, so shift by 40, not 16.
+// Two int64 products and their difference fit in int128; the additional shift
+// need not. Keep ordinary solves in int128 and widen only that overflow case.
+static inline b3Vec2 b3Solve2AcrossScales( b3Matrix2 m, b3Vec2 b )
+{
+	b3Int128 det = b3Cofactor128( m.cx.x, m.cy.y, m.cx.y, m.cy.x );
+	if ( fixInt128Le( det, FIX_INT128_ZERO ) )
+	{
+		return B3_LITERAL( b3Vec2 ){ 0, 0 };
+	}
+
+	b3Int128 nx = b3Cofactor128( m.cy.y, b.x, m.cy.x, b.y );
+	b3Int128 ny = b3Cofactor128( m.cx.x, b.y, m.cx.y, b.x );
+	const int shift = B3_INVERSE_FRACTION_BITS;
+	b3Int128 limit = b3Int128ShiftLeft( fixInt128FromI64( 1 ), 127 - shift );
+	if ( fixInt128InRange( nx, limit ) && fixInt128InRange( ny, limit ) )
+	{
+		return B3_LITERAL( b3Vec2 ){ fixDivShifted( nx, shift, det ), fixDivShifted( ny, shift, det ) };
+	}
+
+	fixUInt256 wideDet = fixUInt256FromU128( fixInt128ToUnsigned( det ) );
+	return B3_LITERAL( b3Vec2 ){ fixDivShiftedWide( nx, shift, wideDet, false ), fixDivShiftedWide( ny, shift, wideDet, false ) };
+}
+
 // Convenience function: s * a + t * b + u * c
 static inline b3Vec3 b3Blend3( b3Fixed s, b3Vec3 a, b3Fixed t, b3Vec3 b, b3Fixed u, b3Vec3 c )
 {

@@ -28,11 +28,13 @@
 //
 // A SLEEP STEP OF 0 MEANS THE RAGDOLLS NEVER SETTLED, which is what a missed scale
 // crossing looks like from here. Read a zero as that before re-capturing anything.
-#define RAGDOLL_SLEEP_STEP 312
+// The inverse-scaled 2x2 joint solves restore the ragdolls' alignment constraints.
+// These references include that correction; zero would still mean no settling.
+#define RAGDOLL_SLEEP_STEP 279
 #if defined( BOX3D_LUDICROUS_MODE )
-#define RAGDOLL_HASH 0x5A1D71FF
+#define RAGDOLL_HASH 0x9D664C70
 #else
-#define RAGDOLL_HASH 0xC745DFFF
+#define RAGDOLL_HASH 0x3B32F0B0
 #endif
 
 // Goldens for the wave pile, query spawn and mesh drop scenarios. Fixed-point goldens

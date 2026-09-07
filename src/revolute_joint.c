@@ -546,7 +546,7 @@ void b3SolveRevoluteJoint( b3JointSim* base, b3StepContext* context, bool useBia
 		b3Vec3 wRel = b3Sub( wB, wA );
 		b3Vec2 cdot = { b3Dot( wRel, perpAxisX ), b3Dot( wRel, perpAxisY ) };
 		b3Vec2 oldImpulse = joint->perpImpulse;
-		b3Vec2 sol = b3Solve2( k, b3Add2( cdot, bias ) );
+		b3Vec2 sol = b3Solve2AcrossScales( k, b3Add2( cdot, bias ) );
 		b3Vec2 deltaImpulse = b3Sub2( b3MulSV2( -massScale, sol ), b3MulSV2( impulseScale, oldImpulse ) );
 		joint->perpImpulse = b3Add2( joint->perpImpulse, deltaImpulse );
 
