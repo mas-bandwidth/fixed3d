@@ -74,6 +74,8 @@ captures reproduce exactly within and across the pre-optimization and final
 fixed builds. Decoded RGBA hashes and binary fingerprints are in the JSON.
 Both binaries are fixed builds; float-image equality is not required.
 
-The existing NEON and AVX-512 paths and build defaults are unchanged. The
-cross-platform matrix has not run for the stacked draft: its workflow currently
-targets pull requests into `main`.
+The existing NEON and AVX-512 paths and build defaults are unchanged. After
+integration with the repaired fixed library, the full cross-platform matrix
+passed on `48f8acf` (run 34163362247). PR #56 merged at `14bf27a`. The measurements
+above retain their original old-library pins; the
+[integrated report](2026-09-07-integrated-performance.md) measures the newer tree.

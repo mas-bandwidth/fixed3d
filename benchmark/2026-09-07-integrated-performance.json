@@ -1,0 +1,4465 @@
+{
+  "library_sweep": {
+    "method": "Two runs per scene and binary, old/new/neon/float/float/neon/new/old order, four workers, continuous collision enabled, median runtime.",
+    "fixed_source": "48f8acf1c64113e6e00e12d5e8a70070bfdec365",
+    "old_source": "044aee0f5861c8da9de3b313788efaae1335fe68",
+    "float_source": "47d7f7cc7e091142c08d11dc7d2e493c5d34f536",
+    "configuration": "Apple M3 Ultra, arm64, Apple Clang, RelWithDebInfo, O2 and thin LTO; scalar defaults, optional BOX3D_NEON=ON; float default NEON.",
+    "platform": "macOS-26.6.2-arm64-arm-64bit-Mach-O",
+    "started": "2026-09-07T17:32:37-0400",
+    "binaries": {
+      "old_scalar": {
+        "sha256": "4a9da5c6f7f5d2bdd7a332f5ba6253aaf8ef5b8c9792d490154787da590f7c75"
+      },
+      "new_scalar": {
+        "sha256": "50ebf495cb0afc025f2ab9fbef1c819ad69afe96be7efcbcf5f869a220ab501b"
+      },
+      "new_neon": {
+        "sha256": "f29cd6839a69e3d5de3eedd7e4dad7c4cd4b7101a0701de511b1351cfda43530"
+      },
+      "float": {
+        "sha256": "a57073956c8f051652832d47f71cddf3254c0c3c4ca40e4f0baeb0a19b97f8f9"
+      }
+    },
+    "rows": [
+      {
+        "scene": "convex_pile",
+        "runs": [
+          {
+            "binary": "old_scalar",
+            "ms": 12665.4,
+            "counters": "body 5121 / shape 5121 / contact 51109 / joint 0 / stack 6262912"
+          },
+          {
+            "binary": "new_scalar",
+            "ms": 10858.0,
+            "counters": "body 5121 / shape 5121 / contact 51305 / joint 0 / stack 6219776"
+          },
+          {
+            "binary": "new_neon",
+            "ms": 7009.05,
+            "counters": "body 5121 / shape 5121 / contact 51305 / joint 0 / stack 6219776"
+          },
+          {
+            "binary": "float",
+            "ms": 3574.23,
+            "counters": "body 5121 / shape 5121 / contact 50764 / joint 0 / stack 2662928"
+          },
+          {
+            "binary": "float",
+            "ms": 3552.0,
+            "counters": "body 5121 / shape 5121 / contact 50764 / joint 0 / stack 2662928"
+          },
+          {
+            "binary": "new_neon",
+            "ms": 6988.07,
+            "counters": "body 5121 / shape 5121 / contact 51305 / joint 0 / stack 6219776"
+          },
+          {
+            "binary": "new_scalar",
+            "ms": 10762.0,
+            "counters": "body 5121 / shape 5121 / contact 51305 / joint 0 / stack 6219776"
+          },
+          {
+            "binary": "old_scalar",
+            "ms": 12619.1,
+            "counters": "body 5121 / shape 5121 / contact 51109 / joint 0 / stack 6262912"
+          }
+        ],
+        "medians_ms": {
+          "old_scalar": 12642.25,
+          "new_scalar": 10810.0,
+          "new_neon": 6998.5599999999995,
+          "float": 3563.115
+        }
+      },
+      {
+        "scene": "joint_grid",
+        "runs": [
+          {
+            "binary": "old_scalar",
+            "ms": 916.521,
+            "counters": "body 10000 / shape 10000 / contact 0 / joint 19800 / stack 5200000"
+          },
+          {
+            "binary": "new_scalar",
+            "ms": 912.324,
+            "counters": "body 10000 / shape 10000 / contact 0 / joint 19800 / stack 5200000"
+          },
+          {
+            "binary": "new_neon",
+            "ms": 914.853,
+            "counters": "body 10000 / shape 10000 / contact 0 / joint 19800 / stack 5200000"
+          },
+          {
+            "binary": "float",
+            "ms": 277.168,
+            "counters": "body 10000 / shape 10000 / contact 0 / joint 19800 / stack 5200000"
+          },
+          {
+            "binary": "float",
+            "ms": 274.95,
+            "counters": "body 10000 / shape 10000 / contact 0 / joint 19800 / stack 5200000"
+          },
+          {
+            "binary": "new_neon",
+            "ms": 918.886,
+            "counters": "body 10000 / shape 10000 / contact 0 / joint 19800 / stack 5200000"
+          },
+          {
+            "binary": "new_scalar",
+            "ms": 921.512,
+            "counters": "body 10000 / shape 10000 / contact 0 / joint 19800 / stack 5200000"
+          },
+          {
+            "binary": "old_scalar",
+            "ms": 914.493,
+            "counters": "body 10000 / shape 10000 / contact 0 / joint 19800 / stack 5200000"
+          }
+        ],
+        "medians_ms": {
+          "old_scalar": 915.5070000000001,
+          "new_scalar": 916.9179999999999,
+          "new_neon": 916.8695,
+          "float": 276.05899999999997
+        }
+      },
+      {
+        "scene": "junkyard",
+        "runs": [
+          {
+            "binary": "old_scalar",
+            "ms": 10106.2,
+            "counters": "body 10586 / shape 10590 / contact 195276 / joint 0 / stack 28929152"
+          },
+          {
+            "binary": "new_scalar",
+            "ms": 9159.24,
+            "counters": "body 10586 / shape 10590 / contact 195788 / joint 0 / stack 28761008"
+          },
+          {
+            "binary": "new_neon",
+            "ms": 8709.4,
+            "counters": "body 10586 / shape 10590 / contact 195788 / joint 0 / stack 28761008"
+          },
+          {
+            "binary": "float",
+            "ms": 3961.53,
+            "counters": "body 10586 / shape 10590 / contact 193415 / joint 0 / stack 11295504"
+          },
+          {
+            "binary": "float",
+            "ms": 3911.65,
+            "counters": "body 10586 / shape 10590 / contact 193415 / joint 0 / stack 11295504"
+          },
+          {
+            "binary": "new_neon",
+            "ms": 8768.09,
+            "counters": "body 10586 / shape 10590 / contact 195788 / joint 0 / stack 28761008"
+          },
+          {
+            "binary": "new_scalar",
+            "ms": 9208.71,
+            "counters": "body 10586 / shape 10590 / contact 195788 / joint 0 / stack 28761008"
+          },
+          {
+            "binary": "old_scalar",
+            "ms": 10211.5,
+            "counters": "body 10586 / shape 10590 / contact 195276 / joint 0 / stack 28929152"
+          }
+        ],
+        "medians_ms": {
+          "old_scalar": 10158.85,
+          "new_scalar": 9183.974999999999,
+          "new_neon": 8738.744999999999,
+          "float": 3936.59
+        }
+      },
+      {
+        "scene": "large_pyramid",
+        "runs": [
+          {
+            "binary": "old_scalar",
+            "ms": 1730.37,
+            "counters": "body 5051 / shape 5051 / contact 14950 / joint 0 / stack 16154256"
+          },
+          {
+            "binary": "new_scalar",
+            "ms": 1674.58,
+            "counters": "body 5051 / shape 5051 / contact 14950 / joint 0 / stack 16154256"
+          },
+          {
+            "binary": "new_neon",
+            "ms": 1685.56,
+            "counters": "body 5051 / shape 5051 / contact 14950 / joint 0 / stack 16154256"
+          },
+          {
+            "binary": "float",
+            "ms": 511.465,
+            "counters": "body 5051 / shape 5051 / contact 14950 / joint 0 / stack 6366112"
+          },
+          {
+            "binary": "float",
+            "ms": 545.761,
+            "counters": "body 5051 / shape 5051 / contact 14950 / joint 0 / stack 6366112"
+          },
+          {
+            "binary": "new_neon",
+            "ms": 1664.55,
+            "counters": "body 5051 / shape 5051 / contact 14950 / joint 0 / stack 16154256"
+          },
+          {
+            "binary": "new_scalar",
+            "ms": 1663.35,
+            "counters": "body 5051 / shape 5051 / contact 14950 / joint 0 / stack 16154256"
+          },
+          {
+            "binary": "old_scalar",
+            "ms": 1757.55,
+            "counters": "body 5051 / shape 5051 / contact 14950 / joint 0 / stack 16154256"
+          }
+        ],
+        "medians_ms": {
+          "old_scalar": 1743.96,
+          "new_scalar": 1668.965,
+          "new_neon": 1675.0549999999998,
+          "float": 528.6129999999999
+        }
+      },
+      {
+        "scene": "large_world",
+        "runs": [
+          {
+            "binary": "old_scalar",
+            "ms": 26.3142,
+            "counters": "body 1000099 / shape 1000099 / contact 380 / joint 0 / stack 520000000"
+          },
+          {
+            "binary": "new_scalar",
+            "ms": 24.1513,
+            "counters": "body 1000099 / shape 1000099 / contact 380 / joint 0 / stack 520000000"
+          },
+          {
+            "binary": "new_neon",
+            "ms": 24.1668,
+            "counters": "body 1000099 / shape 1000099 / contact 380 / joint 0 / stack 520000000"
+          },
+          {
+            "binary": "float",
+            "ms": 11.7046,
+            "counters": "body 1000099 / shape 1000099 / contact 380 / joint 0 / stack 520000000"
+          },
+          {
+            "binary": "float",
+            "ms": 10.9814,
+            "counters": "body 1000099 / shape 1000099 / contact 380 / joint 0 / stack 520000000"
+          },
+          {
+            "binary": "new_neon",
+            "ms": 24.0917,
+            "counters": "body 1000099 / shape 1000099 / contact 380 / joint 0 / stack 520000000"
+          },
+          {
+            "binary": "new_scalar",
+            "ms": 24.5921,
+            "counters": "body 1000099 / shape 1000099 / contact 380 / joint 0 / stack 520000000"
+          },
+          {
+            "binary": "old_scalar",
+            "ms": 24.5749,
+            "counters": "body 1000099 / shape 1000099 / contact 380 / joint 0 / stack 520000000"
+          }
+        ],
+        "medians_ms": {
+          "old_scalar": 25.44455,
+          "new_scalar": 24.371699999999997,
+          "new_neon": 24.12925,
+          "float": 11.343
+        }
+      },
+      {
+        "scene": "many_pyramids",
+        "runs": [
+          {
+            "binary": "old_scalar",
+            "ms": 1701.7,
+            "counters": "body 10781 / shape 10781 / contact 28420 / joint 0 / stack 30691376"
+          },
+          {
+            "binary": "new_scalar",
+            "ms": 1647.06,
+            "counters": "body 10781 / shape 10781 / contact 28420 / joint 0 / stack 30691376"
+          },
+          {
+            "binary": "new_neon",
+            "ms": 1651.44,
+            "counters": "body 10781 / shape 10781 / contact 28420 / joint 0 / stack 30691376"
+          },
+          {
+            "binary": "float",
+            "ms": 499.686,
+            "counters": "body 10781 / shape 10781 / contact 28420 / joint 0 / stack 12102992"
+          },
+          {
+            "binary": "float",
+            "ms": 506.454,
+            "counters": "body 10781 / shape 10781 / contact 28420 / joint 0 / stack 12102992"
+          },
+          {
+            "binary": "new_neon",
+            "ms": 1652.06,
+            "counters": "body 10781 / shape 10781 / contact 28420 / joint 0 / stack 30691376"
+          },
+          {
+            "binary": "new_scalar",
+            "ms": 1656.29,
+            "counters": "body 10781 / shape 10781 / contact 28420 / joint 0 / stack 30691376"
+          },
+          {
+            "binary": "old_scalar",
+            "ms": 1706.23,
+            "counters": "body 10781 / shape 10781 / contact 28420 / joint 0 / stack 30691376"
+          }
+        ],
+        "medians_ms": {
+          "old_scalar": 1703.9650000000001,
+          "new_scalar": 1651.675,
+          "new_neon": 1651.75,
+          "float": 503.07
+        }
+      },
+      {
+        "scene": "rain",
+        "runs": [
+          {
+            "binary": "old_scalar",
+            "ms": 1397.98,
+            "counters": "body 4300 / shape 4400 / contact 7813 / joint 4200 / stack 1863344"
+          },
+          {
+            "binary": "new_scalar",
+            "ms": 1335.64,
+            "counters": "body 4300 / shape 4400 / contact 7019 / joint 4200 / stack 1731680"
+          },
+          {
+            "binary": "new_neon",
+            "ms": 1350.09,
+            "counters": "body 4300 / shape 4400 / contact 7019 / joint 4200 / stack 1731680"
+          },
+          {
+            "binary": "float",
+            "ms": 570.974,
+            "counters": "body 4300 / shape 4400 / contact 7898 / joint 4200 / stack 1535568"
+          },
+          {
+            "binary": "float",
+            "ms": 566.094,
+            "counters": "body 4300 / shape 4400 / contact 7898 / joint 4200 / stack 1535568"
+          },
+          {
+            "binary": "new_neon",
+            "ms": 1338.75,
+            "counters": "body 4300 / shape 4400 / contact 7019 / joint 4200 / stack 1731680"
+          },
+          {
+            "binary": "new_scalar",
+            "ms": 1335.8,
+            "counters": "body 4300 / shape 4400 / contact 7019 / joint 4200 / stack 1731680"
+          },
+          {
+            "binary": "old_scalar",
+            "ms": 1405.93,
+            "counters": "body 4300 / shape 4400 / contact 7813 / joint 4200 / stack 1863344"
+          }
+        ],
+        "medians_ms": {
+          "old_scalar": 1401.955,
+          "new_scalar": 1335.72,
+          "new_neon": 1344.42,
+          "float": 568.5340000000001
+        }
+      },
+      {
+        "scene": "trees100",
+        "runs": [
+          {
+            "binary": "old_scalar",
+            "ms": 206.07,
+            "counters": "body 51 / shape 1101 / contact 1100 / joint 0 / stack 572528"
+          },
+          {
+            "binary": "new_scalar",
+            "ms": 148.166,
+            "counters": "body 51 / shape 1101 / contact 1100 / joint 0 / stack 572528"
+          },
+          {
+            "binary": "new_neon",
+            "ms": 148.46,
+            "counters": "body 51 / shape 1101 / contact 1100 / joint 0 / stack 572528"
+          },
+          {
+            "binary": "float",
+            "ms": 82.0632,
+            "counters": "body 51 / shape 1101 / contact 1102 / joint 0 / stack 572528"
+          },
+          {
+            "binary": "float",
+            "ms": 82.9924,
+            "counters": "body 51 / shape 1101 / contact 1102 / joint 0 / stack 572528"
+          },
+          {
+            "binary": "new_neon",
+            "ms": 155.449,
+            "counters": "body 51 / shape 1101 / contact 1100 / joint 0 / stack 572528"
+          },
+          {
+            "binary": "new_scalar",
+            "ms": 152.482,
+            "counters": "body 51 / shape 1101 / contact 1100 / joint 0 / stack 572528"
+          },
+          {
+            "binary": "old_scalar",
+            "ms": 200.06,
+            "counters": "body 51 / shape 1101 / contact 1100 / joint 0 / stack 572528"
+          }
+        ],
+        "medians_ms": {
+          "old_scalar": 203.065,
+          "new_scalar": 150.324,
+          "new_neon": 151.9545,
+          "float": 82.5278
+        }
+      },
+      {
+        "scene": "trees50",
+        "runs": [
+          {
+            "binary": "old_scalar",
+            "ms": 312.152,
+            "counters": "body 51 / shape 1101 / contact 1114 / joint 0 / stack 572528"
+          },
+          {
+            "binary": "new_scalar",
+            "ms": 209.565,
+            "counters": "body 51 / shape 1101 / contact 1114 / joint 0 / stack 572528"
+          },
+          {
+            "binary": "new_neon",
+            "ms": 210.304,
+            "counters": "body 51 / shape 1101 / contact 1114 / joint 0 / stack 572528"
+          },
+          {
+            "binary": "float",
+            "ms": 110.436,
+            "counters": "body 51 / shape 1101 / contact 1100 / joint 0 / stack 572528"
+          },
+          {
+            "binary": "float",
+            "ms": 112.017,
+            "counters": "body 51 / shape 1101 / contact 1100 / joint 0 / stack 572528"
+          },
+          {
+            "binary": "new_neon",
+            "ms": 214.628,
+            "counters": "body 51 / shape 1101 / contact 1114 / joint 0 / stack 572528"
+          },
+          {
+            "binary": "new_scalar",
+            "ms": 210.547,
+            "counters": "body 51 / shape 1101 / contact 1114 / joint 0 / stack 572528"
+          },
+          {
+            "binary": "old_scalar",
+            "ms": 316.398,
+            "counters": "body 51 / shape 1101 / contact 1114 / joint 0 / stack 572528"
+          }
+        ],
+        "medians_ms": {
+          "old_scalar": 314.275,
+          "new_scalar": 210.05599999999998,
+          "new_neon": 212.466,
+          "float": 111.2265
+        }
+      },
+      {
+        "scene": "trees25",
+        "runs": [
+          {
+            "binary": "old_scalar",
+            "ms": 660.989,
+            "counters": "body 51 / shape 1101 / contact 1104 / joint 0 / stack 572528"
+          },
+          {
+            "binary": "new_scalar",
+            "ms": 387.426,
+            "counters": "body 51 / shape 1101 / contact 1104 / joint 0 / stack 572528"
+          },
+          {
+            "binary": "new_neon",
+            "ms": 377.168,
+            "counters": "body 51 / shape 1101 / contact 1104 / joint 0 / stack 572528"
+          },
+          {
+            "binary": "float",
+            "ms": 217.563,
+            "counters": "body 51 / shape 1101 / contact 1112 / joint 0 / stack 572528"
+          },
+          {
+            "binary": "float",
+            "ms": 217.882,
+            "counters": "body 51 / shape 1101 / contact 1112 / joint 0 / stack 572528"
+          },
+          {
+            "binary": "new_neon",
+            "ms": 383.167,
+            "counters": "body 51 / shape 1101 / contact 1104 / joint 0 / stack 572528"
+          },
+          {
+            "binary": "new_scalar",
+            "ms": 385.659,
+            "counters": "body 51 / shape 1101 / contact 1104 / joint 0 / stack 572528"
+          },
+          {
+            "binary": "old_scalar",
+            "ms": 673.382,
+            "counters": "body 51 / shape 1101 / contact 1104 / joint 0 / stack 572528"
+          }
+        ],
+        "medians_ms": {
+          "old_scalar": 667.1855,
+          "new_scalar": 386.5425,
+          "new_neon": 380.1675,
+          "float": 217.7225
+        }
+      },
+      {
+        "scene": "washer",
+        "runs": [
+          {
+            "binary": "old_scalar",
+            "ms": 15520.9,
+            "counters": "body 8002 / shape 8041 / contact 39517 / joint 0 / stack 18594752"
+          },
+          {
+            "binary": "new_scalar",
+            "ms": 13906.7,
+            "counters": "body 8002 / shape 8041 / contact 40576 / joint 0 / stack 18551760"
+          },
+          {
+            "binary": "new_neon",
+            "ms": 13774.1,
+            "counters": "body 8002 / shape 8041 / contact 40576 / joint 0 / stack 18551760"
+          },
+          {
+            "binary": "float",
+            "ms": 6899.57,
+            "counters": "body 8002 / shape 8041 / contact 40444 / joint 0 / stack 7289728"
+          },
+          {
+            "binary": "float",
+            "ms": 7000.19,
+            "counters": "body 8002 / shape 8041 / contact 40444 / joint 0 / stack 7289728"
+          },
+          {
+            "binary": "new_neon",
+            "ms": 13799.0,
+            "counters": "body 8002 / shape 8041 / contact 40576 / joint 0 / stack 18551760"
+          },
+          {
+            "binary": "new_scalar",
+            "ms": 13888.0,
+            "counters": "body 8002 / shape 8041 / contact 40576 / joint 0 / stack 18551760"
+          },
+          {
+            "binary": "old_scalar",
+            "ms": 15535.1,
+            "counters": "body 8002 / shape 8041 / contact 39517 / joint 0 / stack 18594752"
+          }
+        ],
+        "medians_ms": {
+          "old_scalar": 15528.0,
+          "new_scalar": 13897.35,
+          "new_neon": 13786.55,
+          "float": 6949.879999999999
+        }
+      }
+    ],
+    "finished": "2026-09-07T17:37:21-0400"
+  },
+  "final_sweep": {
+    "method": "Two runs per scene and binary, old/pre-solver/final/neon/float/float/neon/final/pre-solver/old order, four workers, continuous collision enabled, median runtime. Scenes with an initial within-binary spread over 5% received three additional balanced runs of every binary; their final medians include all five trials, with no discarded observations.",
+    "fixed_source": "8f52c1898dc0c26c009b9f5c16554587d1448c26",
+    "pre_solver_source": "48f8acf1c64113e6e00e12d5e8a70070bfdec365",
+    "old_source": "044aee0f5861c8da9de3b313788efaae1335fe68",
+    "float_source": "47d7f7cc7e091142c08d11dc7d2e493c5d34f536",
+    "configuration": "Apple M3 Ultra, arm64, Apple Clang, RelWithDebInfo, O2 and thin LTO; scalar defaults, optional BOX3D_NEON=ON; float default NEON.",
+    "platform": "macOS-26.6.2-arm64-arm-64bit-Mach-O",
+    "started": "2026-09-07T17:57:37-0400",
+    "binaries": {
+      "old_scalar": {
+        "sha256": "4a9da5c6f7f5d2bdd7a332f5ba6253aaf8ef5b8c9792d490154787da590f7c75"
+      },
+      "pre_solver_scalar": {
+        "sha256": "50ebf495cb0afc025f2ab9fbef1c819ad69afe96be7efcbcf5f869a220ab501b"
+      },
+      "new_scalar": {
+        "sha256": "d572871f6bc1a8f4636b4f02feffb35ab7d412491fdb84beae04a2ecb441ff8d"
+      },
+      "new_neon": {
+        "sha256": "51f6c0f5e3fb21f690da4a7127c2aadbea01d6ba47ee8b4baa2b127c5ba728c0"
+      },
+      "float": {
+        "sha256": "a57073956c8f051652832d47f71cddf3254c0c3c4ca40e4f0baeb0a19b97f8f9"
+      }
+    },
+    "rows": [
+      {
+        "scene": "convex_pile",
+        "runs": [
+          {
+            "binary": "old_scalar",
+            "ms": 12621.8,
+            "counters": "body 5121 / shape 5121 / contact 51109 / joint 0 / stack 6262912"
+          },
+          {
+            "binary": "pre_solver_scalar",
+            "ms": 10736.3,
+            "counters": "body 5121 / shape 5121 / contact 51305 / joint 0 / stack 6219776"
+          },
+          {
+            "binary": "new_scalar",
+            "ms": 10768.2,
+            "counters": "body 5121 / shape 5121 / contact 51305 / joint 0 / stack 6219776"
+          },
+          {
+            "binary": "new_neon",
+            "ms": 7020.12,
+            "counters": "body 5121 / shape 5121 / contact 51305 / joint 0 / stack 6219776"
+          },
+          {
+            "binary": "float",
+            "ms": 3989.49,
+            "counters": "body 5121 / shape 5121 / contact 50764 / joint 0 / stack 2662928"
+          },
+          {
+            "binary": "float",
+            "ms": 3665.76,
+            "counters": "body 5121 / shape 5121 / contact 50764 / joint 0 / stack 2662928"
+          },
+          {
+            "binary": "new_neon",
+            "ms": 6901.28,
+            "counters": "body 5121 / shape 5121 / contact 51305 / joint 0 / stack 6219776"
+          },
+          {
+            "binary": "new_scalar",
+            "ms": 10916.9,
+            "counters": "body 5121 / shape 5121 / contact 51305 / joint 0 / stack 6219776"
+          },
+          {
+            "binary": "pre_solver_scalar",
+            "ms": 10621.4,
+            "counters": "body 5121 / shape 5121 / contact 51305 / joint 0 / stack 6219776"
+          },
+          {
+            "binary": "old_scalar",
+            "ms": 12383.9,
+            "counters": "body 5121 / shape 5121 / contact 51109 / joint 0 / stack 6262912"
+          },
+          {
+            "binary": "old_scalar",
+            "ms": 12682.8,
+            "counters": "body 5121 / shape 5121 / contact 51109 / joint 0 / stack 6262912",
+            "recheck": 0
+          },
+          {
+            "binary": "pre_solver_scalar",
+            "ms": 10814.4,
+            "counters": "body 5121 / shape 5121 / contact 51305 / joint 0 / stack 6219776",
+            "recheck": 0
+          },
+          {
+            "binary": "new_scalar",
+            "ms": 10828.7,
+            "counters": "body 5121 / shape 5121 / contact 51305 / joint 0 / stack 6219776",
+            "recheck": 0
+          },
+          {
+            "binary": "new_neon",
+            "ms": 7115.32,
+            "counters": "body 5121 / shape 5121 / contact 51305 / joint 0 / stack 6219776",
+            "recheck": 0
+          },
+          {
+            "binary": "float",
+            "ms": 3557.82,
+            "counters": "body 5121 / shape 5121 / contact 50764 / joint 0 / stack 2662928",
+            "recheck": 0
+          },
+          {
+            "binary": "float",
+            "ms": 3574.49,
+            "counters": "body 5121 / shape 5121 / contact 50764 / joint 0 / stack 2662928",
+            "recheck": 1
+          },
+          {
+            "binary": "new_neon",
+            "ms": 7172.27,
+            "counters": "body 5121 / shape 5121 / contact 51305 / joint 0 / stack 6219776",
+            "recheck": 1
+          },
+          {
+            "binary": "new_scalar",
+            "ms": 10802.7,
+            "counters": "body 5121 / shape 5121 / contact 51305 / joint 0 / stack 6219776",
+            "recheck": 1
+          },
+          {
+            "binary": "pre_solver_scalar",
+            "ms": 10879.0,
+            "counters": "body 5121 / shape 5121 / contact 51305 / joint 0 / stack 6219776",
+            "recheck": 1
+          },
+          {
+            "binary": "old_scalar",
+            "ms": 13077.1,
+            "counters": "body 5121 / shape 5121 / contact 51109 / joint 0 / stack 6262912",
+            "recheck": 1
+          },
+          {
+            "binary": "new_scalar",
+            "ms": 10886.8,
+            "counters": "body 5121 / shape 5121 / contact 51305 / joint 0 / stack 6219776",
+            "recheck": 2
+          },
+          {
+            "binary": "new_neon",
+            "ms": 6999.51,
+            "counters": "body 5121 / shape 5121 / contact 51305 / joint 0 / stack 6219776",
+            "recheck": 2
+          },
+          {
+            "binary": "float",
+            "ms": 3566.21,
+            "counters": "body 5121 / shape 5121 / contact 50764 / joint 0 / stack 2662928",
+            "recheck": 2
+          },
+          {
+            "binary": "old_scalar",
+            "ms": 12672.9,
+            "counters": "body 5121 / shape 5121 / contact 51109 / joint 0 / stack 6262912",
+            "recheck": 2
+          },
+          {
+            "binary": "pre_solver_scalar",
+            "ms": 10784.8,
+            "counters": "body 5121 / shape 5121 / contact 51305 / joint 0 / stack 6219776",
+            "recheck": 2
+          }
+        ],
+        "medians_ms": {
+          "old_scalar": 12672.9,
+          "pre_solver_scalar": 10784.8,
+          "new_scalar": 10828.7,
+          "new_neon": 7020.12,
+          "float": 3574.49
+        }
+      },
+      {
+        "scene": "joint_grid",
+        "runs": [
+          {
+            "binary": "old_scalar",
+            "ms": 903.984,
+            "counters": "body 10000 / shape 10000 / contact 0 / joint 19800 / stack 5200000"
+          },
+          {
+            "binary": "pre_solver_scalar",
+            "ms": 913.434,
+            "counters": "body 10000 / shape 10000 / contact 0 / joint 19800 / stack 5200000"
+          },
+          {
+            "binary": "new_scalar",
+            "ms": 721.016,
+            "counters": "body 10000 / shape 10000 / contact 0 / joint 19800 / stack 5200000"
+          },
+          {
+            "binary": "new_neon",
+            "ms": 718.764,
+            "counters": "body 10000 / shape 10000 / contact 0 / joint 19800 / stack 5200000"
+          },
+          {
+            "binary": "float",
+            "ms": 265.319,
+            "counters": "body 10000 / shape 10000 / contact 0 / joint 19800 / stack 5200000"
+          },
+          {
+            "binary": "float",
+            "ms": 269.332,
+            "counters": "body 10000 / shape 10000 / contact 0 / joint 19800 / stack 5200000"
+          },
+          {
+            "binary": "new_neon",
+            "ms": 719.172,
+            "counters": "body 10000 / shape 10000 / contact 0 / joint 19800 / stack 5200000"
+          },
+          {
+            "binary": "new_scalar",
+            "ms": 718.347,
+            "counters": "body 10000 / shape 10000 / contact 0 / joint 19800 / stack 5200000"
+          },
+          {
+            "binary": "pre_solver_scalar",
+            "ms": 898.745,
+            "counters": "body 10000 / shape 10000 / contact 0 / joint 19800 / stack 5200000"
+          },
+          {
+            "binary": "old_scalar",
+            "ms": 898.811,
+            "counters": "body 10000 / shape 10000 / contact 0 / joint 19800 / stack 5200000"
+          }
+        ],
+        "medians_ms": {
+          "old_scalar": 901.3975,
+          "pre_solver_scalar": 906.0895,
+          "new_scalar": 719.6814999999999,
+          "new_neon": 718.9680000000001,
+          "float": 267.32550000000003
+        }
+      },
+      {
+        "scene": "junkyard",
+        "runs": [
+          {
+            "binary": "old_scalar",
+            "ms": 9547.71,
+            "counters": "body 10586 / shape 10590 / contact 195276 / joint 0 / stack 28929152"
+          },
+          {
+            "binary": "pre_solver_scalar",
+            "ms": 8477.47,
+            "counters": "body 10586 / shape 10590 / contact 195788 / joint 0 / stack 28761008"
+          },
+          {
+            "binary": "new_scalar",
+            "ms": 8468.91,
+            "counters": "body 10586 / shape 10590 / contact 195788 / joint 0 / stack 28761008"
+          },
+          {
+            "binary": "new_neon",
+            "ms": 7921.69,
+            "counters": "body 10586 / shape 10590 / contact 195788 / joint 0 / stack 28761008"
+          },
+          {
+            "binary": "float",
+            "ms": 3484.0,
+            "counters": "body 10586 / shape 10590 / contact 193415 / joint 0 / stack 11295504"
+          },
+          {
+            "binary": "float",
+            "ms": 3576.09,
+            "counters": "body 10586 / shape 10590 / contact 193415 / joint 0 / stack 11295504"
+          },
+          {
+            "binary": "new_neon",
+            "ms": 7984.84,
+            "counters": "body 10586 / shape 10590 / contact 195788 / joint 0 / stack 28761008"
+          },
+          {
+            "binary": "new_scalar",
+            "ms": 8295.67,
+            "counters": "body 10586 / shape 10590 / contact 195788 / joint 0 / stack 28761008"
+          },
+          {
+            "binary": "pre_solver_scalar",
+            "ms": 8253.81,
+            "counters": "body 10586 / shape 10590 / contact 195788 / joint 0 / stack 28761008"
+          },
+          {
+            "binary": "old_scalar",
+            "ms": 9407.34,
+            "counters": "body 10586 / shape 10590 / contact 195276 / joint 0 / stack 28929152"
+          }
+        ],
+        "medians_ms": {
+          "old_scalar": 9477.525,
+          "pre_solver_scalar": 8365.64,
+          "new_scalar": 8382.29,
+          "new_neon": 7953.264999999999,
+          "float": 3530.045
+        }
+      },
+      {
+        "scene": "large_pyramid",
+        "runs": [
+          {
+            "binary": "old_scalar",
+            "ms": 1678.1,
+            "counters": "body 5051 / shape 5051 / contact 14950 / joint 0 / stack 16154256"
+          },
+          {
+            "binary": "pre_solver_scalar",
+            "ms": 1615.95,
+            "counters": "body 5051 / shape 5051 / contact 14950 / joint 0 / stack 16154256"
+          },
+          {
+            "binary": "new_scalar",
+            "ms": 1551.57,
+            "counters": "body 5051 / shape 5051 / contact 14950 / joint 0 / stack 16154256"
+          },
+          {
+            "binary": "new_neon",
+            "ms": 1618.67,
+            "counters": "body 5051 / shape 5051 / contact 14950 / joint 0 / stack 16154256"
+          },
+          {
+            "binary": "float",
+            "ms": 467.887,
+            "counters": "body 5051 / shape 5051 / contact 14950 / joint 0 / stack 6366112"
+          },
+          {
+            "binary": "float",
+            "ms": 468.602,
+            "counters": "body 5051 / shape 5051 / contact 14950 / joint 0 / stack 6366112"
+          },
+          {
+            "binary": "new_neon",
+            "ms": 1575.39,
+            "counters": "body 5051 / shape 5051 / contact 14950 / joint 0 / stack 16154256"
+          },
+          {
+            "binary": "new_scalar",
+            "ms": 1549.8,
+            "counters": "body 5051 / shape 5051 / contact 14950 / joint 0 / stack 16154256"
+          },
+          {
+            "binary": "pre_solver_scalar",
+            "ms": 1564.68,
+            "counters": "body 5051 / shape 5051 / contact 14950 / joint 0 / stack 16154256"
+          },
+          {
+            "binary": "old_scalar",
+            "ms": 1628.79,
+            "counters": "body 5051 / shape 5051 / contact 14950 / joint 0 / stack 16154256"
+          }
+        ],
+        "medians_ms": {
+          "old_scalar": 1653.445,
+          "pre_solver_scalar": 1590.315,
+          "new_scalar": 1550.685,
+          "new_neon": 1597.0300000000002,
+          "float": 468.2445
+        }
+      },
+      {
+        "scene": "large_world",
+        "runs": [
+          {
+            "binary": "old_scalar",
+            "ms": 23.0838,
+            "counters": "body 1000099 / shape 1000099 / contact 380 / joint 0 / stack 520000000"
+          },
+          {
+            "binary": "pre_solver_scalar",
+            "ms": 23.4849,
+            "counters": "body 1000099 / shape 1000099 / contact 380 / joint 0 / stack 520000000"
+          },
+          {
+            "binary": "new_scalar",
+            "ms": 24.2885,
+            "counters": "body 1000099 / shape 1000099 / contact 380 / joint 0 / stack 520000000"
+          },
+          {
+            "binary": "new_neon",
+            "ms": 24.3295,
+            "counters": "body 1000099 / shape 1000099 / contact 380 / joint 0 / stack 520000000"
+          },
+          {
+            "binary": "float",
+            "ms": 10.8865,
+            "counters": "body 1000099 / shape 1000099 / contact 380 / joint 0 / stack 520000000"
+          },
+          {
+            "binary": "float",
+            "ms": 11.8978,
+            "counters": "body 1000099 / shape 1000099 / contact 380 / joint 0 / stack 520000000"
+          },
+          {
+            "binary": "new_neon",
+            "ms": 24.1592,
+            "counters": "body 1000099 / shape 1000099 / contact 380 / joint 0 / stack 520000000"
+          },
+          {
+            "binary": "new_scalar",
+            "ms": 23.7441,
+            "counters": "body 1000099 / shape 1000099 / contact 380 / joint 0 / stack 520000000"
+          },
+          {
+            "binary": "pre_solver_scalar",
+            "ms": 23.5553,
+            "counters": "body 1000099 / shape 1000099 / contact 380 / joint 0 / stack 520000000"
+          },
+          {
+            "binary": "old_scalar",
+            "ms": 24.3311,
+            "counters": "body 1000099 / shape 1000099 / contact 380 / joint 0 / stack 520000000"
+          },
+          {
+            "binary": "old_scalar",
+            "ms": 25.9187,
+            "counters": "body 1000099 / shape 1000099 / contact 380 / joint 0 / stack 520000000",
+            "recheck": 0
+          },
+          {
+            "binary": "pre_solver_scalar",
+            "ms": 24.2049,
+            "counters": "body 1000099 / shape 1000099 / contact 380 / joint 0 / stack 520000000",
+            "recheck": 0
+          },
+          {
+            "binary": "new_scalar",
+            "ms": 23.916,
+            "counters": "body 1000099 / shape 1000099 / contact 380 / joint 0 / stack 520000000",
+            "recheck": 0
+          },
+          {
+            "binary": "new_neon",
+            "ms": 24.7034,
+            "counters": "body 1000099 / shape 1000099 / contact 380 / joint 0 / stack 520000000",
+            "recheck": 0
+          },
+          {
+            "binary": "float",
+            "ms": 12.4353,
+            "counters": "body 1000099 / shape 1000099 / contact 380 / joint 0 / stack 520000000",
+            "recheck": 0
+          },
+          {
+            "binary": "float",
+            "ms": 13.5731,
+            "counters": "body 1000099 / shape 1000099 / contact 380 / joint 0 / stack 520000000",
+            "recheck": 1
+          },
+          {
+            "binary": "new_neon",
+            "ms": 25.5945,
+            "counters": "body 1000099 / shape 1000099 / contact 380 / joint 0 / stack 520000000",
+            "recheck": 1
+          },
+          {
+            "binary": "new_scalar",
+            "ms": 25.3837,
+            "counters": "body 1000099 / shape 1000099 / contact 380 / joint 0 / stack 520000000",
+            "recheck": 1
+          },
+          {
+            "binary": "pre_solver_scalar",
+            "ms": 24.7802,
+            "counters": "body 1000099 / shape 1000099 / contact 380 / joint 0 / stack 520000000",
+            "recheck": 1
+          },
+          {
+            "binary": "old_scalar",
+            "ms": 24.9021,
+            "counters": "body 1000099 / shape 1000099 / contact 380 / joint 0 / stack 520000000",
+            "recheck": 1
+          },
+          {
+            "binary": "new_scalar",
+            "ms": 24.7189,
+            "counters": "body 1000099 / shape 1000099 / contact 380 / joint 0 / stack 520000000",
+            "recheck": 2
+          },
+          {
+            "binary": "new_neon",
+            "ms": 26.1698,
+            "counters": "body 1000099 / shape 1000099 / contact 380 / joint 0 / stack 520000000",
+            "recheck": 2
+          },
+          {
+            "binary": "float",
+            "ms": 13.1308,
+            "counters": "body 1000099 / shape 1000099 / contact 380 / joint 0 / stack 520000000",
+            "recheck": 2
+          },
+          {
+            "binary": "old_scalar",
+            "ms": 27.6227,
+            "counters": "body 1000099 / shape 1000099 / contact 380 / joint 0 / stack 520000000",
+            "recheck": 2
+          },
+          {
+            "binary": "pre_solver_scalar",
+            "ms": 25.1549,
+            "counters": "body 1000099 / shape 1000099 / contact 380 / joint 0 / stack 520000000",
+            "recheck": 2
+          }
+        ],
+        "medians_ms": {
+          "old_scalar": 24.9021,
+          "pre_solver_scalar": 24.2049,
+          "new_scalar": 24.2885,
+          "new_neon": 24.7034,
+          "float": 12.4353
+        }
+      },
+      {
+        "scene": "many_pyramids",
+        "runs": [
+          {
+            "binary": "old_scalar",
+            "ms": 1629.63,
+            "counters": "body 10781 / shape 10781 / contact 28420 / joint 0 / stack 30691376"
+          },
+          {
+            "binary": "pre_solver_scalar",
+            "ms": 1558.93,
+            "counters": "body 10781 / shape 10781 / contact 28420 / joint 0 / stack 30691376"
+          },
+          {
+            "binary": "new_scalar",
+            "ms": 1586.56,
+            "counters": "body 10781 / shape 10781 / contact 28420 / joint 0 / stack 30691376"
+          },
+          {
+            "binary": "new_neon",
+            "ms": 1613.67,
+            "counters": "body 10781 / shape 10781 / contact 28420 / joint 0 / stack 30691376"
+          },
+          {
+            "binary": "float",
+            "ms": 477.084,
+            "counters": "body 10781 / shape 10781 / contact 28420 / joint 0 / stack 12102992"
+          },
+          {
+            "binary": "float",
+            "ms": 467.685,
+            "counters": "body 10781 / shape 10781 / contact 28420 / joint 0 / stack 12102992"
+          },
+          {
+            "binary": "new_neon",
+            "ms": 1563.37,
+            "counters": "body 10781 / shape 10781 / contact 28420 / joint 0 / stack 30691376"
+          },
+          {
+            "binary": "new_scalar",
+            "ms": 1553.94,
+            "counters": "body 10781 / shape 10781 / contact 28420 / joint 0 / stack 30691376"
+          },
+          {
+            "binary": "pre_solver_scalar",
+            "ms": 1555.53,
+            "counters": "body 10781 / shape 10781 / contact 28420 / joint 0 / stack 30691376"
+          },
+          {
+            "binary": "old_scalar",
+            "ms": 1615.84,
+            "counters": "body 10781 / shape 10781 / contact 28420 / joint 0 / stack 30691376"
+          }
+        ],
+        "medians_ms": {
+          "old_scalar": 1622.7350000000001,
+          "pre_solver_scalar": 1557.23,
+          "new_scalar": 1570.25,
+          "new_neon": 1588.52,
+          "float": 472.3845
+        }
+      },
+      {
+        "scene": "rain",
+        "runs": [
+          {
+            "binary": "old_scalar",
+            "ms": 1407.74,
+            "counters": "body 4300 / shape 4400 / contact 7813 / joint 4200 / stack 1863344"
+          },
+          {
+            "binary": "pre_solver_scalar",
+            "ms": 1380.2,
+            "counters": "body 4300 / shape 4400 / contact 7019 / joint 4200 / stack 1731680"
+          },
+          {
+            "binary": "new_scalar",
+            "ms": 1383.9,
+            "counters": "body 4300 / shape 4400 / contact 7019 / joint 4200 / stack 1731680"
+          },
+          {
+            "binary": "new_neon",
+            "ms": 1291.08,
+            "counters": "body 4300 / shape 4400 / contact 7019 / joint 4200 / stack 1731680"
+          },
+          {
+            "binary": "float",
+            "ms": 562.97,
+            "counters": "body 4300 / shape 4400 / contact 7898 / joint 4200 / stack 1535568"
+          },
+          {
+            "binary": "float",
+            "ms": 549.117,
+            "counters": "body 4300 / shape 4400 / contact 7898 / joint 4200 / stack 1535568"
+          },
+          {
+            "binary": "new_neon",
+            "ms": 1273.94,
+            "counters": "body 4300 / shape 4400 / contact 7019 / joint 4200 / stack 1731680"
+          },
+          {
+            "binary": "new_scalar",
+            "ms": 1425.96,
+            "counters": "body 4300 / shape 4400 / contact 7019 / joint 4200 / stack 1731680"
+          },
+          {
+            "binary": "pre_solver_scalar",
+            "ms": 1723.18,
+            "counters": "body 4300 / shape 4400 / contact 7019 / joint 4200 / stack 1731680"
+          },
+          {
+            "binary": "old_scalar",
+            "ms": 1460.8,
+            "counters": "body 4300 / shape 4400 / contact 7813 / joint 4200 / stack 1863344"
+          },
+          {
+            "binary": "old_scalar",
+            "ms": 1428.48,
+            "counters": "body 4300 / shape 4400 / contact 7813 / joint 4200 / stack 1863344",
+            "recheck": 0
+          },
+          {
+            "binary": "pre_solver_scalar",
+            "ms": 1420.21,
+            "counters": "body 4300 / shape 4400 / contact 7019 / joint 4200 / stack 1731680",
+            "recheck": 0
+          },
+          {
+            "binary": "new_scalar",
+            "ms": 1360.68,
+            "counters": "body 4300 / shape 4400 / contact 7019 / joint 4200 / stack 1731680",
+            "recheck": 0
+          },
+          {
+            "binary": "new_neon",
+            "ms": 1359.99,
+            "counters": "body 4300 / shape 4400 / contact 7019 / joint 4200 / stack 1731680",
+            "recheck": 0
+          },
+          {
+            "binary": "float",
+            "ms": 566.606,
+            "counters": "body 4300 / shape 4400 / contact 7898 / joint 4200 / stack 1535568",
+            "recheck": 0
+          },
+          {
+            "binary": "float",
+            "ms": 575.827,
+            "counters": "body 4300 / shape 4400 / contact 7898 / joint 4200 / stack 1535568",
+            "recheck": 1
+          },
+          {
+            "binary": "new_neon",
+            "ms": 1351.7,
+            "counters": "body 4300 / shape 4400 / contact 7019 / joint 4200 / stack 1731680",
+            "recheck": 1
+          },
+          {
+            "binary": "new_scalar",
+            "ms": 1352.03,
+            "counters": "body 4300 / shape 4400 / contact 7019 / joint 4200 / stack 1731680",
+            "recheck": 1
+          },
+          {
+            "binary": "pre_solver_scalar",
+            "ms": 1520.56,
+            "counters": "body 4300 / shape 4400 / contact 7019 / joint 4200 / stack 1731680",
+            "recheck": 1
+          },
+          {
+            "binary": "old_scalar",
+            "ms": 1447.47,
+            "counters": "body 4300 / shape 4400 / contact 7813 / joint 4200 / stack 1863344",
+            "recheck": 1
+          },
+          {
+            "binary": "new_scalar",
+            "ms": 1376.59,
+            "counters": "body 4300 / shape 4400 / contact 7019 / joint 4200 / stack 1731680",
+            "recheck": 2
+          },
+          {
+            "binary": "new_neon",
+            "ms": 1367.13,
+            "counters": "body 4300 / shape 4400 / contact 7019 / joint 4200 / stack 1731680",
+            "recheck": 2
+          },
+          {
+            "binary": "float",
+            "ms": 566.124,
+            "counters": "body 4300 / shape 4400 / contact 7898 / joint 4200 / stack 1535568",
+            "recheck": 2
+          },
+          {
+            "binary": "old_scalar",
+            "ms": 1420.02,
+            "counters": "body 4300 / shape 4400 / contact 7813 / joint 4200 / stack 1863344",
+            "recheck": 2
+          },
+          {
+            "binary": "pre_solver_scalar",
+            "ms": 1348.53,
+            "counters": "body 4300 / shape 4400 / contact 7019 / joint 4200 / stack 1731680",
+            "recheck": 2
+          }
+        ],
+        "medians_ms": {
+          "old_scalar": 1428.48,
+          "pre_solver_scalar": 1420.21,
+          "new_scalar": 1376.59,
+          "new_neon": 1351.7,
+          "float": 566.124
+        }
+      },
+      {
+        "scene": "trees100",
+        "runs": [
+          {
+            "binary": "old_scalar",
+            "ms": 191.716,
+            "counters": "body 51 / shape 1101 / contact 1100 / joint 0 / stack 572528"
+          },
+          {
+            "binary": "pre_solver_scalar",
+            "ms": 146.796,
+            "counters": "body 51 / shape 1101 / contact 1100 / joint 0 / stack 572528"
+          },
+          {
+            "binary": "new_scalar",
+            "ms": 144.558,
+            "counters": "body 51 / shape 1101 / contact 1100 / joint 0 / stack 572528"
+          },
+          {
+            "binary": "new_neon",
+            "ms": 146.936,
+            "counters": "body 51 / shape 1101 / contact 1100 / joint 0 / stack 572528"
+          },
+          {
+            "binary": "float",
+            "ms": 84.6574,
+            "counters": "body 51 / shape 1101 / contact 1102 / joint 0 / stack 572528"
+          },
+          {
+            "binary": "float",
+            "ms": 89.5498,
+            "counters": "body 51 / shape 1101 / contact 1102 / joint 0 / stack 572528"
+          },
+          {
+            "binary": "new_neon",
+            "ms": 165.303,
+            "counters": "body 51 / shape 1101 / contact 1100 / joint 0 / stack 572528"
+          },
+          {
+            "binary": "new_scalar",
+            "ms": 158.3,
+            "counters": "body 51 / shape 1101 / contact 1100 / joint 0 / stack 572528"
+          },
+          {
+            "binary": "pre_solver_scalar",
+            "ms": 161.068,
+            "counters": "body 51 / shape 1101 / contact 1100 / joint 0 / stack 572528"
+          },
+          {
+            "binary": "old_scalar",
+            "ms": 206.388,
+            "counters": "body 51 / shape 1101 / contact 1100 / joint 0 / stack 572528"
+          },
+          {
+            "binary": "old_scalar",
+            "ms": 193.899,
+            "counters": "body 51 / shape 1101 / contact 1100 / joint 0 / stack 572528",
+            "recheck": 0
+          },
+          {
+            "binary": "pre_solver_scalar",
+            "ms": 150.299,
+            "counters": "body 51 / shape 1101 / contact 1100 / joint 0 / stack 572528",
+            "recheck": 0
+          },
+          {
+            "binary": "new_scalar",
+            "ms": 151.638,
+            "counters": "body 51 / shape 1101 / contact 1100 / joint 0 / stack 572528",
+            "recheck": 0
+          },
+          {
+            "binary": "new_neon",
+            "ms": 150.333,
+            "counters": "body 51 / shape 1101 / contact 1100 / joint 0 / stack 572528",
+            "recheck": 0
+          },
+          {
+            "binary": "float",
+            "ms": 85.2813,
+            "counters": "body 51 / shape 1101 / contact 1102 / joint 0 / stack 572528",
+            "recheck": 0
+          },
+          {
+            "binary": "float",
+            "ms": 83.7666,
+            "counters": "body 51 / shape 1101 / contact 1102 / joint 0 / stack 572528",
+            "recheck": 1
+          },
+          {
+            "binary": "new_neon",
+            "ms": 146.031,
+            "counters": "body 51 / shape 1101 / contact 1100 / joint 0 / stack 572528",
+            "recheck": 1
+          },
+          {
+            "binary": "new_scalar",
+            "ms": 155.438,
+            "counters": "body 51 / shape 1101 / contact 1100 / joint 0 / stack 572528",
+            "recheck": 1
+          },
+          {
+            "binary": "pre_solver_scalar",
+            "ms": 146.866,
+            "counters": "body 51 / shape 1101 / contact 1100 / joint 0 / stack 572528",
+            "recheck": 1
+          },
+          {
+            "binary": "old_scalar",
+            "ms": 191.287,
+            "counters": "body 51 / shape 1101 / contact 1100 / joint 0 / stack 572528",
+            "recheck": 1
+          },
+          {
+            "binary": "new_scalar",
+            "ms": 150.434,
+            "counters": "body 51 / shape 1101 / contact 1100 / joint 0 / stack 572528",
+            "recheck": 2
+          },
+          {
+            "binary": "new_neon",
+            "ms": 146.533,
+            "counters": "body 51 / shape 1101 / contact 1100 / joint 0 / stack 572528",
+            "recheck": 2
+          },
+          {
+            "binary": "float",
+            "ms": 81.5125,
+            "counters": "body 51 / shape 1101 / contact 1102 / joint 0 / stack 572528",
+            "recheck": 2
+          },
+          {
+            "binary": "old_scalar",
+            "ms": 195.075,
+            "counters": "body 51 / shape 1101 / contact 1100 / joint 0 / stack 572528",
+            "recheck": 2
+          },
+          {
+            "binary": "pre_solver_scalar",
+            "ms": 156.983,
+            "counters": "body 51 / shape 1101 / contact 1100 / joint 0 / stack 572528",
+            "recheck": 2
+          }
+        ],
+        "medians_ms": {
+          "old_scalar": 193.899,
+          "pre_solver_scalar": 150.299,
+          "new_scalar": 151.638,
+          "new_neon": 146.936,
+          "float": 84.6574
+        }
+      },
+      {
+        "scene": "trees50",
+        "runs": [
+          {
+            "binary": "old_scalar",
+            "ms": 309.544,
+            "counters": "body 51 / shape 1101 / contact 1114 / joint 0 / stack 572528"
+          },
+          {
+            "binary": "pre_solver_scalar",
+            "ms": 207.943,
+            "counters": "body 51 / shape 1101 / contact 1114 / joint 0 / stack 572528"
+          },
+          {
+            "binary": "new_scalar",
+            "ms": 210.337,
+            "counters": "body 51 / shape 1101 / contact 1114 / joint 0 / stack 572528"
+          },
+          {
+            "binary": "new_neon",
+            "ms": 209.132,
+            "counters": "body 51 / shape 1101 / contact 1114 / joint 0 / stack 572528"
+          },
+          {
+            "binary": "float",
+            "ms": 105.835,
+            "counters": "body 51 / shape 1101 / contact 1100 / joint 0 / stack 572528"
+          },
+          {
+            "binary": "float",
+            "ms": 107.596,
+            "counters": "body 51 / shape 1101 / contact 1100 / joint 0 / stack 572528"
+          },
+          {
+            "binary": "new_neon",
+            "ms": 207.391,
+            "counters": "body 51 / shape 1101 / contact 1114 / joint 0 / stack 572528"
+          },
+          {
+            "binary": "new_scalar",
+            "ms": 210.484,
+            "counters": "body 51 / shape 1101 / contact 1114 / joint 0 / stack 572528"
+          },
+          {
+            "binary": "pre_solver_scalar",
+            "ms": 211.34,
+            "counters": "body 51 / shape 1101 / contact 1114 / joint 0 / stack 572528"
+          },
+          {
+            "binary": "old_scalar",
+            "ms": 322.955,
+            "counters": "body 51 / shape 1101 / contact 1114 / joint 0 / stack 572528"
+          }
+        ],
+        "medians_ms": {
+          "old_scalar": 316.2495,
+          "pre_solver_scalar": 209.6415,
+          "new_scalar": 210.4105,
+          "new_neon": 208.2615,
+          "float": 106.71549999999999
+        }
+      },
+      {
+        "scene": "trees25",
+        "runs": [
+          {
+            "binary": "old_scalar",
+            "ms": 663.576,
+            "counters": "body 51 / shape 1101 / contact 1104 / joint 0 / stack 572528"
+          },
+          {
+            "binary": "pre_solver_scalar",
+            "ms": 388.796,
+            "counters": "body 51 / shape 1101 / contact 1104 / joint 0 / stack 572528"
+          },
+          {
+            "binary": "new_scalar",
+            "ms": 391.878,
+            "counters": "body 51 / shape 1101 / contact 1104 / joint 0 / stack 572528"
+          },
+          {
+            "binary": "new_neon",
+            "ms": 397.018,
+            "counters": "body 51 / shape 1101 / contact 1104 / joint 0 / stack 572528"
+          },
+          {
+            "binary": "float",
+            "ms": 235.902,
+            "counters": "body 51 / shape 1101 / contact 1112 / joint 0 / stack 572528"
+          },
+          {
+            "binary": "float",
+            "ms": 230.718,
+            "counters": "body 51 / shape 1101 / contact 1112 / joint 0 / stack 572528"
+          },
+          {
+            "binary": "new_neon",
+            "ms": 396.803,
+            "counters": "body 51 / shape 1101 / contact 1104 / joint 0 / stack 572528"
+          },
+          {
+            "binary": "new_scalar",
+            "ms": 406.89,
+            "counters": "body 51 / shape 1101 / contact 1104 / joint 0 / stack 572528"
+          },
+          {
+            "binary": "pre_solver_scalar",
+            "ms": 401.295,
+            "counters": "body 51 / shape 1101 / contact 1104 / joint 0 / stack 572528"
+          },
+          {
+            "binary": "old_scalar",
+            "ms": 665.623,
+            "counters": "body 51 / shape 1101 / contact 1104 / joint 0 / stack 572528"
+          }
+        ],
+        "medians_ms": {
+          "old_scalar": 664.5995,
+          "pre_solver_scalar": 395.0455,
+          "new_scalar": 399.384,
+          "new_neon": 396.91049999999996,
+          "float": 233.31
+        }
+      },
+      {
+        "scene": "washer",
+        "runs": [
+          {
+            "binary": "old_scalar",
+            "ms": 15355.6,
+            "counters": "body 8002 / shape 8041 / contact 39517 / joint 0 / stack 18594752"
+          },
+          {
+            "binary": "pre_solver_scalar",
+            "ms": 13571.2,
+            "counters": "body 8002 / shape 8041 / contact 40576 / joint 0 / stack 18551760"
+          },
+          {
+            "binary": "new_scalar",
+            "ms": 13415.1,
+            "counters": "body 8002 / shape 8041 / contact 40576 / joint 0 / stack 18551760"
+          },
+          {
+            "binary": "new_neon",
+            "ms": 13803.1,
+            "counters": "body 8002 / shape 8041 / contact 40576 / joint 0 / stack 18551760"
+          },
+          {
+            "binary": "float",
+            "ms": 6720.28,
+            "counters": "body 8002 / shape 8041 / contact 40444 / joint 0 / stack 7289728"
+          },
+          {
+            "binary": "float",
+            "ms": 6820.5,
+            "counters": "body 8002 / shape 8041 / contact 40444 / joint 0 / stack 7289728"
+          },
+          {
+            "binary": "new_neon",
+            "ms": 13809.3,
+            "counters": "body 8002 / shape 8041 / contact 40576 / joint 0 / stack 18551760"
+          },
+          {
+            "binary": "new_scalar",
+            "ms": 13973.0,
+            "counters": "body 8002 / shape 8041 / contact 40576 / joint 0 / stack 18551760"
+          },
+          {
+            "binary": "pre_solver_scalar",
+            "ms": 13981.8,
+            "counters": "body 8002 / shape 8041 / contact 40576 / joint 0 / stack 18551760"
+          },
+          {
+            "binary": "old_scalar",
+            "ms": 15278.1,
+            "counters": "body 8002 / shape 8041 / contact 39517 / joint 0 / stack 18594752"
+          }
+        ],
+        "medians_ms": {
+          "old_scalar": 15316.85,
+          "pre_solver_scalar": 13776.5,
+          "new_scalar": 13694.05,
+          "new_neon": 13806.2,
+          "float": 6770.389999999999
+        }
+      }
+    ],
+    "finished": "2026-09-07T18:03:34-0400",
+    "rechecks": [
+      {
+        "scene": "convex_pile",
+        "reason": "Initial pair spread exceeded 5%",
+        "triggering_binaries": [
+          "float"
+        ]
+      },
+      {
+        "scene": "large_world",
+        "reason": "Initial pair spread exceeded 5%",
+        "triggering_binaries": [
+          "old_scalar",
+          "float"
+        ]
+      },
+      {
+        "scene": "rain",
+        "reason": "Initial pair spread exceeded 5%",
+        "triggering_binaries": [
+          "pre_solver_scalar"
+        ]
+      },
+      {
+        "scene": "trees100",
+        "reason": "Initial pair spread exceeded 5%",
+        "triggering_binaries": [
+          "old_scalar",
+          "pre_solver_scalar",
+          "new_scalar",
+          "new_neon",
+          "float"
+        ]
+      }
+    ],
+    "rechecks_finished": "2026-09-07T18:08:14-0400"
+  },
+  "joint_isolation": [
+    {
+      "scene": "joint_grid",
+      "runs": [
+        {
+          "binary": "before",
+          "ms": 916.721
+        },
+        {
+          "binary": "full",
+          "ms": 829.738
+        },
+        {
+          "binary": "zero",
+          "ms": 841.209
+        },
+        {
+          "binary": "zero",
+          "ms": 829.711
+        },
+        {
+          "binary": "full",
+          "ms": 831.069
+        },
+        {
+          "binary": "before",
+          "ms": 918.683
+        },
+        {
+          "binary": "before",
+          "ms": 912.729
+        },
+        {
+          "binary": "full",
+          "ms": 832.911
+        },
+        {
+          "binary": "zero",
+          "ms": 832.41
+        }
+      ],
+      "medians_ms": {
+        "before": 916.721,
+        "full": 831.069,
+        "zero": 832.41
+      }
+    },
+    {
+      "scene": "rain",
+      "runs": [
+        {
+          "binary": "before",
+          "ms": 1333.25
+        },
+        {
+          "binary": "full",
+          "ms": 1305.18
+        },
+        {
+          "binary": "zero",
+          "ms": 1327.64
+        },
+        {
+          "binary": "zero",
+          "ms": 1364.48
+        },
+        {
+          "binary": "full",
+          "ms": 1302.25
+        },
+        {
+          "binary": "before",
+          "ms": 1332.82
+        },
+        {
+          "binary": "before",
+          "ms": 1367.94
+        },
+        {
+          "binary": "full",
+          "ms": 1355.42
+        },
+        {
+          "binary": "zero",
+          "ms": 1335.8
+        }
+      ],
+      "medians_ms": {
+        "before": 1333.25,
+        "full": 1305.18,
+        "zero": 1335.8
+      }
+    }
+  ],
+  "joint_matrix_skip": [
+    {
+      "scene": "joint_grid",
+      "runs": [
+        {
+          "binary": "before",
+          "ms": 907.381
+        },
+        {
+          "binary": "zero",
+          "ms": 825.596
+        },
+        {
+          "binary": "skip",
+          "ms": 734.874
+        },
+        {
+          "binary": "skip",
+          "ms": 741.553
+        },
+        {
+          "binary": "zero",
+          "ms": 841.262
+        },
+        {
+          "binary": "before",
+          "ms": 913.374
+        },
+        {
+          "binary": "before",
+          "ms": 911.219
+        },
+        {
+          "binary": "zero",
+          "ms": 839.575
+        },
+        {
+          "binary": "skip",
+          "ms": 741.154
+        }
+      ],
+      "medians_ms": {
+        "before": 911.219,
+        "zero": 839.575,
+        "skip": 741.154
+      }
+    },
+    {
+      "scene": "rain",
+      "runs": [
+        {
+          "binary": "before",
+          "ms": 1413.15
+        },
+        {
+          "binary": "zero",
+          "ms": 1375.42
+        },
+        {
+          "binary": "skip",
+          "ms": 1369.48
+        },
+        {
+          "binary": "skip",
+          "ms": 1334.24
+        },
+        {
+          "binary": "zero",
+          "ms": 1333.14
+        },
+        {
+          "binary": "before",
+          "ms": 1339.55
+        },
+        {
+          "binary": "before",
+          "ms": 1386.84
+        },
+        {
+          "binary": "zero",
+          "ms": 1390.0
+        },
+        {
+          "binary": "skip",
+          "ms": 1406.79
+        }
+      ],
+      "medians_ms": {
+        "before": 1386.84,
+        "zero": 1375.42,
+        "skip": 1369.48
+      }
+    }
+  ],
+  "support_aabb_experiment": {
+    "method": "Three runs per binary, before/after/after/before/before/after, four workers; source-only hull support scan candidate.",
+    "sha256": {
+      "before": "50ebf495cb0afc025f2ab9fbef1c819ad69afe96be7efcbcf5f869a220ab501b",
+      "after": "ae6b48fe6bb71a4b6c343111704b6953e89bf097b98976b960fde19548c736c5"
+    },
+    "rows": [
+      {
+        "scene": "convex_pile",
+        "runs": [
+          {
+            "binary": "before",
+            "ms": 10721.1,
+            "counters": "body 5121 / shape 5121 / contact 51305 / joint 0 / stack 6219776"
+          },
+          {
+            "binary": "after",
+            "ms": 10481.6,
+            "counters": "body 5121 / shape 5121 / contact 51305 / joint 0 / stack 6219776"
+          },
+          {
+            "binary": "after",
+            "ms": 10473.6,
+            "counters": "body 5121 / shape 5121 / contact 51305 / joint 0 / stack 6219776"
+          },
+          {
+            "binary": "before",
+            "ms": 10768.4,
+            "counters": "body 5121 / shape 5121 / contact 51305 / joint 0 / stack 6219776"
+          },
+          {
+            "binary": "before",
+            "ms": 10797.7,
+            "counters": "body 5121 / shape 5121 / contact 51305 / joint 0 / stack 6219776"
+          },
+          {
+            "binary": "after",
+            "ms": 10424.6,
+            "counters": "body 5121 / shape 5121 / contact 51305 / joint 0 / stack 6219776"
+          }
+        ],
+        "medians_ms": {
+          "before": 10768.4,
+          "after": 10473.6
+        },
+        "runtime_change_percent": -2.7376397607815406
+      },
+      {
+        "scene": "junkyard",
+        "runs": [
+          {
+            "binary": "before",
+            "ms": 8993.52,
+            "counters": "body 10586 / shape 10590 / contact 195788 / joint 0 / stack 28761008"
+          },
+          {
+            "binary": "after",
+            "ms": 8983.24,
+            "counters": "body 10586 / shape 10590 / contact 195788 / joint 0 / stack 28761008"
+          },
+          {
+            "binary": "after",
+            "ms": 8988.07,
+            "counters": "body 10586 / shape 10590 / contact 195788 / joint 0 / stack 28761008"
+          },
+          {
+            "binary": "before",
+            "ms": 9016.9,
+            "counters": "body 10586 / shape 10590 / contact 195788 / joint 0 / stack 28761008"
+          },
+          {
+            "binary": "before",
+            "ms": 9039.42,
+            "counters": "body 10586 / shape 10590 / contact 195788 / joint 0 / stack 28761008"
+          },
+          {
+            "binary": "after",
+            "ms": 9033.73,
+            "counters": "body 10586 / shape 10590 / contact 195788 / joint 0 / stack 28761008"
+          }
+        ],
+        "medians_ms": {
+          "before": 9016.9,
+          "after": 8988.07
+        },
+        "runtime_change_percent": -0.3197329459126763
+      },
+      {
+        "scene": "trees25",
+        "runs": [
+          {
+            "binary": "before",
+            "ms": 393.665,
+            "counters": "body 51 / shape 1101 / contact 1104 / joint 0 / stack 572528"
+          },
+          {
+            "binary": "after",
+            "ms": 394.507,
+            "counters": "body 51 / shape 1101 / contact 1104 / joint 0 / stack 572528"
+          },
+          {
+            "binary": "after",
+            "ms": 388.781,
+            "counters": "body 51 / shape 1101 / contact 1104 / joint 0 / stack 572528"
+          },
+          {
+            "binary": "before",
+            "ms": 398.324,
+            "counters": "body 51 / shape 1101 / contact 1104 / joint 0 / stack 572528"
+          },
+          {
+            "binary": "before",
+            "ms": 410.788,
+            "counters": "body 51 / shape 1101 / contact 1104 / joint 0 / stack 572528"
+          },
+          {
+            "binary": "after",
+            "ms": 408.697,
+            "counters": "body 51 / shape 1101 / contact 1104 / joint 0 / stack 572528"
+          }
+        ],
+        "medians_ms": {
+          "before": 398.324,
+          "after": 394.507
+        },
+        "runtime_change_percent": -0.9582651308984613
+      },
+      {
+        "scene": "rain",
+        "runs": [
+          {
+            "binary": "before",
+            "ms": 1366.29,
+            "counters": "body 4300 / shape 4400 / contact 7019 / joint 4200 / stack 1731680"
+          },
+          {
+            "binary": "after",
+            "ms": 1343.5,
+            "counters": "body 4300 / shape 4400 / contact 7019 / joint 4200 / stack 1731680"
+          },
+          {
+            "binary": "after",
+            "ms": 1333.3,
+            "counters": "body 4300 / shape 4400 / contact 7019 / joint 4200 / stack 1731680"
+          },
+          {
+            "binary": "before",
+            "ms": 1360.64,
+            "counters": "body 4300 / shape 4400 / contact 7019 / joint 4200 / stack 1731680"
+          },
+          {
+            "binary": "before",
+            "ms": 1375.62,
+            "counters": "body 4300 / shape 4400 / contact 7019 / joint 4200 / stack 1731680"
+          },
+          {
+            "binary": "after",
+            "ms": 1353.26,
+            "counters": "body 4300 / shape 4400 / contact 7019 / joint 4200 / stack 1731680"
+          }
+        ],
+        "medians_ms": {
+          "before": 1366.29,
+          "after": 1343.5
+        },
+        "runtime_change_percent": -1.6680206983876067
+      },
+      {
+        "scene": "large_world",
+        "runs": [
+          {
+            "binary": "before",
+            "ms": 24.618,
+            "counters": "body 1000099 / shape 1000099 / contact 380 / joint 0 / stack 520000000"
+          },
+          {
+            "binary": "after",
+            "ms": 24.2854,
+            "counters": "body 1000099 / shape 1000099 / contact 380 / joint 0 / stack 520000000"
+          },
+          {
+            "binary": "after",
+            "ms": 24.755,
+            "counters": "body 1000099 / shape 1000099 / contact 380 / joint 0 / stack 520000000"
+          },
+          {
+            "binary": "before",
+            "ms": 28.7899,
+            "counters": "body 1000099 / shape 1000099 / contact 380 / joint 0 / stack 520000000"
+          },
+          {
+            "binary": "before",
+            "ms": 25.3817,
+            "counters": "body 1000099 / shape 1000099 / contact 380 / joint 0 / stack 520000000"
+          },
+          {
+            "binary": "after",
+            "ms": 24.6091,
+            "counters": "body 1000099 / shape 1000099 / contact 380 / joint 0 / stack 520000000"
+          }
+        ],
+        "medians_ms": {
+          "before": 25.3817,
+          "after": 24.6091
+        },
+        "runtime_change_percent": -3.043925347789933
+      }
+    ]
+  },
+  "support_vertex_bound_experiment": [
+    {
+      "scene": "convex_pile",
+      "runs": [
+        {
+          "binary": "before",
+          "ms": 10817.7
+        },
+        {
+          "binary": "after",
+          "ms": 10635.4
+        },
+        {
+          "binary": "after",
+          "ms": 10634.2
+        },
+        {
+          "binary": "before",
+          "ms": 10797.0
+        },
+        {
+          "binary": "before",
+          "ms": 10738.3
+        },
+        {
+          "binary": "after",
+          "ms": 10601.4
+        }
+      ],
+      "medians_ms": {
+        "before": 10797.0,
+        "after": 10634.2
+      }
+    },
+    {
+      "scene": "junkyard",
+      "runs": [
+        {
+          "binary": "before",
+          "ms": 9240.33
+        },
+        {
+          "binary": "after",
+          "ms": 9105.5
+        },
+        {
+          "binary": "after",
+          "ms": 9173.67
+        },
+        {
+          "binary": "before",
+          "ms": 9261.41
+        },
+        {
+          "binary": "before",
+          "ms": 9239.8
+        },
+        {
+          "binary": "after",
+          "ms": 9127.87
+        }
+      ],
+      "medians_ms": {
+        "before": 9240.33,
+        "after": 9127.87
+      }
+    }
+  ],
+  "profiles": {
+    "new_scalar-convex_pile": "Sort by top of stack, same collapsed (when >= 5):\n        b3QueryEdgeDirections  (in benchmark-new_scalar)        18250\n        b3QueryFaceDirections  (in benchmark-new_scalar)        4686\n        b3DynamicTree_Query  (in benchmark-new_scalar)        1366\n        b3CollideHulls  (in benchmark-new_scalar)        961\n        b3SolveContacts_Convex  (in benchmark-new_scalar)        928\n        b3InvMulWorldTransforms  (in benchmark-new_scalar)        717\n        semaphore_wait_trap  (in libsystem_kernel.dylib)        627\n        b3TestEdgePair  (in benchmark-new_scalar)        613\n        b3ExecuteBlock  (in benchmark-new_scalar)        470\n        b3PrepareContacts_Convex  (in benchmark-new_scalar)        460\n        b3UpdateConvexContact  (in benchmark-new_scalar)        392\n        b3CollideTask  (in benchmark-new_scalar)        354\n        swtch_pri  (in libsystem_kernel.dylib)        311\n        __udivmodti4  (in libcompiler_rt.dylib)        277\n        <deduplicated_symbol>  (in benchmark-new_scalar)        242\n        b3PairQueryCallback  (in benchmark-new_scalar)        210\n        b3ClipPolygon  (in benchmark-new_scalar)        204\n        b3BuildFaceAContact  (in benchmark-new_scalar)        198\n        b3WarmStartContacts_Convex  (in benchmark-new_scalar)        188\n        b3GatherBodies  (in benchmark-new_scalar)        169\n        b3FindIncidentFace  (in benchmark-new_scalar)        117\n        b3FinalizeBodiesTask  (in benchmark-new_scalar)        109\n        b3MakeMatrixFromQuatW  (in benchmark-new_scalar)        109\n        b3DynamicTree_EnlargeProxy  (in benchmark-new_scalar)        69\n        b3UpdateContact  (in benchmark-new_scalar)        62\n        b3InvMulSubMVW  (in benchmark-new_scalar)        51\n        b3StoreImpulses_Convex  (in benchmark-new_scalar)        49\n        b3SolverTask  (in benchmark-new_scalar)        45\n        b3InvMulAddMVW  (in benchmark-new_scalar)        40\n        fixNormalizeQuat  (in benchmark-new_scalar)        40\n        b3MulMM  (in benchmark-new_scalar)        38\n        __divti3  (in libcompiler_rt.dylib)        36\n        b3DynamicTree_Rebuild  (in benchmark-new_scalar)        32\n        b3AABB_Transform  (in benchmark-new_scalar)        31\n        b3BuildFaceBContact  (in benchmark-new_scalar)        30\n        b3PartitionMid  (in benchmark-new_scalar)        27\n        b3RelVelocityW  (in benchmark-new_scalar)        26\n        DYLD-STUB$$__divti3  (in benchmark-new_scalar)        20\n        b3SolveContinuous  (in benchmark-new_scalar)        19\n        b3World_Step  (in benchmark-new_scalar)        18\n        b3RemoveKey  (in benchmark-new_scalar)        14\n        mach_absolute_time  (in libsystem_kernel.dylib)        14\n        _platform_memmove  (in libsystem_platform.dylib)        13\n        b3AddKey  (in benchmark-new_scalar)        12\n        b3CreateContact  (in benchmark-new_scalar)        7\n        b3SqrtW  (in benchmark-new_scalar)        6\n        ___chkstk_darwin  (in libsystem_pthread.dylib)        5\n        b3ExecuteStage  (in benchmark-new_scalar)        5\n        b3FindPairsTask  (in benchmark-new_scalar)        5\n        b3UpdateBroadPhasePairs  (in benchmark-new_scalar)        5",
+    "new_neon-convex_pile": "Sort by top of stack, same collapsed (when >= 5):\n        b3QueryEdgeDirections  (in benchmark-new_neon)        11251\n        b3FindHullSupportVertex  (in benchmark-new_neon)        4411\n        b3DynamicTree_Query  (in benchmark-new_neon)        2177\n        b3TestEdgePair  (in benchmark-new_neon)        2056\n        b3SolveContacts_Convex  (in benchmark-new_neon)        1391\n        b3QueryFaceDirections  (in benchmark-new_neon)        1169\n        b3InvMulWorldTransforms  (in benchmark-new_neon)        1047\n        semaphore_wait_trap  (in libsystem_kernel.dylib)        1023\n        b3ExecuteBlock  (in benchmark-new_neon)        987\n        b3PrepareContacts_Convex  (in benchmark-new_neon)        734\n        b3UpdateConvexContact  (in benchmark-new_neon)        551\n        b3CollideTask  (in benchmark-new_neon)        547\n        swtch_pri  (in libsystem_kernel.dylib)        512\n        b3CollideHulls  (in benchmark-new_neon)        475\n        __udivmodti4  (in libcompiler_rt.dylib)        444\n        <deduplicated_symbol>  (in benchmark-new_neon)        432\n        b3ClipPolygon  (in benchmark-new_neon)        330\n        b3BuildFaceAContact  (in benchmark-new_neon)        326\n        b3WarmStartContacts_Convex  (in benchmark-new_neon)        309\n        b3PairQueryCallback  (in benchmark-new_neon)        305\n        b3GatherBodies  (in benchmark-new_neon)        256\n        b3MakeMatrixFromQuatW  (in benchmark-new_neon)        184\n        b3FinalizeBodiesTask  (in benchmark-new_neon)        175\n        b3FindIncidentFace  (in benchmark-new_neon)        172\n        b3DynamicTree_EnlargeProxy  (in benchmark-new_neon)        126\n        b3InvMulSubMVW  (in benchmark-new_neon)        108\n        b3UpdateContact  (in benchmark-new_neon)        90\n        b3InvMulAddMVW  (in benchmark-new_neon)        84\n        b3SolverTask  (in benchmark-new_neon)        84\n        b3StoreImpulses_Convex  (in benchmark-new_neon)        73\n        b3MulMM  (in benchmark-new_neon)        67\n        b3AABB_Transform  (in benchmark-new_neon)        61\n        b3PartitionMid  (in benchmark-new_neon)        58\n        DYLD-STUB$$__divti3  (in benchmark-new_neon)        56\n        __divti3  (in libcompiler_rt.dylib)        54\n        fixNormalizeQuat  (in benchmark-new_neon)        53\n        b3DynamicTree_Rebuild  (in benchmark-new_neon)        49\n        b3RelVelocityW  (in benchmark-new_neon)        46\n        b3BuildFaceBContact  (in benchmark-new_neon)        40\n        b3RemoveKey  (in benchmark-new_neon)        25\n        b3World_Step  (in benchmark-new_neon)        24\n        mach_absolute_time  (in libsystem_kernel.dylib)        23\n        _platform_memmove  (in libsystem_platform.dylib)        18\n        b3SolveContinuous  (in benchmark-new_neon)        17\n        b3Perp  (in benchmark-new_neon)        16\n        b3AddKey  (in benchmark-new_neon)        15\n        b3UpdateBroadPhasePairs  (in benchmark-new_neon)        14\n        b3CreateContact  (in benchmark-new_neon)        13\n        b3Solve  (in benchmark-new_neon)        13\n        b3ExecuteStage  (in benchmark-new_neon)        11\n        b3SqrtW  (in benchmark-new_neon)        11\n        b3AllocateNode  (in benchmark-new_neon)        9\n        ___chkstk_darwin  (in libsystem_pthread.dylib)        8\n        semaphore_signal_trap  (in libsystem_kernel.dylib)        8\n        __psynch_mutexwait  (in libsystem_kernel.dylib)        6\n        b3LinkContact  (in benchmark-new_neon)        5",
+    "new_neon-rain": "Sort by top of stack, same collapsed (when >= 5):\n        b3SolveSphericalJoint  (in benchmark-new_neon)        7004\n        b3SolveRevoluteJoint  (in benchmark-new_neon)        3121\n        b3MulMM  (in benchmark-new_neon)        2283\n        fixDivShifted256  (in benchmark-new_neon)        2231\n        b3ExecuteBlock  (in benchmark-new_neon)        2125\n        swtch_pri  (in libsystem_kernel.dylib)        1978\n        __udivmodti4  (in libcompiler_rt.dylib)        1376\n        b3DynamicTree_Query  (in benchmark-new_neon)        1351\n        semaphore_wait_trap  (in libsystem_kernel.dylib)        1260\n        b3SolveContacts_Mesh  (in benchmark-new_neon)        897\n        b3WarmStartSphericalJoint  (in benchmark-new_neon)        750\n        b3SolveContacts_Convex  (in benchmark-new_neon)        668\n        b3CollideTask  (in benchmark-new_neon)        508\n        b3PrepareSphericalJoint  (in benchmark-new_neon)        506\n        b3SolverTask  (in benchmark-new_neon)        470\n        b3InvMulWorldTransforms  (in benchmark-new_neon)        441\n        b3PairQueryCallback  (in benchmark-new_neon)        436\n        b3FinalizeBodiesTask  (in benchmark-new_neon)        401\n        b3PrepareContacts_Convex  (in benchmark-new_neon)        296\n        b3GatherBodies  (in benchmark-new_neon)        283\n        fixDivShiftedWide  (in benchmark-new_neon)        283\n        b3WarmStartRevoluteJoint  (in benchmark-new_neon)        274\n        b3WarmStartContacts_Mesh  (in benchmark-new_neon)        242\n        mach_absolute_time  (in libsystem_kernel.dylib)        207\n        b3MakeMatrixFromQuatW  (in benchmark-new_neon)        179\n        b3DynamicTree_EnlargeProxy  (in benchmark-new_neon)        178\n        b3WarmStartContacts_Convex  (in benchmark-new_neon)        177\n        fixNormalizeQuat  (in benchmark-new_neon)        166\n        b3PrepareRevoluteJoint  (in benchmark-new_neon)        135\n        b3SolveContinuous  (in benchmark-new_neon)        135\n        b3PartitionMid  (in benchmark-new_neon)        114\n        b3ComputeCapsuleAABB  (in benchmark-new_neon)        113\n        b3InvMulSubMVW  (in benchmark-new_neon)        107\n        DYLD-STUB$$__udivti3  (in benchmark-new_neon)        106\n        b3InvMulAddMVW  (in benchmark-new_neon)        102\n        b3PrepareContacts_Mesh  (in benchmark-new_neon)        98\n        b3ExecuteStage  (in benchmark-new_neon)        97\n        b3ShapeDistance  (in benchmark-new_neon)        90\n        b3ComputeMeshManifolds  (in benchmark-new_neon)        87\n        b3SolveJoint  (in benchmark-new_neon)        87\n        b3DynamicTree_Rebuild  (in benchmark-new_neon)        80\n        b3TestBoundsTriangleOverlap  (in benchmark-new_neon)        66\n        b3SegmentDistance  (in benchmark-new_neon)        60\n        <deduplicated_symbol>  (in benchmark-new_neon)        57\n        b3CollideCapsules  (in benchmark-new_neon)        57\n        b3QueryMesh  (in benchmark-new_neon)        55\n        DYLD-STUB$$__divti3  (in benchmark-new_neon)        52\n        b3UpdateConvexContact  (in benchmark-new_neon)        52\n        __divti3  (in libcompiler_rt.dylib)        48\n        b3InvertAcrossScales  (in benchmark-new_neon)        46\n        b3ShouldBodiesCollide  (in benchmark-new_neon)        45\n        b3RelVelocityW  (in benchmark-new_neon)        43\n        b3StoreImpulses_Convex  (in benchmark-new_neon)        38\n        b3PrepareJoint  (in benchmark-new_neon)        32\n        b3SqrtW  (in benchmark-new_neon)        31\n        b3GetSweepTransform  (in benchmark-new_neon)        30\n        b3UpdateContact  (in benchmark-new_neon)        27\n        b3BarycentricCoordsTri  (in benchmark-new_neon)        26\n        b3Solve  (in benchmark-new_neon)        26\n        cthread_yield  (in libsystem_pthread.dylib)        23\n        b3TimeOfImpact  (in benchmark-new_neon)        20\n        b3ComputeSweptCapsuleAABB  (in benchmark-new_neon)        19\n        b3WarmStartJoint  (in benchmark-new_neon)        19\n        semaphore_signal_trap  (in libsystem_kernel.dylib)        19\n        b3CollideTriangleAndCapsule  (in benchmark-new_neon)        18\n        DYLD-STUB$$sched_yield  (in benchmark-new_neon)        17\n        ___chkstk_darwin  (in libsystem_pthread.dylib)        17\n        b3ClipSegmentToTriangleFace  (in benchmark-new_neon)        17\n        b3Perp  (in benchmark-new_neon)        17\n        b3ShapeTimeOfImpact  (in benchmark-new_neon)        17\n        _platform_memmove  (in libsystem_platform.dylib)        14\n        b3GetProxySupport  (in benchmark-new_neon)        14\n        b3StoreImpulses_Mesh  (in benchmark-new_neon)        14\n        b3UpdateBroadPhasePairs  (in benchmark-new_neon)        13\n        b3World_Step  (in benchmark-new_neon)        13\n        b3CreateContact  (in benchmark-new_neon)        12\n        b3AABB_Transform  (in benchmark-new_neon)        11\n        b3ComputeShapeAABB  (in benchmark-new_neon)        11\n        DYLD-STUB$$swtch_pri  (in libsystem_pthread.dylib)        9\n        _platform_memset  (in libsystem_platform.dylib)        9\n        b3AllocateNode  (in benchmark-new_neon)        9\n        b3InsertLeaf  (in benchmark-new_neon)        9\n        b3RemoveKey  (in benchmark-new_neon)        9\n        __psynch_mutexwait  (in libsystem_kernel.dylib)        7\n        b3AddKey  (in benchmark-new_neon)        6\n        b3FindPairsTask  (in benchmark-new_neon)        6\n        b3GetMeshTriangle  (in benchmark-new_neon)        6\n        b3BarycentricCoordsTet  (in benchmark-new_neon)        5\n        b3ComputeWitnessPoints  (in benchmark-new_neon)        5"
+  },
+  "visual_exact": {
+    "created_utc": "2026-09-07T22:03:36.665542+00:00",
+    "frames": 120,
+    "nominal_hz": 60,
+    "repeat": 2,
+    "match": "^(Joints/|Collision/(Shape Distance|Distance Debug)$|Stacking/Box Stack$|Determinism/Falling Ragdolls$)",
+    "no_axes": true,
+    "builds": {
+      "fixed": {
+        "binary_sha256": "b41b0bbbe498058ab9abc4baf4fd2f09d3d1f086ebc4c53d86b82ef6baf41149",
+        "samples": {
+          "Benchmark/Candy Cups": 0,
+          "Benchmark/Chains": 1,
+          "Benchmark/Convex Pile": 2,
+          "Benchmark/Destruction": 3,
+          "Benchmark/Explosion": 4,
+          "Benchmark/Falling Boxes": 5,
+          "Benchmark/Falling Trees": 6,
+          "Benchmark/Height Field": 7,
+          "Benchmark/Hull": 8,
+          "Benchmark/Joint Grid": 9,
+          "Benchmark/Junkyard": 10,
+          "Benchmark/Large Pyramid": 11,
+          "Benchmark/Large World": 12,
+          "Benchmark/Many Pyramids": 13,
+          "Benchmark/Rain": 14,
+          "Benchmark/Sensor": 15,
+          "Benchmark/Washer": 16,
+          "Benchmark/Wide Pyramid": 17,
+          "Bodies/Body Type": 18,
+          "Bodies/Cast": 19,
+          "Bodies/Disable": 20,
+          "Bodies/Fixed Rotation": 21,
+          "Bodies/Gyroscopic Precession": 22,
+          "Bodies/Gyroscopic Torque": 23,
+          "Bodies/Kinematic": 24,
+          "Bodies/Lock Mixing": 25,
+          "Bodies/Spinning Book": 26,
+          "Bodies/Weeble": 27,
+          "Character/CapsulePlane": 28,
+          "Character/Mover": 29,
+          "Character/MoverOverlap": 30,
+          "Character/Rigid Body": 31,
+          "Collision/Capsule Cast Ray": 32,
+          "Collision/Cast World": 33,
+          "Collision/Distance Debug": 34,
+          "Collision/Initial Overlap": 35,
+          "Collision/Long Ray Cast": 36,
+          "Collision/Mesh Scale": 37,
+          "Collision/Overlap World": 38,
+          "Collision/Ray Curtain": 39,
+          "Collision/Shape Cast": 40,
+          "Collision/Shape Cast Debug": 41,
+          "Collision/Shape Distance": 42,
+          "Collision/Time of Impact": 43,
+          "Compound/Hulls": 44,
+          "Compound/Mesh Tile": 45,
+          "Compound/Simple": 46,
+          "Compound/Spheres": 47,
+          "Compound/Tile Floor": 48,
+          "Compound/Village": 49,
+          "Continuous/Bounce House": 50,
+          "Continuous/Bullet vs Stack": 51,
+          "Continuous/Hump Mesh": 52,
+          "Continuous/Is Fast": 53,
+          "Continuous/Mesh Drop": 54,
+          "Continuous/Needle Mesh": 55,
+          "Continuous/Spinning Stick": 56,
+          "Continuous/Stall": 57,
+          "Continuous/Thin Wall": 58,
+          "Determinism/Falling Ragdolls": 59,
+          "Determinism/Mesh Drop": 60,
+          "Determinism/Query Spawn": 61,
+          "Determinism/Wave Pile": 62,
+          "Events/Hit": 63,
+          "Events/Joint": 64,
+          "Events/Move": 65,
+          "Events/Persistent Contact": 66,
+          "Events/Sensor Hits": 67,
+          "Events/Sensor Visit": 68,
+          "Geometry/Box Hull": 69,
+          "Geometry/Capsule Mass": 70,
+          "Geometry/Hull": 71,
+          "Geometry/Hull Reduction": 72,
+          "Geometry/Hull Transform": 73,
+          "Issues/Capsule Mesh": 74,
+          "Issues/Convex Jitter": 75,
+          "Issues/Crash": 76,
+          "Issues/GMod Wheel Stack": 77,
+          "Issues/Hull Crash": 78,
+          "Issues/Multiple Prismatic": 79,
+          "Issues/Restitution Overshoot": 80,
+          "Issues/Slide Twist Off Center Shape": 81,
+          "Issues/s&box Ghost Collisions": 82,
+          "Issues/s&box mover": 83,
+          "Joints/Ball and Chain": 84,
+          "Joints/Bridge": 85,
+          "Joints/Distance Joint": 86,
+          "Joints/Door": 87,
+          "Joints/Driving": 88,
+          "Joints/Filter": 89,
+          "Joints/Gear Lift": 90,
+          "Joints/Motion Locks": 91,
+          "Joints/Motor Joint": 92,
+          "Joints/Parallel Spring": 93,
+          "Joints/Prismatic": 94,
+          "Joints/Revolute": 95,
+          "Joints/Spherical": 96,
+          "Joints/Top Down Friction": 97,
+          "Joints/Weld": 98,
+          "Joints/Wheel": 99,
+          "Manifold/Capsule vs Capsule": 100,
+          "Manifold/Capsule vs Hull": 101,
+          "Manifold/Capsule vs Sphere": 102,
+          "Manifold/Hull vs Hull": 103,
+          "Manifold/Hull vs Sphere": 104,
+          "Manifold/Sphere vs Sphere": 105,
+          "Manifold/Triangle vs Capsule": 106,
+          "Manifold/Triangle vs Hull": 107,
+          "Manifold/Triangle vs Sphere": 108,
+          "Mesh/Big Box": 109,
+          "Mesh/Box": 110,
+          "Mesh/Creation Benchmark": 111,
+          "Mesh/Grid": 112,
+          "Mesh/Height Field": 113,
+          "Mesh/Hollow Box": 114,
+          "Mesh/Reflection": 115,
+          "Mesh/Viewer": 116,
+          "Mesh/Voxel": 117,
+          "Ragdoll/Box": 118,
+          "Ragdoll/Incline": 119,
+          "Ragdoll/Mesh": 120,
+          "Ragdoll/Pile": 121,
+          "Replay/Viewer": 122,
+          "Robustness/HighMassRatio1": 123,
+          "Robustness/Overflow Color Pile": 124,
+          "Robustness/Overlap Recovery": 125,
+          "Robustness/Tiny Pyramid": 126,
+          "Shapes/Conveyor Belt": 127,
+          "Shapes/Conveyor Mesh": 128,
+          "Shapes/High Resistance": 129,
+          "Shapes/Inclined Plane": 130,
+          "Shapes/Isotropic Friction": 131,
+          "Shapes/Restitution": 132,
+          "Shapes/Rolling Resistance": 133,
+          "Shapes/Slide Twist": 134,
+          "Shapes/Static Invoke": 135,
+          "Shapes/Wind": 136,
+          "Shapes/Wind Drop": 137,
+          "Shapes/Wind Flap": 138,
+          "Stacking/Arch": 139,
+          "Stacking/Box Stack": 140,
+          "Stacking/Capsule Stack": 141,
+          "Stacking/Card House": 142,
+          "Stacking/Cylinder": 143,
+          "Stacking/Cylinder Stack": 144,
+          "Stacking/Dominoes": 145,
+          "Stacking/Double Domino": 146,
+          "Stacking/Edge Crossing": 147,
+          "Stacking/Jenga Stack": 148,
+          "Stacking/Pyramid2D": 149,
+          "Stacking/Single Box": 150,
+          "Stacking/Sphere Stack": 151,
+          "Stacking/Wedge": 152,
+          "Tree/Benchmark": 153,
+          "World/Far Mesh Drop": 154,
+          "World/Far Pyramid": 155,
+          "World/Far Ragdolls": 156,
+          "World/Far Stack": 157
+        }
+      },
+      "float": {
+        "binary_sha256": "869b63e3e0300b14101a5df2c3716a8b5df8a439e6bf854731c308b0d5892977",
+        "samples": {
+          "Benchmark/Candy Cups": 0,
+          "Benchmark/Chains": 1,
+          "Benchmark/Convex Pile": 2,
+          "Benchmark/Destruction": 3,
+          "Benchmark/Explosion": 4,
+          "Benchmark/Falling Boxes": 5,
+          "Benchmark/Falling Trees": 6,
+          "Benchmark/Height Field": 7,
+          "Benchmark/Hull": 8,
+          "Benchmark/Joint Grid": 9,
+          "Benchmark/Junkyard": 10,
+          "Benchmark/Large Pyramid": 11,
+          "Benchmark/Large World": 12,
+          "Benchmark/Many Pyramids": 13,
+          "Benchmark/Rain": 14,
+          "Benchmark/Sensor": 15,
+          "Benchmark/Washer": 16,
+          "Benchmark/Wide Pyramid": 17,
+          "Bodies/Body Type": 18,
+          "Bodies/Cast": 19,
+          "Bodies/Disable": 20,
+          "Bodies/Fixed Rotation": 21,
+          "Bodies/Gyroscopic Precession": 22,
+          "Bodies/Gyroscopic Torque": 23,
+          "Bodies/Kinematic": 24,
+          "Bodies/Lock Mixing": 25,
+          "Bodies/Spinning Book": 26,
+          "Bodies/Weeble": 27,
+          "Character/CapsulePlane": 28,
+          "Character/Mover": 29,
+          "Character/MoverOverlap": 30,
+          "Character/Rigid Body": 31,
+          "Collision/Capsule Cast Ray": 32,
+          "Collision/Cast World": 33,
+          "Collision/Distance Debug": 34,
+          "Collision/Initial Overlap": 35,
+          "Collision/Long Ray Cast": 36,
+          "Collision/Mesh Scale": 37,
+          "Collision/Overlap World": 38,
+          "Collision/Ray Curtain": 39,
+          "Collision/Shape Cast": 40,
+          "Collision/Shape Cast Debug": 41,
+          "Collision/Shape Distance": 42,
+          "Collision/Time of Impact": 43,
+          "Compound/Hulls": 44,
+          "Compound/Mesh Tile": 45,
+          "Compound/Simple": 46,
+          "Compound/Spheres": 47,
+          "Compound/Tile Floor": 48,
+          "Compound/Village": 49,
+          "Continuous/Bounce House": 50,
+          "Continuous/Bullet vs Stack": 51,
+          "Continuous/Hump Mesh": 52,
+          "Continuous/Is Fast": 53,
+          "Continuous/Mesh Drop": 54,
+          "Continuous/Needle Mesh": 55,
+          "Continuous/Spinning Stick": 56,
+          "Continuous/Stall": 57,
+          "Continuous/Thin Wall": 58,
+          "Determinism/Falling Ragdolls": 59,
+          "Determinism/Mesh Drop": 60,
+          "Determinism/Query Spawn": 61,
+          "Determinism/Wave Pile": 62,
+          "Events/Hit": 63,
+          "Events/Joint": 64,
+          "Events/Move": 65,
+          "Events/Persistent Contact": 66,
+          "Events/Sensor Hits": 67,
+          "Events/Sensor Visit": 68,
+          "Geometry/Box Hull": 69,
+          "Geometry/Capsule Mass": 70,
+          "Geometry/Hull": 71,
+          "Geometry/Hull Reduction": 72,
+          "Geometry/Hull Transform": 73,
+          "Issues/Capsule Mesh": 74,
+          "Issues/Convex Jitter": 75,
+          "Issues/Crash": 76,
+          "Issues/GMod Wheel Stack": 77,
+          "Issues/Hull Crash": 78,
+          "Issues/Multiple Prismatic": 79,
+          "Issues/Restitution Overshoot": 80,
+          "Issues/Slide Twist Off Center Shape": 81,
+          "Issues/s&box Ghost Collisions": 82,
+          "Issues/s&box mover": 83,
+          "Joints/Ball and Chain": 84,
+          "Joints/Bridge": 85,
+          "Joints/Distance Joint": 86,
+          "Joints/Door": 87,
+          "Joints/Driving": 88,
+          "Joints/Filter": 89,
+          "Joints/Gear Lift": 90,
+          "Joints/Motion Locks": 91,
+          "Joints/Motor Joint": 92,
+          "Joints/Parallel Spring": 93,
+          "Joints/Prismatic": 94,
+          "Joints/Revolute": 95,
+          "Joints/Spherical": 96,
+          "Joints/Top Down Friction": 97,
+          "Joints/Weld": 98,
+          "Joints/Wheel": 99,
+          "Manifold/Capsule vs Capsule": 100,
+          "Manifold/Capsule vs Hull": 101,
+          "Manifold/Capsule vs Sphere": 102,
+          "Manifold/Hull vs Hull": 103,
+          "Manifold/Hull vs Sphere": 104,
+          "Manifold/Sphere vs Sphere": 105,
+          "Manifold/Triangle vs Capsule": 106,
+          "Manifold/Triangle vs Hull": 107,
+          "Manifold/Triangle vs Sphere": 108,
+          "Mesh/Big Box": 109,
+          "Mesh/Box": 110,
+          "Mesh/Creation Benchmark": 111,
+          "Mesh/Grid": 112,
+          "Mesh/Height Field": 113,
+          "Mesh/Hollow Box": 114,
+          "Mesh/Reflection": 115,
+          "Mesh/Viewer": 116,
+          "Mesh/Voxel": 117,
+          "Ragdoll/Box": 118,
+          "Ragdoll/Incline": 119,
+          "Ragdoll/Mesh": 120,
+          "Ragdoll/Pile": 121,
+          "Replay/Viewer": 122,
+          "Robustness/HighMassRatio1": 123,
+          "Robustness/Overflow Color Pile": 124,
+          "Robustness/Overlap Recovery": 125,
+          "Robustness/Tiny Pyramid": 126,
+          "Shapes/Conveyor Belt": 127,
+          "Shapes/Conveyor Mesh": 128,
+          "Shapes/High Resistance": 129,
+          "Shapes/Inclined Plane": 130,
+          "Shapes/Isotropic Friction": 131,
+          "Shapes/Restitution": 132,
+          "Shapes/Rolling Resistance": 133,
+          "Shapes/Slide Twist": 134,
+          "Shapes/Static Invoke": 135,
+          "Shapes/Wind": 136,
+          "Shapes/Wind Drop": 137,
+          "Shapes/Wind Flap": 138,
+          "Stacking/Arch": 139,
+          "Stacking/Box Stack": 140,
+          "Stacking/Capsule Stack": 141,
+          "Stacking/Card House": 142,
+          "Stacking/Cylinder": 143,
+          "Stacking/Cylinder Stack": 144,
+          "Stacking/Dominoes": 145,
+          "Stacking/Double Domino": 146,
+          "Stacking/Edge Crossing": 147,
+          "Stacking/Jenga Stack": 148,
+          "Stacking/Pyramid2D": 149,
+          "Stacking/Single Box": 150,
+          "Stacking/Sphere Stack": 151,
+          "Stacking/Wedge": 152,
+          "Tree/Benchmark": 153,
+          "World/Far Mesh Drop": 154,
+          "World/Far Pyramid": 155,
+          "World/Far Ragdolls": 156,
+          "World/Far Stack": 157
+        }
+      }
+    },
+    "pixel_hash": "SHA256 of ASCII RGBA:WIDTHxHEIGHT followed by NUL and decoded RGBA bytes",
+    "rows": [
+      {
+        "sample": "Collision/Distance Debug",
+        "captures": {
+          "fixed": [
+            {
+              "png": "fixed/Collision_Distance_Debug-67957c757033-0.png",
+              "pixel_sha256": "c2efb9df2a8a59212e25b2c48f2039cf0321e0a27168fbbddc0f0e3def136c6e",
+              "width": 3840,
+              "height": 2160
+            },
+            {
+              "png": "fixed/Collision_Distance_Debug-67957c757033-1.png",
+              "pixel_sha256": "c2efb9df2a8a59212e25b2c48f2039cf0321e0a27168fbbddc0f0e3def136c6e",
+              "width": 3840,
+              "height": 2160
+            }
+          ],
+          "float": [
+            {
+              "png": "float/Collision_Distance_Debug-67957c757033-0.png",
+              "pixel_sha256": "c2efb9df2a8a59212e25b2c48f2039cf0321e0a27168fbbddc0f0e3def136c6e",
+              "width": 3840,
+              "height": 2160
+            },
+            {
+              "png": "float/Collision_Distance_Debug-67957c757033-1.png",
+              "pixel_sha256": "c2efb9df2a8a59212e25b2c48f2039cf0321e0a27168fbbddc0f0e3def136c6e",
+              "width": 3840,
+              "height": 2160
+            }
+          ]
+        },
+        "errors": [],
+        "exact_pixel_match": true,
+        "mean_absolute_rgb_difference": 0.0,
+        "changed_pixel_percent": 0.0,
+        "mean_luminance_difference_64x36": 0.0,
+        "fixed_thumbnail": "fixed/Collision_Distance_Debug-67957c757033-thumb.png",
+        "float_thumbnail": "float/Collision_Distance_Debug-67957c757033-thumb.png"
+      },
+      {
+        "sample": "Collision/Shape Distance",
+        "captures": {
+          "fixed": [
+            {
+              "png": "fixed/Collision_Shape_Distance-1efae0869794-0.png",
+              "pixel_sha256": "163cefe5ee4bde624ec79301a89dd8fec266f59d7c793e228aecc0943bd93834",
+              "width": 3840,
+              "height": 2160
+            },
+            {
+              "png": "fixed/Collision_Shape_Distance-1efae0869794-1.png",
+              "pixel_sha256": "163cefe5ee4bde624ec79301a89dd8fec266f59d7c793e228aecc0943bd93834",
+              "width": 3840,
+              "height": 2160
+            }
+          ],
+          "float": [
+            {
+              "png": "float/Collision_Shape_Distance-1efae0869794-0.png",
+              "pixel_sha256": "163cefe5ee4bde624ec79301a89dd8fec266f59d7c793e228aecc0943bd93834",
+              "width": 3840,
+              "height": 2160
+            },
+            {
+              "png": "float/Collision_Shape_Distance-1efae0869794-1.png",
+              "pixel_sha256": "163cefe5ee4bde624ec79301a89dd8fec266f59d7c793e228aecc0943bd93834",
+              "width": 3840,
+              "height": 2160
+            }
+          ]
+        },
+        "errors": [],
+        "exact_pixel_match": true,
+        "mean_absolute_rgb_difference": 0.0,
+        "changed_pixel_percent": 0.0,
+        "mean_luminance_difference_64x36": 0.0,
+        "fixed_thumbnail": "fixed/Collision_Shape_Distance-1efae0869794-thumb.png",
+        "float_thumbnail": "float/Collision_Shape_Distance-1efae0869794-thumb.png"
+      },
+      {
+        "sample": "Determinism/Falling Ragdolls",
+        "captures": {
+          "fixed": [
+            {
+              "png": "fixed/Determinism_Falling_Ragdolls-1278b0375383-0.png",
+              "pixel_sha256": "6c45500976867ff315314530a73f1c3060728e1e86c8acfd1132525efede766c",
+              "width": 3840,
+              "height": 2160
+            },
+            {
+              "png": "fixed/Determinism_Falling_Ragdolls-1278b0375383-1.png",
+              "pixel_sha256": "6c45500976867ff315314530a73f1c3060728e1e86c8acfd1132525efede766c",
+              "width": 3840,
+              "height": 2160
+            }
+          ],
+          "float": [
+            {
+              "png": "float/Determinism_Falling_Ragdolls-1278b0375383-0.png",
+              "pixel_sha256": "6c45500976867ff315314530a73f1c3060728e1e86c8acfd1132525efede766c",
+              "width": 3840,
+              "height": 2160
+            },
+            {
+              "png": "float/Determinism_Falling_Ragdolls-1278b0375383-1.png",
+              "pixel_sha256": "6c45500976867ff315314530a73f1c3060728e1e86c8acfd1132525efede766c",
+              "width": 3840,
+              "height": 2160
+            }
+          ]
+        },
+        "errors": [],
+        "exact_pixel_match": true,
+        "mean_absolute_rgb_difference": 0.0,
+        "changed_pixel_percent": 0.0,
+        "mean_luminance_difference_64x36": 0.0,
+        "fixed_thumbnail": "fixed/Determinism_Falling_Ragdolls-1278b0375383-thumb.png",
+        "float_thumbnail": "float/Determinism_Falling_Ragdolls-1278b0375383-thumb.png"
+      },
+      {
+        "sample": "Joints/Ball and Chain",
+        "captures": {
+          "fixed": [
+            {
+              "png": "fixed/Joints_Ball_and_Chain-aa4a237dd0eb-0.png",
+              "pixel_sha256": "05414d397b19f3818b2b30e7150404d29e49fe679d1867077d14baf587fc6a89",
+              "width": 3840,
+              "height": 2160
+            },
+            {
+              "png": "fixed/Joints_Ball_and_Chain-aa4a237dd0eb-1.png",
+              "pixel_sha256": "05414d397b19f3818b2b30e7150404d29e49fe679d1867077d14baf587fc6a89",
+              "width": 3840,
+              "height": 2160
+            }
+          ],
+          "float": [
+            {
+              "png": "float/Joints_Ball_and_Chain-aa4a237dd0eb-0.png",
+              "pixel_sha256": "05414d397b19f3818b2b30e7150404d29e49fe679d1867077d14baf587fc6a89",
+              "width": 3840,
+              "height": 2160
+            },
+            {
+              "png": "float/Joints_Ball_and_Chain-aa4a237dd0eb-1.png",
+              "pixel_sha256": "05414d397b19f3818b2b30e7150404d29e49fe679d1867077d14baf587fc6a89",
+              "width": 3840,
+              "height": 2160
+            }
+          ]
+        },
+        "errors": [],
+        "exact_pixel_match": true,
+        "mean_absolute_rgb_difference": 0.0,
+        "changed_pixel_percent": 0.0,
+        "mean_luminance_difference_64x36": 0.0,
+        "fixed_thumbnail": "fixed/Joints_Ball_and_Chain-aa4a237dd0eb-thumb.png",
+        "float_thumbnail": "float/Joints_Ball_and_Chain-aa4a237dd0eb-thumb.png"
+      },
+      {
+        "sample": "Joints/Bridge",
+        "captures": {
+          "fixed": [
+            {
+              "png": "fixed/Joints_Bridge-87a11cde2063-0.png",
+              "pixel_sha256": "2f00f9b401f3788fe9cee5550e08e2ecf50c4f0d746c9e13fa369aa99750ecf9",
+              "width": 3840,
+              "height": 2160
+            },
+            {
+              "png": "fixed/Joints_Bridge-87a11cde2063-1.png",
+              "pixel_sha256": "2f00f9b401f3788fe9cee5550e08e2ecf50c4f0d746c9e13fa369aa99750ecf9",
+              "width": 3840,
+              "height": 2160
+            }
+          ],
+          "float": [
+            {
+              "png": "float/Joints_Bridge-87a11cde2063-0.png",
+              "pixel_sha256": "2f00f9b401f3788fe9cee5550e08e2ecf50c4f0d746c9e13fa369aa99750ecf9",
+              "width": 3840,
+              "height": 2160
+            },
+            {
+              "png": "float/Joints_Bridge-87a11cde2063-1.png",
+              "pixel_sha256": "2f00f9b401f3788fe9cee5550e08e2ecf50c4f0d746c9e13fa369aa99750ecf9",
+              "width": 3840,
+              "height": 2160
+            }
+          ]
+        },
+        "errors": [],
+        "exact_pixel_match": true,
+        "mean_absolute_rgb_difference": 0.0,
+        "changed_pixel_percent": 0.0,
+        "mean_luminance_difference_64x36": 0.0,
+        "fixed_thumbnail": "fixed/Joints_Bridge-87a11cde2063-thumb.png",
+        "float_thumbnail": "float/Joints_Bridge-87a11cde2063-thumb.png"
+      },
+      {
+        "sample": "Joints/Distance Joint",
+        "captures": {
+          "fixed": [
+            {
+              "png": "fixed/Joints_Distance_Joint-5583ed521efa-0.png",
+              "pixel_sha256": "77961532f714e0538b52a22e1ad79ff77ad359b9ef58cb053c37d88a286440ff",
+              "width": 3840,
+              "height": 2160
+            },
+            {
+              "png": "fixed/Joints_Distance_Joint-5583ed521efa-1.png",
+              "pixel_sha256": "77961532f714e0538b52a22e1ad79ff77ad359b9ef58cb053c37d88a286440ff",
+              "width": 3840,
+              "height": 2160
+            }
+          ],
+          "float": [
+            {
+              "png": "float/Joints_Distance_Joint-5583ed521efa-0.png",
+              "pixel_sha256": "77961532f714e0538b52a22e1ad79ff77ad359b9ef58cb053c37d88a286440ff",
+              "width": 3840,
+              "height": 2160
+            },
+            {
+              "png": "float/Joints_Distance_Joint-5583ed521efa-1.png",
+              "pixel_sha256": "77961532f714e0538b52a22e1ad79ff77ad359b9ef58cb053c37d88a286440ff",
+              "width": 3840,
+              "height": 2160
+            }
+          ]
+        },
+        "errors": [],
+        "exact_pixel_match": true,
+        "mean_absolute_rgb_difference": 0.0,
+        "changed_pixel_percent": 0.0,
+        "mean_luminance_difference_64x36": 0.0,
+        "fixed_thumbnail": "fixed/Joints_Distance_Joint-5583ed521efa-thumb.png",
+        "float_thumbnail": "float/Joints_Distance_Joint-5583ed521efa-thumb.png"
+      },
+      {
+        "sample": "Joints/Door",
+        "captures": {
+          "fixed": [
+            {
+              "png": "fixed/Joints_Door-098cd82e95dd-0.png",
+              "pixel_sha256": "d9143295e53c2f76dc142f9bc0ea433892525e8dbec974ad299d16000f73df1c",
+              "width": 3840,
+              "height": 2160
+            },
+            {
+              "png": "fixed/Joints_Door-098cd82e95dd-1.png",
+              "pixel_sha256": "d9143295e53c2f76dc142f9bc0ea433892525e8dbec974ad299d16000f73df1c",
+              "width": 3840,
+              "height": 2160
+            }
+          ],
+          "float": [
+            {
+              "png": "float/Joints_Door-098cd82e95dd-0.png",
+              "pixel_sha256": "d9143295e53c2f76dc142f9bc0ea433892525e8dbec974ad299d16000f73df1c",
+              "width": 3840,
+              "height": 2160
+            },
+            {
+              "png": "float/Joints_Door-098cd82e95dd-1.png",
+              "pixel_sha256": "d9143295e53c2f76dc142f9bc0ea433892525e8dbec974ad299d16000f73df1c",
+              "width": 3840,
+              "height": 2160
+            }
+          ]
+        },
+        "errors": [],
+        "exact_pixel_match": true,
+        "mean_absolute_rgb_difference": 0.0,
+        "changed_pixel_percent": 0.0,
+        "mean_luminance_difference_64x36": 0.0,
+        "fixed_thumbnail": "fixed/Joints_Door-098cd82e95dd-thumb.png",
+        "float_thumbnail": "float/Joints_Door-098cd82e95dd-thumb.png"
+      },
+      {
+        "sample": "Joints/Driving",
+        "captures": {
+          "fixed": [
+            {
+              "png": "fixed/Joints_Driving-3bc709ba0287-0.png",
+              "pixel_sha256": "4a8f5f97ea9093bf284f83f9002fa53036730f67d3e5c81e01ba058f71dbee9c",
+              "width": 3840,
+              "height": 2160
+            },
+            {
+              "png": "fixed/Joints_Driving-3bc709ba0287-1.png",
+              "pixel_sha256": "4a8f5f97ea9093bf284f83f9002fa53036730f67d3e5c81e01ba058f71dbee9c",
+              "width": 3840,
+              "height": 2160
+            }
+          ],
+          "float": [
+            {
+              "png": "float/Joints_Driving-3bc709ba0287-0.png",
+              "pixel_sha256": "4a8f5f97ea9093bf284f83f9002fa53036730f67d3e5c81e01ba058f71dbee9c",
+              "width": 3840,
+              "height": 2160
+            },
+            {
+              "png": "float/Joints_Driving-3bc709ba0287-1.png",
+              "pixel_sha256": "4a8f5f97ea9093bf284f83f9002fa53036730f67d3e5c81e01ba058f71dbee9c",
+              "width": 3840,
+              "height": 2160
+            }
+          ]
+        },
+        "errors": [],
+        "exact_pixel_match": true,
+        "mean_absolute_rgb_difference": 0.0,
+        "changed_pixel_percent": 0.0,
+        "mean_luminance_difference_64x36": 0.0,
+        "fixed_thumbnail": "fixed/Joints_Driving-3bc709ba0287-thumb.png",
+        "float_thumbnail": "float/Joints_Driving-3bc709ba0287-thumb.png"
+      },
+      {
+        "sample": "Joints/Filter",
+        "captures": {
+          "fixed": [
+            {
+              "png": "fixed/Joints_Filter-48a5e9fe7a24-0.png",
+              "pixel_sha256": "76aee13b7d45545dbcb260337f3bf72cba63cbffe4c3707fd3a37adaf14fc829",
+              "width": 3840,
+              "height": 2160
+            },
+            {
+              "png": "fixed/Joints_Filter-48a5e9fe7a24-1.png",
+              "pixel_sha256": "76aee13b7d45545dbcb260337f3bf72cba63cbffe4c3707fd3a37adaf14fc829",
+              "width": 3840,
+              "height": 2160
+            }
+          ],
+          "float": [
+            {
+              "png": "float/Joints_Filter-48a5e9fe7a24-0.png",
+              "pixel_sha256": "76aee13b7d45545dbcb260337f3bf72cba63cbffe4c3707fd3a37adaf14fc829",
+              "width": 3840,
+              "height": 2160
+            },
+            {
+              "png": "float/Joints_Filter-48a5e9fe7a24-1.png",
+              "pixel_sha256": "76aee13b7d45545dbcb260337f3bf72cba63cbffe4c3707fd3a37adaf14fc829",
+              "width": 3840,
+              "height": 2160
+            }
+          ]
+        },
+        "errors": [],
+        "exact_pixel_match": true,
+        "mean_absolute_rgb_difference": 0.0,
+        "changed_pixel_percent": 0.0,
+        "mean_luminance_difference_64x36": 0.0,
+        "fixed_thumbnail": "fixed/Joints_Filter-48a5e9fe7a24-thumb.png",
+        "float_thumbnail": "float/Joints_Filter-48a5e9fe7a24-thumb.png"
+      },
+      {
+        "sample": "Joints/Gear Lift",
+        "captures": {
+          "fixed": [
+            {
+              "png": "fixed/Joints_Gear_Lift-c5959c1c2f53-0.png",
+              "pixel_sha256": "d06db1c00d432c4f6ad073a26d13b9254bf8ac4fc9215bc6c788d8930682fb5c",
+              "width": 3840,
+              "height": 2160
+            },
+            {
+              "png": "fixed/Joints_Gear_Lift-c5959c1c2f53-1.png",
+              "pixel_sha256": "d06db1c00d432c4f6ad073a26d13b9254bf8ac4fc9215bc6c788d8930682fb5c",
+              "width": 3840,
+              "height": 2160
+            }
+          ],
+          "float": [
+            {
+              "png": "float/Joints_Gear_Lift-c5959c1c2f53-0.png",
+              "pixel_sha256": "d06db1c00d432c4f6ad073a26d13b9254bf8ac4fc9215bc6c788d8930682fb5c",
+              "width": 3840,
+              "height": 2160
+            },
+            {
+              "png": "float/Joints_Gear_Lift-c5959c1c2f53-1.png",
+              "pixel_sha256": "d06db1c00d432c4f6ad073a26d13b9254bf8ac4fc9215bc6c788d8930682fb5c",
+              "width": 3840,
+              "height": 2160
+            }
+          ]
+        },
+        "errors": [],
+        "exact_pixel_match": true,
+        "mean_absolute_rgb_difference": 0.0,
+        "changed_pixel_percent": 0.0,
+        "mean_luminance_difference_64x36": 0.0,
+        "fixed_thumbnail": "fixed/Joints_Gear_Lift-c5959c1c2f53-thumb.png",
+        "float_thumbnail": "float/Joints_Gear_Lift-c5959c1c2f53-thumb.png"
+      },
+      {
+        "sample": "Joints/Motion Locks",
+        "captures": {
+          "fixed": [
+            {
+              "png": "fixed/Joints_Motion_Locks-c61733b12ea3-0.png",
+              "pixel_sha256": "0e97c91e801cd1d011ffaad5c846920f869af58d0091aeb10f8356fe12d32a24",
+              "width": 3840,
+              "height": 2160
+            },
+            {
+              "png": "fixed/Joints_Motion_Locks-c61733b12ea3-1.png",
+              "pixel_sha256": "0e97c91e801cd1d011ffaad5c846920f869af58d0091aeb10f8356fe12d32a24",
+              "width": 3840,
+              "height": 2160
+            }
+          ],
+          "float": [
+            {
+              "png": "float/Joints_Motion_Locks-c61733b12ea3-0.png",
+              "pixel_sha256": "0e97c91e801cd1d011ffaad5c846920f869af58d0091aeb10f8356fe12d32a24",
+              "width": 3840,
+              "height": 2160
+            },
+            {
+              "png": "float/Joints_Motion_Locks-c61733b12ea3-1.png",
+              "pixel_sha256": "0e97c91e801cd1d011ffaad5c846920f869af58d0091aeb10f8356fe12d32a24",
+              "width": 3840,
+              "height": 2160
+            }
+          ]
+        },
+        "errors": [],
+        "exact_pixel_match": true,
+        "mean_absolute_rgb_difference": 0.0,
+        "changed_pixel_percent": 0.0,
+        "mean_luminance_difference_64x36": 0.0,
+        "fixed_thumbnail": "fixed/Joints_Motion_Locks-c61733b12ea3-thumb.png",
+        "float_thumbnail": "float/Joints_Motion_Locks-c61733b12ea3-thumb.png"
+      },
+      {
+        "sample": "Joints/Motor Joint",
+        "captures": {
+          "fixed": [
+            {
+              "png": "fixed/Joints_Motor_Joint-868ec4be5e8b-0.png",
+              "pixel_sha256": "e4094ab8ec57c6f0ef248d3e9efd0c955629b5d0c7e560a63f9e91609eef1477",
+              "width": 3840,
+              "height": 2160
+            },
+            {
+              "png": "fixed/Joints_Motor_Joint-868ec4be5e8b-1.png",
+              "pixel_sha256": "e4094ab8ec57c6f0ef248d3e9efd0c955629b5d0c7e560a63f9e91609eef1477",
+              "width": 3840,
+              "height": 2160
+            }
+          ],
+          "float": [
+            {
+              "png": "float/Joints_Motor_Joint-868ec4be5e8b-0.png",
+              "pixel_sha256": "e4094ab8ec57c6f0ef248d3e9efd0c955629b5d0c7e560a63f9e91609eef1477",
+              "width": 3840,
+              "height": 2160
+            },
+            {
+              "png": "float/Joints_Motor_Joint-868ec4be5e8b-1.png",
+              "pixel_sha256": "e4094ab8ec57c6f0ef248d3e9efd0c955629b5d0c7e560a63f9e91609eef1477",
+              "width": 3840,
+              "height": 2160
+            }
+          ]
+        },
+        "errors": [],
+        "exact_pixel_match": true,
+        "mean_absolute_rgb_difference": 0.0,
+        "changed_pixel_percent": 0.0,
+        "mean_luminance_difference_64x36": 0.0,
+        "fixed_thumbnail": "fixed/Joints_Motor_Joint-868ec4be5e8b-thumb.png",
+        "float_thumbnail": "float/Joints_Motor_Joint-868ec4be5e8b-thumb.png"
+      },
+      {
+        "sample": "Joints/Parallel Spring",
+        "captures": {
+          "fixed": [
+            {
+              "png": "fixed/Joints_Parallel_Spring-7f32c3ef0cd1-0.png",
+              "pixel_sha256": "62a15f34cea73b733b83cd71cd78ddbc3d5bb0d6eae292e6e7d20f420c004cc8",
+              "width": 3840,
+              "height": 2160
+            },
+            {
+              "png": "fixed/Joints_Parallel_Spring-7f32c3ef0cd1-1.png",
+              "pixel_sha256": "62a15f34cea73b733b83cd71cd78ddbc3d5bb0d6eae292e6e7d20f420c004cc8",
+              "width": 3840,
+              "height": 2160
+            }
+          ],
+          "float": [
+            {
+              "png": "float/Joints_Parallel_Spring-7f32c3ef0cd1-0.png",
+              "pixel_sha256": "62a15f34cea73b733b83cd71cd78ddbc3d5bb0d6eae292e6e7d20f420c004cc8",
+              "width": 3840,
+              "height": 2160
+            },
+            {
+              "png": "float/Joints_Parallel_Spring-7f32c3ef0cd1-1.png",
+              "pixel_sha256": "62a15f34cea73b733b83cd71cd78ddbc3d5bb0d6eae292e6e7d20f420c004cc8",
+              "width": 3840,
+              "height": 2160
+            }
+          ]
+        },
+        "errors": [],
+        "exact_pixel_match": true,
+        "mean_absolute_rgb_difference": 0.0,
+        "changed_pixel_percent": 0.0,
+        "mean_luminance_difference_64x36": 0.0,
+        "fixed_thumbnail": "fixed/Joints_Parallel_Spring-7f32c3ef0cd1-thumb.png",
+        "float_thumbnail": "float/Joints_Parallel_Spring-7f32c3ef0cd1-thumb.png"
+      },
+      {
+        "sample": "Joints/Prismatic",
+        "captures": {
+          "fixed": [
+            {
+              "png": "fixed/Joints_Prismatic-bf5747dbac19-0.png",
+              "pixel_sha256": "e3d22889461d941c34fb30419a35eeb1a1b56eddb92f3eb52f34668c94b6983a",
+              "width": 3840,
+              "height": 2160
+            },
+            {
+              "png": "fixed/Joints_Prismatic-bf5747dbac19-1.png",
+              "pixel_sha256": "e3d22889461d941c34fb30419a35eeb1a1b56eddb92f3eb52f34668c94b6983a",
+              "width": 3840,
+              "height": 2160
+            }
+          ],
+          "float": [
+            {
+              "png": "float/Joints_Prismatic-bf5747dbac19-0.png",
+              "pixel_sha256": "e3d22889461d941c34fb30419a35eeb1a1b56eddb92f3eb52f34668c94b6983a",
+              "width": 3840,
+              "height": 2160
+            },
+            {
+              "png": "float/Joints_Prismatic-bf5747dbac19-1.png",
+              "pixel_sha256": "e3d22889461d941c34fb30419a35eeb1a1b56eddb92f3eb52f34668c94b6983a",
+              "width": 3840,
+              "height": 2160
+            }
+          ]
+        },
+        "errors": [],
+        "exact_pixel_match": true,
+        "mean_absolute_rgb_difference": 0.0,
+        "changed_pixel_percent": 0.0,
+        "mean_luminance_difference_64x36": 0.0,
+        "fixed_thumbnail": "fixed/Joints_Prismatic-bf5747dbac19-thumb.png",
+        "float_thumbnail": "float/Joints_Prismatic-bf5747dbac19-thumb.png"
+      },
+      {
+        "sample": "Joints/Revolute",
+        "captures": {
+          "fixed": [
+            {
+              "png": "fixed/Joints_Revolute-452789cf75e8-0.png",
+              "pixel_sha256": "6f2e38375e1871d7d578062bc87b837f04a8dad102ab2fb1a8615a42b8140179",
+              "width": 3840,
+              "height": 2160
+            },
+            {
+              "png": "fixed/Joints_Revolute-452789cf75e8-1.png",
+              "pixel_sha256": "6f2e38375e1871d7d578062bc87b837f04a8dad102ab2fb1a8615a42b8140179",
+              "width": 3840,
+              "height": 2160
+            }
+          ],
+          "float": [
+            {
+              "png": "float/Joints_Revolute-452789cf75e8-0.png",
+              "pixel_sha256": "6f2e38375e1871d7d578062bc87b837f04a8dad102ab2fb1a8615a42b8140179",
+              "width": 3840,
+              "height": 2160
+            },
+            {
+              "png": "float/Joints_Revolute-452789cf75e8-1.png",
+              "pixel_sha256": "6f2e38375e1871d7d578062bc87b837f04a8dad102ab2fb1a8615a42b8140179",
+              "width": 3840,
+              "height": 2160
+            }
+          ]
+        },
+        "errors": [],
+        "exact_pixel_match": true,
+        "mean_absolute_rgb_difference": 0.0,
+        "changed_pixel_percent": 0.0,
+        "mean_luminance_difference_64x36": 0.0,
+        "fixed_thumbnail": "fixed/Joints_Revolute-452789cf75e8-thumb.png",
+        "float_thumbnail": "float/Joints_Revolute-452789cf75e8-thumb.png"
+      },
+      {
+        "sample": "Joints/Spherical",
+        "captures": {
+          "fixed": [
+            {
+              "png": "fixed/Joints_Spherical-a8058e2d9295-0.png",
+              "pixel_sha256": "e3d22889461d941c34fb30419a35eeb1a1b56eddb92f3eb52f34668c94b6983a",
+              "width": 3840,
+              "height": 2160
+            },
+            {
+              "png": "fixed/Joints_Spherical-a8058e2d9295-1.png",
+              "pixel_sha256": "e3d22889461d941c34fb30419a35eeb1a1b56eddb92f3eb52f34668c94b6983a",
+              "width": 3840,
+              "height": 2160
+            }
+          ],
+          "float": [
+            {
+              "png": "float/Joints_Spherical-a8058e2d9295-0.png",
+              "pixel_sha256": "e3d22889461d941c34fb30419a35eeb1a1b56eddb92f3eb52f34668c94b6983a",
+              "width": 3840,
+              "height": 2160
+            },
+            {
+              "png": "float/Joints_Spherical-a8058e2d9295-1.png",
+              "pixel_sha256": "e3d22889461d941c34fb30419a35eeb1a1b56eddb92f3eb52f34668c94b6983a",
+              "width": 3840,
+              "height": 2160
+            }
+          ]
+        },
+        "errors": [],
+        "exact_pixel_match": true,
+        "mean_absolute_rgb_difference": 0.0,
+        "changed_pixel_percent": 0.0,
+        "mean_luminance_difference_64x36": 0.0,
+        "fixed_thumbnail": "fixed/Joints_Spherical-a8058e2d9295-thumb.png",
+        "float_thumbnail": "float/Joints_Spherical-a8058e2d9295-thumb.png"
+      },
+      {
+        "sample": "Joints/Top Down Friction",
+        "captures": {
+          "fixed": [
+            {
+              "png": "fixed/Joints_Top_Down_Friction-659f78e954b8-0.png",
+              "pixel_sha256": "f80d6ee44e9d0d1ac6eca5ae3e3d1989d26d222b049033deb550e04520d69b7f",
+              "width": 3840,
+              "height": 2160
+            },
+            {
+              "png": "fixed/Joints_Top_Down_Friction-659f78e954b8-1.png",
+              "pixel_sha256": "f80d6ee44e9d0d1ac6eca5ae3e3d1989d26d222b049033deb550e04520d69b7f",
+              "width": 3840,
+              "height": 2160
+            }
+          ],
+          "float": [
+            {
+              "png": "float/Joints_Top_Down_Friction-659f78e954b8-0.png",
+              "pixel_sha256": "f80d6ee44e9d0d1ac6eca5ae3e3d1989d26d222b049033deb550e04520d69b7f",
+              "width": 3840,
+              "height": 2160
+            },
+            {
+              "png": "float/Joints_Top_Down_Friction-659f78e954b8-1.png",
+              "pixel_sha256": "f80d6ee44e9d0d1ac6eca5ae3e3d1989d26d222b049033deb550e04520d69b7f",
+              "width": 3840,
+              "height": 2160
+            }
+          ]
+        },
+        "errors": [],
+        "exact_pixel_match": true,
+        "mean_absolute_rgb_difference": 0.0,
+        "changed_pixel_percent": 0.0,
+        "mean_luminance_difference_64x36": 0.0,
+        "fixed_thumbnail": "fixed/Joints_Top_Down_Friction-659f78e954b8-thumb.png",
+        "float_thumbnail": "float/Joints_Top_Down_Friction-659f78e954b8-thumb.png"
+      },
+      {
+        "sample": "Joints/Weld",
+        "captures": {
+          "fixed": [
+            {
+              "png": "fixed/Joints_Weld-6500556cbe84-0.png",
+              "pixel_sha256": "e3d22889461d941c34fb30419a35eeb1a1b56eddb92f3eb52f34668c94b6983a",
+              "width": 3840,
+              "height": 2160
+            },
+            {
+              "png": "fixed/Joints_Weld-6500556cbe84-1.png",
+              "pixel_sha256": "e3d22889461d941c34fb30419a35eeb1a1b56eddb92f3eb52f34668c94b6983a",
+              "width": 3840,
+              "height": 2160
+            }
+          ],
+          "float": [
+            {
+              "png": "float/Joints_Weld-6500556cbe84-0.png",
+              "pixel_sha256": "e3d22889461d941c34fb30419a35eeb1a1b56eddb92f3eb52f34668c94b6983a",
+              "width": 3840,
+              "height": 2160
+            },
+            {
+              "png": "float/Joints_Weld-6500556cbe84-1.png",
+              "pixel_sha256": "e3d22889461d941c34fb30419a35eeb1a1b56eddb92f3eb52f34668c94b6983a",
+              "width": 3840,
+              "height": 2160
+            }
+          ]
+        },
+        "errors": [],
+        "exact_pixel_match": true,
+        "mean_absolute_rgb_difference": 0.0,
+        "changed_pixel_percent": 0.0,
+        "mean_luminance_difference_64x36": 0.0,
+        "fixed_thumbnail": "fixed/Joints_Weld-6500556cbe84-thumb.png",
+        "float_thumbnail": "float/Joints_Weld-6500556cbe84-thumb.png"
+      },
+      {
+        "sample": "Joints/Wheel",
+        "captures": {
+          "fixed": [
+            {
+              "png": "fixed/Joints_Wheel-491be789035e-0.png",
+              "pixel_sha256": "daa34c5af43995dd80d3c21e570e7571fc2e9bfa058934059dc9543bccfaa70b",
+              "width": 3840,
+              "height": 2160
+            },
+            {
+              "png": "fixed/Joints_Wheel-491be789035e-1.png",
+              "pixel_sha256": "daa34c5af43995dd80d3c21e570e7571fc2e9bfa058934059dc9543bccfaa70b",
+              "width": 3840,
+              "height": 2160
+            }
+          ],
+          "float": [
+            {
+              "png": "float/Joints_Wheel-491be789035e-0.png",
+              "pixel_sha256": "daa34c5af43995dd80d3c21e570e7571fc2e9bfa058934059dc9543bccfaa70b",
+              "width": 3840,
+              "height": 2160
+            },
+            {
+              "png": "float/Joints_Wheel-491be789035e-1.png",
+              "pixel_sha256": "daa34c5af43995dd80d3c21e570e7571fc2e9bfa058934059dc9543bccfaa70b",
+              "width": 3840,
+              "height": 2160
+            }
+          ]
+        },
+        "errors": [],
+        "exact_pixel_match": true,
+        "mean_absolute_rgb_difference": 0.0,
+        "changed_pixel_percent": 0.0,
+        "mean_luminance_difference_64x36": 0.0,
+        "fixed_thumbnail": "fixed/Joints_Wheel-491be789035e-thumb.png",
+        "float_thumbnail": "float/Joints_Wheel-491be789035e-thumb.png"
+      },
+      {
+        "sample": "Stacking/Box Stack",
+        "captures": {
+          "fixed": [
+            {
+              "png": "fixed/Stacking_Box_Stack-8f5eaf073c5e-0.png",
+              "pixel_sha256": "28aaa8686b52e698ac18cb06ca8f08e380dfefb28d57b707cb972322f209ed86",
+              "width": 3840,
+              "height": 2160
+            },
+            {
+              "png": "fixed/Stacking_Box_Stack-8f5eaf073c5e-1.png",
+              "pixel_sha256": "28aaa8686b52e698ac18cb06ca8f08e380dfefb28d57b707cb972322f209ed86",
+              "width": 3840,
+              "height": 2160
+            }
+          ],
+          "float": [
+            {
+              "png": "float/Stacking_Box_Stack-8f5eaf073c5e-0.png",
+              "pixel_sha256": "28aaa8686b52e698ac18cb06ca8f08e380dfefb28d57b707cb972322f209ed86",
+              "width": 3840,
+              "height": 2160
+            },
+            {
+              "png": "float/Stacking_Box_Stack-8f5eaf073c5e-1.png",
+              "pixel_sha256": "28aaa8686b52e698ac18cb06ca8f08e380dfefb28d57b707cb972322f209ed86",
+              "width": 3840,
+              "height": 2160
+            }
+          ]
+        },
+        "errors": [],
+        "exact_pixel_match": true,
+        "mean_absolute_rgb_difference": 0.0,
+        "changed_pixel_percent": 0.0,
+        "mean_luminance_difference_64x36": 0.0,
+        "fixed_thumbnail": "fixed/Stacking_Box_Stack-8f5eaf073c5e-thumb.png",
+        "float_thumbnail": "float/Stacking_Box_Stack-8f5eaf073c5e-thumb.png"
+      }
+    ]
+  },
+  "visual_float": {
+    "created_utc": "2026-09-07T22:04:17.397499+00:00",
+    "frames": 120,
+    "nominal_hz": 60,
+    "repeat": 2,
+    "match": "^(Joints/(?!Fold Out$)|Collision/(Shape Distance|Distance Debug)$|Stacking/Box Stack$|Determinism/Falling Ragdolls$)",
+    "no_axes": true,
+    "builds": {
+      "fixed": {
+        "binary_sha256": "b41b0bbbe498058ab9abc4baf4fd2f09d3d1f086ebc4c53d86b82ef6baf41149",
+        "samples": {
+          "Benchmark/Candy Cups": 0,
+          "Benchmark/Chains": 1,
+          "Benchmark/Convex Pile": 2,
+          "Benchmark/Destruction": 3,
+          "Benchmark/Explosion": 4,
+          "Benchmark/Falling Boxes": 5,
+          "Benchmark/Falling Trees": 6,
+          "Benchmark/Height Field": 7,
+          "Benchmark/Hull": 8,
+          "Benchmark/Joint Grid": 9,
+          "Benchmark/Junkyard": 10,
+          "Benchmark/Large Pyramid": 11,
+          "Benchmark/Large World": 12,
+          "Benchmark/Many Pyramids": 13,
+          "Benchmark/Rain": 14,
+          "Benchmark/Sensor": 15,
+          "Benchmark/Washer": 16,
+          "Benchmark/Wide Pyramid": 17,
+          "Bodies/Body Type": 18,
+          "Bodies/Cast": 19,
+          "Bodies/Disable": 20,
+          "Bodies/Fixed Rotation": 21,
+          "Bodies/Gyroscopic Precession": 22,
+          "Bodies/Gyroscopic Torque": 23,
+          "Bodies/Kinematic": 24,
+          "Bodies/Lock Mixing": 25,
+          "Bodies/Spinning Book": 26,
+          "Bodies/Weeble": 27,
+          "Character/CapsulePlane": 28,
+          "Character/Mover": 29,
+          "Character/MoverOverlap": 30,
+          "Character/Rigid Body": 31,
+          "Collision/Capsule Cast Ray": 32,
+          "Collision/Cast World": 33,
+          "Collision/Distance Debug": 34,
+          "Collision/Initial Overlap": 35,
+          "Collision/Long Ray Cast": 36,
+          "Collision/Mesh Scale": 37,
+          "Collision/Overlap World": 38,
+          "Collision/Ray Curtain": 39,
+          "Collision/Shape Cast": 40,
+          "Collision/Shape Cast Debug": 41,
+          "Collision/Shape Distance": 42,
+          "Collision/Time of Impact": 43,
+          "Compound/Hulls": 44,
+          "Compound/Mesh Tile": 45,
+          "Compound/Simple": 46,
+          "Compound/Spheres": 47,
+          "Compound/Tile Floor": 48,
+          "Compound/Village": 49,
+          "Continuous/Bounce House": 50,
+          "Continuous/Bullet vs Stack": 51,
+          "Continuous/Hump Mesh": 52,
+          "Continuous/Is Fast": 53,
+          "Continuous/Mesh Drop": 54,
+          "Continuous/Needle Mesh": 55,
+          "Continuous/Spinning Stick": 56,
+          "Continuous/Stall": 57,
+          "Continuous/Thin Wall": 58,
+          "Determinism/Falling Ragdolls": 59,
+          "Determinism/Mesh Drop": 60,
+          "Determinism/Query Spawn": 61,
+          "Determinism/Wave Pile": 62,
+          "Events/Hit": 63,
+          "Events/Joint": 64,
+          "Events/Move": 65,
+          "Events/Persistent Contact": 66,
+          "Events/Sensor Hits": 67,
+          "Events/Sensor Visit": 68,
+          "Geometry/Box Hull": 69,
+          "Geometry/Capsule Mass": 70,
+          "Geometry/Hull": 71,
+          "Geometry/Hull Reduction": 72,
+          "Geometry/Hull Transform": 73,
+          "Issues/Capsule Mesh": 74,
+          "Issues/Convex Jitter": 75,
+          "Issues/Crash": 76,
+          "Issues/GMod Wheel Stack": 77,
+          "Issues/Hull Crash": 78,
+          "Issues/Multiple Prismatic": 79,
+          "Issues/Restitution Overshoot": 80,
+          "Issues/Slide Twist Off Center Shape": 81,
+          "Issues/s&box Ghost Collisions": 82,
+          "Issues/s&box mover": 83,
+          "Joints/Ball and Chain": 84,
+          "Joints/Bridge": 85,
+          "Joints/Distance Joint": 86,
+          "Joints/Door": 87,
+          "Joints/Driving": 88,
+          "Joints/Filter": 89,
+          "Joints/Gear Lift": 90,
+          "Joints/Motion Locks": 91,
+          "Joints/Motor Joint": 92,
+          "Joints/Parallel Spring": 93,
+          "Joints/Prismatic": 94,
+          "Joints/Revolute": 95,
+          "Joints/Spherical": 96,
+          "Joints/Top Down Friction": 97,
+          "Joints/Weld": 98,
+          "Joints/Wheel": 99,
+          "Manifold/Capsule vs Capsule": 100,
+          "Manifold/Capsule vs Hull": 101,
+          "Manifold/Capsule vs Sphere": 102,
+          "Manifold/Hull vs Hull": 103,
+          "Manifold/Hull vs Sphere": 104,
+          "Manifold/Sphere vs Sphere": 105,
+          "Manifold/Triangle vs Capsule": 106,
+          "Manifold/Triangle vs Hull": 107,
+          "Manifold/Triangle vs Sphere": 108,
+          "Mesh/Big Box": 109,
+          "Mesh/Box": 110,
+          "Mesh/Creation Benchmark": 111,
+          "Mesh/Grid": 112,
+          "Mesh/Height Field": 113,
+          "Mesh/Hollow Box": 114,
+          "Mesh/Reflection": 115,
+          "Mesh/Viewer": 116,
+          "Mesh/Voxel": 117,
+          "Ragdoll/Box": 118,
+          "Ragdoll/Incline": 119,
+          "Ragdoll/Mesh": 120,
+          "Ragdoll/Pile": 121,
+          "Replay/Viewer": 122,
+          "Robustness/HighMassRatio1": 123,
+          "Robustness/Overflow Color Pile": 124,
+          "Robustness/Overlap Recovery": 125,
+          "Robustness/Tiny Pyramid": 126,
+          "Shapes/Conveyor Belt": 127,
+          "Shapes/Conveyor Mesh": 128,
+          "Shapes/High Resistance": 129,
+          "Shapes/Inclined Plane": 130,
+          "Shapes/Isotropic Friction": 131,
+          "Shapes/Restitution": 132,
+          "Shapes/Rolling Resistance": 133,
+          "Shapes/Slide Twist": 134,
+          "Shapes/Static Invoke": 135,
+          "Shapes/Wind": 136,
+          "Shapes/Wind Drop": 137,
+          "Shapes/Wind Flap": 138,
+          "Stacking/Arch": 139,
+          "Stacking/Box Stack": 140,
+          "Stacking/Capsule Stack": 141,
+          "Stacking/Card House": 142,
+          "Stacking/Cylinder": 143,
+          "Stacking/Cylinder Stack": 144,
+          "Stacking/Dominoes": 145,
+          "Stacking/Double Domino": 146,
+          "Stacking/Edge Crossing": 147,
+          "Stacking/Jenga Stack": 148,
+          "Stacking/Pyramid2D": 149,
+          "Stacking/Single Box": 150,
+          "Stacking/Sphere Stack": 151,
+          "Stacking/Wedge": 152,
+          "Tree/Benchmark": 153,
+          "World/Far Mesh Drop": 154,
+          "World/Far Pyramid": 155,
+          "World/Far Ragdolls": 156,
+          "World/Far Stack": 157
+        }
+      },
+      "float": {
+        "binary_sha256": "1790e067c3150bb1713c1a13edbafd2f5c6fee5fcc036ada2b715c7795c21bb8",
+        "samples": {
+          "Benchmark/Candy Cups": 0,
+          "Benchmark/Chains": 1,
+          "Benchmark/Convex Pile": 2,
+          "Benchmark/Destruction": 3,
+          "Benchmark/Explosion": 4,
+          "Benchmark/Falling Boxes": 5,
+          "Benchmark/Falling Trees": 6,
+          "Benchmark/Height Field": 7,
+          "Benchmark/Hull": 8,
+          "Benchmark/Joint Grid": 9,
+          "Benchmark/Junkyard": 10,
+          "Benchmark/Large Pyramid": 11,
+          "Benchmark/Large World": 12,
+          "Benchmark/Many Pyramids": 13,
+          "Benchmark/Rain": 14,
+          "Benchmark/Sensor": 15,
+          "Benchmark/Washer": 16,
+          "Benchmark/Wide Pyramid": 17,
+          "Bodies/Body Type": 18,
+          "Bodies/Cast": 19,
+          "Bodies/Class Ring": 20,
+          "Bodies/Disable": 21,
+          "Bodies/Fixed Rotation": 22,
+          "Bodies/Gyroscopic Precession": 23,
+          "Bodies/Gyroscopic Torque": 24,
+          "Bodies/Kinematic": 25,
+          "Bodies/Lock Mixing": 26,
+          "Bodies/Offset Kinematic": 27,
+          "Bodies/Spinning Book": 28,
+          "Bodies/Weeble": 29,
+          "Character/CapsulePlane": 30,
+          "Character/Geometric Mover": 31,
+          "Character/MoverOverlap": 32,
+          "Character/Rigid Body": 33,
+          "Collision/Capsule Cast Ray": 34,
+          "Collision/Cast World": 35,
+          "Collision/Distance Debug": 36,
+          "Collision/Initial Overlap": 37,
+          "Collision/Long Ray Cast": 38,
+          "Collision/Mesh Scale": 39,
+          "Collision/Overlap World": 40,
+          "Collision/Ray Curtain": 41,
+          "Collision/Shape Cast": 42,
+          "Collision/Shape Cast Debug": 43,
+          "Collision/Shape Distance": 44,
+          "Collision/Time of Impact": 45,
+          "Compound/Hulls": 46,
+          "Compound/Mesh Tile": 47,
+          "Compound/Simple": 48,
+          "Compound/Spheres": 49,
+          "Compound/Tile Floor": 50,
+          "Compound/Village": 51,
+          "Continuous/Bounce House": 52,
+          "Continuous/Bullet vs Stack": 53,
+          "Continuous/Hump Mesh": 54,
+          "Continuous/Is Fast": 55,
+          "Continuous/Mesh Drop": 56,
+          "Continuous/Needle Mesh": 57,
+          "Continuous/Spinning Stick": 58,
+          "Continuous/Stall": 59,
+          "Continuous/Thin Wall": 60,
+          "Determinism/Falling Ragdolls": 61,
+          "Determinism/Mesh Drop": 62,
+          "Determinism/Query Spawn": 63,
+          "Determinism/Wave Pile": 64,
+          "Events/Contact": 65,
+          "Events/Hit": 66,
+          "Events/Joint": 67,
+          "Events/Move": 68,
+          "Events/Persistent Contact": 69,
+          "Events/Sensor Hits": 70,
+          "Events/Sensor Visit": 71,
+          "Geometry/Box Hull": 72,
+          "Geometry/Capsule Mass": 73,
+          "Geometry/Hull": 74,
+          "Geometry/Hull Reduction": 75,
+          "Geometry/Hull Transform": 76,
+          "Issues/Capsule Mesh": 77,
+          "Issues/Convex Jitter": 78,
+          "Issues/Crash": 79,
+          "Issues/GMod Wheel Stack": 80,
+          "Issues/Heightfield": 81,
+          "Issues/Huge Box": 82,
+          "Issues/Hull Crash": 83,
+          "Issues/Multiple Prismatic": 84,
+          "Issues/Restitution Overshoot": 85,
+          "Issues/Slide Twist Off Center Shape": 86,
+          "Issues/s&box Ghost Collisions": 87,
+          "Issues/s&box mover": 88,
+          "Joints/Ball and Chain": 89,
+          "Joints/Bridge": 90,
+          "Joints/Distance Joint": 91,
+          "Joints/Door": 92,
+          "Joints/Driving": 93,
+          "Joints/Filter": 94,
+          "Joints/Fold Out": 95,
+          "Joints/Gear Lift": 96,
+          "Joints/Motion Locks": 97,
+          "Joints/Motor Joint": 98,
+          "Joints/Parallel Spring": 99,
+          "Joints/Prismatic": 100,
+          "Joints/Revolute": 101,
+          "Joints/Spherical": 102,
+          "Joints/Top Down Friction": 103,
+          "Joints/Weld": 104,
+          "Joints/Wheel": 105,
+          "Manifold/Capsule vs Capsule": 106,
+          "Manifold/Capsule vs Hull": 107,
+          "Manifold/Capsule vs Sphere": 108,
+          "Manifold/Hull vs Hull": 109,
+          "Manifold/Hull vs Sphere": 110,
+          "Manifold/Sphere vs Sphere": 111,
+          "Manifold/Triangle vs Capsule": 112,
+          "Manifold/Triangle vs Hull": 113,
+          "Manifold/Triangle vs Sphere": 114,
+          "Mesh/Big Box": 115,
+          "Mesh/Box": 116,
+          "Mesh/Creation Benchmark": 117,
+          "Mesh/Grid": 118,
+          "Mesh/Height Field": 119,
+          "Mesh/Hollow Box": 120,
+          "Mesh/Reflection": 121,
+          "Mesh/Viewer": 122,
+          "Mesh/Voxel": 123,
+          "Ragdoll/Box": 124,
+          "Ragdoll/Incline": 125,
+          "Ragdoll/Mesh": 126,
+          "Ragdoll/Pile": 127,
+          "Replay/Viewer": 128,
+          "Robustness/HighMassRatio1": 129,
+          "Robustness/Overflow Color Pile": 130,
+          "Robustness/Overlap Recovery": 131,
+          "Robustness/Tiny Pyramid": 132,
+          "Shapes/Conveyor Belt": 133,
+          "Shapes/Conveyor Mesh": 134,
+          "Shapes/High Resistance": 135,
+          "Shapes/Inclined Plane": 136,
+          "Shapes/Isotropic Friction": 137,
+          "Shapes/Restitution": 138,
+          "Shapes/Rolling Resistance": 139,
+          "Shapes/Slide Twist": 140,
+          "Shapes/Static Invoke": 141,
+          "Shapes/Wind": 142,
+          "Shapes/Wind Drop": 143,
+          "Shapes/Wind Flap": 144,
+          "Stacking/Arch": 145,
+          "Stacking/Box Stack": 146,
+          "Stacking/Capsule Stack": 147,
+          "Stacking/Card House": 148,
+          "Stacking/Cylinder": 149,
+          "Stacking/Cylinder Stack": 150,
+          "Stacking/Dominoes": 151,
+          "Stacking/Double Domino": 152,
+          "Stacking/Edge Crossing": 153,
+          "Stacking/Jenga Stack": 154,
+          "Stacking/Pyramid2D": 155,
+          "Stacking/Single Box": 156,
+          "Stacking/Sphere Stack": 157,
+          "Stacking/Wedge": 158,
+          "Tree/Benchmark": 159,
+          "World/Far Mesh Drop": 160,
+          "World/Far Pyramid": 161,
+          "World/Far Ragdolls": 162,
+          "World/Far Stack": 163
+        }
+      }
+    },
+    "pixel_hash": "SHA256 of ASCII RGBA:WIDTHxHEIGHT followed by NUL and decoded RGBA bytes",
+    "rows": [
+      {
+        "sample": "Collision/Distance Debug",
+        "captures": {
+          "fixed": [
+            {
+              "png": "fixed/Collision_Distance_Debug-67957c757033-0.png",
+              "pixel_sha256": "c2efb9df2a8a59212e25b2c48f2039cf0321e0a27168fbbddc0f0e3def136c6e",
+              "width": 3840,
+              "height": 2160
+            },
+            {
+              "png": "fixed/Collision_Distance_Debug-67957c757033-1.png",
+              "pixel_sha256": "c2efb9df2a8a59212e25b2c48f2039cf0321e0a27168fbbddc0f0e3def136c6e",
+              "width": 3840,
+              "height": 2160
+            }
+          ],
+          "float": [
+            {
+              "png": "float/Collision_Distance_Debug-67957c757033-0.png",
+              "pixel_sha256": "df58925bd0912110d82f037726933c571cdc9ac3877dc2b16e11b6c1598db305",
+              "width": 3840,
+              "height": 2160
+            },
+            {
+              "png": "float/Collision_Distance_Debug-67957c757033-1.png",
+              "pixel_sha256": "df58925bd0912110d82f037726933c571cdc9ac3877dc2b16e11b6c1598db305",
+              "width": 3840,
+              "height": 2160
+            }
+          ]
+        },
+        "errors": [],
+        "exact_pixel_match": false,
+        "mean_absolute_rgb_difference": 0.008345349472736624,
+        "changed_pixel_percent": 1.2003882137345712,
+        "mean_luminance_difference_64x36": 0.0008680555555555555,
+        "fixed_thumbnail": "fixed/Collision_Distance_Debug-67957c757033-thumb.png",
+        "float_thumbnail": "float/Collision_Distance_Debug-67957c757033-thumb.png"
+      },
+      {
+        "sample": "Collision/Shape Distance",
+        "captures": {
+          "fixed": [
+            {
+              "png": "fixed/Collision_Shape_Distance-1efae0869794-0.png",
+              "pixel_sha256": "163cefe5ee4bde624ec79301a89dd8fec266f59d7c793e228aecc0943bd93834",
+              "width": 3840,
+              "height": 2160
+            },
+            {
+              "png": "fixed/Collision_Shape_Distance-1efae0869794-1.png",
+              "pixel_sha256": "163cefe5ee4bde624ec79301a89dd8fec266f59d7c793e228aecc0943bd93834",
+              "width": 3840,
+              "height": 2160
+            }
+          ],
+          "float": [
+            {
+              "png": "float/Collision_Shape_Distance-1efae0869794-0.png",
+              "pixel_sha256": "3b65990f349b988861a9e882722f0f5107866d16ed7abeb41df967827e7084a0",
+              "width": 3840,
+              "height": 2160
+            },
+            {
+              "png": "float/Collision_Shape_Distance-1efae0869794-1.png",
+              "pixel_sha256": "3b65990f349b988861a9e882722f0f5107866d16ed7abeb41df967827e7084a0",
+              "width": 3840,
+              "height": 2160
+            }
+          ]
+        },
+        "errors": [],
+        "exact_pixel_match": false,
+        "mean_absolute_rgb_difference": 0.0013246688528806584,
+        "changed_pixel_percent": 0.20953896604938294,
+        "mean_luminance_difference_64x36": 0.00043402777777777775,
+        "fixed_thumbnail": "fixed/Collision_Shape_Distance-1efae0869794-thumb.png",
+        "float_thumbnail": "float/Collision_Shape_Distance-1efae0869794-thumb.png"
+      },
+      {
+        "sample": "Determinism/Falling Ragdolls",
+        "captures": {
+          "fixed": [
+            {
+              "png": "fixed/Determinism_Falling_Ragdolls-1278b0375383-0.png",
+              "pixel_sha256": "6c45500976867ff315314530a73f1c3060728e1e86c8acfd1132525efede766c",
+              "width": 3840,
+              "height": 2160
+            },
+            {
+              "png": "fixed/Determinism_Falling_Ragdolls-1278b0375383-1.png",
+              "pixel_sha256": "6c45500976867ff315314530a73f1c3060728e1e86c8acfd1132525efede766c",
+              "width": 3840,
+              "height": 2160
+            }
+          ],
+          "float": [
+            {
+              "png": "float/Determinism_Falling_Ragdolls-1278b0375383-0.png",
+              "pixel_sha256": "1aa7bb8bae2213969d82440ad225028a02fa36afdfeacbbf85feba4a76c1ceb7",
+              "width": 3840,
+              "height": 2160
+            },
+            {
+              "png": "float/Determinism_Falling_Ragdolls-1278b0375383-1.png",
+              "pixel_sha256": "1aa7bb8bae2213969d82440ad225028a02fa36afdfeacbbf85feba4a76c1ceb7",
+              "width": 3840,
+              "height": 2160
+            }
+          ]
+        },
+        "errors": [],
+        "exact_pixel_match": false,
+        "mean_absolute_rgb_difference": 0.4173740113811728,
+        "changed_pixel_percent": 1.8416039737654266,
+        "mean_luminance_difference_64x36": 0.2209201388888889,
+        "fixed_thumbnail": "fixed/Determinism_Falling_Ragdolls-1278b0375383-thumb.png",
+        "float_thumbnail": "float/Determinism_Falling_Ragdolls-1278b0375383-thumb.png"
+      },
+      {
+        "sample": "Joints/Ball and Chain",
+        "captures": {
+          "fixed": [
+            {
+              "png": "fixed/Joints_Ball_and_Chain-aa4a237dd0eb-0.png",
+              "pixel_sha256": "05414d397b19f3818b2b30e7150404d29e49fe679d1867077d14baf587fc6a89",
+              "width": 3840,
+              "height": 2160
+            },
+            {
+              "png": "fixed/Joints_Ball_and_Chain-aa4a237dd0eb-1.png",
+              "pixel_sha256": "05414d397b19f3818b2b30e7150404d29e49fe679d1867077d14baf587fc6a89",
+              "width": 3840,
+              "height": 2160
+            }
+          ],
+          "float": [
+            {
+              "png": "float/Joints_Ball_and_Chain-aa4a237dd0eb-0.png",
+              "pixel_sha256": "f56839e3f477d57141e1b715a1bdf34dcd96224df1f91766720b58a5e2a703db",
+              "width": 3840,
+              "height": 2160
+            },
+            {
+              "png": "float/Joints_Ball_and_Chain-aa4a237dd0eb-1.png",
+              "pixel_sha256": "f56839e3f477d57141e1b715a1bdf34dcd96224df1f91766720b58a5e2a703db",
+              "width": 3840,
+              "height": 2160
+            }
+          ]
+        },
+        "errors": [],
+        "exact_pixel_match": false,
+        "mean_absolute_rgb_difference": 0.017110781571502056,
+        "changed_pixel_percent": 0.5363980516975286,
+        "mean_luminance_difference_64x36": 0.003472222222222222,
+        "fixed_thumbnail": "fixed/Joints_Ball_and_Chain-aa4a237dd0eb-thumb.png",
+        "float_thumbnail": "float/Joints_Ball_and_Chain-aa4a237dd0eb-thumb.png"
+      },
+      {
+        "sample": "Joints/Bridge",
+        "captures": {
+          "fixed": [
+            {
+              "png": "fixed/Joints_Bridge-87a11cde2063-0.png",
+              "pixel_sha256": "2f00f9b401f3788fe9cee5550e08e2ecf50c4f0d746c9e13fa369aa99750ecf9",
+              "width": 3840,
+              "height": 2160
+            },
+            {
+              "png": "fixed/Joints_Bridge-87a11cde2063-1.png",
+              "pixel_sha256": "2f00f9b401f3788fe9cee5550e08e2ecf50c4f0d746c9e13fa369aa99750ecf9",
+              "width": 3840,
+              "height": 2160
+            }
+          ],
+          "float": [
+            {
+              "png": "float/Joints_Bridge-87a11cde2063-0.png",
+              "pixel_sha256": "d7879aa25e99f1e5e5e8a3ca35a83f91dedf2be8c85048019b315f36bcc03ed4",
+              "width": 3840,
+              "height": 2160
+            },
+            {
+              "png": "float/Joints_Bridge-87a11cde2063-1.png",
+              "pixel_sha256": "d7879aa25e99f1e5e5e8a3ca35a83f91dedf2be8c85048019b315f36bcc03ed4",
+              "width": 3840,
+              "height": 2160
+            }
+          ]
+        },
+        "errors": [],
+        "exact_pixel_match": false,
+        "mean_absolute_rgb_difference": 0.15525696051954732,
+        "changed_pixel_percent": 5.377748842592589,
+        "mean_luminance_difference_64x36": 0.045572916666666664,
+        "fixed_thumbnail": "fixed/Joints_Bridge-87a11cde2063-thumb.png",
+        "float_thumbnail": "float/Joints_Bridge-87a11cde2063-thumb.png"
+      },
+      {
+        "sample": "Joints/Distance Joint",
+        "captures": {
+          "fixed": [
+            {
+              "png": "fixed/Joints_Distance_Joint-5583ed521efa-0.png",
+              "pixel_sha256": "77961532f714e0538b52a22e1ad79ff77ad359b9ef58cb053c37d88a286440ff",
+              "width": 3840,
+              "height": 2160
+            },
+            {
+              "png": "fixed/Joints_Distance_Joint-5583ed521efa-1.png",
+              "pixel_sha256": "77961532f714e0538b52a22e1ad79ff77ad359b9ef58cb053c37d88a286440ff",
+              "width": 3840,
+              "height": 2160
+            }
+          ],
+          "float": [
+            {
+              "png": "float/Joints_Distance_Joint-5583ed521efa-0.png",
+              "pixel_sha256": "a3b25cc642aea63d67db3adfbdf56e8de784ad0d1c4bbf3d693bd8aa7fca4ca3",
+              "width": 3840,
+              "height": 2160
+            },
+            {
+              "png": "float/Joints_Distance_Joint-5583ed521efa-1.png",
+              "pixel_sha256": "a3b25cc642aea63d67db3adfbdf56e8de784ad0d1c4bbf3d693bd8aa7fca4ca3",
+              "width": 3840,
+              "height": 2160
+            }
+          ]
+        },
+        "errors": [],
+        "exact_pixel_match": false,
+        "mean_absolute_rgb_difference": 0.0004031233924897119,
+        "changed_pixel_percent": 0.03439670138888351,
+        "mean_luminance_difference_64x36": 0.0,
+        "fixed_thumbnail": "fixed/Joints_Distance_Joint-5583ed521efa-thumb.png",
+        "float_thumbnail": "float/Joints_Distance_Joint-5583ed521efa-thumb.png"
+      },
+      {
+        "sample": "Joints/Door",
+        "captures": {
+          "fixed": [
+            {
+              "png": "fixed/Joints_Door-098cd82e95dd-0.png",
+              "pixel_sha256": "d9143295e53c2f76dc142f9bc0ea433892525e8dbec974ad299d16000f73df1c",
+              "width": 3840,
+              "height": 2160
+            },
+            {
+              "png": "fixed/Joints_Door-098cd82e95dd-1.png",
+              "pixel_sha256": "d9143295e53c2f76dc142f9bc0ea433892525e8dbec974ad299d16000f73df1c",
+              "width": 3840,
+              "height": 2160
+            }
+          ],
+          "float": [
+            {
+              "png": "float/Joints_Door-098cd82e95dd-0.png",
+              "pixel_sha256": "2c4c800bd5cc9d1ea3ad5b984ed279503b381c96d1d9353c52ccd068d399b032",
+              "width": 3840,
+              "height": 2160
+            },
+            {
+              "png": "float/Joints_Door-098cd82e95dd-1.png",
+              "pixel_sha256": "2c4c800bd5cc9d1ea3ad5b984ed279503b381c96d1d9353c52ccd068d399b032",
+              "width": 3840,
+              "height": 2160
+            }
+          ]
+        },
+        "errors": [],
+        "exact_pixel_match": false,
+        "mean_absolute_rgb_difference": 0.012743899498456791,
+        "changed_pixel_percent": 1.8916136188271593,
+        "mean_luminance_difference_64x36": 0.004340277777777778,
+        "fixed_thumbnail": "fixed/Joints_Door-098cd82e95dd-thumb.png",
+        "float_thumbnail": "float/Joints_Door-098cd82e95dd-thumb.png"
+      },
+      {
+        "sample": "Joints/Driving",
+        "captures": {
+          "fixed": [
+            {
+              "png": "fixed/Joints_Driving-3bc709ba0287-0.png",
+              "pixel_sha256": "4a8f5f97ea9093bf284f83f9002fa53036730f67d3e5c81e01ba058f71dbee9c",
+              "width": 3840,
+              "height": 2160
+            },
+            {
+              "png": "fixed/Joints_Driving-3bc709ba0287-1.png",
+              "pixel_sha256": "4a8f5f97ea9093bf284f83f9002fa53036730f67d3e5c81e01ba058f71dbee9c",
+              "width": 3840,
+              "height": 2160
+            }
+          ],
+          "float": [
+            {
+              "png": "float/Joints_Driving-3bc709ba0287-0.png",
+              "pixel_sha256": "8d0a786305faf12e402fa7a11a8a85fd7212a46edac60af74bb702841446c158",
+              "width": 3840,
+              "height": 2160
+            },
+            {
+              "png": "float/Joints_Driving-3bc709ba0287-1.png",
+              "pixel_sha256": "8d0a786305faf12e402fa7a11a8a85fd7212a46edac60af74bb702841446c158",
+              "width": 3840,
+              "height": 2160
+            }
+          ]
+        },
+        "errors": [],
+        "exact_pixel_match": false,
+        "mean_absolute_rgb_difference": 0.32033854166666664,
+        "changed_pixel_percent": 22.123697916666664,
+        "mean_luminance_difference_64x36": 0.20616319444444445,
+        "fixed_thumbnail": "fixed/Joints_Driving-3bc709ba0287-thumb.png",
+        "float_thumbnail": "float/Joints_Driving-3bc709ba0287-thumb.png"
+      },
+      {
+        "sample": "Joints/Filter",
+        "captures": {
+          "fixed": [
+            {
+              "png": "fixed/Joints_Filter-48a5e9fe7a24-0.png",
+              "pixel_sha256": "76aee13b7d45545dbcb260337f3bf72cba63cbffe4c3707fd3a37adaf14fc829",
+              "width": 3840,
+              "height": 2160
+            },
+            {
+              "png": "fixed/Joints_Filter-48a5e9fe7a24-1.png",
+              "pixel_sha256": "76aee13b7d45545dbcb260337f3bf72cba63cbffe4c3707fd3a37adaf14fc829",
+              "width": 3840,
+              "height": 2160
+            }
+          ],
+          "float": [
+            {
+              "png": "float/Joints_Filter-48a5e9fe7a24-0.png",
+              "pixel_sha256": "a0c8510caae93256d1212df70921c9007a51aef6266fa7ed496b18493f3f5c1e",
+              "width": 3840,
+              "height": 2160
+            },
+            {
+              "png": "float/Joints_Filter-48a5e9fe7a24-1.png",
+              "pixel_sha256": "a0c8510caae93256d1212df70921c9007a51aef6266fa7ed496b18493f3f5c1e",
+              "width": 3840,
+              "height": 2160
+            }
+          ]
+        },
+        "errors": [],
+        "exact_pixel_match": false,
+        "mean_absolute_rgb_difference": 0.013724681712962964,
+        "changed_pixel_percent": 1.9721498842592555,
+        "mean_luminance_difference_64x36": 0.006076388888888889,
+        "fixed_thumbnail": "fixed/Joints_Filter-48a5e9fe7a24-thumb.png",
+        "float_thumbnail": "float/Joints_Filter-48a5e9fe7a24-thumb.png"
+      },
+      {
+        "sample": "Joints/Gear Lift",
+        "captures": {
+          "fixed": [
+            {
+              "png": "fixed/Joints_Gear_Lift-c5959c1c2f53-0.png",
+              "pixel_sha256": "d06db1c00d432c4f6ad073a26d13b9254bf8ac4fc9215bc6c788d8930682fb5c",
+              "width": 3840,
+              "height": 2160
+            },
+            {
+              "png": "fixed/Joints_Gear_Lift-c5959c1c2f53-1.png",
+              "pixel_sha256": "d06db1c00d432c4f6ad073a26d13b9254bf8ac4fc9215bc6c788d8930682fb5c",
+              "width": 3840,
+              "height": 2160
+            }
+          ],
+          "float": [
+            {
+              "png": "float/Joints_Gear_Lift-c5959c1c2f53-0.png",
+              "pixel_sha256": "de119c52a7ec604499ce7e58467f7dc4a3ef3a887c6bbdb4f73a62c4f3a52d83",
+              "width": 3840,
+              "height": 2160
+            },
+            {
+              "png": "float/Joints_Gear_Lift-c5959c1c2f53-1.png",
+              "pixel_sha256": "de119c52a7ec604499ce7e58467f7dc4a3ef3a887c6bbdb4f73a62c4f3a52d83",
+              "width": 3840,
+              "height": 2160
+            }
+          ]
+        },
+        "errors": [],
+        "exact_pixel_match": false,
+        "mean_absolute_rgb_difference": 1.2052471948945473,
+        "changed_pixel_percent": 5.7177010995370425,
+        "mean_luminance_difference_64x36": 0.5946180555555556,
+        "fixed_thumbnail": "fixed/Joints_Gear_Lift-c5959c1c2f53-thumb.png",
+        "float_thumbnail": "float/Joints_Gear_Lift-c5959c1c2f53-thumb.png"
+      },
+      {
+        "sample": "Joints/Motion Locks",
+        "captures": {
+          "fixed": [
+            {
+              "png": "fixed/Joints_Motion_Locks-c61733b12ea3-0.png",
+              "pixel_sha256": "0e97c91e801cd1d011ffaad5c846920f869af58d0091aeb10f8356fe12d32a24",
+              "width": 3840,
+              "height": 2160
+            },
+            {
+              "png": "fixed/Joints_Motion_Locks-c61733b12ea3-1.png",
+              "pixel_sha256": "0e97c91e801cd1d011ffaad5c846920f869af58d0091aeb10f8356fe12d32a24",
+              "width": 3840,
+              "height": 2160
+            }
+          ],
+          "float": [
+            {
+              "png": "float/Joints_Motion_Locks-c61733b12ea3-0.png",
+              "pixel_sha256": "f983f87df296c23c28d0cdd19c10d48764a16c8d895e5eec96e0d14a3d15c4ac",
+              "width": 3840,
+              "height": 2160
+            },
+            {
+              "png": "float/Joints_Motion_Locks-c61733b12ea3-1.png",
+              "pixel_sha256": "f983f87df296c23c28d0cdd19c10d48764a16c8d895e5eec96e0d14a3d15c4ac",
+              "width": 3840,
+              "height": 2160
+            }
+          ]
+        },
+        "errors": [],
+        "exact_pixel_match": false,
+        "mean_absolute_rgb_difference": 0.06999557934670782,
+        "changed_pixel_percent": 2.110303337191355,
+        "mean_luminance_difference_64x36": 0.059027777777777776,
+        "fixed_thumbnail": "fixed/Joints_Motion_Locks-c61733b12ea3-thumb.png",
+        "float_thumbnail": "float/Joints_Motion_Locks-c61733b12ea3-thumb.png"
+      },
+      {
+        "sample": "Joints/Motor Joint",
+        "captures": {
+          "fixed": [
+            {
+              "png": "fixed/Joints_Motor_Joint-868ec4be5e8b-0.png",
+              "pixel_sha256": "e4094ab8ec57c6f0ef248d3e9efd0c955629b5d0c7e560a63f9e91609eef1477",
+              "width": 3840,
+              "height": 2160
+            },
+            {
+              "png": "fixed/Joints_Motor_Joint-868ec4be5e8b-1.png",
+              "pixel_sha256": "e4094ab8ec57c6f0ef248d3e9efd0c955629b5d0c7e560a63f9e91609eef1477",
+              "width": 3840,
+              "height": 2160
+            }
+          ],
+          "float": [
+            {
+              "png": "float/Joints_Motor_Joint-868ec4be5e8b-0.png",
+              "pixel_sha256": "906822a5a1390f2f85b542dbb46433212233764edc075ff0c1ed7f1e125da5bf",
+              "width": 3840,
+              "height": 2160
+            },
+            {
+              "png": "float/Joints_Motor_Joint-868ec4be5e8b-1.png",
+              "pixel_sha256": "906822a5a1390f2f85b542dbb46433212233764edc075ff0c1ed7f1e125da5bf",
+              "width": 3840,
+              "height": 2160
+            }
+          ]
+        },
+        "errors": [],
+        "exact_pixel_match": false,
+        "mean_absolute_rgb_difference": 0.0036596579218106996,
+        "changed_pixel_percent": 0.054205246913585636,
+        "mean_luminance_difference_64x36": 0.001736111111111111,
+        "fixed_thumbnail": "fixed/Joints_Motor_Joint-868ec4be5e8b-thumb.png",
+        "float_thumbnail": "float/Joints_Motor_Joint-868ec4be5e8b-thumb.png"
+      },
+      {
+        "sample": "Joints/Parallel Spring",
+        "captures": {
+          "fixed": [
+            {
+              "png": "fixed/Joints_Parallel_Spring-7f32c3ef0cd1-0.png",
+              "pixel_sha256": "62a15f34cea73b733b83cd71cd78ddbc3d5bb0d6eae292e6e7d20f420c004cc8",
+              "width": 3840,
+              "height": 2160
+            },
+            {
+              "png": "fixed/Joints_Parallel_Spring-7f32c3ef0cd1-1.png",
+              "pixel_sha256": "62a15f34cea73b733b83cd71cd78ddbc3d5bb0d6eae292e6e7d20f420c004cc8",
+              "width": 3840,
+              "height": 2160
+            }
+          ],
+          "float": [
+            {
+              "png": "float/Joints_Parallel_Spring-7f32c3ef0cd1-0.png",
+              "pixel_sha256": "a652faf0de4e2f6b5740330ee6a0e405f4b3877d3f083fc9921d65543b7e585d",
+              "width": 3840,
+              "height": 2160
+            },
+            {
+              "png": "float/Joints_Parallel_Spring-7f32c3ef0cd1-1.png",
+              "pixel_sha256": "a652faf0de4e2f6b5740330ee6a0e405f4b3877d3f083fc9921d65543b7e585d",
+              "width": 3840,
+              "height": 2160
+            }
+          ]
+        },
+        "errors": [],
+        "exact_pixel_match": false,
+        "mean_absolute_rgb_difference": 0.02560936696244856,
+        "changed_pixel_percent": 2.1588541666666683,
+        "mean_luminance_difference_64x36": 0.015190972222222222,
+        "fixed_thumbnail": "fixed/Joints_Parallel_Spring-7f32c3ef0cd1-thumb.png",
+        "float_thumbnail": "float/Joints_Parallel_Spring-7f32c3ef0cd1-thumb.png"
+      },
+      {
+        "sample": "Joints/Prismatic",
+        "captures": {
+          "fixed": [
+            {
+              "png": "fixed/Joints_Prismatic-bf5747dbac19-0.png",
+              "pixel_sha256": "e3d22889461d941c34fb30419a35eeb1a1b56eddb92f3eb52f34668c94b6983a",
+              "width": 3840,
+              "height": 2160
+            },
+            {
+              "png": "fixed/Joints_Prismatic-bf5747dbac19-1.png",
+              "pixel_sha256": "e3d22889461d941c34fb30419a35eeb1a1b56eddb92f3eb52f34668c94b6983a",
+              "width": 3840,
+              "height": 2160
+            }
+          ],
+          "float": [
+            {
+              "png": "float/Joints_Prismatic-bf5747dbac19-0.png",
+              "pixel_sha256": "5bf4f700e5a3e74deb47296a3489563f585744508241c58395a22bb97a180202",
+              "width": 3840,
+              "height": 2160
+            },
+            {
+              "png": "float/Joints_Prismatic-bf5747dbac19-1.png",
+              "pixel_sha256": "5bf4f700e5a3e74deb47296a3489563f585744508241c58395a22bb97a180202",
+              "width": 3840,
+              "height": 2160
+            }
+          ]
+        },
+        "errors": [],
+        "exact_pixel_match": false,
+        "mean_absolute_rgb_difference": 0.015264716756687243,
+        "changed_pixel_percent": 1.8878761574074088,
+        "mean_luminance_difference_64x36": 0.006510416666666667,
+        "fixed_thumbnail": "fixed/Joints_Prismatic-bf5747dbac19-thumb.png",
+        "float_thumbnail": "float/Joints_Prismatic-bf5747dbac19-thumb.png"
+      },
+      {
+        "sample": "Joints/Revolute",
+        "captures": {
+          "fixed": [
+            {
+              "png": "fixed/Joints_Revolute-452789cf75e8-0.png",
+              "pixel_sha256": "6f2e38375e1871d7d578062bc87b837f04a8dad102ab2fb1a8615a42b8140179",
+              "width": 3840,
+              "height": 2160
+            },
+            {
+              "png": "fixed/Joints_Revolute-452789cf75e8-1.png",
+              "pixel_sha256": "6f2e38375e1871d7d578062bc87b837f04a8dad102ab2fb1a8615a42b8140179",
+              "width": 3840,
+              "height": 2160
+            }
+          ],
+          "float": [
+            {
+              "png": "float/Joints_Revolute-452789cf75e8-0.png",
+              "pixel_sha256": "eccd2ff58ae1efcd92f69b8c933872682899f513bdedeea13de12c63665369b6",
+              "width": 3840,
+              "height": 2160
+            },
+            {
+              "png": "float/Joints_Revolute-452789cf75e8-1.png",
+              "pixel_sha256": "eccd2ff58ae1efcd92f69b8c933872682899f513bdedeea13de12c63665369b6",
+              "width": 3840,
+              "height": 2160
+            }
+          ]
+        },
+        "errors": [],
+        "exact_pixel_match": false,
+        "mean_absolute_rgb_difference": 0.015258728780864197,
+        "changed_pixel_percent": 1.8890335648148127,
+        "mean_luminance_difference_64x36": 0.006510416666666667,
+        "fixed_thumbnail": "fixed/Joints_Revolute-452789cf75e8-thumb.png",
+        "float_thumbnail": "float/Joints_Revolute-452789cf75e8-thumb.png"
+      },
+      {
+        "sample": "Joints/Spherical",
+        "captures": {
+          "fixed": [
+            {
+              "png": "fixed/Joints_Spherical-a8058e2d9295-0.png",
+              "pixel_sha256": "e3d22889461d941c34fb30419a35eeb1a1b56eddb92f3eb52f34668c94b6983a",
+              "width": 3840,
+              "height": 2160
+            },
+            {
+              "png": "fixed/Joints_Spherical-a8058e2d9295-1.png",
+              "pixel_sha256": "e3d22889461d941c34fb30419a35eeb1a1b56eddb92f3eb52f34668c94b6983a",
+              "width": 3840,
+              "height": 2160
+            }
+          ],
+          "float": [
+            {
+              "png": "float/Joints_Spherical-a8058e2d9295-0.png",
+              "pixel_sha256": "5bf4f700e5a3e74deb47296a3489563f585744508241c58395a22bb97a180202",
+              "width": 3840,
+              "height": 2160
+            },
+            {
+              "png": "float/Joints_Spherical-a8058e2d9295-1.png",
+              "pixel_sha256": "5bf4f700e5a3e74deb47296a3489563f585744508241c58395a22bb97a180202",
+              "width": 3840,
+              "height": 2160
+            }
+          ]
+        },
+        "errors": [],
+        "exact_pixel_match": false,
+        "mean_absolute_rgb_difference": 0.015264716756687243,
+        "changed_pixel_percent": 1.8878761574074088,
+        "mean_luminance_difference_64x36": 0.006510416666666667,
+        "fixed_thumbnail": "fixed/Joints_Spherical-a8058e2d9295-thumb.png",
+        "float_thumbnail": "float/Joints_Spherical-a8058e2d9295-thumb.png"
+      },
+      {
+        "sample": "Joints/Top Down Friction",
+        "captures": {
+          "fixed": [
+            {
+              "png": "fixed/Joints_Top_Down_Friction-659f78e954b8-0.png",
+              "pixel_sha256": "f80d6ee44e9d0d1ac6eca5ae3e3d1989d26d222b049033deb550e04520d69b7f",
+              "width": 3840,
+              "height": 2160
+            },
+            {
+              "png": "fixed/Joints_Top_Down_Friction-659f78e954b8-1.png",
+              "pixel_sha256": "f80d6ee44e9d0d1ac6eca5ae3e3d1989d26d222b049033deb550e04520d69b7f",
+              "width": 3840,
+              "height": 2160
+            }
+          ],
+          "float": [
+            {
+              "png": "float/Joints_Top_Down_Friction-659f78e954b8-0.png",
+              "pixel_sha256": "73a794437132bd5e6c90260aecb7a246c8ada7dfe01c2d16768c9ac8f91d082b",
+              "width": 3840,
+              "height": 2160
+            },
+            {
+              "png": "float/Joints_Top_Down_Friction-659f78e954b8-1.png",
+              "pixel_sha256": "73a794437132bd5e6c90260aecb7a246c8ada7dfe01c2d16768c9ac8f91d082b",
+              "width": 3840,
+              "height": 2160
+            }
+          ]
+        },
+        "errors": [],
+        "exact_pixel_match": false,
+        "mean_absolute_rgb_difference": 0.0567847382973251,
+        "changed_pixel_percent": 0.5552662037037082,
+        "mean_luminance_difference_64x36": 0.05946180555555555,
+        "fixed_thumbnail": "fixed/Joints_Top_Down_Friction-659f78e954b8-thumb.png",
+        "float_thumbnail": "float/Joints_Top_Down_Friction-659f78e954b8-thumb.png"
+      },
+      {
+        "sample": "Joints/Weld",
+        "captures": {
+          "fixed": [
+            {
+              "png": "fixed/Joints_Weld-6500556cbe84-0.png",
+              "pixel_sha256": "e3d22889461d941c34fb30419a35eeb1a1b56eddb92f3eb52f34668c94b6983a",
+              "width": 3840,
+              "height": 2160
+            },
+            {
+              "png": "fixed/Joints_Weld-6500556cbe84-1.png",
+              "pixel_sha256": "e3d22889461d941c34fb30419a35eeb1a1b56eddb92f3eb52f34668c94b6983a",
+              "width": 3840,
+              "height": 2160
+            }
+          ],
+          "float": [
+            {
+              "png": "float/Joints_Weld-6500556cbe84-0.png",
+              "pixel_sha256": "5bf4f700e5a3e74deb47296a3489563f585744508241c58395a22bb97a180202",
+              "width": 3840,
+              "height": 2160
+            },
+            {
+              "png": "float/Joints_Weld-6500556cbe84-1.png",
+              "pixel_sha256": "5bf4f700e5a3e74deb47296a3489563f585744508241c58395a22bb97a180202",
+              "width": 3840,
+              "height": 2160
+            }
+          ]
+        },
+        "errors": [],
+        "exact_pixel_match": false,
+        "mean_absolute_rgb_difference": 0.015264716756687243,
+        "changed_pixel_percent": 1.8878761574074088,
+        "mean_luminance_difference_64x36": 0.006510416666666667,
+        "fixed_thumbnail": "fixed/Joints_Weld-6500556cbe84-thumb.png",
+        "float_thumbnail": "float/Joints_Weld-6500556cbe84-thumb.png"
+      },
+      {
+        "sample": "Joints/Wheel",
+        "captures": {
+          "fixed": [
+            {
+              "png": "fixed/Joints_Wheel-491be789035e-0.png",
+              "pixel_sha256": "daa34c5af43995dd80d3c21e570e7571fc2e9bfa058934059dc9543bccfaa70b",
+              "width": 3840,
+              "height": 2160
+            },
+            {
+              "png": "fixed/Joints_Wheel-491be789035e-1.png",
+              "pixel_sha256": "daa34c5af43995dd80d3c21e570e7571fc2e9bfa058934059dc9543bccfaa70b",
+              "width": 3840,
+              "height": 2160
+            }
+          ],
+          "float": [
+            {
+              "png": "float/Joints_Wheel-491be789035e-0.png",
+              "pixel_sha256": "a2051eab743384d56cf7f960817becc0131e5dcf5aa4bf6f64e2b74a4efe8bd4",
+              "width": 3840,
+              "height": 2160
+            },
+            {
+              "png": "float/Joints_Wheel-491be789035e-1.png",
+              "pixel_sha256": "a2051eab743384d56cf7f960817becc0131e5dcf5aa4bf6f64e2b74a4efe8bd4",
+              "width": 3840,
+              "height": 2160
+            }
+          ]
+        },
+        "errors": [],
+        "exact_pixel_match": false,
+        "mean_absolute_rgb_difference": 0.02378126607510288,
+        "changed_pixel_percent": 1.7935353973765444,
+        "mean_luminance_difference_64x36": 0.020833333333333332,
+        "fixed_thumbnail": "fixed/Joints_Wheel-491be789035e-thumb.png",
+        "float_thumbnail": "float/Joints_Wheel-491be789035e-thumb.png"
+      },
+      {
+        "sample": "Stacking/Box Stack",
+        "captures": {
+          "fixed": [
+            {
+              "png": "fixed/Stacking_Box_Stack-8f5eaf073c5e-0.png",
+              "pixel_sha256": "28aaa8686b52e698ac18cb06ca8f08e380dfefb28d57b707cb972322f209ed86",
+              "width": 3840,
+              "height": 2160
+            },
+            {
+              "png": "fixed/Stacking_Box_Stack-8f5eaf073c5e-1.png",
+              "pixel_sha256": "28aaa8686b52e698ac18cb06ca8f08e380dfefb28d57b707cb972322f209ed86",
+              "width": 3840,
+              "height": 2160
+            }
+          ],
+          "float": [
+            {
+              "png": "float/Stacking_Box_Stack-8f5eaf073c5e-0.png",
+              "pixel_sha256": "b3f9ab2937765b2916543b2c2a91789e2daa075c829209218a121c2a908642b6",
+              "width": 3840,
+              "height": 2160
+            },
+            {
+              "png": "float/Stacking_Box_Stack-8f5eaf073c5e-1.png",
+              "pixel_sha256": "b3f9ab2937765b2916543b2c2a91789e2daa075c829209218a121c2a908642b6",
+              "width": 3840,
+              "height": 2160
+            }
+          ]
+        },
+        "errors": [],
+        "exact_pixel_match": false,
+        "mean_absolute_rgb_difference": 0.07667418177726337,
+        "changed_pixel_percent": 3.56493537808642,
+        "mean_luminance_difference_64x36": 0.03428819444444445,
+        "fixed_thumbnail": "fixed/Stacking_Box_Stack-8f5eaf073c5e-thumb.png",
+        "float_thumbnail": "float/Stacking_Box_Stack-8f5eaf073c5e-thumb.png"
+      }
+    ]
+  },
+  "nonzero_solve_source_proof": {
+    "base": "14bf27af0dfcc0649346e08b1129833a7e690c01",
+    "implementation": "8f52c1898dc0c26c009b9f5c16554587d1448c26",
+    "nonzero_solve_body_byte_identical": true,
+    "nonzero_solve_body_sha256": "3d006ea8c88a064d42db8ffb7b342de58a2afe6189e3886c5fe30798eacced08"
+  },
+  "configuration": "Apple M3 Ultra, macOS 26.6.2, Apple Clang 21.0.0, arm64, RelWithDebInfo/O2, thin LTO, four workers; scalar defaults and optional NEON; continuous collision on.",
+  "caution": "Shared workstation. Small timing differences are inconclusive. The fixed library repair changes trajectories; the zero-joint shortcut preserves exact state and image hashes.",
+  "summary": {
+    "scalar_float_runtime_ratio": 2.3554263004855285,
+    "neon_float_runtime_ratio": 2.2534069700441557,
+    "library_runtime_reduction_percent": 14.962969256229519,
+    "combined_runtime_reduction_percent": 16.1592730473727
+  }
+}
