@@ -29,31 +29,31 @@
 // A SLEEP STEP OF 0 MEANS THE RAGDOLLS NEVER SETTLED, which is what a missed scale
 // crossing looks like from here. Read a zero as that before re-capturing anything.
 // The inverse-scaled 2x2 joint solves restore the ragdolls' alignment constraints.
-// These references include that correction; zero would still mean no settling.
-#define RAGDOLL_SLEEP_STEP 279
+// These references also include normalized GJK edge weights; zero still means no settling.
+#define RAGDOLL_SLEEP_STEP 310
 #if defined( BOX3D_LUDICROUS_MODE )
-#define RAGDOLL_HASH 0x9D664C70
+#define RAGDOLL_HASH 0x4CBB0862
 #else
-#define RAGDOLL_HASH 0x3B32F0B0
+#define RAGDOLL_HASH 0x8B6562E2
 #endif
 
 // Goldens for the wave pile, query spawn and mesh drop scenarios. Fixed-point goldens
 // hold across platforms and worker counts by construction. The sleep steps are shared
 // between builds; the hashes cover absolute transform bytes, so the ludicrous build
 // (128-bit positions, 80-byte b3WorldTransform) carries its own values.
-#define WAVE_PILE_SLEEP_STEP 286
+#define WAVE_PILE_SLEEP_STEP 278
 #define QUERY_SPAWN_SLEEP_STEP 243
 #define QUERY_SPAWN_HIT_COUNT 59
 #define QUERY_SPAWN_QUERY_HASH 0xE583B246
 #define MESH_DROP_SLEEP_STEP 210
 #if defined( BOX3D_LUDICROUS_MODE )
-#define WAVE_PILE_HASH 0x180F40D3
+#define WAVE_PILE_HASH 0xB5731AB7
 #define QUERY_SPAWN_HASH 0x7C6B3268
-#define MESH_DROP_HASH 0xABA23F15
+#define MESH_DROP_HASH 0xDB1DA8B9
 #else
-#define WAVE_PILE_HASH 0x9B108F93
+#define WAVE_PILE_HASH 0x9DF19177
 #define QUERY_SPAWN_HASH 0x49ECDEA8
-#define MESH_DROP_HASH 0x458A95E7
+#define MESH_DROP_HASH 0x491E324B
 #endif
 
 static int SingleMultithreadingTest( int workerCount )

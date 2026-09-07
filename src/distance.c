@@ -219,10 +219,13 @@ static bool b3SolveSimplex2( b3Simplex* simplex )
 		return false;
 	}
 
-	// VR( AB )
-	b3Fixed denominator = b3FixDiv( B3_FIX( 1.0f ) , divisor );
-	vs[0].a = b3FixMul( denominator , u );
-	vs[1].a = b3FixMul( denominator , v );
+	// VR( AB ). Form the ratio directly: 1 / |AB|^2 rounds to zero for
+	// edges longer than 256. Normalize the rounded numerators and derive the
+	// other weight by subtraction so the witnesses remain affine combinations.
+	// u and v are positive here; their unsigned sum cannot overflow uint64.
+	uint64_t sum = (uint64_t)u + (uint64_t)v;
+	vs[1].a = (b3Fixed)( ( (b3UInt128)(uint64_t)v << B3_FIXED_FRACTION_BITS ) / sum );
+	vs[0].a = B3_FIXED_ONE - vs[1].a;
 
 	return true;
 }

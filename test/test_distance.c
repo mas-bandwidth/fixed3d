@@ -102,8 +102,38 @@ static int TimeOfImpactTest( void )
 	return 0;
 }
 
+static int LongEdgeDistanceTest( void )
+{
+	// A point above an interior point of a segment has an analytical witness.
+	// At length > 256 the Q48.16 reciprocal of the squared length is zero.
+	const int lengths[] = { 128, 256, 257, 512, 1024 };
+	for ( int i = 0; i < ARRAY_COUNT( lengths ); ++i )
+	{
+		b3Fixed length = b3FixFromInt( lengths[i] );
+		b3Vec3 edge[2] = { { B3_FIX( 3.0f ), B3_FIX( 4.0f ), 0 }, { B3_FIX( 3.0f ) + length, B3_FIX( 4.0f ), 0 } };
+		// The extra unit makes the weight nonrepresentable for non-power-of-two edges.
+		b3Vec3 point = { B3_FIX( 4.0f ) + length / 4, B3_FIX( 6.0f ), 0 };
+		b3DistanceInput input = { 0 };
+		input.proxyA = (b3ShapeProxy){ edge, 2, 0 };
+		input.proxyB = (b3ShapeProxy){ &point, 1, 0 };
+		input.transform = b3Transform_identity;
+		b3SimplexCache cache = { 0 };
+		for ( int repeat = 0; repeat < 2; ++repeat )
+		{
+			b3DistanceOutput output = b3ShapeDistance( &input, &cache, NULL, 0 );
+			ENSURE_SMALL( output.distance - B3_FIX( 2.0f ), B3_FIX( 0.001f ) );
+			ENSURE_SMALL( output.pointA.x - point.x, lengths[i] * B3_FIXED_EPSILON + 2 );
+			ENSURE_SMALL( output.pointA.y - B3_FIX( 4.0f ), 2 * B3_FIXED_EPSILON );
+			ENSURE_SMALL( output.pointB.x - point.x, 2 * B3_FIXED_EPSILON );
+			ENSURE_SMALL( output.pointB.y - point.y, 2 * B3_FIXED_EPSILON );
+		}
+	}
+	return 0;
+}
+
 int DistanceTest( void )
 {
+	RUN_SUBTEST( LongEdgeDistanceTest );
 	RUN_SUBTEST( SegmentDistanceTest );
 	RUN_SUBTEST( ShapeDistanceTest );
 	RUN_SUBTEST( ShapeCastTest );
