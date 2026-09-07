@@ -198,6 +198,9 @@ typedef struct b3StepContext
 
 	int subStepCount;
 
+	// Geometry generation for per-constraint separation caches. Published by stage barriers.
+	int positionGeneration;
+
 	b3Softness contactSoftness;
 	b3Softness staticSoftness;
 
