@@ -277,8 +277,20 @@ B3_INLINE b3Vec3 b3InvMulMV( b3Matrix3 m, b3Vec3 v )
 /// add: the right-hand side is already an ordinary value, so it contributes 16 of the
 /// scale itself. Carried at 256 bits because a cofactor of inverse-scaled entries reaches
 /// 2^107 for the smallest body this format admits, and the shift takes it past 128.
+// RANGE IS A BEHAVIORAL REQUIREMENT. Space Game's 250-unit asteroids stopped
+// responding to impulses when their inverse mass/inertia rounded to zero in
+// Q48.16. The 40-bit inverse scale preserves that response; small bodies also
+// need large inverse values, whose cofactors and shifted numerators need 256
+// bits. Do not reduce the scale or remove this wide path for speed. A faster
+// path must prove its bounds and fall back without discarding precision.
+// Background: https://github.com/spacegame-llc/space/pull/402
 B3_INLINE b3Vec3 b3Solve3AcrossScales( b3Matrix3 m, b3Vec3 a )
 {
+	if ( a.x == 0 && a.y == 0 && a.z == 0 )
+	{
+		return b3Vec3_zero;
+	}
+
 	fixInt128 c00 = fixCofactor128( m.cy.y, m.cz.z, m.cy.z, m.cz.y );
 	fixInt128 c01 = fixCofactor128( m.cy.z, m.cz.x, m.cy.x, m.cz.z );
 	fixInt128 c02 = fixCofactor128( m.cy.x, m.cz.y, m.cy.y, m.cz.x );
