@@ -718,8 +718,37 @@ static int ShapeExtents( void )
 	return 0;
 }
 
+// An angular impulse changes velocity by inverse inertia times impulse. Use
+// anisotropic inertia and a rotated body to check the local/world conversion too.
+static int AngularImpulseInverseScale( void )
+{
+	b3WorldDef worldDef = b3DefaultWorldDef();
+	b3WorldId worldId = b3CreateWorld( &worldDef );
+	b3BodyDef bodyDef = b3DefaultBodyDef();
+	bodyDef.type = b3_dynamicBody;
+	bodyDef.rotation = b3MakeQuatFromAxisAngle( b3Vec3_axisZ, B3_FIX( 0.5f ) );
+	b3BodyId bodyId = b3CreateBody( worldId, &bodyDef );
+	b3MassData mass = { 0 };
+	mass.mass = B3_FIX( 1.0f );
+	mass.inertia = (b3Matrix3){ { B3_FIX( 2.0f ), 0, 0 }, { 0, B3_FIX( 4.0f ), 0 }, { 0, 0, B3_FIX( 8.0f ) } };
+	b3Body_SetMassData( bodyId, mass );
+	b3Vec3 localImpulse = { B3_FIX( 1.0f ), B3_FIX( -2.0f ), B3_FIX( 2.0f ) };
+	b3Vec3 initial = { B3_FIX( 0.25f ), B3_FIX( 0.5f ), B3_FIX( -0.25f ) };
+	b3Body_SetAngularVelocity( bodyId, initial );
+	b3Body_ApplyAngularImpulse( bodyId, b3RotateVector( bodyDef.rotation, localImpulse ), true );
+	b3Vec3 expected =
+		b3Add( initial, b3RotateVector( bodyDef.rotation, (b3Vec3){ B3_FIX( 0.5f ), B3_FIX( -0.5f ), B3_FIX( 0.25f ) } ) );
+	b3Vec3 actual = b3Body_GetAngularVelocity( bodyId );
+	b3DestroyWorld( worldId );
+	ENSURE_SMALL( actual.x - expected.x, B3_FIX( 0.001f ) );
+	ENSURE_SMALL( actual.y - expected.y, B3_FIX( 0.001f ) );
+	ENSURE_SMALL( actual.z - expected.z, B3_FIX( 0.001f ) );
+	return 0;
+}
+
 int BodyTest( void )
 {
+	RUN_SUBTEST( AngularImpulseInverseScale );
 	RUN_SUBTEST( InverseMassQuantumFloor );
 	RUN_SUBTEST( InverseInertiaScaleEnvelope );
 	RUN_SUBTEST( InverseMassQuantumFloorFromShapes );
