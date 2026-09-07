@@ -332,23 +332,6 @@ static inline void b3TestEdgePair( const b3HullHalfEdge* edgesA, const b3Vec3* p
 	}
 }
 
-#if defined( B3_SIMD_AVX512 ) || defined( B3_SIMD_NEON )
-
-#if defined( B3_SIMD_AVX512 )
-#include <immintrin.h>
-// AVX-512 multiplies 64-bit lanes directly
-typedef b3Fixed b3EdgeLane;
-#else
-#include <arm_neon.h>
-// NEON has only 32x32->64 widening multiplies, so the SoA staging narrows to
-// int32; the admission check below rejects anything that would not fit and
-// the truncated values are then never read
-typedef int32_t b3EdgeLane;
-#endif
-
-// Hulls index edges with uint8_t, so at most 256 half-edges = 128 edge pairs
-#define B3_MAX_HULL_EDGE_PAIRS 128
-
 static inline uint64_t b3EdgeAbsBoundU64( b3Fixed a )
 {
 	return a < 0 ? ( 0 - (uint64_t)a ) : (uint64_t)a;
@@ -370,6 +353,54 @@ static inline bool b3EdgeWideAdmissible( uint64_t uvMax, uint64_t edgeBound, uin
 	return uvMax <= UINT64_MAX / 3 && (b3UInt128)( 3 * uvMax ) * edgeBound < ( (b3UInt128)1 << 63 ) &&
 		   normalBoundA <= UINT64_MAX / 3 && (b3UInt128)( 3 * normalBoundA ) * eBMax < ( (b3UInt128)1 << 63 );
 }
+
+#if !defined( B3_SIMD_AVX512 ) && !defined( B3_SIMD_NEON )
+// Called only after b3EdgeWideAdmissible proves that the sum of absolute
+// products is less than 2^63. Products, partial sums, and negation are exact.
+static inline int64_t b3EdgeDot64( b3Vec3 a, b3Vec3 b )
+{
+	return a.x * b.x + a.y * b.y + a.z * b.z;
+}
+
+static inline void b3TestEdgePair64( const b3HullHalfEdge* edgesA, const b3Vec3* pointsA, const b3Plane* planesA, int indexA,
+									 b3Vec3 eB, b3Vec3 qB, b3Vec3 uB, b3Vec3 vB, b3Fixed squaredTolerance, int indexB,
+									 b3SeparatingAxis* best )
+{
+	const b3HullHalfEdge* edgeA = edgesA + indexA;
+	const b3HullHalfEdge* twinA = edgesA + indexA + 1;
+	b3Vec3 eA = b3Sub( pointsA[twinA->origin], pointsA[edgeA->origin] );
+	int64_t cba = b3EdgeDot64( uB, eA );
+	int64_t dba = b3EdgeDot64( vB, eA );
+	if ( cba == 0 || dba == 0 || ( cba ^ dba ) >= 0 )
+	{
+		return;
+	}
+	int64_t adc = -b3EdgeDot64( planesA[edgeA->face].normal, eB );
+	int64_t bdc = -b3EdgeDot64( planesA[twinA->face].normal, eB );
+	if ( adc == 0 || bdc == 0 || ( adc ^ bdc ) >= 0 || ( cba ^ bdc ) < 0 )
+	{
+		return;
+	}
+	b3TestEdgePair( edgesA, pointsA, planesA, indexA, eB, qB, uB, vB, squaredTolerance, indexB, best );
+}
+#endif
+
+#if defined( B3_SIMD_AVX512 ) || defined( B3_SIMD_NEON )
+
+#if defined( B3_SIMD_AVX512 )
+#include <immintrin.h>
+// AVX-512 multiplies 64-bit lanes directly
+typedef b3Fixed b3EdgeLane;
+#else
+#include <arm_neon.h>
+// NEON has only 32x32->64 widening multiplies, so the SoA staging narrows to
+// int32; the admission check below rejects anything that would not fit and
+// the truncated values are then never read
+typedef int32_t b3EdgeLane;
+#endif
+
+// Hulls index edges with uint8_t, so at most 256 half-edges = 128 edge pairs
+#define B3_MAX_HULL_EDGE_PAIRS 128
 
 #endif
 
@@ -439,6 +470,19 @@ static b3SeparatingAxis b3QueryEdgeDirections( const b3HullData* hullA, const b3
 		}
 	}
 
+#else
+	uint64_t normalBoundA = 0;
+	for ( int i = 0; i < hullA->faceCount; ++i )
+	{
+		b3Vec3 n = planesA[i].normal;
+		uint64_t candidates[3] = { b3EdgeAbsBoundU64( n.x ), b3EdgeAbsBoundU64( n.y ), b3EdgeAbsBoundU64( n.z ) };
+		for ( int j = 0; j < 3; ++j )
+		{
+			normalBoundA = candidates[j] > normalBoundA ? candidates[j] : normalBoundA;
+		}
+	}
+#endif
+
 	// |edge component| <= |aabb.lower| + |aabb.upper| for a difference of two
 	// hull points, so the int64 dot bound below is sound for valid hull data
 	uint64_t edgeBound = 0;
@@ -453,7 +497,6 @@ static b3SeparatingAxis b3QueryEdgeDirections( const b3HullData* hullA, const b3
 			edgeBound = candidates[i] > edgeBound ? candidates[i] : edgeBound;
 		}
 	}
-#endif
 
 	// Arranged to minimize transform operations
 	for ( int indexB = 0; indexB < hullB->edgeCount; indexB += 2 )
@@ -469,7 +512,6 @@ static b3SeparatingAxis b3QueryEdgeDirections( const b3HullData* hullA, const b3
 		b3Vec3 uB = b3MulMV( matrix, planesB[edgeB->face].normal );
 		b3Vec3 vB = b3MulMV( matrix, planesB[twinB->face].normal );
 
-#if defined( B3_SIMD_AVX512 ) || defined( B3_SIMD_NEON )
 		// Gate on the actual rotated normals against the edge bound
 		uint64_t uvMax = b3EdgeAbsBoundU64( uB.x );
 		{
@@ -490,6 +532,7 @@ static b3SeparatingAxis b3QueryEdgeDirections( const b3HullData* hullA, const b3
 			eBMax = candidates[1] > eBMax ? candidates[1] : eBMax;
 		}
 
+#if defined( B3_SIMD_AVX512 ) || defined( B3_SIMD_NEON )
 		if ( pairCountA >= 4 && b3EdgeWideAdmissible( uvMax, edgeBound, normalBoundA, eBMax ) )
 		{
 			int pair = 0;
@@ -665,6 +708,15 @@ static b3SeparatingAxis b3QueryEdgeDirections( const b3HullData* hullA, const b3
 				b3TestEdgePair( edgesA, pointsA, planesA, 2 * pair, eB, qB, uB, vB, squaredTolerance, indexB, &best );
 			}
 
+			continue;
+		}
+#else
+		if ( b3EdgeWideAdmissible( uvMax, edgeBound, normalBoundA, eBMax ) )
+		{
+			for ( int indexA = 0; indexA < hullA->edgeCount; indexA += 2 )
+			{
+				b3TestEdgePair64( edgesA, pointsA, planesA, indexA, eB, qB, uB, vB, squaredTolerance, indexB, &best );
+			}
 			continue;
 		}
 #endif
@@ -969,6 +1021,7 @@ void b3CollideHullAndSphere( b3LocalManifold* manifold, int capacity, const b3Hu
 		*cache = (b3SimplexCache){ 0 };
 		return;
 	}
+
 
 	if ( distanceOutput.distance > 100 * B3_FIXED_EPSILON )
 	{

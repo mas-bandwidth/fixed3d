@@ -151,6 +151,31 @@ static int EdgeAxisScaleTest( void )
 	return 0;
 }
 
+// Large crossed boxes exercise edge-axis rejection on both sides of the
+// int64 dot bound. A clear gap isolates the separating-axis result from
+// contact reconstruction, and the separating edge has an analytic answer.
+static int EdgeAxisLargeScaleTest( void )
+{
+	b3Fixed scales[] = { B3_FIX( 8192.0f ), B3_FIX( 16384.0f ), B3_FIX( 32768.0f ) };
+	for ( int i = 0; i < ARRAY_COUNT( scales ); ++i )
+	{
+		b3Fixed s = scales[i];
+		b3BoxHull hullA, hullB;
+		MakeCrossedEdgeHulls( &hullA, &hullB, b3FixMul( B3_FIX( 0.5f ), s ) );
+		b3Fixed expected = B3_FIX( 1.0f );
+		b3Fixed d = b3FixMul( s, kRoot2 ) + expected;
+		b3LocalManifoldPoint points[8];
+		b3LocalManifold manifold = { 0 };
+		manifold.points = points;
+		b3SATCache cache = { 0 };
+		b3CollideHulls( &manifold, 8, &hullA.base, &hullB.base, SlideX( d ), &cache );
+		ENSURE( manifold.pointCount == 0 );
+		ENSURE( cache.type == b3_edgePairAxis );
+		ENSURE_SMALL( cache.separation - expected, b3FixMul( 8 * B3_FIXED_EPSILON, s ) );
+	}
+	return 0;
+}
+
 // The cached edge pair rebuilds the axis without a fresh query. An untouched cache proves the
 // cached branch answered rather than falling through to the full SAT.
 static int EdgeCacheTest( void )
@@ -1362,6 +1387,7 @@ int ManifoldTest( void )
 {
 	RUN_SUBTEST( CrossedEdgeTest );
 	RUN_SUBTEST( EdgeAxisScaleTest );
+	RUN_SUBTEST( EdgeAxisLargeScaleTest );
 	RUN_SUBTEST( EdgeCacheTest );
 	RUN_SUBTEST( EdgeEndpointTest );
 	RUN_SUBTEST( ParallelEdgeTest );
