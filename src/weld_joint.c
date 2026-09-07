@@ -211,16 +211,6 @@ void b3SolveWeldJoint( b3JointSim* base, b3StepContext* context, bool useBias )
 	b3Vec3 wB = stateB->angularVelocity;
 
 	bool fixedRotation = base->fixedRotation;
-	b3Quat quatA = b3MulQuat( stateA->deltaRotation, joint->frameA.q );
-	b3Quat quatB = b3MulQuat( stateB->deltaRotation, joint->frameB.q );
-
-	if ( b3DotQuat( quatA, quatB ) < B3_FIX( 0.0f ) )
-	{
-		// this keeps the rotation angle in the range [-pi, pi]
-		quatB = b3NegateQuat( quatB );
-	}
-
-	b3Quat relQ = b3InvMulQuat( quatA, quatB );
 
 	// angular constraint
 	if ( fixedRotation == false )
@@ -230,6 +220,17 @@ void b3SolveWeldJoint( b3JointSim* base, b3StepContext* context, bool useBias )
 		b3Fixed impulseScale = B3_FIX( 0.0f );
 		if ( useBias || joint->angularHertz > B3_FIX( 0.0f ) )
 		{
+			b3Quat quatA = b3MulQuat( stateA->deltaRotation, joint->frameA.q );
+			b3Quat quatB = b3MulQuat( stateB->deltaRotation, joint->frameB.q );
+
+			if ( b3DotQuat( quatA, quatB ) < B3_FIX( 0.0f ) )
+			{
+				// this keeps the rotation angle in the range [-pi, pi]
+				quatB = b3NegateQuat( quatB );
+			}
+
+			b3Quat relQ = b3InvMulQuat( quatA, quatB );
+
 			b3Quat targetQuat = b3Quat_identity;
 			b3Vec3 deltaRotation = b3DeltaQuatToRotation( relQ, targetQuat );
 			b3Vec3 c = b3Neg( b3RotateVector( quatA, deltaRotation ) );

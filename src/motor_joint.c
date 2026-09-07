@@ -226,7 +226,11 @@ void b3PrepareMotorJoint( b3JointSim* base, b3StepContext* context )
 	joint->linearSpring = b3MakeSoft( joint->linearHertz, joint->linearDampingRatio, context->h );
 	joint->angularSpring = b3MakeSoft( joint->angularHertz, joint->angularDampingRatio, context->h );
 
-	joint->angularMass = b3InvertAcrossScales( invInertiaSum );
+	// Only the angular spring and angular velocity motor consume this mass.
+	// Reevaluate every step so enabling either feature restores the full wide solve.
+	bool angularSpringActive = joint->maxSpringTorque > 0 && joint->angularHertz > 0;
+	joint->angularMass =
+		angularSpringActive || joint->maxVelocityTorque > 0 ? b3InvertAcrossScales( invInertiaSum ) : b3Mat3_zero;
 
 	if ( context->enableWarmStarting == false )
 	{
@@ -257,6 +261,8 @@ void b3WarmStartMotorJoint( b3JointSim* base, b3StepContext* context )
 	b3Vec3 rA = b3RotateVector( stateA->deltaRotation, joint->frameA.p );
 	b3Vec3 rB = b3RotateVector( stateB->deltaRotation, joint->frameB.p );
 
+	// A runtime feature change can leave stored impulses even with a zero force
+	// limit. Keep applying those impulses when warm starting.
 	b3Vec3 linearImpulse = b3Add( joint->linearVelocityImpulse, joint->linearSpringImpulse );
 	b3Vec3 angularImpulse = b3Add( joint->angularVelocityImpulse, joint->angularSpringImpulse );
 
@@ -287,20 +293,20 @@ void b3SolveMotorJoint( b3JointSim* base, b3StepContext* context )
 	b3Vec3 vB = stateB->linearVelocity;
 	b3Vec3 wB = stateB->angularVelocity;
 
-	b3Quat quatA = b3MulQuat( stateA->deltaRotation, joint->frameA.q );
-	b3Quat quatB = b3MulQuat( stateB->deltaRotation, joint->frameB.q );
-
-	if ( b3DotQuat( quatA, quatB ) < B3_FIX( 0.0f ) )
-	{
-		// this keeps the rotation angle in the range [-pi, pi]
-		quatB = b3NegateQuat( quatB );
-	}
-
-	b3Quat relQ = b3InvMulQuat( quatA, quatB );
-
-	// angular spring
+	// Orientation is needed only for the angular spring, not a velocity motor.
 	if ( joint->maxSpringTorque > B3_FIX( 0.0f ) && joint->angularHertz > B3_FIX( 0.0f ) )
 	{
+		b3Quat quatA = b3MulQuat( stateA->deltaRotation, joint->frameA.q );
+		b3Quat quatB = b3MulQuat( stateB->deltaRotation, joint->frameB.q );
+
+		if ( b3DotQuat( quatA, quatB ) < B3_FIX( 0.0f ) )
+		{
+			// this keeps the rotation angle in the range [-pi, pi]
+			quatB = b3NegateQuat( quatB );
+		}
+
+		b3Quat relQ = b3InvMulQuat( quatA, quatB );
+
 		b3Quat targetQuat = b3Quat_identity;
 		b3Vec3 deltaRotation = b3DeltaQuatToRotation( relQ, targetQuat );
 		b3Vec3 c = b3Neg( b3RotateVector( quatA, deltaRotation ) );
@@ -326,7 +332,7 @@ void b3SolveMotorJoint( b3JointSim* base, b3StepContext* context )
 	}
 
 	// angular velocity
-	if ( b3FixToDouble( joint->maxVelocityTorque ) > 0.0 )
+	if ( joint->maxVelocityTorque > B3_FIX( 0.0f ) )
 	{
 		b3Vec3 cdot = b3Sub( b3Sub( wB, wA ), joint->angularVelocity );
 		b3Vec3 impulse = b3Neg( b3MulMV( joint->angularMass, cdot ) );
@@ -344,8 +350,13 @@ void b3SolveMotorJoint( b3JointSim* base, b3StepContext* context )
 		wB = b3Add( wB, b3InvMulMV( iB, impulse ) );
 	}
 
-	b3Vec3 rA = b3RotateVector( stateA->deltaRotation, joint->frameA.p );
-	b3Vec3 rB = b3RotateVector( stateB->deltaRotation, joint->frameB.p );
+	b3Vec3 rA = b3Vec3_zero;
+	b3Vec3 rB = b3Vec3_zero;
+	if ( ( joint->maxSpringForce > 0 && joint->linearHertz > 0 ) || joint->maxVelocityForce > 0 )
+	{
+		rA = b3RotateVector( stateA->deltaRotation, joint->frameA.p );
+		rB = b3RotateVector( stateB->deltaRotation, joint->frameB.p );
+	}
 
 	// linear spring
 	if ( joint->maxSpringForce > B3_FIX( 0.0f ) && joint->linearHertz > B3_FIX( 0.0f ) )
