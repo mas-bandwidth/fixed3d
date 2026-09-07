@@ -1555,7 +1555,7 @@ void b3Body_ApplyAngularImpulse( b3BodyId bodyId, b3Vec3 impulse, bool wake )
 		b3BodySim* bodySim = b3Array_Get( set->bodySims, localIndex );
 
 		b3Vec3 localImpulse = b3InvRotateVector( bodySim->transform.q, impulse );
-		b3Vec3 localAngularVelocityDelta = b3MulMV( bodySim->invInertiaLocal, localImpulse );
+		b3Vec3 localAngularVelocityDelta = b3InvMulMV( bodySim->invInertiaLocal, localImpulse );
 		state->angularVelocity =
 			b3Add( state->angularVelocity, b3RotateVector( bodySim->transform.q, localAngularVelocityDelta ) );
 	}

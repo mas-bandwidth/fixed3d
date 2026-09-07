@@ -209,7 +209,7 @@ void b3SolveParallelJoint( b3JointSim* base, b3StepContext* context )
 		b3Fixed maxImpulse = b3FixMul( context->h , joint->maxTorque );
 		b3Vec2 oldImpulse = joint->perpImpulse;
 		b3Vec2 cdotPlusBias = { cdot.x + bias.x, cdot.y + bias.y };
-		b3Vec2 sol = b3Solve2( k, cdotPlusBias );
+		b3Vec2 sol = b3Solve2AcrossScales( k, cdotPlusBias );
 		b3Vec2 deltaImpulse = {
 			b3FixMul( -massScale , sol.x ) - b3FixMul( impulseScale , oldImpulse.x ),
 			b3FixMul( -massScale , sol.y ) - b3FixMul( impulseScale , oldImpulse.y ),

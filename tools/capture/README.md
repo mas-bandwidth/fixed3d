@@ -50,3 +50,60 @@ frames and structural differences, not pixel equality. Known real divergences as
 of 2026-07-14 (see CLAUDE.md): Stacking/Card House stands in float, collapses in
 fixed (equilibrium knife edge at the Q48.16 resolution floor); the World/Far
 samples diverge in fixed point's favor (float shatters at 10,000 km).
+
+## Repeated captures and exact pixel hashes
+
+`compare_samples.py` runs the same named samples in both applications, prints a
+SHA-256 hash of each decoded RGBA image, and writes `report.json` and `report.html`.
+It requires Python 3.11+ and Pillow. It runs each sample twice by default and fails
+if the same binary produces different pixels, a capture fails, a counterpart is
+missing, or image sizes differ. Its output directory must be new so stale images
+cannot pass as fresh captures. Binary hashes, sample indexes, frame count, full
+image hashes and difference metrics are retained in the JSON report.
+
+For the current float upstream revision `47d7f7c`, use the self-contained
+`float-47d7f7c-capture-hooks.patch` instead of the older patch above. It includes
+both capture support files and changes only the sample host, not the engine:
+
+```sh
+git -C <box3d> worktree add --detach <scratch>/floatref 47d7f7c
+git -C <scratch>/floatref apply <fixed3d>/tools/capture/float-47d7f7c-capture-hooks.patch
+cmake -S <scratch>/floatref -B <scratch>/float-build \
+  -DBOX3D_SAMPLES=ON -DBOX3D_UNIT_TESTS=OFF \
+  -DBOX3D_DOUBLE_PRECISION=OFF -DCMAKE_BUILD_TYPE=RelWithDebInfo
+cmake --build <scratch>/float-build
+```
+
+Then compare selected samples (or omit `--match` for the full sample union):
+
+```sh
+python3 tools/capture/compare_samples.py \
+  --fixed <fixed-build>/bin/samples --fixed-data <fixed3d>/data \
+  --float <float-build>/bin/samples --float-data <floatref>/data \
+  --output <new-output-directory> --seconds 2 --no-axes \
+  --match '^Joints/(Parallel Spring|Prismatic|Revolute|Wheel)$'
+```
+
+`--seconds` means nominal simulation time at 60 Hz; `--frames N` selects the
+number of physics frames directly. Each frame uses the sample's own substep
+setting. The fixed timestep is quantized to Q48.16, so two nominal seconds are
+not exactly two seconds of integrated time. Both apps start from fresh processes
+with their authored seeds, camera, settings and default worker count; interactive
+settings are not loaded by the headless path. Samples that seed from wall time
+can fail the repeatability check and need a deterministic seed before comparison.
+
+`--no-axes` passes `--capture-no-axes` to both headless applications, hiding just
+the colored absolute world-axis lines. This is useful because current Fixed3D
+builds these scenes around 120,000,000,000 units on each axis, while float samples
+are generally centered at zero. The repeating ground grid and physics are
+unchanged. Without this option, those lines alone can produce different hashes.
+
+Add `--exact` to fail on any difference between the two image hashes. This is an
+exact *pixel* check, not a general physics compliance test: an image cannot see
+velocities, hidden objects, contacts or future behavior. Float and fixed are not
+expected to produce identical pixels in every scene, especially after chaotic
+motion. Inspect the full-resolution pairs and retain analytical numerical tests.
+The report also gives changed-pixel percentage, RGB mean absolute difference,
+and a small-image luminance metric for sorting. No tolerance is silently treated
+as a physics pass. GPU/renderer changes can invalidate image references, so keep
+the binaries and environment consistent when using these as regression goldens.

@@ -661,7 +661,7 @@ void b3SolvePrismaticJoint( b3JointSim* base, b3StepContext* context, bool useBi
 		b3Matrix2 K = { { kyy, kyz }, { kyz, kzz } };
 
 		b3Vec2 oldImpulse = joint->perpImpulse;
-		b3Vec2 sol = b3Solve2( K, b3Add2( cdot, bias ) );
+		b3Vec2 sol = b3Solve2AcrossScales( K, b3Add2( cdot, bias ) );
 		b3Vec2 deltaImpulse = b3Sub2( b3MulSV2( -massScale, sol ), b3MulSV2( impulseScale, oldImpulse ) );
 		joint->perpImpulse = b3Add2( oldImpulse, deltaImpulse );
 

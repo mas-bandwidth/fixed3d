@@ -597,8 +597,89 @@ static int TestWheelJoint( void )
 	return FinishJoint( jointId, f.worldId );
 }
 
+// Exercise the five 2x2 constraint solves with actual velocity errors. Accessor
+// tests with an already-satisfied joint cannot detect an inverse-scale mismatch.
+static int TestJointInverseScaleCorrection( void )
+{
+	const b3JointType types[] = { b3_parallelJoint, b3_prismaticJoint, b3_revoluteJoint, b3_wheelJoint };
+	int failures = 0;
+	for ( int index = 0; index < ARRAY_COUNT( types ); ++index )
+	{
+		JointFixture f = CreateJointFixture();
+		b3JointType type = types[index];
+		b3JointId jointId = b3_nullJointId;
+		switch ( type )
+		{
+			case b3_parallelJoint:
+			{
+				b3ParallelJointDef def = b3DefaultParallelJointDef();
+				SetCommonFrames( &def.base, &f );
+				def.hertz = B3_FIX( 5.0f );
+				jointId = b3CreateParallelJoint( f.worldId, &def );
+			}
+			break;
+			case b3_prismaticJoint:
+			{
+				b3PrismaticJointDef def = b3DefaultPrismaticJointDef();
+				SetCommonFrames( &def.base, &f );
+				jointId = b3CreatePrismaticJoint( f.worldId, &def );
+			}
+			break;
+			case b3_revoluteJoint:
+			{
+				b3RevoluteJointDef def = b3DefaultRevoluteJointDef();
+				SetCommonFrames( &def.base, &f );
+				jointId = b3CreateRevoluteJoint( f.worldId, &def );
+			}
+			break;
+			case b3_wheelJoint:
+			{
+				b3WheelJointDef def = b3DefaultWheelJointDef();
+				SetCommonFrames( &def.base, &f );
+				def.enableSuspensionSpring = false;
+				jointId = b3CreateWheelJoint( f.worldId, &def );
+			}
+			break;
+			default:
+				break;
+		}
+
+		bool checkLinear = type == b3_prismaticJoint || type == b3_wheelJoint;
+		bool checkAngular = type != b3_prismaticJoint;
+		if ( checkLinear )
+		{
+			b3Body_SetLinearVelocity( f.bodyId, (b3Vec3){ 0, B3_FIX( 1.0f ), -B3_FIX( 0.5f ) } );
+		}
+		if ( checkAngular )
+		{
+			b3Body_SetAngularVelocity( f.bodyId, (b3Vec3){ B3_FIX( 0.5f ), -B3_FIX( 0.25f ), 0 } );
+		}
+
+		for ( int step = 0; step < 30; ++step )
+		{
+			b3World_Step( f.worldId, b3FixDiv( B3_FIX( 1.0f ), B3_FIX( 60.0f ) ), 4 );
+		}
+
+		b3Vec3 v = b3Body_GetLinearVelocity( f.bodyId );
+		b3Vec3 w = b3Body_GetAngularVelocity( f.bodyId );
+		bool linearCorrected = !checkLinear || ( b3FixAbs( v.y ) < B3_FIX( 0.025f ) && b3FixAbs( v.z ) < B3_FIX( 0.025f ) );
+		bool angularCorrected = !checkAngular || ( b3FixAbs( w.x ) < B3_FIX( 0.025f ) && b3FixAbs( w.y ) < B3_FIX( 0.025f ) );
+		if ( !linearCorrected || !angularCorrected )
+		{
+			printf( "  joint type %d: lateral velocity=(%g,%g), angular velocity=(%g,%g)\n", type, b3FixToDouble( v.y ),
+					b3FixToDouble( v.z ), b3FixToDouble( w.x ), b3FixToDouble( w.y ) );
+			failures += 1;
+		}
+		b3DestroyJoint( jointId, true );
+		b3DestroyWorld( f.worldId );
+	}
+	ENSURE( failures == 0 );
+	return 0;
+}
+
 int JointTest( void )
 {
+	RUN_SUBTEST( TestJointInverseScaleCorrection );
 	RUN_SUBTEST( TestParallelJoint );
 	RUN_SUBTEST( TestParallelJointSentinelTorqueCap );
 	RUN_SUBTEST( TestDistanceJoint );

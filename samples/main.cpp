@@ -51,6 +51,7 @@ static int s_frame = 0;
 static int s_frameLimit = -1;
 static char s_capturePath[1024];
 static bool s_headless = false;
+static bool s_captureNoAxes = false;
 static int s_sampleOverride = -1;
 static int s_exitCode = 0;
 
@@ -624,6 +625,13 @@ static int RunHeadlessCapture()
 		double gridPeriod = 10.0 * BOX3D_GROUND_GRID_CELL_SIZE;
 		fi.gridWrap.x = (float)fmod( b3FixToDouble( drawOrigin.x ), gridPeriod );
 		fi.gridWrap.y = (float)fmod( b3FixToDouble( drawOrigin.z ), gridPeriod );
+		// Absolute world-axis lines differ when the same scene is translated.
+		// This capture-only option hides them without changing the repeating grid.
+		if ( s_captureNoAxes )
+		{
+			fi.drawOrigin.x = 1.0e20f;
+			fi.drawOrigin.z = 1.0e20f;
+		}
 		fi.time = (float)frame / 60.0f;
 		fi.debugMode = s_context.debugView;
 		fi.disableShadows = !s_context.enableShadows;
@@ -696,6 +704,10 @@ static sapp_desc BuildAppDesc( int argc, char** argv )
 			// End-state screenshot: at --frames N, freeze the sim, render the
 			// final state offscreen, and write it to this PNG path (macOS only).
 			snprintf( s_capturePath, sizeof( s_capturePath ), "%s", argv[++i] );
+		}
+		else if ( strcmp( argv[i], "--capture-no-axes" ) == 0 )
+		{
+			s_captureNoAxes = true;
 		}
 		else if ( strcmp( argv[i], "--headless" ) == 0 )
 		{
