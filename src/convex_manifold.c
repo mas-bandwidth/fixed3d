@@ -483,6 +483,7 @@ static b3SeparatingAxis b3QueryEdgeDirections( const b3HullData* hullA, const b3
 	}
 #endif
 
+#if defined( B3_SIMD_AVX512 ) || defined( B3_SIMD_NEON )
 	// |edge component| <= |aabb.lower| + |aabb.upper| for a difference of two
 	// hull points, so the int64 dot bound below is sound for valid hull data
 	uint64_t edgeBound = 0;
@@ -497,6 +498,23 @@ static b3SeparatingAxis b3QueryEdgeDirections( const b3HullData* hullA, const b3
 			edgeBound = candidates[i] > edgeBound ? candidates[i] : edgeBound;
 		}
 	}
+
+#else
+	// Bound the actual vertices rather than the cached AABB: older vendored
+	// AABB transforms can round inward. Every edge component is at most twice
+	// the largest point component, regardless of hull translation or rotation.
+	uint64_t pointBound = 0;
+	for ( int i = 0; i < hullA->vertexCount; ++i )
+	{
+		b3Vec3 p = pointsA[i];
+		uint64_t candidates[3] = { b3EdgeAbsBoundU64( p.x ), b3EdgeAbsBoundU64( p.y ), b3EdgeAbsBoundU64( p.z ) };
+		for ( int j = 0; j < 3; ++j )
+		{
+			pointBound = candidates[j] > pointBound ? candidates[j] : pointBound;
+		}
+	}
+	uint64_t edgeBound = pointBound <= UINT64_MAX / 2 ? 2 * pointBound : UINT64_MAX;
+#endif
 
 	// Arranged to minimize transform operations
 	for ( int indexB = 0; indexB < hullB->edgeCount; indexB += 2 )
