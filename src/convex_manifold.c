@@ -1022,7 +1022,6 @@ void b3CollideHullAndSphere( b3LocalManifold* manifold, int capacity, const b3Hu
 		return;
 	}
 
-
 	if ( distanceOutput.distance > 100 * B3_FIXED_EPSILON )
 	{
 		// Shallow penetration
