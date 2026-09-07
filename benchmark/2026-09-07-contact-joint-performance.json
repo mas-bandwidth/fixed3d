@@ -1,0 +1,3097 @@
+{
+  "profiles": {
+    "profile-large_pyramid": "\n        b3SolveContacts_Convex  (in benchmark-new_neon)        12016\n        b3PrepareContacts_Convex  (in benchmark-new_neon)        4311\n        b3WarmStartContacts_Convex  (in benchmark-new_neon)        2285\n        b3CollideTask  (in benchmark-new_neon)        2055\n        b3ExecuteBlock  (in benchmark-new_neon)        1504\n        b3MakeMatrixFromQuatW  (in benchmark-new_neon)        1503\n        swtch_pri  (in libsystem_kernel.dylib)        1263\n        b3GatherBodies  (in benchmark-new_neon)        1087\n        __udivmodti4  (in libcompiler_rt.dylib)        920\n        b3InvMulSubMVW  (in benchmark-new_neon)        781\n        b3InvMulAddMVW  (in benchmark-new_neon)        719\n        b3StoreImpulses_Convex  (in benchmark-new_neon)        664\n        b3InvMulWorldTransforms  (in benchmark-new_neon)        581\n        semaphore_wait_trap  (in libsystem_kernel.dylib)        467\n        b3RelVelocityW  (in benchmark-new_neon)        377\n        b3FinalizeBodiesTask  (in benchmark-new_neon)        331\n        b3DynamicTree_Query  (in benchmark-new_neon)        201\n        b3SolverTask  (in benchmark-new_neon)        145\n        b3MulMM  (in benchmark-new_neon)        140\n        b3AABB_Transform  (in benchmark-new_neon)        109\n        DYLD-STUB$$__divti3  (in benchmark-new_neon)        78\n        b3Perp  (in benchmark-new_neon)        64\n        b3SqrtW  (in benchmark-new_neon)        64\n        fixNormalizeQuat  (in benchmark-new_neon)        64\n        __divti3  (in libcompiler_rt.dylib)        47\n        b3PairQueryCallback  (in benchmark-new_neon)        43\n        b3DynamicTree_EnlargeProxy  (in benchmark-new_neon)        38\n        b3QueryEdgeDirections  (in benchmark-new_neon)        34\n        b3PartitionMid  (in benchmark-new_neon)        31\n        b3ExecuteStage  (in benchmark-new_neon)        25\n        b3DynamicTree_Rebuild  (in benchmark-new_neon)        18\n        b3ClipPolygon  (in benchmark-new_neon)        16\n        semaphore_signal_trap  (in libsystem_kernel.dylib)        14\n        cthread_yield  (in libsystem_pthread.dylib)        13\n        b3InsertLeaf  (in benchmark-new_neon)        12\n        __psynch_mutexwait  (in libsystem_kernel.dylib)        9\n        b3FindHullSupportVertex  (in benchmark-new_neon)        6\n        b3QueryFaceDirections  (in benchmark-new_neon)        6\n        _platform_memset  (in libsystem_platform.dylib)        5",
+    "profile-joint_grid": "\n        b3SolveSphericalJoint  (in benchmark-new_neon)        12898\n        b3MulMM  (in benchmark-new_neon)        4106\n        b3ExecuteBlock  (in benchmark-new_neon)        3323\n        b3WarmStartSphericalJoint  (in benchmark-new_neon)        2943\n        fixDivShifted256  (in benchmark-new_neon)        2812\n        b3PrepareSphericalJoint  (in benchmark-new_neon)        1194\n        swtch_pri  (in libsystem_kernel.dylib)        1156\n        semaphore_wait_trap  (in libsystem_kernel.dylib)        1029\n        b3FinalizeBodiesTask  (in benchmark-new_neon)        806\n        b3DynamicTree_Query  (in benchmark-new_neon)        570\n        __udivmodti4  (in libcompiler_rt.dylib)        419\n        b3SolverTask  (in benchmark-new_neon)        202\n        fixNormalizeQuat  (in benchmark-new_neon)        202\n        b3DynamicTree_EnlargeProxy  (in benchmark-new_neon)        128\n        b3PartitionMid  (in benchmark-new_neon)        94\n        b3ComputeSphereAABB  (in benchmark-new_neon)        81\n        b3SolveJoint  (in benchmark-new_neon)        74\n        DYLD-STUB$$__divti3  (in benchmark-new_neon)        65\n        b3DynamicTree_Rebuild  (in benchmark-new_neon)        63\n        DYLD-STUB$$__udivti3  (in benchmark-new_neon)        60\n        b3PrepareJoint  (in benchmark-new_neon)        58\n        _platform_memmove  (in libsystem_platform.dylib)        41\n        __divti3  (in libcompiler_rt.dylib)        40\n        b3InsertLeaf  (in benchmark-new_neon)        40\n        b3WarmStartJoint  (in benchmark-new_neon)        40\n        b3Solve  (in benchmark-new_neon)        36\n        b3ExecuteStage  (in benchmark-new_neon)        24\n        mach_msg2_trap  (in libsystem_kernel.dylib)        11\n        semaphore_signal_trap  (in libsystem_kernel.dylib)        10\n        b3AllocateNode  (in benchmark-new_neon)        9\n        DYLD-STUB$$sched_yield  (in benchmark-new_neon)        6\n        ___chkstk_darwin  (in libsystem_pthread.dylib)        6\n        b3FindPairsTask  (in benchmark-new_neon)        6\n        b3UpdateBroadPhasePairs  (in benchmark-new_neon)        6\n        b3UpdateBodyMassData  (in benchmark-new_neon)        5\n\nBinary Images:\n       0x100de8000 -        0x100ea75d7 +benchmark-new_neon (0) <4610E8B3-FAD3-3846-9488-E82C0437525B> /Users/*/Documents/*/benchmark-new_neon\n       0x1839b0000 -        0x183a02b4b  libobjc.A.dylib (951.7) <03BD9E32-CF0A-37B0-898A-3CE8DE06D842> /usr/lib/libobjc.A.dylib",
+    "profile-washer": "\n        b3SolveContacts_Convex  (in benchmark-new_neon)        6203\n        b3DynamicTree_Query  (in benchmark-new_neon)        3766\n        b3PrepareContacts_Convex  (in benchmark-new_neon)        2991\n        b3CollideTask  (in benchmark-new_neon)        2270\n        b3InvMulWorldTransforms  (in benchmark-new_neon)        1377\n        b3GatherBodies  (in benchmark-new_neon)        1371\n        b3ExecuteBlock  (in benchmark-new_neon)        1353\n        semaphore_wait_trap  (in libsystem_kernel.dylib)        1325\n        b3WarmStartContacts_Convex  (in benchmark-new_neon)        1311\n        swtch_pri  (in libsystem_kernel.dylib)        1225\n        b3MakeMatrixFromQuatW  (in benchmark-new_neon)        857\n        b3QueryEdgeDirections  (in benchmark-new_neon)        740\n        __udivmodti4  (in libcompiler_rt.dylib)        642\n        b3FindHullSupportVertex  (in benchmark-new_neon)        509\n        b3UpdateConvexContact  (in benchmark-new_neon)        460\n        b3ClipPolygon  (in benchmark-new_neon)        458\n        b3CollideHulls  (in benchmark-new_neon)        423\n        b3InvMulSubMVW  (in benchmark-new_neon)        412\n        b3PairQueryCallback  (in benchmark-new_neon)        412\n        b3StoreImpulses_Convex  (in benchmark-new_neon)        377\n        b3BuildFaceAContact  (in benchmark-new_neon)        358\n        b3InvMulAddMVW  (in benchmark-new_neon)        354\n        b3FinalizeBodiesTask  (in benchmark-new_neon)        305\n        b3TestEdgePair  (in benchmark-new_neon)        281\n        b3DynamicTree_EnlargeProxy  (in benchmark-new_neon)        256\n        b3SolverTask  (in benchmark-new_neon)        189\n        b3RelVelocityW  (in benchmark-new_neon)        187\n        <deduplicated_symbol>  (in benchmark-new_neon)        171\n        b3QueryFaceDirections  (in benchmark-new_neon)        167\n        b3PartitionMid  (in benchmark-new_neon)        145\n        b3AABB_Transform  (in benchmark-new_neon)        110\n        b3MulMM  (in benchmark-new_neon)        103\n        b3DynamicTree_Rebuild  (in benchmark-new_neon)        100\n        b3FindIncidentFace  (in benchmark-new_neon)        98\n        b3SolveContinuous  (in benchmark-new_neon)        90\n        fixNormalizeQuat  (in benchmark-new_neon)        88\n        mach_absolute_time  (in libsystem_kernel.dylib)        83\n        b3UpdateContact  (in benchmark-new_neon)        68\n        b3Perp  (in benchmark-new_neon)        64"
+  },
+  "measurement": {
+    "method": "Two runs per scene and binary, before-scalar/after-scalar/before-neon/after-neon/float/float/after-neon/before-neon/after-scalar/before-scalar order, four workers, continuous collision enabled, median runtime. Scenes with an initial within-binary spread over 5% received three additional balanced runs of every binary; their final medians include all five trials, with no discarded observations.",
+    "fixed_source": "542fa3593373b817feed479cf526389a4c6b8e60",
+    "before_source": "33a9008f1839d9c8b062aeebaf115cec7050e67a",
+    "float_source": "47d7f7cc7e091142c08d11dc7d2e493c5d34f536",
+    "configuration": "Apple M3 Ultra, arm64, Apple Clang, RelWithDebInfo, O2 and thin LTO; scalar defaults, optional BOX3D_NEON=ON; float default NEON.",
+    "platform": "macOS-26.6.2-arm64-arm-64bit-Mach-O",
+    "started": "2026-09-07T18:21:55-0400",
+    "binaries": {
+      "before_scalar": {
+        "sha256": "d572871f6bc1a8f4636b4f02feffb35ab7d412491fdb84beae04a2ecb441ff8d"
+      },
+      "before_neon": {
+        "sha256": "51f6c0f5e3fb21f690da4a7127c2aadbea01d6ba47ee8b4baa2b127c5ba728c0"
+      },
+      "after_scalar": {
+        "sha256": "a71ebd321fa4b8143609e6eae8aa2a6a925afd6c05f157077acf1826cccdc074"
+      },
+      "after_neon": {
+        "sha256": "7273e1173d4a0a468f39724e38f069dc32cedb05ae31cc64e9e5480a5ed2f3d4"
+      },
+      "float": {
+        "sha256": "a57073956c8f051652832d47f71cddf3254c0c3c4ca40e4f0baeb0a19b97f8f9"
+      }
+    },
+    "rows": [
+      {
+        "scene": "convex_pile",
+        "runs": [
+          {
+            "binary": "before_scalar",
+            "ms": 11654.0,
+            "counters": "body 5121 / shape 5121 / contact 51305 / joint 0 / stack 6219776"
+          },
+          {
+            "binary": "after_scalar",
+            "ms": 11088.8,
+            "counters": "body 5121 / shape 5121 / contact 51305 / joint 0 / stack 6403712"
+          },
+          {
+            "binary": "before_neon",
+            "ms": 7311.4,
+            "counters": "body 5121 / shape 5121 / contact 51305 / joint 0 / stack 6219776"
+          },
+          {
+            "binary": "after_neon",
+            "ms": 7026.81,
+            "counters": "body 5121 / shape 5121 / contact 51305 / joint 0 / stack 6403712"
+          },
+          {
+            "binary": "float",
+            "ms": 3629.76,
+            "counters": "body 5121 / shape 5121 / contact 50764 / joint 0 / stack 2662928"
+          },
+          {
+            "binary": "float",
+            "ms": 3580.16,
+            "counters": "body 5121 / shape 5121 / contact 50764 / joint 0 / stack 2662928"
+          },
+          {
+            "binary": "after_neon",
+            "ms": 6677.56,
+            "counters": "body 5121 / shape 5121 / contact 51305 / joint 0 / stack 6403712"
+          },
+          {
+            "binary": "before_neon",
+            "ms": 6745.86,
+            "counters": "body 5121 / shape 5121 / contact 51305 / joint 0 / stack 6219776"
+          },
+          {
+            "binary": "after_scalar",
+            "ms": 10592.0,
+            "counters": "body 5121 / shape 5121 / contact 51305 / joint 0 / stack 6403712"
+          },
+          {
+            "binary": "before_scalar",
+            "ms": 10679.7,
+            "counters": "body 5121 / shape 5121 / contact 51305 / joint 0 / stack 6219776"
+          },
+          {
+            "binary": "before_scalar",
+            "ms": 11114.4,
+            "counters": "body 5121 / shape 5121 / contact 51305 / joint 0 / stack 6219776",
+            "recheck": 0
+          },
+          {
+            "binary": "after_scalar",
+            "ms": 11200.0,
+            "counters": "body 5121 / shape 5121 / contact 51305 / joint 0 / stack 6403712",
+            "recheck": 0
+          },
+          {
+            "binary": "before_neon",
+            "ms": 7801.43,
+            "counters": "body 5121 / shape 5121 / contact 51305 / joint 0 / stack 6219776",
+            "recheck": 0
+          },
+          {
+            "binary": "after_neon",
+            "ms": 7308.06,
+            "counters": "body 5121 / shape 5121 / contact 51305 / joint 0 / stack 6403712",
+            "recheck": 0
+          },
+          {
+            "binary": "float",
+            "ms": 3769.91,
+            "counters": "body 5121 / shape 5121 / contact 50764 / joint 0 / stack 2662928",
+            "recheck": 0
+          },
+          {
+            "binary": "float",
+            "ms": 3905.0,
+            "counters": "body 5121 / shape 5121 / contact 50764 / joint 0 / stack 2662928",
+            "recheck": 1
+          },
+          {
+            "binary": "after_neon",
+            "ms": 7279.25,
+            "counters": "body 5121 / shape 5121 / contact 51305 / joint 0 / stack 6403712",
+            "recheck": 1
+          },
+          {
+            "binary": "before_neon",
+            "ms": 7127.92,
+            "counters": "body 5121 / shape 5121 / contact 51305 / joint 0 / stack 6219776",
+            "recheck": 1
+          },
+          {
+            "binary": "after_scalar",
+            "ms": 10977.8,
+            "counters": "body 5121 / shape 5121 / contact 51305 / joint 0 / stack 6403712",
+            "recheck": 1
+          },
+          {
+            "binary": "before_scalar",
+            "ms": 10987.9,
+            "counters": "body 5121 / shape 5121 / contact 51305 / joint 0 / stack 6219776",
+            "recheck": 1
+          },
+          {
+            "binary": "before_neon",
+            "ms": 7103.56,
+            "counters": "body 5121 / shape 5121 / contact 51305 / joint 0 / stack 6219776",
+            "recheck": 2
+          },
+          {
+            "binary": "after_neon",
+            "ms": 7163.61,
+            "counters": "body 5121 / shape 5121 / contact 51305 / joint 0 / stack 6403712",
+            "recheck": 2
+          },
+          {
+            "binary": "float",
+            "ms": 4541.94,
+            "counters": "body 5121 / shape 5121 / contact 50764 / joint 0 / stack 2662928",
+            "recheck": 2
+          },
+          {
+            "binary": "before_scalar",
+            "ms": 12137.1,
+            "counters": "body 5121 / shape 5121 / contact 51305 / joint 0 / stack 6219776",
+            "recheck": 2
+          },
+          {
+            "binary": "after_scalar",
+            "ms": 11487.8,
+            "counters": "body 5121 / shape 5121 / contact 51305 / joint 0 / stack 6403712",
+            "recheck": 2
+          }
+        ],
+        "medians_ms": {
+          "before_scalar": 11114.4,
+          "after_scalar": 11088.8,
+          "before_neon": 7127.92,
+          "after_neon": 7163.61,
+          "float": 3769.91
+        }
+      },
+      {
+        "scene": "joint_grid",
+        "runs": [
+          {
+            "binary": "before_scalar",
+            "ms": 710.256,
+            "counters": "body 10000 / shape 10000 / contact 0 / joint 19800 / stack 5200000"
+          },
+          {
+            "binary": "after_scalar",
+            "ms": 622.218,
+            "counters": "body 10000 / shape 10000 / contact 0 / joint 19800 / stack 5200000"
+          },
+          {
+            "binary": "before_neon",
+            "ms": 712.437,
+            "counters": "body 10000 / shape 10000 / contact 0 / joint 19800 / stack 5200000"
+          },
+          {
+            "binary": "after_neon",
+            "ms": 629.245,
+            "counters": "body 10000 / shape 10000 / contact 0 / joint 19800 / stack 5200000"
+          },
+          {
+            "binary": "float",
+            "ms": 267.108,
+            "counters": "body 10000 / shape 10000 / contact 0 / joint 19800 / stack 5200000"
+          },
+          {
+            "binary": "float",
+            "ms": 266.294,
+            "counters": "body 10000 / shape 10000 / contact 0 / joint 19800 / stack 5200000"
+          },
+          {
+            "binary": "after_neon",
+            "ms": 633.305,
+            "counters": "body 10000 / shape 10000 / contact 0 / joint 19800 / stack 5200000"
+          },
+          {
+            "binary": "before_neon",
+            "ms": 706.794,
+            "counters": "body 10000 / shape 10000 / contact 0 / joint 19800 / stack 5200000"
+          },
+          {
+            "binary": "after_scalar",
+            "ms": 626.241,
+            "counters": "body 10000 / shape 10000 / contact 0 / joint 19800 / stack 5200000"
+          },
+          {
+            "binary": "before_scalar",
+            "ms": 713.947,
+            "counters": "body 10000 / shape 10000 / contact 0 / joint 19800 / stack 5200000"
+          }
+        ],
+        "medians_ms": {
+          "before_scalar": 712.1015,
+          "before_neon": 709.6155,
+          "after_scalar": 624.2294999999999,
+          "after_neon": 631.275,
+          "float": 266.701
+        }
+      },
+      {
+        "scene": "junkyard",
+        "runs": [
+          {
+            "binary": "before_scalar",
+            "ms": 8275.6,
+            "counters": "body 10586 / shape 10590 / contact 195788 / joint 0 / stack 28761008"
+          },
+          {
+            "binary": "after_scalar",
+            "ms": 8543.27,
+            "counters": "body 10586 / shape 10590 / contact 195788 / joint 0 / stack 29608368"
+          },
+          {
+            "binary": "before_neon",
+            "ms": 8639.44,
+            "counters": "body 10586 / shape 10590 / contact 195788 / joint 0 / stack 28761008"
+          },
+          {
+            "binary": "after_neon",
+            "ms": 7763.54,
+            "counters": "body 10586 / shape 10590 / contact 195788 / joint 0 / stack 29608368"
+          },
+          {
+            "binary": "float",
+            "ms": 3439.38,
+            "counters": "body 10586 / shape 10590 / contact 193415 / joint 0 / stack 11295504"
+          },
+          {
+            "binary": "float",
+            "ms": 3585.24,
+            "counters": "body 10586 / shape 10590 / contact 193415 / joint 0 / stack 11295504"
+          },
+          {
+            "binary": "after_neon",
+            "ms": 8167.83,
+            "counters": "body 10586 / shape 10590 / contact 195788 / joint 0 / stack 29608368"
+          },
+          {
+            "binary": "before_neon",
+            "ms": 8071.23,
+            "counters": "body 10586 / shape 10590 / contact 195788 / joint 0 / stack 28761008"
+          },
+          {
+            "binary": "after_scalar",
+            "ms": 8396.76,
+            "counters": "body 10586 / shape 10590 / contact 195788 / joint 0 / stack 29608368"
+          },
+          {
+            "binary": "before_scalar",
+            "ms": 9092.59,
+            "counters": "body 10586 / shape 10590 / contact 195788 / joint 0 / stack 28761008"
+          },
+          {
+            "binary": "before_scalar",
+            "ms": 9873.06,
+            "counters": "body 10586 / shape 10590 / contact 195788 / joint 0 / stack 28761008",
+            "recheck": 0
+          },
+          {
+            "binary": "after_scalar",
+            "ms": 9723.27,
+            "counters": "body 10586 / shape 10590 / contact 195788 / joint 0 / stack 29608368",
+            "recheck": 0
+          },
+          {
+            "binary": "before_neon",
+            "ms": 9488.56,
+            "counters": "body 10586 / shape 10590 / contact 195788 / joint 0 / stack 28761008",
+            "recheck": 0
+          },
+          {
+            "binary": "after_neon",
+            "ms": 9384.7,
+            "counters": "body 10586 / shape 10590 / contact 195788 / joint 0 / stack 29608368",
+            "recheck": 0
+          },
+          {
+            "binary": "float",
+            "ms": 4304.97,
+            "counters": "body 10586 / shape 10590 / contact 193415 / joint 0 / stack 11295504",
+            "recheck": 0
+          },
+          {
+            "binary": "float",
+            "ms": 4390.54,
+            "counters": "body 10586 / shape 10590 / contact 193415 / joint 0 / stack 11295504",
+            "recheck": 1
+          },
+          {
+            "binary": "after_neon",
+            "ms": 9115.15,
+            "counters": "body 10586 / shape 10590 / contact 195788 / joint 0 / stack 29608368",
+            "recheck": 1
+          },
+          {
+            "binary": "before_neon",
+            "ms": 9386.3,
+            "counters": "body 10586 / shape 10590 / contact 195788 / joint 0 / stack 28761008",
+            "recheck": 1
+          },
+          {
+            "binary": "after_scalar",
+            "ms": 9577.54,
+            "counters": "body 10586 / shape 10590 / contact 195788 / joint 0 / stack 29608368",
+            "recheck": 1
+          },
+          {
+            "binary": "before_scalar",
+            "ms": 9719.38,
+            "counters": "body 10586 / shape 10590 / contact 195788 / joint 0 / stack 28761008",
+            "recheck": 1
+          },
+          {
+            "binary": "before_neon",
+            "ms": 9308.53,
+            "counters": "body 10586 / shape 10590 / contact 195788 / joint 0 / stack 28761008",
+            "recheck": 2
+          },
+          {
+            "binary": "after_neon",
+            "ms": 8985.01,
+            "counters": "body 10586 / shape 10590 / contact 195788 / joint 0 / stack 29608368",
+            "recheck": 2
+          },
+          {
+            "binary": "float",
+            "ms": 4291.97,
+            "counters": "body 10586 / shape 10590 / contact 193415 / joint 0 / stack 11295504",
+            "recheck": 2
+          },
+          {
+            "binary": "before_scalar",
+            "ms": 10022.2,
+            "counters": "body 10586 / shape 10590 / contact 195788 / joint 0 / stack 28761008",
+            "recheck": 2
+          },
+          {
+            "binary": "after_scalar",
+            "ms": 11167.5,
+            "counters": "body 10586 / shape 10590 / contact 195788 / joint 0 / stack 29608368",
+            "recheck": 2
+          }
+        ],
+        "medians_ms": {
+          "before_scalar": 9719.38,
+          "after_scalar": 9577.54,
+          "before_neon": 9308.53,
+          "after_neon": 8985.01,
+          "float": 4291.97
+        }
+      },
+      {
+        "scene": "large_pyramid",
+        "runs": [
+          {
+            "binary": "before_scalar",
+            "ms": 1577.32,
+            "counters": "body 5051 / shape 5051 / contact 14950 / joint 0 / stack 16154256"
+          },
+          {
+            "binary": "after_scalar",
+            "ms": 1630.32,
+            "counters": "body 5051 / shape 5051 / contact 14950 / joint 0 / stack 16633104"
+          },
+          {
+            "binary": "before_neon",
+            "ms": 1698.11,
+            "counters": "body 5051 / shape 5051 / contact 14950 / joint 0 / stack 16154256"
+          },
+          {
+            "binary": "after_neon",
+            "ms": 1559.22,
+            "counters": "body 5051 / shape 5051 / contact 14950 / joint 0 / stack 16633104"
+          },
+          {
+            "binary": "float",
+            "ms": 584.263,
+            "counters": "body 5051 / shape 5051 / contact 14950 / joint 0 / stack 6366112"
+          },
+          {
+            "binary": "float",
+            "ms": 559.071,
+            "counters": "body 5051 / shape 5051 / contact 14950 / joint 0 / stack 6366112"
+          },
+          {
+            "binary": "after_neon",
+            "ms": 1671.62,
+            "counters": "body 5051 / shape 5051 / contact 14950 / joint 0 / stack 16633104"
+          },
+          {
+            "binary": "before_neon",
+            "ms": 1755.66,
+            "counters": "body 5051 / shape 5051 / contact 14950 / joint 0 / stack 16154256"
+          },
+          {
+            "binary": "after_scalar",
+            "ms": 1494.55,
+            "counters": "body 5051 / shape 5051 / contact 14950 / joint 0 / stack 16633104"
+          },
+          {
+            "binary": "before_scalar",
+            "ms": 1594.39,
+            "counters": "body 5051 / shape 5051 / contact 14950 / joint 0 / stack 16154256"
+          },
+          {
+            "binary": "before_scalar",
+            "ms": 1682.55,
+            "counters": "body 5051 / shape 5051 / contact 14950 / joint 0 / stack 16154256",
+            "recheck": 0
+          },
+          {
+            "binary": "after_scalar",
+            "ms": 1937.3,
+            "counters": "body 5051 / shape 5051 / contact 14950 / joint 0 / stack 16633104",
+            "recheck": 0
+          },
+          {
+            "binary": "before_neon",
+            "ms": 2372.6,
+            "counters": "body 5051 / shape 5051 / contact 14950 / joint 0 / stack 16154256",
+            "recheck": 0
+          },
+          {
+            "binary": "after_neon",
+            "ms": 1631.08,
+            "counters": "body 5051 / shape 5051 / contact 14950 / joint 0 / stack 16633104",
+            "recheck": 0
+          },
+          {
+            "binary": "float",
+            "ms": 569.85,
+            "counters": "body 5051 / shape 5051 / contact 14950 / joint 0 / stack 6366112",
+            "recheck": 0
+          },
+          {
+            "binary": "float",
+            "ms": 571.696,
+            "counters": "body 5051 / shape 5051 / contact 14950 / joint 0 / stack 6366112",
+            "recheck": 1
+          },
+          {
+            "binary": "after_neon",
+            "ms": 1637.78,
+            "counters": "body 5051 / shape 5051 / contact 14950 / joint 0 / stack 16633104",
+            "recheck": 1
+          },
+          {
+            "binary": "before_neon",
+            "ms": 1762.92,
+            "counters": "body 5051 / shape 5051 / contact 14950 / joint 0 / stack 16154256",
+            "recheck": 1
+          },
+          {
+            "binary": "after_scalar",
+            "ms": 1636.61,
+            "counters": "body 5051 / shape 5051 / contact 14950 / joint 0 / stack 16633104",
+            "recheck": 1
+          },
+          {
+            "binary": "before_scalar",
+            "ms": 1759.26,
+            "counters": "body 5051 / shape 5051 / contact 14950 / joint 0 / stack 16154256",
+            "recheck": 1
+          },
+          {
+            "binary": "before_neon",
+            "ms": 1751.94,
+            "counters": "body 5051 / shape 5051 / contact 14950 / joint 0 / stack 16154256",
+            "recheck": 2
+          },
+          {
+            "binary": "after_neon",
+            "ms": 1645.68,
+            "counters": "body 5051 / shape 5051 / contact 14950 / joint 0 / stack 16633104",
+            "recheck": 2
+          },
+          {
+            "binary": "float",
+            "ms": 582.291,
+            "counters": "body 5051 / shape 5051 / contact 14950 / joint 0 / stack 6366112",
+            "recheck": 2
+          },
+          {
+            "binary": "before_scalar",
+            "ms": 1753.1,
+            "counters": "body 5051 / shape 5051 / contact 14950 / joint 0 / stack 16154256",
+            "recheck": 2
+          },
+          {
+            "binary": "after_scalar",
+            "ms": 1633.42,
+            "counters": "body 5051 / shape 5051 / contact 14950 / joint 0 / stack 16633104",
+            "recheck": 2
+          }
+        ],
+        "medians_ms": {
+          "before_scalar": 1682.55,
+          "after_scalar": 1633.42,
+          "before_neon": 1755.66,
+          "after_neon": 1637.78,
+          "float": 571.696
+        }
+      },
+      {
+        "scene": "large_world",
+        "runs": [
+          {
+            "binary": "before_scalar",
+            "ms": 24.2674,
+            "counters": "body 1000099 / shape 1000099 / contact 380 / joint 0 / stack 520000000"
+          },
+          {
+            "binary": "after_scalar",
+            "ms": 25.3763,
+            "counters": "body 1000099 / shape 1000099 / contact 380 / joint 0 / stack 520000000"
+          },
+          {
+            "binary": "before_neon",
+            "ms": 37.7392,
+            "counters": "body 1000099 / shape 1000099 / contact 380 / joint 0 / stack 520000000"
+          },
+          {
+            "binary": "after_neon",
+            "ms": 22.8688,
+            "counters": "body 1000099 / shape 1000099 / contact 380 / joint 0 / stack 520000000"
+          },
+          {
+            "binary": "float",
+            "ms": 12.4906,
+            "counters": "body 1000099 / shape 1000099 / contact 380 / joint 0 / stack 520000000"
+          },
+          {
+            "binary": "float",
+            "ms": 12.4931,
+            "counters": "body 1000099 / shape 1000099 / contact 380 / joint 0 / stack 520000000"
+          },
+          {
+            "binary": "after_neon",
+            "ms": 22.3744,
+            "counters": "body 1000099 / shape 1000099 / contact 380 / joint 0 / stack 520000000"
+          },
+          {
+            "binary": "before_neon",
+            "ms": 26.888,
+            "counters": "body 1000099 / shape 1000099 / contact 380 / joint 0 / stack 520000000"
+          },
+          {
+            "binary": "after_scalar",
+            "ms": 33.1898,
+            "counters": "body 1000099 / shape 1000099 / contact 380 / joint 0 / stack 520000000"
+          },
+          {
+            "binary": "before_scalar",
+            "ms": 23.2894,
+            "counters": "body 1000099 / shape 1000099 / contact 380 / joint 0 / stack 520000000"
+          },
+          {
+            "binary": "before_scalar",
+            "ms": 44.5592,
+            "counters": "body 1000099 / shape 1000099 / contact 380 / joint 0 / stack 520000000",
+            "recheck": 0
+          },
+          {
+            "binary": "after_scalar",
+            "ms": 24.3428,
+            "counters": "body 1000099 / shape 1000099 / contact 380 / joint 0 / stack 520000000",
+            "recheck": 0
+          },
+          {
+            "binary": "before_neon",
+            "ms": 27.761,
+            "counters": "body 1000099 / shape 1000099 / contact 380 / joint 0 / stack 520000000",
+            "recheck": 0
+          },
+          {
+            "binary": "after_neon",
+            "ms": 25.4359,
+            "counters": "body 1000099 / shape 1000099 / contact 380 / joint 0 / stack 520000000",
+            "recheck": 0
+          },
+          {
+            "binary": "float",
+            "ms": 13.9106,
+            "counters": "body 1000099 / shape 1000099 / contact 380 / joint 0 / stack 520000000",
+            "recheck": 0
+          },
+          {
+            "binary": "float",
+            "ms": 15.1458,
+            "counters": "body 1000099 / shape 1000099 / contact 380 / joint 0 / stack 520000000",
+            "recheck": 1
+          },
+          {
+            "binary": "after_neon",
+            "ms": 27.7546,
+            "counters": "body 1000099 / shape 1000099 / contact 380 / joint 0 / stack 520000000",
+            "recheck": 1
+          },
+          {
+            "binary": "before_neon",
+            "ms": 28.1258,
+            "counters": "body 1000099 / shape 1000099 / contact 380 / joint 0 / stack 520000000",
+            "recheck": 1
+          },
+          {
+            "binary": "after_scalar",
+            "ms": 24.7606,
+            "counters": "body 1000099 / shape 1000099 / contact 380 / joint 0 / stack 520000000",
+            "recheck": 1
+          },
+          {
+            "binary": "before_scalar",
+            "ms": 29.2903,
+            "counters": "body 1000099 / shape 1000099 / contact 380 / joint 0 / stack 520000000",
+            "recheck": 1
+          },
+          {
+            "binary": "before_neon",
+            "ms": 26.3318,
+            "counters": "body 1000099 / shape 1000099 / contact 380 / joint 0 / stack 520000000",
+            "recheck": 2
+          },
+          {
+            "binary": "after_neon",
+            "ms": 25.3068,
+            "counters": "body 1000099 / shape 1000099 / contact 380 / joint 0 / stack 520000000",
+            "recheck": 2
+          },
+          {
+            "binary": "float",
+            "ms": 14.882,
+            "counters": "body 1000099 / shape 1000099 / contact 380 / joint 0 / stack 520000000",
+            "recheck": 2
+          },
+          {
+            "binary": "before_scalar",
+            "ms": 26.6363,
+            "counters": "body 1000099 / shape 1000099 / contact 380 / joint 0 / stack 520000000",
+            "recheck": 2
+          },
+          {
+            "binary": "after_scalar",
+            "ms": 29.0349,
+            "counters": "body 1000099 / shape 1000099 / contact 380 / joint 0 / stack 520000000",
+            "recheck": 2
+          }
+        ],
+        "medians_ms": {
+          "before_scalar": 26.6363,
+          "after_scalar": 25.3763,
+          "before_neon": 27.761,
+          "after_neon": 25.3068,
+          "float": 13.9106
+        }
+      },
+      {
+        "scene": "many_pyramids",
+        "runs": [
+          {
+            "binary": "before_scalar",
+            "ms": 1533.33,
+            "counters": "body 10781 / shape 10781 / contact 28420 / joint 0 / stack 30691376"
+          },
+          {
+            "binary": "after_scalar",
+            "ms": 1463.63,
+            "counters": "body 10781 / shape 10781 / contact 28420 / joint 0 / stack 31601072"
+          },
+          {
+            "binary": "before_neon",
+            "ms": 1546.58,
+            "counters": "body 10781 / shape 10781 / contact 28420 / joint 0 / stack 30691376"
+          },
+          {
+            "binary": "after_neon",
+            "ms": 1439.31,
+            "counters": "body 10781 / shape 10781 / contact 28420 / joint 0 / stack 31601072"
+          },
+          {
+            "binary": "float",
+            "ms": 449.867,
+            "counters": "body 10781 / shape 10781 / contact 28420 / joint 0 / stack 12102992"
+          },
+          {
+            "binary": "float",
+            "ms": 449.333,
+            "counters": "body 10781 / shape 10781 / contact 28420 / joint 0 / stack 12102992"
+          },
+          {
+            "binary": "after_neon",
+            "ms": 1430.43,
+            "counters": "body 10781 / shape 10781 / contact 28420 / joint 0 / stack 31601072"
+          },
+          {
+            "binary": "before_neon",
+            "ms": 1560.62,
+            "counters": "body 10781 / shape 10781 / contact 28420 / joint 0 / stack 30691376"
+          },
+          {
+            "binary": "after_scalar",
+            "ms": 1425.23,
+            "counters": "body 10781 / shape 10781 / contact 28420 / joint 0 / stack 31601072"
+          },
+          {
+            "binary": "before_scalar",
+            "ms": 1547.41,
+            "counters": "body 10781 / shape 10781 / contact 28420 / joint 0 / stack 30691376"
+          }
+        ],
+        "medians_ms": {
+          "before_scalar": 1540.37,
+          "before_neon": 1553.6,
+          "after_scalar": 1444.43,
+          "after_neon": 1434.87,
+          "float": 449.6
+        }
+      },
+      {
+        "scene": "rain",
+        "runs": [
+          {
+            "binary": "before_scalar",
+            "ms": 1290.41,
+            "counters": "body 4300 / shape 4400 / contact 7019 / joint 4200 / stack 1731680"
+          },
+          {
+            "binary": "after_scalar",
+            "ms": 1235.31,
+            "counters": "body 4300 / shape 4400 / contact 7019 / joint 4200 / stack 1765344"
+          },
+          {
+            "binary": "before_neon",
+            "ms": 1271.08,
+            "counters": "body 4300 / shape 4400 / contact 7019 / joint 4200 / stack 1731680"
+          },
+          {
+            "binary": "after_neon",
+            "ms": 1240.83,
+            "counters": "body 4300 / shape 4400 / contact 7019 / joint 4200 / stack 1765344"
+          },
+          {
+            "binary": "float",
+            "ms": 539.132,
+            "counters": "body 4300 / shape 4400 / contact 7898 / joint 4200 / stack 1535568"
+          },
+          {
+            "binary": "float",
+            "ms": 537.87,
+            "counters": "body 4300 / shape 4400 / contact 7898 / joint 4200 / stack 1535568"
+          },
+          {
+            "binary": "after_neon",
+            "ms": 1229.12,
+            "counters": "body 4300 / shape 4400 / contact 7019 / joint 4200 / stack 1765344"
+          },
+          {
+            "binary": "before_neon",
+            "ms": 1284.04,
+            "counters": "body 4300 / shape 4400 / contact 7019 / joint 4200 / stack 1731680"
+          },
+          {
+            "binary": "after_scalar",
+            "ms": 1242.14,
+            "counters": "body 4300 / shape 4400 / contact 7019 / joint 4200 / stack 1765344"
+          },
+          {
+            "binary": "before_scalar",
+            "ms": 1349.36,
+            "counters": "body 4300 / shape 4400 / contact 7019 / joint 4200 / stack 1731680"
+          }
+        ],
+        "medians_ms": {
+          "before_scalar": 1319.885,
+          "before_neon": 1277.56,
+          "after_scalar": 1238.725,
+          "after_neon": 1234.975,
+          "float": 538.501
+        }
+      },
+      {
+        "scene": "trees100",
+        "runs": [
+          {
+            "binary": "before_scalar",
+            "ms": 144.031,
+            "counters": "body 51 / shape 1101 / contact 1100 / joint 0 / stack 572528"
+          },
+          {
+            "binary": "after_scalar",
+            "ms": 146.933,
+            "counters": "body 51 / shape 1101 / contact 1100 / joint 0 / stack 572528"
+          },
+          {
+            "binary": "before_neon",
+            "ms": 142.223,
+            "counters": "body 51 / shape 1101 / contact 1100 / joint 0 / stack 572528"
+          },
+          {
+            "binary": "after_neon",
+            "ms": 141.148,
+            "counters": "body 51 / shape 1101 / contact 1100 / joint 0 / stack 572528"
+          },
+          {
+            "binary": "float",
+            "ms": 88.4556,
+            "counters": "body 51 / shape 1101 / contact 1102 / joint 0 / stack 572528"
+          },
+          {
+            "binary": "float",
+            "ms": 82.1158,
+            "counters": "body 51 / shape 1101 / contact 1102 / joint 0 / stack 572528"
+          },
+          {
+            "binary": "after_neon",
+            "ms": 142.824,
+            "counters": "body 51 / shape 1101 / contact 1100 / joint 0 / stack 572528"
+          },
+          {
+            "binary": "before_neon",
+            "ms": 141.073,
+            "counters": "body 51 / shape 1101 / contact 1100 / joint 0 / stack 572528"
+          },
+          {
+            "binary": "after_scalar",
+            "ms": 141.859,
+            "counters": "body 51 / shape 1101 / contact 1100 / joint 0 / stack 572528"
+          },
+          {
+            "binary": "before_scalar",
+            "ms": 142.317,
+            "counters": "body 51 / shape 1101 / contact 1100 / joint 0 / stack 572528"
+          },
+          {
+            "binary": "before_scalar",
+            "ms": 177.799,
+            "counters": "body 51 / shape 1101 / contact 1100 / joint 0 / stack 572528",
+            "recheck": 0
+          },
+          {
+            "binary": "after_scalar",
+            "ms": 165.839,
+            "counters": "body 51 / shape 1101 / contact 1100 / joint 0 / stack 572528",
+            "recheck": 0
+          },
+          {
+            "binary": "before_neon",
+            "ms": 158.43,
+            "counters": "body 51 / shape 1101 / contact 1100 / joint 0 / stack 572528",
+            "recheck": 0
+          },
+          {
+            "binary": "after_neon",
+            "ms": 161.572,
+            "counters": "body 51 / shape 1101 / contact 1100 / joint 0 / stack 572528",
+            "recheck": 0
+          },
+          {
+            "binary": "float",
+            "ms": 98.1159,
+            "counters": "body 51 / shape 1101 / contact 1102 / joint 0 / stack 572528",
+            "recheck": 0
+          },
+          {
+            "binary": "float",
+            "ms": 87.6232,
+            "counters": "body 51 / shape 1101 / contact 1102 / joint 0 / stack 572528",
+            "recheck": 1
+          },
+          {
+            "binary": "after_neon",
+            "ms": 156.583,
+            "counters": "body 51 / shape 1101 / contact 1100 / joint 0 / stack 572528",
+            "recheck": 1
+          },
+          {
+            "binary": "before_neon",
+            "ms": 163.023,
+            "counters": "body 51 / shape 1101 / contact 1100 / joint 0 / stack 572528",
+            "recheck": 1
+          },
+          {
+            "binary": "after_scalar",
+            "ms": 162.609,
+            "counters": "body 51 / shape 1101 / contact 1100 / joint 0 / stack 572528",
+            "recheck": 1
+          },
+          {
+            "binary": "before_scalar",
+            "ms": 179.989,
+            "counters": "body 51 / shape 1101 / contact 1100 / joint 0 / stack 572528",
+            "recheck": 1
+          },
+          {
+            "binary": "before_neon",
+            "ms": 162.914,
+            "counters": "body 51 / shape 1101 / contact 1100 / joint 0 / stack 572528",
+            "recheck": 2
+          },
+          {
+            "binary": "after_neon",
+            "ms": 169.209,
+            "counters": "body 51 / shape 1101 / contact 1100 / joint 0 / stack 572528",
+            "recheck": 2
+          },
+          {
+            "binary": "float",
+            "ms": 91.1845,
+            "counters": "body 51 / shape 1101 / contact 1102 / joint 0 / stack 572528",
+            "recheck": 2
+          },
+          {
+            "binary": "before_scalar",
+            "ms": 160.326,
+            "counters": "body 51 / shape 1101 / contact 1100 / joint 0 / stack 572528",
+            "recheck": 2
+          },
+          {
+            "binary": "after_scalar",
+            "ms": 159.6,
+            "counters": "body 51 / shape 1101 / contact 1100 / joint 0 / stack 572528",
+            "recheck": 2
+          }
+        ],
+        "medians_ms": {
+          "before_scalar": 160.326,
+          "after_scalar": 159.6,
+          "before_neon": 158.43,
+          "after_neon": 156.583,
+          "float": 88.4556
+        }
+      },
+      {
+        "scene": "trees50",
+        "runs": [
+          {
+            "binary": "before_scalar",
+            "ms": 196.839,
+            "counters": "body 51 / shape 1101 / contact 1114 / joint 0 / stack 572528"
+          },
+          {
+            "binary": "after_scalar",
+            "ms": 199.419,
+            "counters": "body 51 / shape 1101 / contact 1114 / joint 0 / stack 572528"
+          },
+          {
+            "binary": "before_neon",
+            "ms": 195.025,
+            "counters": "body 51 / shape 1101 / contact 1114 / joint 0 / stack 572528"
+          },
+          {
+            "binary": "after_neon",
+            "ms": 195.235,
+            "counters": "body 51 / shape 1101 / contact 1114 / joint 0 / stack 572528"
+          },
+          {
+            "binary": "float",
+            "ms": 101.036,
+            "counters": "body 51 / shape 1101 / contact 1100 / joint 0 / stack 572528"
+          },
+          {
+            "binary": "float",
+            "ms": 101.368,
+            "counters": "body 51 / shape 1101 / contact 1100 / joint 0 / stack 572528"
+          },
+          {
+            "binary": "after_neon",
+            "ms": 195.505,
+            "counters": "body 51 / shape 1101 / contact 1114 / joint 0 / stack 572528"
+          },
+          {
+            "binary": "before_neon",
+            "ms": 195.611,
+            "counters": "body 51 / shape 1101 / contact 1114 / joint 0 / stack 572528"
+          },
+          {
+            "binary": "after_scalar",
+            "ms": 197.462,
+            "counters": "body 51 / shape 1101 / contact 1114 / joint 0 / stack 572528"
+          },
+          {
+            "binary": "before_scalar",
+            "ms": 197.655,
+            "counters": "body 51 / shape 1101 / contact 1114 / joint 0 / stack 572528"
+          }
+        ],
+        "medians_ms": {
+          "before_scalar": 197.247,
+          "before_neon": 195.31799999999998,
+          "after_scalar": 198.4405,
+          "after_neon": 195.37,
+          "float": 101.202
+        }
+      },
+      {
+        "scene": "trees25",
+        "runs": [
+          {
+            "binary": "before_scalar",
+            "ms": 368.592,
+            "counters": "body 51 / shape 1101 / contact 1104 / joint 0 / stack 572528"
+          },
+          {
+            "binary": "after_scalar",
+            "ms": 369.681,
+            "counters": "body 51 / shape 1101 / contact 1104 / joint 0 / stack 572528"
+          },
+          {
+            "binary": "before_neon",
+            "ms": 361.531,
+            "counters": "body 51 / shape 1101 / contact 1104 / joint 0 / stack 572528"
+          },
+          {
+            "binary": "after_neon",
+            "ms": 361.111,
+            "counters": "body 51 / shape 1101 / contact 1104 / joint 0 / stack 572528"
+          },
+          {
+            "binary": "float",
+            "ms": 211.994,
+            "counters": "body 51 / shape 1101 / contact 1112 / joint 0 / stack 572528"
+          },
+          {
+            "binary": "float",
+            "ms": 267.741,
+            "counters": "body 51 / shape 1101 / contact 1112 / joint 0 / stack 572528"
+          },
+          {
+            "binary": "after_neon",
+            "ms": 398.575,
+            "counters": "body 51 / shape 1101 / contact 1104 / joint 0 / stack 572528"
+          },
+          {
+            "binary": "before_neon",
+            "ms": 369.441,
+            "counters": "body 51 / shape 1101 / contact 1104 / joint 0 / stack 572528"
+          },
+          {
+            "binary": "after_scalar",
+            "ms": 378.005,
+            "counters": "body 51 / shape 1101 / contact 1104 / joint 0 / stack 572528"
+          },
+          {
+            "binary": "before_scalar",
+            "ms": 378.51,
+            "counters": "body 51 / shape 1101 / contact 1104 / joint 0 / stack 572528"
+          },
+          {
+            "binary": "before_scalar",
+            "ms": 408.532,
+            "counters": "body 51 / shape 1101 / contact 1104 / joint 0 / stack 572528",
+            "recheck": 0
+          },
+          {
+            "binary": "after_scalar",
+            "ms": 405.899,
+            "counters": "body 51 / shape 1101 / contact 1104 / joint 0 / stack 572528",
+            "recheck": 0
+          },
+          {
+            "binary": "before_neon",
+            "ms": 392.676,
+            "counters": "body 51 / shape 1101 / contact 1104 / joint 0 / stack 572528",
+            "recheck": 0
+          },
+          {
+            "binary": "after_neon",
+            "ms": 396.463,
+            "counters": "body 51 / shape 1101 / contact 1104 / joint 0 / stack 572528",
+            "recheck": 0
+          },
+          {
+            "binary": "float",
+            "ms": 233.779,
+            "counters": "body 51 / shape 1101 / contact 1112 / joint 0 / stack 572528",
+            "recheck": 0
+          },
+          {
+            "binary": "float",
+            "ms": 239.53,
+            "counters": "body 51 / shape 1101 / contact 1112 / joint 0 / stack 572528",
+            "recheck": 1
+          },
+          {
+            "binary": "after_neon",
+            "ms": 403.835,
+            "counters": "body 51 / shape 1101 / contact 1104 / joint 0 / stack 572528",
+            "recheck": 1
+          },
+          {
+            "binary": "before_neon",
+            "ms": 454.74,
+            "counters": "body 51 / shape 1101 / contact 1104 / joint 0 / stack 572528",
+            "recheck": 1
+          },
+          {
+            "binary": "after_scalar",
+            "ms": 424.782,
+            "counters": "body 51 / shape 1101 / contact 1104 / joint 0 / stack 572528",
+            "recheck": 1
+          },
+          {
+            "binary": "before_scalar",
+            "ms": 805.465,
+            "counters": "body 51 / shape 1101 / contact 1104 / joint 0 / stack 572528",
+            "recheck": 1
+          },
+          {
+            "binary": "before_neon",
+            "ms": 1086.0,
+            "counters": "body 51 / shape 1101 / contact 1104 / joint 0 / stack 572528",
+            "recheck": 2
+          },
+          {
+            "binary": "after_neon",
+            "ms": 486.661,
+            "counters": "body 51 / shape 1101 / contact 1104 / joint 0 / stack 572528",
+            "recheck": 2
+          },
+          {
+            "binary": "float",
+            "ms": 237.143,
+            "counters": "body 51 / shape 1101 / contact 1112 / joint 0 / stack 572528",
+            "recheck": 2
+          },
+          {
+            "binary": "before_scalar",
+            "ms": 419.438,
+            "counters": "body 51 / shape 1101 / contact 1104 / joint 0 / stack 572528",
+            "recheck": 2
+          },
+          {
+            "binary": "after_scalar",
+            "ms": 427.027,
+            "counters": "body 51 / shape 1101 / contact 1104 / joint 0 / stack 572528",
+            "recheck": 2
+          }
+        ],
+        "medians_ms": {
+          "before_scalar": 408.532,
+          "after_scalar": 405.899,
+          "before_neon": 392.676,
+          "after_neon": 398.575,
+          "float": 237.143
+        }
+      },
+      {
+        "scene": "washer",
+        "runs": [
+          {
+            "binary": "before_scalar",
+            "ms": 13559.0,
+            "counters": "body 8002 / shape 8041 / contact 40576 / joint 0 / stack 18551760"
+          },
+          {
+            "binary": "after_scalar",
+            "ms": 15437.1,
+            "counters": "body 8002 / shape 8041 / contact 40576 / joint 0 / stack 19101392"
+          },
+          {
+            "binary": "before_neon",
+            "ms": 14814.5,
+            "counters": "body 8002 / shape 8041 / contact 40576 / joint 0 / stack 18551760"
+          },
+          {
+            "binary": "after_neon",
+            "ms": 15541.6,
+            "counters": "body 8002 / shape 8041 / contact 40576 / joint 0 / stack 19101392"
+          },
+          {
+            "binary": "float",
+            "ms": 8266.66,
+            "counters": "body 8002 / shape 8041 / contact 40444 / joint 0 / stack 7289728"
+          },
+          {
+            "binary": "float",
+            "ms": 8149.05,
+            "counters": "body 8002 / shape 8041 / contact 40444 / joint 0 / stack 7289728"
+          },
+          {
+            "binary": "after_neon",
+            "ms": 14246.4,
+            "counters": "body 8002 / shape 8041 / contact 40576 / joint 0 / stack 19101392"
+          },
+          {
+            "binary": "before_neon",
+            "ms": 14038.4,
+            "counters": "body 8002 / shape 8041 / contact 40576 / joint 0 / stack 18551760"
+          },
+          {
+            "binary": "after_scalar",
+            "ms": 15765.6,
+            "counters": "body 8002 / shape 8041 / contact 40576 / joint 0 / stack 19101392"
+          },
+          {
+            "binary": "before_scalar",
+            "ms": 16624.9,
+            "counters": "body 8002 / shape 8041 / contact 40576 / joint 0 / stack 18551760"
+          },
+          {
+            "binary": "before_scalar",
+            "ms": 14713.1,
+            "counters": "body 8002 / shape 8041 / contact 40576 / joint 0 / stack 18551760",
+            "recheck": 0
+          },
+          {
+            "binary": "after_scalar",
+            "ms": 14430.5,
+            "counters": "body 8002 / shape 8041 / contact 40576 / joint 0 / stack 19101392",
+            "recheck": 0
+          },
+          {
+            "binary": "before_neon",
+            "ms": 15701.1,
+            "counters": "body 8002 / shape 8041 / contact 40576 / joint 0 / stack 18551760",
+            "recheck": 0
+          },
+          {
+            "binary": "after_neon",
+            "ms": 14330.1,
+            "counters": "body 8002 / shape 8041 / contact 40576 / joint 0 / stack 19101392",
+            "recheck": 0
+          },
+          {
+            "binary": "float",
+            "ms": 7180.64,
+            "counters": "body 8002 / shape 8041 / contact 40444 / joint 0 / stack 7289728",
+            "recheck": 0
+          },
+          {
+            "binary": "float",
+            "ms": 7147.18,
+            "counters": "body 8002 / shape 8041 / contact 40444 / joint 0 / stack 7289728",
+            "recheck": 1
+          },
+          {
+            "binary": "after_neon",
+            "ms": 13690.9,
+            "counters": "body 8002 / shape 8041 / contact 40576 / joint 0 / stack 19101392",
+            "recheck": 1
+          },
+          {
+            "binary": "before_neon",
+            "ms": 14111.6,
+            "counters": "body 8002 / shape 8041 / contact 40576 / joint 0 / stack 18551760",
+            "recheck": 1
+          },
+          {
+            "binary": "after_scalar",
+            "ms": 14607.6,
+            "counters": "body 8002 / shape 8041 / contact 40576 / joint 0 / stack 19101392",
+            "recheck": 1
+          },
+          {
+            "binary": "before_scalar",
+            "ms": 14740.2,
+            "counters": "body 8002 / shape 8041 / contact 40576 / joint 0 / stack 18551760",
+            "recheck": 1
+          },
+          {
+            "binary": "before_neon",
+            "ms": 14577.7,
+            "counters": "body 8002 / shape 8041 / contact 40576 / joint 0 / stack 18551760",
+            "recheck": 2
+          },
+          {
+            "binary": "after_neon",
+            "ms": 13795.1,
+            "counters": "body 8002 / shape 8041 / contact 40576 / joint 0 / stack 19101392",
+            "recheck": 2
+          },
+          {
+            "binary": "float",
+            "ms": 7210.53,
+            "counters": "body 8002 / shape 8041 / contact 40444 / joint 0 / stack 7289728",
+            "recheck": 2
+          },
+          {
+            "binary": "before_scalar",
+            "ms": 14878.5,
+            "counters": "body 8002 / shape 8041 / contact 40576 / joint 0 / stack 18551760",
+            "recheck": 2
+          },
+          {
+            "binary": "after_scalar",
+            "ms": 14547.1,
+            "counters": "body 8002 / shape 8041 / contact 40576 / joint 0 / stack 19101392",
+            "recheck": 2
+          }
+        ],
+        "medians_ms": {
+          "before_scalar": 14740.2,
+          "after_scalar": 14607.6,
+          "before_neon": 14577.7,
+          "after_neon": 14246.4,
+          "float": 7210.53
+        }
+      }
+    ],
+    "finished": "2026-09-07T18:27:46-0400",
+    "rechecks": [
+      {
+        "scene": "convex_pile",
+        "reason": "Initial pair spread exceeded 5%",
+        "triggering_binaries": [
+          "before_scalar",
+          "before_neon",
+          "after_neon"
+        ]
+      },
+      {
+        "scene": "junkyard",
+        "reason": "Initial pair spread exceeded 5%",
+        "triggering_binaries": [
+          "before_scalar",
+          "before_neon",
+          "after_neon"
+        ]
+      },
+      {
+        "scene": "large_pyramid",
+        "reason": "Initial pair spread exceeded 5%",
+        "triggering_binaries": [
+          "after_scalar",
+          "after_neon"
+        ]
+      },
+      {
+        "scene": "large_world",
+        "reason": "Initial pair spread exceeded 5%",
+        "triggering_binaries": [
+          "after_scalar",
+          "before_neon"
+        ]
+      },
+      {
+        "scene": "trees100",
+        "reason": "Initial pair spread exceeded 5%",
+        "triggering_binaries": [
+          "float"
+        ]
+      },
+      {
+        "scene": "trees25",
+        "reason": "Initial pair spread exceeded 5%",
+        "triggering_binaries": [
+          "after_neon",
+          "float"
+        ]
+      },
+      {
+        "scene": "washer",
+        "reason": "Initial pair spread exceeded 5%",
+        "triggering_binaries": [
+          "before_scalar",
+          "before_neon",
+          "after_neon"
+        ]
+      }
+    ],
+    "rechecks_finished": "2026-09-07T18:37:38-0400"
+  },
+  "float_runtime_ratios": {
+    "before_scalar": 2.320299866135633,
+    "after_scalar": 2.2438407648143097,
+    "before_neon": 2.2164967311046686,
+    "after_neon": 2.1291292186601805
+  },
+  "runtime_reduction_percent": {
+    "scalar": 3.2952250024761875,
+    "neon": 3.9416937195727475
+  },
+  "validation": {
+    "frames": 4800,
+    "hash_sha256": "de8a36a2165eb2062329cc432d0357f9709785152d0d5a9fea6d8461bbd82d04",
+    "workers": [
+      1,
+      4
+    ],
+    "substeps": [
+      1,
+      2,
+      4,
+      8,
+      "varying"
+    ],
+    "cube_sides": [
+      1,
+      250
+    ],
+    "warm_start_toggles": [
+      70,
+      130
+    ]
+  },
+  "checks": {
+    "code_commit": "542fa3593373b817feed479cf526389a4c6b8e60",
+    "ci_run": 34166282099,
+    "ci_conclusion": "success",
+    "local_suites": 24,
+    "local_configurations": [
+      "Debug",
+      "RelWithDebInfo scalar",
+      "RelWithDebInfo NEON",
+      "RelWithDebInfo wide positions",
+      "Debug ASan+UBSan"
+    ],
+    "generic_skew_comparisons": 6144,
+    "frame_hashes": 4800,
+    "cross_worker_frames": 2400,
+    "capture_count": 80,
+    "matching_scenes": 20,
+    "nonzero_solve_unchanged": true
+  },
+  "experiments": {
+    "inline": {
+      "source_diff": "diff --git a/src/contact_solver.c b/src/contact_solver.c\nindex 1b77ca3..53aa8a2 100644\n--- a/src/contact_solver.c\n+++ b/src/contact_solver.c\n@@ -1618,7 +1618,7 @@ static inline b3FloatW b3Dot3W( b3FloatW a, b3FloatW b, b3FloatW c, b3FloatW d,\n // Relative velocity along an axis using precomputed cross(r, axis) rows:\n // dot(dv, axis) + dot(wB, rbxa) - dot(wA, raxa), nine products accumulated\n // at 128 bits with a single rounding.\n-static inline b3FloatW b3RelVelocityW( b3Vec3W dv, b3Vec3W axis, b3Vec3W wB, b3Vec3W rbxa, b3Vec3W wA, b3Vec3W raxa )\n+B3_FORCE_INLINE b3FloatW b3RelVelocityW( b3Vec3W dv, b3Vec3W axis, b3Vec3W wB, b3Vec3W rbxa, b3Vec3W wA, b3Vec3W raxa )\n {\n #if defined( B3_SIMD_AVX512 )\n \tb3DotAccAVX sum = b3DotBeginAVX( dv.X.v, axis.X.v );\n@@ -1783,7 +1783,7 @@ static inline b3FloatW b3RotSubW( b3FloatW a, b3FloatW b, b3FloatW c, b3FloatW d\n }\n \n // Same element layout as the scalar b3MakeMatrixFromQuat, stored as rows\n-static inline b3Matrix3W b3MakeMatrixFromQuatW( b3QuatW q )\n+B3_FORCE_INLINE b3Matrix3W b3MakeMatrixFromQuatW( b3QuatW q )\n {\n \tb3FloatW x = q.V.X;\n \tb3FloatW y = q.V.Y;\n@@ -1896,7 +1896,7 @@ static inline b3Vec3W b3InvMulAddSVW( b3Vec3W a, b3FloatW s, b3Vec3W b )\n }\n \n // a - m * b, where m is an inverse inertia and the result is an angular velocity.\n-static inline b3Vec3W b3InvMulSubMVW( b3Vec3W a, b3SymMatrix3W m, b3Vec3W b )\n+B3_FORCE_INLINE b3Vec3W b3InvMulSubMVW( b3Vec3W a, b3SymMatrix3W m, b3Vec3W b )\n {\n \treturn (b3Vec3W){\n \t\tb3SubW( a.X, b3AddW( b3AddW( b3InvMulW( m.cxx, b.X ), b3InvMulW( m.cxy, b.Y ) ), b3InvMulW( m.cxz, b.Z ) ) ),\n@@ -1906,7 +1906,7 @@ static inline b3Vec3W b3InvMulSubMVW( b3Vec3W a, b3SymMatrix3W m, b3Vec3W b )\n }\n \n // a + m * b, likewise.\n-static inline b3Vec3W b3InvMulAddMVW( b3Vec3W a, b3SymMatrix3W m, b3Vec3W b )\n+B3_FORCE_INLINE b3Vec3W b3InvMulAddMVW( b3Vec3W a, b3SymMatrix3W m, b3Vec3W b )\n {\n \treturn (b3Vec3W){\n \t\tb3AddW( a.X, b3AddW( b3AddW( b3InvMulW( m.cxx, b.X ), b3InvMulW( m.cxy, b.Y ) ), b3InvMulW( m.cxz, b.Z ) ) ),\n@@ -2193,7 +2193,7 @@ static inline void b3Transpose4x4AVX( __m256i r0, __m256i r1, __m256i r2, __m256\n // b3Fixed fields of b3BodyState (deltaRotation.s stays scalar: a fourth\n // vector load would read past the end of the states array for the last\n // body). Pure data movement, bit-identical to the scalar member loads.\n-static b3BodyStateW b3GatherBodies( const b3BodyState* states, int* indices )\n+B3_FORCE_INLINE b3BodyStateW b3GatherBodies( const b3BodyState* states, int* indices )\n {\n \t_Static_assert( offsetof( b3BodyState, angularVelocity ) == 3 * sizeof( b3Fixed ), \"b3BodyState layout\" );\n \t_Static_assert( offsetof( b3BodyState, deltaPosition ) == 6 * sizeof( b3Fixed ), \"b3BodyState layout\" );\n@@ -2267,7 +2267,7 @@ static void b3ScatterBodies( b3BodyState* states, int* indices, const b3BodyStat\n \n #else\n \n-static b3BodyStateW b3GatherBodies( const b3BodyState* states, int* indices )\n+B3_FORCE_INLINE b3BodyStateW b3GatherBodies( const b3BodyState* states, int* indices )\n {\n \tb3BodyState identity = b3_identityBodyState;\n \n",
+      "started": "2026-09-07T18:13:51-0400",
+      "binaries": {
+        "before": {
+          "sha256": "51f6c0f5e3fb21f690da4a7127c2aadbea01d6ba47ee8b4baa2b127c5ba728c0"
+        },
+        "after": {
+          "sha256": "0314c7ab6d400c9dfaa5833e8d61c6afc0ed805ec661c229e9dee20da13ce6b6"
+        }
+      },
+      "rows": [
+        {
+          "scene": "large_pyramid",
+          "runs": [
+            {
+              "binary": "before",
+              "ms": 1646.31,
+              "counters": "body 5051 / shape 5051 / contact 14950 / joint 0 / stack 16154256"
+            },
+            {
+              "binary": "after",
+              "ms": 1805.16,
+              "counters": "body 5051 / shape 5051 / contact 14950 / joint 0 / stack 16154256"
+            },
+            {
+              "binary": "after",
+              "ms": 1802.75,
+              "counters": "body 5051 / shape 5051 / contact 14950 / joint 0 / stack 16154256"
+            },
+            {
+              "binary": "before",
+              "ms": 1579.71,
+              "counters": "body 5051 / shape 5051 / contact 14950 / joint 0 / stack 16154256"
+            }
+          ],
+          "medians_ms": {
+            "before": 1613.01,
+            "after": 1803.955
+          }
+        },
+        {
+          "scene": "many_pyramids",
+          "runs": [
+            {
+              "binary": "before",
+              "ms": 1624.17,
+              "counters": "body 10781 / shape 10781 / contact 28420 / joint 0 / stack 30691376"
+            },
+            {
+              "binary": "after",
+              "ms": 1856.28,
+              "counters": "body 10781 / shape 10781 / contact 28420 / joint 0 / stack 30691376"
+            },
+            {
+              "binary": "after",
+              "ms": 1872.73,
+              "counters": "body 10781 / shape 10781 / contact 28420 / joint 0 / stack 30691376"
+            },
+            {
+              "binary": "before",
+              "ms": 1723.85,
+              "counters": "body 10781 / shape 10781 / contact 28420 / joint 0 / stack 30691376"
+            }
+          ],
+          "medians_ms": {
+            "before": 1674.01,
+            "after": 1864.505
+          }
+        },
+        {
+          "scene": "rain",
+          "runs": [
+            {
+              "binary": "before",
+              "ms": 1591.93,
+              "counters": "body 4300 / shape 4400 / contact 7019 / joint 4200 / stack 1731680"
+            },
+            {
+              "binary": "after",
+              "ms": 1443.65,
+              "counters": "body 4300 / shape 4400 / contact 7019 / joint 4200 / stack 1731680"
+            },
+            {
+              "binary": "after",
+              "ms": 1374.26,
+              "counters": "body 4300 / shape 4400 / contact 7019 / joint 4200 / stack 1731680"
+            },
+            {
+              "binary": "before",
+              "ms": 1386.4,
+              "counters": "body 4300 / shape 4400 / contact 7019 / joint 4200 / stack 1731680"
+            }
+          ],
+          "medians_ms": {
+            "before": 1489.165,
+            "after": 1408.955
+          }
+        },
+        {
+          "scene": "joint_grid",
+          "runs": [
+            {
+              "binary": "before",
+              "ms": 752.069,
+              "counters": "body 10000 / shape 10000 / contact 0 / joint 19800 / stack 5200000"
+            },
+            {
+              "binary": "after",
+              "ms": 741.849,
+              "counters": "body 10000 / shape 10000 / contact 0 / joint 19800 / stack 5200000"
+            },
+            {
+              "binary": "after",
+              "ms": 793.554,
+              "counters": "body 10000 / shape 10000 / contact 0 / joint 19800 / stack 5200000"
+            },
+            {
+              "binary": "before",
+              "ms": 750.448,
+              "counters": "body 10000 / shape 10000 / contact 0 / joint 19800 / stack 5200000"
+            }
+          ],
+          "medians_ms": {
+            "before": 751.2584999999999,
+            "after": 767.7015
+          }
+        },
+        {
+          "scene": "washer",
+          "runs": [
+            {
+              "binary": "before",
+              "ms": 14393.7,
+              "counters": "body 8002 / shape 8041 / contact 40576 / joint 0 / stack 18551760"
+            },
+            {
+              "binary": "after",
+              "ms": 16017.8,
+              "counters": "body 8002 / shape 8041 / contact 40576 / joint 0 / stack 18551760"
+            },
+            {
+              "binary": "after",
+              "ms": 14416.3,
+              "counters": "body 8002 / shape 8041 / contact 40576 / joint 0 / stack 18551760"
+            },
+            {
+              "binary": "before",
+              "ms": 13710.4,
+              "counters": "body 8002 / shape 8041 / contact 40576 / joint 0 / stack 18551760"
+            }
+          ],
+          "medians_ms": {
+            "before": 14052.05,
+            "after": 15217.05
+          }
+        }
+      ],
+      "finished": "2026-09-07T18:15:13-0400"
+    },
+    "cache": {
+      "source_diff": "diff --git a/src/contact_solver.c b/src/contact_solver.c\nindex 1b77ca3..86ff61c 100644\n--- a/src/contact_solver.c\n+++ b/src/contact_solver.c\n@@ -1973,6 +1973,7 @@ typedef struct b3ContactConstraintPointWide\n \tb3Vec3W iRnAs, iRnBs;\n \n \tb3FloatW baseSeparations;\n+\tb3FloatW cachedSeparations;\n \tb3FloatW normalImpulses;\n \tb3FloatW totalNormalImpulses;\n \tb3FloatW normalMasses;\n@@ -2031,6 +2032,7 @@ typedef struct b3ContactConstraintWide\n \t// exact zeros in every lane and contribute nothing, so skipping them is\n \t// bit-identical and one-point-manifold scenes skip 3/4 of the point work.\n \tint maxPointCount;\n+\tint separationGeneration;\n \n \tb3ContactConstraintPointWide points[B3_MAX_MANIFOLD_POINTS];\n \n@@ -2695,6 +2697,7 @@ void b3PrepareContacts_Convex( b3SolverBlock block, b3StepContext* context )\n \t\t\t\tmaxPointCount = b3MaxInt( maxPointCount, (int)laneCounts[lane] );\n \t\t\t}\n \t\t\tconstraint->maxPointCount = maxPointCount;\n+\t\t\tconstraint->separationGeneration = -1;\n \n \t\t\tfor ( int pointIndex = 0; pointIndex < maxPointCount; ++pointIndex )\n \t\t\t{\n@@ -3270,6 +3273,7 @@ void b3PrepareContacts_Convex( b3SolverBlock block, b3StepContext* context )\n \t\t\t}\n \n \t\t\tconstraint->maxPointCount = maxPointCount;\n+\t\t\tconstraint->separationGeneration = -1;\n \t\t}\n \n \t\t// Advance to next color\n@@ -3376,13 +3380,26 @@ void b3SolveContacts_Convex( b3SolverBlock block, b3StepContext* context, bool u\n \t\t\timpulseScale = b3ZeroW();\n \t\t}\n \n-\t\tb3Vec3W dp = b3SubVW( bB.dp, bA.dp );\n \t\tb3Vec3W normal = b3WidenVW( c->normal );\n \n-\t\t// The delta rotations are constant across the four manifold points, so build\n-\t\t// them as matrices once and rotate each anchor with three fused reductions\n-\t\tb3Matrix3W rotA = b3MakeMatrixFromQuatW( bA.dq );\n-\t\tb3Matrix3W rotB = b3MakeMatrixFromQuatW( bB.dq );\n+\t\t// Velocities change in solve/warm-start stages, but positions and rotations\n+\t\t// change only in the integration stage. Reuse the exact separation from\n+\t\t// relaxation in the next solve while that geometry is unchanged.\n+\t\tif ( c->separationGeneration != context->positionGeneration )\n+\t\t{\n+\t\t\tb3Vec3W dp = b3SubVW( bB.dp, bA.dp );\n+\t\t\tb3Matrix3W rotA = b3MakeMatrixFromQuatW( bA.dq );\n+\t\t\tb3Matrix3W rotB = b3MakeMatrixFromQuatW( bB.dq );\n+\t\t\tfor ( int pointIndex = 0; pointIndex < c->maxPointCount; ++pointIndex )\n+\t\t\t{\n+\t\t\t\tb3ContactConstraintPointWide* cp = c->points + pointIndex;\n+\t\t\t\tb3Vec3W rsA = b3MulMV3W( rotA, b3WidenVW( cp->anchorAs ) );\n+\t\t\t\tb3Vec3W rsB = b3MulMV3W( rotB, b3WidenVW( cp->anchorBs ) );\n+\t\t\t\tb3Vec3W ds = b3AddVW( dp, b3SubVW( rsB, rsA ) );\n+\t\t\t\tcp->cachedSeparations = b3AddW( b3DotW( normal, ds ), cp->baseSeparations );\n+\t\t\t}\n+\t\t\tc->separationGeneration = context->positionGeneration;\n+\t\t}\n \n \t\tb3FloatW totalNormalImpulse = b3ZeroW();\n \t\tb3FloatW totalTwistLimit = b3ZeroW();\n@@ -3394,18 +3411,7 @@ void b3SolveContacts_Convex( b3SolverBlock block, b3StepContext* context, bool u\n \t\t{\n \t\t\tb3ContactConstraintPointWide* cp = c->points + pointIndex;\n \n-\t\t\t// Fixed anchor points for applying impulses\n-\t\t\tb3Vec3W rA = b3WidenVW( cp->anchorAs );\n-\t\t\tb3Vec3W rB = b3WidenVW( cp->anchorBs );\n-\n-\t\t\t// Moving anchors for current separation\n-\t\t\tb3Vec3W rsA = b3MulMV3W( rotA, rA );\n-\t\t\tb3Vec3W rsB = b3MulMV3W( rotB, rB );\n-\n-\t\t\t// compute current separation\n-\t\t\t// this is subject to round-off error if the anchor is far from the body center of mass\n-\t\t\tb3Vec3W ds = b3AddVW( dp, b3SubVW( rsB, rsA ) );\n-\t\t\tb3FloatW s = b3AddW( b3DotW( normal, ds ), cp->baseSeparations );\n+\t\t\tb3FloatW s = cp->cachedSeparations;\n \n \t\t\t// Apply speculative bias if separation is greater than zero, otherwise apply soft constraint bias\n \t\t\tb3FloatW mask = b3GreaterThanW( s, b3ZeroW() );\ndiff --git a/src/solver.c b/src/solver.c\nindex 1e9e15d..0b2f104 100644\n--- a/src/solver.c\n+++ b/src/solver.c\n@@ -1327,6 +1327,10 @@ static void b3SolverTask( void* taskContext )\n \n \t\t\tprofile->solveImpulses += b3GetMillisecondsAndReset( &ticks );\n \n+\t\t\t// The preceding stage has finished; publish the new geometry generation\n+\t\t\t// through the existing stage barrier before contacts run again.\n+\t\t\tcontext->positionGeneration += 1;\n+\n \t\t\t// Integrate positions\n \t\t\tB3_ASSERT( stages[iterationStageIndex].type == b3_stageIntegratePositions );\n \t\t\tsyncBits = ( bodySyncIndex << 16 ) | iterationStageIndex;\n@@ -1508,6 +1512,7 @@ void b3Solve( b3World* world, b3StepContext* stepContext )\n \n \t\tstepContext->sims = awakeSet->bodySims.data;\n \t\tstepContext->states = awakeSet->bodyStates.data;\n+\t\tstepContext->positionGeneration = 0;\n \n \t\t// count contacts, joints, and colors\n \t\tint activeColorCount = 0;\ndiff --git a/src/solver.h b/src/solver.h\nindex 745d82c..bac84a7 100644\n--- a/src/solver.h\n+++ b/src/solver.h\n@@ -198,6 +198,9 @@ typedef struct b3StepContext\n \n \tint subStepCount;\n \n+\t// Geometry generation for per-constraint separation caches. Published by stage barriers.\n+\tint positionGeneration;\n+\n \tb3Softness contactSoftness;\n \tb3Softness staticSoftness;\n \n",
+      "started": "2026-09-07T18:15:41-0400",
+      "binaries": {
+        "before": {
+          "sha256": "51f6c0f5e3fb21f690da4a7127c2aadbea01d6ba47ee8b4baa2b127c5ba728c0"
+        },
+        "after": {
+          "sha256": "7920921f7f5451399b7e6309aad607e7bd7a6d61f7b10ae949746863c62f484c"
+        }
+      },
+      "rows": [
+        {
+          "scene": "large_pyramid",
+          "runs": [
+            {
+              "binary": "before",
+              "ms": 1687.01,
+              "counters": "body 5051 / shape 5051 / contact 14950 / joint 0 / stack 16154256"
+            },
+            {
+              "binary": "after",
+              "ms": 1591.9,
+              "counters": "body 5051 / shape 5051 / contact 14950 / joint 0 / stack 16633104"
+            },
+            {
+              "binary": "after",
+              "ms": 1722.17,
+              "counters": "body 5051 / shape 5051 / contact 14950 / joint 0 / stack 16633104"
+            },
+            {
+              "binary": "before",
+              "ms": 1716.0,
+              "counters": "body 5051 / shape 5051 / contact 14950 / joint 0 / stack 16154256"
+            }
+          ],
+          "medians_ms": {
+            "before": 1701.505,
+            "after": 1657.035
+          }
+        },
+        {
+          "scene": "many_pyramids",
+          "runs": [
+            {
+              "binary": "before",
+              "ms": 1691.65,
+              "counters": "body 10781 / shape 10781 / contact 28420 / joint 0 / stack 30691376"
+            },
+            {
+              "binary": "after",
+              "ms": 1562.62,
+              "counters": "body 10781 / shape 10781 / contact 28420 / joint 0 / stack 31601072"
+            },
+            {
+              "binary": "after",
+              "ms": 1565.08,
+              "counters": "body 10781 / shape 10781 / contact 28420 / joint 0 / stack 31601072"
+            },
+            {
+              "binary": "before",
+              "ms": 1687.12,
+              "counters": "body 10781 / shape 10781 / contact 28420 / joint 0 / stack 30691376"
+            }
+          ],
+          "medians_ms": {
+            "before": 1689.385,
+            "after": 1563.85
+          }
+        },
+        {
+          "scene": "rain",
+          "runs": [
+            {
+              "binary": "before",
+              "ms": 1538.25,
+              "counters": "body 4300 / shape 4400 / contact 7019 / joint 4200 / stack 1731680"
+            },
+            {
+              "binary": "after",
+              "ms": 1409.92,
+              "counters": "body 4300 / shape 4400 / contact 7019 / joint 4200 / stack 1765344"
+            },
+            {
+              "binary": "after",
+              "ms": 1335.68,
+              "counters": "body 4300 / shape 4400 / contact 7019 / joint 4200 / stack 1765344"
+            },
+            {
+              "binary": "before",
+              "ms": 1347.46,
+              "counters": "body 4300 / shape 4400 / contact 7019 / joint 4200 / stack 1731680"
+            }
+          ],
+          "medians_ms": {
+            "before": 1442.855,
+            "after": 1372.8000000000002
+          }
+        },
+        {
+          "scene": "joint_grid",
+          "runs": [
+            {
+              "binary": "before",
+              "ms": 743.255,
+              "counters": "body 10000 / shape 10000 / contact 0 / joint 19800 / stack 5200000"
+            },
+            {
+              "binary": "after",
+              "ms": 743.798,
+              "counters": "body 10000 / shape 10000 / contact 0 / joint 19800 / stack 5200000"
+            },
+            {
+              "binary": "after",
+              "ms": 732.35,
+              "counters": "body 10000 / shape 10000 / contact 0 / joint 19800 / stack 5200000"
+            },
+            {
+              "binary": "before",
+              "ms": 723.724,
+              "counters": "body 10000 / shape 10000 / contact 0 / joint 19800 / stack 5200000"
+            }
+          ],
+          "medians_ms": {
+            "before": 733.4895,
+            "after": 738.0740000000001
+          }
+        },
+        {
+          "scene": "washer",
+          "runs": [
+            {
+              "binary": "before",
+              "ms": 14019.9,
+              "counters": "body 8002 / shape 8041 / contact 40576 / joint 0 / stack 18551760"
+            },
+            {
+              "binary": "after",
+              "ms": 13392.9,
+              "counters": "body 8002 / shape 8041 / contact 40576 / joint 0 / stack 19101392"
+            },
+            {
+              "binary": "after",
+              "ms": 13944.5,
+              "counters": "body 8002 / shape 8041 / contact 40576 / joint 0 / stack 19101392"
+            },
+            {
+              "binary": "before",
+              "ms": 14409.7,
+              "counters": "body 8002 / shape 8041 / contact 40576 / joint 0 / stack 18551760"
+            }
+          ],
+          "medians_ms": {
+            "before": 14214.8,
+            "after": 13668.7
+          }
+        }
+      ],
+      "finished": "2026-09-07T18:16:59-0400"
+    },
+    "angular": {
+      "source_diff": "diff --git a/src/contact_solver.c b/src/contact_solver.c\nindex 1b77ca3..86ff61c 100644\n--- a/src/contact_solver.c\n+++ b/src/contact_solver.c\n@@ -1973,6 +1973,7 @@ typedef struct b3ContactConstraintPointWide\n \tb3Vec3W iRnAs, iRnBs;\n \n \tb3FloatW baseSeparations;\n+\tb3FloatW cachedSeparations;\n \tb3FloatW normalImpulses;\n \tb3FloatW totalNormalImpulses;\n \tb3FloatW normalMasses;\n@@ -2031,6 +2032,7 @@ typedef struct b3ContactConstraintWide\n \t// exact zeros in every lane and contribute nothing, so skipping them is\n \t// bit-identical and one-point-manifold scenes skip 3/4 of the point work.\n \tint maxPointCount;\n+\tint separationGeneration;\n \n \tb3ContactConstraintPointWide points[B3_MAX_MANIFOLD_POINTS];\n \n@@ -2695,6 +2697,7 @@ void b3PrepareContacts_Convex( b3SolverBlock block, b3StepContext* context )\n \t\t\t\tmaxPointCount = b3MaxInt( maxPointCount, (int)laneCounts[lane] );\n \t\t\t}\n \t\t\tconstraint->maxPointCount = maxPointCount;\n+\t\t\tconstraint->separationGeneration = -1;\n \n \t\t\tfor ( int pointIndex = 0; pointIndex < maxPointCount; ++pointIndex )\n \t\t\t{\n@@ -3270,6 +3273,7 @@ void b3PrepareContacts_Convex( b3SolverBlock block, b3StepContext* context )\n \t\t\t}\n \n \t\t\tconstraint->maxPointCount = maxPointCount;\n+\t\t\tconstraint->separationGeneration = -1;\n \t\t}\n \n \t\t// Advance to next color\n@@ -3376,13 +3380,26 @@ void b3SolveContacts_Convex( b3SolverBlock block, b3StepContext* context, bool u\n \t\t\timpulseScale = b3ZeroW();\n \t\t}\n \n-\t\tb3Vec3W dp = b3SubVW( bB.dp, bA.dp );\n \t\tb3Vec3W normal = b3WidenVW( c->normal );\n \n-\t\t// The delta rotations are constant across the four manifold points, so build\n-\t\t// them as matrices once and rotate each anchor with three fused reductions\n-\t\tb3Matrix3W rotA = b3MakeMatrixFromQuatW( bA.dq );\n-\t\tb3Matrix3W rotB = b3MakeMatrixFromQuatW( bB.dq );\n+\t\t// Velocities change in solve/warm-start stages, but positions and rotations\n+\t\t// change only in the integration stage. Reuse the exact separation from\n+\t\t// relaxation in the next solve while that geometry is unchanged.\n+\t\tif ( c->separationGeneration != context->positionGeneration )\n+\t\t{\n+\t\t\tb3Vec3W dp = b3SubVW( bB.dp, bA.dp );\n+\t\t\tb3Matrix3W rotA = b3MakeMatrixFromQuatW( bA.dq );\n+\t\t\tb3Matrix3W rotB = b3MakeMatrixFromQuatW( bB.dq );\n+\t\t\tfor ( int pointIndex = 0; pointIndex < c->maxPointCount; ++pointIndex )\n+\t\t\t{\n+\t\t\t\tb3ContactConstraintPointWide* cp = c->points + pointIndex;\n+\t\t\t\tb3Vec3W rsA = b3MulMV3W( rotA, b3WidenVW( cp->anchorAs ) );\n+\t\t\t\tb3Vec3W rsB = b3MulMV3W( rotB, b3WidenVW( cp->anchorBs ) );\n+\t\t\t\tb3Vec3W ds = b3AddVW( dp, b3SubVW( rsB, rsA ) );\n+\t\t\t\tcp->cachedSeparations = b3AddW( b3DotW( normal, ds ), cp->baseSeparations );\n+\t\t\t}\n+\t\t\tc->separationGeneration = context->positionGeneration;\n+\t\t}\n \n \t\tb3FloatW totalNormalImpulse = b3ZeroW();\n \t\tb3FloatW totalTwistLimit = b3ZeroW();\n@@ -3394,18 +3411,7 @@ void b3SolveContacts_Convex( b3SolverBlock block, b3StepContext* context, bool u\n \t\t{\n \t\t\tb3ContactConstraintPointWide* cp = c->points + pointIndex;\n \n-\t\t\t// Fixed anchor points for applying impulses\n-\t\t\tb3Vec3W rA = b3WidenVW( cp->anchorAs );\n-\t\t\tb3Vec3W rB = b3WidenVW( cp->anchorBs );\n-\n-\t\t\t// Moving anchors for current separation\n-\t\t\tb3Vec3W rsA = b3MulMV3W( rotA, rA );\n-\t\t\tb3Vec3W rsB = b3MulMV3W( rotB, rB );\n-\n-\t\t\t// compute current separation\n-\t\t\t// this is subject to round-off error if the anchor is far from the body center of mass\n-\t\t\tb3Vec3W ds = b3AddVW( dp, b3SubVW( rsB, rsA ) );\n-\t\t\tb3FloatW s = b3AddW( b3DotW( normal, ds ), cp->baseSeparations );\n+\t\t\tb3FloatW s = cp->cachedSeparations;\n \n \t\t\t// Apply speculative bias if separation is greater than zero, otherwise apply soft constraint bias\n \t\t\tb3FloatW mask = b3GreaterThanW( s, b3ZeroW() );\ndiff --git a/src/solver.c b/src/solver.c\nindex 1e9e15d..0b2f104 100644\n--- a/src/solver.c\n+++ b/src/solver.c\n@@ -1327,6 +1327,10 @@ static void b3SolverTask( void* taskContext )\n \n \t\t\tprofile->solveImpulses += b3GetMillisecondsAndReset( &ticks );\n \n+\t\t\t// The preceding stage has finished; publish the new geometry generation\n+\t\t\t// through the existing stage barrier before contacts run again.\n+\t\t\tcontext->positionGeneration += 1;\n+\n \t\t\t// Integrate positions\n \t\t\tB3_ASSERT( stages[iterationStageIndex].type == b3_stageIntegratePositions );\n \t\t\tsyncBits = ( bodySyncIndex << 16 ) | iterationStageIndex;\n@@ -1508,6 +1512,7 @@ void b3Solve( b3World* world, b3StepContext* stepContext )\n \n \t\tstepContext->sims = awakeSet->bodySims.data;\n \t\tstepContext->states = awakeSet->bodyStates.data;\n+\t\tstepContext->positionGeneration = 0;\n \n \t\t// count contacts, joints, and colors\n \t\tint activeColorCount = 0;\ndiff --git a/src/solver.h b/src/solver.h\nindex 745d82c..bac84a7 100644\n--- a/src/solver.h\n+++ b/src/solver.h\n@@ -198,6 +198,9 @@ typedef struct b3StepContext\n \n \tint subStepCount;\n \n+\t// Geometry generation for per-constraint separation caches. Published by stage barriers.\n+\tint positionGeneration;\n+\n \tb3Softness contactSoftness;\n \tb3Softness staticSoftness;\n \ndiff --git a/src/spherical_joint.c b/src/spherical_joint.c\nindex ae196a7..f0fd3ab 100644\n--- a/src/spherical_joint.c\n+++ b/src/spherical_joint.c\n@@ -449,10 +449,16 @@ void b3SolveSphericalJoint( b3JointSim* base, b3StepContext* context, bool useBi\n \tb3Vec3 wB = stateB->angularVelocity;\n \n \tbool fixedRotation = base->fixedRotation;\n-\tb3Quat quatA = b3MulQuat( stateA->deltaRotation, joint->frameA.q );\n-\tb3Quat quatB = b3MulQuat( stateB->deltaRotation, joint->frameB.q );\n-\n-\tb3Quat relQ = b3InvMulQuat( quatA, quatB );\n+\tb3Quat quatA = b3Quat_identity;\n+\tb3Quat relQ = b3Quat_identity;\n+\t// A point-only joint has no angular error to evaluate. The angular motor\n+\t// uses relative velocity, so it does not need these orientations either.\n+\tif ( fixedRotation == false && ( joint->enableSpring || joint->enableTwistLimit || joint->enableConeLimit ) )\n+\t{\n+\t\tquatA = b3MulQuat( stateA->deltaRotation, joint->frameA.q );\n+\t\tb3Quat quatB = b3MulQuat( stateB->deltaRotation, joint->frameB.q );\n+\t\trelQ = b3InvMulQuat( quatA, quatB );\n+\t}\n \n \t// Solve spring\n \tif ( joint->enableSpring && fixedRotation == false )\n",
+      "started": "2026-09-07T18:17:12-0400",
+      "binaries": {
+        "before": {
+          "sha256": "51f6c0f5e3fb21f690da4a7127c2aadbea01d6ba47ee8b4baa2b127c5ba728c0"
+        },
+        "after": {
+          "sha256": "dee3c8ad4fefd32b717631dd20bd1e8c54f9ffdee1585d6bc6ec8e6301c0f09a"
+        }
+      },
+      "rows": [
+        {
+          "scene": "joint_grid",
+          "runs": [
+            {
+              "binary": "before",
+              "ms": 750.911,
+              "counters": "body 10000 / shape 10000 / contact 0 / joint 19800 / stack 5200000"
+            },
+            {
+              "binary": "after",
+              "ms": 702.476,
+              "counters": "body 10000 / shape 10000 / contact 0 / joint 19800 / stack 5200000"
+            },
+            {
+              "binary": "after",
+              "ms": 701.34,
+              "counters": "body 10000 / shape 10000 / contact 0 / joint 19800 / stack 5200000"
+            },
+            {
+              "binary": "before",
+              "ms": 747.87,
+              "counters": "body 10000 / shape 10000 / contact 0 / joint 19800 / stack 5200000"
+            }
+          ],
+          "medians_ms": {
+            "before": 749.3905,
+            "after": 701.908
+          }
+        },
+        {
+          "scene": "rain",
+          "runs": [
+            {
+              "binary": "before",
+              "ms": 1428.84,
+              "counters": "body 4300 / shape 4400 / contact 7019 / joint 4200 / stack 1731680"
+            },
+            {
+              "binary": "after",
+              "ms": 1459.37,
+              "counters": "body 4300 / shape 4400 / contact 7019 / joint 4200 / stack 1765344"
+            },
+            {
+              "binary": "after",
+              "ms": 1575.1,
+              "counters": "body 4300 / shape 4400 / contact 7019 / joint 4200 / stack 1765344"
+            },
+            {
+              "binary": "before",
+              "ms": 1629.97,
+              "counters": "body 4300 / shape 4400 / contact 7019 / joint 4200 / stack 1731680"
+            }
+          ],
+          "medians_ms": {
+            "before": 1529.405,
+            "after": 1517.235
+          }
+        }
+      ],
+      "finished": "2026-09-07T18:17:22-0400"
+    },
+    "skew": {
+      "source_diff": "diff --git a/src/contact_solver.c b/src/contact_solver.c\nindex 1b77ca3..86ff61c 100644\n--- a/src/contact_solver.c\n+++ b/src/contact_solver.c\n@@ -1973,6 +1973,7 @@ typedef struct b3ContactConstraintPointWide\n \tb3Vec3W iRnAs, iRnBs;\n \n \tb3FloatW baseSeparations;\n+\tb3FloatW cachedSeparations;\n \tb3FloatW normalImpulses;\n \tb3FloatW totalNormalImpulses;\n \tb3FloatW normalMasses;\n@@ -2031,6 +2032,7 @@ typedef struct b3ContactConstraintWide\n \t// exact zeros in every lane and contribute nothing, so skipping them is\n \t// bit-identical and one-point-manifold scenes skip 3/4 of the point work.\n \tint maxPointCount;\n+\tint separationGeneration;\n \n \tb3ContactConstraintPointWide points[B3_MAX_MANIFOLD_POINTS];\n \n@@ -2695,6 +2697,7 @@ void b3PrepareContacts_Convex( b3SolverBlock block, b3StepContext* context )\n \t\t\t\tmaxPointCount = b3MaxInt( maxPointCount, (int)laneCounts[lane] );\n \t\t\t}\n \t\t\tconstraint->maxPointCount = maxPointCount;\n+\t\t\tconstraint->separationGeneration = -1;\n \n \t\t\tfor ( int pointIndex = 0; pointIndex < maxPointCount; ++pointIndex )\n \t\t\t{\n@@ -3270,6 +3273,7 @@ void b3PrepareContacts_Convex( b3SolverBlock block, b3StepContext* context )\n \t\t\t}\n \n \t\t\tconstraint->maxPointCount = maxPointCount;\n+\t\t\tconstraint->separationGeneration = -1;\n \t\t}\n \n \t\t// Advance to next color\n@@ -3376,13 +3380,26 @@ void b3SolveContacts_Convex( b3SolverBlock block, b3StepContext* context, bool u\n \t\t\timpulseScale = b3ZeroW();\n \t\t}\n \n-\t\tb3Vec3W dp = b3SubVW( bB.dp, bA.dp );\n \t\tb3Vec3W normal = b3WidenVW( c->normal );\n \n-\t\t// The delta rotations are constant across the four manifold points, so build\n-\t\t// them as matrices once and rotate each anchor with three fused reductions\n-\t\tb3Matrix3W rotA = b3MakeMatrixFromQuatW( bA.dq );\n-\t\tb3Matrix3W rotB = b3MakeMatrixFromQuatW( bB.dq );\n+\t\t// Velocities change in solve/warm-start stages, but positions and rotations\n+\t\t// change only in the integration stage. Reuse the exact separation from\n+\t\t// relaxation in the next solve while that geometry is unchanged.\n+\t\tif ( c->separationGeneration != context->positionGeneration )\n+\t\t{\n+\t\t\tb3Vec3W dp = b3SubVW( bB.dp, bA.dp );\n+\t\t\tb3Matrix3W rotA = b3MakeMatrixFromQuatW( bA.dq );\n+\t\t\tb3Matrix3W rotB = b3MakeMatrixFromQuatW( bB.dq );\n+\t\t\tfor ( int pointIndex = 0; pointIndex < c->maxPointCount; ++pointIndex )\n+\t\t\t{\n+\t\t\t\tb3ContactConstraintPointWide* cp = c->points + pointIndex;\n+\t\t\t\tb3Vec3W rsA = b3MulMV3W( rotA, b3WidenVW( cp->anchorAs ) );\n+\t\t\t\tb3Vec3W rsB = b3MulMV3W( rotB, b3WidenVW( cp->anchorBs ) );\n+\t\t\t\tb3Vec3W ds = b3AddVW( dp, b3SubVW( rsB, rsA ) );\n+\t\t\t\tcp->cachedSeparations = b3AddW( b3DotW( normal, ds ), cp->baseSeparations );\n+\t\t\t}\n+\t\t\tc->separationGeneration = context->positionGeneration;\n+\t\t}\n \n \t\tb3FloatW totalNormalImpulse = b3ZeroW();\n \t\tb3FloatW totalTwistLimit = b3ZeroW();\n@@ -3394,18 +3411,7 @@ void b3SolveContacts_Convex( b3SolverBlock block, b3StepContext* context, bool u\n \t\t{\n \t\t\tb3ContactConstraintPointWide* cp = c->points + pointIndex;\n \n-\t\t\t// Fixed anchor points for applying impulses\n-\t\t\tb3Vec3W rA = b3WidenVW( cp->anchorAs );\n-\t\t\tb3Vec3W rB = b3WidenVW( cp->anchorBs );\n-\n-\t\t\t// Moving anchors for current separation\n-\t\t\tb3Vec3W rsA = b3MulMV3W( rotA, rA );\n-\t\t\tb3Vec3W rsB = b3MulMV3W( rotB, rB );\n-\n-\t\t\t// compute current separation\n-\t\t\t// this is subject to round-off error if the anchor is far from the body center of mass\n-\t\t\tb3Vec3W ds = b3AddVW( dp, b3SubVW( rsB, rsA ) );\n-\t\t\tb3FloatW s = b3AddW( b3DotW( normal, ds ), cp->baseSeparations );\n+\t\t\tb3FloatW s = cp->cachedSeparations;\n \n \t\t\t// Apply speculative bias if separation is greater than zero, otherwise apply soft constraint bias\n \t\t\tb3FloatW mask = b3GreaterThanW( s, b3ZeroW() );\ndiff --git a/src/math_internal.h b/src/math_internal.h\nindex 4163d6f..c97f578 100644\n--- a/src/math_internal.h\n+++ b/src/math_internal.h\n@@ -465,6 +465,36 @@ static inline b3Matrix3 b3Skew( b3Vec3 v )\n \treturn out;\n }\n \n+// skew(r) * m * skew(r), with the same product rounding and addition order\n+// as two b3MulMM calls. Only multiplication by exact zero is removed. In\n+// particular, keep negation inside each product: rounded(-a*b) can differ\n+// from -rounded(a*b) at a half quantum. Full-width inverse entries stay wide.\n+static inline b3Matrix3 b3SkewSandwich( b3Matrix3 m, b3Vec3 r )\n+{\n+\tb3Matrix3 t;\n+\tt.cx.x = b3FixMul( m.cy.x, r.z ) + b3FixMul( m.cz.x, -r.y );\n+\tt.cx.y = b3FixMul( m.cy.y, r.z ) + b3FixMul( m.cz.y, -r.y );\n+\tt.cx.z = b3FixMul( m.cy.z, r.z ) + b3FixMul( m.cz.z, -r.y );\n+\tt.cy.x = b3FixMul( m.cx.x, -r.z ) + b3FixMul( m.cz.x, r.x );\n+\tt.cy.y = b3FixMul( m.cx.y, -r.z ) + b3FixMul( m.cz.y, r.x );\n+\tt.cy.z = b3FixMul( m.cx.z, -r.z ) + b3FixMul( m.cz.z, r.x );\n+\tt.cz.x = b3FixMul( m.cx.x, r.y ) + b3FixMul( m.cy.x, -r.x );\n+\tt.cz.y = b3FixMul( m.cx.y, r.y ) + b3FixMul( m.cy.y, -r.x );\n+\tt.cz.z = b3FixMul( m.cx.z, r.y ) + b3FixMul( m.cy.z, -r.x );\n+\n+\tb3Matrix3 out;\n+\tout.cx.x = b3FixMul( -r.z, t.cx.y ) + b3FixMul( r.y, t.cx.z );\n+\tout.cx.y = b3FixMul( r.z, t.cx.x ) + b3FixMul( -r.x, t.cx.z );\n+\tout.cx.z = b3FixMul( -r.y, t.cx.x ) + b3FixMul( r.x, t.cx.y );\n+\tout.cy.x = b3FixMul( -r.z, t.cy.y ) + b3FixMul( r.y, t.cy.z );\n+\tout.cy.y = b3FixMul( r.z, t.cy.x ) + b3FixMul( -r.x, t.cy.z );\n+\tout.cy.z = b3FixMul( -r.y, t.cy.x ) + b3FixMul( r.x, t.cy.y );\n+\tout.cz.x = b3FixMul( -r.z, t.cz.y ) + b3FixMul( r.y, t.cz.z );\n+\tout.cz.y = b3FixMul( r.z, t.cz.x ) + b3FixMul( -r.x, t.cz.z );\n+\tout.cz.z = b3FixMul( -r.y, t.cz.x ) + b3FixMul( r.x, t.cz.y );\n+\treturn out;\n+}\n+\n static inline b3Plane b3NormalizePlane( b3Plane plane )\n {\n \tb3Fixed invLength = b3FixDiv( B3_FIX( 1.0f ) , b3Length( plane.normal ) );\ndiff --git a/src/motor_joint.c b/src/motor_joint.c\nindex b4812ce..e995daf 100644\n--- a/src/motor_joint.c\n+++ b/src/motor_joint.c\n@@ -366,10 +366,8 @@ void b3SolveMotorJoint( b3JointSim* base, b3StepContext* context )\n \t\tif ( rhs.x != 0 || rhs.y != 0 || rhs.z != 0 )\n \t\t{\n \t\t\t//// K = [(1/m1 + 1/m2) * eye(2) - skew(r1) * invI1 * skew(r1) - skew(r2) * invI2 * skew(r2)]\n-\t\t\tb3Matrix3 sA = b3Skew( rA );\n-\t\t\tb3Matrix3 sB = b3Skew( rB );\n-\t\t\tb3Matrix3 kA = b3MulMM( sA, b3MulMM( base->invIA, sA ) );\n-\t\t\tb3Matrix3 kB = b3MulMM( sB, b3MulMM( base->invIB, sB ) );\n+\t\t\tb3Matrix3 kA = b3SkewSandwich( base->invIA, rA );\n+\t\t\tb3Matrix3 kB = b3SkewSandwich( base->invIB, rB );\n \t\t\tb3Matrix3 k = b3NegateMat3( b3AddMM( kA, kB ) );\n \t\t\tk.cx.x += mA + mB;\n \t\t\tk.cy.y += mA + mB;\n@@ -407,10 +405,8 @@ void b3SolveMotorJoint( b3JointSim* base, b3StepContext* context )\n \t\tif ( rhs.x != 0 || rhs.y != 0 || rhs.z != 0 )\n \t\t{\n \t\t\t//// K = [(1/m1 + 1/m2) * eye(2) - skew(r1) * invI1 * skew(r1) - skew(r2) * invI2 * skew(r2)]\n-\t\t\tb3Matrix3 sA = b3Skew( rA );\n-\t\t\tb3Matrix3 sB = b3Skew( rB );\n-\t\t\tb3Matrix3 kA = b3MulMM( sA, b3MulMM( base->invIA, sA ) );\n-\t\t\tb3Matrix3 kB = b3MulMM( sB, b3MulMM( base->invIB, sB ) );\n+\t\t\tb3Matrix3 kA = b3SkewSandwich( base->invIA, rA );\n+\t\t\tb3Matrix3 kB = b3SkewSandwich( base->invIB, rB );\n \t\t\tb3Matrix3 k = b3NegateMat3( b3AddMM( kA, kB ) );\n \t\t\tk.cx.x += mA + mB;\n \t\t\tk.cy.y += mA + mB;\ndiff --git a/src/revolute_joint.c b/src/revolute_joint.c\nindex eee8fd8..efaea6b 100644\n--- a/src/revolute_joint.c\n+++ b/src/revolute_joint.c\n@@ -583,10 +583,8 @@ void b3SolveRevoluteJoint( b3JointSim* base, b3StepContext* context, bool useBia\n \t\tif ( rhs.x != 0 || rhs.y != 0 || rhs.z != 0 )\n \t\t{\n \t\t\t//// K = [(1/m1 + 1/m2) * eye(2) - skew(r1) * invI1 * skew(r1) - skew(r2) * invI2 * skew(r2)]\n-\t\t\tb3Matrix3 sA = b3Skew( rA );\n-\t\t\tb3Matrix3 sB = b3Skew( rB );\n-\t\t\tb3Matrix3 kA = b3MulMM( sA, b3MulMM( base->invIA, sA ) );\n-\t\t\tb3Matrix3 kB = b3MulMM( sB, b3MulMM( base->invIB, sB ) );\n+\t\t\tb3Matrix3 kA = b3SkewSandwich( base->invIA, rA );\n+\t\t\tb3Matrix3 kB = b3SkewSandwich( base->invIB, rB );\n \t\t\tb3Matrix3 k = b3NegateMat3( b3AddMM( kA, kB ) );\n \t\t\tk.cx.x += mA + mB;\n \t\t\tk.cy.y += mA + mB;\ndiff --git a/src/solver.c b/src/solver.c\nindex 1e9e15d..0b2f104 100644\n--- a/src/solver.c\n+++ b/src/solver.c\n@@ -1327,6 +1327,10 @@ static void b3SolverTask( void* taskContext )\n \n \t\t\tprofile->solveImpulses += b3GetMillisecondsAndReset( &ticks );\n \n+\t\t\t// The preceding stage has finished; publish the new geometry generation\n+\t\t\t// through the existing stage barrier before contacts run again.\n+\t\t\tcontext->positionGeneration += 1;\n+\n \t\t\t// Integrate positions\n \t\t\tB3_ASSERT( stages[iterationStageIndex].type == b3_stageIntegratePositions );\n \t\t\tsyncBits = ( bodySyncIndex << 16 ) | iterationStageIndex;\n@@ -1508,6 +1512,7 @@ void b3Solve( b3World* world, b3StepContext* stepContext )\n \n \t\tstepContext->sims = awakeSet->bodySims.data;\n \t\tstepContext->states = awakeSet->bodyStates.data;\n+\t\tstepContext->positionGeneration = 0;\n \n \t\t// count contacts, joints, and colors\n \t\tint activeColorCount = 0;\ndiff --git a/src/solver.h b/src/solver.h\nindex 745d82c..bac84a7 100644\n--- a/src/solver.h\n+++ b/src/solver.h\n@@ -198,6 +198,9 @@ typedef struct b3StepContext\n \n \tint subStepCount;\n \n+\t// Geometry generation for per-constraint separation caches. Published by stage barriers.\n+\tint positionGeneration;\n+\n \tb3Softness contactSoftness;\n \tb3Softness staticSoftness;\n \ndiff --git a/src/spherical_joint.c b/src/spherical_joint.c\nindex ae196a7..785641d 100644\n--- a/src/spherical_joint.c\n+++ b/src/spherical_joint.c\n@@ -449,10 +449,16 @@ void b3SolveSphericalJoint( b3JointSim* base, b3StepContext* context, bool useBi\n \tb3Vec3 wB = stateB->angularVelocity;\n \n \tbool fixedRotation = base->fixedRotation;\n-\tb3Quat quatA = b3MulQuat( stateA->deltaRotation, joint->frameA.q );\n-\tb3Quat quatB = b3MulQuat( stateB->deltaRotation, joint->frameB.q );\n-\n-\tb3Quat relQ = b3InvMulQuat( quatA, quatB );\n+\tb3Quat quatA = b3Quat_identity;\n+\tb3Quat relQ = b3Quat_identity;\n+\t// A point-only joint has no angular error to evaluate. The angular motor\n+\t// uses relative velocity, so it does not need these orientations either.\n+\tif ( fixedRotation == false && ( joint->enableSpring || joint->enableTwistLimit || joint->enableConeLimit ) )\n+\t{\n+\t\tquatA = b3MulQuat( stateA->deltaRotation, joint->frameA.q );\n+\t\tb3Quat quatB = b3MulQuat( stateB->deltaRotation, joint->frameB.q );\n+\t\trelQ = b3InvMulQuat( quatA, quatB );\n+\t}\n \n \t// Solve spring\n \tif ( joint->enableSpring && fixedRotation == false )\n@@ -630,10 +636,8 @@ void b3SolveSphericalJoint( b3JointSim* base, b3StepContext* context, bool useBi\n \t\tif ( rhs.x != 0 || rhs.y != 0 || rhs.z != 0 )\n \t\t{\n \t\t\t//// K = [(1/m1 + 1/m2) * eye(2) - skew(r1) * invI1 * skew(r1) - skew(r2) * invI2 * skew(r2)]\n-\t\t\tb3Matrix3 sA = b3Skew( rA );\n-\t\t\tb3Matrix3 sB = b3Skew( rB );\n-\t\t\tb3Matrix3 kA = b3MulMM( sA, b3MulMM( base->invIA, sA ) );\n-\t\t\tb3Matrix3 kB = b3MulMM( sB, b3MulMM( base->invIB, sB ) );\n+\t\t\tb3Matrix3 kA = b3SkewSandwich( base->invIA, rA );\n+\t\t\tb3Matrix3 kB = b3SkewSandwich( base->invIB, rB );\n \t\t\tb3Matrix3 k = b3NegateMat3( b3AddMM( kA, kB ) );\n \t\t\tk.cx.x += mA + mB;\n \t\t\tk.cy.y += mA + mB;\ndiff --git a/src/weld_joint.c b/src/weld_joint.c\nindex 827fbf3..1cbdd66 100644\n--- a/src/weld_joint.c\n+++ b/src/weld_joint.c\n@@ -275,10 +275,8 @@ void b3SolveWeldJoint( b3JointSim* base, b3StepContext* context, bool useBias )\n \t\tif ( rhs.x != 0 || rhs.y != 0 || rhs.z != 0 )\n \t\t{\n \t\t\t//// K = [(1/m1 + 1/m2) * eye(2) - skew(r1) * invI1 * skew(r1) - skew(r2) * invI2 * skew(r2)]\n-\t\t\tb3Matrix3 sA = b3Skew( rA );\n-\t\t\tb3Matrix3 sB = b3Skew( rB );\n-\t\t\tb3Matrix3 kA = b3MulMM( sA, b3MulMM( base->invIA, sA ) );\n-\t\t\tb3Matrix3 kB = b3MulMM( sB, b3MulMM( base->invIB, sB ) );\n+\t\t\tb3Matrix3 kA = b3SkewSandwich( base->invIA, rA );\n+\t\t\tb3Matrix3 kB = b3SkewSandwich( base->invIB, rB );\n \t\t\tb3Matrix3 k = b3NegateMat3( b3AddMM( kA, kB ) );\n \t\t\tk.cx.x += mA + mB;\n \t\t\tk.cy.y += mA + mB;\ndiff --git a/test/test_math.c b/test/test_math.c\nindex cf83b8c..a9164c0 100644\n--- a/test/test_math.c\n+++ b/test/test_math.c\n@@ -358,6 +358,55 @@ static int Solve2InverseScaleTest( void )\n \treturn 0;\n }\n \n+// Differentially preserve the original two full matrix products, including\n+// half-quantum signs, tiny inverse entries and large inverse-scaled entries.\n+static int SkewSandwichTest( void )\n+{\n+\tconst int matrixBits[] = { 6, 16, 24, 40, 54, 60 };\n+\tconst int anchorBits[] = { 27, 24, 16, 20, 12, 8 };\n+\tuint64_t rng = UINT64_C( 0x257837492019bc43 );\n+\tfor ( int scale = 0; scale < 6; ++scale )\n+\t{\n+\t\tfor ( int trial = 0; trial < 1024; ++trial )\n+\t\t{\n+\t\t\tb3Fixed values[12];\n+\t\t\tfor ( int j = 0; j < 12; ++j )\n+\t\t\t{\n+\t\t\t\trng = rng * UINT64_C( 6364136223846793005 ) + UINT64_C( 1442695040888963407 );\n+\t\t\t\tint bits = j < 9 ? matrixBits[scale] : anchorBits[scale];\n+\t\t\t\tvalues[j] = (b3Fixed)( rng & ( ( UINT64_C( 1 ) << bits ) - 1 ) );\n+\t\t\t\tif ( rng >> 63 )\n+\t\t\t\t{\n+\t\t\t\t\tvalues[j] = -values[j];\n+\t\t\t\t}\n+\t\t\t}\n+\t\t\t// Include exact zeros and half-quantum products, whose negation must\n+\t\t\t// stay inside the multiply under round-half-up.\n+\t\t\tif ( trial % 8 == 0 ) { values[9] = 0; }\n+\t\t\tif ( trial % 8 == 1 ) { values[0] = 1; values[10] = B3_FIXED_HALF; }\n+\t\t\tb3Matrix3 m = {\n+\t\t\t\t{ values[0], values[1], values[2] },\n+\t\t\t\t{ values[3], values[4], values[5] },\n+\t\t\t\t{ values[6], values[7], values[8] },\n+\t\t\t};\n+\t\t\tb3Vec3 r = { values[9], values[10], values[11] };\n+\t\t\tb3Matrix3 skew = b3Skew( r );\n+\t\t\tb3Matrix3 expected = b3MulMM( skew, b3MulMM( m, skew ) );\n+\t\t\tb3Matrix3 actual = b3SkewSandwich( m, r );\n+\t\t\tENSURE( actual.cx.x == expected.cx.x );\n+\t\t\tENSURE( actual.cx.y == expected.cx.y );\n+\t\t\tENSURE( actual.cx.z == expected.cx.z );\n+\t\t\tENSURE( actual.cy.x == expected.cy.x );\n+\t\t\tENSURE( actual.cy.y == expected.cy.y );\n+\t\t\tENSURE( actual.cy.z == expected.cy.z );\n+\t\t\tENSURE( actual.cz.x == expected.cz.x );\n+\t\t\tENSURE( actual.cz.y == expected.cz.y );\n+\t\t\tENSURE( actual.cz.z == expected.cz.z );\n+\t\t}\n+\t}\n+\treturn 0;\n+}\n+\n static int Solve3InverseScaleTest( void )\n {\n \t// K = s * [[4,1,0],[1,3,1],[0,1,2]], b = s * [5,-3,5]\n@@ -438,6 +487,7 @@ int MathTest( void )\n {\n \tRUN_SUBTEST( Solve2InverseScaleTest );\n \tRUN_SUBTEST( Solve3InverseScaleTest );\n+\tRUN_SUBTEST( SkewSandwichTest );\n \tRUN_SUBTEST( VendoredFixedTest );\n \t// Compare the fixed-point trig against double precision references from libm.\n \t// The fixed-point results carry the approximation error of the underlying\n",
+      "started": "2026-09-07T18:18:14-0400",
+      "binaries": {
+        "before": {
+          "sha256": "51f6c0f5e3fb21f690da4a7127c2aadbea01d6ba47ee8b4baa2b127c5ba728c0"
+        },
+        "after": {
+          "sha256": "7273e1173d4a0a468f39724e38f069dc32cedb05ae31cc64e9e5480a5ed2f3d4"
+        }
+      },
+      "rows": [
+        {
+          "scene": "joint_grid",
+          "runs": [
+            {
+              "binary": "before",
+              "ms": 753.141,
+              "counters": "body 10000 / shape 10000 / contact 0 / joint 19800 / stack 5200000"
+            },
+            {
+              "binary": "after",
+              "ms": 660.397,
+              "counters": "body 10000 / shape 10000 / contact 0 / joint 19800 / stack 5200000"
+            },
+            {
+              "binary": "after",
+              "ms": 659.328,
+              "counters": "body 10000 / shape 10000 / contact 0 / joint 19800 / stack 5200000"
+            },
+            {
+              "binary": "before",
+              "ms": 743.642,
+              "counters": "body 10000 / shape 10000 / contact 0 / joint 19800 / stack 5200000"
+            }
+          ],
+          "medians_ms": {
+            "before": 748.3915,
+            "after": 659.8625
+          }
+        },
+        {
+          "scene": "rain",
+          "runs": [
+            {
+              "binary": "before",
+              "ms": 1382.84,
+              "counters": "body 4300 / shape 4400 / contact 7019 / joint 4200 / stack 1731680"
+            },
+            {
+              "binary": "after",
+              "ms": 1354.63,
+              "counters": "body 4300 / shape 4400 / contact 7019 / joint 4200 / stack 1765344"
+            },
+            {
+              "binary": "after",
+              "ms": 1333.95,
+              "counters": "body 4300 / shape 4400 / contact 7019 / joint 4200 / stack 1765344"
+            },
+            {
+              "binary": "before",
+              "ms": 1468.8,
+              "counters": "body 4300 / shape 4400 / contact 7019 / joint 4200 / stack 1731680"
+            }
+          ],
+          "medians_ms": {
+            "before": 1425.82,
+            "after": 1344.29
+          }
+        },
+        {
+          "scene": "large_pyramid",
+          "runs": [
+            {
+              "binary": "before",
+              "ms": 1734.82,
+              "counters": "body 5051 / shape 5051 / contact 14950 / joint 0 / stack 16154256"
+            },
+            {
+              "binary": "after",
+              "ms": 1602.85,
+              "counters": "body 5051 / shape 5051 / contact 14950 / joint 0 / stack 16633104"
+            },
+            {
+              "binary": "after",
+              "ms": 1619.19,
+              "counters": "body 5051 / shape 5051 / contact 14950 / joint 0 / stack 16633104"
+            },
+            {
+              "binary": "before",
+              "ms": 1719.07,
+              "counters": "body 5051 / shape 5051 / contact 14950 / joint 0 / stack 16154256"
+            }
+          ],
+          "medians_ms": {
+            "before": 1726.945,
+            "after": 1611.02
+          }
+        }
+      ],
+      "finished": "2026-09-07T18:18:29-0400"
+    }
+  },
+  "visual": {
+    "created_utc": "2026-09-07T22:27:46.411644+00:00",
+    "frames": 120,
+    "nominal_hz": 60,
+    "repeat": 2,
+    "match": "^(Joints/|Collision/(Shape Distance|Distance Debug)$|Stacking/Box Stack$|Determinism/Falling Ragdolls$)",
+    "no_axes": true,
+    "builds": {
+      "fixed": {
+        "binary_sha256": "f15e0b18360f848035c07eda0ec27d660f300369b3947955c3ce3e0fe93d7b46",
+        "samples": {
+          "Benchmark/Candy Cups": 0,
+          "Benchmark/Chains": 1,
+          "Benchmark/Convex Pile": 2,
+          "Benchmark/Destruction": 3,
+          "Benchmark/Explosion": 4,
+          "Benchmark/Falling Boxes": 5,
+          "Benchmark/Falling Trees": 6,
+          "Benchmark/Height Field": 7,
+          "Benchmark/Hull": 8,
+          "Benchmark/Joint Grid": 9,
+          "Benchmark/Junkyard": 10,
+          "Benchmark/Large Pyramid": 11,
+          "Benchmark/Large World": 12,
+          "Benchmark/Many Pyramids": 13,
+          "Benchmark/Rain": 14,
+          "Benchmark/Sensor": 15,
+          "Benchmark/Washer": 16,
+          "Benchmark/Wide Pyramid": 17,
+          "Bodies/Body Type": 18,
+          "Bodies/Cast": 19,
+          "Bodies/Disable": 20,
+          "Bodies/Fixed Rotation": 21,
+          "Bodies/Gyroscopic Precession": 22,
+          "Bodies/Gyroscopic Torque": 23,
+          "Bodies/Kinematic": 24,
+          "Bodies/Lock Mixing": 25,
+          "Bodies/Spinning Book": 26,
+          "Bodies/Weeble": 27,
+          "Character/CapsulePlane": 28,
+          "Character/Mover": 29,
+          "Character/MoverOverlap": 30,
+          "Character/Rigid Body": 31,
+          "Collision/Capsule Cast Ray": 32,
+          "Collision/Cast World": 33,
+          "Collision/Distance Debug": 34,
+          "Collision/Initial Overlap": 35,
+          "Collision/Long Ray Cast": 36,
+          "Collision/Mesh Scale": 37,
+          "Collision/Overlap World": 38,
+          "Collision/Ray Curtain": 39,
+          "Collision/Shape Cast": 40,
+          "Collision/Shape Cast Debug": 41,
+          "Collision/Shape Distance": 42,
+          "Collision/Time of Impact": 43,
+          "Compound/Hulls": 44,
+          "Compound/Mesh Tile": 45,
+          "Compound/Simple": 46,
+          "Compound/Spheres": 47,
+          "Compound/Tile Floor": 48,
+          "Compound/Village": 49,
+          "Continuous/Bounce House": 50,
+          "Continuous/Bullet vs Stack": 51,
+          "Continuous/Hump Mesh": 52,
+          "Continuous/Is Fast": 53,
+          "Continuous/Mesh Drop": 54,
+          "Continuous/Needle Mesh": 55,
+          "Continuous/Spinning Stick": 56,
+          "Continuous/Stall": 57,
+          "Continuous/Thin Wall": 58,
+          "Determinism/Falling Ragdolls": 59,
+          "Determinism/Mesh Drop": 60,
+          "Determinism/Query Spawn": 61,
+          "Determinism/Wave Pile": 62,
+          "Events/Hit": 63,
+          "Events/Joint": 64,
+          "Events/Move": 65,
+          "Events/Persistent Contact": 66,
+          "Events/Sensor Hits": 67,
+          "Events/Sensor Visit": 68,
+          "Geometry/Box Hull": 69,
+          "Geometry/Capsule Mass": 70,
+          "Geometry/Hull": 71,
+          "Geometry/Hull Reduction": 72,
+          "Geometry/Hull Transform": 73,
+          "Issues/Capsule Mesh": 74,
+          "Issues/Convex Jitter": 75,
+          "Issues/Crash": 76,
+          "Issues/GMod Wheel Stack": 77,
+          "Issues/Hull Crash": 78,
+          "Issues/Multiple Prismatic": 79,
+          "Issues/Restitution Overshoot": 80,
+          "Issues/Slide Twist Off Center Shape": 81,
+          "Issues/s&box Ghost Collisions": 82,
+          "Issues/s&box mover": 83,
+          "Joints/Ball and Chain": 84,
+          "Joints/Bridge": 85,
+          "Joints/Distance Joint": 86,
+          "Joints/Door": 87,
+          "Joints/Driving": 88,
+          "Joints/Filter": 89,
+          "Joints/Gear Lift": 90,
+          "Joints/Motion Locks": 91,
+          "Joints/Motor Joint": 92,
+          "Joints/Parallel Spring": 93,
+          "Joints/Prismatic": 94,
+          "Joints/Revolute": 95,
+          "Joints/Spherical": 96,
+          "Joints/Top Down Friction": 97,
+          "Joints/Weld": 98,
+          "Joints/Wheel": 99,
+          "Manifold/Capsule vs Capsule": 100,
+          "Manifold/Capsule vs Hull": 101,
+          "Manifold/Capsule vs Sphere": 102,
+          "Manifold/Hull vs Hull": 103,
+          "Manifold/Hull vs Sphere": 104,
+          "Manifold/Sphere vs Sphere": 105,
+          "Manifold/Triangle vs Capsule": 106,
+          "Manifold/Triangle vs Hull": 107,
+          "Manifold/Triangle vs Sphere": 108,
+          "Mesh/Big Box": 109,
+          "Mesh/Box": 110,
+          "Mesh/Creation Benchmark": 111,
+          "Mesh/Grid": 112,
+          "Mesh/Height Field": 113,
+          "Mesh/Hollow Box": 114,
+          "Mesh/Reflection": 115,
+          "Mesh/Viewer": 116,
+          "Mesh/Voxel": 117,
+          "Ragdoll/Box": 118,
+          "Ragdoll/Incline": 119,
+          "Ragdoll/Mesh": 120,
+          "Ragdoll/Pile": 121,
+          "Replay/Viewer": 122,
+          "Robustness/HighMassRatio1": 123,
+          "Robustness/Overflow Color Pile": 124,
+          "Robustness/Overlap Recovery": 125,
+          "Robustness/Tiny Pyramid": 126,
+          "Shapes/Conveyor Belt": 127,
+          "Shapes/Conveyor Mesh": 128,
+          "Shapes/High Resistance": 129,
+          "Shapes/Inclined Plane": 130,
+          "Shapes/Isotropic Friction": 131,
+          "Shapes/Restitution": 132,
+          "Shapes/Rolling Resistance": 133,
+          "Shapes/Slide Twist": 134,
+          "Shapes/Static Invoke": 135,
+          "Shapes/Wind": 136,
+          "Shapes/Wind Drop": 137,
+          "Shapes/Wind Flap": 138,
+          "Stacking/Arch": 139,
+          "Stacking/Box Stack": 140,
+          "Stacking/Capsule Stack": 141,
+          "Stacking/Card House": 142,
+          "Stacking/Cylinder": 143,
+          "Stacking/Cylinder Stack": 144,
+          "Stacking/Dominoes": 145,
+          "Stacking/Double Domino": 146,
+          "Stacking/Edge Crossing": 147,
+          "Stacking/Jenga Stack": 148,
+          "Stacking/Pyramid2D": 149,
+          "Stacking/Single Box": 150,
+          "Stacking/Sphere Stack": 151,
+          "Stacking/Wedge": 152,
+          "Tree/Benchmark": 153,
+          "World/Far Mesh Drop": 154,
+          "World/Far Pyramid": 155,
+          "World/Far Ragdolls": 156,
+          "World/Far Stack": 157
+        }
+      },
+      "float": {
+        "binary_sha256": "b41b0bbbe498058ab9abc4baf4fd2f09d3d1f086ebc4c53d86b82ef6baf41149",
+        "samples": {
+          "Benchmark/Candy Cups": 0,
+          "Benchmark/Chains": 1,
+          "Benchmark/Convex Pile": 2,
+          "Benchmark/Destruction": 3,
+          "Benchmark/Explosion": 4,
+          "Benchmark/Falling Boxes": 5,
+          "Benchmark/Falling Trees": 6,
+          "Benchmark/Height Field": 7,
+          "Benchmark/Hull": 8,
+          "Benchmark/Joint Grid": 9,
+          "Benchmark/Junkyard": 10,
+          "Benchmark/Large Pyramid": 11,
+          "Benchmark/Large World": 12,
+          "Benchmark/Many Pyramids": 13,
+          "Benchmark/Rain": 14,
+          "Benchmark/Sensor": 15,
+          "Benchmark/Washer": 16,
+          "Benchmark/Wide Pyramid": 17,
+          "Bodies/Body Type": 18,
+          "Bodies/Cast": 19,
+          "Bodies/Disable": 20,
+          "Bodies/Fixed Rotation": 21,
+          "Bodies/Gyroscopic Precession": 22,
+          "Bodies/Gyroscopic Torque": 23,
+          "Bodies/Kinematic": 24,
+          "Bodies/Lock Mixing": 25,
+          "Bodies/Spinning Book": 26,
+          "Bodies/Weeble": 27,
+          "Character/CapsulePlane": 28,
+          "Character/Mover": 29,
+          "Character/MoverOverlap": 30,
+          "Character/Rigid Body": 31,
+          "Collision/Capsule Cast Ray": 32,
+          "Collision/Cast World": 33,
+          "Collision/Distance Debug": 34,
+          "Collision/Initial Overlap": 35,
+          "Collision/Long Ray Cast": 36,
+          "Collision/Mesh Scale": 37,
+          "Collision/Overlap World": 38,
+          "Collision/Ray Curtain": 39,
+          "Collision/Shape Cast": 40,
+          "Collision/Shape Cast Debug": 41,
+          "Collision/Shape Distance": 42,
+          "Collision/Time of Impact": 43,
+          "Compound/Hulls": 44,
+          "Compound/Mesh Tile": 45,
+          "Compound/Simple": 46,
+          "Compound/Spheres": 47,
+          "Compound/Tile Floor": 48,
+          "Compound/Village": 49,
+          "Continuous/Bounce House": 50,
+          "Continuous/Bullet vs Stack": 51,
+          "Continuous/Hump Mesh": 52,
+          "Continuous/Is Fast": 53,
+          "Continuous/Mesh Drop": 54,
+          "Continuous/Needle Mesh": 55,
+          "Continuous/Spinning Stick": 56,
+          "Continuous/Stall": 57,
+          "Continuous/Thin Wall": 58,
+          "Determinism/Falling Ragdolls": 59,
+          "Determinism/Mesh Drop": 60,
+          "Determinism/Query Spawn": 61,
+          "Determinism/Wave Pile": 62,
+          "Events/Hit": 63,
+          "Events/Joint": 64,
+          "Events/Move": 65,
+          "Events/Persistent Contact": 66,
+          "Events/Sensor Hits": 67,
+          "Events/Sensor Visit": 68,
+          "Geometry/Box Hull": 69,
+          "Geometry/Capsule Mass": 70,
+          "Geometry/Hull": 71,
+          "Geometry/Hull Reduction": 72,
+          "Geometry/Hull Transform": 73,
+          "Issues/Capsule Mesh": 74,
+          "Issues/Convex Jitter": 75,
+          "Issues/Crash": 76,
+          "Issues/GMod Wheel Stack": 77,
+          "Issues/Hull Crash": 78,
+          "Issues/Multiple Prismatic": 79,
+          "Issues/Restitution Overshoot": 80,
+          "Issues/Slide Twist Off Center Shape": 81,
+          "Issues/s&box Ghost Collisions": 82,
+          "Issues/s&box mover": 83,
+          "Joints/Ball and Chain": 84,
+          "Joints/Bridge": 85,
+          "Joints/Distance Joint": 86,
+          "Joints/Door": 87,
+          "Joints/Driving": 88,
+          "Joints/Filter": 89,
+          "Joints/Gear Lift": 90,
+          "Joints/Motion Locks": 91,
+          "Joints/Motor Joint": 92,
+          "Joints/Parallel Spring": 93,
+          "Joints/Prismatic": 94,
+          "Joints/Revolute": 95,
+          "Joints/Spherical": 96,
+          "Joints/Top Down Friction": 97,
+          "Joints/Weld": 98,
+          "Joints/Wheel": 99,
+          "Manifold/Capsule vs Capsule": 100,
+          "Manifold/Capsule vs Hull": 101,
+          "Manifold/Capsule vs Sphere": 102,
+          "Manifold/Hull vs Hull": 103,
+          "Manifold/Hull vs Sphere": 104,
+          "Manifold/Sphere vs Sphere": 105,
+          "Manifold/Triangle vs Capsule": 106,
+          "Manifold/Triangle vs Hull": 107,
+          "Manifold/Triangle vs Sphere": 108,
+          "Mesh/Big Box": 109,
+          "Mesh/Box": 110,
+          "Mesh/Creation Benchmark": 111,
+          "Mesh/Grid": 112,
+          "Mesh/Height Field": 113,
+          "Mesh/Hollow Box": 114,
+          "Mesh/Reflection": 115,
+          "Mesh/Viewer": 116,
+          "Mesh/Voxel": 117,
+          "Ragdoll/Box": 118,
+          "Ragdoll/Incline": 119,
+          "Ragdoll/Mesh": 120,
+          "Ragdoll/Pile": 121,
+          "Replay/Viewer": 122,
+          "Robustness/HighMassRatio1": 123,
+          "Robustness/Overflow Color Pile": 124,
+          "Robustness/Overlap Recovery": 125,
+          "Robustness/Tiny Pyramid": 126,
+          "Shapes/Conveyor Belt": 127,
+          "Shapes/Conveyor Mesh": 128,
+          "Shapes/High Resistance": 129,
+          "Shapes/Inclined Plane": 130,
+          "Shapes/Isotropic Friction": 131,
+          "Shapes/Restitution": 132,
+          "Shapes/Rolling Resistance": 133,
+          "Shapes/Slide Twist": 134,
+          "Shapes/Static Invoke": 135,
+          "Shapes/Wind": 136,
+          "Shapes/Wind Drop": 137,
+          "Shapes/Wind Flap": 138,
+          "Stacking/Arch": 139,
+          "Stacking/Box Stack": 140,
+          "Stacking/Capsule Stack": 141,
+          "Stacking/Card House": 142,
+          "Stacking/Cylinder": 143,
+          "Stacking/Cylinder Stack": 144,
+          "Stacking/Dominoes": 145,
+          "Stacking/Double Domino": 146,
+          "Stacking/Edge Crossing": 147,
+          "Stacking/Jenga Stack": 148,
+          "Stacking/Pyramid2D": 149,
+          "Stacking/Single Box": 150,
+          "Stacking/Sphere Stack": 151,
+          "Stacking/Wedge": 152,
+          "Tree/Benchmark": 153,
+          "World/Far Mesh Drop": 154,
+          "World/Far Pyramid": 155,
+          "World/Far Ragdolls": 156,
+          "World/Far Stack": 157
+        }
+      }
+    },
+    "pixel_hash": "SHA256 of ASCII RGBA:WIDTHxHEIGHT followed by NUL and decoded RGBA bytes",
+    "rows": [
+      {
+        "sample": "Collision/Distance Debug",
+        "captures": {
+          "fixed": [
+            {
+              "png": "fixed/Collision_Distance_Debug-67957c757033-0.png",
+              "pixel_sha256": "c2efb9df2a8a59212e25b2c48f2039cf0321e0a27168fbbddc0f0e3def136c6e",
+              "width": 3840,
+              "height": 2160
+            },
+            {
+              "png": "fixed/Collision_Distance_Debug-67957c757033-1.png",
+              "pixel_sha256": "c2efb9df2a8a59212e25b2c48f2039cf0321e0a27168fbbddc0f0e3def136c6e",
+              "width": 3840,
+              "height": 2160
+            }
+          ],
+          "float": [
+            {
+              "png": "float/Collision_Distance_Debug-67957c757033-0.png",
+              "pixel_sha256": "c2efb9df2a8a59212e25b2c48f2039cf0321e0a27168fbbddc0f0e3def136c6e",
+              "width": 3840,
+              "height": 2160
+            },
+            {
+              "png": "float/Collision_Distance_Debug-67957c757033-1.png",
+              "pixel_sha256": "c2efb9df2a8a59212e25b2c48f2039cf0321e0a27168fbbddc0f0e3def136c6e",
+              "width": 3840,
+              "height": 2160
+            }
+          ]
+        },
+        "errors": [],
+        "exact_pixel_match": true,
+        "mean_absolute_rgb_difference": 0.0,
+        "changed_pixel_percent": 0.0,
+        "mean_luminance_difference_64x36": 0.0,
+        "fixed_thumbnail": "fixed/Collision_Distance_Debug-67957c757033-thumb.png",
+        "float_thumbnail": "float/Collision_Distance_Debug-67957c757033-thumb.png"
+      },
+      {
+        "sample": "Collision/Shape Distance",
+        "captures": {
+          "fixed": [
+            {
+              "png": "fixed/Collision_Shape_Distance-1efae0869794-0.png",
+              "pixel_sha256": "163cefe5ee4bde624ec79301a89dd8fec266f59d7c793e228aecc0943bd93834",
+              "width": 3840,
+              "height": 2160
+            },
+            {
+              "png": "fixed/Collision_Shape_Distance-1efae0869794-1.png",
+              "pixel_sha256": "163cefe5ee4bde624ec79301a89dd8fec266f59d7c793e228aecc0943bd93834",
+              "width": 3840,
+              "height": 2160
+            }
+          ],
+          "float": [
+            {
+              "png": "float/Collision_Shape_Distance-1efae0869794-0.png",
+              "pixel_sha256": "163cefe5ee4bde624ec79301a89dd8fec266f59d7c793e228aecc0943bd93834",
+              "width": 3840,
+              "height": 2160
+            },
+            {
+              "png": "float/Collision_Shape_Distance-1efae0869794-1.png",
+              "pixel_sha256": "163cefe5ee4bde624ec79301a89dd8fec266f59d7c793e228aecc0943bd93834",
+              "width": 3840,
+              "height": 2160
+            }
+          ]
+        },
+        "errors": [],
+        "exact_pixel_match": true,
+        "mean_absolute_rgb_difference": 0.0,
+        "changed_pixel_percent": 0.0,
+        "mean_luminance_difference_64x36": 0.0,
+        "fixed_thumbnail": "fixed/Collision_Shape_Distance-1efae0869794-thumb.png",
+        "float_thumbnail": "float/Collision_Shape_Distance-1efae0869794-thumb.png"
+      },
+      {
+        "sample": "Determinism/Falling Ragdolls",
+        "captures": {
+          "fixed": [
+            {
+              "png": "fixed/Determinism_Falling_Ragdolls-1278b0375383-0.png",
+              "pixel_sha256": "6c45500976867ff315314530a73f1c3060728e1e86c8acfd1132525efede766c",
+              "width": 3840,
+              "height": 2160
+            },
+            {
+              "png": "fixed/Determinism_Falling_Ragdolls-1278b0375383-1.png",
+              "pixel_sha256": "6c45500976867ff315314530a73f1c3060728e1e86c8acfd1132525efede766c",
+              "width": 3840,
+              "height": 2160
+            }
+          ],
+          "float": [
+            {
+              "png": "float/Determinism_Falling_Ragdolls-1278b0375383-0.png",
+              "pixel_sha256": "6c45500976867ff315314530a73f1c3060728e1e86c8acfd1132525efede766c",
+              "width": 3840,
+              "height": 2160
+            },
+            {
+              "png": "float/Determinism_Falling_Ragdolls-1278b0375383-1.png",
+              "pixel_sha256": "6c45500976867ff315314530a73f1c3060728e1e86c8acfd1132525efede766c",
+              "width": 3840,
+              "height": 2160
+            }
+          ]
+        },
+        "errors": [],
+        "exact_pixel_match": true,
+        "mean_absolute_rgb_difference": 0.0,
+        "changed_pixel_percent": 0.0,
+        "mean_luminance_difference_64x36": 0.0,
+        "fixed_thumbnail": "fixed/Determinism_Falling_Ragdolls-1278b0375383-thumb.png",
+        "float_thumbnail": "float/Determinism_Falling_Ragdolls-1278b0375383-thumb.png"
+      },
+      {
+        "sample": "Joints/Ball and Chain",
+        "captures": {
+          "fixed": [
+            {
+              "png": "fixed/Joints_Ball_and_Chain-aa4a237dd0eb-0.png",
+              "pixel_sha256": "05414d397b19f3818b2b30e7150404d29e49fe679d1867077d14baf587fc6a89",
+              "width": 3840,
+              "height": 2160
+            },
+            {
+              "png": "fixed/Joints_Ball_and_Chain-aa4a237dd0eb-1.png",
+              "pixel_sha256": "05414d397b19f3818b2b30e7150404d29e49fe679d1867077d14baf587fc6a89",
+              "width": 3840,
+              "height": 2160
+            }
+          ],
+          "float": [
+            {
+              "png": "float/Joints_Ball_and_Chain-aa4a237dd0eb-0.png",
+              "pixel_sha256": "05414d397b19f3818b2b30e7150404d29e49fe679d1867077d14baf587fc6a89",
+              "width": 3840,
+              "height": 2160
+            },
+            {
+              "png": "float/Joints_Ball_and_Chain-aa4a237dd0eb-1.png",
+              "pixel_sha256": "05414d397b19f3818b2b30e7150404d29e49fe679d1867077d14baf587fc6a89",
+              "width": 3840,
+              "height": 2160
+            }
+          ]
+        },
+        "errors": [],
+        "exact_pixel_match": true,
+        "mean_absolute_rgb_difference": 0.0,
+        "changed_pixel_percent": 0.0,
+        "mean_luminance_difference_64x36": 0.0,
+        "fixed_thumbnail": "fixed/Joints_Ball_and_Chain-aa4a237dd0eb-thumb.png",
+        "float_thumbnail": "float/Joints_Ball_and_Chain-aa4a237dd0eb-thumb.png"
+      },
+      {
+        "sample": "Joints/Bridge",
+        "captures": {
+          "fixed": [
+            {
+              "png": "fixed/Joints_Bridge-87a11cde2063-0.png",
+              "pixel_sha256": "2f00f9b401f3788fe9cee5550e08e2ecf50c4f0d746c9e13fa369aa99750ecf9",
+              "width": 3840,
+              "height": 2160
+            },
+            {
+              "png": "fixed/Joints_Bridge-87a11cde2063-1.png",
+              "pixel_sha256": "2f00f9b401f3788fe9cee5550e08e2ecf50c4f0d746c9e13fa369aa99750ecf9",
+              "width": 3840,
+              "height": 2160
+            }
+          ],
+          "float": [
+            {
+              "png": "float/Joints_Bridge-87a11cde2063-0.png",
+              "pixel_sha256": "2f00f9b401f3788fe9cee5550e08e2ecf50c4f0d746c9e13fa369aa99750ecf9",
+              "width": 3840,
+              "height": 2160
+            },
+            {
+              "png": "float/Joints_Bridge-87a11cde2063-1.png",
+              "pixel_sha256": "2f00f9b401f3788fe9cee5550e08e2ecf50c4f0d746c9e13fa369aa99750ecf9",
+              "width": 3840,
+              "height": 2160
+            }
+          ]
+        },
+        "errors": [],
+        "exact_pixel_match": true,
+        "mean_absolute_rgb_difference": 0.0,
+        "changed_pixel_percent": 0.0,
+        "mean_luminance_difference_64x36": 0.0,
+        "fixed_thumbnail": "fixed/Joints_Bridge-87a11cde2063-thumb.png",
+        "float_thumbnail": "float/Joints_Bridge-87a11cde2063-thumb.png"
+      },
+      {
+        "sample": "Joints/Distance Joint",
+        "captures": {
+          "fixed": [
+            {
+              "png": "fixed/Joints_Distance_Joint-5583ed521efa-0.png",
+              "pixel_sha256": "77961532f714e0538b52a22e1ad79ff77ad359b9ef58cb053c37d88a286440ff",
+              "width": 3840,
+              "height": 2160
+            },
+            {
+              "png": "fixed/Joints_Distance_Joint-5583ed521efa-1.png",
+              "pixel_sha256": "77961532f714e0538b52a22e1ad79ff77ad359b9ef58cb053c37d88a286440ff",
+              "width": 3840,
+              "height": 2160
+            }
+          ],
+          "float": [
+            {
+              "png": "float/Joints_Distance_Joint-5583ed521efa-0.png",
+              "pixel_sha256": "77961532f714e0538b52a22e1ad79ff77ad359b9ef58cb053c37d88a286440ff",
+              "width": 3840,
+              "height": 2160
+            },
+            {
+              "png": "float/Joints_Distance_Joint-5583ed521efa-1.png",
+              "pixel_sha256": "77961532f714e0538b52a22e1ad79ff77ad359b9ef58cb053c37d88a286440ff",
+              "width": 3840,
+              "height": 2160
+            }
+          ]
+        },
+        "errors": [],
+        "exact_pixel_match": true,
+        "mean_absolute_rgb_difference": 0.0,
+        "changed_pixel_percent": 0.0,
+        "mean_luminance_difference_64x36": 0.0,
+        "fixed_thumbnail": "fixed/Joints_Distance_Joint-5583ed521efa-thumb.png",
+        "float_thumbnail": "float/Joints_Distance_Joint-5583ed521efa-thumb.png"
+      },
+      {
+        "sample": "Joints/Door",
+        "captures": {
+          "fixed": [
+            {
+              "png": "fixed/Joints_Door-098cd82e95dd-0.png",
+              "pixel_sha256": "d9143295e53c2f76dc142f9bc0ea433892525e8dbec974ad299d16000f73df1c",
+              "width": 3840,
+              "height": 2160
+            },
+            {
+              "png": "fixed/Joints_Door-098cd82e95dd-1.png",
+              "pixel_sha256": "d9143295e53c2f76dc142f9bc0ea433892525e8dbec974ad299d16000f73df1c",
+              "width": 3840,
+              "height": 2160
+            }
+          ],
+          "float": [
+            {
+              "png": "float/Joints_Door-098cd82e95dd-0.png",
+              "pixel_sha256": "d9143295e53c2f76dc142f9bc0ea433892525e8dbec974ad299d16000f73df1c",
+              "width": 3840,
+              "height": 2160
+            },
+            {
+              "png": "float/Joints_Door-098cd82e95dd-1.png",
+              "pixel_sha256": "d9143295e53c2f76dc142f9bc0ea433892525e8dbec974ad299d16000f73df1c",
+              "width": 3840,
+              "height": 2160
+            }
+          ]
+        },
+        "errors": [],
+        "exact_pixel_match": true,
+        "mean_absolute_rgb_difference": 0.0,
+        "changed_pixel_percent": 0.0,
+        "mean_luminance_difference_64x36": 0.0,
+        "fixed_thumbnail": "fixed/Joints_Door-098cd82e95dd-thumb.png",
+        "float_thumbnail": "float/Joints_Door-098cd82e95dd-thumb.png"
+      },
+      {
+        "sample": "Joints/Driving",
+        "captures": {
+          "fixed": [
+            {
+              "png": "fixed/Joints_Driving-3bc709ba0287-0.png",
+              "pixel_sha256": "4a8f5f97ea9093bf284f83f9002fa53036730f67d3e5c81e01ba058f71dbee9c",
+              "width": 3840,
+              "height": 2160
+            },
+            {
+              "png": "fixed/Joints_Driving-3bc709ba0287-1.png",
+              "pixel_sha256": "4a8f5f97ea9093bf284f83f9002fa53036730f67d3e5c81e01ba058f71dbee9c",
+              "width": 3840,
+              "height": 2160
+            }
+          ],
+          "float": [
+            {
+              "png": "float/Joints_Driving-3bc709ba0287-0.png",
+              "pixel_sha256": "4a8f5f97ea9093bf284f83f9002fa53036730f67d3e5c81e01ba058f71dbee9c",
+              "width": 3840,
+              "height": 2160
+            },
+            {
+              "png": "float/Joints_Driving-3bc709ba0287-1.png",
+              "pixel_sha256": "4a8f5f97ea9093bf284f83f9002fa53036730f67d3e5c81e01ba058f71dbee9c",
+              "width": 3840,
+              "height": 2160
+            }
+          ]
+        },
+        "errors": [],
+        "exact_pixel_match": true,
+        "mean_absolute_rgb_difference": 0.0,
+        "changed_pixel_percent": 0.0,
+        "mean_luminance_difference_64x36": 0.0,
+        "fixed_thumbnail": "fixed/Joints_Driving-3bc709ba0287-thumb.png",
+        "float_thumbnail": "float/Joints_Driving-3bc709ba0287-thumb.png"
+      },
+      {
+        "sample": "Joints/Filter",
+        "captures": {
+          "fixed": [
+            {
+              "png": "fixed/Joints_Filter-48a5e9fe7a24-0.png",
+              "pixel_sha256": "76aee13b7d45545dbcb260337f3bf72cba63cbffe4c3707fd3a37adaf14fc829",
+              "width": 3840,
+              "height": 2160
+            },
+            {
+              "png": "fixed/Joints_Filter-48a5e9fe7a24-1.png",
+              "pixel_sha256": "76aee13b7d45545dbcb260337f3bf72cba63cbffe4c3707fd3a37adaf14fc829",
+              "width": 3840,
+              "height": 2160
+            }
+          ],
+          "float": [
+            {
+              "png": "float/Joints_Filter-48a5e9fe7a24-0.png",
+              "pixel_sha256": "76aee13b7d45545dbcb260337f3bf72cba63cbffe4c3707fd3a37adaf14fc829",
+              "width": 3840,
+              "height": 2160
+            },
+            {
+              "png": "float/Joints_Filter-48a5e9fe7a24-1.png",
+              "pixel_sha256": "76aee13b7d45545dbcb260337f3bf72cba63cbffe4c3707fd3a37adaf14fc829",
+              "width": 3840,
+              "height": 2160
+            }
+          ]
+        },
+        "errors": [],
+        "exact_pixel_match": true,
+        "mean_absolute_rgb_difference": 0.0,
+        "changed_pixel_percent": 0.0,
+        "mean_luminance_difference_64x36": 0.0,
+        "fixed_thumbnail": "fixed/Joints_Filter-48a5e9fe7a24-thumb.png",
+        "float_thumbnail": "float/Joints_Filter-48a5e9fe7a24-thumb.png"
+      },
+      {
+        "sample": "Joints/Gear Lift",
+        "captures": {
+          "fixed": [
+            {
+              "png": "fixed/Joints_Gear_Lift-c5959c1c2f53-0.png",
+              "pixel_sha256": "d06db1c00d432c4f6ad073a26d13b9254bf8ac4fc9215bc6c788d8930682fb5c",
+              "width": 3840,
+              "height": 2160
+            },
+            {
+              "png": "fixed/Joints_Gear_Lift-c5959c1c2f53-1.png",
+              "pixel_sha256": "d06db1c00d432c4f6ad073a26d13b9254bf8ac4fc9215bc6c788d8930682fb5c",
+              "width": 3840,
+              "height": 2160
+            }
+          ],
+          "float": [
+            {
+              "png": "float/Joints_Gear_Lift-c5959c1c2f53-0.png",
+              "pixel_sha256": "d06db1c00d432c4f6ad073a26d13b9254bf8ac4fc9215bc6c788d8930682fb5c",
+              "width": 3840,
+              "height": 2160
+            },
+            {
+              "png": "float/Joints_Gear_Lift-c5959c1c2f53-1.png",
+              "pixel_sha256": "d06db1c00d432c4f6ad073a26d13b9254bf8ac4fc9215bc6c788d8930682fb5c",
+              "width": 3840,
+              "height": 2160
+            }
+          ]
+        },
+        "errors": [],
+        "exact_pixel_match": true,
+        "mean_absolute_rgb_difference": 0.0,
+        "changed_pixel_percent": 0.0,
+        "mean_luminance_difference_64x36": 0.0,
+        "fixed_thumbnail": "fixed/Joints_Gear_Lift-c5959c1c2f53-thumb.png",
+        "float_thumbnail": "float/Joints_Gear_Lift-c5959c1c2f53-thumb.png"
+      },
+      {
+        "sample": "Joints/Motion Locks",
+        "captures": {
+          "fixed": [
+            {
+              "png": "fixed/Joints_Motion_Locks-c61733b12ea3-0.png",
+              "pixel_sha256": "0e97c91e801cd1d011ffaad5c846920f869af58d0091aeb10f8356fe12d32a24",
+              "width": 3840,
+              "height": 2160
+            },
+            {
+              "png": "fixed/Joints_Motion_Locks-c61733b12ea3-1.png",
+              "pixel_sha256": "0e97c91e801cd1d011ffaad5c846920f869af58d0091aeb10f8356fe12d32a24",
+              "width": 3840,
+              "height": 2160
+            }
+          ],
+          "float": [
+            {
+              "png": "float/Joints_Motion_Locks-c61733b12ea3-0.png",
+              "pixel_sha256": "0e97c91e801cd1d011ffaad5c846920f869af58d0091aeb10f8356fe12d32a24",
+              "width": 3840,
+              "height": 2160
+            },
+            {
+              "png": "float/Joints_Motion_Locks-c61733b12ea3-1.png",
+              "pixel_sha256": "0e97c91e801cd1d011ffaad5c846920f869af58d0091aeb10f8356fe12d32a24",
+              "width": 3840,
+              "height": 2160
+            }
+          ]
+        },
+        "errors": [],
+        "exact_pixel_match": true,
+        "mean_absolute_rgb_difference": 0.0,
+        "changed_pixel_percent": 0.0,
+        "mean_luminance_difference_64x36": 0.0,
+        "fixed_thumbnail": "fixed/Joints_Motion_Locks-c61733b12ea3-thumb.png",
+        "float_thumbnail": "float/Joints_Motion_Locks-c61733b12ea3-thumb.png"
+      },
+      {
+        "sample": "Joints/Motor Joint",
+        "captures": {
+          "fixed": [
+            {
+              "png": "fixed/Joints_Motor_Joint-868ec4be5e8b-0.png",
+              "pixel_sha256": "e4094ab8ec57c6f0ef248d3e9efd0c955629b5d0c7e560a63f9e91609eef1477",
+              "width": 3840,
+              "height": 2160
+            },
+            {
+              "png": "fixed/Joints_Motor_Joint-868ec4be5e8b-1.png",
+              "pixel_sha256": "e4094ab8ec57c6f0ef248d3e9efd0c955629b5d0c7e560a63f9e91609eef1477",
+              "width": 3840,
+              "height": 2160
+            }
+          ],
+          "float": [
+            {
+              "png": "float/Joints_Motor_Joint-868ec4be5e8b-0.png",
+              "pixel_sha256": "e4094ab8ec57c6f0ef248d3e9efd0c955629b5d0c7e560a63f9e91609eef1477",
+              "width": 3840,
+              "height": 2160
+            },
+            {
+              "png": "float/Joints_Motor_Joint-868ec4be5e8b-1.png",
+              "pixel_sha256": "e4094ab8ec57c6f0ef248d3e9efd0c955629b5d0c7e560a63f9e91609eef1477",
+              "width": 3840,
+              "height": 2160
+            }
+          ]
+        },
+        "errors": [],
+        "exact_pixel_match": true,
+        "mean_absolute_rgb_difference": 0.0,
+        "changed_pixel_percent": 0.0,
+        "mean_luminance_difference_64x36": 0.0,
+        "fixed_thumbnail": "fixed/Joints_Motor_Joint-868ec4be5e8b-thumb.png",
+        "float_thumbnail": "float/Joints_Motor_Joint-868ec4be5e8b-thumb.png"
+      },
+      {
+        "sample": "Joints/Parallel Spring",
+        "captures": {
+          "fixed": [
+            {
+              "png": "fixed/Joints_Parallel_Spring-7f32c3ef0cd1-0.png",
+              "pixel_sha256": "62a15f34cea73b733b83cd71cd78ddbc3d5bb0d6eae292e6e7d20f420c004cc8",
+              "width": 3840,
+              "height": 2160
+            },
+            {
+              "png": "fixed/Joints_Parallel_Spring-7f32c3ef0cd1-1.png",
+              "pixel_sha256": "62a15f34cea73b733b83cd71cd78ddbc3d5bb0d6eae292e6e7d20f420c004cc8",
+              "width": 3840,
+              "height": 2160
+            }
+          ],
+          "float": [
+            {
+              "png": "float/Joints_Parallel_Spring-7f32c3ef0cd1-0.png",
+              "pixel_sha256": "62a15f34cea73b733b83cd71cd78ddbc3d5bb0d6eae292e6e7d20f420c004cc8",
+              "width": 3840,
+              "height": 2160
+            },
+            {
+              "png": "float/Joints_Parallel_Spring-7f32c3ef0cd1-1.png",
+              "pixel_sha256": "62a15f34cea73b733b83cd71cd78ddbc3d5bb0d6eae292e6e7d20f420c004cc8",
+              "width": 3840,
+              "height": 2160
+            }
+          ]
+        },
+        "errors": [],
+        "exact_pixel_match": true,
+        "mean_absolute_rgb_difference": 0.0,
+        "changed_pixel_percent": 0.0,
+        "mean_luminance_difference_64x36": 0.0,
+        "fixed_thumbnail": "fixed/Joints_Parallel_Spring-7f32c3ef0cd1-thumb.png",
+        "float_thumbnail": "float/Joints_Parallel_Spring-7f32c3ef0cd1-thumb.png"
+      },
+      {
+        "sample": "Joints/Prismatic",
+        "captures": {
+          "fixed": [
+            {
+              "png": "fixed/Joints_Prismatic-bf5747dbac19-0.png",
+              "pixel_sha256": "e3d22889461d941c34fb30419a35eeb1a1b56eddb92f3eb52f34668c94b6983a",
+              "width": 3840,
+              "height": 2160
+            },
+            {
+              "png": "fixed/Joints_Prismatic-bf5747dbac19-1.png",
+              "pixel_sha256": "e3d22889461d941c34fb30419a35eeb1a1b56eddb92f3eb52f34668c94b6983a",
+              "width": 3840,
+              "height": 2160
+            }
+          ],
+          "float": [
+            {
+              "png": "float/Joints_Prismatic-bf5747dbac19-0.png",
+              "pixel_sha256": "e3d22889461d941c34fb30419a35eeb1a1b56eddb92f3eb52f34668c94b6983a",
+              "width": 3840,
+              "height": 2160
+            },
+            {
+              "png": "float/Joints_Prismatic-bf5747dbac19-1.png",
+              "pixel_sha256": "e3d22889461d941c34fb30419a35eeb1a1b56eddb92f3eb52f34668c94b6983a",
+              "width": 3840,
+              "height": 2160
+            }
+          ]
+        },
+        "errors": [],
+        "exact_pixel_match": true,
+        "mean_absolute_rgb_difference": 0.0,
+        "changed_pixel_percent": 0.0,
+        "mean_luminance_difference_64x36": 0.0,
+        "fixed_thumbnail": "fixed/Joints_Prismatic-bf5747dbac19-thumb.png",
+        "float_thumbnail": "float/Joints_Prismatic-bf5747dbac19-thumb.png"
+      },
+      {
+        "sample": "Joints/Revolute",
+        "captures": {
+          "fixed": [
+            {
+              "png": "fixed/Joints_Revolute-452789cf75e8-0.png",
+              "pixel_sha256": "6f2e38375e1871d7d578062bc87b837f04a8dad102ab2fb1a8615a42b8140179",
+              "width": 3840,
+              "height": 2160
+            },
+            {
+              "png": "fixed/Joints_Revolute-452789cf75e8-1.png",
+              "pixel_sha256": "6f2e38375e1871d7d578062bc87b837f04a8dad102ab2fb1a8615a42b8140179",
+              "width": 3840,
+              "height": 2160
+            }
+          ],
+          "float": [
+            {
+              "png": "float/Joints_Revolute-452789cf75e8-0.png",
+              "pixel_sha256": "6f2e38375e1871d7d578062bc87b837f04a8dad102ab2fb1a8615a42b8140179",
+              "width": 3840,
+              "height": 2160
+            },
+            {
+              "png": "float/Joints_Revolute-452789cf75e8-1.png",
+              "pixel_sha256": "6f2e38375e1871d7d578062bc87b837f04a8dad102ab2fb1a8615a42b8140179",
+              "width": 3840,
+              "height": 2160
+            }
+          ]
+        },
+        "errors": [],
+        "exact_pixel_match": true,
+        "mean_absolute_rgb_difference": 0.0,
+        "changed_pixel_percent": 0.0,
+        "mean_luminance_difference_64x36": 0.0,
+        "fixed_thumbnail": "fixed/Joints_Revolute-452789cf75e8-thumb.png",
+        "float_thumbnail": "float/Joints_Revolute-452789cf75e8-thumb.png"
+      },
+      {
+        "sample": "Joints/Spherical",
+        "captures": {
+          "fixed": [
+            {
+              "png": "fixed/Joints_Spherical-a8058e2d9295-0.png",
+              "pixel_sha256": "e3d22889461d941c34fb30419a35eeb1a1b56eddb92f3eb52f34668c94b6983a",
+              "width": 3840,
+              "height": 2160
+            },
+            {
+              "png": "fixed/Joints_Spherical-a8058e2d9295-1.png",
+              "pixel_sha256": "e3d22889461d941c34fb30419a35eeb1a1b56eddb92f3eb52f34668c94b6983a",
+              "width": 3840,
+              "height": 2160
+            }
+          ],
+          "float": [
+            {
+              "png": "float/Joints_Spherical-a8058e2d9295-0.png",
+              "pixel_sha256": "e3d22889461d941c34fb30419a35eeb1a1b56eddb92f3eb52f34668c94b6983a",
+              "width": 3840,
+              "height": 2160
+            },
+            {
+              "png": "float/Joints_Spherical-a8058e2d9295-1.png",
+              "pixel_sha256": "e3d22889461d941c34fb30419a35eeb1a1b56eddb92f3eb52f34668c94b6983a",
+              "width": 3840,
+              "height": 2160
+            }
+          ]
+        },
+        "errors": [],
+        "exact_pixel_match": true,
+        "mean_absolute_rgb_difference": 0.0,
+        "changed_pixel_percent": 0.0,
+        "mean_luminance_difference_64x36": 0.0,
+        "fixed_thumbnail": "fixed/Joints_Spherical-a8058e2d9295-thumb.png",
+        "float_thumbnail": "float/Joints_Spherical-a8058e2d9295-thumb.png"
+      },
+      {
+        "sample": "Joints/Top Down Friction",
+        "captures": {
+          "fixed": [
+            {
+              "png": "fixed/Joints_Top_Down_Friction-659f78e954b8-0.png",
+              "pixel_sha256": "f80d6ee44e9d0d1ac6eca5ae3e3d1989d26d222b049033deb550e04520d69b7f",
+              "width": 3840,
+              "height": 2160
+            },
+            {
+              "png": "fixed/Joints_Top_Down_Friction-659f78e954b8-1.png",
+              "pixel_sha256": "f80d6ee44e9d0d1ac6eca5ae3e3d1989d26d222b049033deb550e04520d69b7f",
+              "width": 3840,
+              "height": 2160
+            }
+          ],
+          "float": [
+            {
+              "png": "float/Joints_Top_Down_Friction-659f78e954b8-0.png",
+              "pixel_sha256": "f80d6ee44e9d0d1ac6eca5ae3e3d1989d26d222b049033deb550e04520d69b7f",
+              "width": 3840,
+              "height": 2160
+            },
+            {
+              "png": "float/Joints_Top_Down_Friction-659f78e954b8-1.png",
+              "pixel_sha256": "f80d6ee44e9d0d1ac6eca5ae3e3d1989d26d222b049033deb550e04520d69b7f",
+              "width": 3840,
+              "height": 2160
+            }
+          ]
+        },
+        "errors": [],
+        "exact_pixel_match": true,
+        "mean_absolute_rgb_difference": 0.0,
+        "changed_pixel_percent": 0.0,
+        "mean_luminance_difference_64x36": 0.0,
+        "fixed_thumbnail": "fixed/Joints_Top_Down_Friction-659f78e954b8-thumb.png",
+        "float_thumbnail": "float/Joints_Top_Down_Friction-659f78e954b8-thumb.png"
+      },
+      {
+        "sample": "Joints/Weld",
+        "captures": {
+          "fixed": [
+            {
+              "png": "fixed/Joints_Weld-6500556cbe84-0.png",
+              "pixel_sha256": "e3d22889461d941c34fb30419a35eeb1a1b56eddb92f3eb52f34668c94b6983a",
+              "width": 3840,
+              "height": 2160
+            },
+            {
+              "png": "fixed/Joints_Weld-6500556cbe84-1.png",
+              "pixel_sha256": "e3d22889461d941c34fb30419a35eeb1a1b56eddb92f3eb52f34668c94b6983a",
+              "width": 3840,
+              "height": 2160
+            }
+          ],
+          "float": [
+            {
+              "png": "float/Joints_Weld-6500556cbe84-0.png",
+              "pixel_sha256": "e3d22889461d941c34fb30419a35eeb1a1b56eddb92f3eb52f34668c94b6983a",
+              "width": 3840,
+              "height": 2160
+            },
+            {
+              "png": "float/Joints_Weld-6500556cbe84-1.png",
+              "pixel_sha256": "e3d22889461d941c34fb30419a35eeb1a1b56eddb92f3eb52f34668c94b6983a",
+              "width": 3840,
+              "height": 2160
+            }
+          ]
+        },
+        "errors": [],
+        "exact_pixel_match": true,
+        "mean_absolute_rgb_difference": 0.0,
+        "changed_pixel_percent": 0.0,
+        "mean_luminance_difference_64x36": 0.0,
+        "fixed_thumbnail": "fixed/Joints_Weld-6500556cbe84-thumb.png",
+        "float_thumbnail": "float/Joints_Weld-6500556cbe84-thumb.png"
+      },
+      {
+        "sample": "Joints/Wheel",
+        "captures": {
+          "fixed": [
+            {
+              "png": "fixed/Joints_Wheel-491be789035e-0.png",
+              "pixel_sha256": "daa34c5af43995dd80d3c21e570e7571fc2e9bfa058934059dc9543bccfaa70b",
+              "width": 3840,
+              "height": 2160
+            },
+            {
+              "png": "fixed/Joints_Wheel-491be789035e-1.png",
+              "pixel_sha256": "daa34c5af43995dd80d3c21e570e7571fc2e9bfa058934059dc9543bccfaa70b",
+              "width": 3840,
+              "height": 2160
+            }
+          ],
+          "float": [
+            {
+              "png": "float/Joints_Wheel-491be789035e-0.png",
+              "pixel_sha256": "daa34c5af43995dd80d3c21e570e7571fc2e9bfa058934059dc9543bccfaa70b",
+              "width": 3840,
+              "height": 2160
+            },
+            {
+              "png": "float/Joints_Wheel-491be789035e-1.png",
+              "pixel_sha256": "daa34c5af43995dd80d3c21e570e7571fc2e9bfa058934059dc9543bccfaa70b",
+              "width": 3840,
+              "height": 2160
+            }
+          ]
+        },
+        "errors": [],
+        "exact_pixel_match": true,
+        "mean_absolute_rgb_difference": 0.0,
+        "changed_pixel_percent": 0.0,
+        "mean_luminance_difference_64x36": 0.0,
+        "fixed_thumbnail": "fixed/Joints_Wheel-491be789035e-thumb.png",
+        "float_thumbnail": "float/Joints_Wheel-491be789035e-thumb.png"
+      },
+      {
+        "sample": "Stacking/Box Stack",
+        "captures": {
+          "fixed": [
+            {
+              "png": "fixed/Stacking_Box_Stack-8f5eaf073c5e-0.png",
+              "pixel_sha256": "28aaa8686b52e698ac18cb06ca8f08e380dfefb28d57b707cb972322f209ed86",
+              "width": 3840,
+              "height": 2160
+            },
+            {
+              "png": "fixed/Stacking_Box_Stack-8f5eaf073c5e-1.png",
+              "pixel_sha256": "28aaa8686b52e698ac18cb06ca8f08e380dfefb28d57b707cb972322f209ed86",
+              "width": 3840,
+              "height": 2160
+            }
+          ],
+          "float": [
+            {
+              "png": "float/Stacking_Box_Stack-8f5eaf073c5e-0.png",
+              "pixel_sha256": "28aaa8686b52e698ac18cb06ca8f08e380dfefb28d57b707cb972322f209ed86",
+              "width": 3840,
+              "height": 2160
+            },
+            {
+              "png": "float/Stacking_Box_Stack-8f5eaf073c5e-1.png",
+              "pixel_sha256": "28aaa8686b52e698ac18cb06ca8f08e380dfefb28d57b707cb972322f209ed86",
+              "width": 3840,
+              "height": 2160
+            }
+          ]
+        },
+        "errors": [],
+        "exact_pixel_match": true,
+        "mean_absolute_rgb_difference": 0.0,
+        "changed_pixel_percent": 0.0,
+        "mean_luminance_difference_64x36": 0.0,
+        "fixed_thumbnail": "fixed/Stacking_Box_Stack-8f5eaf073c5e-thumb.png",
+        "float_thumbnail": "float/Stacking_Box_Stack-8f5eaf073c5e-thumb.png"
+      }
+    ]
+  }
+}

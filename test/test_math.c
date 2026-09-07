@@ -358,6 +358,62 @@ static int Solve2InverseScaleTest( void )
 	return 0;
 }
 
+// Differentially preserve the original two full matrix products, including
+// half-quantum signs, tiny inverse entries and large inverse-scaled entries.
+static int SkewSandwichTest( void )
+{
+	const int matrixBits[] = { 6, 16, 24, 40, 54, 60 };
+	const int anchorBits[] = { 27, 24, 16, 20, 12, 8 };
+	uint64_t rng = UINT64_C( 0x257837492019bc43 );
+	for ( int scale = 0; scale < 6; ++scale )
+	{
+		for ( int trial = 0; trial < 1024; ++trial )
+		{
+			b3Fixed values[12];
+			for ( int j = 0; j < 12; ++j )
+			{
+				rng = rng * UINT64_C( 6364136223846793005 ) + UINT64_C( 1442695040888963407 );
+				int bits = j < 9 ? matrixBits[scale] : anchorBits[scale];
+				values[j] = (b3Fixed)( rng & ( ( UINT64_C( 1 ) << bits ) - 1 ) );
+				if ( rng >> 63 )
+				{
+					values[j] = -values[j];
+				}
+			}
+			// Include exact zeros and half-quantum products, whose negation must
+			// stay inside the multiply under round-half-up.
+			if ( trial % 8 == 0 )
+			{
+				values[9] = 0;
+			}
+			if ( trial % 8 == 1 )
+			{
+				values[0] = 1;
+				values[10] = B3_FIXED_HALF;
+			}
+			b3Matrix3 m = {
+				{ values[0], values[1], values[2] },
+				{ values[3], values[4], values[5] },
+				{ values[6], values[7], values[8] },
+			};
+			b3Vec3 r = { values[9], values[10], values[11] };
+			b3Matrix3 skew = b3Skew( r );
+			b3Matrix3 expected = b3MulMM( skew, b3MulMM( m, skew ) );
+			b3Matrix3 actual = b3SkewSandwich( m, r );
+			ENSURE( actual.cx.x == expected.cx.x );
+			ENSURE( actual.cx.y == expected.cx.y );
+			ENSURE( actual.cx.z == expected.cx.z );
+			ENSURE( actual.cy.x == expected.cy.x );
+			ENSURE( actual.cy.y == expected.cy.y );
+			ENSURE( actual.cy.z == expected.cy.z );
+			ENSURE( actual.cz.x == expected.cz.x );
+			ENSURE( actual.cz.y == expected.cz.y );
+			ENSURE( actual.cz.z == expected.cz.z );
+		}
+	}
+	return 0;
+}
+
 static int Solve3InverseScaleTest( void )
 {
 	// K = s * [[4,1,0],[1,3,1],[0,1,2]], b = s * [5,-3,5]
@@ -438,6 +494,7 @@ int MathTest( void )
 {
 	RUN_SUBTEST( Solve2InverseScaleTest );
 	RUN_SUBTEST( Solve3InverseScaleTest );
+	RUN_SUBTEST( SkewSandwichTest );
 	RUN_SUBTEST( VendoredFixedTest );
 	// Compare the fixed-point trig against double precision references from libm.
 	// The fixed-point results carry the approximation error of the underlying

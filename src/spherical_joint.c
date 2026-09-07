@@ -449,10 +449,16 @@ void b3SolveSphericalJoint( b3JointSim* base, b3StepContext* context, bool useBi
 	b3Vec3 wB = stateB->angularVelocity;
 
 	bool fixedRotation = base->fixedRotation;
-	b3Quat quatA = b3MulQuat( stateA->deltaRotation, joint->frameA.q );
-	b3Quat quatB = b3MulQuat( stateB->deltaRotation, joint->frameB.q );
-
-	b3Quat relQ = b3InvMulQuat( quatA, quatB );
+	b3Quat quatA = b3Quat_identity;
+	b3Quat relQ = b3Quat_identity;
+	// A point-only joint has no angular error to evaluate. The angular motor
+	// uses relative velocity, so it does not need these orientations either.
+	if ( fixedRotation == false && ( joint->enableSpring || joint->enableTwistLimit || joint->enableConeLimit ) )
+	{
+		quatA = b3MulQuat( stateA->deltaRotation, joint->frameA.q );
+		b3Quat quatB = b3MulQuat( stateB->deltaRotation, joint->frameB.q );
+		relQ = b3InvMulQuat( quatA, quatB );
+	}
 
 	// Solve spring
 	if ( joint->enableSpring && fixedRotation == false )
@@ -630,10 +636,8 @@ void b3SolveSphericalJoint( b3JointSim* base, b3StepContext* context, bool useBi
 		if ( rhs.x != 0 || rhs.y != 0 || rhs.z != 0 )
 		{
 			//// K = [(1/m1 + 1/m2) * eye(2) - skew(r1) * invI1 * skew(r1) - skew(r2) * invI2 * skew(r2)]
-			b3Matrix3 sA = b3Skew( rA );
-			b3Matrix3 sB = b3Skew( rB );
-			b3Matrix3 kA = b3MulMM( sA, b3MulMM( base->invIA, sA ) );
-			b3Matrix3 kB = b3MulMM( sB, b3MulMM( base->invIB, sB ) );
+			b3Matrix3 kA = b3SkewSandwich( base->invIA, rA );
+			b3Matrix3 kB = b3SkewSandwich( base->invIB, rB );
 			b3Matrix3 k = b3NegateMat3( b3AddMM( kA, kB ) );
 			k.cx.x += mA + mB;
 			k.cy.y += mA + mB;

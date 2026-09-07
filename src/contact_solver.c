@@ -1973,6 +1973,7 @@ typedef struct b3ContactConstraintPointWide
 	b3Vec3W iRnAs, iRnBs;
 
 	b3FloatW baseSeparations;
+	b3FloatW cachedSeparations;
 	b3FloatW normalImpulses;
 	b3FloatW totalNormalImpulses;
 	b3FloatW normalMasses;
@@ -2031,6 +2032,7 @@ typedef struct b3ContactConstraintWide
 	// exact zeros in every lane and contribute nothing, so skipping them is
 	// bit-identical and one-point-manifold scenes skip 3/4 of the point work.
 	int maxPointCount;
+	int separationGeneration;
 
 	b3ContactConstraintPointWide points[B3_MAX_MANIFOLD_POINTS];
 
@@ -2695,6 +2697,7 @@ void b3PrepareContacts_Convex( b3SolverBlock block, b3StepContext* context )
 				maxPointCount = b3MaxInt( maxPointCount, (int)laneCounts[lane] );
 			}
 			constraint->maxPointCount = maxPointCount;
+			constraint->separationGeneration = -1;
 
 			for ( int pointIndex = 0; pointIndex < maxPointCount; ++pointIndex )
 			{
@@ -3270,6 +3273,7 @@ void b3PrepareContacts_Convex( b3SolverBlock block, b3StepContext* context )
 			}
 
 			constraint->maxPointCount = maxPointCount;
+			constraint->separationGeneration = -1;
 		}
 
 		// Advance to next color
@@ -3376,13 +3380,26 @@ void b3SolveContacts_Convex( b3SolverBlock block, b3StepContext* context, bool u
 			impulseScale = b3ZeroW();
 		}
 
-		b3Vec3W dp = b3SubVW( bB.dp, bA.dp );
 		b3Vec3W normal = b3WidenVW( c->normal );
 
-		// The delta rotations are constant across the four manifold points, so build
-		// them as matrices once and rotate each anchor with three fused reductions
-		b3Matrix3W rotA = b3MakeMatrixFromQuatW( bA.dq );
-		b3Matrix3W rotB = b3MakeMatrixFromQuatW( bB.dq );
+		// Velocities change in solve/warm-start stages, but positions and rotations
+		// change only in the integration stage. Reuse the exact separation from
+		// relaxation in the next solve while that geometry is unchanged.
+		if ( c->separationGeneration != context->positionGeneration )
+		{
+			b3Vec3W dp = b3SubVW( bB.dp, bA.dp );
+			b3Matrix3W rotA = b3MakeMatrixFromQuatW( bA.dq );
+			b3Matrix3W rotB = b3MakeMatrixFromQuatW( bB.dq );
+			for ( int pointIndex = 0; pointIndex < c->maxPointCount; ++pointIndex )
+			{
+				b3ContactConstraintPointWide* cp = c->points + pointIndex;
+				b3Vec3W rsA = b3MulMV3W( rotA, b3WidenVW( cp->anchorAs ) );
+				b3Vec3W rsB = b3MulMV3W( rotB, b3WidenVW( cp->anchorBs ) );
+				b3Vec3W ds = b3AddVW( dp, b3SubVW( rsB, rsA ) );
+				cp->cachedSeparations = b3AddW( b3DotW( normal, ds ), cp->baseSeparations );
+			}
+			c->separationGeneration = context->positionGeneration;
+		}
 
 		b3FloatW totalNormalImpulse = b3ZeroW();
 		b3FloatW totalTwistLimit = b3ZeroW();
@@ -3394,18 +3411,7 @@ void b3SolveContacts_Convex( b3SolverBlock block, b3StepContext* context, bool u
 		{
 			b3ContactConstraintPointWide* cp = c->points + pointIndex;
 
-			// Fixed anchor points for applying impulses
-			b3Vec3W rA = b3WidenVW( cp->anchorAs );
-			b3Vec3W rB = b3WidenVW( cp->anchorBs );
-
-			// Moving anchors for current separation
-			b3Vec3W rsA = b3MulMV3W( rotA, rA );
-			b3Vec3W rsB = b3MulMV3W( rotB, rB );
-
-			// compute current separation
-			// this is subject to round-off error if the anchor is far from the body center of mass
-			b3Vec3W ds = b3AddVW( dp, b3SubVW( rsB, rsA ) );
-			b3FloatW s = b3AddW( b3DotW( normal, ds ), cp->baseSeparations );
+			b3FloatW s = cp->cachedSeparations;
 
 			// Apply speculative bias if separation is greater than zero, otherwise apply soft constraint bias
 			b3FloatW mask = b3GreaterThanW( s, b3ZeroW() );

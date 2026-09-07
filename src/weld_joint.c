@@ -275,10 +275,8 @@ void b3SolveWeldJoint( b3JointSim* base, b3StepContext* context, bool useBias )
 		if ( rhs.x != 0 || rhs.y != 0 || rhs.z != 0 )
 		{
 			//// K = [(1/m1 + 1/m2) * eye(2) - skew(r1) * invI1 * skew(r1) - skew(r2) * invI2 * skew(r2)]
-			b3Matrix3 sA = b3Skew( rA );
-			b3Matrix3 sB = b3Skew( rB );
-			b3Matrix3 kA = b3MulMM( sA, b3MulMM( base->invIA, sA ) );
-			b3Matrix3 kB = b3MulMM( sB, b3MulMM( base->invIB, sB ) );
+			b3Matrix3 kA = b3SkewSandwich( base->invIA, rA );
+			b3Matrix3 kB = b3SkewSandwich( base->invIB, rB );
 			b3Matrix3 k = b3NegateMat3( b3AddMM( kA, kB ) );
 			k.cx.x += mA + mB;
 			k.cy.y += mA + mB;

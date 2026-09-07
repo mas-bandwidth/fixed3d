@@ -1327,6 +1327,10 @@ static void b3SolverTask( void* taskContext )
 
 			profile->solveImpulses += b3GetMillisecondsAndReset( &ticks );
 
+			// The preceding stage has finished; publish the new geometry generation
+			// through the existing stage barrier before contacts run again.
+			context->positionGeneration += 1;
+
 			// Integrate positions
 			B3_ASSERT( stages[iterationStageIndex].type == b3_stageIntegratePositions );
 			syncBits = ( bodySyncIndex << 16 ) | iterationStageIndex;
@@ -1508,6 +1512,7 @@ void b3Solve( b3World* world, b3StepContext* stepContext )
 
 		stepContext->sims = awakeSet->bodySims.data;
 		stepContext->states = awakeSet->bodyStates.data;
+		stepContext->positionGeneration = 0;
 
 		// count contacts, joints, and colors
 		int activeColorCount = 0;

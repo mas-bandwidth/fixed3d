@@ -465,6 +465,36 @@ static inline b3Matrix3 b3Skew( b3Vec3 v )
 	return out;
 }
 
+// skew(r) * m * skew(r), with the same product rounding and addition order
+// as two b3MulMM calls. Only multiplication by exact zero is removed. In
+// particular, keep negation inside each product: rounded(-a*b) can differ
+// from -rounded(a*b) at a half quantum. Full-width inverse entries stay wide.
+static inline b3Matrix3 b3SkewSandwich( b3Matrix3 m, b3Vec3 r )
+{
+	b3Matrix3 t;
+	t.cx.x = b3FixMul( m.cy.x, r.z ) + b3FixMul( m.cz.x, -r.y );
+	t.cx.y = b3FixMul( m.cy.y, r.z ) + b3FixMul( m.cz.y, -r.y );
+	t.cx.z = b3FixMul( m.cy.z, r.z ) + b3FixMul( m.cz.z, -r.y );
+	t.cy.x = b3FixMul( m.cx.x, -r.z ) + b3FixMul( m.cz.x, r.x );
+	t.cy.y = b3FixMul( m.cx.y, -r.z ) + b3FixMul( m.cz.y, r.x );
+	t.cy.z = b3FixMul( m.cx.z, -r.z ) + b3FixMul( m.cz.z, r.x );
+	t.cz.x = b3FixMul( m.cx.x, r.y ) + b3FixMul( m.cy.x, -r.x );
+	t.cz.y = b3FixMul( m.cx.y, r.y ) + b3FixMul( m.cy.y, -r.x );
+	t.cz.z = b3FixMul( m.cx.z, r.y ) + b3FixMul( m.cy.z, -r.x );
+
+	b3Matrix3 out;
+	out.cx.x = b3FixMul( -r.z, t.cx.y ) + b3FixMul( r.y, t.cx.z );
+	out.cx.y = b3FixMul( r.z, t.cx.x ) + b3FixMul( -r.x, t.cx.z );
+	out.cx.z = b3FixMul( -r.y, t.cx.x ) + b3FixMul( r.x, t.cx.y );
+	out.cy.x = b3FixMul( -r.z, t.cy.y ) + b3FixMul( r.y, t.cy.z );
+	out.cy.y = b3FixMul( r.z, t.cy.x ) + b3FixMul( -r.x, t.cy.z );
+	out.cy.z = b3FixMul( -r.y, t.cy.x ) + b3FixMul( r.x, t.cy.y );
+	out.cz.x = b3FixMul( -r.z, t.cz.y ) + b3FixMul( r.y, t.cz.z );
+	out.cz.y = b3FixMul( r.z, t.cz.x ) + b3FixMul( -r.x, t.cz.z );
+	out.cz.z = b3FixMul( -r.y, t.cz.x ) + b3FixMul( r.x, t.cz.y );
+	return out;
+}
+
 static inline b3Plane b3NormalizePlane( b3Plane plane )
 {
 	b3Fixed invLength = b3FixDiv( B3_FIX( 1.0f ) , b3Length( plane.normal ) );
