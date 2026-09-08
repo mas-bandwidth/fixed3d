@@ -160,6 +160,10 @@ Fixed3D is maintained by [Glenn Fiedler](https://github.com/gafferongames) and
 [Rowan](https://github.com/rowan-claude), Glenn's AI collaborator. New work
 landing in Box3D gets ported across.
 
+PR checks target 1–2 minutes and retain the full determinism suite. Slower
+sanitizer, platform and sample/audit jobs are available through the manually
+triggered **Extended checks** workflow; see [CI instructions](CONTRIBUTING.md#fast-and-extended-ci).
+
 Issues specific to Fixed3D are welcome
 [here](https://github.com/mas-bandwidth/fixed3d/issues). For issues with Box3D
 in general, please use the

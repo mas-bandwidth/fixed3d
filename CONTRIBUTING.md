@@ -27,11 +27,42 @@ architecture. A change that makes results depend on the compiler, the target
 architecture, or the optimization level defeats the reason this fork exists, and it will
 not be merged however fast it is.
 
-The test suite checks this and CI enforces it: gcc, clang, clang-cl, MinGW and emscripten,
-on Linux, macOS, and Windows x64 and ARM64, under thread, memory, address and
-undefined-behavior sanitizers, plus AVX-512 and 128-bit world position variants. If your
-change turns any of that red, it is not ready. Performance work is very welcome, but it
-has to produce the same bits.
+The full unit suite, including cross-worker and uncached-golden checks, runs on every
+pull request with GCC, Clang/ThreadSanitizer, clang-cl and ARM64 NEON, covering Linux,
+Windows, macOS and both position widths. The extended workflow adds the slower sanitizer,
+platform and sample coverage described below. A known failing check must be investigated;
+moving a check off the PR path does not make its findings optional. Performance work is
+very welcome, but it has to produce the same bits.
+
+## Fast and extended CI
+
+PR and main-branch checks target **1–2 minutes**, excluding runner queue time. The
+`build_test` workflow runs all 24 suites in five configurations: Linux GCC Debug,
+Linux Clang Debug with ThreadSanitizer, Linux wide-position Debug, Windows optimized
+clang-cl and macOS optimized NEON. `build_test result` fails if a job fails, times out
+or unexpectedly skips. The contributor-agreement and vendor-drift checks also remain
+on PRs. A three-minute job backstop allows runner variance; it is not a new timing target.
+
+The manually triggered **Extended checks** workflow preserves the complete previous
+matrix: MemorySanitizer, macOS ASan/UBSan, wide-position ASan/UBSan, Windows Debug and
+ARM64, MinGW, AVX-512, Emscripten compile coverage, every static/dynamic sample build,
+and the fixed/float conversion audit. It also reruns the common core configurations.
+Its aggregate result fails on failed, cancelled or skipped jobs; long sanitizer runs
+retain their existing explicit time limits.
+
+Run extended coverage when relevant to an arithmetic, concurrency, portability,
+sample or rendering change, and investigate any failures before calling the change
+validated. In GitHub Actions, select **Extended checks → Run workflow** and choose
+the branch, or use:
+
+```sh
+gh workflow run extended.yml --repo mas-bandwidth/fixed3d --ref <branch>
+```
+
+The split was based on measured execution times: the conversion audit job took 7m47s,
+wide-position sanitizers 3m29s, macOS sanitizers 3m09s, MinGW 3m01s and Windows sample
+builds 2m30s–2m41s. MemorySanitizer is substantially longer. Keep later slow additions
+in the extended workflow and measure PR time after changing the fast matrix.
 
 ## Opening a pull request
 
