@@ -2,11 +2,13 @@
 // SPDX-License-Identifier: MIT
 
 #include "box3d/box3d.h"
+#include "box3d/constants.h"
 #include "determinism.h"
 #include "stability.h"
 #include "test_macros.h"
 
 #include <stdio.h>
+#include <inttypes.h>
 #include <stdlib.h>
 
 #ifdef BOX3D_PROFILE
@@ -300,6 +302,212 @@ static int MeshDropTest( void )
 	return 0;
 }
 
+// Hash numeric fields in a fixed byte order, excluding padding. Include all
+// position bits in the wide build, as well as velocities and joint impulses.
+static uint64_t SphericalHashValue( uint64_t hash, uint64_t value )
+{
+	for ( int i = 0; i < 8; ++i )
+	{
+		hash = ( hash ^ ( value & 255 ) ) * UINT64_C( 1099511628211 );
+		value >>= 8;
+	}
+	return hash;
+}
+
+static uint64_t SphericalHashVector( uint64_t hash, b3Vec3 v )
+{
+	return SphericalHashValue( SphericalHashValue( SphericalHashValue( hash, (uint64_t)v.x ), (uint64_t)v.y ), (uint64_t)v.z );
+}
+
+enum
+{
+	sphericalFrameCount = 120
+};
+
+static int RunSphericalGeometry( int workerCount, int scale, uint64_t* hashes )
+{
+	b3WorldDef worldDef = b3DefaultWorldDef();
+	worldDef.workerCount = workerCount;
+	worldDef.gravity = b3Vec3_zero;
+	b3WorldId world = b3CreateWorld( &worldDef );
+	b3Fixed size = b3FixFromInt( scale == 0 ? 1 : 250 );
+	b3BodyId bodies[99];
+	b3JointId joints[96];
+	b3ShapeDef shape = b3DefaultShapeDef();
+	shape.filter.maskBits = 0;
+	// At size 250 this still gives a mass of 15,625,000. The default density
+	// makes the locked chain exceed the uncached solver's impulse range.
+	shape.density = B3_FIXED_ONE;
+	b3BoxHull cube = b3MakeCubeHull( size / 2 );
+
+	// Two chains provide 32 joints per occupied color, spread over multiple
+	// solver blocks. The dynamic star also exercises serial overflow joints.
+	for ( int group = 0; group < 3; ++group )
+	{
+		for ( int i = 0; i < 33; ++i )
+		{
+			b3BodyDef body = b3DefaultBodyDef();
+			body.type = i == 0 && group != 2 ? b3_staticBody : b3_dynamicBody;
+			b3Vec3 offset = { size * i, 0, 0 };
+			if ( group == 2 && i > 0 )
+			{
+				offset = (b3Vec3){ size * ( i % 3 - 1 ), size * ( i / 3 % 3 - 1 ), size * ( i / 9 % 3 - 1 ) };
+			}
+			body.position = b3ToPos( b3Add( offset, (b3Vec3){ 0, size * group * 4, 0 } ) );
+			body.angularVelocity = (b3Vec3){ B3_FIX( 0.01f ), i % 2 ? B3_FIX( 0.02f ) : 0, B3_FIX( -0.01f ) };
+			body.linearVelocity.y = size / 100;
+			body.rotation.s = i % 3 == 0 ? -B3_FIXED_ONE : B3_FIXED_ONE;
+			int index = group * 33 + i;
+			bodies[index] = b3CreateBody( world, &body );
+			b3CreateHullShape( bodies[index], &shape, &cube.base );
+			if ( i == 0 )
+			{
+				continue;
+			}
+			b3SphericalJointDef joint = b3DefaultSphericalJointDef();
+			joint.base.bodyIdA = bodies[group == 2 ? group * 33 : index - 1];
+			joint.base.bodyIdB = bodies[index];
+			joint.base.localFrameA.p = group == 2 ? offset : (b3Vec3){ size / 2, 0, 0 };
+			joint.base.localFrameB.p.x = group == 2 ? 0 : -size / 2;
+			joint.enableSpring = group == 1;
+			joint.enableMotor = group == 1;
+			joint.hertz = B3_FIX( 2.0f );
+			joint.maxMotorTorque = B3_FIX( 100.0f );
+			joint.motorVelocity.y = B3_FIX( 0.01f );
+			joint.coneAngle = B3_FIX( 0.3f );
+			joint.lowerTwistAngle = B3_FIX( -0.2f );
+			joint.upperTwistAngle = B3_FIX( 0.2f );
+			joints[group * 32 + i - 1] = b3CreateSphericalJoint( world, &joint );
+		}
+	}
+
+	const int substeps[] = { 1, 2, 4, 8 };
+	for ( int frame = 0; frame < sphericalFrameCount; ++frame )
+	{
+		if ( frame == 15 || frame == 25 )
+		{
+			b3World_EnableWarmStarting( world, frame == 25 );
+		}
+		if ( frame == 30 || frame == 50 || frame == 70 )
+		{
+			for ( int i = 0; i < 96; ++i )
+			{
+				b3SphericalJoint_EnableSpring( joints[i], frame == 30 );
+				b3SphericalJoint_EnableMotor( joints[i], frame == 70 );
+				b3SphericalJoint_EnableConeLimit( joints[i], frame == 50 );
+				b3SphericalJoint_EnableTwistLimit( joints[i], frame == 50 );
+			}
+		}
+		if ( frame == 80 )
+		{
+			b3Body_Disable( bodies[16] );
+		}
+		if ( frame == 82 )
+		{
+			b3Body_Enable( bodies[16] );
+		}
+		if ( frame == 84 )
+		{
+			b3Body_SetAwake( bodies[8], false );
+		}
+		if ( frame == 86 )
+		{
+			b3Body_SetAwake( bodies[8], true );
+		}
+		if ( frame == 90 || frame == 100 )
+		{
+			b3MotionLocks locks = { 0 };
+			locks.angularX = locks.angularY = locks.angularZ = frame == 90;
+			for ( int i = 1; i < 33; ++i )
+			{
+				b3Body_SetMotionLocks( bodies[i], locks );
+			}
+		}
+		if ( frame == 110 )
+		{
+			b3WorldTransform t = b3Body_GetTransform( bodies[12] );
+			t.p.y += size / 10;
+			b3Body_SetTransform( bodies[12], t.p, b3Quat_identity );
+		}
+		b3Fixed dt = frame == 10 ? 0 : b3FixDiv( B3_FIXED_ONE, b3FixFromInt( 60 ) );
+		b3World_Step( world, dt, substeps[frame % 4] );
+		if ( frame == 0 )
+		{
+			b3Counters counters = b3World_GetCounters( world );
+			if ( counters.colorCounts[B3_GRAPH_COLOR_COUNT - 1] == 0 || counters.colorCounts[0] < 32 )
+			{
+				b3DestroyWorld( world );
+				ENSURE( false );
+			}
+		}
+		uint64_t hash = UINT64_C( 14695981039346656037 );
+		for ( int i = 0; i < 99; ++i )
+		{
+			b3WorldTransform t = b3Body_GetTransform( bodies[i] );
+			hash = SphericalHashValue( SphericalHashValue( SphericalHashValue( hash, (uint64_t)t.p.x ), (uint64_t)t.p.y ),
+									   (uint64_t)t.p.z );
+#if defined( BOX3D_LUDICROUS_MODE )
+			hash = SphericalHashValue( hash, (uint64_t)( (b3UInt128)t.p.x >> 64 ) );
+			hash = SphericalHashValue( hash, (uint64_t)( (b3UInt128)t.p.y >> 64 ) );
+			hash = SphericalHashValue( hash, (uint64_t)( (b3UInt128)t.p.z >> 64 ) );
+#endif
+			hash = SphericalHashVector( hash, t.q.v );
+			hash = SphericalHashValue( hash, (uint64_t)t.q.s );
+			hash = SphericalHashVector( hash, b3Body_GetLinearVelocity( bodies[i] ) );
+			hash = SphericalHashVector( hash, b3Body_GetAngularVelocity( bodies[i] ) );
+			hash = SphericalHashValue( hash, b3Body_IsAwake( bodies[i] ) );
+		}
+		for ( int i = 0; i < 96; ++i )
+		{
+			hash = SphericalHashVector( hash, b3Joint_GetConstraintForce( joints[i] ) );
+			hash = SphericalHashVector( hash, b3Joint_GetConstraintTorque( joints[i] ) );
+		}
+		hashes[frame] = hash;
+	}
+	b3DestroyWorld( world );
+	return 0;
+}
+
+static int SphericalGeometryTest( void )
+{
+	// Captured from the uncached solver. A stale but consistently wrong cache
+	// must fail too, even if its results happen to agree across worker counts.
+#if defined( BOX3D_LUDICROUS_MODE )
+	const uint64_t goldens[2] = { UINT64_C( 0xee343d0d530f22f1 ), UINT64_C( 0x46256d278ff09af2 ) };
+#else
+	const uint64_t goldens[2] = { UINT64_C( 0xccf165f88a73ebb7 ), UINT64_C( 0x2add50ab7852c3ce ) };
+#endif
+	for ( int scale = 0; scale < 2; ++scale )
+	{
+		uint64_t reference[sphericalFrameCount];
+		ENSURE( RunSphericalGeometry( 1, scale, reference ) == 0 );
+		uint64_t hash = UINT64_C( 14695981039346656037 );
+		for ( int frame = 0; frame < sphericalFrameCount; ++frame )
+		{
+			hash = SphericalHashValue( hash, reference[frame] );
+		}
+		if ( hash != goldens[scale] )
+		{
+			printf( "  spherical scale=%d hash=%016" PRIx64 "\n", scale, hash );
+		}
+		ENSURE( hash == goldens[scale] );
+		for ( int workers = 2; workers <= 8; ++workers )
+		{
+			uint64_t actual[sphericalFrameCount];
+			ENSURE( RunSphericalGeometry( workers, scale, actual ) == 0 );
+			for ( int frame = 0; frame < sphericalFrameCount; ++frame )
+			{
+				if ( actual[frame] != reference[frame] )
+				{
+					printf( "  spherical scale=%d workers=%d frame=%d\n", scale, workers, frame );
+				}
+				ENSURE( actual[frame] == reference[frame] );
+			}
+		}
+	}
+	return 0;
+}
+
 int DeterminismTest( void )
 {
 	RUN_SUBTEST( MultithreadingTest );
@@ -307,6 +515,7 @@ int DeterminismTest( void )
 	RUN_SUBTEST( WavePileTest );
 	RUN_SUBTEST( QuerySpawnTest );
 	RUN_SUBTEST( MeshDropTest );
+	RUN_SUBTEST( SphericalGeometryTest );
 
 	return 0;
 }

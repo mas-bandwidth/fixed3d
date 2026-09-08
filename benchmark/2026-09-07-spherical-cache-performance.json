@@ -1,0 +1,993 @@
+{
+  "baseline": "8048b7844fd314b8fd7d6a65bfd32bf39c63886c",
+  "machine": "Apple M3 Ultra; macOS 26.6.2; Apple Clang 21; arm64 -O2 thin LTO; NEON; 4 workers, 4 substeps",
+  "internal_joint_bytes": {
+    "before": 864,
+    "after": 912,
+    "rejected_matrix_cache": 992
+  },
+  "note": "Four initial timing batches precede the all-sleeping tree-join repair; after-tree-fix measures the final code. No observations discarded. Shared-machine contention prevents an overall performance claim. See the accompanying report.",
+  "batches": {
+    "first": {
+      "diff": "diff --git a/src/joint.h b/src/joint.h\nindex 48520f0..fae9057 100644\n--- a/src/joint.h\n+++ b/src/joint.h\n@@ -262,6 +262,13 @@ typedef struct b3SphericalJoint\n \tb3Fixed twistMass;\n \tb3Softness springSoftness;\n \n+\t// Transient point-constraint geometry, invalidated each prepare/integration.\n+\tb3Vec3 cachedAnchorA;\n+\tb3Vec3 cachedAnchorB;\n+\tb3Matrix3 cachedPointMatrix;\n+\tint geometryGeneration;\n+\tint matrixGeneration;\n+\n \tbool enableSpring;\n \tbool enableMotor;\n \tbool enableConeLimit;\ndiff --git a/src/spherical_joint.c b/src/spherical_joint.c\nindex 785641d..f872bfc 100644\n--- a/src/spherical_joint.c\n+++ b/src/spherical_joint.c\n@@ -319,6 +319,8 @@ void b3PrepareSphericalJoint( b3JointSim* base, b3StepContext* context )\n \tbase->fixedRotation = invInertiaSum.cx.x + invInertiaSum.cy.y + invInertiaSum.cz.z == 0;\n \n \tb3SphericalJoint* joint = &base->sphericalJoint;\n+\tjoint->geometryGeneration = -1;\n+\tjoint->matrixGeneration = -1;\n \tjoint->indexA = bodyA->setIndex == b3_awakeSet ? localIndexA : B3_NULL_INDEX;\n \tjoint->indexB = bodyB->setIndex == b3_awakeSet ? localIndexB : B3_NULL_INDEX;\n \n@@ -359,7 +361,8 @@ void b3PrepareSphericalJoint( b3JointSim* base, b3StepContext* context )\n \t\tjoint->twistJacobian = twistJacobian;\n \t}\n \n-\tif ( base->fixedRotation == false )\n+\t// Only spring and motor constraints use the angular mass matrix.\n+\tif ( base->fixedRotation == false && ( joint->enableSpring || joint->enableMotor ) )\n \t{\n \t\tjoint->rotationMass = b3InvertAcrossScales( invInertiaSum );\n \t}\n@@ -381,6 +384,19 @@ void b3PrepareSphericalJoint( b3JointSim* base, b3StepContext* context )\n \t}\n }\n \n+// Only position integration changes these anchors within a step. The existing\n+// stage barriers publish positionGeneration before any joint uses the new poses.\n+static inline void b3UpdateSphericalAnchors( b3SphericalJoint* joint, const b3BodyState* stateA,\n+                                           const b3BodyState* stateB, int generation )\n+{\n+\tif ( joint->geometryGeneration != generation )\n+\t{\n+\t\tjoint->cachedAnchorA = b3RotateVector( stateA->deltaRotation, joint->frameA.p );\n+\t\tjoint->cachedAnchorB = b3RotateVector( stateB->deltaRotation, joint->frameB.p );\n+\t\tjoint->geometryGeneration = generation;\n+\t}\n+}\n+\n void b3WarmStartSphericalJoint( b3JointSim* base, b3StepContext* context )\n {\n \tB3_ASSERT( base->type == b3_sphericalJoint );\n@@ -403,8 +419,9 @@ void b3WarmStartSphericalJoint( b3JointSim* base, b3StepContext* context )\n \tb3Vec3 vB = stateB->linearVelocity;\n \tb3Vec3 wB = stateB->angularVelocity;\n \n-\tb3Vec3 rA = b3RotateVector( stateA->deltaRotation, joint->frameA.p );\n-\tb3Vec3 rB = b3RotateVector( stateB->deltaRotation, joint->frameB.p );\n+\tb3UpdateSphericalAnchors( joint, stateA, stateB, context->positionGeneration );\n+\tb3Vec3 rA = joint->cachedAnchorA;\n+\tb3Vec3 rB = joint->cachedAnchorB;\n \n \tb3Vec3 angularImpulse = b3Add( joint->springImpulse, joint->motorImpulse );\n \tangularImpulse = b3MulSub( angularImpulse, joint->swingImpulse, joint->swingAxis );\n@@ -609,8 +626,9 @@ void b3SolveSphericalJoint( b3JointSim* base, b3StepContext* context, bool useBi\n \n \t// Solve point-to-point constraint\n \t{\n-\t\tb3Vec3 rA = b3RotateVector( stateA->deltaRotation, joint->frameA.p );\n-\t\tb3Vec3 rB = b3RotateVector( stateB->deltaRotation, joint->frameB.p );\n+\t\tb3UpdateSphericalAnchors( joint, stateA, stateB, context->positionGeneration );\n+\t\tb3Vec3 rA = joint->cachedAnchorA;\n+\t\tb3Vec3 rB = joint->cachedAnchorB;\n \n \t\tb3Vec3 cdot = b3Sub( b3Sub( b3Add( vB, b3Cross( wB, rB ) ), vA ), b3Cross( wA, rA ) );\n \n@@ -635,15 +653,21 @@ void b3SolveSphericalJoint( b3JointSim* base, b3StepContext* context, bool useBi\n \t\t// Zero RHS has an exact zero solution; accumulated impulses still apply below.\n \t\tif ( rhs.x != 0 || rhs.y != 0 || rhs.z != 0 )\n \t\t{\n-\t\t\t//// K = [(1/m1 + 1/m2) * eye(2) - skew(r1) * invI1 * skew(r1) - skew(r2) * invI2 * skew(r2)]\n-\t\t\tb3Matrix3 kA = b3SkewSandwich( base->invIA, rA );\n-\t\t\tb3Matrix3 kB = b3SkewSandwich( base->invIB, rB );\n-\t\t\tb3Matrix3 k = b3NegateMat3( b3AddMM( kA, kB ) );\n-\t\t\tk.cx.x += mA + mB;\n-\t\t\tk.cy.y += mA + mB;\n-\t\t\tk.cz.z += mA + mB;\n-\n-\t\t\tb = b3Solve3AcrossScales( k, rhs );\n+\t\t\tif ( joint->matrixGeneration != context->positionGeneration )\n+\t\t\t{\n+\t\t\t\t//// K = [(1/m1 + 1/m2) * eye(2) - skew(r1) * invI1 * skew(r1) - skew(r2) * invI2 * skew(r2)]\n+\t\t\t\tb3Matrix3 kA = b3SkewSandwich( base->invIA, rA );\n+\t\t\t\tb3Matrix3 kB = b3SkewSandwich( base->invIB, rB );\n+\t\t\t\tb3Matrix3 k = b3NegateMat3( b3AddMM( kA, kB ) );\n+\t\t\t\tk.cx.x += mA + mB;\n+\t\t\t\tk.cy.y += mA + mB;\n+\t\t\t\tk.cz.z += mA + mB;\n+\n+\t\t\t\tjoint->cachedPointMatrix = k;\n+\t\t\t\tjoint->matrixGeneration = context->positionGeneration;\n+\t\t\t}\n+\n+\t\t\tb = b3Solve3AcrossScales( joint->cachedPointMatrix, rhs );\n \t\t}\n \n \t\tb3Vec3 impulse = b3MulSub( b3MulSV( -massScale, b ), impulseScale, joint->linearImpulse );\n",
+      "hashes": {
+        "before": "b1e391977be1d60781eaa88edd9fdad835d3734cb03e6617f4606706f54a2835",
+        "angular": "eba0f1f4afd81dcb4afdd60d422d564cb747ade56815673ed4f09f269f4e2609",
+        "cache": "640111f50f7639ad9699bab511cb6d6ee551cecc613f4771384dbe971f2a59c3"
+      },
+      "rows": [
+        {
+          "scene": "joint_grid",
+          "runs": [
+            {
+              "binary": "before",
+              "ms": 645.061,
+              "counters": "body 10000 / shape 10000 / contact 0 / joint 19800 / stack 5200000"
+            },
+            {
+              "binary": "angular",
+              "ms": 601.92,
+              "counters": "body 10000 / shape 10000 / contact 0 / joint 19800 / stack 5200000"
+            },
+            {
+              "binary": "cache",
+              "ms": 575.72,
+              "counters": "body 10000 / shape 10000 / contact 0 / joint 19800 / stack 5200000"
+            },
+            {
+              "binary": "cache",
+              "ms": 588.448,
+              "counters": "body 10000 / shape 10000 / contact 0 / joint 19800 / stack 5200000"
+            },
+            {
+              "binary": "angular",
+              "ms": 630.976,
+              "counters": "body 10000 / shape 10000 / contact 0 / joint 19800 / stack 5200000"
+            },
+            {
+              "binary": "before",
+              "ms": 673.661,
+              "counters": "body 10000 / shape 10000 / contact 0 / joint 19800 / stack 5200000"
+            }
+          ],
+          "medians_ms": {
+            "before": 659.361,
+            "angular": 616.448,
+            "cache": 582.0840000000001
+          }
+        },
+        {
+          "scene": "rain",
+          "runs": [
+            {
+              "binary": "before",
+              "ms": 1451.59,
+              "counters": "body 4300 / shape 4400 / contact 7019 / joint 4200 / stack 1765344"
+            },
+            {
+              "binary": "angular",
+              "ms": 1435.36,
+              "counters": "body 4300 / shape 4400 / contact 7019 / joint 4200 / stack 1765344"
+            },
+            {
+              "binary": "cache",
+              "ms": 1837.97,
+              "counters": "body 4300 / shape 4400 / contact 7019 / joint 4200 / stack 1765344"
+            },
+            {
+              "binary": "cache",
+              "ms": 1787.54,
+              "counters": "body 4300 / shape 4400 / contact 7019 / joint 4200 / stack 1765344"
+            },
+            {
+              "binary": "angular",
+              "ms": 1394.12,
+              "counters": "body 4300 / shape 4400 / contact 7019 / joint 4200 / stack 1765344"
+            },
+            {
+              "binary": "before",
+              "ms": 1433.81,
+              "counters": "body 4300 / shape 4400 / contact 7019 / joint 4200 / stack 1765344"
+            }
+          ],
+          "medians_ms": {
+            "before": 1442.6999999999998,
+            "angular": 1414.7399999999998,
+            "cache": 1812.755
+          }
+        },
+        {
+          "scene": "large_pyramid",
+          "runs": [
+            {
+              "binary": "before",
+              "ms": 1599.49,
+              "counters": "body 5051 / shape 5051 / contact 14950 / joint 0 / stack 16633104"
+            },
+            {
+              "binary": "angular",
+              "ms": 1593.83,
+              "counters": "body 5051 / shape 5051 / contact 14950 / joint 0 / stack 16633104"
+            },
+            {
+              "binary": "cache",
+              "ms": 1614.12,
+              "counters": "body 5051 / shape 5051 / contact 14950 / joint 0 / stack 16633104"
+            },
+            {
+              "binary": "cache",
+              "ms": 1607.48,
+              "counters": "body 5051 / shape 5051 / contact 14950 / joint 0 / stack 16633104"
+            },
+            {
+              "binary": "angular",
+              "ms": 1585.92,
+              "counters": "body 5051 / shape 5051 / contact 14950 / joint 0 / stack 16633104"
+            },
+            {
+              "binary": "before",
+              "ms": 1557.13,
+              "counters": "body 5051 / shape 5051 / contact 14950 / joint 0 / stack 16633104"
+            }
+          ],
+          "medians_ms": {
+            "before": 1578.31,
+            "angular": 1589.875,
+            "cache": 1610.8
+          }
+        }
+      ]
+    },
+    "anchors": {
+      "diff": "diff --git a/src/joint.h b/src/joint.h\nindex 48520f0..957d733 100644\n--- a/src/joint.h\n+++ b/src/joint.h\n@@ -262,6 +262,11 @@ typedef struct b3SphericalJoint\n \tb3Fixed twistMass;\n \tb3Softness springSoftness;\n \n+\t// Transient point-constraint geometry, invalidated each prepare/integration.\n+\tb3Vec3 cachedAnchorA;\n+\tb3Vec3 cachedAnchorB;\n+\tint geometryGeneration;\n+\n \tbool enableSpring;\n \tbool enableMotor;\n \tbool enableConeLimit;\ndiff --git a/src/spherical_joint.c b/src/spherical_joint.c\nindex 785641d..e28df68 100644\n--- a/src/spherical_joint.c\n+++ b/src/spherical_joint.c\n@@ -319,6 +319,7 @@ void b3PrepareSphericalJoint( b3JointSim* base, b3StepContext* context )\n \tbase->fixedRotation = invInertiaSum.cx.x + invInertiaSum.cy.y + invInertiaSum.cz.z == 0;\n \n \tb3SphericalJoint* joint = &base->sphericalJoint;\n+\tjoint->geometryGeneration = -1;\n \tjoint->indexA = bodyA->setIndex == b3_awakeSet ? localIndexA : B3_NULL_INDEX;\n \tjoint->indexB = bodyB->setIndex == b3_awakeSet ? localIndexB : B3_NULL_INDEX;\n \n@@ -359,7 +360,8 @@ void b3PrepareSphericalJoint( b3JointSim* base, b3StepContext* context )\n \t\tjoint->twistJacobian = twistJacobian;\n \t}\n \n-\tif ( base->fixedRotation == false )\n+\t// Only spring and motor constraints use the angular mass matrix.\n+\tif ( base->fixedRotation == false && ( joint->enableSpring || joint->enableMotor ) )\n \t{\n \t\tjoint->rotationMass = b3InvertAcrossScales( invInertiaSum );\n \t}\n@@ -381,6 +383,19 @@ void b3PrepareSphericalJoint( b3JointSim* base, b3StepContext* context )\n \t}\n }\n \n+// Only position integration changes these anchors within a step. The existing\n+// stage barriers publish positionGeneration before any joint uses the new poses.\n+static inline void b3UpdateSphericalAnchors( b3SphericalJoint* joint, const b3BodyState* stateA,\n+                                           const b3BodyState* stateB, int generation )\n+{\n+\tif ( joint->geometryGeneration != generation )\n+\t{\n+\t\tjoint->cachedAnchorA = b3RotateVector( stateA->deltaRotation, joint->frameA.p );\n+\t\tjoint->cachedAnchorB = b3RotateVector( stateB->deltaRotation, joint->frameB.p );\n+\t\tjoint->geometryGeneration = generation;\n+\t}\n+}\n+\n void b3WarmStartSphericalJoint( b3JointSim* base, b3StepContext* context )\n {\n \tB3_ASSERT( base->type == b3_sphericalJoint );\n@@ -403,8 +418,9 @@ void b3WarmStartSphericalJoint( b3JointSim* base, b3StepContext* context )\n \tb3Vec3 vB = stateB->linearVelocity;\n \tb3Vec3 wB = stateB->angularVelocity;\n \n-\tb3Vec3 rA = b3RotateVector( stateA->deltaRotation, joint->frameA.p );\n-\tb3Vec3 rB = b3RotateVector( stateB->deltaRotation, joint->frameB.p );\n+\tb3UpdateSphericalAnchors( joint, stateA, stateB, context->positionGeneration );\n+\tb3Vec3 rA = joint->cachedAnchorA;\n+\tb3Vec3 rB = joint->cachedAnchorB;\n \n \tb3Vec3 angularImpulse = b3Add( joint->springImpulse, joint->motorImpulse );\n \tangularImpulse = b3MulSub( angularImpulse, joint->swingImpulse, joint->swingAxis );\n@@ -609,8 +625,9 @@ void b3SolveSphericalJoint( b3JointSim* base, b3StepContext* context, bool useBi\n \n \t// Solve point-to-point constraint\n \t{\n-\t\tb3Vec3 rA = b3RotateVector( stateA->deltaRotation, joint->frameA.p );\n-\t\tb3Vec3 rB = b3RotateVector( stateB->deltaRotation, joint->frameB.p );\n+\t\tb3UpdateSphericalAnchors( joint, stateA, stateB, context->positionGeneration );\n+\t\tb3Vec3 rA = joint->cachedAnchorA;\n+\t\tb3Vec3 rB = joint->cachedAnchorB;\n \n \t\tb3Vec3 cdot = b3Sub( b3Sub( b3Add( vB, b3Cross( wB, rB ) ), vA ), b3Cross( wA, rA ) );\n \n",
+      "hashes": {
+        "before": "b1e391977be1d60781eaa88edd9fdad835d3734cb03e6617f4606706f54a2835",
+        "angular": "eba0f1f4afd81dcb4afdd60d422d564cb747ade56815673ed4f09f269f4e2609",
+        "cache": "fd47054550027d2fe83ab98fbd5c27261283b89e6d4804aa361d9a64a641e1af"
+      },
+      "rows": [
+        {
+          "scene": "joint_grid",
+          "runs": [
+            {
+              "binary": "before",
+              "ms": 651.646,
+              "counters": "body 10000 / shape 10000 / contact 0 / joint 19800 / stack 5200000"
+            },
+            {
+              "binary": "angular",
+              "ms": 615.268,
+              "counters": "body 10000 / shape 10000 / contact 0 / joint 19800 / stack 5200000"
+            },
+            {
+              "binary": "cache",
+              "ms": 558.915,
+              "counters": "body 10000 / shape 10000 / contact 0 / joint 19800 / stack 5200000"
+            },
+            {
+              "binary": "cache",
+              "ms": 557.414,
+              "counters": "body 10000 / shape 10000 / contact 0 / joint 19800 / stack 5200000"
+            },
+            {
+              "binary": "angular",
+              "ms": 605.318,
+              "counters": "body 10000 / shape 10000 / contact 0 / joint 19800 / stack 5200000"
+            },
+            {
+              "binary": "before",
+              "ms": 651.576,
+              "counters": "body 10000 / shape 10000 / contact 0 / joint 19800 / stack 5200000"
+            }
+          ],
+          "medians_ms": {
+            "before": 651.611,
+            "angular": 610.293,
+            "cache": 558.1645
+          }
+        },
+        {
+          "scene": "rain",
+          "runs": [
+            {
+              "binary": "before",
+              "ms": 1343.15,
+              "counters": "body 4300 / shape 4400 / contact 7019 / joint 4200 / stack 1765344"
+            },
+            {
+              "binary": "angular",
+              "ms": 1324.36,
+              "counters": "body 4300 / shape 4400 / contact 7019 / joint 4200 / stack 1765344"
+            },
+            {
+              "binary": "cache",
+              "ms": 1303.84,
+              "counters": "body 4300 / shape 4400 / contact 7019 / joint 4200 / stack 1765344"
+            },
+            {
+              "binary": "cache",
+              "ms": 1380.83,
+              "counters": "body 4300 / shape 4400 / contact 7019 / joint 4200 / stack 1765344"
+            },
+            {
+              "binary": "angular",
+              "ms": 1342.49,
+              "counters": "body 4300 / shape 4400 / contact 7019 / joint 4200 / stack 1765344"
+            },
+            {
+              "binary": "before",
+              "ms": 1326.12,
+              "counters": "body 4300 / shape 4400 / contact 7019 / joint 4200 / stack 1765344"
+            }
+          ],
+          "medians_ms": {
+            "before": 1334.635,
+            "angular": 1333.425,
+            "cache": 1342.335
+          }
+        },
+        {
+          "scene": "large_pyramid",
+          "runs": [
+            {
+              "binary": "before",
+              "ms": 1582.69,
+              "counters": "body 5051 / shape 5051 / contact 14950 / joint 0 / stack 16633104"
+            },
+            {
+              "binary": "angular",
+              "ms": 1688.14,
+              "counters": "body 5051 / shape 5051 / contact 14950 / joint 0 / stack 16633104"
+            },
+            {
+              "binary": "cache",
+              "ms": 1603.3,
+              "counters": "body 5051 / shape 5051 / contact 14950 / joint 0 / stack 16633104"
+            },
+            {
+              "binary": "cache",
+              "ms": 1626.41,
+              "counters": "body 5051 / shape 5051 / contact 14950 / joint 0 / stack 16633104"
+            },
+            {
+              "binary": "angular",
+              "ms": 1585.87,
+              "counters": "body 5051 / shape 5051 / contact 14950 / joint 0 / stack 16633104"
+            },
+            {
+              "binary": "before",
+              "ms": 1603.55,
+              "counters": "body 5051 / shape 5051 / contact 14950 / joint 0 / stack 16633104"
+            }
+          ],
+          "medians_ms": {
+            "before": 1593.12,
+            "angular": 1637.005,
+            "cache": 1614.855
+          }
+        }
+      ]
+    },
+    "final-recheck": {
+      "diff": "diff --git a/src/joint.h b/src/joint.h\nindex 48520f0..957d733 100644\n--- a/src/joint.h\n+++ b/src/joint.h\n@@ -262,6 +262,11 @@ typedef struct b3SphericalJoint\n \tb3Fixed twistMass;\n \tb3Softness springSoftness;\n \n+\t// Transient point-constraint geometry, invalidated each prepare/integration.\n+\tb3Vec3 cachedAnchorA;\n+\tb3Vec3 cachedAnchorB;\n+\tint geometryGeneration;\n+\n \tbool enableSpring;\n \tbool enableMotor;\n \tbool enableConeLimit;\ndiff --git a/src/spherical_joint.c b/src/spherical_joint.c\nindex 785641d..4ae643c 100644\n--- a/src/spherical_joint.c\n+++ b/src/spherical_joint.c\n@@ -319,6 +319,7 @@ void b3PrepareSphericalJoint( b3JointSim* base, b3StepContext* context )\n \tbase->fixedRotation = invInertiaSum.cx.x + invInertiaSum.cy.y + invInertiaSum.cz.z == 0;\n \n \tb3SphericalJoint* joint = &base->sphericalJoint;\n+\tjoint->geometryGeneration = -1;\n \tjoint->indexA = bodyA->setIndex == b3_awakeSet ? localIndexA : B3_NULL_INDEX;\n \tjoint->indexB = bodyB->setIndex == b3_awakeSet ? localIndexB : B3_NULL_INDEX;\n \n@@ -330,11 +331,14 @@ void b3PrepareSphericalJoint( b3JointSim* base, b3StepContext* context )\n \n \tjoint->deltaCenter = b3SubPos( bodySimB->center, bodySimA->center );\n \n-\t// Cone axis is the z-axis of body A.\n-\tb3Vec3 coneAxis = b3RotateVector( joint->frameA.q, b3Vec3_axisZ );\n-\n-\t// Twist axis is the z-axis of body B.\n-\tb3Vec3 twistAxis = b3RotateVector( joint->frameB.q, b3Vec3_axisZ );\n+\tb3Vec3 coneAxis = b3Vec3_zero;\n+\tb3Vec3 twistAxis = b3Vec3_zero;\n+\tif ( joint->enableConeLimit || joint->enableTwistLimit )\n+\t{\n+\t\t// Cone and twist axes are the z-axes of the two joint frames.\n+\t\tconeAxis = b3RotateVector( joint->frameA.q, b3Vec3_axisZ );\n+\t\ttwistAxis = b3RotateVector( joint->frameB.q, b3Vec3_axisZ );\n+\t}\n \n \tif ( joint->enableConeLimit )\n \t{\n@@ -359,7 +363,8 @@ void b3PrepareSphericalJoint( b3JointSim* base, b3StepContext* context )\n \t\tjoint->twistJacobian = twistJacobian;\n \t}\n \n-\tif ( base->fixedRotation == false )\n+\t// Only spring and motor constraints use the angular mass matrix.\n+\tif ( base->fixedRotation == false && ( joint->enableSpring || joint->enableMotor ) )\n \t{\n \t\tjoint->rotationMass = b3InvertAcrossScales( invInertiaSum );\n \t}\n@@ -381,6 +386,19 @@ void b3PrepareSphericalJoint( b3JointSim* base, b3StepContext* context )\n \t}\n }\n \n+// Only position integration changes these anchors within a step. The existing\n+// stage barriers publish positionGeneration before any joint uses the new poses.\n+static inline void b3UpdateSphericalAnchors( b3SphericalJoint* joint, const b3BodyState* stateA,\n+                                           const b3BodyState* stateB, int generation )\n+{\n+\tif ( joint->geometryGeneration != generation )\n+\t{\n+\t\tjoint->cachedAnchorA = b3RotateVector( stateA->deltaRotation, joint->frameA.p );\n+\t\tjoint->cachedAnchorB = b3RotateVector( stateB->deltaRotation, joint->frameB.p );\n+\t\tjoint->geometryGeneration = generation;\n+\t}\n+}\n+\n void b3WarmStartSphericalJoint( b3JointSim* base, b3StepContext* context )\n {\n \tB3_ASSERT( base->type == b3_sphericalJoint );\n@@ -403,8 +421,9 @@ void b3WarmStartSphericalJoint( b3JointSim* base, b3StepContext* context )\n \tb3Vec3 vB = stateB->linearVelocity;\n \tb3Vec3 wB = stateB->angularVelocity;\n \n-\tb3Vec3 rA = b3RotateVector( stateA->deltaRotation, joint->frameA.p );\n-\tb3Vec3 rB = b3RotateVector( stateB->deltaRotation, joint->frameB.p );\n+\tb3UpdateSphericalAnchors( joint, stateA, stateB, context->positionGeneration );\n+\tb3Vec3 rA = joint->cachedAnchorA;\n+\tb3Vec3 rB = joint->cachedAnchorB;\n \n \tb3Vec3 angularImpulse = b3Add( joint->springImpulse, joint->motorImpulse );\n \tangularImpulse = b3MulSub( angularImpulse, joint->swingImpulse, joint->swingAxis );\n@@ -609,8 +628,9 @@ void b3SolveSphericalJoint( b3JointSim* base, b3StepContext* context, bool useBi\n \n \t// Solve point-to-point constraint\n \t{\n-\t\tb3Vec3 rA = b3RotateVector( stateA->deltaRotation, joint->frameA.p );\n-\t\tb3Vec3 rB = b3RotateVector( stateB->deltaRotation, joint->frameB.p );\n+\t\tb3UpdateSphericalAnchors( joint, stateA, stateB, context->positionGeneration );\n+\t\tb3Vec3 rA = joint->cachedAnchorA;\n+\t\tb3Vec3 rB = joint->cachedAnchorB;\n \n \t\tb3Vec3 cdot = b3Sub( b3Sub( b3Add( vB, b3Cross( wB, rB ) ), vA ), b3Cross( wA, rA ) );\n \n",
+      "hashes": {
+        "before": "b1e391977be1d60781eaa88edd9fdad835d3734cb03e6617f4606706f54a2835",
+        "cache": "2d28c83ddc0338e05bdb9a7cf180641f7da5abdb6c2e881701e997fcaee8a5d1"
+      },
+      "rows": [
+        {
+          "scene": "joint_grid",
+          "runs": [
+            {
+              "binary": "before",
+              "ms": 660.766,
+              "counters": "body 10000 / shape 10000 / contact 0 / joint 19800 / stack 5200000"
+            },
+            {
+              "binary": "cache",
+              "ms": 563.361,
+              "counters": "body 10000 / shape 10000 / contact 0 / joint 19800 / stack 5200000"
+            },
+            {
+              "binary": "cache",
+              "ms": 560.029,
+              "counters": "body 10000 / shape 10000 / contact 0 / joint 19800 / stack 5200000"
+            },
+            {
+              "binary": "before",
+              "ms": 693.046,
+              "counters": "body 10000 / shape 10000 / contact 0 / joint 19800 / stack 5200000"
+            },
+            {
+              "binary": "before",
+              "ms": 703.513,
+              "counters": "body 10000 / shape 10000 / contact 0 / joint 19800 / stack 5200000"
+            },
+            {
+              "binary": "cache",
+              "ms": 562.802,
+              "counters": "body 10000 / shape 10000 / contact 0 / joint 19800 / stack 5200000"
+            },
+            {
+              "binary": "cache",
+              "ms": 551.9,
+              "counters": "body 10000 / shape 10000 / contact 0 / joint 19800 / stack 5200000"
+            },
+            {
+              "binary": "before",
+              "ms": 649.316,
+              "counters": "body 10000 / shape 10000 / contact 0 / joint 19800 / stack 5200000"
+            }
+          ],
+          "medians_ms": {
+            "before": 676.906,
+            "cache": 561.4155000000001
+          }
+        },
+        {
+          "scene": "rain",
+          "runs": [
+            {
+              "binary": "before",
+              "ms": 1298.9,
+              "counters": "body 4300 / shape 4400 / contact 7019 / joint 4200 / stack 1765344"
+            },
+            {
+              "binary": "cache",
+              "ms": 1281.71,
+              "counters": "body 4300 / shape 4400 / contact 7019 / joint 4200 / stack 1765344"
+            },
+            {
+              "binary": "cache",
+              "ms": 1302.56,
+              "counters": "body 4300 / shape 4400 / contact 7019 / joint 4200 / stack 1765344"
+            },
+            {
+              "binary": "before",
+              "ms": 1349.63,
+              "counters": "body 4300 / shape 4400 / contact 7019 / joint 4200 / stack 1765344"
+            },
+            {
+              "binary": "before",
+              "ms": 1402.97,
+              "counters": "body 4300 / shape 4400 / contact 7019 / joint 4200 / stack 1765344"
+            },
+            {
+              "binary": "cache",
+              "ms": 2260.18,
+              "counters": "body 4300 / shape 4400 / contact 7019 / joint 4200 / stack 1765344"
+            },
+            {
+              "binary": "cache",
+              "ms": 1507.48,
+              "counters": "body 4300 / shape 4400 / contact 7019 / joint 4200 / stack 1765344"
+            },
+            {
+              "binary": "before",
+              "ms": 1339.13,
+              "counters": "body 4300 / shape 4400 / contact 7019 / joint 4200 / stack 1765344"
+            }
+          ],
+          "medians_ms": {
+            "before": 1344.38,
+            "cache": 1405.02
+          }
+        },
+        {
+          "scene": "large_pyramid",
+          "runs": [
+            {
+              "binary": "before",
+              "ms": 1581.89,
+              "counters": "body 5051 / shape 5051 / contact 14950 / joint 0 / stack 16633104"
+            },
+            {
+              "binary": "cache",
+              "ms": 1592.54,
+              "counters": "body 5051 / shape 5051 / contact 14950 / joint 0 / stack 16633104"
+            },
+            {
+              "binary": "cache",
+              "ms": 1610.64,
+              "counters": "body 5051 / shape 5051 / contact 14950 / joint 0 / stack 16633104"
+            },
+            {
+              "binary": "before",
+              "ms": 1608.05,
+              "counters": "body 5051 / shape 5051 / contact 14950 / joint 0 / stack 16633104"
+            },
+            {
+              "binary": "before",
+              "ms": 1570.38,
+              "counters": "body 5051 / shape 5051 / contact 14950 / joint 0 / stack 16633104"
+            },
+            {
+              "binary": "cache",
+              "ms": 1627.67,
+              "counters": "body 5051 / shape 5051 / contact 14950 / joint 0 / stack 16633104"
+            },
+            {
+              "binary": "cache",
+              "ms": 1720.02,
+              "counters": "body 5051 / shape 5051 / contact 14950 / joint 0 / stack 16633104"
+            },
+            {
+              "binary": "before",
+              "ms": 1618.89,
+              "counters": "body 5051 / shape 5051 / contact 14950 / joint 0 / stack 16633104"
+            }
+          ],
+          "medians_ms": {
+            "before": 1594.97,
+            "cache": 1619.1550000000002
+          }
+        }
+      ]
+    },
+    "broad": {
+      "workers": 4,
+      "substeps": 4,
+      "runs": [
+        {
+          "scene": "joint_grid",
+          "binary": "before",
+          "trial": 0,
+          "ms": 652.413,
+          "counters": "body 10000 / shape 10000 / contact 0 / joint 19800 / stack 5200000"
+        },
+        {
+          "scene": "joint_grid",
+          "binary": "after",
+          "trial": 1,
+          "ms": 576.245,
+          "counters": "body 10000 / shape 10000 / contact 0 / joint 19800 / stack 5200000"
+        },
+        {
+          "scene": "joint_grid",
+          "binary": "after",
+          "trial": 2,
+          "ms": 586.72,
+          "counters": "body 10000 / shape 10000 / contact 0 / joint 19800 / stack 5200000"
+        },
+        {
+          "scene": "joint_grid",
+          "binary": "before",
+          "trial": 3,
+          "ms": 661.287,
+          "counters": "body 10000 / shape 10000 / contact 0 / joint 19800 / stack 5200000"
+        },
+        {
+          "scene": "joint_grid",
+          "binary": "before",
+          "trial": 4,
+          "ms": 659.561,
+          "counters": "body 10000 / shape 10000 / contact 0 / joint 19800 / stack 5200000"
+        },
+        {
+          "scene": "joint_grid",
+          "binary": "after",
+          "trial": 5,
+          "ms": 570.484,
+          "counters": "body 10000 / shape 10000 / contact 0 / joint 19800 / stack 5200000"
+        },
+        {
+          "scene": "joint_grid",
+          "binary": "after",
+          "trial": 6,
+          "ms": 573.498,
+          "counters": "body 10000 / shape 10000 / contact 0 / joint 19800 / stack 5200000"
+        },
+        {
+          "scene": "joint_grid",
+          "binary": "before",
+          "trial": 7,
+          "ms": 658.627,
+          "counters": "body 10000 / shape 10000 / contact 0 / joint 19800 / stack 5200000"
+        },
+        {
+          "scene": "rain",
+          "binary": "before",
+          "trial": 0,
+          "ms": 1354.72,
+          "counters": "body 4300 / shape 4400 / contact 7019 / joint 4200 / stack 1765344"
+        },
+        {
+          "scene": "rain",
+          "binary": "after",
+          "trial": 1,
+          "ms": 1353.06,
+          "counters": "body 4300 / shape 4400 / contact 7019 / joint 4200 / stack 1765344"
+        },
+        {
+          "scene": "rain",
+          "binary": "after",
+          "trial": 2,
+          "ms": 1358.79,
+          "counters": "body 4300 / shape 4400 / contact 7019 / joint 4200 / stack 1765344"
+        },
+        {
+          "scene": "rain",
+          "binary": "before",
+          "trial": 3,
+          "ms": 1369.18,
+          "counters": "body 4300 / shape 4400 / contact 7019 / joint 4200 / stack 1765344"
+        },
+        {
+          "scene": "rain",
+          "binary": "before",
+          "trial": 4,
+          "ms": 1485.96,
+          "counters": "body 4300 / shape 4400 / contact 7019 / joint 4200 / stack 1765344"
+        },
+        {
+          "scene": "rain",
+          "binary": "after",
+          "trial": 5,
+          "ms": 1611.19,
+          "counters": "body 4300 / shape 4400 / contact 7019 / joint 4200 / stack 1765344"
+        },
+        {
+          "scene": "rain",
+          "binary": "after",
+          "trial": 6,
+          "ms": 1455.52,
+          "counters": "body 4300 / shape 4400 / contact 7019 / joint 4200 / stack 1765344"
+        },
+        {
+          "scene": "rain",
+          "binary": "before",
+          "trial": 7,
+          "ms": 1536.64,
+          "counters": "body 4300 / shape 4400 / contact 7019 / joint 4200 / stack 1765344"
+        },
+        {
+          "scene": "large_pyramid",
+          "binary": "before",
+          "trial": 0,
+          "ms": 1763.06,
+          "counters": "body 5051 / shape 5051 / contact 14950 / joint 0 / stack 16633104"
+        },
+        {
+          "scene": "large_pyramid",
+          "binary": "after",
+          "trial": 1,
+          "ms": 1749.47,
+          "counters": "body 5051 / shape 5051 / contact 14950 / joint 0 / stack 16633104"
+        },
+        {
+          "scene": "large_pyramid",
+          "binary": "after",
+          "trial": 2,
+          "ms": 1749.7,
+          "counters": "body 5051 / shape 5051 / contact 14950 / joint 0 / stack 16633104"
+        },
+        {
+          "scene": "large_pyramid",
+          "binary": "before",
+          "trial": 3,
+          "ms": 1744.16,
+          "counters": "body 5051 / shape 5051 / contact 14950 / joint 0 / stack 16633104"
+        },
+        {
+          "scene": "large_pyramid",
+          "binary": "before",
+          "trial": 4,
+          "ms": 1884.79,
+          "counters": "body 5051 / shape 5051 / contact 14950 / joint 0 / stack 16633104"
+        },
+        {
+          "scene": "large_pyramid",
+          "binary": "after",
+          "trial": 5,
+          "ms": 4223.94,
+          "counters": "body 5051 / shape 5051 / contact 14950 / joint 0 / stack 16633104"
+        },
+        {
+          "scene": "large_pyramid",
+          "binary": "after",
+          "trial": 6,
+          "ms": 2261.61,
+          "counters": "body 5051 / shape 5051 / contact 14950 / joint 0 / stack 16633104"
+        },
+        {
+          "scene": "large_pyramid",
+          "binary": "before",
+          "trial": 7,
+          "ms": 1675.39,
+          "counters": "body 5051 / shape 5051 / contact 14950 / joint 0 / stack 16633104"
+        },
+        {
+          "scene": "many_pyramids",
+          "binary": "before",
+          "trial": 0,
+          "ms": 1610.11,
+          "counters": "body 10781 / shape 10781 / contact 28420 / joint 0 / stack 31601072"
+        },
+        {
+          "scene": "many_pyramids",
+          "binary": "after",
+          "trial": 1,
+          "ms": 1630.71,
+          "counters": "body 10781 / shape 10781 / contact 28420 / joint 0 / stack 31601072"
+        },
+        {
+          "scene": "many_pyramids",
+          "binary": "after",
+          "trial": 2,
+          "ms": 1651.17,
+          "counters": "body 10781 / shape 10781 / contact 28420 / joint 0 / stack 31601072"
+        },
+        {
+          "scene": "many_pyramids",
+          "binary": "before",
+          "trial": 3,
+          "ms": 1645.26,
+          "counters": "body 10781 / shape 10781 / contact 28420 / joint 0 / stack 31601072"
+        },
+        {
+          "scene": "junkyard",
+          "binary": "before",
+          "trial": 0,
+          "ms": 9014.78,
+          "counters": "body 10586 / shape 10590 / contact 195788 / joint 0 / stack 29608368"
+        },
+        {
+          "scene": "junkyard",
+          "binary": "after",
+          "trial": 1,
+          "ms": 9635.68,
+          "counters": "body 10586 / shape 10590 / contact 195788 / joint 0 / stack 29608368"
+        },
+        {
+          "scene": "junkyard",
+          "binary": "after",
+          "trial": 2,
+          "ms": 9141.46,
+          "counters": "body 10586 / shape 10590 / contact 195788 / joint 0 / stack 29608368"
+        },
+        {
+          "scene": "junkyard",
+          "binary": "before",
+          "trial": 3,
+          "ms": 9419.3,
+          "counters": "body 10586 / shape 10590 / contact 195788 / joint 0 / stack 29608368"
+        },
+        {
+          "scene": "washer",
+          "binary": "before",
+          "trial": 0,
+          "ms": 13448.7,
+          "counters": "body 8002 / shape 8041 / contact 40576 / joint 0 / stack 19101392"
+        },
+        {
+          "scene": "washer",
+          "binary": "after",
+          "trial": 1,
+          "ms": 14050.5,
+          "counters": "body 8002 / shape 8041 / contact 40576 / joint 0 / stack 19101392"
+        },
+        {
+          "scene": "washer",
+          "binary": "after",
+          "trial": 2,
+          "ms": 16087.2,
+          "counters": "body 8002 / shape 8041 / contact 40576 / joint 0 / stack 19101392"
+        },
+        {
+          "scene": "washer",
+          "binary": "before",
+          "trial": 3,
+          "ms": 16286.9,
+          "counters": "body 8002 / shape 8041 / contact 40576 / joint 0 / stack 19101392"
+        },
+        {
+          "scene": "convex_pile",
+          "binary": "before",
+          "trial": 0,
+          "ms": 7635.37,
+          "counters": "body 5121 / shape 5121 / contact 51305 / joint 0 / stack 6403712"
+        },
+        {
+          "scene": "convex_pile",
+          "binary": "after",
+          "trial": 1,
+          "ms": 9865.01,
+          "counters": "body 5121 / shape 5121 / contact 51305 / joint 0 / stack 6403712"
+        },
+        {
+          "scene": "convex_pile",
+          "binary": "after",
+          "trial": 2,
+          "ms": 8083.09,
+          "counters": "body 5121 / shape 5121 / contact 51305 / joint 0 / stack 6403712"
+        },
+        {
+          "scene": "convex_pile",
+          "binary": "before",
+          "trial": 3,
+          "ms": 7406.23,
+          "counters": "body 5121 / shape 5121 / contact 51305 / joint 0 / stack 6403712"
+        },
+        {
+          "scene": "large_world",
+          "binary": "before",
+          "trial": 0,
+          "ms": 25.5541,
+          "counters": "body 1000099 / shape 1000099 / contact 380 / joint 0 / stack 520000000"
+        },
+        {
+          "scene": "large_world",
+          "binary": "after",
+          "trial": 1,
+          "ms": 26.553,
+          "counters": "body 1000099 / shape 1000099 / contact 380 / joint 0 / stack 520000000"
+        },
+        {
+          "scene": "large_world",
+          "binary": "after",
+          "trial": 2,
+          "ms": 23.2185,
+          "counters": "body 1000099 / shape 1000099 / contact 380 / joint 0 / stack 520000000"
+        },
+        {
+          "scene": "large_world",
+          "binary": "before",
+          "trial": 3,
+          "ms": 25.2208,
+          "counters": "body 1000099 / shape 1000099 / contact 380 / joint 0 / stack 520000000"
+        },
+        {
+          "scene": "trees100",
+          "binary": "before",
+          "trial": 0,
+          "ms": 158.725,
+          "counters": "body 51 / shape 1101 / contact 1100 / joint 0 / stack 572528"
+        },
+        {
+          "scene": "trees100",
+          "binary": "after",
+          "trial": 1,
+          "ms": 156.566,
+          "counters": "body 51 / shape 1101 / contact 1100 / joint 0 / stack 572528"
+        },
+        {
+          "scene": "trees100",
+          "binary": "after",
+          "trial": 2,
+          "ms": 160.899,
+          "counters": "body 51 / shape 1101 / contact 1100 / joint 0 / stack 572528"
+        },
+        {
+          "scene": "trees100",
+          "binary": "before",
+          "trial": 3,
+          "ms": 195.071,
+          "counters": "body 51 / shape 1101 / contact 1100 / joint 0 / stack 572528"
+        },
+        {
+          "scene": "trees50",
+          "binary": "before",
+          "trial": 0,
+          "ms": 245.402,
+          "counters": "body 51 / shape 1101 / contact 1114 / joint 0 / stack 572528"
+        },
+        {
+          "scene": "trees50",
+          "binary": "after",
+          "trial": 1,
+          "ms": 728.244,
+          "counters": "body 51 / shape 1101 / contact 1114 / joint 0 / stack 572528"
+        },
+        {
+          "scene": "trees50",
+          "binary": "after",
+          "trial": 2,
+          "ms": 290.449,
+          "counters": "body 51 / shape 1101 / contact 1114 / joint 0 / stack 572528"
+        },
+        {
+          "scene": "trees50",
+          "binary": "before",
+          "trial": 3,
+          "ms": 333.837,
+          "counters": "body 51 / shape 1101 / contact 1114 / joint 0 / stack 572528"
+        },
+        {
+          "scene": "trees25",
+          "binary": "before",
+          "trial": 0,
+          "ms": 419.975,
+          "counters": "body 51 / shape 1101 / contact 1104 / joint 0 / stack 572528"
+        },
+        {
+          "scene": "trees25",
+          "binary": "after",
+          "trial": 1,
+          "ms": 417.165,
+          "counters": "body 51 / shape 1101 / contact 1104 / joint 0 / stack 572528"
+        },
+        {
+          "scene": "trees25",
+          "binary": "after",
+          "trial": 2,
+          "ms": 396.127,
+          "counters": "body 51 / shape 1101 / contact 1104 / joint 0 / stack 572528"
+        },
+        {
+          "scene": "trees25",
+          "binary": "before",
+          "trial": 3,
+          "ms": 414.685,
+          "counters": "body 51 / shape 1101 / contact 1104 / joint 0 / stack 572528"
+        }
+      ],
+      "sha256": {
+        "before": "b1e391977be1d60781eaa88edd9fdad835d3734cb03e6617f4606706f54a2835",
+        "after": "c101e50610e9a8e1cee6666735c2117e4dab3e074cacaef52689b6b6699cd5a5"
+      }
+    },
+    "after-tree-fix": {
+      "workers": 4,
+      "substeps": 4,
+      "runs": [
+        {
+          "scene": "joint_grid",
+          "binary": "before",
+          "trial": 0,
+          "ms": 653.93,
+          "counters": "body 10000 / shape 10000 / contact 0 / joint 19800 / stack 5200000"
+        },
+        {
+          "scene": "joint_grid",
+          "binary": "after",
+          "trial": 1,
+          "ms": 571.939,
+          "counters": "body 10000 / shape 10000 / contact 0 / joint 19800 / stack 5200000"
+        },
+        {
+          "scene": "joint_grid",
+          "binary": "after",
+          "trial": 2,
+          "ms": 563.569,
+          "counters": "body 10000 / shape 10000 / contact 0 / joint 19800 / stack 5200000"
+        },
+        {
+          "scene": "joint_grid",
+          "binary": "before",
+          "trial": 3,
+          "ms": 658.026,
+          "counters": "body 10000 / shape 10000 / contact 0 / joint 19800 / stack 5200000"
+        },
+        {
+          "scene": "rain",
+          "binary": "before",
+          "trial": 0,
+          "ms": 1346.48,
+          "counters": "body 4300 / shape 4400 / contact 7019 / joint 4200 / stack 1765344"
+        },
+        {
+          "scene": "rain",
+          "binary": "after",
+          "trial": 1,
+          "ms": 1345.54,
+          "counters": "body 4300 / shape 4400 / contact 7019 / joint 4200 / stack 1765344"
+        },
+        {
+          "scene": "rain",
+          "binary": "after",
+          "trial": 2,
+          "ms": 1565.02,
+          "counters": "body 4300 / shape 4400 / contact 7019 / joint 4200 / stack 1765344"
+        },
+        {
+          "scene": "rain",
+          "binary": "before",
+          "trial": 3,
+          "ms": 1394.06,
+          "counters": "body 4300 / shape 4400 / contact 7019 / joint 4200 / stack 1765344"
+        }
+      ],
+      "sha256": {
+        "before": "b1e391977be1d60781eaa88edd9fdad835d3734cb03e6617f4606706f54a2835",
+        "after": "5f9d57eb3dac3aedeafe90d9a09bd26fd162a7480703ec30c21ca65fb4c93053"
+      }
+    }
+  },
+  "cache_controls": {
+    "stale-integration": {
+      "exit_code": 1,
+      "output": "  spherical scale=0 hash=b1103838bd6228dc\ncondition false: hash == goldens[scale]\n"
+    },
+    "stale-step": {
+      "exit_code": 1,
+      "output": "  spherical scale=0 hash=061925199d57307f\ncondition false: hash == goldens[scale]\n"
+    },
+    "actual_joint_workers": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7
+    ]
+  },
+  "sleep_tree_control": {
+    "baseline_exit": -5,
+    "baseline_assertion": "BOX3D ASSERTION: ( node->flags & b3_enlargedNode ) == 0, src/dynamic_tree.c, line 1077",
+    "repair": "Join pending rebuild before validation when awakeBodyCount is zero; covered by SleepingWorldTreeJoinTest."
+  },
+  "source_files_sha256": {
+    "src/joint.h": "02c0294470b41d79a32c0a43e7d5cc18035f8e48b0b6bf99e050770b80786bd0",
+    "src/spherical_joint.c": "dbe7248aabe93aea326d97ea223de2b3ac026b883db4777f3395d232b29e145c",
+    "src/solver.c": "8d05b7da408d49f05c8c51065872f39b7b7fbe48acac3337ef2e2f8c220e778a",
+    "test/test_determinism.c": "60f7649bd4830abd9b0834cc532cd7ca246033a8d110bbd8f707f071bc4452c7",
+    "test/test_world.c": "839809e66139dcc17a7d5f392fc368812787c107b47616129b78f4a241129889",
+    "tools/benchmark/spherical_state_hash.c": "23167bc4bf61bd81516619629bce5077760dc4837e1b9d87866241838a7dda01"
+  },
+  "validation": {
+    "neon": {
+      "seconds": 3.7986338330083527,
+      "exit_code": 0,
+      "suites": 24
+    },
+    "release": {
+      "seconds": 3.441848125003162,
+      "exit_code": 0,
+      "suites": 24
+    },
+    "wide": {
+      "seconds": 3.700510624999879,
+      "exit_code": 0,
+      "suites": 24
+    },
+    "debug": {
+      "seconds": 27.361062041993137,
+      "exit_code": 0,
+      "suites": 24
+    },
+    "sanitize": {
+      "seconds": 75.82093754099333,
+      "exit_code": 0,
+      "suites": 24
+    },
+    "tsan": {
+      "seconds": 43.38627941699815,
+      "exit_code": 0,
+      "suites": 24
+    }
+  },
+  "parity": {
+    "before": {
+      "frames": 72000,
+      "cross_worker_comparisons": 63000,
+      "sha256": "4dd60c888a8ce04fd3c1b45b6ead865f57215532102cb27d0ab8a3684aff3c4c"
+    },
+    "after": {
+      "frames": 72000,
+      "cross_worker_comparisons": 63000,
+      "sha256": "4dd60c888a8ce04fd3c1b45b6ead865f57215532102cb27d0ab8a3684aff3c4c"
+    },
+    "scalar": {
+      "frames": 72000,
+      "cross_worker_comparisons": 63000,
+      "sha256": "4dd60c888a8ce04fd3c1b45b6ead865f57215532102cb27d0ab8a3684aff3c4c"
+    },
+    "wide-before": {
+      "frames": 72000,
+      "cross_worker_comparisons": 63000,
+      "sha256": "be8b4540c044fb8856b1d37486f404e9cfe7ce0f8edf6cd7847167de5fa35636"
+    },
+    "wide-after": {
+      "frames": 72000,
+      "cross_worker_comparisons": 63000,
+      "sha256": "be8b4540c044fb8856b1d37486f404e9cfe7ce0f8edf6cd7847167de5fa35636"
+    },
+    "debug": {
+      "frames": 72000,
+      "cross_worker_comparisons": 63000,
+      "sha256": "4dd60c888a8ce04fd3c1b45b6ead865f57215532102cb27d0ab8a3684aff3c4c"
+    }
+  }
+}
