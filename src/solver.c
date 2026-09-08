@@ -1494,6 +1494,15 @@ void b3Solve( b3World* world, b3StepContext* stepContext )
 	int awakeBodyCount = awakeSet->bodySims.count;
 	if ( awakeBodyCount == 0 )
 	{
+		// Even an all-sleeping world can have a pending tree rebuild. Join it
+		// before validation reads the tree, just as the active-body path does.
+		// Otherwise Debug success depends on whether the background task won.
+		if ( world->userTreeTask != NULL )
+		{
+			world->finishTaskFcn( world->userTreeTask, world->userTaskContext );
+			world->userTreeTask = NULL;
+			world->activeTaskCount -= 1;
+		}
 		b3ValidateNoEnlarged( &world->broadPhase );
 		return;
 	}
