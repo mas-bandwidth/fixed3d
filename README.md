@@ -86,6 +86,19 @@ linear-only motors, and 3.8–7.7% for rigid or rotation-locked welds. All 8,640
 additional before/after state-and-force hashes match, including runtime feature
 changes. The full-suite float ratio above has not been remeasured for this pass.
 
+A [spherical-joint pass](benchmark/2026-09-07-spherical-cache-performance.md)
+reuses rotated anchors between position updates and skips unused angular mass
+and limit-axis calculations. Joint Grid runtime falls **12.8%** in the final
+four-worker recheck. The cache adds 48 bytes per internal joint; broader timings
+were too noisy to establish a new overall float ratio.
+
+**Determinism across threads is a hard requirement.** Given the same initial
+state and ordered inputs, worker count and scheduling must not change the physics.
+Cache validity follows solver-stage generations, never timing or worker identity.
+The new regression checks workers 1–8 against uncached reference results, including
+parallel joint blocks, overflow joints and runtime changes. Wide arithmetic and
+the high-mass asteroid response remain intact.
+
 These are measurements on a shared workstation. Small scene differences are
 inconclusive; the library repair also changes trajectories and contact counts.
 The percentage improvements above measure separate changes and are not additive.
@@ -146,6 +159,10 @@ __They've gone to plaid.__
 Fixed3D is maintained by [Glenn Fiedler](https://github.com/gafferongames) and
 [Rowan](https://github.com/rowan-claude), Glenn's AI collaborator. New work
 landing in Box3D gets ported across.
+
+PR checks target 1–2 minutes and retain the full determinism suite. Slower
+sanitizer, platform and sample/audit jobs are available through the manually
+triggered **Extended checks** workflow; see [CI instructions](CONTRIBUTING.md#fast-and-extended-ci).
 
 Issues specific to Fixed3D are welcome
 [here](https://github.com/mas-bandwidth/fixed3d/issues). For issues with Box3D

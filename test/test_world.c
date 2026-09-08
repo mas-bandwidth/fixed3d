@@ -3,6 +3,7 @@
 
 #include "benchmarks.h"
 #include "overflow_color.h"
+#include "physics_world.h"
 #include "test_macros.h"
 
 #include "box3d/box3d.h"
@@ -1354,10 +1355,86 @@ static int TestContinuousMoveEvent( void )
 	return 0;
 }
 
+typedef struct DeferredTreeTask
+{
+	b3TaskCallback* callback;
+	void* context;
+	int finished;
+} DeferredTreeTask;
+
+static void* DeferTreeRebuild( b3TaskCallback* callback, void* taskContext, void* userContext, const char* name )
+{
+	DeferredTreeTask* task = userContext;
+	if ( strcmp( name, "rebuild tree" ) == 0 )
+	{
+		B3_ASSERT( task->callback == NULL );
+		task->callback = callback;
+		task->context = taskContext;
+		return task;
+	}
+	callback( taskContext );
+	return NULL;
+}
+
+static void FinishDeferredTree( void* userTask, void* userContext )
+{
+	DeferredTreeTask* task = userTask;
+	B3_ASSERT( userTask == userContext && task->callback != NULL );
+	(void)userContext;
+	task->callback( task->context );
+	task->callback = NULL;
+	task->finished += 1;
+}
+
+static int SleepingWorldTreeJoinTest( void )
+{
+	// Hold the rebuild until finishTask: this deterministically reproduces the
+	// schedule where sleeping-world validation used to race the tree writer.
+	DeferredTreeTask task = { 0 };
+	b3WorldDef worldDef = b3DefaultWorldDef();
+	worldDef.workerCount = 2;
+	worldDef.gravity = b3Vec3_zero;
+	worldDef.enqueueTask = DeferTreeRebuild;
+	worldDef.finishTask = FinishDeferredTree;
+	worldDef.userTaskContext = &task;
+	b3WorldId worldId = b3CreateWorld( &worldDef );
+	b3BodyId bodies[2];
+	b3BodyDef bodyDef = b3DefaultBodyDef();
+	bodyDef.type = b3_dynamicBody;
+	bodyDef.linearVelocity.x = B3_FIX( 10.0f );
+	b3ShapeDef shapeDef = b3DefaultShapeDef();
+	shapeDef.filter.maskBits = 0;
+	b3BoxHull cube = b3MakeCubeHull( B3_FIX( 0.5f ) );
+	for ( int i = 0; i < 2; ++i )
+	{
+		bodyDef.position.y = b3FixFromInt( 4 * i );
+		bodies[i] = b3CreateBody( worldId, &bodyDef );
+		b3CreateHullShape( bodies[i], &shapeDef, &cube.base );
+	}
+	b3Fixed dt = b3FixDiv( B3_FIXED_ONE, b3FixFromInt( 60 ) );
+	b3World_Step( worldId, dt, 1 );
+	ENSURE( task.callback == NULL && task.finished == 1 );
+	b3World* world = b3GetWorldFromId( worldId );
+	b3DynamicTree* tree = world->broadPhase.trees + b3_dynamicBody;
+	ENSURE( ( tree->nodes[tree->root].flags & b3_enlargedNode ) != 0 );
+	for ( int i = 0; i < 2; ++i )
+	{
+		b3Body_SetAwake( bodies[i], false );
+	}
+	b3World_Step( worldId, dt, 1 );
+	ENSURE( task.callback == NULL && task.finished == 2 );
+	ENSURE( world->userTreeTask == NULL && world->activeTaskCount == 0 );
+	ENSURE( ( tree->nodes[tree->root].flags & b3_enlargedNode ) == 0 );
+	ENSURE( b3Body_IsAwake( bodies[0] ) == false && b3Body_IsAwake( bodies[1] ) == false );
+	b3DestroyWorld( worldId );
+	return 0;
+}
+
 int WorldTest( void )
 {
 	RUN_SUBTEST( HelloWorld );
 	RUN_SUBTEST( EmptyWorld );
+	RUN_SUBTEST( SleepingWorldTreeJoinTest );
 	RUN_SUBTEST( DestroyAllBodiesWorld );
 	RUN_SUBTEST( TestIsValid );
 	RUN_SUBTEST( TestWorldRecycle );

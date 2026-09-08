@@ -262,6 +262,12 @@ typedef struct b3SphericalJoint
 	b3Fixed twistMass;
 	b3Softness springSoftness;
 
+	// Transient point-constraint geometry, invalidated each prepare/integration.
+	// Keep this small: also caching the point matrix regressed Rain on M3 Ultra.
+	b3Vec3 cachedAnchorA;
+	b3Vec3 cachedAnchorB;
+	int geometryGeneration;
+
 	bool enableSpring;
 	bool enableMotor;
 	bool enableConeLimit;

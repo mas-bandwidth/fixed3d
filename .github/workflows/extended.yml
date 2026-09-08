@@ -1,0 +1,307 @@
+# Full sanitizer, platform and sample coverage, run manually from Actions.
+# Keep long jobs here so pull-request feedback targets 1-2 minutes.
+# https://docs.github.com/en/actions
+name: Extended checks
+
+on:
+  workflow_dispatch:
+
+env:
+  BUILD_TYPE: Debug
+
+jobs:
+  test:
+    name: extended / ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: ${{ matrix.timeout || 4 }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: ubuntu-gcc
+            os: ubuntu-latest
+            test: ./bin/test
+          - name: ubuntu-clang
+            os: ubuntu-latest
+            args: '-DCMAKE_CXX_COMPILER=clang++-18 -DCMAKE_C_COMPILER=clang-18 -DCMAKE_C_FLAGS="-fsanitize=thread -fno-omit-frame-pointer" -DCMAKE_CXX_FLAGS="-fsanitize=thread -fno-omit-frame-pointer" -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=thread"'
+            test: ./bin/test
+          - name: ubuntu-clang-msan
+            os: ubuntu-latest
+            # THE LIMIT THAT MATTERS IS THE ONE ON THE TEST COMMAND, not timeout-minutes.
+            # A job killed by timeout-minutes finishes CANCELLED, and cancelled is not
+            # failure: the run goes grey, `conclusion` reads "cancelled", and an entire
+            # sanitizer leg absents itself without anything going red. This job did that
+            # on main for several consecutive merges. `timeout` exits 124, which fails
+            # the step, which fails the job -- an overrun here is a red X that says
+            # "ubuntu-clang-msan did not finish", which is the honest report.
+            # timeout-minutes stays as a backstop for the case the inner bound cannot
+            # cover (a hung build step, a wedged runner) and is set above it on purpose.
+            # The result job at the end of this file is the third layer: it turns a
+            # cancelled leg anywhere in this matrix into a failing extended-workflow result.
+            #
+            # 35m IS SET FROM THE OBSERVED SPREAD, not from one sample -- #34 picked 25
+            # from a single 14m02s run and the very next CI run failed at 25m18s. Five
+            # runs of this leg on the fixed v1.3.2 pin, test step only:
+            #
+            #   5m35s   21m47s   23m46s   23m59s   25m27s
+            #
+            # A 4.6x spread on identical code, and the last of those is a run with
+            # nothing else of mine in flight, so the slow mode is the runner and not
+            # contention. The fast sample is the outlier; roughly 24m is the honest
+            # expectation. 35m is about 1.4x the worst seen, which is the headroom a
+            # distribution this wide needs. timeout-minutes sits above it as the backstop.
+            #
+            # For contrast, the same step on the v1.3.1 pin ran 38m52s WITHOUT FINISHING.
+            # The cost is in the vendored library rather than here: mas-bandwidth/fixed
+            # v1.3.2 put fixMul back on native __int128 operators, worth ~40% of a plain
+            # Debug run and more than that under -fsanitize-memory-track-origins, which
+            # instruments exactly the per-call stack traffic that was being added.
+            # mas-bandwidth/fixed#18 stays open for the rest of it (the fixInt128
+            # reductions in fixed_vec.h); this limit can come down again when that lands.
+            timeout: 40
+            test-timeout: 35m
+            args: '-DCMAKE_CXX_COMPILER=clang++-18 -DCMAKE_C_COMPILER=clang-18 -DCMAKE_C_FLAGS="-fsanitize=memory -fsanitize-memory-track-origins=1 -fno-omit-frame-pointer" -DCMAKE_CXX_FLAGS="-fsanitize=memory -fsanitize-memory-track-origins=1 -fno-omit-frame-pointer" -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=memory"'
+            test: ./bin/test
+            msan-options: abort_on_error=1:halt_on_error=1
+          - name: macos
+            os: macos-latest
+            # 1m56s on main, past the 4-minute default on the inverse-widening branch.
+            # The widening puts 256-bit arithmetic on solver paths, and ASan/UBSan
+            # instrument exactly that shape hardest -- an optimized build pays about 15%
+            # on the joint-heavy benchmarks, this one pays more than double. Raised so the
+            # job reports a result rather than a timeout; the cost itself is part of what
+            # that branch is being judged on, not something to hide behind a limit.
+            timeout: 12
+            args: -DBOX3D_SANITIZE=ON
+            test: ./bin/test
+          # Pure MSVC cannot build the fixed-point core (no __int128); all
+          # Windows coverage uses clang-cl. No Windows ASan: clang-cl rejects
+          # /MTd with -fsanitize=address, and macos/ubuntu cover sanitizers.
+          # Fixed3D is width-4 SIMD only, so this covers the clang-cl toolchain, not AVX2.
+          - name: windows-clang-cl
+            os: windows-latest
+            msvc: true
+            args: -T ClangCL
+            test: ./bin/Debug/test
+          - name: windows-arm64
+            os: windows-11-arm
+            # No ASan here: arm64 clang-cl rejects /MTd with -fsanitize=address
+            args: -A arm64 -T ClangCL -DBOX3D_DISABLE_SIMD=TRUE
+            test: ./bin/Debug/test
+          # GitHub runners are not guaranteed AVX-512 hardware, so this job
+          # promises compile coverage only and runs the suite opportunistically
+          # when the runner happens to support the ISA. RelWithDebInfo (the
+          # trailing -D wins over the env BUILD_TYPE) also exercises the LTO
+          # default on clang.
+          - name: ubuntu-clang-avx512
+            os: ubuntu-latest
+            args: '-DCMAKE_CXX_COMPILER=clang++-18 -DCMAKE_C_COMPILER=clang-18 -DBOX3D_AVX512=ON -DCMAKE_BUILD_TYPE=RelWithDebInfo'
+            test: 'sh -c "if grep -q avx512dq /proc/cpuinfo; then ./bin/test; else echo runner lacks AVX-512, compile-only; fi"'
+          # 128-bit world positions: build the wide b3Pos path under Debug+VALIDATE
+          # and ASan/UBSan (the int128 boundary, wire, and lerp reformulation are
+          # exercised here) so it cannot silently regress as upstream ports land.
+          # Carries its own determinism golden; OFF coverage is every other job.
+          - name: ubuntu-wide-positions
+            os: ubuntu-latest
+            timeout: 10
+            args: '-DCMAKE_CXX_COMPILER=clang++-18 -DCMAKE_C_COMPILER=clang-18 -DBOX3D_LUDICROUS_MODE=ON -DCMAKE_C_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer" -DCMAKE_CXX_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer" -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address,undefined"'
+            test: ./bin/test
+          # Optimized runs. The determinism golden hashes are otherwise only checked at -O0,
+          # and -O2 is where a codegen difference in the integer math would first show up.
+          # Upstream adds these against float contraction; here the value is the same job at
+          # a different optimization level, on the two toolchains that carry the goldens.
+          - name: windows-relwithdebinfo
+            os: windows-latest
+            msvc: true
+            config: RelWithDebInfo
+            args: -T ClangCL
+            test: ./bin/RelWithDebInfo/test
+          - name: macos-relwithdebinfo
+            os: macos-latest
+            config: RelWithDebInfo
+            test: ./bin/test
+    steps:
+    - uses: actions/checkout@v6
+
+    - name: Setup MSVC dev command prompt
+      if: ${{ matrix.msvc }}
+      uses: TheMrMilchmann/setup-msvc-dev@v4
+      with:
+        arch: x64
+
+    - name: Configure CMake
+      run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{ matrix.config || env.BUILD_TYPE }} -DBOX3D_SAMPLES=OFF -DBUILD_SHARED_LIBS=OFF -DBOX3D_VALIDATE=ON -DCMAKE_COMPILE_WARNING_AS_ERROR=ON ${{ matrix.args }}
+
+    - name: Build
+      run: cmake --build ${{github.workspace}}/build --config ${{ matrix.config || env.BUILD_TYPE }}
+
+    # `test-timeout`, where a matrix entry sets one, wraps the command in coreutils
+    # `timeout`. That is deliberately not the same thing as timeout-minutes: this one
+    # FAILS (exit 124) instead of cancelling, so a leg that cannot finish reports as a
+    # red X rather than as a grey run with no conclusion in it. --kill-after promotes
+    # the TERM to a KILL for a process that ignores it (a sanitizer mid-report can),
+    # and --verbose puts the reason in the log instead of leaving a bare 124.
+    - name: Test
+      working-directory: ${{github.workspace}}/build
+      env:
+        MSAN_OPTIONS: ${{ matrix['msan-options'] || '' }}
+        UBSAN_OPTIONS: print_stacktrace=1
+      run: ${{ matrix['test-timeout'] && format('timeout --verbose --kill-after=60s {0} ', matrix['test-timeout']) || '' }}${{ matrix.test }}
+
+  # mingw needs some extra setup so keeping it separate from the matrix.
+  # Debug -O0 copies whole structs and hid the b3SurfaceMaterial padding dedup bug.
+  # RelWithDebInfo tests -O2 codegen while B3_ENABLE_ASSERT keeps asserts alive,
+  # heavy validation stays Debug only.
+  build-windows-mingw:
+    name: extended / windows-mingw
+    runs-on: windows-latest
+    timeout-minutes: 4
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+    - uses: actions/checkout@v6
+
+    - name: Setup MSYS2 UCRT64
+      uses: msys2/setup-msys2@v2
+      with:
+        msystem: UCRT64
+        update: true
+        install: >-
+          mingw-w64-ucrt-x86_64-gcc
+          mingw-w64-ucrt-x86_64-cmake
+          mingw-w64-ucrt-x86_64-ninja
+
+    - name: Configure CMake
+      run: cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DBOX3D_SAMPLES=OFF -DBUILD_SHARED_LIBS=OFF -DBOX3D_VALIDATE=ON -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
+
+    - name: Build
+      run: cmake --build build --config RelWithDebInfo
+
+    - name: Test
+      working-directory: build
+      run: ./bin/test
+
+  # Build-only: running the wasm test needs a node + pthread/SharedArrayBuffer harness.
+  # This still catches compile breaks in the box3d library and the test target.
+  emscripten:
+    name: extended / emscripten
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+    - uses: actions/checkout@v6
+
+    - uses: mymindstorm/setup-emsdk@v14
+
+    - name: Configure CMake
+      run: emcmake cmake -B build -DCMAKE_BUILD_TYPE=Debug -DBOX3D_SAMPLES=OFF -DBUILD_SHARED_LIBS=OFF -DBOX3D_VALIDATE=ON
+
+    - name: Build
+      run: cmake --build build --config Debug
+
+  samples:
+    name: extended / ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    # macOS runners: the Release sample build plus the 102-TU conversion audit runs
+    # ~8+ min and was intermittently killed at the old 8-minute cap (a 8m21s run
+    # tripped it). Headroom, not a hang — the audit is bounded and exits on findings.
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: samples-ubuntu-gcc-static
+            os: ubuntu-latest
+            linux-deps: true
+            args: -DBUILD_SHARED_LIBS=OFF
+          - name: samples-macos-static
+            os: macos-latest
+            # This entry also runs the fixed/float conversion audit: it needs a
+            # clang compile database (AppleClang here), which the export flag emits.
+            args: -DBUILD_SHARED_LIBS=OFF -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+            conversion-audit: true
+          - name: samples-macos-dynamic
+            os: macos-latest
+            args: -DBUILD_SHARED_LIBS=ON
+          - name: samples-windows-static
+            os: windows-latest
+            msvc: true
+            args: -T ClangCL -DBUILD_SHARED_LIBS=OFF
+          - name: samples-windows-dynamic
+            os: windows-latest
+            msvc: true
+            args: -T ClangCL -DBUILD_SHARED_LIBS=ON
+    steps:
+    - uses: actions/checkout@v6
+
+    - name: Setup MSVC dev command prompt
+      if: ${{ matrix.msvc }}
+      uses: TheMrMilchmann/setup-msvc-dev@v4
+      with:
+        arch: x64
+
+    # sokol_app needs X11/Xi/Xcursor + GL, the file dialog needs GTK3.
+    - name: Install Linux sample dependencies
+      if: ${{ matrix['linux-deps'] }}
+      run: sudo apt-get update && sudo apt-get install -y libgl1-mesa-dev libx11-dev libxi-dev libxcursor-dev libgtk-3-dev
+
+    - name: Configure CMake
+      run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=Release -DBOX3D_SAMPLES=ON -DBOX3D_UNIT_TESTS=OFF ${{ matrix.args }}
+
+    - name: Build
+      run: cmake --build ${{github.workspace}}/build --config Release
+
+    # Type-aware audit of every b3Fixed<->float/int conversion in consumer code
+    # (exits 1 on findings). Catches the silent-truncation bug classes that
+    # -Wfloat-conversion cannot see; clang-only, hence the macos entry.
+    - name: Conversion audit
+      if: ${{ matrix['conversion-audit'] }}
+      run: python3 tools/fixed-point/conversion_audit.py --db ${{github.workspace}}/build/compile_commands.json
+
+  # THE FAILURE STATE FOR THIS WORKFLOW.
+  #
+  # Every job above carries a timeout-minutes, and a job killed by one finishes
+  # CANCELLED. Cancelled is not failure: the run reports conclusion "cancelled", the
+  # commit gets a grey mark rather than a red one, and anything reading for
+  # `conclusion == 'failure'` sees nothing at all. So the loudest symptom a CI leg can
+  # have -- it did not finish -- was the quietest thing this workflow could report, and
+  # ubuntu-clang-msan sat past its limit on main for several consecutive merges without
+  # a red X anywhere.
+  #
+  # This job is the reader. It needs every other job, runs even when they fail, and
+  # fails unless each one succeeded or was legitimately skipped (the draft-PR guard).
+  # A cancelled leg becomes a failing extended-workflow result here. If a HUMAN cancels the whole run, this job is cancelled with it
+  # and never runs, so that case stays what it is rather than turning into a false red.
+  result:
+    name: extended result
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    needs: [test, build-windows-mingw, emscripten, samples]
+    if: always()
+    steps:
+      - name: Every job finished, and finished green
+        run: |
+          set -euo pipefail
+          failed=0
+          for entry in \
+            "test=${{ needs.test.result }}" \
+            "build-windows-mingw=${{ needs['build-windows-mingw'].result }}" \
+            "emscripten=${{ needs.emscripten.result }}" \
+            "samples=${{ needs.samples.result }}"
+          do
+            name="${entry%%=*}"
+            result="${entry#*=}"
+            printf '%-22s %s\n' "$name" "$result"
+            case "$result" in
+              success) ;;
+              cancelled)
+                echo "::error::$name did not finish -- it hit its time limit and was cancelled. A leg that cannot finish is a failure, not a neutral result."
+                failed=1
+                ;;
+              *)
+                echo "::error::$name reported '$result'"
+                failed=1
+                ;;
+            esac
+          done
+          exit $failed

@@ -319,6 +319,7 @@ void b3PrepareSphericalJoint( b3JointSim* base, b3StepContext* context )
 	base->fixedRotation = invInertiaSum.cx.x + invInertiaSum.cy.y + invInertiaSum.cz.z == 0;
 
 	b3SphericalJoint* joint = &base->sphericalJoint;
+	joint->geometryGeneration = -1;
 	joint->indexA = bodyA->setIndex == b3_awakeSet ? localIndexA : B3_NULL_INDEX;
 	joint->indexB = bodyB->setIndex == b3_awakeSet ? localIndexB : B3_NULL_INDEX;
 
@@ -330,11 +331,14 @@ void b3PrepareSphericalJoint( b3JointSim* base, b3StepContext* context )
 
 	joint->deltaCenter = b3SubPos( bodySimB->center, bodySimA->center );
 
-	// Cone axis is the z-axis of body A.
-	b3Vec3 coneAxis = b3RotateVector( joint->frameA.q, b3Vec3_axisZ );
-
-	// Twist axis is the z-axis of body B.
-	b3Vec3 twistAxis = b3RotateVector( joint->frameB.q, b3Vec3_axisZ );
+	b3Vec3 coneAxis = b3Vec3_zero;
+	b3Vec3 twistAxis = b3Vec3_zero;
+	if ( joint->enableConeLimit || joint->enableTwistLimit )
+	{
+		// Cone and twist axes are the z-axes of the two joint frames.
+		coneAxis = b3RotateVector( joint->frameA.q, b3Vec3_axisZ );
+		twistAxis = b3RotateVector( joint->frameB.q, b3Vec3_axisZ );
+	}
 
 	if ( joint->enableConeLimit )
 	{
@@ -359,7 +363,8 @@ void b3PrepareSphericalJoint( b3JointSim* base, b3StepContext* context )
 		joint->twistJacobian = twistJacobian;
 	}
 
-	if ( base->fixedRotation == false )
+	// Only spring and motor constraints use the angular mass matrix.
+	if ( base->fixedRotation == false && ( joint->enableSpring || joint->enableMotor ) )
 	{
 		joint->rotationMass = b3InvertAcrossScales( invInertiaSum );
 	}
@@ -378,6 +383,22 @@ void b3PrepareSphericalJoint( b3JointSim* base, b3StepContext* context )
 		joint->swingImpulse = B3_FIX( 0.0f );
 		joint->lowerTwistImpulse = B3_FIX( 0.0f );
 		joint->upperTwistImpulse = B3_FIX( 0.0f );
+	}
+}
+
+// Determinism contract: one solver block owns a joint in each stage (overflow
+// joints run serially). Only position integration changes these anchors within
+// a step, and the existing stage barriers publish the generation and new poses
+// before the next joint stage. Cache validity must never depend on worker index,
+// timing, or scheduling; prepare invalidates it even when a step count repeats.
+static inline void b3UpdateSphericalAnchors( b3SphericalJoint* joint, const b3BodyState* stateA,
+                                           const b3BodyState* stateB, int generation )
+{
+	if ( joint->geometryGeneration != generation )
+	{
+		joint->cachedAnchorA = b3RotateVector( stateA->deltaRotation, joint->frameA.p );
+		joint->cachedAnchorB = b3RotateVector( stateB->deltaRotation, joint->frameB.p );
+		joint->geometryGeneration = generation;
 	}
 }
 
@@ -403,8 +424,9 @@ void b3WarmStartSphericalJoint( b3JointSim* base, b3StepContext* context )
 	b3Vec3 vB = stateB->linearVelocity;
 	b3Vec3 wB = stateB->angularVelocity;
 
-	b3Vec3 rA = b3RotateVector( stateA->deltaRotation, joint->frameA.p );
-	b3Vec3 rB = b3RotateVector( stateB->deltaRotation, joint->frameB.p );
+	b3UpdateSphericalAnchors( joint, stateA, stateB, context->positionGeneration );
+	b3Vec3 rA = joint->cachedAnchorA;
+	b3Vec3 rB = joint->cachedAnchorB;
 
 	b3Vec3 angularImpulse = b3Add( joint->springImpulse, joint->motorImpulse );
 	angularImpulse = b3MulSub( angularImpulse, joint->swingImpulse, joint->swingAxis );
@@ -609,8 +631,9 @@ void b3SolveSphericalJoint( b3JointSim* base, b3StepContext* context, bool useBi
 
 	// Solve point-to-point constraint
 	{
-		b3Vec3 rA = b3RotateVector( stateA->deltaRotation, joint->frameA.p );
-		b3Vec3 rB = b3RotateVector( stateB->deltaRotation, joint->frameB.p );
+		b3UpdateSphericalAnchors( joint, stateA, stateB, context->positionGeneration );
+		b3Vec3 rA = joint->cachedAnchorA;
+		b3Vec3 rB = joint->cachedAnchorB;
 
 		b3Vec3 cdot = b3Sub( b3Sub( b3Add( vB, b3Cross( wB, rB ) ), vA ), b3Cross( wA, rA ) );
 
