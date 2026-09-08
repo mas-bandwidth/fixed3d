@@ -27,11 +27,12 @@ jobs:
             os: ubuntu-latest
             config: Debug
             test: ./bin/test
-          # The full Debug+TSan suite took 100s in the measured pre-split run.
+          # Keep compiler coverage here; ThreadSanitizer exceeds the fast
+          # budget on variable runner loads and remains in Extended checks.
           - name: ubuntu-clang
             os: ubuntu-latest
             config: Debug
-            args: '-DCMAKE_CXX_COMPILER=clang++-18 -DCMAKE_C_COMPILER=clang-18 -DCMAKE_C_FLAGS="-fsanitize=thread -fno-omit-frame-pointer" -DCMAKE_CXX_FLAGS="-fsanitize=thread -fno-omit-frame-pointer" -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=thread"'
+            args: '-DCMAKE_CXX_COMPILER=clang++-18 -DCMAKE_C_COMPILER=clang-18'
             test: ./bin/test
           # Keep wide-position goldens on every PR. The slower ASan+UBSan
           # version remains in Extended checks.
