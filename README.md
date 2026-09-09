@@ -25,8 +25,7 @@ comparison.
 
 Box3D with every `float` torn out of the simulation and replaced with **Q48.16
 fixed point** in an `int64_t`. All of it: the solver, GJK, the trig, the ray
-casts, the mass properties, the recording format. The float SIMD is gone (it
-grew back on AVX-512 and NEON — same bits, just faster). In
+casts, the mass properties, the recording format. The float SIMD is gone. In
 exchange, resolution is a uniform 1/65536 everywhere in a ±1.4×10¹⁴ meter
 world, every step is still bit-exact on every platform (Box3D already
 was — see below), and all 24 unit test suites still pass.
