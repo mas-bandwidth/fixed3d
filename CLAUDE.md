@@ -13,6 +13,12 @@ read-only triage reports it was written from, and the plan body, are in `porting
 Steps are landed one branch at a time; a cursor clause of the form *advances with the merge of* is
 struck by the run that merges it, per the `fixed3d#21` / `fixed3d#46` discipline below.
 
+**THE CURSOR ADVANCES TO `954cf87` WITH THE MERGE OF `port/954cf87-fixes`, NOT BEFORE.**
+The branch's record is the newest PORT RECORD below. Said in the `fixed3d#21` / `fixed3d#46`
+form recorded underneath: a cursor line written on a branch says *advances with*, and the run
+that merges the branch comes back and strikes this clause. Until then the true cursor is
+`47d7f7c` and the line above states a fact. Port plan: **fixed3d#65**.
+
 *(~~THIS LINE ADVANCES WITH THE MERGE OF `port/47d7f7c-clockwise-mover`, NOT BEFORE~~ —
 **DISCHARGED 2026-09-03, verified rather than assumed: `port/47d7f7c-clockwise-mover`
 merged as `61fe62f` (fixed3d#46), so the cursor above states a fact and no longer a
@@ -50,6 +56,210 @@ and says *closed*. Record below.)*
 The PORT RECORDs below run newest first and are the detail for each step.
 
 ## Current status (as of 2026-08-31 — v1.4.0, MAINTENANCE MODE)
+
+- **PORT RECORD 954cf87 "Fixes (#157)" (upstream 2026-09-16) — PORTED in ten steps on
+  `port/954cf87-fixes`, 2026-10-09.** 1,944 upstream insertions across 46 files. Upstream
+  bundles five of its own issues (#148, #149, #153, #155, and `b3BodyDef::safetyFactor`
+  for CCD tuning) into one commit, so this record is organized by HUNK GROUP rather than by
+  upstream issue, and every group in the diff appears below with a disposition. Port plan:
+  **fixed3d#65**. The cursor does not move until this branch merges; see the clause above.
+
+  **THE SHAPE OF THE SPLIT: six engine steps, two test steps, one compile-only step, one
+  record.** Each step built `build-port`, `build-ludicrous`, `build-debug`
+  (Debug + VALIDATE + ASan + UBSan) and `build-samples`, and ran the three test binaries
+  reading exit codes, before the next began. The suite is `<build>/bin/test`, never ctest —
+  ctest finds no tests here and exits 0, which is a false green.
+
+  **PORTED, by group:**
+
+  1. **`B3_MAX_MANIFOLD_POINTS` tunable guard, the ABI probe, assert trivia** (`cb403f6`).
+     `#ifndef` guards on `B3_SPECULATIVE_DISTANCE` and `B3_MAX_MANIFOLD_POINTS`;
+     `b3GetMaxManifoldPoints()` with `MaxPointCountTest`; `b3ManifoldConstraint::points` and
+     `b3ComputeConvexManifold`'s scratch buffer sized from the constant;
+     `b3ApplyRestitution_Mesh`'s bound demoted to `B3_VALIDATE`; the static asserts and doc
+     comments. FIXED-POINT DECISION: **the guard permits only 4.** Upstream pairs the
+     `#ifndef` with a second manifold reduction path taken above 4, and that path is held
+     (group E below), so core.c carries `_Static_assert( B3_MAX_MANIFOLD_POINTS == 4 )`
+     naming the hold: an override fails to compile rather than silently producing a
+     four-point manifold anyway. A `#ifndef` that lies at runtime is worse than no `#ifndef`.
+  2. **Stale trees are rebuilt when the move buffer empties** (`c9ff442`, upstream #149),
+     `src/broad_phase.c` plus `b3ValidateNoEnlarged( &world->broadPhase )` after the user
+     tree task in `b3World_Step`.
+  3. **A joint born with `collideConnected` false clears existing contacts** (`d06d28f`,
+     upstream #117), `src/joint.c`.
+  4. **Moving a center of mass invalidates the cached contact manifolds** (`92fdd41`,
+     upstream #155), `src/body.c` + `src/contact.{c,h}`.
+  5. **`b3BodyDef::safetyFactor`, the per-body CCD tuning knob** (`a2d4183`).
+     **RECORDING FORMAT: `B3_REC_VERSION_MAJOR` 8 -> 9 and `B3_SNAP_VERSION` 2 -> 3**, with
+     the measured `sizeof` in the commit message: a body def gains a field, so a v8 reader
+     walking a v9 stream desynchronises at the first body. Upstream made the same widening
+     its own bump; ours is 9 because this fork's counter is ahead.
+  6. **`b3OverlapCompound` queries the compound tree in the compound frame** (`6ad09f7`,
+     upstream #153). A real bug with a real red: the query AABB was built from the
+     WORLD-space proxy and handed to a tree holding COMPOUND-frame child AABBs, so on any
+     non-identity body pose the tree returned the wrong children. Fixed with
+     `b3MakeLocalProxy` once + `b3ComputeProxyAABB`, children tested against
+     `child.transform`. **ONE REFUSED REWRITE inside it:** upstream also respells
+     `b3MulMV( R, translation )` as `b3InvRotateVector( child.transform.q, translation )` in
+     `b3CompoundShapeCastCallback`. Both helpers are on this tree's deliberately-NOT-fused
+     list, so they round differently in Q48.16 and the shape cast fraction can differ by a
+     quantum. Value-identical in exact arithmetic, not value-identical here, so the site is
+     left alone. Test: `OverlapCompoundRotatedBody` in BodyQueryTest.
+  7. **GROUP C — `test/test_determinism.c` grows a run-to-run reference** (`a850a93`).
+     `DeterminismResult`, `EnsureRepeatable( reference, result )`, and `ENSURE_GOLDEN`
+     (a plain `ENSURE` at `B3_MAX_MANIFOLD_POINTS == 4`, a no-op otherwise), with a
+     `reference` threaded through `SingleMultithreadingTest`, `SingleWavePileTest`,
+     `SingleQuerySpawnTest` and `SingleMeshDropTest` so every worker count must reproduce
+     the first run exactly, independent of the pins. Translated onto OUR file: upstream's
+     hunks are keyed to its float/double golden blocks, ours to narrow/LUDICROUS.
+     **Our golden VALUES were left byte-identical in this step, which is the proof the
+     restructure is neutral** — and it is also what made step 8 legible, because the two
+     failure modes (values moved / schedule changed the answer) are now separate asserts.
+     The `#else` arm of `ENSURE_GOLDEN` is DEAD CODE here (step 1's static assert) and is
+     ported anyway, so lifting fixed3d#66 needs no edit in this file. RED by neuter: both
+     `ENSURE_GOLDEN` arms forced to no-op and one schedule perturbed, one site asserted.
+  8. **GROUP A — a fast body never recycles a cached manifold** (`8856e09`,
+     `src/physics_world.c`). One hunk:
+     `( isFast == false || isMeshContact == false )` becomes `isFast == false` in
+     `b3CollideTask`, and the orphaned `isMeshContact` local goes with it (`git grep`
+     confirmed line 628 was its only reader in that function; the one near line 1026 feeding
+     `b3RemoveContactFromGraph` is a different function and stays). Meaning: a body on the
+     continuous path never recycles a manifold cached before a sweep, mesh or not. FIXED-POINT
+     DECISION: **none, and that is a statement rather than an omission** — the hunk is a
+     boolean conjunction, no literal, no tolerance, no arithmetic, nothing that quantizes.
+     **GOLDEN MOVER; see the table below.**
+  9. **GROUP B — prefetch selection moves to raw compiler macros** (`867ebef`,
+     `src/platform.h`), compile-only, no fixed-point content. `B3_COMPILER_MSVC` /
+     `B3_CPU_X86_X64` become raw `_MSC_VER` / `_M_ARM*` / `_M_X64` tests, with `<intrin0.h>`
+     on non-ARM MSVC and the clang/gcc arm respelled `__GNUC__ || __clang__`. **THE RED
+     CANNOT RUN ON THIS BENCH and the commit says so first:** clang on macOS takes the
+     `__GNUC__ || __clang__` arm before and after, so the MSVC arms are verified only by the
+     repo's windows CI legs. Two things recorded rather than tidied: clang-cl now takes the
+     MSVC arm (it defines both `__clang__` and `_MSC_VER`, and the new spelling tests
+     `_MSC_VER` first), which is upstream's choice and the first suspect for a windows CI
+     failure; and `B3_CPU_X86_X64`, `B3_COMPILER_CLANG` and `B3_COMPILER_GCC` are now
+     defined and never read (`B3_COMPILER_MSVC` survives in `src/core.c:4`). Upstream leaves
+     all three standing in core.h and so does this port — they are the library's documented
+     platform vocabulary and deleting them would be a fork divergence in a file the next
+     upstream pass has to merge. The three-line prefetch comment upstream deletes is KEPT:
+     it still reads true.
+  10. **GROUP D — seven compound subtests, translated to Q48.16** (`855c93a`,
+      `test/test_compound.c`, 321 insertions, test-only). `CompoundShapeCastMiss`,
+      `CompoundShapeCastHullNormalRotation`, `MakeTwoMaterialMesh` +
+      `CompoundMeshMaterialRemap`, `CompoundOverlapTransformed`, `CompoundOverlapChildTypes`,
+      `CompoundOverlapSegmentProxy`, `CompoundMoverRotatedChild`. FIXED-POINT DECISIONS with
+      the raw numbers: every literal through `B3_FIX` / `b3FixFromInt`; `0.5f * B3_PI` and
+      `0.25f * B3_PI` as `b3FixMul( B3_FIX( 0.5f ) , B3_PI )`; `3.75f / 20.0f` kept as a
+      `b3FixDiv` rather than precomputed, so it compares the same quantized quantity as the
+      sibling test. **TOLERANCES NEEDED NO FLOOR:** upstream uses `1e-3f` at every site in
+      this group, and `B3_FIX( 1e-3f )` is 65 raw units against a 2^-16 = 1.526e-5 quantum,
+      8x the tree's `8 * B3_FIXED_EPSILON` floor of 1.22e-4, so upstream's numbers survive
+      unchanged and the asserts stay as tight as his. The floor applies to his `1e-5f` and
+      `FLT_EPSILON` tolerances, and no site in this group used either.
+      `MakeTwoMaterialMesh` sets `def.stride = sizeof( b3Vec3 )`, 24 here and not upstream's
+      12, which is a multiple of the `_Alignof( b3Vec3 )` == 8 this fork checks against —
+      `sizeof` and not a literal is what makes it right in narrow AND ludicrous.
+      RED FIRST by neutering step 6 at ONE asserted site (`grep -c NEUTERED` == 1),
+      restoring the world-frame query box: all three `CompoundOverlap*` additions reddened,
+      and step 6's own `OverlapCompoundRotatedBody` reddened with them, which is the
+      cross-check that the neuter hit the fix and not a bystander.
+      **CONTROLS, declared as controls:** `CompoundShapeCastMiss`,
+      `CompoundShapeCastHullNormalRotation`, `CompoundMeshMaterialRemap` and
+      `CompoundMoverRotatedChild` passed under the neuter — they reach
+      `b3ShapeCastCompound`, `b3RayCastCompound` and `b3CollideMoverAndCompound`, not
+      `b3OverlapCompound`. The sharpest control is the PRE-EXISTING `CompoundOverlap`, which
+      does call `b3OverlapCompound` but at `b3Transform_identity`, where the two frames
+      coincide: it stayed green under the neuter, which is exactly why the three new
+      subtests were needed. All seven were green on the first run against today's tree, so
+      **no downstream bug was found and nothing in this group is held.**
+
+  **GOLDENS: TWO MOVED, TWO HELD, attribution by construction.** Group A is the only
+  behavior change on the branch that any determinism scenario can see, and its commit
+  carries exactly one hunk plus the local it orphans, so nothing else could have moved these
+  values. The step before it moved no golden at all (every pin byte-identical, all three
+  suites green), so there is no accumulated drift to disentangle. Harvested the CLAUDE.md
+  way: pins made impossible (sleep steps `(-1)`, hashes `0xDEADBEEFu`) so every scenario
+  printf fires, `ENSURE_GOLDEN` forced to no-op so no pin aborts the run before the later
+  scenarios print, and `EnsureRepeatable` LEFT ARMED, so the cross-schedule identity below
+  is asserted by the suite rather than only read off the printf.
+
+  | scenario | field | old narrow | new narrow | old ludicrous | new ludicrous | schedules |
+  |---|---|---|---|---|---|---|
+  | ragdoll | sleepStep | 404 | **449** | 404 | **449** | 1,2,3,4,5 identical |
+  | ragdoll | hash | 0xF97922B3 | **0x7C954598** | 0x1DA55033 | **0x6CB99558** | 1,2,3,4,5 identical |
+  | wave pile | sleepStep | 275 | **277** | 275 | **277** | 1,2,3,4 identical |
+  | wave pile | hash | 0x22BF35CE | **0xD1062981** | 0x253BEF8E | **0x7956BE41** | 1,2,3,4 identical |
+  | query spawn | sleepStep | 243 | 243 HELD | 243 | 243 HELD | 1,2,3,4 identical |
+  | query spawn | hash | 0x49ECDEA8 | HELD | 0x7C6B3268 | HELD | 1,2,3,4 identical |
+  | query spawn | hitCount / queryHash | 59 / 0xE583B246 | HELD | 59 / 0xE583B246 | HELD | 1,2,3,4 identical |
+  | mesh drop | sleepStep | 210 | 210 HELD | 210 | 210 HELD | 1,4 identical |
+  | mesh drop | hash | 0x491E324B | HELD | 0xDB1DA8B9 | HELD | 1,4 identical |
+
+  Upstream's own `RAGDOLL_HASH` and `WAVE_PILE_HASH` moved in this commit and nothing else
+  of its corpus did, so the two trees agree on which scenarios the change touches. **The
+  two holds have a reason, not just an absence:** query spawn has no bodies on the fast
+  path, and mesh drop's fast contacts are thin boxes against the wave MESH, which the old
+  `|| isMeshContact == false` arm already excluded from recycling. The change only reaches
+  fast CONVEX-vs-convex contacts, which is what the ragdoll's limbs and the wave pile's
+  mixed convex pile are made of. Both sleep steps stayed SHARED between narrow and
+  ludicrous, which the file's own comment predicts (an exactly representable origin shift
+  is a bit-exact rigid translation), so the single shared `#define` is still the right shape.
+
+  **NULL GOLDENS, with the structural attribution rather than a shrug.** Steps 1-7, 9 and 10
+  moved no golden. The ones that are not self-evident: step 6's `b3OverlapCompound` is
+  reached only from the overlap query API — the solver and broad phase never call it, and of
+  the four scenarios only QuerySpawn issues world queries at all, against hulls and spheres
+  on simple bodies rather than baked compounds, so the changed function is never entered
+  during a golden run. Step 1's `pointCapacity` shrink from 32 to 4 is read only as
+  `capacity < 4` by `b3ReduceManifoldPoints`, and was run under Debug+VALIDATE+ASan
+  precisely to prove no collide function overruns the smaller buffer. Step 9's only reader
+  is `b3PrefetchContact`, four hint calls whose entire contract is to have no observable
+  effect — a prefetch hint that moved a golden would be a compiler bug, not a port bug.
+  Step 10 is test-only: `git diff --stat` is one test file, so no golden CAN have moved.
+
+  **HELD:**
+
+  - **GROUP E — the 2D hull manifold reduction path: HELD, fixed3d#66** (filed 2026-10-09).
+    `src/hull.c` (`b3Hull2D`, `b3Weld2D`, `b3Sort2D`, `b3SimplifyHull2D`), the
+    `#if B3_MAX_MANIFOLD_POINTS == 4` wiring and the `b3Point2D` move in
+    `src/mesh_contact.c`, and the six `Hull2D*` / `SimplifyHull2D*` subtests in
+    `test/test_hull.c`. Not translation work: `b3Cross2D` is a difference of two quantizing
+    `b3FixMul` products, and the path's tolerances are `B3_LINEAR_SLOP` SQUARED — 6.25e-6,
+    BELOW the 1.526e-5 quantum, so they are zero here. It needs real fixed-point design.
+    Step 1's `_Static_assert( B3_MAX_MANIFOLD_POINTS == 4 )` is the tripwire that keeps the
+    hold honest, and group C's dead `#else` arm is already in place for the lift.
+  - **GROUP F — the `shared/human.c` / `shared/human.h` ragdoll re-rig: HELD, fixed3d#67**
+    (filed 2026-10-09). 267 changed lines of scene content that the determinism corpus runs,
+    so it moves the ragdoll golden for a SCENE reason rather than an engine reason. Held
+    deliberately separate from group A: landing both in one pass would make the moved
+    ragdoll hash unattributable, which is the one thing a golden movement must never be.
+  - **fixed3d#52 — the compound mesh child material cap — NOT reached by this branch, and
+    recorded because the plan expected it might be.** This tree still caps compound mesh
+    child materials at `B3_MAX_COMPOUND_MESH_MATERIALS` == 4
+    (`include/box3d/types.h:2451`, enforced `src/compound.c:411`, remapped
+    `src/compound.c:818` / `:905` and `src/shape.c:2465`); the lift is upstream `5643cd8`,
+    plan step 7. `CompoundMeshMaterialRemap` uses `materialCount = 2`, UNDER the cap, so
+    `b3MinInt( 2, 4 )` is the identity and the cap never clamps. The subtest is committed
+    ENABLED and green in all three suites; #52 stays open on its own ground, a compound mesh
+    child with more than four materials, which no test in this branch exercises.
+
+  **SKIPPED, named:**
+
+  - Upstream repo housekeeping, no code: `.github/ISSUE_TEMPLATE/config.yml`,
+    `.github/ISSUE_TEMPLATE/issue.md`, `.github/issue_template.md`,
+    `.github/pull_request_template.md`, `.gitignore`.
+  - `samples/sample_collision.cpp`, `samples/sample_continuous.cpp`,
+    `samples/sample_events.cpp`, `samples/sample_issues.cpp` — the samples half, held by the
+    standing samples practice beside **fixed3d#20** and **fixed3d#47**: sample-app content,
+    no simulation content, so it does not gate the cursor. No new issue is filed, by that
+    practice.
+
+  **VERIFIED:** four configs green after every one of the ten commits, exit codes read from
+  the test binary and not from ctest. On the branch head: `build-port` build 0 / test 0,
+  `build-ludicrous` build 0 / test 0 (278 subtests, seven more than before group D),
+  `build-debug` build 0 / test 0 at ~75 s, `build-samples` build 0.
+  `python3 tools/fixed-point/conversion_audit.py` → `stats: clean`, exit 0, over all 103 TUs.
+  `ERIN.md` untouched throughout.
 
 - **PORT RECORD 47d7f7c "clockwise option, joint is awake (#130)" (2026-08-29) —
   PORTED in seven steps, 2026-08-31.** 2,466 upstream insertions; the whole engine
