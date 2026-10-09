@@ -677,8 +677,55 @@ static int TestJointInverseScaleCorrection( void )
 	return 0;
 }
 
+// Upstream box3d issue #117: a joint created with collideConnected false must clear the
+// contacts that already exist between the two bodies. Only b3Joint_SetCollideConnected
+// used to do that, so a joint born with the flag off left the touching contact behind and
+// the solver kept pushing the bodies apart through the joint.
+static int TestCreateJointClearsContacts( void )
+{
+	b3WorldDef worldDef = b3DefaultWorldDef();
+	worldDef.gravity = b3Vec3_zero;
+	b3WorldId worldId = b3CreateWorld( &worldDef );
+
+	b3BodyDef bodyDef = b3DefaultBodyDef();
+	bodyDef.type = b3_dynamicBody;
+
+	bodyDef.position = (b3Pos){ B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
+	b3BodyId bodyIdA = b3CreateBody( worldId, &bodyDef );
+
+	// Overlapping so a touching contact forms
+	bodyDef.position = (b3Pos){ B3_FIX( 0.5f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
+	b3BodyId bodyIdB = b3CreateBody( worldId, &bodyDef );
+
+	b3ShapeDef shapeDef = b3DefaultShapeDef();
+	shapeDef.density = B3_FIX( 1.0f );
+	b3BoxHull box = b3MakeBoxHull( B3_FIX( 0.5f ), B3_FIX( 0.5f ), B3_FIX( 0.5f ) );
+	b3CreateHullShape( bodyIdA, &shapeDef, &box.base );
+	b3CreateHullShape( bodyIdB, &shapeDef, &box.base );
+
+	b3Fixed timeStep = b3FixDiv( B3_FIXED_ONE, b3FixFromInt( 60 ) );
+	b3World_Step( worldId, timeStep, 4 );
+	ENSURE( b3Body_GetContactCapacity( bodyIdA ) > 0 );
+
+	b3RevoluteJointDef jointDef = b3DefaultRevoluteJointDef();
+	jointDef.base.bodyIdA = bodyIdA;
+	jointDef.base.bodyIdB = bodyIdB;
+	jointDef.base.collideConnected = false;
+	b3CreateRevoluteJoint( worldId, &jointDef );
+
+	ENSURE( b3Body_GetContactCapacity( bodyIdA ) == 0 );
+	ENSURE( b3Body_GetContactCapacity( bodyIdB ) == 0 );
+
+	b3World_Step( worldId, timeStep, 4 );
+	ENSURE( b3Body_GetContactCapacity( bodyIdA ) == 0 );
+
+	b3DestroyWorld( worldId );
+	return 0;
+}
+
 int JointTest( void )
 {
+	RUN_SUBTEST( TestCreateJointClearsContacts );
 	RUN_SUBTEST( TestJointInverseScaleCorrection );
 	RUN_SUBTEST( TestParallelJoint );
 	RUN_SUBTEST( TestParallelJointSentinelTorqueCap );
