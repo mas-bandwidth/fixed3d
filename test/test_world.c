@@ -3,6 +3,8 @@
 
 #include "benchmarks.h"
 #include "overflow_color.h"
+#include "body.h"
+#include "contact.h"
 #include "physics_world.h"
 #include "test_macros.h"
 
@@ -1430,6 +1432,84 @@ static int SleepingWorldTreeJoinTest( void )
 	return 0;
 }
 
+// Count the contacts of a body whose cached relative transform is still marked valid, i.e.
+// the contacts the recycling optimization is allowed to reuse a manifold for.
+static int CountRecyclableContacts( b3World* world, b3BodyId bodyId )
+{
+	b3Body* body = b3GetBodyFullId( world, bodyId );
+	int count = 0;
+	int edgeKey = body->headContactKey;
+	while ( edgeKey != B3_NULL_INDEX )
+	{
+		int contactId = edgeKey >> 1;
+		int edgeIndex = edgeKey & 1;
+
+		b3Contact* contact = b3Array_Get( world->contacts, contactId );
+		if ( ( contact->flags & b3_relativeTransformValid ) != 0 )
+		{
+			count += 1;
+		}
+
+		edgeKey = contact->edges[edgeIndex].nextKey;
+	}
+
+	return count;
+}
+
+// The recycled manifold is cached in the frame of the two bodies' centers of mass, so moving
+// a center of mass makes every cached manifold on that body stale. Both mass-data entry points
+// must drop the cache; otherwise the next step reuses contact anchors measured from the old
+// center. Part of upstream box3d "Fixes (#157)".
+static int TestMassDataInvalidatesContactCache( void )
+{
+	b3WorldDef worldDef = b3DefaultWorldDef();
+	worldDef.gravity = b3Vec3_zero;
+	b3WorldId worldId = b3CreateWorld( &worldDef );
+	b3World* world = b3GetWorldFromId( worldId );
+
+	b3BodyDef bodyDef = b3DefaultBodyDef();
+	bodyDef.type = b3_dynamicBody;
+	bodyDef.enableContactRecycling = true;
+
+	bodyDef.position = (b3Pos){ B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
+	b3BodyId bodyIdA = b3CreateBody( worldId, &bodyDef );
+
+	// Overlapping so a touching contact forms and caches its relative transform
+	bodyDef.position = (b3Pos){ B3_FIX( 0.9f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
+	b3BodyId bodyIdB = b3CreateBody( worldId, &bodyDef );
+
+	b3ShapeDef shapeDef = b3DefaultShapeDef();
+	shapeDef.density = B3_FIX( 1.0f );
+	b3BoxHull box = b3MakeBoxHull( B3_FIX( 0.5f ), B3_FIX( 0.5f ), B3_FIX( 0.5f ) );
+	b3CreateHullShape( bodyIdA, &shapeDef, &box.base );
+	b3CreateHullShape( bodyIdB, &shapeDef, &box.base );
+
+	b3Fixed timeStep = b3FixDiv( B3_FIXED_ONE, b3FixFromInt( 60 ) );
+
+	// Two steps: the first creates the contact, the second caches its relative transform
+	b3World_Step( worldId, timeStep, 4 );
+	b3World_Step( worldId, timeStep, 4 );
+	ENSURE( CountRecyclableContacts( world, bodyIdA ) > 0 );
+
+	// b3Body_SetMassData moves the center of mass well off the old one
+	b3MassData massData = b3Body_GetMassData( bodyIdA );
+	massData.center = (b3Vec3){ B3_FIX( 0.25f ), B3_FIX( 0.25f ), B3_FIX( 0.0f ) };
+	b3Body_SetMassData( bodyIdA, massData );
+	ENSURE( CountRecyclableContacts( world, bodyIdA ) == 0 );
+
+	// b3UpdateBodyMassData is the other entry point; adding a shape off center runs it
+	b3World_Step( worldId, timeStep, 4 );
+	b3World_Step( worldId, timeStep, 4 );
+	ENSURE( CountRecyclableContacts( world, bodyIdA ) > 0 );
+
+	b3Sphere offCenter = { { B3_FIX( 0.0f ), B3_FIX( 0.4f ), B3_FIX( 0.0f ) }, B3_FIX( 0.1f ) };
+	b3CreateSphereShape( bodyIdA, &shapeDef, &offCenter );
+	ENSURE( CountRecyclableContacts( world, bodyIdA ) == 0 );
+
+	b3DestroyWorld( worldId );
+	return 0;
+}
+
 static int CountEnlargedNodes( const b3DynamicTree* tree )
 {
 	int count = 0;
@@ -1499,6 +1579,7 @@ static int TestEnlargedProxyDestroyed( void )
 int WorldTest( void )
 {
 	RUN_SUBTEST( TestEnlargedProxyDestroyed );
+	RUN_SUBTEST( TestMassDataInvalidatesContactCache );
 	RUN_SUBTEST( HelloWorld );
 	RUN_SUBTEST( EmptyWorld );
 	RUN_SUBTEST( SleepingWorldTreeJoinTest );

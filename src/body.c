@@ -1076,6 +1076,19 @@ void b3UpdateBodyMassData( b3World* world, b3Body* body )
 		shapeId = s->nextShapeId;
 	}
 
+	// When the center of mass changes, any cached contact manifold becomes invalid.
+	int edgeKey = body->headContactKey;
+	while ( edgeKey != B3_NULL_INDEX )
+	{
+		int contactId = edgeKey >> 1;
+		int edgeIndex = edgeKey & 1;
+
+		b3Contact* contact = b3Array_Get( world->contacts, contactId );
+		contact->flags &= ~b3_relativeTransformValid;
+
+		edgeKey = contact->edges[edgeIndex].nextKey;
+	}
+
 	// Apply fixed rotation
 	if ( ( bodySim->flags & b3_fixedRotation ) == b3_fixedRotation )
 	{
@@ -1985,6 +1998,19 @@ void b3Body_SetMassData( b3BodyId bodyId, b3MassData massData )
 		bodySim->minExtent = b3FixMin( bodySim->minExtent, extent.minExtent );
 		bodySim->maxExtent = b3Max( bodySim->maxExtent, extent.maxExtent );
 		shapeId = s->nextShapeId;
+	}
+
+	// When the center of mass changes, any cached contact manifold becomes invalid.
+	int edgeKey = body->headContactKey;
+	while ( edgeKey != B3_NULL_INDEX )
+	{
+		int contactId = edgeKey >> 1;
+		int edgeIndex = edgeKey & 1;
+
+		b3Contact* contact = b3Array_Get( world->contacts, contactId );
+		contact->flags &= ~b3_relativeTransformValid;
+
+		edgeKey = contact->edges[edgeIndex].nextKey;
 	}
 }
 
