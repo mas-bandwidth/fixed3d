@@ -51,6 +51,117 @@ The PORT RECORDs below run newest first and are the detail for each step.
 
 ## Current status (as of 2026-08-31 — v1.4.0, MAINTENANCE MODE)
 
+- **PORT RECORD f8c4fe8 "Shape cast support for box movers (#180)" (upstream
+  2026-10-02) — PORTED, engine half, 2026-10-09. CARRIED AHEAD OF THE CURSOR.**
+
+  **THIS IS OUT OF ORDER ON PURPOSE AND THE CURSOR DOES NOT MOVE FOR IT.**
+  `f8c4fe8` is the TWELFTH commit past the cursor at `47d7f7c` (verified, not
+  assumed: `git log --oneline --reverse 47d7f7c..upstream/main` lists it at
+  position 12 of 15). It was carried early because it is an independent bug fix
+  in `b3ShapeCast` with no dependency on the eleven commits in front of it —
+  those are broadphase, SAT and recording work. The port plan is **fixed3d#65**;
+  the eleven commits before this one are still owed and the PORT CURSOR line at
+  the top of this file still reads `47d7f7c`, which is a fact. **Do not read
+  this record as the cursor having advanced.** A later pass that carries
+  `16f7f4c` and the rest will find this one already across and should skip the
+  `b3ShapeCast` hunk rather than re-apply it.
+
+  **THE REAL BUG, named plainly.** On the pre-fix tree `b3ShapeCast`'s
+  iteration-0 handling had only two arms: encroach-and-retarget when
+  `canEncroach && distance > 2 * linearSlop`, else the "Initial overlap" arm
+  reporting a hit at fraction 0. So a shape starting in the band
+  **`0 < distance <= 2 * linearSlop` reported a hit WHATEVER DIRECTION IT
+  SWEPT** — receding, purely tangential and grazing sweeps all came back as
+  hits at fraction 0. Reachable by box movers (`canEncroach`), which is what
+  upstream's commit title names; capsule movers and plain shape casts do not
+  set the flag. The new third arm advances by first order while retaining a rest
+  separation, so a sweep that cannot consume the free gap misses.
+
+  **FIVE FIXED-POINT DECISIONS, and two inherited code comments were WRONG and
+  are corrected in the same commit.** Every one was checked by quoting the
+  primitive out of `extern/fixed`, and the two corrections were found by
+  measuring rather than by re-reading.
+
+  **(1) THE RETAINED SEPARATION IS AN EXACT INTEGER HALVING, and the comment
+  that justified it stated a number that is not there.** Upstream is
+  `0.5f * linearSlop`; here it is `linearSlop / 2`, not
+  `b3FixMul( B3_FIX( 0.5f ), slop )`. The inherited comment said `b3FixMul`
+  would give raw 165 against the halving's 164 at the default slop. **MEASURED,
+  that is false:** the default slop is raw 328, which is EVEN, so the product is
+  exact and **both spellings give 164**. They diverge only on an ODD slop raw,
+  which `b3SetLengthUnitsPerMeter` can produce — at `B3_FIX( 0.1f )` units the
+  slop raw is 33 and the halving gives 16 where `b3FixMul` gives 17, because
+  `fixMul` is "Round half up, then shift out the fraction bits". The halving is
+  kept, but for EXACTNESS and not for the direction: it carries no rounding
+  policy, so it cannot move if the rounding rule ever does. The one raw unit of
+  difference leans the other way from the rest of this arm (marginally LATE, not
+  early) and the comment now says so at the site.
+
+  **(2) THE UNARY MINUS STAYS OUTSIDE `b3Dot`.** `b3Dot` is
+  `fixFromDotRaw( fixDotRaw( ) )` — "Exact dot product accumulated at 128 bits
+  ... No per-component rounding", then "a single round-half-up step (divide
+  last)". Round-half-up is not odd-symmetric, so negating `delta2` before the
+  dot would be a reassociation and not a rewrite. **MEASURED:** `-b3Dot( a, n )`
+  differs from `b3Dot( -a, n )` in **6 of 200000** sampled raw triples, first at
+  -1824575 against -1824574. Same class as the `SubDot3W`/`RotDiagW` note in the
+  AVX-512 section; do not "simplify" it.
+
+  **(3) THE `<=` IS LOAD BEARING, but not for the reason the comment gave.** The
+  inherited comment said a strict `<` would let `approach == 0` through and
+  produce a saturated fraction off `b3FixDiv`. `b3FixDiv` does saturate on a
+  zero divisor ("Division by zero saturates with the sign of the numerator;
+  0/0 == 0"), but **that mechanism is unreachable**: `approach == 0` only falls
+  through the gate when `needed <= 0`, and the `needed > 0` guard then returns
+  zero without dividing. **MEASURED: a strict `<` reaches `b3FixDiv` with
+  `approach == 0` in 0 of 801 `needed` values.** What the `<=` actually buys is
+  the exact boundary — a sweep whose approach exactly equals the free gap, and a
+  purely tangential `approach == 0` once the gap is spent, are MISSES, where a
+  strict `<` would report a hit at fraction 1.0 and at fraction 0 respectively.
+  The upstream spelling is kept; only the comment changed.
+
+  **(4) `b3FixDiv` TRUNCATES TOWARD ZERO, which is the safe direction here.**
+  The fraction rounds down, so the hit lands marginally EARLY and leaves
+  slightly more separation than asked for, never less.
+
+  **(5) THE FREE-GAP TEST IS A BARE COMPARE, NEVER A SQUARED TOLERANCE.**
+  `needed > B3_FIX( 0.0f )`, per hard-won rule 7 — `b3FixMul( d, d )` is zero
+  for d below ~0.004, so a squared guard would collapse exactly in the band this
+  arm exists to handle.
+
+  **GOLDENS: NONE MOVED, and that is MEASURED rather than argued.** A temporary
+  atomic counter on the new arm (tested on every evaluation of the gate, fired
+  on entry) read **tested 9, fired 7** over the whole suite. Per suite from the
+  same binary: **DistanceTest alone accounts for all of it (9 tested, 7 fired),
+  while MoverTest and DeterminismTest each read 0 tested, 0 fired.** So no
+  golden scene evaluates this arm even once — the null-golden claim rests on a
+  count and not on the goldens happening to hold — and the six new encroach
+  subtests plus the `canEncroach == false` control are exactly what fires it.
+  The counter was removed before the commit.
+
+  **TESTS: eight subtests in `test/test_distance.c`, committed RED first**
+  (`f464907`, red by design; the fix is `8d93714`). Six are evidence —
+  `ShapeCastEncroachRecede`, `Slide`, `Closing`, `Graded`, `MaxFraction`,
+  `Graze` — and **two are CONTROLS and are NOT evidence of the fix**:
+  `ShapeCastStartTouchingDefault` (canEncroach false keeps the old
+  initial-overlap behavior) and `ShapeCastEncroachOverlap` (a genuinely
+  overlapped start still reports initial overlap, because the new arm is gated
+  on a strictly positive distance). Both controls are green before and after.
+  The red-then-green pair was re-run on this tree rather than inherited:
+  stashing `src/distance.c` gives exit 1 at `ShapeCastEncroachRecedeTest`,
+  restoring it gives exit 0. **The suite is `./build-port/bin/test`, NOT ctest**
+  — ctest registers nothing here and exits 0, which is a false green.
+
+  **VERIFIED:** all four configs built (build-port, build-ludicrous, build-debug
+  = Debug+VALIDATE+ASan, build-samples) and all three suites run, exit 0 each;
+  `conversion_audit.py` **clean** over all 103 TUs.
+
+  **HELD, named rather than buried:**
+
+  - **fixed3d#47 — the samples half of `f8c4fe8`**, `samples/sample_collision.cpp`
+    (+93). Sample-app content, no simulation content, so it does not gate the
+    cursor. Filed under the same issue that already holds the samples half of
+    `47d7f7c`, on the same ground as #20.
+
 - **PORT RECORD 47d7f7c "clockwise option, joint is awake (#130)" (2026-08-29) —
   PORTED in seven steps, 2026-08-31.** 2,466 upstream insertions; the whole engine
   half is across, the samples half is held above. Each step built and ran narrow,
