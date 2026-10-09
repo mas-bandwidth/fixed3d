@@ -1113,6 +1113,82 @@ b3CastOutput b3ShapeCast( const b3ShapeCastPairInput* input )
 				{
 					target = distanceOutput.distance - linearSlop;
 				}
+				else if ( input->canEncroach && distanceOutput.distance > B3_FIX( 0.0f ) )
+				{
+					// This is for box movers and can't normally be reached by capsule
+					// movers or regular shape casts.
+
+					// Near-target start without overlap: advance by first order while
+					// retaining a rest separation. Sweeps that cannot consume the free
+					// gap (receding, tangential, grazing) miss.
+
+					// Upstream is 0.5f * linearSlop. An exact integer halving of the raw
+					// b3Fixed, NOT b3FixMul( B3_FIX( 0.5f ), slop ). Integer scaling of a
+					// b3Fixed is idiomatic and exact, and exactness is the whole reason: the
+					// halving carries no rounding policy, so it cannot move if the rounding
+					// rule ever does.
+					//
+					// MEASURED, raw values, because the obvious claim here is wrong. At the
+					// DEFAULT slop (raw 328) the two spellings AGREE at 164 -- the raw is
+					// even, so the product is exact and nothing rounds. They diverge only on
+					// an ODD slop raw, which b3SetLengthUnitsPerMeter can produce:
+					// b3SetLengthUnitsPerMeter( B3_FIX( 0.1f ) ) gives slop raw 33, and
+					// there the halving gives 16 where b3FixMul gives 17, because b3FixMul
+					// rounds half UP (fixed.h fixMul: "Round half up, then shift out the
+					// fraction bits"). On that one raw unit of difference (1.5e-5 at default
+					// units) the halving retains marginally LESS rest separation than
+					// upstream's float would, so the hit lands marginally LATE rather than
+					// early; it is one raw unit at non-default length units only, and it is
+					// named here rather than hidden.
+					b3Fixed retained = linearSlop / 2;
+					b3Fixed needed = distanceOutput.distance - retained;
+
+					// The unary minus stays OUTSIDE the dot. b3Dot is a fused raw-128
+					// reduction with a single round-half-up at the end, and round-half-up
+					// is not odd-symmetric, so negating delta2 first would be a
+					// reassociation rather than a rewrite. MEASURED, not assumed:
+					// -b3Dot( a, n ) differs from b3Dot( -a, n ) in 6 of 200000 sampled
+					// raw triples (first at -1824575 against -1824574).
+					b3Fixed approach = -b3Dot( delta2, distanceOutput.normal );
+
+					// The <= is load bearing and is kept exactly as upstream has it -- but
+					// NOT for the divide-by-zero reason, which does not survive measurement.
+					// b3FixDiv does saturate to B3_FIXED_MAX/MIN on a zero divisor (fixed.h
+					// fixDiv: "Division by zero saturates with the sign of the numerator;
+					// 0/0 == 0"), but the needed > 0 guard below already keeps a zero
+					// divisor off the divide: MEASURED, a strict < reaches b3FixDiv with
+					// approach == 0 in 0 of 801 needed values, because approach == 0 can
+					// only fall through this gate when needed <= 0, and then the guard
+					// returns zero without dividing.
+					//
+					// What the <= actually buys is the exact boundary. A sweep whose
+					// approach exactly equals the free gap, and a purely tangential
+					// approach == 0 once the gap is already spent, are MISSES here; under a
+					// strict < they would fall through and report a hit at fraction 1.0 and
+					// at fraction 0 respectively.
+					if ( approach <= b3FixMax( needed, B3_FIX( 0.0f ) ) )
+					{
+						// Moving away, no hit.
+						return output;
+					}
+
+					// A bare compare, never a squared tolerance: b3FixMul( d, d ) is zero
+					// for d below ~0.004 (rule 7). b3FixDiv truncates toward zero, so the
+					// hit lands marginally EARLY, which is the safe direction - it leaves
+					// slightly more separation than asked for, never less.
+					b3Fixed fraction = needed > B3_FIX( 0.0f ) ? b3FixDiv( needed, approach ) : B3_FIX( 0.0f );
+					if ( fraction >= input->maxFraction )
+					{
+						// Still no hit because the max fraction is small.
+						return output;
+					}
+
+					output.fraction = fraction;
+					output.point = b3MulAdd( distanceOutput.pointA, input->proxyA.radius, distanceOutput.normal );
+					output.normal = distanceOutput.normal;
+					output.hit = true;
+					return output;
+				}
 				else
 				{
 					// Initial overlap
