@@ -78,6 +78,154 @@ static int ShapeCastTest( void )
 	return 0;
 }
 
+// unit box with a segment resting 2mm from its +x face: inside the cast
+// target distance, not overlapped.
+// Q48.16: B3_FIX( 1.002f ) is raw 65667, so the gap is raw 131 (~0.001999 m),
+// which is above zero and at or below 2 * B3_LINEAR_SLOP (raw 656). That band
+// is exactly the encroach arm's domain. One quantum is raw 1, so 2mm is 131
+// quanta of separation and nothing here is near the resolution floor.
+static b3ShapeCastPairInput EncroachCastInput( b3Vec3 translationB )
+{
+	static const b3Vec3 vas[] = { { -B3_FIX( 1.0f ), -B3_FIX( 1.0f ), B3_FIX( 0.0f ) },
+								  { B3_FIX( 1.0f ), -B3_FIX( 1.0f ), B3_FIX( 0.0f ) },
+								  { B3_FIX( 1.0f ), B3_FIX( 1.0f ), B3_FIX( 0.0f ) },
+								  { -B3_FIX( 1.0f ), B3_FIX( 1.0f ), B3_FIX( 0.0f ) } };
+	static const b3Vec3 vbs[] = {
+		{ B3_FIX( 1.002f ), -B3_FIX( 1.0f ), B3_FIX( 0.0f ) },
+		{ B3_FIX( 1.002f ), B3_FIX( 1.0f ), B3_FIX( 0.0f ) },
+	};
+
+	b3ShapeCastPairInput input;
+	input.proxyA = (b3ShapeProxy){ vas, ARRAY_COUNT( vas ), B3_FIX( 0.0f ) };
+	input.proxyB = (b3ShapeProxy){ vbs, ARRAY_COUNT( vbs ), B3_FIX( 0.0f ) };
+	input.transform = b3Transform_identity;
+	input.translationB = translationB;
+	input.maxFraction = B3_FIX( 1.0f );
+	input.canEncroach = true;
+	return input;
+}
+
+static int ShapeCastEncroachRecedeTest( void )
+{
+	b3ShapeCastPairInput input = EncroachCastInput( (b3Vec3){ B3_FIX( 1.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) } );
+	b3CastOutput output = b3ShapeCast( &input );
+	ENSURE( output.hit == false );
+
+	return 0;
+}
+
+static int ShapeCastEncroachSlideTest( void )
+{
+	b3ShapeCastPairInput input = EncroachCastInput( (b3Vec3){ B3_FIX( 0.0f ), B3_FIX( 2.0f ), B3_FIX( 0.0f ) } );
+	b3CastOutput output = b3ShapeCast( &input );
+	ENSURE( output.hit == false );
+
+	return 0;
+}
+
+static int ShapeCastEncroachClosingTest( void )
+{
+	b3ShapeCastPairInput input = EncroachCastInput( (b3Vec3){ -B3_FIX( 1.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) } );
+	b3CastOutput output = b3ShapeCast( &input );
+	ENSURE( output.hit );
+	ENSURE_SMALL( output.fraction, 8 * B3_FIXED_EPSILON );
+	ENSURE_SMALL( output.normal.x - B3_FIX( 1.0f ), B3_FIX( 0.001f ) );
+
+	return 0;
+}
+
+static int ShapeCastEncroachGradedTest( void )
+{
+	// 5mm gap: closing consumes the gap down to the retained rest separation.
+	// B3_FIX( 1.005f ) is raw 65864, so the gap is raw 328 and the retained
+	// half slop is raw 164, leaving raw 164 needed against a raw 65536 approach:
+	// fraction raw 164, and B3_FIX( 0.0025f ) is raw 164 as well.
+	static const b3Vec3 vbs[] = {
+		{ B3_FIX( 1.005f ), -B3_FIX( 1.0f ), B3_FIX( 0.0f ) },
+		{ B3_FIX( 1.005f ), B3_FIX( 1.0f ), B3_FIX( 0.0f ) },
+	};
+
+	b3ShapeCastPairInput input = EncroachCastInput( (b3Vec3){ -B3_FIX( 1.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) } );
+	input.proxyB = (b3ShapeProxy){ vbs, ARRAY_COUNT( vbs ), B3_FIX( 0.0f ) };
+	b3CastOutput output = b3ShapeCast( &input );
+	ENSURE( output.hit );
+	ENSURE_SMALL( output.fraction - B3_FIX( 0.0025f ), B3_FIX( 0.0005f ) );
+	ENSURE_SMALL( output.normal.x - B3_FIX( 1.0f ), B3_FIX( 0.001f ) );
+
+	return 0;
+}
+
+static int ShapeCastEncroachMaxFractionTest( void )
+{
+	// 5mm gap closes at fraction 0.0025 (raw 164). B3_FIX( 0.002f ) is raw 131
+	// and B3_FIX( 0.003f ) is raw 197, so the raw fraction straddles them.
+	static const b3Vec3 vbs[] = {
+		{ B3_FIX( 1.005f ), -B3_FIX( 1.0f ), B3_FIX( 0.0f ) },
+		{ B3_FIX( 1.005f ), B3_FIX( 1.0f ), B3_FIX( 0.0f ) },
+	};
+
+	b3ShapeCastPairInput input = EncroachCastInput( (b3Vec3){ -B3_FIX( 1.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) } );
+	input.proxyB = (b3ShapeProxy){ vbs, ARRAY_COUNT( vbs ), B3_FIX( 0.0f ) };
+	input.maxFraction = B3_FIX( 0.002f );
+	b3CastOutput output = b3ShapeCast( &input );
+	ENSURE( output.hit == false );
+
+	input.maxFraction = B3_FIX( 0.003f );
+	output = b3ShapeCast( &input );
+	ENSURE( output.hit );
+	ENSURE_SMALL( output.fraction - B3_FIX( 0.0025f ), B3_FIX( 0.0005f ) );
+
+	return 0;
+}
+
+static int ShapeCastEncroachGrazeTest( void )
+{
+	// mostly tangential slide with a slight closing component: free.
+	// The closing component is raw 66 against a raw 164 need, so the first
+	// order approach cannot consume the gap and the sweep misses.
+	static const b3Vec3 vbs[] = {
+		{ B3_FIX( 1.005f ), -B3_FIX( 1.0f ), B3_FIX( 0.0f ) },
+		{ B3_FIX( 1.005f ), B3_FIX( 1.0f ), B3_FIX( 0.0f ) },
+	};
+
+	b3ShapeCastPairInput input = EncroachCastInput( (b3Vec3){ -B3_FIX( 0.001f ), B3_FIX( 2.0f ), B3_FIX( 0.0f ) } );
+	input.proxyB = (b3ShapeProxy){ vbs, ARRAY_COUNT( vbs ), B3_FIX( 0.0f ) };
+	b3CastOutput output = b3ShapeCast( &input );
+	ENSURE( output.hit == false );
+
+	return 0;
+}
+
+// CONTROL, not evidence of the fix: canEncroach false must keep the old
+// initial-overlap behavior for a shape inside the target band.
+static int ShapeCastStartTouchingDefaultTest( void )
+{
+	b3ShapeCastPairInput input = EncroachCastInput( (b3Vec3){ B3_FIX( 1.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) } );
+	input.canEncroach = false;
+	b3CastOutput output = b3ShapeCast( &input );
+	ENSURE( output.hit );
+
+	return 0;
+}
+
+// CONTROL, not evidence of the fix: a genuinely overlapped start still reports
+// the initial overlap even with canEncroach set, because the new arm is gated
+// on a strictly positive distance.
+static int ShapeCastEncroachOverlapTest( void )
+{
+	static const b3Vec3 vcs[] = {
+		{ B3_FIX( 0.5f ), -B3_FIX( 1.0f ), B3_FIX( 0.0f ) },
+		{ B3_FIX( 0.5f ), B3_FIX( 1.0f ), B3_FIX( 0.0f ) },
+	};
+
+	b3ShapeCastPairInput input = EncroachCastInput( (b3Vec3){ B3_FIX( 1.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) } );
+	input.proxyB = (b3ShapeProxy){ vcs, ARRAY_COUNT( vcs ), B3_FIX( 0.0f ) };
+	b3CastOutput output = b3ShapeCast( &input );
+	ENSURE( output.hit );
+
+	return 0;
+}
+
 static int TimeOfImpactTest( void )
 {
 	b3Vec3 vas[] = { { -B3_FIX( 1.0f ), -B3_FIX( 1.0f ) }, { B3_FIX( 1.0f ), -B3_FIX( 1.0f ) }, { B3_FIX( 1.0f ), B3_FIX( 1.0f ) }, { -B3_FIX( 1.0f ), B3_FIX( 1.0f ) } };
@@ -137,6 +285,14 @@ int DistanceTest( void )
 	RUN_SUBTEST( SegmentDistanceTest );
 	RUN_SUBTEST( ShapeDistanceTest );
 	RUN_SUBTEST( ShapeCastTest );
+	RUN_SUBTEST( ShapeCastEncroachRecedeTest );
+	RUN_SUBTEST( ShapeCastEncroachSlideTest );
+	RUN_SUBTEST( ShapeCastEncroachClosingTest );
+	RUN_SUBTEST( ShapeCastEncroachGradedTest );
+	RUN_SUBTEST( ShapeCastEncroachMaxFractionTest );
+	RUN_SUBTEST( ShapeCastEncroachGrazeTest );
+	RUN_SUBTEST( ShapeCastStartTouchingDefaultTest );
+	RUN_SUBTEST( ShapeCastEncroachOverlapTest );
 	RUN_SUBTEST( TimeOfImpactTest );
 
 	return 0;
