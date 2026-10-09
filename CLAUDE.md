@@ -7,6 +7,12 @@ Box3D converted from float to Q48.16 fixed point (internal and external API).
 **Everything in erincatto/box3d up to and including `47d7f7c` is carried across.**
 `git log 47d7f7c..upstream/main` is the remaining work.
 
+**THE PLAN FOR THAT RANGE IS `fixed3d#65`** (2026-10-09): fifteen upstream commits, `47d7f7c..5d83df8`,
+with the order the cursor takes, the holds and the carries, and the decision behind each. The four
+read-only triage reports it was written from, and the plan body, are in `porting/triage-2026-10-09/`.
+Steps are landed one branch at a time; a cursor clause of the form *advances with the merge of* is
+struck by the run that merges it, per the `fixed3d#21` / `fixed3d#46` discipline below.
+
 *(~~THIS LINE ADVANCES WITH THE MERGE OF `port/47d7f7c-clockwise-mover`, NOT BEFORE~~ —
 **DISCHARGED 2026-09-03, verified rather than assumed: `port/47d7f7c-clockwise-mover`
 merged as `61fe62f` (fixed3d#46), so the cursor above states a fact and no longer a
