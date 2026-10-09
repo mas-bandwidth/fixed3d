@@ -60,7 +60,44 @@
 #define MESH_DROP_HASH 0x491E324B
 #endif
 
-static int SingleMultithreadingTest( int workerCount )
+// The goldens above pin exact values for the default four point manifold. A build that
+// overrides B3_MAX_MANIFOLD_POINTS produces a different contact set, so those checks drop
+// out and only the run to run agreement below applies.
+#if B3_MAX_MANIFOLD_POINTS == 4
+#define ENSURE_GOLDEN( condition ) ENSURE( condition )
+#else
+#define ENSURE_GOLDEN( condition ) ( (void)0 )
+#endif
+
+typedef struct DeterminismResult
+{
+	int sleepStep;
+	uint32_t hash;
+	int queryHitCount;
+	uint32_t queryHash;
+	bool seeded;
+} DeterminismResult;
+
+// Every worker count has to reproduce the first run exactly. Scenarios without queries leave
+// the query fields zero in both the reference and the result.
+static int EnsureRepeatable( DeterminismResult* reference, DeterminismResult result )
+{
+	if ( reference->seeded == false )
+	{
+		result.seeded = true;
+		*reference = result;
+		return 0;
+	}
+
+	ENSURE( result.sleepStep == reference->sleepStep );
+	ENSURE( result.hash == reference->hash );
+	ENSURE( result.queryHitCount == reference->queryHitCount );
+	ENSURE( result.queryHash == reference->queryHash );
+
+	return 0;
+}
+
+static int SingleMultithreadingTest( int workerCount, DeterminismResult* reference )
 {
 	b3WorldDef worldDef = b3DefaultWorldDef();
 	worldDef.workerCount = workerCount;
@@ -92,8 +129,9 @@ static int SingleMultithreadingTest( int workerCount )
 		printf( "  workers=%d sleepStep=%d hash=0x%08X\n", workerCount, data.sleepStep, data.hash );
 	}
 
-	ENSURE( data.sleepStep == RAGDOLL_SLEEP_STEP );
-	ENSURE( data.hash == RAGDOLL_HASH );
+	ENSURE_GOLDEN( data.sleepStep == RAGDOLL_SLEEP_STEP );
+	ENSURE_GOLDEN( data.hash == RAGDOLL_HASH );
+	ENSURE( EnsureRepeatable( reference, (DeterminismResult){ .sleepStep = data.sleepStep, .hash = data.hash } ) == 0 );
 
 	DestroyFallingRagdolls( &data );
 
@@ -103,9 +141,10 @@ static int SingleMultithreadingTest( int workerCount )
 // Test multithreaded determinism.
 static int MultithreadingTest( void )
 {
+	DeterminismResult reference = { 0 };
 	for ( int workerCount = 1; workerCount < 6; ++workerCount )
 	{
-		int result = SingleMultithreadingTest( workerCount );
+		int result = SingleMultithreadingTest( workerCount, &reference );
 		ENSURE( result == 0 );
 	}
 
@@ -137,8 +176,8 @@ static int CrossPlatformTest( void )
 		printf( "  cross-platform sleepStep=%d hash=0x%08X\n", data.sleepStep, data.hash );
 	}
 
-	ENSURE( data.sleepStep == RAGDOLL_SLEEP_STEP );
-	ENSURE( data.hash == RAGDOLL_HASH );
+	ENSURE_GOLDEN( data.sleepStep == RAGDOLL_SLEEP_STEP );
+	ENSURE_GOLDEN( data.hash == RAGDOLL_HASH );
 
 	DestroyFallingRagdolls( &data );
 
@@ -147,7 +186,7 @@ static int CrossPlatformTest( void )
 	return 0;
 }
 
-static int SingleWavePileTest( int workerCount )
+static int SingleWavePileTest( int workerCount, DeterminismResult* reference )
 {
 	b3WorldDef worldDef = b3DefaultWorldDef();
 	worldDef.workerCount = workerCount;
@@ -177,8 +216,9 @@ static int SingleWavePileTest( int workerCount )
 	}
 
 	ENSURE( done == true );
-	ENSURE( data.sleepStep == WAVE_PILE_SLEEP_STEP );
-	ENSURE( data.hash == WAVE_PILE_HASH );
+	ENSURE_GOLDEN( data.sleepStep == WAVE_PILE_SLEEP_STEP );
+	ENSURE_GOLDEN( data.hash == WAVE_PILE_HASH );
+	ENSURE( EnsureRepeatable( reference, (DeterminismResult){ .sleepStep = data.sleepStep, .hash = data.hash } ) == 0 );
 
 	DestroyWavePile( &data );
 
@@ -188,16 +228,17 @@ static int SingleWavePileTest( int workerCount )
 // Test multithreaded determinism of a mixed convex pile on a wave height field.
 static int WavePileTest( void )
 {
+	DeterminismResult reference = { 0 };
 	for ( int workerCount = 1; workerCount <= 4; ++workerCount )
 	{
-		int result = SingleWavePileTest( workerCount );
+		int result = SingleWavePileTest( workerCount, &reference );
 		ENSURE( result == 0 );
 	}
 
 	return 0;
 }
 
-static int SingleQuerySpawnTest( int workerCount )
+static int SingleQuerySpawnTest( int workerCount, DeterminismResult* reference )
 {
 	b3WorldDef worldDef = b3DefaultWorldDef();
 	worldDef.workerCount = workerCount;
@@ -229,10 +270,14 @@ static int SingleQuerySpawnTest( int workerCount )
 
 	ENSURE( done == true );
 	ENSURE( data.spawnCount == QUERY_SPAWN_COUNT );
-	ENSURE( data.sleepStep == QUERY_SPAWN_SLEEP_STEP );
-	ENSURE( data.hash == QUERY_SPAWN_HASH );
-	ENSURE( data.queryHitCount == QUERY_SPAWN_HIT_COUNT );
-	ENSURE( data.queryHash == QUERY_SPAWN_QUERY_HASH );
+	ENSURE_GOLDEN( data.sleepStep == QUERY_SPAWN_SLEEP_STEP );
+	ENSURE_GOLDEN( data.hash == QUERY_SPAWN_HASH );
+	ENSURE_GOLDEN( data.queryHitCount == QUERY_SPAWN_HIT_COUNT );
+	ENSURE_GOLDEN( data.queryHash == QUERY_SPAWN_QUERY_HASH );
+	ENSURE( EnsureRepeatable( reference, (DeterminismResult){ .sleepStep = data.sleepStep,
+													  .hash = data.hash,
+													  .queryHitCount = data.queryHitCount,
+													  .queryHash = data.queryHash } ) == 0 );
 
 	DestroyQuerySpawn( &data );
 
@@ -242,16 +287,17 @@ static int SingleQuerySpawnTest( int workerCount )
 // Test determinism of world queries by feeding their results back into the simulation.
 static int QuerySpawnTest( void )
 {
+	DeterminismResult reference = { 0 };
 	for ( int workerCount = 1; workerCount <= 4; ++workerCount )
 	{
-		int result = SingleQuerySpawnTest( workerCount );
+		int result = SingleQuerySpawnTest( workerCount, &reference );
 		ENSURE( result == 0 );
 	}
 
 	return 0;
 }
 
-static int SingleMeshDropTest( int workerCount )
+static int SingleMeshDropTest( int workerCount, DeterminismResult* reference )
 {
 	b3WorldDef worldDef = b3DefaultWorldDef();
 	worldDef.workerCount = workerCount;
@@ -280,8 +326,9 @@ static int SingleMeshDropTest( int workerCount )
 	}
 
 	ENSURE( done == true );
-	ENSURE( data.sleepStep == MESH_DROP_SLEEP_STEP );
-	ENSURE( data.hash == MESH_DROP_HASH );
+	ENSURE_GOLDEN( data.sleepStep == MESH_DROP_SLEEP_STEP );
+	ENSURE_GOLDEN( data.hash == MESH_DROP_HASH );
+	ENSURE( EnsureRepeatable( reference, (DeterminismResult){ .sleepStep = data.sleepStep, .hash = data.hash } ) == 0 );
 
 	DestroyMeshDrop( &data );
 
@@ -292,10 +339,11 @@ static int SingleMeshDropTest( int workerCount )
 // The scene is large, so only the single threaded and widest schedules run.
 static int MeshDropTest( void )
 {
+	DeterminismResult reference = { 0 };
 	int workerCounts[2] = { 1, 4 };
 	for ( int i = 0; i < 2; ++i )
 	{
-		int result = SingleMeshDropTest( workerCounts[i] );
+		int result = SingleMeshDropTest( workerCounts[i], &reference );
 		ENSURE( result == 0 );
 	}
 
