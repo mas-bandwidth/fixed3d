@@ -182,6 +182,10 @@ typedef struct b3Version
 /// Get the current version of Fixed3D
 B3_API b3Version b3GetVersion( void );
 
+/// @return the value of B3_MAX_MANIFOLD_POINTS the library was compiled with. Useful for
+/// an ABI test.
+B3_API int b3GetMaxManifoldPoints( void );
+
 /**@}*/
 
 //! @cond

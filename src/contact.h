@@ -133,6 +133,8 @@ typedef struct b3Contact
 	// b3ContactFlags
 	uint32_t flags;
 
+	// todo embed single manifold with ability to allocate overflow, use union.
+
 	b3Manifold* manifolds;
 	int manifoldCount;
 

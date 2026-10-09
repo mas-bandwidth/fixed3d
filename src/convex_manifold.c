@@ -748,6 +748,8 @@ static b3SeparatingAxis b3QueryEdgeDirections( const b3HullData* hullA, const b3
 	return best;
 }
 
+_Static_assert( B3_MAX_MANIFOLD_POINTS >= 4, "must be 4 or more" );
+
 // Reduce the manifold points to a maximum of 4 points.
 // Note: this modifies the input point array to improve performance
 static void b3ReduceManifoldPoints( b3LocalManifold* manifold, int capacity, b3LocalManifoldPoint* points, int count )
@@ -1529,6 +1531,7 @@ static int b3BuildPolygon( b3ClipVertex* out, b3Transform transform, const b3Hul
 static bool b3BuildFaceAContact( b3LocalManifold* manifold, int capacity, const b3HullData* hullA, const b3HullData* hullB,
 								 b3Transform transformBtoA, b3SeparatingAxis query, b3SATCache* cache )
 {
+	B3_ASSERT( capacity > 0 );
 	B3_VALIDATE( query.type == b3_faceAxisA );
 	B3_VALIDATE( 0 <= query.indexA && query.indexA < hullA->faceCount );
 	B3_VALIDATE( 0 <= query.indexB && query.indexB < hullB->vertexCount );

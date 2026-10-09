@@ -9,6 +9,11 @@
 
 #include <math.h>
 
+// A face contact keeps the whole clipped polygon when the manifold has room for it, so a build
+// with a larger B3_MAX_MANIFOLD_POINTS legitimately reports more than four points. At the default
+// this is still an exact count, and 4 is the only value this fork compiles (see core.c).
+#define ENSURE_FACE_POINTS( count ) ENSURE( 4 <= ( count ) && ( count ) <= B3_MAX_MANIFOLD_POINTS )
+
 static const b3Fixed kRoot2 = B3_FIX( 1.41421356f );
 static const b3Fixed kHalfRoot2 = B3_FIX( 0.70710678f );
 
@@ -295,7 +300,7 @@ static int ParallelEdgeTest( void )
 			b3SATCache cache = { 0 };
 			b3CollideHulls( &manifold, 8, &hullA.base, &hullB.base, transform, &cache );
 
-			ENSURE( manifold.pointCount == 4 );
+			ENSURE_FACE_POINTS( manifold.pointCount );
 			ENSURE( cache.type == b3_faceAxisA || cache.type == b3_faceAxisB );
 			ENSURE( b3Dot( manifold.normal, kAxisY ) > B3_FIX( 0.998f ) );
 
@@ -513,7 +518,7 @@ static int TriangleParallelEdgeTest( void )
 			b3SATCache cache = { 0 };
 			b3CollideTriangleAndHull( &manifold, 8, v1, v2, v3, 0, &hull.base, &cache, true );
 
-			ENSURE( manifold.pointCount == 4 );
+			ENSURE_FACE_POINTS( manifold.pointCount );
 			ENSURE( cache.type == b3_faceAxisA );
 			ENSURE( b3Dot( manifold.normal, kAxisY ) > B3_FIX( 0.99f ) );
 
@@ -530,7 +535,7 @@ static int TriangleParallelEdgeTest( void )
 // separation can be no deeper than root2 times the vertical overlap.
 static int CheckRoofFaceContact( const b3LocalManifold* manifold, const b3SATCache* cache, b3Fixed overlap )
 {
-	ENSURE( manifold->pointCount == 4 );
+	ENSURE_FACE_POINTS( manifold->pointCount );
 	ENSURE( cache->type == b3_faceAxisA || cache->type == b3_faceAxisB );
 
 	// A roof face of one hull, so 45 degrees off the vertical
@@ -1383,8 +1388,19 @@ static int CapsuleTriangleEdgeWalkTest( void )
 	return 0;
 }
 
+// The library reports the point count it was built with. A mismatch against the manifold
+// this translation unit sees means the app and the library disagree on b3Manifold.
+static int MaxPointCountTest( void )
+{
+	b3Manifold manifold;
+	ENSURE( b3GetMaxManifoldPoints() == (int)( sizeof( manifold.points ) / sizeof( manifold.points[0] ) ) );
+
+	return 0;
+}
+
 int ManifoldTest( void )
 {
+	RUN_SUBTEST( MaxPointCountTest );
 	RUN_SUBTEST( CrossedEdgeTest );
 	RUN_SUBTEST( EdgeAxisScaleTest );
 	RUN_SUBTEST( EdgeAxisLargeScaleTest );

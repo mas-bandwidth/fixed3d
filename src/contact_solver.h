@@ -6,6 +6,8 @@
 #include "math_internal.h"
 #include "solver.h"
 
+#include "box3d/constants.h"
+
 typedef struct b3ManifoldConstraintPoint
 {
 	b3Vec3 rA, rB;
@@ -19,7 +21,7 @@ typedef struct b3ManifoldConstraintPoint
 
 typedef struct b3ManifoldConstraint
 {
-	b3ManifoldConstraintPoint points[4];
+	b3ManifoldConstraintPoint points[B3_MAX_MANIFOLD_POINTS];
 	int pointCount;
 	b3Vec3 normal;
 	b3Vec3 tangent1;

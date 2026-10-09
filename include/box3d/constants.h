@@ -74,7 +74,9 @@ B3_API b3Fixed b3GetStallThreshold( void );
 #define B3_MAX_ROTATION ( B3_PI / 4 )
 
 /// @warning modifying this can have a significant impact on performance and stability
+#ifndef B3_SPECULATIVE_DISTANCE
 #define B3_SPECULATIVE_DISTANCE ( 4 * B3_LINEAR_SLOP )
+#endif
 
 /// The rest offset is used for mesh contact to reduce ghost collisions and assist with CCD.
 /// The rest offset adjusts the contact point separation value, making the solver push the shapes
@@ -102,7 +104,15 @@ B3_API b3Fixed b3GetStallThreshold( void );
 #define B3_TIME_TO_SLEEP B3_FIX( 0.5f )
 
 /// The maximum number of contact points between two touching shapes.
+/// The default and ONLY supported value in this fork is 4, which uses the fast approximate
+/// reduction in convex_manifold.c and mesh_contact.c. Upstream box3d also accepts a larger
+/// value and switches to a 2D convex hull plus area based simplification; that path is NOT
+/// carried here yet (see the HELD section of PORT RECORD 954cf87), so core.c refuses any
+/// other value at compile time rather than silently producing four points anyway.
+/// WARNING: if you change this you risk breaking ABI and a corrupted runtime.
+#ifndef B3_MAX_MANIFOLD_POINTS
 #define B3_MAX_MANIFOLD_POINTS 4
+#endif
 
 /// The number of iterations for gyroscopic torques.
 #ifndef B3_GYROSCOPIC_ITERATIONS
