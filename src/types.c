@@ -35,6 +35,7 @@ b3BodyDef b3DefaultBodyDef( void )
 	def.type = b3_staticBody;
 	def.rotation = b3Quat_identity;
 	def.sleepThreshold = b3FixMul( B3_FIX( 0.05f ) , b3GetLengthUnitsPerMeter() );
+	def.safetyFactor = B3_FIX( 0.5f );
 	def.gravityScale = B3_FIX( 1.0f );
 	def.enableSleep = true;
 	def.isAwake = true;

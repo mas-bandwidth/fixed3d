@@ -726,6 +726,12 @@ B3_API void b3Body_SetSleepThreshold( b3BodyId bodyId, b3Fixed sleepThreshold );
 /// Get the sleep threshold, usually in meters per second.
 B3_API b3Fixed b3Body_GetSleepThreshold( b3BodyId bodyId );
 
+/// Set the continuous collision safety factor. Smaller is safer but can lead to hitching. Recommended range [0.01, 0.5]. Non-dimensional.
+B3_API void b3Body_SetSafetyFactor( b3BodyId bodyId, b3Fixed safetyFactor );
+
+/// Get the continuous collision safety factor. Non-dimensional.
+B3_API b3Fixed b3Body_GetSafetyFactor( b3BodyId bodyId );
+
 /// Returns true if this body is enabled
 B3_API bool b3Body_IsEnabled( b3BodyId bodyId );
 

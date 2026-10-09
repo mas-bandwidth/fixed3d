@@ -767,11 +767,11 @@ static void b3FinalizeBodiesTask( int startIndex, int endIndex, int workerIndex,
 			// Body is not sleepy
 			body->sleepTime = B3_FIX( 0.0f );
 
-			const b3Fixed safetyFactor = B3_FIX( 0.5f );
+			b3Fixed safetyFactor = body->safetyFactor;
 			b3Fixed maxMotion = b3FixMax( maxDeltaPosition, b3FixMul( maxVelocity , timeStep ) );
 			if ( body->type == b3_dynamicBody && enableContinuous && maxMotion > b3FixMul( safetyFactor , sim->minExtent ) )
 			{
-				// This flag is only retained for debug draw
+				// This flag is used for debug draw and contact recycling.
 				sim->flags |= b3_isFast;
 
 				// Store in fast array for the continuous collision stage
