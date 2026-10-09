@@ -1159,6 +1159,7 @@ void b3World_Step( b3WorldId worldId, b3Fixed timeStep, int subStepCount )
 		world->finishTaskFcn( world->userTreeTask, world->userTaskContext );
 		world->userTreeTask = NULL;
 		world->activeTaskCount -= 1;
+		b3ValidateNoEnlarged( &world->broadPhase );
 	}
 
 	// Update sensors

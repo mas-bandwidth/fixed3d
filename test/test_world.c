@@ -1430,8 +1430,75 @@ static int SleepingWorldTreeJoinTest( void )
 	return 0;
 }
 
+static int CountEnlargedNodes( const b3DynamicTree* tree )
+{
+	int count = 0;
+	for ( int i = 0; i < tree->nodeCapacity; ++i )
+	{
+		const b3TreeNode* node = tree->nodes + i;
+		if ( ( node->flags & b3_allocatedNode ) != 0 && ( node->flags & b3_enlargedNode ) != 0 )
+		{
+			count += 1;
+		}
+	}
+
+	return count;
+}
+
+// A proxy can be enlarged in one step and destroyed before the next, emptying the move buffer.
+// The trees must still be rebuilt or the enlarged nodes survive into the next step. Upstream
+// box3d issue #149.
+static int TestEnlargedProxyDestroyed( void )
+{
+	b3WorldDef worldDef = b3DefaultWorldDef();
+	worldDef.gravity = b3Vec3_zero;
+	b3WorldId worldId = b3CreateWorld( &worldDef );
+
+	b3World* world = b3GetWorldFromId( worldId );
+	const b3DynamicTree* tree = world->broadPhase.trees + b3_dynamicBody;
+
+	b3BodyDef bodyDef = b3DefaultBodyDef();
+	bodyDef.type = b3_dynamicBody;
+
+	b3ShapeDef shapeDef = b3DefaultShapeDef();
+	b3Sphere sphere = { b3Vec3_zero, B3_FIX( 0.25f ) };
+
+	// Resting bodies keep the tree deep enough that the mover has an ancestor that outlives it
+	for ( int i = 0; i < 8; ++i )
+	{
+		bodyDef.position = (b3Pos){ b3FixFromInt( 2 * i ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
+		b3BodyId restingId = b3CreateBody( worldId, &bodyDef );
+		b3CreateSphereShape( restingId, &shapeDef, &sphere );
+	}
+
+	// This body outruns its AABB margin every step
+	bodyDef.position = (b3Pos){ B3_FIX( 7.0f ), B3_FIX( 1.0f ), B3_FIX( 0.0f ) };
+	bodyDef.linearVelocity = (b3Vec3){ B3_FIX( 6.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
+	b3BodyId moverId = b3CreateBody( worldId, &bodyDef );
+	b3CreateSphereShape( moverId, &shapeDef, &sphere );
+
+	b3Fixed timeStep = b3FixDiv( B3_FIXED_ONE, b3FixFromInt( 60 ) );
+	b3World_Step( worldId, timeStep, 4 );
+
+	ENSURE( CountEnlargedNodes( tree ) > 0 );
+
+	b3DestroyBody( moverId );
+
+	// The mover was the only proxy in the move buffer
+	ENSURE( world->broadPhase.moveArray.count == 0 );
+	ENSURE( CountEnlargedNodes( tree ) > 0 );
+
+	b3World_Step( worldId, timeStep, 4 );
+
+	ENSURE( CountEnlargedNodes( tree ) == 0 );
+
+	b3DestroyWorld( worldId );
+	return 0;
+}
+
 int WorldTest( void )
 {
+	RUN_SUBTEST( TestEnlargedProxyDestroyed );
 	RUN_SUBTEST( HelloWorld );
 	RUN_SUBTEST( EmptyWorld );
 	RUN_SUBTEST( SleepingWorldTreeJoinTest );
