@@ -51,6 +51,39 @@ The PORT RECORDs below run newest first and are the detail for each step.
 
 ## Current status (as of 2026-08-31 — v1.4.0, MAINTENANCE MODE)
 
+- **PORT RECORD adec25b + 9f998c8 "SAT set, the portable pieces" (2026-10-14) —
+  PORTED in one step (card port-adec25b-9f998c8-sat-set-portable-pieces).** The
+  four-commit SAT series lives inside `b3ComputeSeparatingAxis`, which this tree never
+  adopted (`src/manifold.h:12`, PORT RECORD `c37cfe4`), so the disposition is SKIP with
+  two portable pieces carried. **(1) the bestIndex assert** (adec25b,
+  `b3FindHullSupportVertex`): `B3_ASSERT( bestIndex >= 0 )` tightened to
+  `B3_ASSERT( 0 <= bestIndex && bestIndex < vertexCount )` at the exact-SAT scalar tail
+  (`src/hull.c`), a strictly better canary and free. **(2) `b3CreateComplexHull`**
+  (9f998c8, +45 in hull.c): 32 pseudo-random points on a sphere from PEEL's BasicRandom.
+  Two fixed-point hazards handled: the `/ 65535.0f - 0.5f` coordinate map becomes native
+  integer scaling on the raw value (`raw * 65536 / 65535 - 32768`, CLAUDE.md rule 8 —
+  never `b3FixDiv` against the int macro 65535, which is ~1.0 fixed and would collapse
+  every coordinate), and the `lengthSquared > 0.25f` rejection loop is proven to
+  terminate: the LCG is full-period mod 2^32 (multiplier 2147001325 ≡ 1 mod 4, increment
+  715136305 odd), so its low 16 bits are a fixed permutation of [0, 65535] for every
+  seed; gcd(3, 65536) = 1 makes the loop scan every consecutive triple, of which the
+  acceptance region holds 34313/65536 (~pi/6) with a longest rejected run of 29, so the
+  loop exits in at most 30 iterations for every seed. `b3Normalize` is the exact raw-128
+  form (rule 3) and is safe. The `-linearSlop*linearSlop` tolerance is NOT ported (1-2
+  quanta here; the exact sign test already answers it). Public declaration kept out of
+  `include/box3d/collision.h` (outside PATHS): `b3CreateComplexHull` (seed 42) and the
+  seeded variant `b3CreateComplexHullSeeded` are declared in `src/hull.h` for the test
+  and the future reference harness. GOLDENS: NONE MOVED — the generated hull is new
+  content (seeds no existing golden) and the assert tightening changes no behavior.
+  TESTS: `CreateComplexHullTest` (valid by `b3IsValidHull`, within B3_MAX_HULL_VERTICES,
+  byte-deterministic across two calls) and `CreateComplexHullTerminatesTest` (degenerate
+  seeds 0/1/2/42/0xffff/0x7fffffff/0x80000000/0xffffffff). Reference scene
+  `tools/reference/scenes/ref-9f998c8-complex-hull.scene` is ADDED for the harness glob
+  (complex hull dropped on a ground box, 120 steps at fixed dt=1/60, no wall clock), but
+  the reference harness (`tools/reference/`, card fixed3d-box3d-reference-harness) is
+  absent at this base, so `ctest -L reference` could not run and its tolerance is stated,
+  not measured; the run is not-done until the harness lands.
+
 - **PORT RECORD 47d7f7c "clockwise option, joint is awake (#130)" (2026-08-29) —
   PORTED in seven steps, 2026-08-31.** 2,466 upstream insertions; the whole engine
   half is across, the samples half is held above. Each step built and ran narrow,
