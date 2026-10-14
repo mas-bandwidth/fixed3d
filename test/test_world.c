@@ -5,6 +5,7 @@
 #include "body.h"
 #include "overflow_color.h"
 #include "physics_world.h"
+#include "solver_set.h"
 #include "test_macros.h"
 
 #include "box3d/box3d.h"
@@ -1497,6 +1498,34 @@ static int WorldByteCountTest( void )
 	int64_t wideWorldBytes = b3World_GetCounters( worldA ).byteCount;
 	internalWorldA->stack.capacity = actualStackCapacity;
 	ENSURE( wideWorldBytes == (int64_t)worldABytes + INT_MAX - actualStackCapacity );
+
+	// Two valid solver-set capacities can exceed INT_MAX bytes only after they
+	// are combined and multiplied by the element size. No storage is allocated.
+	b3SolverSet* staticSet = internalWorldA->solverSets.data + b3_staticSet;
+	b3SolverSet* awakeSet = internalWorldA->solverSets.data + b3_awakeSet;
+	int staticBodySimCapacity = staticSet->bodySims.capacity;
+	int awakeBodySimCapacity = awakeSet->bodySims.capacity;
+	int syntheticBodySimCapacity = INT_MAX / ( 2 * (int)sizeof( b3BodySim ) ) + 1;
+	staticSet->bodySims.capacity = syntheticBodySimCapacity;
+	awakeSet->bodySims.capacity = syntheticBodySimCapacity;
+	int64_t largeSolverBytes = b3World_GetCounters( worldA ).byteCount;
+	staticSet->bodySims.capacity = staticBodySimCapacity;
+	awakeSet->bodySims.capacity = awakeBodySimCapacity;
+	ENSURE( largeSolverBytes == worldABytes +
+			 ( (int64_t)2 * syntheticBodySimCapacity - staticBodySimCapacity - awakeBodySimCapacity ) * sizeof( b3BodySim ) );
+
+	// Event arrays are individually below INT_MAX bytes, but their category sum
+	// crosses the boundary. Restore both capacities before the world is touched again.
+	int firstEventCapacity = internalWorldA->sensorEndEvents[0].capacity;
+	int secondEventCapacity = internalWorldA->sensorEndEvents[1].capacity;
+	int syntheticEventCapacity = INT_MAX / ( 2 * (int)sizeof( b3SensorEndTouchEvent ) ) + 1;
+	internalWorldA->sensorEndEvents[0].capacity = syntheticEventCapacity;
+	internalWorldA->sensorEndEvents[1].capacity = syntheticEventCapacity;
+	int64_t largeEventBytes = b3World_GetCounters( worldA ).byteCount;
+	internalWorldA->sensorEndEvents[0].capacity = firstEventCapacity;
+	internalWorldA->sensorEndEvents[1].capacity = secondEventCapacity;
+	ENSURE( largeEventBytes == worldABytes +
+			 ( (int64_t)2 * syntheticEventCapacity - firstEventCapacity - secondEventCapacity ) * sizeof( b3SensorEndTouchEvent ) );
 
 	b3WorldId worldB = b3CreateWorld( &worldDef );
 	ENSURE( b3World_IsValid( worldB ) );
