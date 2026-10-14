@@ -14,6 +14,7 @@
 
 #include <assert.h>
 #include <ctype.h>
+#include <inttypes.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -143,6 +144,116 @@ static void PrintBenchmarks( const Benchmark* benchmarks, int count )
 // Run benchmark 3 with 4 workers and run once. Disable continuous collision. Record the step times.
 // start /affinity 0x5555 .\build\bin\Release\benchmark.exe -t=4 -w=4 -b=3 -r=1 -nc -s
 
+// ------------------------------------------------------------------------------------------
+// Perf-harness: per-phase profiling output.
+//
+// The b3Profile fields are b3Fixed milliseconds (Q48.16). We accumulate them as b3Fixed
+// across the whole run, then divide by the step count (integer division, still Q48.16)
+// and convert to nanoseconds in one place, at output, via b3FixToDouble() * 1e6. The
+// conversion happens exactly once per printed value so no rounding error accumulates.
+// ------------------------------------------------------------------------------------------
+
+#define PERF_PHASE_COUNT 17
+
+static const char* kPerfPhaseNames[PERF_PHASE_COUNT] = {
+	"pairs",			  "collide",		   "solve",
+	"solverSetup",		  "constraints",	   "prepareConstraints",
+	"integrateVelocities", "warmStart",		   "solveImpulses",
+	"integratePositions",  "relaxImpulses",	   "applyRestitution",
+	"storeImpulses",	  "transforms",		   "refit",
+	"bullets",			  "sleepIslands",
+};
+
+static void AddProfile( b3Fixed* sums, const b3Profile* p )
+{
+	sums[0] += p->pairs;
+	sums[1] += p->collide;
+	sums[2] += p->solve;
+	sums[3] += p->solverSetup;
+	sums[4] += p->constraints;
+	sums[5] += p->prepareConstraints;
+	sums[6] += p->integrateVelocities;
+	sums[7] += p->warmStart;
+	sums[8] += p->solveImpulses;
+	sums[9] += p->integratePositions;
+	sums[10] += p->relaxImpulses;
+	sums[11] += p->applyRestitution;
+	sums[12] += p->storeImpulses;
+	sums[13] += p->transforms;
+	sums[14] += p->refit;
+	sums[15] += p->bullets;
+	sums[16] += p->sleepIslands;
+	sums[17] += p->step;
+}
+
+// ------------------------------------------------------------------------------------------
+// Perf-harness: --phases-json accumulation.
+// ------------------------------------------------------------------------------------------
+
+typedef struct PerfJsonEntry
+{
+	const char* scene;
+	int workers;
+	int repeats;
+	double stats[PERF_PHASE_COUNT + 1][3]; // [phase][min, median, max], ns per step
+} PerfJsonEntry;
+
+static PerfJsonEntry* g_perfJson = NULL;
+static int g_perfJsonCount = 0;
+static int g_perfJsonCapacity = 0;
+
+static void PerfJsonAppend( PerfJsonEntry entry )
+{
+	if ( g_perfJsonCount == g_perfJsonCapacity )
+	{
+		int newCapacity = g_perfJsonCapacity == 0 ? 8 : 2 * g_perfJsonCapacity;
+		PerfJsonEntry* next = (PerfJsonEntry*)realloc( g_perfJson, (size_t)newCapacity * sizeof( PerfJsonEntry ) );
+		assert( next != NULL );
+		g_perfJson = next;
+		g_perfJsonCapacity = newCapacity;
+	}
+	g_perfJson[g_perfJsonCount++] = entry;
+}
+
+static int CompareDouble( const void* a, const void* b )
+{
+	double da = *(const double*)a;
+	double db = *(const double*)b;
+	return ( da > db ) - ( da < db );
+}
+
+static void PerfJsonWrite( const char* fileName )
+{
+	FILE* file = fopen( fileName, "w" );
+	if ( file == NULL )
+	{
+		printf( "Could not open %s for writing\n", fileName );
+		return;
+	}
+
+	fprintf( file, "[\n" );
+	for ( int i = 0; i < g_perfJsonCount; ++i )
+	{
+		const PerfJsonEntry* entry = g_perfJson + i;
+		fprintf( file, "%s{\n", i == 0 ? "" : ",\n" );
+		fprintf( file, "  \"scene\": \"%s\",\n", entry->scene );
+		fprintf( file, "  \"workers\": %d,\n", entry->workers );
+		fprintf( file, "  \"repeats\": %d,\n", entry->repeats );
+		fprintf( file, "  \"ns_per_step\": {\n" );
+		for ( int phase = 0; phase <= PERF_PHASE_COUNT; ++phase )
+		{
+			const char* name = phase == PERF_PHASE_COUNT ? "step" : kPerfPhaseNames[phase];
+			fprintf( file, "    \"%s\": {\"min\": %.3f, \"median\": %.3f, \"max\": %.3f}%s\n", name,
+					 entry->stats[phase][0], entry->stats[phase][1], entry->stats[phase][2],
+					 phase == PERF_PHASE_COUNT ? "" : "," );
+		}
+		fprintf( file, "  }\n" );
+		fprintf( file, "}" );
+	}
+	fprintf( file, "\n]\n" );
+	fclose( file );
+}
+
 int main( int argc, char** argv )
 {
 #ifdef TRACY_ENABLE
@@ -161,6 +272,8 @@ int main( int argc, char** argv )
 		{ "trees50", NULL, CreateTrees50, DestroyTrees, NULL, 500 },
 		{ "trees25", NULL, CreateTrees25, DestroyTrees, NULL, 500 },
 		{ "washer", GetWasherCapacity, CreateWasher, NULL, NULL, 1000 },
+		{ "ragdoll_pile", GetRagdollPileCapacity, CreateRagdollPile, DestroyRagdollPile, NULL, 500 },
+		{ "bodies_20k", GetBodies20kCapacity, CreateBodies20k, NULL, NULL, 500 },
 		//{ "smash", CreateSmash, NULL, 300 },
 		//{ "spinner", CreateSpinner, StepSpinner, 1400 },
 		//{ "tumbler", CreateTumbler, NULL, 750 },
@@ -210,6 +323,9 @@ int main( int argc, char** argv )
 	b3Counters counters = { 0 };
 	bool enableContinuous = true;
 	bool recordStepTimes = false;
+	bool hashEnabled = false;
+	int hashEvery = 0;
+	const char* phasesJson = NULL;
 
 	assert( maxThreadCount <= B3_MAX_WORKERS );
 
@@ -248,6 +364,19 @@ int main( int argc, char** argv )
 		{
 			runCount = b3ClampInt( atoi( value ), 1, 1000 );
 		}
+		else if ( strncmp( arg, "--hash-every=", 13 ) == 0 )
+		{
+			hashEvery = atoi( arg + 13 );
+			hashEnabled = true;
+		}
+		else if ( strcmp( arg, "--hash" ) == 0 )
+		{
+			hashEnabled = true;
+		}
+		else if ( strncmp( arg, "--phases-json=", 14 ) == 0 )
+		{
+			phasesJson = arg + 14;
+		}
 		else if ( strcmp( arg, "-nc" ) == 0 || strcmp( arg, "--no-continuous" ) == 0 )
 		{
 			enableContinuous = false;
@@ -271,6 +400,9 @@ int main( int argc, char** argv )
 					"-r, --repeats=<integer>: number of repeats (default is 4)\n"
 					"-nc, --no-continuous: disable continuous collision\n"
 					"-s, --record-steps: record step times\n"
+					"--hash: print a deterministic FNV-1a/64 body-state hash after the last step\n"
+					"--hash-every=<k>: also print the hash every k steps\n"
+					"--phases-json=<file>: write per-phase min/median/max nanoseconds per step\n"
 					"-l, --list: list the registered benchmarks\n"
 					"-h, --help: print this help\n" );
 			exit( 0 );
@@ -319,6 +451,16 @@ int main( int argc, char** argv )
 
 			printf( "thread count: %d\n", threadCount );
 
+			uint64_t sceneHash = 0;
+			bool sceneHashComputed = false;
+
+			// Per-run per-phase nanoseconds per step, for the --phases-json output.
+			double* runNs = NULL;
+			if ( phasesJson != NULL )
+			{
+				runNs = (double*)malloc( (size_t)runCount * ( PERF_PHASE_COUNT + 1 ) * sizeof( double ) );
+			}
+
 			for ( int runIndex = 0; runIndex < runCount; ++runIndex )
 			{
 				b3WorldDef worldDef = b3DefaultWorldDef();
@@ -331,6 +473,11 @@ int main( int argc, char** argv )
 				}
 
 				b3WorldId worldId = b3CreateWorld( &worldDef );
+
+				if ( hashEnabled )
+				{
+					b3BenchmarkResetBodies();
+				}
 
 				benchmark->createFcn( worldId );
 
@@ -345,10 +492,13 @@ int main( int argc, char** argv )
 
 				assert( stepCount <= maxSteps );
 
+				b3Fixed phaseSums[PERF_PHASE_COUNT + 1] = { 0 };
+
 				b3World_Step( worldId, timeStep, subStepCount );
-\
+
 				b3Profile profile = b3World_GetProfile( worldId );
 				MinProfile( profiles + 0, &profile );
+				AddProfile( phaseSums, &profile );
 
 				uint64_t ticks = b3GetTicks();
 
@@ -360,9 +510,23 @@ int main( int argc, char** argv )
 					}
 
 					b3World_Step( worldId, timeStep, subStepCount );
-\
+
 					profile = b3World_GetProfile( worldId );
 					MinProfile( profiles + stepIndex, &profile );
+					AddProfile( phaseSums, &profile );
+
+					if ( hashEvery > 0 && runIndex == 0 && ( stepIndex % hashEvery ) == 0 )
+					{
+						uint64_t runningHash = b3BenchmarkHashBodies( worldId );
+						printf( "HASH %s workers=%d step=%d %016" PRIx64 "\n", benchmark->name, threadCount, stepIndex,
+								runningHash );
+					}
+				}
+
+				if ( hashEnabled && runIndex == 0 )
+				{
+					sceneHash = b3BenchmarkHashBodies( worldId );
+					sceneHashComputed = true;
 				}
 
 				b3Fixed ms = b3GetMilliseconds( ticks );
@@ -377,6 +541,17 @@ int main( int argc, char** argv )
 					minTime[threadCount - 1] = b3FixMin( minTime[threadCount - 1], ms );
 				}
 
+				if ( phasesJson != NULL )
+				{
+					// Convert the b3Fixed millisecond sums to nanoseconds per step exactly once,
+					// here: divide by the step count (Q48.16 integer division) then scale.
+					for ( int phase = 0; phase <= PERF_PHASE_COUNT; ++phase )
+					{
+						double nsPerStep = b3FixToDouble( phaseSums[phase] / stepCount ) * 1e6;
+						runNs[runIndex * ( PERF_PHASE_COUNT + 1 ) + phase] = nsPerStep;
+					}
+				}
+
 				if ( countersAcquired == false )
 				{
 					counters = b3World_GetCounters( worldId );
@@ -389,6 +564,36 @@ int main( int argc, char** argv )
 				}
 
 				b3DestroyWorld( worldId );
+			}
+
+			if ( hashEnabled && sceneHashComputed )
+			{
+				printf( "HASH %s workers=%d %016" PRIx64 "\n", benchmark->name, threadCount, sceneHash );
+			}
+
+			if ( phasesJson != NULL )
+			{
+				PerfJsonEntry entry;
+				entry.scene = benchmark->name;
+				entry.workers = threadCount;
+				entry.repeats = runCount;
+				for ( int phase = 0; phase <= PERF_PHASE_COUNT; ++phase )
+				{
+					double* values = (double*)malloc( (size_t)runCount * sizeof( double ) );
+					for ( int runIndex = 0; runIndex < runCount; ++runIndex )
+					{
+						values[runIndex] = runNs[runIndex * ( PERF_PHASE_COUNT + 1 ) + phase];
+					}
+					qsort( values, (size_t)runCount, sizeof( double ), CompareDouble );
+					entry.stats[phase][0] = values[0];
+					entry.stats[phase][2] = values[runCount - 1];
+					entry.stats[phase][1] = ( runCount % 2 ) == 0
+												? 0.5 * ( values[runCount / 2 - 1] + values[runCount / 2] )
+												: values[runCount / 2];
+					free( values );
+				}
+				PerfJsonAppend( entry );
+				free( runNs );
 			}
 
 			if ( recordStepTimes )
@@ -430,6 +635,11 @@ int main( int argc, char** argv )
 		}
 
 		fclose( file );
+	}
+
+	if ( phasesJson != NULL )
+	{
+		PerfJsonWrite( phasesJson );
 	}
 
 	printf( "======================================\n" );

@@ -3,6 +3,7 @@
 
 #include "human.h"
 
+#include "benchmarks.h"
 #include "utils.h"
 
 #include "box3d/box3d.h"
@@ -53,7 +54,7 @@ void CreateHuman( Human* human, b3WorldId worldId, b3Pos position, b3Fixed frict
 		bone->referenceFrame = (b3Transform){ { B3_FIX( 0.0f ), B3_FIX( 0.932087f ), -B3_FIX( 0.051708f ) }, { { B3_FIX( 0.739169f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, B3_FIX( 0.673520f ) } };
 		bodyDef.rotation = bone->referenceFrame.q;
 		bodyDef.position = b3OffsetPos( position, bone->referenceFrame.p );
-		bone->bodyId = b3CreateBody( worldId, &bodyDef );
+		bone->bodyId = b3BenchmarkCreateBody( worldId, &bodyDef );
 
 		b3Capsule capsule = { { B3_FIX( 0.07f ), B3_FIX( 0.0f ), -B3_FIX( 0.08f ) }, { -B3_FIX( 0.07f ), B3_FIX( 0.0f ), -B3_FIX( 0.08f ) }, B3_FIX( 0.13f ) };
 		shapeDef.filter.groupIndex = 0;
@@ -71,7 +72,7 @@ void CreateHuman( Human* human, b3WorldId worldId, b3Pos position, b3Fixed frict
 		bodyDef.rotation = bone->referenceFrame.q;
 		bodyDef.position = b3OffsetPos( position, bone->referenceFrame.p );
 		// bodyDef.type = b3_staticBody;
-		bone->bodyId = b3CreateBody( worldId, &bodyDef );
+		bone->bodyId = b3BenchmarkCreateBody( worldId, &bodyDef );
 		bodyDef.type = b3_dynamicBody;
 
 		b3Capsule capsule = { { B3_FIX( 0.06f ), -B3_FIX( 0.0f ), -B3_FIX( 0.052264f ) }, { -B3_FIX( 0.06f ), B3_FIX( 0.0f ), -B3_FIX( 0.052264f ) }, B3_FIX( 0.12f ) };
@@ -94,7 +95,7 @@ void CreateHuman( Human* human, b3WorldId worldId, b3Pos position, b3Fixed frict
 		bone->referenceFrame = (b3Transform){ { B3_FIX( 0.0f ), B3_FIX( 1.194336f ), -B3_FIX( 0.027087f ) }, { { B3_FIX( 0.703611f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, B3_FIX( 0.710586f ) } };
 		bodyDef.rotation = bone->referenceFrame.q;
 		bodyDef.position = b3OffsetPos( position, bone->referenceFrame.p );
-		bone->bodyId = b3CreateBody( worldId, &bodyDef );
+		bone->bodyId = b3BenchmarkCreateBody( worldId, &bodyDef );
 
 		b3Capsule capsule = { { B3_FIX( 0.08f ), -B3_FIX( 0.015133f ), -B3_FIX( 0.091801f ) }, { -B3_FIX( 0.08f ), -B3_FIX( 0.015133f ), -B3_FIX( 0.091801f ) }, B3_FIX( 0.10f ) };
 		shapeDef.filter.groupIndex = 0;
@@ -118,7 +119,7 @@ void CreateHuman( Human* human, b3WorldId worldId, b3Pos position, b3Fixed frict
 			(b3Transform){ { -B3_FIX( 0.0f ), B3_FIX( 1.31043f ), -B3_FIX( 0.028232f ) }, { { B3_FIX( 0.669856f ), B3_FIX( 0.000001f ), -B3_FIX( 0.000001f ) }, B3_FIX( 0.742491f ) } };
 		bodyDef.rotation = bone->referenceFrame.q;
 		bodyDef.position = b3OffsetPos( position, bone->referenceFrame.p );
-		bone->bodyId = b3CreateBody( worldId, &bodyDef );
+		bone->bodyId = b3BenchmarkCreateBody( worldId, &bodyDef );
 
 		b3Capsule capsule = { { B3_FIX( 0.11f ), -B3_FIX( 0.039753f ), -B3_FIX( 0.13f ) }, { -B3_FIX( 0.11f ), -B3_FIX( 0.039753f ), -B3_FIX( 0.13f ) }, B3_FIX( 0.145f ) };
 		shapeDef.filter.groupIndex = 0;
@@ -141,7 +142,7 @@ void CreateHuman( Human* human, b3WorldId worldId, b3Pos position, b3Fixed frict
 		bone->referenceFrame = (b3Transform){ { B3_FIX( 0.0f ), B3_FIX( 1.575582f ), -B3_FIX( 0.055837f ) }, { { B3_FIX( 0.879922f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, B3_FIX( 0.475118f ) } };
 		bodyDef.rotation = bone->referenceFrame.q;
 		bodyDef.position = b3OffsetPos( position, bone->referenceFrame.p );
-		bone->bodyId = b3CreateBody( worldId, &bodyDef );
+		bone->bodyId = b3BenchmarkCreateBody( worldId, &bodyDef );
 
 		b3Capsule capsule = { { -B3_FIX( 0.000001f ), -B3_FIX( 0.0f ), -B3_FIX( 0.02f ) }, { B3_FIX( 0.0f ), -B3_FIX( 0.005f ), -B3_FIX( 0.08f ) }, B3_FIX( 0.07f ) };
 		shapeDef.filter.groupIndex = 0;
@@ -164,7 +165,7 @@ void CreateHuman( Human* human, b3WorldId worldId, b3Pos position, b3Fixed frict
 		bone->referenceFrame = (b3Transform){ { B3_FIX( 0.0f ), B3_FIX( 1.653348f ), -B3_FIX( 0.003241f ) }, { { B3_FIX( 0.750288f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, B3_FIX( 0.661111f ) } };
 		bodyDef.rotation = bone->referenceFrame.q;
 		bodyDef.position = b3OffsetPos( position, bone->referenceFrame.p );
-		bone->bodyId = b3CreateBody( worldId, &bodyDef );
+		bone->bodyId = b3BenchmarkCreateBody( worldId, &bodyDef );
 
 		b3Capsule capsule = { { -B3_FIX( 0.000001f ), B3_FIX( 0.016892f ), -B3_FIX( 0.05869f ) }, { B3_FIX( 0.0f ), -B3_FIX( 0.003629f ), -B3_FIX( 0.115072f ) }, B3_FIX( 0.0975f ) };
 		shapeDef.filter.groupIndex = 0;
@@ -189,7 +190,7 @@ void CreateHuman( Human* human, b3WorldId worldId, b3Pos position, b3Fixed frict
 			(b3Transform){ { B3_FIX( 0.090416f ), B3_FIX( 0.986104f ), -B3_FIX( 0.035090f ) }, { { -B3_FIX( 0.703287f ), -B3_FIX( 0.070715f ), B3_FIX( 0.053866f ) }, B3_FIX( 0.705327f ) } };
 		bodyDef.rotation = bone->referenceFrame.q;
 		bodyDef.position = b3OffsetPos( position, bone->referenceFrame.p );
-		bone->bodyId = b3CreateBody( worldId, &bodyDef );
+		bone->bodyId = b3BenchmarkCreateBody( worldId, &bodyDef );
 
 		b3Capsule capsule = { { B3_FIX( 0.023719f ), B3_FIX( 0.006008f ), -B3_FIX( 0.039068f ) }, { -B3_FIX( 0.064492f ), -B3_FIX( 0.004664f ), -B3_FIX( 0.424718f ) }, B3_FIX( 0.09f ) };
 		shapeDef.filter.groupIndex = -groupIndex;
@@ -212,7 +213,7 @@ void CreateHuman( Human* human, b3WorldId worldId, b3Pos position, b3Fixed frict
 			(b3Transform){ { B3_FIX( 0.101198f ), B3_FIX( 0.527027f ), -B3_FIX( 0.037374f ) }, { { -B3_FIX( 0.653328f ), -B3_FIX( 0.066860f ), B3_FIX( 0.058582f ) }, B3_FIX( 0.751838f ) } };
 		bodyDef.rotation = bone->referenceFrame.q;
 		bodyDef.position = b3OffsetPos( position, bone->referenceFrame.p );
-		bone->bodyId = b3CreateBody( worldId, &bodyDef );
+		bone->bodyId = b3BenchmarkCreateBody( worldId, &bodyDef );
 
 		b3Capsule capsule = { { B3_FIX( 0.001778f ), B3_FIX( 0.0f ), B3_FIX( 0.009841f ) }, { -B3_FIX( 0.078577f ), B3_FIX( 0.014707f ), -B3_FIX( 0.41816f ) }, B3_FIX( 0.075f ) };
 		shapeDef.filter.groupIndex = 0;
@@ -234,7 +235,7 @@ void CreateHuman( Human* human, b3WorldId worldId, b3Pos position, b3Fixed frict
 			(b3Transform){ { -B3_FIX( 0.090416f ), B3_FIX( 0.986104f ), -B3_FIX( 0.03509f ) }, { { -B3_FIX( 0.703287f ), B3_FIX( 0.070715f ), -B3_FIX( 0.053865f ) }, B3_FIX( 0.705326f ) } };
 		bodyDef.rotation = bone->referenceFrame.q;
 		bodyDef.position = b3OffsetPos( position, bone->referenceFrame.p );
-		bone->bodyId = b3CreateBody( worldId, &bodyDef );
+		bone->bodyId = b3BenchmarkCreateBody( worldId, &bodyDef );
 
 		b3Capsule capsule = { { -B3_FIX( 0.023719f ), B3_FIX( 0.006008f ), -B3_FIX( 0.039068f ) }, { B3_FIX( 0.064492f ), -B3_FIX( 0.004664f ), -B3_FIX( 0.424718f ) }, B3_FIX( 0.09f ) };
 		shapeDef.filter.groupIndex = -groupIndex;
@@ -257,7 +258,7 @@ void CreateHuman( Human* human, b3WorldId worldId, b3Pos position, b3Fixed frict
 			(b3Transform){ { -B3_FIX( 0.101198f ), B3_FIX( 0.527027f ), -B3_FIX( 0.037373f ) }, { { -B3_FIX( 0.653327f ), B3_FIX( 0.06686f ), -B3_FIX( 0.058582f ) }, B3_FIX( 0.751839f ) } };
 		bodyDef.rotation = bone->referenceFrame.q;
 		bodyDef.position = b3OffsetPos( position, bone->referenceFrame.p );
-		bone->bodyId = b3CreateBody( worldId, &bodyDef );
+		bone->bodyId = b3BenchmarkCreateBody( worldId, &bodyDef );
 
 		b3Capsule capsule = { { -B3_FIX( 0.001820f ), B3_FIX( 0.0f ), B3_FIX( 0.010071f ) }, { B3_FIX( 0.077883f ), B3_FIX( 0.014825f ), -B3_FIX( 0.418047f ) }, B3_FIX( 0.075f ) };
 		shapeDef.filter.groupIndex = 0;
@@ -279,7 +280,7 @@ void CreateHuman( Human* human, b3WorldId worldId, b3Pos position, b3Fixed frict
 			(b3Transform){ { B3_FIX( 0.20378f ), B3_FIX( 1.484275f ), -B3_FIX( 0.115897f ) }, { { B3_FIX( 0.143082f ), B3_FIX( 0.695980f ), -B3_FIX( 0.690130f ) }, B3_FIX( 0.13733f ) } };
 		bodyDef.rotation = bone->referenceFrame.q;
 		bodyDef.position = b3OffsetPos( position, bone->referenceFrame.p );
-		bone->bodyId = b3CreateBody( worldId, &bodyDef );
+		bone->bodyId = b3BenchmarkCreateBody( worldId, &bodyDef );
 
 		b3Capsule capsule = { { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, { -B3_FIX( 0.091118f ), B3_FIX( 0.037775f ), B3_FIX( 0.229719f ) }, B3_FIX( 0.075f ) };
 		shapeDef.filter.groupIndex = 0;
@@ -302,7 +303,7 @@ void CreateHuman( Human* human, b3WorldId worldId, b3Pos position, b3Fixed frict
 			(b3Transform){ { B3_FIX( 0.305614f ), B3_FIX( 1.242908f ), -B3_FIX( 0.117599f ) }, { { B3_FIX( 0.165048f ), B3_FIX( 0.563437f ), -B3_FIX( 0.802002f ) }, B3_FIX( 0.109959f ) } };
 		bodyDef.rotation = bone->referenceFrame.q;
 		bodyDef.position = b3OffsetPos( position, bone->referenceFrame.p );
-		bone->bodyId = b3CreateBody( worldId, &bodyDef );
+		bone->bodyId = b3BenchmarkCreateBody( worldId, &bodyDef );
 
 		b3Capsule capsule = { { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, { -B3_FIX( 0.142406f ), B3_FIX( 0.039392f ), B3_FIX( 0.261092f ) }, B3_FIX( 0.05f ) };
 		shapeDef.filter.groupIndex = 0;
@@ -324,7 +325,7 @@ void CreateHuman( Human* human, b3WorldId worldId, b3Pos position, b3Fixed frict
 			(b3Transform){ { -B3_FIX( 0.20378f ), B3_FIX( 1.484276f ), -B3_FIX( 0.115899f ) }, { { B3_FIX( 0.143083f ), -B3_FIX( 0.695978f ), B3_FIX( 0.690132f ) }, B3_FIX( 0.137329f ) } };
 		bodyDef.rotation = bone->referenceFrame.q;
 		bodyDef.position = b3OffsetPos( position, bone->referenceFrame.p );
-		bone->bodyId = b3CreateBody( worldId, &bodyDef );
+		bone->bodyId = b3BenchmarkCreateBody( worldId, &bodyDef );
 
 		b3Capsule capsule = { { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, { B3_FIX( 0.091118f ), B3_FIX( 0.037775f ), B3_FIX( 0.229718f ) }, B3_FIX( 0.075f ) };
 		shapeDef.filter.groupIndex = 0;
@@ -348,7 +349,7 @@ void CreateHuman( Human* human, b3WorldId worldId, b3Pos position, b3Fixed frict
 			(b3Transform){ { -B3_FIX( 0.305614f ), B3_FIX( 1.242907f ), -B3_FIX( 0.117599f ) }, { { B3_FIX( 0.165048f ), -B3_FIX( 0.563437f ), B3_FIX( 0.802002f ) }, B3_FIX( 0.109959f ) } };
 		bodyDef.rotation = bone->referenceFrame.q;
 		bodyDef.position = b3OffsetPos( position, bone->referenceFrame.p );
-		bone->bodyId = b3CreateBody( worldId, &bodyDef );
+		bone->bodyId = b3BenchmarkCreateBody( worldId, &bodyDef );
 
 		b3Capsule capsule = { { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, { B3_FIX( 0.142406f ), B3_FIX( 0.039392f ), B3_FIX( 0.261092f ) }, B3_FIX( 0.05f ) };
 		shapeDef.filter.groupIndex = 0;

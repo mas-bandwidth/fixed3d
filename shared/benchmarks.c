@@ -9,6 +9,7 @@
 #include "box3d/box3d.h"
 
 #include <assert.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -68,7 +69,7 @@ void CreateJointGrid( b3WorldId worldId )
 
 			bodyDef.position = b3OffsetPos( GetSceneOrigin(), (b3Vec3){ fk, -fi, B3_FIX( 0.0f ) } );
 
-			b3BodyId body = b3CreateBody( worldId, &bodyDef );
+			b3BodyId body = b3BenchmarkCreateBody( worldId, &bodyDef );
 
 			b3CreateSphereShape( body, &shapeDef, &sphere );
 
@@ -107,7 +108,7 @@ void CreateLargePyramid( b3WorldId worldId )
 	{
 		b3BodyDef bodyDef = b3DefaultBodyDef();
 		bodyDef.position = b3OffsetPos( GetSceneOrigin(), (b3Vec3){ B3_FIX( 0.0f ), -B3_FIX( 1.0f ), B3_FIX( 0.0f ) } );
-		b3BodyId groundId = b3CreateBody( worldId, &bodyDef );
+		b3BodyId groundId = b3BenchmarkCreateBody( worldId, &bodyDef );
 
 		b3BoxHull box = b3MakeBoxHull( B3_FIX( 400.0f ), B3_FIX( 1.0f ), B3_FIX( 400.0f ) );
 		b3ShapeDef shapeDef = b3DefaultShapeDef();
@@ -135,7 +136,7 @@ void CreateLargePyramid( b3WorldId worldId )
 
 			bodyDef.position = b3OffsetPos( GetSceneOrigin(), (b3Vec3){ x, y, B3_FIX( 0.0f ) } );
 
-			b3BodyId bodyId = b3CreateBody( worldId, &bodyDef );
+			b3BodyId bodyId = b3BenchmarkCreateBody( worldId, &bodyDef );
 			b3CreateHullShape( bodyId, &shapeDef, &box.base );
 		}
 	}
@@ -146,7 +147,7 @@ void CreateWidePyramid( b3WorldId worldId )
 	{
 		b3BodyDef bodyDef = b3DefaultBodyDef();
 		bodyDef.position = b3OffsetPos( GetSceneOrigin(), (b3Vec3){ B3_FIX( 0.0f ), -B3_FIX( 1.0f ), B3_FIX( 0.0f ) } );
-		b3BodyId groundId = b3CreateBody( worldId, &bodyDef );
+		b3BodyId groundId = b3BenchmarkCreateBody( worldId, &bodyDef );
 
 		b3BoxHull box = b3MakeBoxHull( B3_FIX( 100.0f ), B3_FIX( 1.0f ), B3_FIX( 100.0f ) );
 		b3ShapeDef shapeDef = b3DefaultShapeDef();
@@ -176,7 +177,7 @@ void CreateWidePyramid( b3WorldId worldId )
 				b3Fixed z = b3FixFromInt( -pyramidHeight ) + b3FixMul( boxSize , b3FixFromInt( k ) ) + ( i & 1 ? halfBoxSize : B3_FIX( 0.0f ) );
 				bodyDef.position = b3OffsetPos( GetSceneOrigin(), (b3Vec3){ x, y, z } );
 
-				b3BodyId bodyId = b3CreateBody( worldId, &bodyDef );
+				b3BodyId bodyId = b3BenchmarkCreateBody( worldId, &bodyDef );
 				b3CreateHullShape( bodyId, &shapeDef, &box.base );
 			}
 		}
@@ -203,7 +204,7 @@ static void CreateSmallPyramid( b3WorldId worldId, int baseCount, b3Fixed extent
 			b3Fixed x = b3FixMul( ( b3FixFromInt( i ) + B3_FIX( 1.0f ) ) , extent ) + b3FixMul( b3FixMul( B3_FIX( 2.0f ) , b3FixFromInt( ( j - i ) ) ) , extent ) + centerX - B3_FIX( 0.5f );
 			bodyDef.position = b3OffsetPos( GetSceneOrigin(), (b3Vec3){ x, y, baseZ } );
 
-			b3BodyId bodyId = b3CreateBody( worldId, &bodyDef );
+			b3BodyId bodyId = b3BenchmarkCreateBody( worldId, &bodyDef );
 			b3CreateHullShape( bodyId, &shapeDef, &box.base );
 		}
 	}
@@ -220,7 +221,7 @@ void CreateManyPyramids( b3WorldId worldId )
 	{
 		b3BodyDef bodyDef = b3DefaultBodyDef();
 		bodyDef.position = b3OffsetPos( GetSceneOrigin(), (b3Vec3){ B3_FIX( 0.0f ), -B3_FIX( 1.0f ), B3_FIX( 0.0f ) } );
-		b3BodyId groundId = b3CreateBody( worldId, &bodyDef );
+		b3BodyId groundId = b3BenchmarkCreateBody( worldId, &bodyDef );
 
 		b3ShapeDef shapeDef = b3DefaultShapeDef();
 		b3BoxHull box = b3MakeBoxHull( groundExtent, B3_FIX( 1.0f ), groundExtent );
@@ -322,7 +323,7 @@ void CreateRain( b3WorldId worldId )
 		for ( int j = 0; j < RAIN_GRID_COUNT; ++j )
 		{
 			bodyDef.position = b3OffsetPos( GetSceneOrigin(), local );
-			b3BodyId body = b3CreateBody( worldId, &bodyDef );
+			b3BodyId body = b3BenchmarkCreateBody( worldId, &bodyDef );
 			b3CreateMeshShape( body, &shapeDef, g_rainData.gridMesh, b3Vec3_one );
 			b3CreateMeshShape( body, &shapeDef, g_rainData.torusMesh, b3Vec3_one );
 
@@ -472,7 +473,7 @@ void CreateLargeWorld( b3WorldId worldId )
 		{
 			b3Fixed z = -halfSpan + b3FixMul( ( b3FixFromInt( j ) + B3_FIX( 0.5f ) ) , cell );
 			bodyDef.position = b3OffsetPos( GetSceneOrigin(), (b3Vec3){ x, B3_FIX( 0.0f ), z } );
-			b3BodyId body = b3CreateBody( worldId, &bodyDef );
+			b3BodyId body = b3BenchmarkCreateBody( worldId, &bodyDef );
 			b3CreateHullShape( body, &shapeDef, &box.base );
 		}
 	}
@@ -527,7 +528,7 @@ void StepLargeWorld( b3WorldId worldId, int stepCount )
 	b3ShapeDef shapeDef = b3DefaultShapeDef();
 	b3Sphere sphere = { { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, B3_FIX( 0.5f ) };
 
-	b3BodyId body = b3CreateBody( worldId, &bodyDef );
+	b3BodyId body = b3BenchmarkCreateBody( worldId, &bodyDef );
 	b3CreateSphereShape( body, &shapeDef, &sphere );
 
 	g_staticFloorData.spheresDropped += 1;
@@ -550,7 +551,7 @@ void CreateWasher( b3WorldId worldId )
 	{
 		b3BodyDef bodyDef = b3DefaultBodyDef();
 		bodyDef.position = b3OffsetPos( GetSceneOrigin(), (b3Vec3){ B3_FIX( 0.0f ), -B3_FIX( 1.0f ), B3_FIX( 0.0f ) } );
-		groundId = b3CreateBody( worldId, &bodyDef );
+		groundId = b3BenchmarkCreateBody( worldId, &bodyDef );
 
 		b3BoxHull box = b3MakeBoxHull( B3_FIX( 60.0f ), B3_FIX( 1.0f ), B3_FIX( 60.0f ) );
 		b3ShapeDef shapeDef = b3DefaultShapeDef();
@@ -574,7 +575,7 @@ void CreateWasher( b3WorldId worldId )
 			bodyDef.type = b3_dynamicBody;
 		}
 
-		b3BodyId bodyId = b3CreateBody( worldId, &bodyDef );
+		b3BodyId bodyId = b3BenchmarkCreateBody( worldId, &bodyDef );
 
 		b3ShapeDef shapeDef = b3DefaultShapeDef();
 
@@ -670,7 +671,7 @@ void CreateWasher( b3WorldId worldId )
 			for ( int k = 0; k < gridCount; ++k )
 			{
 				bodyDef.position = b3OffsetPos( GetSceneOrigin(), (b3Vec3){ x, y, z } );
-				b3BodyId bodyId = b3CreateBody( worldId, &bodyDef );
+				b3BodyId bodyId = b3BenchmarkCreateBody( worldId, &bodyDef );
 
 				b3CreateHullShape( bodyId, &shapeDef, &cube.base );
 				z += b3FixMul( B3_FIX( 4.0f ) , a );
@@ -697,7 +698,7 @@ static void CreateTrees( b3WorldId worldId, int scale )
 	b3BodyDef bodyDef = b3DefaultBodyDef();
 	bodyDef.position = b3OffsetPos( GetSceneOrigin(), (b3Vec3){ B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) } );
 	bodyDef.rotation = b3MakeQuatFromAxisAngle( (b3Vec3){ B3_FIX( 1.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0 ) }, tilt );
-	b3BodyId groundId = b3CreateBody( worldId, &bodyDef );
+	b3BodyId groundId = b3BenchmarkCreateBody( worldId, &bodyDef );
 
 	int xCount = scale * 150;
 	// int zCount = BENCHMARK_DEBUG ? 100 : 400;
@@ -743,7 +744,7 @@ static void CreateTrees( b3WorldId worldId, int scale )
 	for ( int bodyIndex = 0; bodyIndex < bodyCount; ++bodyIndex )
 	{
 		bodyDef.position = b3OffsetPos( GetSceneOrigin(), (b3Vec3){ B3_FIX( 0.0 ), B3_FIX( 1.0f ) - b3FixMul( z , yTilt ), z } );
-		b3BodyId bodyId = b3CreateBody( worldId, &bodyDef );
+		b3BodyId bodyId = b3BenchmarkCreateBody( worldId, &bodyDef );
 
 		for ( int shapeIndex = 0; shapeIndex < 22; ++shapeIndex )
 		{
@@ -809,7 +810,7 @@ void CreateJunkyard( b3WorldId worldId )
 	{
 		b3BodyDef bodyDef = b3DefaultBodyDef();
 		bodyDef.position = b3OffsetPos( GetSceneOrigin(), (b3Vec3){ B3_FIX( 0.0f ), -B3_FIX( 1.0f ), B3_FIX( 0.0f ) } );
-		groundId = b3CreateBody( worldId, &bodyDef );
+		groundId = b3BenchmarkCreateBody( worldId, &bodyDef );
 	}
 
 	{
@@ -858,7 +859,7 @@ void CreateJunkyard( b3WorldId worldId )
 					local.y = b3FixMul( B3_FIX( 4.0f ) , b3FixFromInt( Y ) ) + height + B3_FIX( 1.0f );
 					local.z = -B3_FIX( 40.0f ) + b3FixMul( B3_FIX( 4.0f ) , b3FixFromInt( Z ) );
 					bodyDef.position = b3OffsetPos( GetSceneOrigin(), local );
-					b3BodyId bodyId = b3CreateBody( worldId, &bodyDef );
+					b3BodyId bodyId = b3BenchmarkCreateBody( worldId, &bodyDef );
 					b3CreateHullShape( bodyId, &shapeDef, rockHull );
 				}
 			}
@@ -874,7 +875,7 @@ void CreateJunkyard( b3WorldId worldId )
 	b3BodyDef bodyDef = b3DefaultBodyDef();
 	bodyDef.type = b3_kinematicBody;
 	bodyDef.position = b3OffsetPos( GetSceneOrigin(), (b3Vec3){ g_junkyardData.radius, B3_FIX( 0.0f ), B3_FIX( 0.0f ) } );
-	g_junkyardData.pusherId = b3CreateBody( worldId, &bodyDef );
+	g_junkyardData.pusherId = b3BenchmarkCreateBody( worldId, &bodyDef );
 	g_junkyardData.degrees = B3_FIX( 0.0f );
 	b3ShapeDef shapeDef = b3DefaultShapeDef();
 	b3CreateHullShape( g_junkyardData.pusherId, &shapeDef, hull );
@@ -963,7 +964,7 @@ void CreateConvexPile( b3WorldId worldId )
 	{
 		b3BodyDef bodyDef = b3DefaultBodyDef();
 		bodyDef.position = b3OffsetPos( GetSceneOrigin(), (b3Vec3){ B3_FIX( 0.0f ), -B3_FIX( 1.0f ), B3_FIX( 0.0f ) } );
-		b3BodyId groundId = b3CreateBody( worldId, &bodyDef );
+		b3BodyId groundId = b3BenchmarkCreateBody( worldId, &bodyDef );
 
 		b3BoxHull box = b3MakeBoxHull( B3_FIX( 250.0f ), B3_FIX( 1.0f ), B3_FIX( 250.0f ) );
 		b3ShapeDef shapeDef = b3DefaultShapeDef();
@@ -1004,11 +1005,290 @@ void CreateConvexPile( b3WorldId worldId )
 				b3Fixed posY = amplitude + b3FixMul( b3FixMul( B3_FIX( 2.0f ) , amplitude ) , (b3Fixed)b3FixFromInt( layer ) );
 
 				bodyDef.position = b3OffsetPos( GetSceneOrigin(), (b3Vec3){ posX, posY, posZ } );
-				b3BodyId bodyId = b3CreateBody( worldId, &bodyDef );
+				b3BodyId bodyId = b3BenchmarkCreateBody( worldId, &bodyDef );
 				b3CreateHullShape( bodyId, &shapeDef, convex );
 			}
 		}
 	}
 
 	b3DestroyHull( convex );
+}
+
+// -------------------------------------------------------------------------------------
+// Perf-harness: deterministic state hashing and a body-id registry.
+//
+// The benchmark app hashes every body after the last step to prove a change did not
+// move a single bit. There is no public body-iteration API, so the scene builders
+// record every b3BodyId they create (through b3BenchmarkCreateBody) and the app reads
+// them back in body-id order. The registry is only populated while a scene is being
+// benchmarked; b3BenchmarkCreateBody is otherwise a transparent b3CreateBody.
+// -------------------------------------------------------------------------------------
+
+static b3BodyId* g_bodyRegistry = NULL;
+static int g_bodyRegistryCount = 0;
+static int g_bodyRegistryCapacity = 0;
+static bool g_bodyRegistryActive = false;
+
+uint64_t b3HashValue( uint64_t hash, int64_t value )
+{
+	uint64_t bits = (uint64_t)value;
+	for ( int i = 0; i < 8; ++i )
+	{
+		hash = ( hash ^ ( bits & 255 ) ) * UINT64_C( 1099511628211 );
+		bits >>= 8;
+	}
+	return hash;
+}
+
+uint64_t b3HashVector( uint64_t hash, b3Vec3 v )
+{
+	return b3HashValue( b3HashValue( b3HashValue( hash, v.x ), v.y ), v.z );
+}
+
+uint64_t b3HashBodyState( uint64_t hash, b3BodyId bodyId )
+{
+	b3WorldTransform t = b3Body_GetTransform( bodyId );
+	hash = b3HashValue( hash, (int64_t)t.p.x );
+	hash = b3HashValue( hash, (int64_t)t.p.y );
+	hash = b3HashValue( hash, (int64_t)t.p.z );
+#if defined( BOX3D_LUDICROUS_MODE )
+	// The wide build stores 128-bit positions; hash the high word too so the narrow
+	// and ludicrous builds each carry a distinct, complete oracle.
+	hash = b3HashValue( hash, (int64_t)( (b3UInt128)t.p.x >> 64 ) );
+	hash = b3HashValue( hash, (int64_t)( (b3UInt128)t.p.y >> 64 ) );
+	hash = b3HashValue( hash, (int64_t)( (b3UInt128)t.p.z >> 64 ) );
+#endif
+	hash = b3HashVector( hash, t.q.v );
+	hash = b3HashValue( hash, t.q.s );
+	hash = b3HashVector( hash, b3Body_GetLinearVelocity( bodyId ) );
+	hash = b3HashVector( hash, b3Body_GetAngularVelocity( bodyId ) );
+	return hash;
+}
+
+void b3BenchmarkResetBodies( void )
+{
+	g_bodyRegistryCount = 0;
+	g_bodyRegistryActive = true;
+}
+
+b3BodyId b3BenchmarkCreateBody( b3WorldId worldId, const b3BodyDef* def )
+{
+	b3BodyId id = b3CreateBody( worldId, def );
+	if ( g_bodyRegistryActive )
+	{
+		if ( g_bodyRegistryCount == g_bodyRegistryCapacity )
+		{
+			int newCapacity = g_bodyRegistryCapacity == 0 ? 4096 : 2 * g_bodyRegistryCapacity;
+			b3BodyId* next = (b3BodyId*)realloc( g_bodyRegistry, (size_t)newCapacity * sizeof( b3BodyId ) );
+			assert( next != NULL );
+			g_bodyRegistry = next;
+			g_bodyRegistryCapacity = newCapacity;
+		}
+		g_bodyRegistry[g_bodyRegistryCount++] = id;
+	}
+	return id;
+}
+
+static int CompareBodyIds( const void* a, const void* b )
+{
+	const b3BodyId* ia = (const b3BodyId*)a;
+	const b3BodyId* ib = (const b3BodyId*)b;
+	return ia->index1 - ib->index1;
+}
+
+uint64_t b3BenchmarkHashBodies( b3WorldId worldId )
+{
+	(void)worldId;
+	uint64_t hash = UINT64_C( 14695981039346656037 );
+
+	// Sort into body-id order, then hash the live subset. Scenes that recycle bodies
+	// (rain) leave stale ids behind; b3Body_IsValid drops them deterministically.
+	qsort( g_bodyRegistry, (size_t)g_bodyRegistryCount, sizeof( b3BodyId ), CompareBodyIds );
+	for ( int i = 0; i < g_bodyRegistryCount; ++i )
+	{
+		if ( b3Body_IsValid( g_bodyRegistry[i] ) )
+		{
+			hash = b3HashBodyState( hash, g_bodyRegistry[i] );
+		}
+	}
+	return hash;
+}
+
+// -------------------------------------------------------------------------------------
+// ragdoll_pile: the determinism ragdoll corpus (shared/determinism.c + shared/human.c)
+// scaled to 200 ragdolls dropped onto a mesh ground.
+// -------------------------------------------------------------------------------------
+
+#define RAGDOLL_PILE_HUMAN_COUNT 200
+#define RAGDOLL_PILE_COLUMNS 20
+#define RAGDOLL_PILE_ROWS 10
+
+typedef struct RagdollPileData
+{
+	Human* humans;
+	int humanCount;
+	b3MeshData* gridMesh;
+	b3MeshData* torusMesh;
+} RagdollPileData;
+
+static RagdollPileData g_ragdollPileData;
+
+void GetRagdollPileCapacity( b3Capacity* capacity )
+{
+	capacity->dynamicBodyCount = RAGDOLL_PILE_HUMAN_COUNT * bone_count;
+	capacity->dynamicShapeCount = RAGDOLL_PILE_HUMAN_COUNT * bone_count;
+	capacity->staticBodyCount = 1;
+	capacity->staticShapeCount = 2;
+	capacity->contactCount = 300 * 1024;
+}
+
+void CreateRagdollPile( b3WorldId worldId )
+{
+	memset( &g_ragdollPileData, 0, sizeof( g_ragdollPileData ) );
+
+	int halfMeshGridRows = 16;
+	b3Fixed meshGridCellWidth = b3FixDiv( B3_FIX( 60.0f ), ( b3FixMul( B3_FIX( 2.0f ), b3FixFromInt( halfMeshGridRows ) ) ) );
+	g_ragdollPileData.gridMesh = b3CreateGridMesh( 2 * halfMeshGridRows, 2 * halfMeshGridRows, meshGridCellWidth, 0, true );
+	g_ragdollPileData.torusMesh = b3CreateTorusMesh( 16, 16, B3_FIX( 4.0f ), B3_FIX( 1.0f ) );
+
+	b3BodyDef groundDef = b3DefaultBodyDef();
+	groundDef.position = b3OffsetPos( GetSceneOrigin(), b3Vec3_zero );
+	b3BodyId groundId = b3BenchmarkCreateBody( worldId, &groundDef );
+	b3ShapeDef shapeDef = b3DefaultShapeDef();
+	b3CreateMeshShape( groundId, &shapeDef, g_ragdollPileData.gridMesh, b3Vec3_one );
+	b3CreateMeshShape( groundId, &shapeDef, g_ragdollPileData.torusMesh, b3Vec3_one );
+
+	g_ragdollPileData.humanCount = RAGDOLL_PILE_HUMAN_COUNT;
+	g_ragdollPileData.humans = (Human*)malloc( RAGDOLL_PILE_HUMAN_COUNT * sizeof( Human ) );
+	memset( g_ragdollPileData.humans, 0, RAGDOLL_PILE_HUMAN_COUNT * sizeof( Human ) );
+
+	b3Fixed frictionTorque = B3_FIX( 5.0f );
+	b3Fixed hertz = B3_FIX( 1.0f );
+	b3Fixed dampingRatio = B3_FIX( 0.7f );
+
+	b3Fixed spacing = B3_FIX( 1.5f );
+	for ( int i = 0; i < RAGDOLL_PILE_COLUMNS; ++i )
+	{
+		for ( int j = 0; j < RAGDOLL_PILE_ROWS; ++j )
+		{
+			b3Vec3 local;
+			local.x = b3FixMul( spacing, ( b3FixFromInt( i ) - b3FixMul( B3_FIX( 0.5f ), b3FixFromInt( RAGDOLL_PILE_COLUMNS - 1 ) ) ) );
+			local.y = B3_FIX( 15.0f );
+			local.z = b3FixMul( spacing, ( b3FixFromInt( j ) - b3FixMul( B3_FIX( 0.5f ), b3FixFromInt( RAGDOLL_PILE_ROWS - 1 ) ) ) );
+
+			int index = i * RAGDOLL_PILE_ROWS + j;
+			CreateHuman( g_ragdollPileData.humans + index, worldId, b3OffsetPos( GetSceneOrigin(), local ), frictionTorque,
+						 hertz, dampingRatio, index, NULL, false );
+		}
+	}
+}
+
+void DestroyRagdollPile( void )
+{
+	for ( int i = 0; i < g_ragdollPileData.humanCount; ++i )
+	{
+		DestroyHuman( g_ragdollPileData.humans + i );
+	}
+
+	free( g_ragdollPileData.humans );
+	g_ragdollPileData.humans = NULL;
+
+	b3DestroyMesh( g_ragdollPileData.gridMesh );
+	b3DestroyMesh( g_ragdollPileData.torusMesh );
+
+	memset( &g_ragdollPileData, 0, sizeof( g_ragdollPileData ) );
+}
+
+// -------------------------------------------------------------------------------------
+// bodies_20k: 20,000 mixed bodies (spheres, capsules, boxes and rocks) settling onto a
+// large ground plane. The many-bodies case. Placement is integer-scaled around
+// GetSceneOrigin() so the workload is identical in fixed point and float.
+// -------------------------------------------------------------------------------------
+
+#define BODIES_20K_COUNT 20000
+#define BODIES_20K_SIDE 200
+#define BODIES_20K_LAYERS 1
+
+void GetBodies20kCapacity( b3Capacity* capacity )
+{
+	capacity->dynamicBodyCount = BODIES_20K_COUNT;
+	capacity->dynamicShapeCount = BODIES_20K_COUNT;
+	capacity->staticBodyCount = 1;
+	capacity->staticShapeCount = 1;
+	capacity->contactCount = 200 * 1024;
+}
+
+void CreateBodies20k( b3WorldId worldId )
+{
+	{
+		b3BodyDef bodyDef = b3DefaultBodyDef();
+		bodyDef.position = b3OffsetPos( GetSceneOrigin(), (b3Vec3){ B3_FIX( 0.0f ), -B3_FIX( 1.0f ), B3_FIX( 0.0f ) } );
+		b3BodyId groundId = b3BenchmarkCreateBody( worldId, &bodyDef );
+
+		b3BoxHull box = b3MakeBoxHull( B3_FIX( 120.0f ), B3_FIX( 1.0f ), B3_FIX( 120.0f ) );
+		b3ShapeDef shapeDef = b3DefaultShapeDef();
+		g_groundShapeId = b3CreateHullShape( groundId, &shapeDef, &box.base );
+	}
+
+	b3BodyDef bodyDef = b3DefaultBodyDef();
+	bodyDef.type = b3_dynamicBody;
+
+	b3ShapeDef shapeDef = b3DefaultShapeDef();
+	shapeDef.baseMaterial.rollingResistance = B3_FIX( 0.3f );
+
+	b3Sphere sphere = { b3Vec3_zero, B3_FIX( 0.25f ) };
+	b3Capsule capsule = { { B3_FIX( 0.0f ), -B3_FIX( 0.25f ), B3_FIX( 0.0f ) },
+						  { B3_FIX( 0.0f ), B3_FIX( 0.25f ), B3_FIX( 0.0f ) },
+						  B3_FIX( 0.18f ) };
+	b3BoxHull box = b3MakeBoxHull( B3_FIX( 0.25f ), B3_FIX( 0.25f ), B3_FIX( 0.25f ) );
+	b3HullData* rock = b3CreateRock( B3_FIX( 0.3f ) );
+
+	// A 200x100 lattice (2 bodies per column at 2 heights) = 20,000 bodies.
+	int columns = BODIES_20K_SIDE;
+	int rows = BODIES_20K_SIDE / 2;
+	b3Fixed spacing = B3_FIX( 0.6f );
+
+	int index = 0;
+	for ( int layer = 0; layer < BODIES_20K_LAYERS + 1; ++layer )
+	{
+		for ( int i = 0; i < rows; ++i )
+		{
+			for ( int j = 0; j < columns; ++j )
+			{
+				if ( index >= BODIES_20K_COUNT )
+				{
+					break;
+				}
+
+				b3Vec3 local;
+				local.x = b3FixMul( spacing, ( b3FixFromInt( j ) - b3FixMul( B3_FIX( 0.5f ), b3FixFromInt( columns - 1 ) ) ) );
+				local.y = B3_FIX( 0.5f ) + b3FixMul( B3_FIX( 0.6f ), b3FixFromInt( layer ) );
+				local.z = b3FixMul( spacing, ( b3FixFromInt( i ) - b3FixMul( B3_FIX( 0.5f ), b3FixFromInt( rows - 1 ) ) ) );
+
+				bodyDef.position = b3OffsetPos( GetSceneOrigin(), local );
+
+				b3BodyId bodyId = b3BenchmarkCreateBody( worldId, &bodyDef );
+
+				switch ( index % 4 )
+				{
+					case 0:
+						b3CreateSphereShape( bodyId, &shapeDef, &sphere );
+						break;
+					case 1:
+						b3CreateCapsuleShape( bodyId, &shapeDef, &capsule );
+						break;
+					case 2:
+						b3CreateHullShape( bodyId, &shapeDef, &box.base );
+						break;
+					default:
+						b3CreateHullShape( bodyId, &shapeDef, rock );
+						break;
+				}
+
+				index += 1;
+			}
+		}
+	}
+
+	b3DestroyHull( rock );
 }
