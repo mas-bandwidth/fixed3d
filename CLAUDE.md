@@ -73,8 +73,14 @@ The PORT RECORDs below run newest first and are the detail for each step.
   are isolated (adding bodies to world B leaves world A's count unchanged, red at the old
   `b3GetByteCount()` line) and the count grows by at least the per-body
   `b3Body + b3BodySim + b3BodyState` bytes; destroy returns the process allocator to zero.
-  Reference scene (ref-51f056e-world-neutral) NOT run: the `tools/reference/` harness
-  (card fixed3d-box3d-reference-harness) is not present in this checkout.
+  Reference scene `tools/reference/scenes/ref-51f056e-world-neutral.scene` is ADDED
+  for the harness glob (5-box stack, 60 steps at fixed dt=1/60, no wall clock), but
+  the reference harness itself (`tools/reference/`, card
+  fixed3d-box3d-reference-harness) is absent at this base, so `ctest -L reference`
+  could not run and its tolerance is stated, not measured; the run is not-done until
+  the harness lands. The scene header names the fixed-point divergence (exact-SAT
+  structure, no float SIMD hull core): transform traces differ from float by design,
+  the stack must settle to the same resting configuration within tolerance.
 
 - **PORT RECORD 47d7f7c "clockwise option, joint is awake (#130)" (2026-08-29) —
   PORTED in seven steps, 2026-08-31.** 2,466 upstream insertions; the whole engine

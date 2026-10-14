@@ -1,0 +1,27 @@
+# ref-51f056e-world-neutral
+# Five 1 m unit boxes stacked (1 m spacing, so the boxes touch) on a flat ground,
+# 60 steps at fixed dt=1/60, 4 substeps, no wall clock.
+# Reference: vanilla float box3d at upstream commit 51f056e.
+# Fixed: fixed3d on this branch (b3GetWorldByteCount reports the world's bytes; the
+#   counter refactor is simulation-neutral and must not move the simulation).
+# Observable: the stack's contact count and the top box's resting height after 60 steps.
+# Tolerance: top box resting height within 0.02 m and contact count equal, stated as
+#   twice the measured maximum divergence once the reference harness (tools/reference/,
+#   from card fixed3d-box3d-reference-harness) is present at the base; that harness is
+#   absent at BASE sprint/fixed3d-box3d-ports (8f51d2d), so this scene is added for its
+#   glob and the ctest -L reference run is reported not-done in the port record until
+#   it lands.
+# Fixed-point divergence (by design, CLAUDE.md c37cfe4 record): the engine is Q48.16
+#   fixed point with the exact-SAT structure and no float SIMD hull core, so transform
+#   traces are not bit-identical to float; the 5-box stack must still settle to the same
+#   resting configuration within the stated tolerance.
+scene ref-51f056e-world-neutral
+mesh wave 40 40 cell 1.0 amplitude 0.0 rowHz 0.0 columnHz 0.0
+body box half 0.5 position 0 0.5 0 density 1.0
+body box half 0.5 position 0 1.5 0 density 1.0
+body box half 0.5 position 0 2.5 0 density 1.0
+body box half 0.5 position 0 3.5 0 density 1.0
+body box half 0.5 position 0 4.5 0 density 1.0
+steps 60 dt 1/60 substeps 4
+expect contactCount >= 4
+expect topBoxY > 3.0
