@@ -3,7 +3,12 @@
 
 #include "test_macros.h"
 
+#include "arena_allocator.h"
+#include "contact.h"
+
+#include "box3d/box3d.h"
 #include "box3d/collision.h"
+#include "box3d/constants.h"
 #include "box3d/math_functions.h"
 
 #include <string.h>
@@ -634,6 +639,80 @@ static int MeshCreators( void )
 	return 0;
 }
 
+// The mesh-contact scratch (triangle indices and contact cache) lives in the
+// per-worker arena, sized by B3_MAX_MESH_CONTACT_TRIANGLES. This pins the
+// coupled 512 cap, the largest-case fit in an exact-size arena with no
+// overflow block, and identical results across worker counts on a mesh
+// whose query returns more triangles than the old 256 cap.
+static int MeshContactArenaScratchTest( void )
+{
+	ENSURE( B3_MAX_MESH_CONTACT_TRIANGLES == 512 );
+
+	int scratchBytes = B3_MAX_MESH_CONTACT_TRIANGLES * (int)sizeof( int ) +
+					   B3_MAX_MESH_CONTACT_TRIANGLES * (int)sizeof( b3ContactCache );
+	// The per-worker arena frame budget created in physics_world.c.
+	ENSURE( scratchBytes <= 128 * 1024 );
+
+	// Largest case under a tiny (exact-fit) arena: no overflow, no stack array.
+	{
+		b3Arena arena = b3CreateArena( scratchBytes );
+		int* indices = b3Bump( &arena, B3_MAX_MESH_CONTACT_TRIANGLES * (int)sizeof( int ) );
+		b3ContactCache* cache = b3Bump( &arena, B3_MAX_MESH_CONTACT_TRIANGLES * (int)sizeof( b3ContactCache ) );
+		ENSURE( indices != NULL );
+		ENSURE( cache != NULL );
+		ENSURE( arena.shared->overflowBytes == 0 );
+		ENSURE( arena.index <= arena.capacity );
+		b3DestroyArena( &arena );
+	}
+
+	uint32_t hashes[2] = { 0, 0 };
+	int workerCounts[2] = { 1, 4 };
+	for ( int w = 0; w < 2; ++w )
+	{
+		b3WorldDef worldDef = b3DefaultWorldDef();
+		worldDef.workerCount = workerCounts[w];
+		worldDef.gravity = (b3Vec3){ B3_FIX( 0.0f ), -B3_FIX( 10.0f ), B3_FIX( 0.0f ) };
+		b3WorldId worldId = b3CreateWorld( &worldDef );
+		ENSURE( b3World_IsValid( worldId ) );
+
+		b3BodyDef groundDef = b3DefaultBodyDef();
+		b3BodyId groundId = b3CreateBody( worldId, &groundDef );
+		b3MeshData* mesh = b3CreateWaveMesh( 40, 40, B3_FIX( 1.0f ), B3_FIX( 0.5f ), B3_FIX( 0.1f ), B3_FIX( 0.2f ) );
+		ENSURE( mesh != NULL );
+		ENSURE( mesh->triangleCount > B3_MAX_MESH_CONTACT_TRIANGLES );
+		b3ShapeDef groundShapeDef = b3DefaultShapeDef();
+		b3CreateMeshShape( groundId, &groundShapeDef, mesh, b3Vec3_one );
+
+		b3BodyDef bodyDef = b3DefaultBodyDef();
+		bodyDef.type = b3_dynamicBody;
+		bodyDef.position = (b3Pos){ B3_FIX( 0.0f ), B3_FIX( 5.0f ), B3_FIX( 0.0f ) };
+		b3BodyId bodyId = b3CreateBody( worldId, &bodyDef );
+		b3BoxHull box = b3MakeCubeHull( B3_FIX( 0.5f ) );
+		b3ShapeDef shapeDef = b3DefaultShapeDef();
+		shapeDef.density = B3_FIX( 1.0f );
+		b3CreateHullShape( bodyId, &shapeDef, &box.base );
+
+		b3Fixed timeStep = b3FixDiv( B3_FIX( 1.0f ), B3_FIX( 60.0f ) );
+		for ( int i = 0; i < 100; ++i )
+		{
+			b3World_Step( worldId, timeStep, 4 );
+		}
+
+		b3WorldTransform xf = b3Body_GetTransform( bodyId );
+		hashes[w] = b3Hash( 0, (const uint8_t*)&xf, (int)sizeof( xf ) );
+		ENSURE( xf.p.y > B3_FIX( -2.0f ) );
+		ENSURE( xf.p.y < B3_FIX( 5.0f ) );
+
+		b3DestroyWorld( worldId );
+		b3DestroyMesh( mesh );
+	}
+
+	ENSURE( hashes[0] == hashes[1] );
+	ENSURE( hashes[0] != 0 );
+
+	return 0;
+}
+
 int MeshTest( void )
 {
 	RUN_SUBTEST( MeshDenseStride );
@@ -648,6 +727,7 @@ int MeshTest( void )
 	RUN_SUBTEST( MeshScaledWinding );
 	RUN_SUBTEST( MeshBackSideCull );
 	RUN_SUBTEST( MeshCreators );
+	RUN_SUBTEST( MeshContactArenaScratchTest );
 
 	return 0;
 }
