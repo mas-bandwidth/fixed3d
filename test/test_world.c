@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 #include "benchmarks.h"
+#include "body.h"
 #include "overflow_color.h"
 #include "physics_world.h"
 #include "test_macros.h"
@@ -1430,6 +1431,58 @@ static int SleepingWorldTreeJoinTest( void )
 	return 0;
 }
 
+// b3Counters::byteCount reports the bytes the WORLD holds, not the process allocator total.
+// See the 51f056e "SAT benchmark" port: b3World_GetCounters must walk the world, so two worlds
+// are isolated and the count grows with the per-body structures actually allocated.
+static int WorldByteCountTest( void )
+{
+	int allocatorBaseline = b3GetByteCount();
+
+	b3WorldDef worldDef = b3DefaultWorldDef();
+	b3WorldId worldA = b3CreateWorld( &worldDef );
+	ENSURE( b3World_IsValid( worldA ) );
+
+	int worldABytes = b3World_GetCounters( worldA ).byteCount;
+	ENSURE( worldABytes > 0 );
+
+	b3WorldId worldB = b3CreateWorld( &worldDef );
+	ENSURE( b3World_IsValid( worldB ) );
+
+	int worldBInitialBytes = b3World_GetCounters( worldB ).byteCount;
+
+	b3BodyDef bodyDef = b3DefaultBodyDef();
+	bodyDef.type = b3_dynamicBody;
+	b3ShapeDef shapeDef = b3DefaultShapeDef();
+	shapeDef.density = B3_FIX( 1.0f );
+	b3Sphere sphere = { { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, B3_FIX( 0.5f ) };
+
+	for ( int i = 0; i < 100; ++i )
+	{
+		bodyDef.position = (b3Pos){ b3FixFromInt( 2 * i ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
+		b3BodyId bodyId = b3CreateBody( worldB, &bodyDef );
+		ENSURE( b3Body_IsValid( bodyId ) );
+		b3CreateSphereShape( bodyId, &shapeDef, &sphere );
+	}
+
+	int worldBBytes = b3World_GetCounters( worldB ).byteCount;
+	int worldABytesAfter = b3World_GetCounters( worldA ).byteCount;
+
+	// Adding bodies to world B must not change world A's byte count: the count is per-world,
+	// not the process allocator total.
+	ENSURE( worldABytesAfter == worldABytes );
+
+	// World B's count grew by at least the per-body structures it allocated.
+	int64_t perBodyBytes = (int64_t)sizeof( b3Body ) + (int64_t)sizeof( b3BodySim ) + (int64_t)sizeof( b3BodyState );
+	ENSURE( (int64_t)( worldBBytes - worldBInitialBytes ) >= 100 * perBodyBytes );
+
+	// Destroying the world returns the process allocator's net bytes to the baseline.
+	b3DestroyWorld( worldB );
+	b3DestroyWorld( worldA );
+	ENSURE( b3GetByteCount() == allocatorBaseline );
+
+	return 0;
+}
+
 int WorldTest( void )
 {
 	RUN_SUBTEST( HelloWorld );
@@ -1455,6 +1508,7 @@ int WorldTest( void )
 	RUN_SUBTEST( EnableContactRecyclingTest );
 	RUN_SUBTEST( TestSetWorkerCount );
 	RUN_SUBTEST( TestHullDatabase );
+	RUN_SUBTEST( WorldByteCountTest );
 
 	return 0;
 }

@@ -575,7 +575,11 @@ typedef struct b3Counters
 	int treeHeight;
 	int satCallCount;
 	int satCacheHitCount;
+
+	/// Number of bytes held by this world (arrays, pools, tree, solver sets, arena). Not the
+	/// process allocator total: the count walks the world's own allocations.
 	int byteCount;
+
 	int taskCount;
 	int colorCounts[24];
 	int manifoldCounts[B3_CONTACT_MANIFOLD_COUNT_BUCKETS];
