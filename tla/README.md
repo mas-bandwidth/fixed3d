@@ -81,8 +81,9 @@ Results at head (see the PR body for the exact head SHA fence):
 - Ludicrous copy (128): **No error found**, identical distinct-state
   count (485,685) — the layout constant does not change behaviour.
 - `BroadPhaseTreeMutant.cfg`: **fails as designed** —
-  `Error: Invariant MovedClearedAfterUpdate is violated` after
-  58 states generated / 47 distinct. The trace is: create proxies,
+  `Error: Invariant MovedClearedAfterUpdate is violated` within the
+  first ~60 states generated (the exact count varies with the TLC
+  seed; the invariant named does not). The trace is: create proxies,
   `UpdatePairs` runs, and the state after it still has `moved # {}`
   and `rootMoved = TRUE` because the clear was dropped.
 
