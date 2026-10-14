@@ -25,30 +25,35 @@ set(BOX3D_TEST_FILES
 	test_mover.c
     test_name_cache.c
     test_recording.c
+	test_reference_scene.c
     test_shape.c
     test_table.c
     test_world.c
 )
 
-add_executable(test ${BOX3D_TEST_FILES})
+# The target is named box3d_test (not "test") so CTest can be enabled for the
+# reference harness: the name "test" is reserved when testing is enabled. The
+# binary is still ./bin/test, which is what CI and the docs run.
+add_executable(box3d_test ${BOX3D_TEST_FILES})
 
-set_target_properties(test PROPERTIES
+set_target_properties(box3d_test PROPERTIES
     C_STANDARD 17
     C_STANDARD_REQUIRED YES
     C_EXTENSIONS NO
+    OUTPUT_NAME test
 )
 
 # Special access to Fixed3D internals for testing
-target_include_directories(test PRIVATE ${CMAKE_SOURCE_DIR}/src)
+target_include_directories(box3d_test PRIVATE ${CMAKE_SOURCE_DIR}/src ${CMAKE_SOURCE_DIR}/tools/reference)
 
 if(BOX3D_VALIDATE)
-	target_compile_definitions(test PRIVATE BOX3D_VALIDATE)
+	target_compile_definitions(box3d_test PRIVATE BOX3D_VALIDATE)
 endif()
 
 if(BOX3D_DISABLE_SIMD)
-	target_compile_definitions(test PRIVATE BOX3D_DISABLE_SIMD)
+	target_compile_definitions(box3d_test PRIVATE BOX3D_DISABLE_SIMD)
 endif()
 
-target_link_libraries(test PRIVATE box3d shared)
+target_link_libraries(box3d_test PRIVATE box3d shared)
 
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}" PREFIX "" FILES ${BOX3D_TEST_FILES})

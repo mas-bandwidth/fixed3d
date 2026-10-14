@@ -49,6 +49,23 @@ and says *closed*. Record below.)*
 
 The PORT RECORDs below run newest first and are the detail for each step.
 
+- **REFERENCE HARNESS (fixed3d-box3d-reference-harness, 2026-10-14) — the float box3d
+  reference harness.** New `tools/reference/` runs one scenario through vanilla float
+  box3d (the reference, fetched at `BOX3D_REFERENCE_REV=47d7f7c` via ExternalProject
+  into `~/.cache/fixed3d-reference/<sha>`) and through fixed3d and compares the traces
+  inside a documented tolerance. OFF by default (`BOX3D_REFERENCE=OFF`); registered as
+  `ctest -L reference`. `tools/reference/README.md` documents the scene vocabulary, the
+  trace format, and the measured-error table, and is enough to add a scene cold. **Two
+  build-tree changes worth knowing:** (1) the unit-test target was RENAMED `test` ->
+  `box3d_test` (binary still `./bin/test` via `OUTPUT_NAME test`) because CTest reserves
+  the target name `test`; anything that addressed the `test` TARGET must now address
+  `box3d_test`, while `./bin/test` and the CI legs are unchanged. (2) the reference tests
+  call `enable_testing()` at the top level only when `BOX3D_REFERENCE=ON`, so a default
+  configure still builds exactly as before. The harness keeps floats strictly at the
+  sanctioned boundary: `run_fixed.c` crosses decimals with `b3FixFromDouble`, `run_float.c`
+  and `ref_scene.c` are float/double by construction (engine-free parser). No `src/` or
+  `include/` change.
+
 ## Current status (as of 2026-08-31 — v1.4.0, MAINTENANCE MODE)
 
 - **PORT RECORD 47d7f7c "clockwise option, joint is awake (#130)" (2026-08-29) —
