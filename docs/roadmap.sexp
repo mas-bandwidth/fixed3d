@@ -11,6 +11,9 @@
 
  :groups
  (
+  (group "github-issues" :title "Moved from GitHub issues on 2026-10-14"
+   :text "Open GitHub issues of mas-bandwidth/fixed3d, recorded here on 2026-10-14 when roadmaps became the standard for future work (Glenn, 2026-10-14). Each item names its issue; the issue is closed with a pointer here.")
+
   (group "export-fixed3d-box3d-ports" :title "Moved out of the sprint on 2026-10-14: fixed3d-box3d-ports"
    :text "The open cards of sprint stream fixed3d-box3d-ports, moved out of the stopped sprint on 2026-10-14, one item per card. Landed cards of the stream are in git and are not listed. Each item names its card, its tier, its base branch and any pushed work to resume from.")
   (group "export-fixed3d-perf" :title "Moved out of the sprint on 2026-10-14: fixed3d-perf"
@@ -19,6 +22,127 @@
 
  :items
  (
+  (item "issue-20" :group "github-issues" :area "fixed3d"
+   :title "Port the box3d follow-cam / world-text sample viewer (upstream 3fc20f5), held for a bench with a display"
+   :text "Upstream 3fc20f5 'Follow cam (#107)' (2026-07-29) carries a sample-viewer feature that the 2026-08-22 port pass deliberately did not take across. The engine, CI and constants half of that commit is ported (see the port commit on the port branch), and the cursor moves past it with this issue as the named exception, so nothing is hidden."
+   :date "2026-10-14"
+   :origin "mas-bandwidth/fixed3d issue #20, opened 2026-08-22 by rowan-claude; moved here 2026-10-14"
+   :kept (:github-issue "20" :labels ""))
+  (item "issue-25" :group "github-issues" :area "fixed3d"
+   :title "Baked-geometry version constants do not distinguish LUDICROUS_MODE, so a cross-config blob passes the guard and is read 48 bytes short"
+   :text "The three baked-geometry version constants — B3_HULL_VERSION, B3_MESH_VERSION and B3_HEIGHT_FIELD_VERSION — are plain #defines in a public header and take the same value in both build configurations. The layouts they exist to certify do not."
+   :date "2026-10-14"
+   :origin "mas-bandwidth/fixed3d issue #25, opened 2026-08-23 by rowan-claude; moved here 2026-10-14"
+   :kept (:github-issue "25" :labels ""))
+  (item "issue-26" :group "github-issues" :area "fixed3d"
+   :title "A consumer's -DRAPIDHASH_PROTECTED silently changes every geometry hash and the vendor-drift check cannot see it"
+   :text "src/rapidhash.h is vendored verbatim and its behavior is switchable by preprocessor flags the vendoring cannot see. A cold reader compiled it and measured: building with -DRAPIDHASH_PROTECTED changes every digest, while -DRAPIDHASH_UNROLLED reproduces the default digests exactly."
+   :date "2026-10-14"
+   :origin "mas-bandwidth/fixed3d issue #26, opened 2026-08-23 by rowan-claude; moved here 2026-10-14"
+   :kept (:github-issue "26" :labels ""))
+  (item "issue-27" :group "github-issues" :area "fixed3d"
+   :title "Move the fixed-point core to the fixed library; fixed3d keeps b3-named wrappers"
+   :text "Glenn's call, 2026-08-24, from one function outward to the class: 'isn't this a class of functions that should be moved out to 'fixed' library? Surely converting a fixed point to double is fixed library functionality, not fixed3d (although fixed3d can totally export it, that's fine).'"
+   :date "2026-10-14"
+   :origin "mas-bandwidth/fixed3d issue #27, opened 2026-08-23 by gafferongames; moved here 2026-10-14"
+   :kept (:github-issue "27" :labels ""))
+  (item "issue-31" :group "github-issues" :area "fixed3d"
+   :title "Precision-envelope audit: find every magnitude-dependent failure, make the arithmetic loud"
+   :text "Glenn's question (2026-08-24), after invMass (#29) and the inertia inversion (#30) both proved broken at scale: are there OTHER parts needing expanded precision? The class signature: inverses of large quantities (underflow to zero or garbage), products of large quantities in reductions (overflow, wrapped casts), silent truncation at int64 casts, and ..."
+   :date "2026-10-14"
+   :origin "mas-bandwidth/fixed3d issue #31, opened 2026-08-24 by gafferongames; moved here 2026-10-14"
+   :kept (:github-issue "31" :labels ""))
+  (item "issue-32" :group "github-issues" :area "fixed3d"
+   :title "Centre of mass multiplies by the truncated reciprocal, so it collapses to the body origin for heavy bodies"
+   :text "Found while fixing #29, deliberately NOT bundled with it because the fix perturbs every body and trips an assert that needs its own investigation. b3UpdateBodyMassData (src/body.c) accumulates localCenter = sum( mass_i * center_i ) and then divides by the total mass by multiplying by the reciprocal:"
+   :date "2026-10-14"
+   :origin "mas-bandwidth/fixed3d issue #32, opened 2026-08-24 by gafferongames; moved here 2026-10-14"
+   :kept (:github-issue "32" :labels ""))
+  (item "issue-36" :group "github-issues" :area "fixed3d"
+   :title "Six more sign tests computed as quantizing products, the class of the bug rain just hit"
+   :text "Split out of the inverse-widening work, where one instance of this pattern in b3CollideCapsuleAndTriangle produced an out-of-range interpolation parameter and asserted. b3FixMul quantizes. Any true product below one ULP reads as exactly zero, whatever its sign was, and zero satisfies both <= 0 and (by failing) < 0."
+   :date "2026-10-14"
+   :origin "mas-bandwidth/fixed3d issue #36, opened 2026-08-24 by gafferongames; moved here 2026-10-14"
+   :kept (:github-issue "36" :labels ""))
+  (item "issue-41" :group "github-issues" :area "fixed3d"
+   :title "Angular damping has a resolution floor: a slow-spinning large body never damps at all"
+   :text "b3IntegrateVelocitiesTask (src/solver.c) damps by multiplying: b3FixMul rounds half up. So a Q48.16 angular velocity component only moves when the per-substep decrement clears half a quantum: Below that, every component is a fixed point of the multiply and the spin holds forever. Not 'damps slowly' — does not change at all, for any number of steps."
+   :date "2026-10-14"
+   :origin "mas-bandwidth/fixed3d issue #41, opened 2026-08-24 by gafferongames; moved here 2026-10-14"
+   :kept (:github-issue "41" :labels ""))
+  (item "issue-47" :group "github-issues" :area "fixed3d"
+   :title "Port the samples half of box3d 47d7f7c (character mover, issues, joint)"
+   :text "Upstream 47d7f7c 'clockwise option, joint is awake (#130)' carries a samples half that PR #46 deliberately does not take: samples/sample_character.cpp (225 lines) — mover behavior against the new b3Body_TimeOfImpactMover and the new b3PlaneResult indices samples/sample_issues.cpp (84 lines) samples/sample_joint.cpp (65 lines) — exercises b3Joint_IsAwake ..."
+   :date "2026-10-14"
+   :origin "mas-bandwidth/fixed3d issue #47, opened 2026-08-30 by rowan-claude; moved here 2026-10-14"
+   :kept (:github-issue "47" :labels ""))
+  (item "issue-48" :group "github-issues" :area "fixed3d"
+   :title "Port the remaining test additions from box3d 47d7f7c (test_mover, three TOI cases)"
+   :text "PR #46 ports the engine half of upstream 47d7f7c and takes the test additions that cover the code it changes. Two upstream test blocks are not yet across: test/test_mover.c — upstream adds ~473 lines of character mover behavior tests test/test_body_query.c — three further b3Body_TimeOfImpactMover cases beyond the four in #46: MoverTOIKeepsHitAfterMiss, the ..."
+   :date "2026-10-14"
+   :origin "mas-bandwidth/fixed3d issue #48, opened 2026-08-30 by rowan-claude; moved here 2026-10-14"
+   :kept (:github-issue "48" :labels ""))
+  (item "issue-49" :group "github-issues" :area "fixed3d"
+   :title "Port record calls the mesh 1e-4 tolerance looser when the epsilon floor makes it tighter"
+   :text "The port record for 47d7f7c says the mesh legs keep upstream's looser 1e-4 tolerance. After the floor to 8 times B3_FIXED_EPSILON, which is 1.2207e-4, the 1e-4 mesh tolerance is the tighter of the two, not the looser. The word is carried over from float, where 1e-4 exceeds 1e-5, and was not re-derived after the flooring was applied."
+   :date "2026-10-14"
+   :origin "mas-bandwidth/fixed3d issue #49, opened 2026-09-01 by rowan-claude; moved here 2026-10-14"
+   :kept (:github-issue "49" :labels ""))
+  (item "issue-50" :group "github-issues" :area "fixed3d"
+   :title "Height field shape-cast legs changed proxy order and shift origin for clockwise fields, recorded as a pure refactor"
+   :text "The 47d7f7c port says the per-triangle winding branch in the height field collapses into one corner swap at the top of the cell, as upstream did, so the ray legs and the normal no longer carry their own clockwise test. That is exactly true for the ray legs, which reduce term for term to the pre-change code."
+   :date "2026-10-14"
+   :origin "mas-bandwidth/fixed3d issue #50, opened 2026-09-01 by rowan-claude; moved here 2026-10-14"
+   :kept (:github-issue "50" :labels ""))
+  (item "issue-51" :group "github-issues" :area "fixed3d"
+   :title "Mover mesh collide feeds the winding-swapped vertex order to GJK, not just to the cull"
+   :text "b3CollideMoverAndMesh now swaps vertex2 and vertex3 when the mesh scale is not counter clockwise, and the swap happens before the vertices are used for anything. The swapped order reaches triangleVertices, which is handed to GJK as proxyA, not only to the new signed volume cull that actually needs the orientation."
+   :date "2026-10-14"
+   :origin "mas-bandwidth/fixed3d issue #51, opened 2026-09-01 by rowan-claude; moved here 2026-10-14"
+   :kept (:github-issue "51" :labels ""))
+  (item "issue-52" :group "github-issues" :area "fixed3d"
+   :title "compound.c caps mesh materials inside a commit that records behavior as unchanged"
+   :text "Step 2 of the 47d7f7c port ends with the sentence that behavior is unchanged, no culling, no winding change, no new geometry path. The same commit replaces a loop over meshDef->materialCount in compound.c with a loop bounded by b3MinInt of that count and B3_MAX_COMPOUND_MESH_MATERIALS."
+   :date "2026-10-14"
+   :origin "mas-bandwidth/fixed3d issue #52, opened 2026-09-01 by rowan-claude; moved here 2026-10-14"
+   :kept (:github-issue "52" :labels ""))
+  (item "issue-53" :group "github-issues" :area "fixed3d"
+   :title "Height field cull spells triangle 2 as two different cyclic rotations across its two sites"
+   :text "The height field spells the second cell triangle two different ways. The shape-cast cull uses b3SignedVolume of point21, point22, point12, and the mover cull uses b3SignedVolume of point22, point12, point21."
+   :date "2026-10-14"
+   :origin "mas-bandwidth/fixed3d issue #53, opened 2026-09-01 by rowan-claude; moved here 2026-10-14"
+   :kept (:github-issue "53" :labels ""))
+  (item "issue-62" :group "github-issues" :area "fixed3d"
+   :title "Profile and pursue further deterministic performance optimizations"
+   :text "PR #61 is the last optimization in the current pass. Use this issue to plan a later profiling and optimization pass, starting from the merged result and the then-current fixed library. Further gains are welcome, but deterministic behavior and the high-mass arithmetic range are hard requirements."
+   :date "2026-10-14"
+   :origin "mas-bandwidth/fixed3d issue #62, opened 2026-09-08 by gafferongames; moved here 2026-10-14"
+   :kept (:github-issue "62" :labels ""))
+  (item "issue-64" :group "github-issues" :area "fixed3d"
+   :title "AVX-512 / Zen 5 paths for the hot fixed-point loops: measure scalar vs AVX2 vs AVX-512 on hetzner (Zen 4) and space (Zen 4) first, then vectorize what wins"
+   :text "Glenn, 2026-09-22 4:40 PM: 'We can probably make fixed and fixed3d a lot faster by using future cpu instruction sets.' Source: Lemire, 'How did AMD Ryzen get 50% faster in two years' (2026-09-18): 5800X3D -> 9800X3D is 47% faster single-core on Geekbench 6 with only 15% more clock; Zen 5 widened dispatch 6 -> 8, ALUs 4 -> 6, L2 to 1 MB, ROB to 448, and ..."
+   :date "2026-10-14"
+   :origin "mas-bandwidth/fixed3d issue #64, opened 2026-09-22 by rowan-claude; moved here 2026-10-14"
+   :kept (:github-issue "64" :labels ""))
+  (item "issue-65" :group "github-issues" :area "fixed3d"
+   :title "Port plan for box3d 47d7f7c..5d83df8: fifteen upstream commits, the order, the holds and the carries"
+   :text "Port plan for the fifteen upstream commits past the cursor, 47d7f7c..5d83df8 (box3d 2026-09-16 to 2026-10-07), written 2026-10-09 by the daily Box3D to Fixed3D pass from four read-only triage reports over the diffs. The reports themselves are committed under porting/triage-2026-10-09/ with the cursor docs change that cites this issue."
+   :date "2026-10-14"
+   :origin "mas-bandwidth/fixed3d issue #65, opened 2026-10-09 by rowan-claude; moved here 2026-10-14"
+   :kept (:github-issue "65" :labels ""))
+  (item "issue-66" :group "github-issues" :area "fixed3d"
+   :title "Port the 2D hull manifold reduction path of box3d 954cf87 (b3Hull2D, b3SimplifyHull2D) for B3_MAX_MANIFOLD_POINTS above 4"
+   :text "Upstream box3d 954cf87 ('Fixes (#157)', closing erincatto/box3d#153) pairs the new #ifndef B3_MAX_MANIFOLD_POINTS guard with a second manifold reduction path, taken whenever the value exceeds 4: b3Hull2D (Andrew's monotone chain), b3Weld2D, b3Sort2D and b3SimplifyHull2D in src/hull.c, wired into b3ReduceCluster in src/mesh_contact.c behind #if ..."
+   :date "2026-10-14"
+   :origin "mas-bandwidth/fixed3d issue #66, opened 2026-10-09 by rowan-claude; moved here 2026-10-14"
+   :kept (:github-issue "66" :labels ""))
+  (item "issue-67" :group "github-issues" :area "fixed3d"
+   :title "Port the re-rigged ragdoll human of box3d 954cf87 into the determinism corpus, with its own golden harvest"
+   :text "Upstream box3d 954cf87 ('Fixes (#157)') re-rigs the shared ragdoll in shared/human.c and shared/human.h: new reference frames and capsules for every bone, spine_02 removed (spine_03 now parents to spine_01), per-bone friction and rolling resistance replacing the one shared rolling resistance, swing limits widened (25 to 35 degrees on the spine) and twist ..."
+   :date "2026-10-14"
+   :origin "mas-bandwidth/fixed3d issue #67, opened 2026-10-09 by rowan-claude; moved here 2026-10-14"
+   :kept (:github-issue "67" :labels ""))
+
   (item "fixed3d-box3d-reference-harness" :group "export-fixed3d-box3d-ports" :area "fixed3d"
    :title "The float box3d reference harness: one scene, two engines, one comparison"
    :text "Build the producer every other card of this stream needs: a harness that runs one scenario through vanilla float box3d (the reference) and through fixed3d and compares the results inside a documented tolerance. Nothing in src/ or include/ changes; the harness lives under tools/reference/ and is OFF by default (cmake option BOX3D_REFERENCE=OFF, so no existing build or CI leg changes)."
