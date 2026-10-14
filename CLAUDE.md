@@ -79,11 +79,16 @@ The PORT RECORDs below run newest first and are the detail for each step.
   null), `b3RecSeedKeyframeRegistry` hashes the nulled copy rather than `slot->bytes`, and
   `AllOps` sets `b3RecPlayer_SetKeyframePolicy( player, budget, 4 )` so the whole 12-frame run
   keys while every geometry kind is live. **If `f555ee4` is ever ported past this point the
-  fix must land in the same step, or the crash arrives with it.** **TESTS:** `CorruptCompound`
-  (new, `test/test_recording.c`) drives three corruptions of an in-memory recording and asserts
-  only booleans — (a) bad version → `b3ValidateReplay == false` (replay arm), (b) stored byte
-  count 8 → `b3CreatePlayer == NULL` (load arm), (c) kind byte → `b3_geometryMesh` →
-  `b3ValidateReplay == false` (kind-validation arm) — all three seen red on BASE.
+  **TESTS:** `CorruptCompound` (new, `test/test_recording.c`) drives all three arms (replay,
+  snapshot, validate) over in-memory recordings and asserts only booleans — (a) **replay arm**:
+  bad version → `b3ValidateReplay == false` (`b3RecDispatch_CreateCompoundShape` →
+  `b3RecGetLiveCompound`), (b) **snapshot arm**: bad version in the registry compound slot when
+  restoring a keyframe (`b3RecPlayer_SeekFrame` → `b3RecPlayerRestoreKeyframe` → `b3DesShapes`
+  at `src/world_snapshot.c:747`, asserting `player->rdr.ok == false`) and when deserializing a
+  mid-stream seed snapshot (`b3CreatePlayer == NULL` on both bad version and wrong kind byte in
+  `b3DesShapes`), (c) **validate arm** (load + kind validation): stored byte count 8 →
+  `b3CreatePlayer == NULL` (`b3RecLoadSlots`), and kind byte → `b3_geometryMesh` →
+  `b3ValidateReplay == false` (`b3RecGetSlot`) — all three arms seen red on BASE.
   **VERIFIED (2026-10-14, Linux bench, gcc 15):** both configs green — `build` (narrow) and
   `build-ludicrous` (`BOX3D_LUDICROUS_MODE`) — full `./bin/test` passes in each, `CorruptCompound`
   green in all three arms. Red-first confirmed by reverting the four `src/` files to BASE
