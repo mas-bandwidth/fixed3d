@@ -51,6 +51,40 @@ The PORT RECORDs below run newest first and are the detail for each step.
 
 ## Current status (as of 2026-08-31 — v1.4.0, MAINTENANCE MODE)
 
+- **PORT RECORD 16f7f4c "Tree perf (#179)" step 1 — the mesh-contact scratch
+  moves to the arena (2026-10-13).** PORTED, arena hunk only (plan row 11):
+  `b3RefreshCache` in `src/mesh_contact.c` no longer declares
+  `int triangleIndices[B3_MAX_MESH_CONTACT_TRIANGLES]` or
+  `b3ContactCache contactCache[B3_MAX_MESH_CONTACT_TRIANGLES]` on the C stack;
+  both are `b3Bump` allocations from the per-worker arena already passed to
+  `b3ComputeMeshManifolds` (passed by value, so the bump pointer restores on
+  return and no allocation happens outside that worker's arena region).
+  Sizes are by the cap, never by the count found: `B3_ASSERT` pins
+  `512 * (sizeof(int) + sizeof(b3ContactCache)) = 14336` bytes (measured:
+  `sizeof(b3ContactCache) = 24`) against the remaining arena capacity, well
+  inside the 128 KiB per-worker frame budget created in
+  `src/physics_world.c` (unchanged). With the stack cost gone, the coupled
+  bump lands: `B3_MAX_MESH_CONTACT_TRIANGLES` 256 -> 512 in
+  `include/box3d/constants.h`, keeping its public `#ifndef` tunable form.
+  **GOLDENS: NONE MOVED** — the full suites are green in narrow and
+  ludicrous on the Linux bench, determinism goldens included; raising the
+  cap changed no corpus scene's contact set. **TESTS:** red first —
+  `MeshContactArenaScratchTest` in `test/test_mesh.c` failed at base with
+  `condition false: B3_MAX_MESH_CONTACT_TRIANGLES == 512`; it now pins the
+  512 cap, the exact-fit tiny-arena largest case (no overflow block), and
+  bit-identical dropped-box transforms across worker counts 1 and 4 on a
+  3200-triangle wave mesh. Stack control: `grep -rn
+  "B3_MAX_MESH_CONTACT_TRIANGLES]" src/` returns nothing. **TLA+:**
+  `tla/MeshContactArenaScratch.tla` models the bump index and by-value
+  restore (invariants: bounded by capacity, sized by cap, caller stable;
+  TLC clean, 3 distinct states, CacheBytes = 24 as measured). **NOT DONE:**
+  the reference scene `tools/reference/scenes/ref-16f7f4c-mesh-dense-contact.scene`
+  is added for the harness glob, but the reference harness itself
+  (`tools/reference/`, card fixed3d-box3d-reference-harness) is absent at
+  this base, so `ctest -L reference` could not run and its tolerance is
+  stated, not measured; the SIMD cull half of row 11 and all other
+  16f7f4c hunk groups remain for their own cards.
+
 - **PORT RECORD 47d7f7c "clockwise option, joint is awake (#130)" (2026-08-29) —
   PORTED in seven steps, 2026-08-31.** 2,466 upstream insertions; the whole engine
   half is across, the samples half is held above. Each step built and ran narrow,

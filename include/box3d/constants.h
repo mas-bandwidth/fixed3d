@@ -141,5 +141,5 @@ B3_API b3Fixed b3GetStallThreshold( void );
 /// Increasing this will increase stack usage, so be careful. I recommend to simplify your collision data
 /// before increasing this. For example, using render mesh for collision often leads to poor performance.
 #ifndef B3_MAX_MESH_CONTACT_TRIANGLES
-#define B3_MAX_MESH_CONTACT_TRIANGLES 256
+#define B3_MAX_MESH_CONTACT_TRIANGLES 512
 #endif
