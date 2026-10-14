@@ -51,6 +51,37 @@ The PORT RECORDs below run newest first and are the detail for each step.
 
 ## Current status (as of 2026-08-31 — v1.4.0, MAINTENANCE MODE)
 
+- **PORT RECORD 51f056e (held piece) "b3GetWorldByteCount reports the world, not the
+  process allocator" — PORTED 2026-10-14.** The `physics_world.c` counter refactor held
+  out of the SAT-benchmark port (triage T3 §3, disposition HELD) is the whole of this
+  step. `b3World_DumpMemoryStats` is split into a `static uint64_t b3GetWorldByteCount(
+  b3World* world, bool log )` that walks the world (id pools, arrays, island links, sensor
+  overlaps, shared hull database, broad-phase trees + moved/bit/pair sets, manifold block
+  allocators, solver sets, constraint graph, task contexts, event arrays, debug-draw bit
+  sets, stack allocator) and returns the total, gating every `b3Log` block behind `log`;
+  `b3World_DumpMemoryStats` becomes a thin wrapper calling it with `log = true`, and
+  `b3World_GetCounters` (moved below it) sets `s.byteCount` from the walk instead of the
+  process-allocator `b3GetByteCount()`. `b3Counters::byteCount` is now documented as the
+  world's bytes. The refactor is float-free (`uint64_t` sums + `b3Log`), no fixed-point
+  hazard, simulation-neutral: **no golden moved** (determinism suite bit-identical in both
+  narrow and LUDICROUS builds). The upstream commit's deletion of the `contactPrefetchDistance
+  = 4` prefetch comment is **deliberately NOT mirrored** — fixed3d's `b3CollideTask` carries
+  the same constant and the comment explains why 4. `b3Counters::byteCount` stays `int` (not
+  upstream's `int64_t`): that widening predates 51f056e and is not part of this meaning
+  change; the walked total is cast `(int)` to match the existing `b3GetByteCount()`/`int`
+  convention. Test: `WorldByteCountTest` (test_world.c) pins the meaning change — two worlds
+  are isolated (adding bodies to world B leaves world A's count unchanged, red at the old
+  `b3GetByteCount()` line) and the count grows by at least the per-body
+  `b3Body + b3BodySim + b3BodyState` bytes; destroy returns the process allocator to zero.
+  Reference scene `tools/reference/scenes/ref-51f056e-world-neutral.scene` is ADDED
+  for the harness glob (5-box stack, 60 steps at fixed dt=1/60, no wall clock), but
+  the reference harness itself (`tools/reference/`, card
+  fixed3d-box3d-reference-harness) is absent at this base, so `ctest -L reference`
+  could not run and its tolerance is stated, not measured; the run is not-done until
+  the harness lands. The scene header names the fixed-point divergence (exact-SAT
+  structure, no float SIMD hull core): transform traces differ from float by design,
+  the stack must settle to the same resting configuration within tolerance.
+
 - **PORT RECORD adec25b + 9f998c8 "SAT set, the portable pieces" (2026-10-14) —
   PORTED in one step (card port-adec25b-9f998c8-sat-set-portable-pieces).** The
   four-commit SAT series lives inside `b3ComputeSeparatingAxis`, which this tree never
