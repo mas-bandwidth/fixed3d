@@ -51,6 +51,44 @@ The PORT RECORDs below run newest first and are the detail for each step.
 
 ## Current status (as of 2026-08-31 — v1.4.0, MAINTENANCE MODE)
 
+- **PORT RECORD 16f7f4c "Tree perf (#179)" step 1 — the mesh-contact scratch
+  moves to the arena (2026-10-14).** PORTED, arena hunk only (plan row 11),
+  carried from attempt 1 `0c98b08` onto `1df2e22` after the landing refused
+  that head on a `CLAUDE.md` conflict with the adec25b record below (both
+  records kept; this one is newest). `b3RefreshCache` in `src/mesh_contact.c`
+  no longer declares `int triangleIndices[B3_MAX_MESH_CONTACT_TRIANGLES]` or
+  `b3ContactCache contactCache[B3_MAX_MESH_CONTACT_TRIANGLES]` on the C stack.
+  Both are `b3Bump` allocations from the per-worker arena already passed into
+  `b3ComputeMeshManifolds` (by value, so the bump pointer restores on return
+  and nothing is allocated outside that worker's arena region). Sizes are by
+  the cap, not by the count found. `B3_ASSERT` pins the two bumps, plus one
+  alignment quantum each, against the remaining arena capacity. Measured
+  `sizeof(b3ContactCache) = 24` in both the narrow and ludicrous builds, so
+  `512 * (4 + 24) = 14336` bytes, inside
+  the 128 KiB per-worker frame budget created in `src/physics_world.c`
+  (unchanged). With the stack cost gone, the coupled bump lands:
+  `B3_MAX_MESH_CONTACT_TRIANGLES` 256 -> 512 in `include/box3d/constants.h`,
+  keeping its public `#ifndef` tunable. **GOLDENS: NONE MOVED** — `./bin/test`
+  green on the Linux bench in narrow and `BOX3D_LUDICROUS_MODE`
+  (RelWithDebInfo, VALIDATE, warnings as errors), DeterminismTest included
+  (workers 1..5 and the mesh-drop golden). Raising the cap changed no corpus
+  scene's contact set, so it stayed 512. **TESTS:** red first —
+  `MeshContactArenaScratchTest` failed at the unchanged base with
+  `condition false: B3_MAX_MESH_CONTACT_TRIANGLES == 512`; it now pins the
+  512 cap, the exact-fit tiny arena for the largest scratch (no overflow
+  block), and bit-identical contact hashes for a 3200-triangle wave mesh
+  across worker counts 1 and 5 and against a 1 MiB arena, with the default
+  arena's peak demand inside the 128 KiB frame budget and at least the
+  scratch size (the scratch came off the stack). Stack control:
+  `grep -n 'B3_MAX_MESH_CONTACT_TRIANGLES]' src/mesh_contact.c` returns
+  nothing. **NOT DONE:** `ctest -L reference` in the narrow build printed
+  `No tests were found!!!` — the reference harness (`tools/reference/`
+  CMake, card fixed3d-box3d-reference-harness) is absent at this base, so
+  the tolerance on `tools/reference/scenes/ref-16f7f4c-mesh-dense-contact.scene`
+  is not measured and was not invented. The SIMD cull half of row 11 and
+  every other 16f7f4c hunk stay on their own cards. No float/fixed mix was
+  introduced, so `tools/fixed-point/conversion_audit.py` was not run.
+
 - **PORT RECORD adec25b + 9f998c8 "SAT set, the portable pieces" (2026-10-14) —
   PORTED in one step (card port-adec25b-9f998c8-sat-set-portable-pieces).** The
   four-commit SAT series lives inside `b3ComputeSeparatingAxis`, which this tree never

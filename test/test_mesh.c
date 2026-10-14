@@ -3,7 +3,13 @@
 
 #include "test_macros.h"
 
+#include "arena_allocator.h"
+#include "contact.h"
+#include "physics_world.h"
+
+#include "box3d/box3d.h"
 #include "box3d/collision.h"
+#include "box3d/constants.h"
 #include "box3d/math_functions.h"
 
 #include <string.h>
@@ -634,6 +640,172 @@ static int MeshCreators( void )
 	return 0;
 }
 
+// The old C-stack cap. The arena scratch is sized by the cap, so a mesh with
+// more triangles than this is the case the stack arrays used to truncate.
+#define MESH_CONTACT_OLD_CAP 256
+
+// Per-worker arena created in physics_world.c. The scratch must fit inside it.
+#define MESH_CONTACT_FRAME_BUDGET ( 128 * 1024 )
+
+static int MeshContactScratchBytes( void )
+{
+	return B3_MAX_MESH_CONTACT_TRIANGLES * (int)sizeof( int ) +
+		   B3_MAX_MESH_CONTACT_TRIANGLES * (int)sizeof( b3ContactCache );
+}
+
+// Hash the resting transform and the contact manifolds, field by field, so
+// padding in the structs cannot make two equal contacts look different.
+static uint32_t HashMeshContactResult( b3BodyId bodyId )
+{
+	b3WorldTransform xf = b3Body_GetTransform( bodyId );
+	uint32_t hash = b3Hash( 0, (const uint8_t*)&xf.p, (int)sizeof( xf.p ) );
+	hash = b3Hash( hash, (const uint8_t*)&xf.q, (int)sizeof( xf.q ) );
+
+	b3ContactData data[4];
+	int count = b3Body_GetContactData( bodyId, data, 4 );
+	hash = b3Hash( hash, (const uint8_t*)&count, (int)sizeof( count ) );
+	for ( int i = 0; i < count; ++i )
+	{
+		int manifoldCount = data[i].manifoldCount;
+		hash = b3Hash( hash, (const uint8_t*)&manifoldCount, (int)sizeof( manifoldCount ) );
+		for ( int m = 0; m < manifoldCount; ++m )
+		{
+			const b3Manifold* manifold = data[i].manifolds + m;
+			hash = b3Hash( hash, (const uint8_t*)&manifold->pointCount, (int)sizeof( manifold->pointCount ) );
+			hash = b3Hash( hash, (const uint8_t*)&manifold->normal, (int)sizeof( manifold->normal ) );
+			for ( int p = 0; p < manifold->pointCount; ++p )
+			{
+				const b3ManifoldPoint* point = manifold->points + p;
+				hash = b3Hash( hash, (const uint8_t*)&point->anchorA, (int)sizeof( point->anchorA ) );
+				hash = b3Hash( hash, (const uint8_t*)&point->anchorB, (int)sizeof( point->anchorB ) );
+				hash = b3Hash( hash, (const uint8_t*)&point->separation, (int)sizeof( point->separation ) );
+				hash = b3Hash( hash, (const uint8_t*)&point->triangleIndex, (int)sizeof( point->triangleIndex ) );
+			}
+		}
+	}
+	return hash;
+}
+
+// Drop a box onto a wave mesh denser than the old cap.
+// replaceArenaCapacity > 0 swaps the per-worker arenas before the first step
+// (a large arena). Zero keeps the world's frame budget. outPeak is the max
+// peakDemand across workers; pass NULL to skip that read.
+static int DropOnDenseMesh( int workerCount, int replaceArenaCapacity, uint32_t* outHash, int* outPeak )
+{
+	b3WorldDef worldDef = b3DefaultWorldDef();
+	worldDef.workerCount = workerCount;
+	worldDef.gravity = (b3Vec3){ B3_FIX( 0.0f ), -B3_FIX( 10.0f ), B3_FIX( 0.0f ) };
+	b3WorldId worldId = b3CreateWorld( &worldDef );
+	ENSURE( b3World_IsValid( worldId ) );
+
+	b3World* world = b3GetWorldFromId( worldId );
+	ENSURE( world != NULL );
+	if ( replaceArenaCapacity > 0 )
+	{
+		for ( int i = 0; i < world->workerCount; ++i )
+		{
+			b3DestroyArena( &world->taskContexts.data[i].arena );
+			world->taskContexts.data[i].arena = b3CreateArena( replaceArenaCapacity );
+		}
+	}
+
+	b3BodyDef groundDef = b3DefaultBodyDef();
+	b3BodyId groundId = b3CreateBody( worldId, &groundDef );
+	b3MeshData* mesh = b3CreateWaveMesh( 40, 40, B3_FIX( 1.0f ), B3_FIX( 0.5f ), B3_FIX( 0.1f ), B3_FIX( 0.2f ) );
+	ENSURE( mesh != NULL );
+	ENSURE( mesh->triangleCount > MESH_CONTACT_OLD_CAP );
+	b3ShapeDef groundShapeDef = b3DefaultShapeDef();
+	b3CreateMeshShape( groundId, &groundShapeDef, mesh, b3Vec3_one );
+
+	b3BodyDef bodyDef = b3DefaultBodyDef();
+	bodyDef.type = b3_dynamicBody;
+	bodyDef.position = (b3Pos){ B3_FIX( 0.0f ), B3_FIX( 5.0f ), B3_FIX( 0.0f ) };
+	b3BodyId bodyId = b3CreateBody( worldId, &bodyDef );
+	b3BoxHull box = b3MakeCubeHull( B3_FIX( 0.5f ) );
+	b3ShapeDef shapeDef = b3DefaultShapeDef();
+	shapeDef.density = B3_FIX( 1.0f );
+	b3CreateHullShape( bodyId, &shapeDef, &box.base );
+
+	b3Fixed timeStep = b3FixDiv( B3_FIXED_ONE, b3FixFromInt( 60 ) );
+	for ( int i = 0; i < 100; ++i )
+	{
+		b3World_Step( worldId, timeStep, 4 );
+	}
+
+	b3WorldTransform xf = b3Body_GetTransform( bodyId );
+	ENSURE( xf.p.y > B3_FIX( -2.0f ) );
+	ENSURE( xf.p.y < B3_FIX( 5.0f ) );
+
+	b3ContactData contacts[4];
+	int contactCount = b3Body_GetContactData( bodyId, contacts, 4 );
+	ENSURE( contactCount >= 1 );
+
+	*outHash = HashMeshContactResult( bodyId );
+
+	if ( outPeak != NULL )
+	{
+		int peak = 0;
+		for ( int i = 0; i < world->workerCount; ++i )
+		{
+			b3Arena* arena = &world->taskContexts.data[i].arena;
+			ENSURE( arena->capacity == MESH_CONTACT_FRAME_BUDGET );
+			ENSURE( arena->shared->overflowBytes == 0 );
+			if ( arena->shared->peakDemand > peak )
+			{
+				peak = arena->shared->peakDemand;
+			}
+		}
+		*outPeak = peak;
+	}
+
+	b3DestroyWorld( worldId );
+	b3DestroyMesh( mesh );
+	return 0;
+}
+
+// Mesh-contact scratch (triangle indices and the contact cache) is an arena
+// allocation sized by the cap, not a C-stack array. A mesh denser than the
+// old 256 cap, an exact-fit tiny arena for that scratch, and the same drop
+// on the frame-budget arena and on a large arena must agree, with no overflow.
+static int MeshContactArenaScratchTest( void )
+{
+	// Red on the unchanged base: the cap is still 256 there.
+	ENSURE( B3_MAX_MESH_CONTACT_TRIANGLES == 512 );
+
+	int scratchBytes = MeshContactScratchBytes();
+	ENSURE( scratchBytes <= MESH_CONTACT_FRAME_BUDGET );
+	ENSURE( scratchBytes > 0 );
+
+	// Largest scratch case, tiny arena of exactly that many bytes: no overflow.
+	{
+		b3Arena arena = b3CreateArena( scratchBytes );
+		int* indices = b3Bump( &arena, B3_MAX_MESH_CONTACT_TRIANGLES * (int)sizeof( int ) );
+		b3ContactCache* cache = b3Bump( &arena, B3_MAX_MESH_CONTACT_TRIANGLES * (int)sizeof( b3ContactCache ) );
+		ENSURE( indices != NULL );
+		ENSURE( cache != NULL );
+		ENSURE( arena.shared->overflowBytes == 0 );
+		ENSURE( arena.shared->overflows.count == 0 );
+		ENSURE( arena.index <= arena.capacity );
+		b3DestroyArena( &arena );
+	}
+
+	uint32_t hashBudget = 0;
+	uint32_t hashWorkers = 0;
+	uint32_t hashLarge = 0;
+	int peak = 0;
+	ENSURE( DropOnDenseMesh( 1, 0, &hashBudget, &peak ) == 0 );
+	ENSURE( peak >= scratchBytes );
+	ENSURE( peak <= MESH_CONTACT_FRAME_BUDGET );
+	ENSURE( DropOnDenseMesh( 5, 0, &hashWorkers, NULL ) == 0 );
+	ENSURE( DropOnDenseMesh( 1, 1024 * 1024, &hashLarge, NULL ) == 0 );
+
+	ENSURE( hashBudget == hashWorkers );
+	ENSURE( hashBudget == hashLarge );
+	ENSURE( hashBudget != 0 );
+
+	return 0;
+}
+
 int MeshTest( void )
 {
 	RUN_SUBTEST( MeshDenseStride );
@@ -648,6 +820,7 @@ int MeshTest( void )
 	RUN_SUBTEST( MeshScaledWinding );
 	RUN_SUBTEST( MeshBackSideCull );
 	RUN_SUBTEST( MeshCreators );
+	RUN_SUBTEST( MeshContactArenaScratchTest );
 
 	return 0;
 }

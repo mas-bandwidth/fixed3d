@@ -138,8 +138,9 @@ B3_API b3Fixed b3GetStallThreshold( void );
 #endif
 
 /// This is the limit on how many mesh or heightfield triangles a single convex shape can collide with.
-/// Increasing this will increase stack usage, so be careful. I recommend to simplify your collision data
+/// The per-contact triangle index and contact-cache scratch is sized by this cap and allocated from
+/// the per-worker arena, so increasing it grows that scratch. I recommend to simplify your collision data
 /// before increasing this. For example, using render mesh for collision often leads to poor performance.
 #ifndef B3_MAX_MESH_CONTACT_TRIANGLES
-#define B3_MAX_MESH_CONTACT_TRIANGLES 256
+#define B3_MAX_MESH_CONTACT_TRIANGLES 512
 #endif

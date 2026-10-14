@@ -71,7 +71,7 @@ static int b3QueryHeightFieldTriangles( int* indices, int capacity, const b3Heig
 	return context.count;
 }
 
-static void b3RefreshCache( b3Contact* contact, const b3Shape* shapeA, b3WorldTransform xfA, const b3AABB* bounds )
+static void b3RefreshCache( b3Contact* contact, const b3Shape* shapeA, b3WorldTransform xfA, const b3AABB* bounds, b3Arena arena )
 {
 	B3_ASSERT( shapeA->type == b3_meshShape || shapeA->type == b3_heightShape );
 
@@ -98,10 +98,20 @@ static void b3RefreshCache( b3Contact* contact, const b3Shape* shapeA, b3WorldTr
 	meshContact->queryBounds.lowerBound = b3Vec3ToBound( b3Sub( b3BoundToVec3( bounds->lowerBound ), extension ) );
 	meshContact->queryBounds.upperBound = b3Vec3ToBound( b3Add( b3BoundToVec3( bounds->upperBound ), extension ) );
 
-	// Query triangles
+	// Query triangles. The scratch is sized by the cap, never by the count
+	// found, and lives in the caller's per-worker arena (passed by value, so
+	// the bump pointer restores on return) instead of the C stack. The
+	// largest case must fit the remaining frame budget without an overflow
+	// block. Two bumps may each pay up to one alignment quantum.
 	int triangleCapacity = B3_MAX_MESH_CONTACT_TRIANGLES;
 
-	int triangleIndices[B3_MAX_MESH_CONTACT_TRIANGLES];
+	int indicesBytes = triangleCapacity * (int)sizeof( int );
+	int cacheBytes = triangleCapacity * (int)sizeof( b3ContactCache );
+	int scratchBytes = indicesBytes + cacheBytes + 2 * ( B3_ARENA_ALIGNMENT - 1 );
+	B3_ASSERT( arena.index >= 0 && arena.index <= arena.capacity );
+	B3_ASSERT( scratchBytes <= arena.capacity - arena.index );
+	int* triangleIndices = b3Bump( &arena, indicesBytes );
+	B3_ASSERT( triangleIndices != NULL );
 
 	// Bounds are in world space. Convert to the local mesh frame. The broadphase bounds are b3Fixed,
 	// so the demoted mesh transform is the matching b3Fixed world frame (exact in b3Fixed mode).
@@ -131,8 +141,10 @@ static void b3RefreshCache( b3Contact* contact, const b3Shape* shapeA, b3WorldTr
 	// Triangle indices must be sorted to match caches.
 	B3_VALIDATE( b3IsSorted( triangleIndices, triangleCount ) );
 
-	// Create new contact cache and match with old one
-	b3ContactCache contactCache[B3_MAX_MESH_CONTACT_TRIANGLES];
+	// Create new contact cache and match with old one. Same cap as the index
+	// scratch, not the count found, so the budget check above covers it.
+	b3ContactCache* contactCache = b3Bump( &arena, cacheBytes );
+	B3_ASSERT( contactCache != NULL );
 
 	int index2 = 0;
 	for ( int index1 = 0; index1 < triangleCount; ++index1 )
@@ -529,7 +541,7 @@ bool b3ComputeMeshManifolds( b3World* world, int workerIndex, b3Contact* contact
 
 	b3TaskContext* context = b3Array_Get( world->taskContexts, workerIndex );
 
-	b3RefreshCache( contact, shapeA, xfA, &shapeB->aabb );
+	b3RefreshCache( contact, shapeA, xfA, &shapeB->aabb, arena );
 
 	// Collide with triangles and build manifolds
 	b3MeshContact* meshContact = &contact->meshContact;
