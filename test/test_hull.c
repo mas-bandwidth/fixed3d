@@ -3,6 +3,9 @@
 
 #include "test_macros.h"
 
+#include "hull.h"
+#include "shape.h"
+
 #include "box3d/collision.h"
 #include "box3d/math_functions.h"
 
@@ -611,6 +614,54 @@ static int CreateHullNearDegenerateTest( void )
 	return 0;
 }
 
+// The 9f998c8 complex hull: 32 pseudo-random points on a sphere, valid by the
+// hull validator, within the fixed3d vertex cap, and byte-deterministic for the
+// fixed seed across two calls.
+static int CreateComplexHullTest( void )
+{
+	b3Fixed radius = B3_FIX( 1.0f );
+
+	b3HullData* h1 = b3CreateComplexHull( radius );
+	b3HullData* h2 = b3CreateComplexHull( radius );
+	ENSURE( h1 != NULL && h2 != NULL );
+
+	ENSURE( b3IsValidHull( h1 ) );
+	ENSURE( h1->vertexCount >= 4 && h1->vertexCount <= B3_MAX_HULL_VERTICES );
+
+	ENSURE( h1->byteCount == h2->byteCount );
+	ENSURE( h1->hash != 0 );
+	ENSURE( h1->hash == h2->hash );
+	ENSURE( memcmp( h1, h2, h1->byteCount ) == 0 );
+
+	b3DestroyHull( h1 );
+	b3DestroyHull( h2 );
+	return 0;
+}
+
+// The rejection-sampling loop must terminate for every generator seed, not just
+// upstream's 42. The LCG is full-period so every seed lands on the same low-16
+// cycle (rotated); the boundary seeds below are the degenerate candidates. The
+// contract is termination: reaching b3CreateHull proves the loop exited, and the
+// 32 near-uniform sphere points always bake into a valid hull.
+static int CreateComplexHullTerminatesTest( void )
+{
+	b3Fixed radius = B3_FIX( 1.0f );
+
+	uint32_t seeds[] = { 0u, 1u, 2u, 42u, 0xffffu, 0x7fffffffu, 0x80000000u, 0xffffffffu };
+	for ( int i = 0; i < (int)( sizeof( seeds ) / sizeof( seeds[0] ) ); ++i )
+	{
+		b3HullData* hull = b3CreateComplexHullSeeded( radius, seeds[i] );
+		ENSURE( hull != NULL );
+		if ( hull != NULL )
+		{
+			ENSURE( hull->vertexCount >= 4 && hull->vertexCount <= B3_MAX_HULL_VERTICES );
+			b3DestroyHull( hull );
+		}
+	}
+
+	return 0;
+}
+
 int HullTest( void )
 {
 	RUN_SUBTEST( CreateHullCubeTest );
@@ -626,6 +677,8 @@ int HullTest( void )
 	RUN_SUBTEST( CreateHullDegenerateTest );
 	RUN_SUBTEST( TransformedBoxHullTest );
 	RUN_SUBTEST( CreateHullNearDegenerateTest );
+	RUN_SUBTEST( CreateComplexHullTest );
+	RUN_SUBTEST( CreateComplexHullTerminatesTest );
 
 	return 0;
 }
