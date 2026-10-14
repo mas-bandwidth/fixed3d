@@ -69,8 +69,8 @@ The PORT RECORDs below run newest first and are the detail for each step.
   the same constant and the comment explains why 4. `b3Counters::byteCount` is widened
   to `int64_t`, matching upstream at 51f056e. The walk sums in `uint64_t`; retaining
   `int` would truncate a valid world total above INT_MAX. This changes the public
-  `b3Counters` ABI (200 to 208 bytes on 64-bit targets), and the sample counter display
-  uses a matching format. Test: `WorldByteCountTest` (test_world.c) pins the meaning
+  `b3Counters` ABI (200 to 208 bytes on 64-bit targets); samples/sample.cpp is outside PATHS (proposed diff in the report)
+  Test: `WorldByteCountTest` (test_world.c) pins the meaning
   change — two worlds are isolated (adding bodies to world B leaves world A's count
   unchanged, red at the old `b3GetByteCount()` line) and the count grows by at least
   the per-body
