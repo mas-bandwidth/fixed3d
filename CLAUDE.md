@@ -84,6 +84,13 @@ The PORT RECORDs below run newest first and are the detail for each step.
   only booleans — (a) bad version → `b3ValidateReplay == false` (replay arm), (b) stored byte
   count 8 → `b3CreatePlayer == NULL` (load arm), (c) kind byte → `b3_geometryMesh` →
   `b3ValidateReplay == false` (kind-validation arm) — all three seen red on BASE.
+  **VERIFIED (2026-10-14, Linux bench, gcc 15):** both configs green — `build` (narrow) and
+  `build-ludicrous` (`BOX3D_LUDICROUS_MODE`) — full `./bin/test` passes in each, `CorruptCompound`
+  green in all three arms. Red-first confirmed by reverting the four `src/` files to BASE
+  (`8f51d2d`) and rebuilding: `CorruptCompound` does not merely fail, it **crashes** (SIGILL,
+  exit 132) — the NULL tree pointer handed to the broad phase, exactly the live bug this port
+  refuses. `conversion_audit.py` clean over the touched TUs (the four `test/test_math.c`
+  findings are pre-existing and unrelated).
   **REFERENCE:** `tools/reference/scenes/ref-3d9db79-record-replay.scene` added for the harness
   glob; the `tools/reference/` harness (card fixed3d-box3d-reference-harness) is absent at BASE,
   so the scene's tolerance is stated (0.02 m, twice the measured maximum once measured), not
