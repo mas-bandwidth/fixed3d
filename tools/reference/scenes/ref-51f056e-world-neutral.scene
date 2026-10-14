@@ -5,12 +5,11 @@
 # Fixed: fixed3d on this branch (b3GetWorldByteCount reports the world's bytes; the
 #   counter refactor is simulation-neutral and must not move the simulation).
 # Observable: the stack's contact count and the top box's resting height after 60 steps.
-# Tolerance: top box resting height within 0.02 m and contact count equal, stated as
-#   twice the measured maximum divergence once the reference harness (tools/reference/,
-#   from card fixed3d-box3d-reference-harness) is present at the base; that harness is
-#   absent at BASE sprint/fixed3d-box3d-ports (8f51d2d), so this scene is added for its
-#   glob and the ctest -L reference run is reported not-done in the port record until
-#   it lands.
+# Provisional tolerance: top box resting height within 0.02 m and contact count equal.
+#   The reference harness (tools/reference/, card fixed3d-box3d-reference-harness) is
+#   absent at BASE sprint/fixed3d-box3d-ports, so this threshold is NOT measured or
+#   accepted. Measure the maximum divergence in both engines and set the threshold to
+#   twice that value before calling the reference gate passed.
 # Fixed-point divergence (by design, CLAUDE.md c37cfe4 record): the engine is Q48.16
 #   fixed point with the exact-SAT structure and no float SIMD hull core, so transform
 #   traces are not bit-identical to float; the 5-box stack must still settle to the same

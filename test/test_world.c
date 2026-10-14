@@ -12,6 +12,7 @@
 #include "box3d/constants.h"
 #include "box3d/math_functions.h"
 
+#include <limits.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -1431,6 +1432,48 @@ static int SleepingWorldTreeJoinTest( void )
 	return 0;
 }
 
+// Category headings in erincatto/box3d 51f056e's b3GetWorldByteCount, in log order.
+// Fixed3D adds movedProxies and moveArray detail lines inside broad-phase; those are not
+// upstream category headings and are allowed in addition to this list.
+static const char* worldByteCategories[] = {
+	"id pools", "world arrays", "owned arrays", "hulls", "broad-phase", "manifold allocators",
+	"solver sets", "constraint graph", "task contexts", "events:", "debug draw:", "stack allocator:"
+};
+
+static int worldByteLogCount;
+static int worldByteCategoryCount;
+static bool worldByteCategoryOrderCorrect;
+static bool worldByteMovedProxiesSeen;
+static bool worldByteMoveArraySeen;
+
+static void WorldByteCountLog( const char* message )
+{
+	worldByteLogCount += 1;
+	for ( int i = 0; i < ARRAY_COUNT( worldByteCategories ); ++i )
+	{
+		const char* category = worldByteCategories[i];
+		size_t length = strlen( category );
+		bool matches = false;
+		if ( category[length - 1] == ':' )
+		{
+			matches = strncmp( message, category, length ) == 0;
+		}
+		else
+		{
+			matches = strcmp( message, category ) == 0;
+		}
+		if ( matches )
+		{
+			worldByteCategoryOrderCorrect = worldByteCategoryOrderCorrect && i == worldByteCategoryCount;
+			worldByteCategoryCount += 1;
+			break;
+		}
+	}
+
+	worldByteMovedProxiesSeen = worldByteMovedProxiesSeen || strncmp( message, "movedProxies:", 13 ) == 0;
+	worldByteMoveArraySeen = worldByteMoveArraySeen || strncmp( message, "moveArray:", 10 ) == 0;
+}
+
 // b3Counters::byteCount reports the bytes the WORLD holds, not the process allocator total.
 // See the 51f056e "SAT benchmark" port: b3World_GetCounters must walk the world, so two worlds
 // are isolated and the count grows with the per-body structures actually allocated.
@@ -1442,13 +1485,23 @@ static int WorldByteCountTest( void )
 	b3WorldId worldA = b3CreateWorld( &worldDef );
 	ENSURE( b3World_IsValid( worldA ) );
 
-	int worldABytes = b3World_GetCounters( worldA ).byteCount;
+	int64_t worldABytes = b3World_GetCounters( worldA ).byteCount;
 	ENSURE( worldABytes > 0 );
+
+	// Force only the reported capacity over INT_MAX. Restore the real capacity before
+	// any other use or destroy, so this check allocates no large storage.
+	b3World* internalWorldA = b3GetUnlockedWorldFromId( worldA );
+	int actualStackCapacity = internalWorldA->stack.capacity;
+	ENSURE( worldABytes > actualStackCapacity );
+	internalWorldA->stack.capacity = INT_MAX;
+	int64_t wideWorldBytes = b3World_GetCounters( worldA ).byteCount;
+	internalWorldA->stack.capacity = actualStackCapacity;
+	ENSURE( wideWorldBytes == (int64_t)worldABytes + INT_MAX - actualStackCapacity );
 
 	b3WorldId worldB = b3CreateWorld( &worldDef );
 	ENSURE( b3World_IsValid( worldB ) );
 
-	int worldBInitialBytes = b3World_GetCounters( worldB ).byteCount;
+	int64_t worldBInitialBytes = b3World_GetCounters( worldB ).byteCount;
 
 	b3BodyDef bodyDef = b3DefaultBodyDef();
 	bodyDef.type = b3_dynamicBody;
@@ -1464,8 +1517,29 @@ static int WorldByteCountTest( void )
 		b3CreateSphereShape( bodyId, &shapeDef, &sphere );
 	}
 
-	int worldBBytes = b3World_GetCounters( worldB ).byteCount;
-	int worldABytesAfter = b3World_GetCounters( worldA ).byteCount;
+	int64_t worldBBytes = b3World_GetCounters( worldB ).byteCount;
+	int64_t worldABytesAfter = b3World_GetCounters( worldA ).byteCount;
+
+	// The counter getter is silent. The logged walk retains upstream 51f056e's
+	// category headings and order, alongside this fork's broad-phase details.
+	// Unit tests link the static engine, so save and restore its current log callback.
+	extern b3LogFcn* b3LogHandler;
+	b3LogFcn* previousLog = b3LogHandler;
+	worldByteLogCount = 0;
+	worldByteCategoryCount = 0;
+	worldByteCategoryOrderCorrect = true;
+	worldByteMovedProxiesSeen = false;
+	worldByteMoveArraySeen = false;
+	b3SetLogFcn( WorldByteCountLog );
+	int64_t countedBytes = b3World_GetCounters( worldB ).byteCount;
+	int getterLogCount = worldByteLogCount;
+	b3World_DumpMemoryStats( worldB );
+	b3SetLogFcn( previousLog );
+	ENSURE( getterLogCount == 0 );
+	ENSURE( countedBytes == worldBBytes );
+	ENSURE( worldByteCategoryCount == ARRAY_COUNT( worldByteCategories ) );
+	ENSURE( worldByteCategoryOrderCorrect );
+	ENSURE( worldByteMovedProxiesSeen && worldByteMoveArraySeen );
 
 	// Adding bodies to world B must not change world A's byte count: the count is per-world,
 	// not the process allocator total.

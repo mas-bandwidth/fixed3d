@@ -578,7 +578,7 @@ typedef struct b3Counters
 
 	/// Number of bytes held by this world (arrays, pools, tree, solver sets, arena). Not the
 	/// process allocator total: the count walks the world's own allocations.
-	int byteCount;
+	int64_t byteCount;
 
 	int taskCount;
 	int colorCounts[24];

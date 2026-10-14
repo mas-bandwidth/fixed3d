@@ -66,13 +66,18 @@ The PORT RECORDs below run newest first and are the detail for each step.
   hazard, simulation-neutral: **no golden moved** (determinism suite bit-identical in both
   narrow and LUDICROUS builds). The upstream commit's deletion of the `contactPrefetchDistance
   = 4` prefetch comment is **deliberately NOT mirrored** — fixed3d's `b3CollideTask` carries
-  the same constant and the comment explains why 4. `b3Counters::byteCount` stays `int` (not
-  upstream's `int64_t`): that widening predates 51f056e and is not part of this meaning
-  change; the walked total is cast `(int)` to match the existing `b3GetByteCount()`/`int`
-  convention. Test: `WorldByteCountTest` (test_world.c) pins the meaning change — two worlds
-  are isolated (adding bodies to world B leaves world A's count unchanged, red at the old
-  `b3GetByteCount()` line) and the count grows by at least the per-body
-  `b3Body + b3BodySim + b3BodyState` bytes; destroy returns the process allocator to zero.
+  the same constant and the comment explains why 4. `b3Counters::byteCount` is widened
+  to `int64_t`, matching upstream at 51f056e. The walk sums in `uint64_t`; retaining
+  `int` would truncate a valid world total above INT_MAX. This changes the public
+  `b3Counters` ABI (200 to 208 bytes on 64-bit targets), and the sample counter display
+  uses a matching format. Test: `WorldByteCountTest` (test_world.c) pins the meaning
+  change — two worlds are isolated (adding bodies to world B leaves world A's count
+  unchanged, red at the old `b3GetByteCount()` line) and the count grows by at least
+  the per-body
+  `b3Body + b3BodySim + b3BodyState` bytes; a synthetic capacity checks the >INT_MAX
+  count without allocating 2GB; destroy returns the process allocator to zero. The
+  logged category headings are checked against upstream 51f056e in order, allowing
+  this fork's extra broad-phase detail lines.
   Reference scene `tools/reference/scenes/ref-51f056e-world-neutral.scene` is ADDED
   for the harness glob (5-box stack, 60 steps at fixed dt=1/60, no wall clock), but
   the reference harness itself (`tools/reference/`, card

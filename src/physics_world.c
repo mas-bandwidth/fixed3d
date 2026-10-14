@@ -2579,7 +2579,7 @@ b3Counters b3World_GetCounters( b3WorldId worldId )
 	s.satCacheHitCount = world->satCacheHitCount;
 	memcpy( s.manifoldCounts, world->manifoldCounts, B3_CONTACT_MANIFOLD_COUNT_BUCKETS * sizeof( int ) );
 	s.stackUsed = world->stack.maxAllocation;
-	s.byteCount = (int)b3GetWorldByteCount( world, false );
+	s.byteCount = (int64_t)b3GetWorldByteCount( world, false );
 	s.taskCount = world->taskCount;
 
 	_Static_assert( B3_GRAPH_COLOR_COUNT == sizeof( s.colorCounts ) / sizeof( s.colorCounts[0] ), "colorCounts size mismatch" );
