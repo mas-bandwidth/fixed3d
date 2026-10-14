@@ -1200,8 +1200,10 @@ uint32_t b3RecInternCompound( b3Recording* rec, const b3CompoundData* compound )
 	uint8_t* bytes = b3Alloc( (size_t)byteCount );
 	memcpy( bytes, compound, (size_t)byteCount );
 	// Null the tree node pointer in the copy so the canonical bytes are pointer-free.
-	// b3ConvertBytesToCompound fixes it back on load via nodeOffset.
-	( (b3CompoundData*)bytes )->tree.nodes = NULL;
+	// b3ConvertBytesToCompound fixes it back on load via nodeOffset. Scrubbed through
+	// b3ConvertCompoundToBytes rather than by hand so the blob grows a second pointer without
+	// another manual null.
+	b3ConvertCompoundToBytes( (b3CompoundData*)bytes );
 	uint64_t h = b3Hash64NonZero( bytes, byteCount );
 	return b3InternGeometry( &rec->registry, b3_geometryCompound, h, bytes, byteCount );
 }

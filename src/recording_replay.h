@@ -256,3 +256,12 @@ b3PlaneResult b3RecR_PLANERESULT( b3RecReader* rdr );
 // Grow the reader's hit scratch to at least n entries, preserving contents. n is bounded by the
 // file size since every recorded hit consumes at least one byte.
 void b3RecEnsureHits( b3RecReader* rdr, int n );
+
+// Resolve a geometry slot for replay/snapshot use, refusing an out-of-range id or a slot of the
+// wrong kind (corrupt-input hardening: an op that says "mesh" must not be handed a compound blob).
+// Returns NULL and clears rdr->ok on refusal; also returns NULL when rdr is NULL (no registry).
+b3RegistrySlot* b3RecGetSlot( b3RecReader* rdr, uint32_t id, b3GeometryKind kind );
+
+// Rebuild the live compound for a slot, fixing up tree.nodes via b3ConvertBytesToCompound.
+// Returns NULL (and frees the scratch copy) if the blob is corrupt or incompatible.
+b3CompoundData* b3RecGetLiveCompound( b3RegistrySlot* slot );

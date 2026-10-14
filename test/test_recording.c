@@ -14,6 +14,7 @@
 
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 static const char* s_recPath = "recording_allops_test.b3rec";
@@ -1499,6 +1500,11 @@ static int AllOps( void )
 		b3RecPlayer* player = b3CreatePlayer( recData, recSize, 1 );
 		ENSURE( player != NULL );
 
+		// Capture keyframes every 4 frames so the whole 12-frame run keys while every geometry kind
+		// (including the compound) is live. Coverage for the 003a3f7 keyframe-intern path; it cannot
+		// be seen failing here because this tree's compound has a single pointer.
+		b3RecPlayer_SetKeyframePolicy( player, (size_t)256 * 1024 * 1024, 4 );
+
 		b3RecPlayerInfo info = b3RecPlayer_GetInfo( player );
 		b3Vec3 recExtents = b3Sub( b3BoundToVec3(info.bounds.upperBound), b3BoundToVec3(info.bounds.lowerBound) );
 		ENSURE( recExtents.x > B3_FIX( 0.0f ) && recExtents.y > B3_FIX( 0.0f ) );
@@ -2327,6 +2333,110 @@ static int GeometryMutatorReplay( void )
 	return 0;
 }
 
+// A compound baked into a recording, then corrupted three ways. Each corruption must be refused
+// rather than handed a NULL tree pointer to the broad phase:
+//   (a) flip the version word -> b3ConvertBytesToCompound returns NULL, replay refuses (b3ValidateReplay false)
+//   (b) store a byte count of 8 -> the registry loader rejects the truncated compound slot (b3CreatePlayer NULL)
+//   (c) rewrite the kind byte to mesh -> kind validation refuses the slot (b3ValidateReplay false)
+static int CorruptCompound( void )
+{
+	b3Recording* rec = b3CreateRecording( 0 );
+	ENSURE( rec != NULL );
+
+	b3WorldDef worldDef = b3DefaultWorldDef();
+	worldDef.workerCount = 1;
+	b3WorldId worldId = b3CreateWorld( &worldDef );
+	ENSURE( b3World_IsValid( worldId ) );
+
+	b3World_StartRecording( worldId, rec );
+
+	b3BodyDef bodyDef = b3DefaultBodyDef();
+	bodyDef.type = b3_staticBody;
+	b3BodyId bodyId = b3CreateBody( worldId, &bodyDef );
+	ENSURE( b3Body_IsValid( bodyId ) );
+
+	b3CompoundSphereDef compSphere;
+	compSphere.sphere = (b3Sphere){ { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, B3_FIX( 1.0f ) };
+	compSphere.material = b3DefaultSurfaceMaterial();
+	b3CompoundDef compoundDef;
+	memset( &compoundDef, 0, sizeof( compoundDef ) );
+	compoundDef.spheres = &compSphere;
+	compoundDef.sphereCount = 1;
+	b3CompoundData* compound = b3CreateCompound( &compoundDef );
+	ENSURE( compound != NULL );
+	b3ShapeDef shapeDef = b3DefaultShapeDef();
+	b3ShapeId shapeId = b3CreateBakedCompoundShape( bodyId, &shapeDef, compound );
+	ENSURE( b3Shape_IsValid( shapeId ) );
+
+	b3World_Step( worldId, b3FixDiv( B3_FIX( 1.0f ) , B3_FIX( 60.0f ) ), 4 );
+
+	b3World_StopRecording( worldId );
+	b3DestroyWorld( worldId );
+	b3DestroyCompound( compound );
+
+	const uint8_t* recData = b3Recording_GetData( rec );
+	int recSize = b3Recording_GetSize( rec );
+	ENSURE( recSize > 0 );
+
+	// Sanity: the pristine recording replays clean.
+	ENSURE( b3ValidateReplay( recData, recSize, 1 ) );
+
+	// Locate the compound blob in the registry by its version word.
+	int blob = -1;
+	{
+		uint64_t version = B3_COMPOUND_VERSION;
+		for ( int i = 0; i + (int)sizeof( version ) <= recSize; ++i )
+		{
+			uint64_t v;
+			memcpy( &v, recData + i, sizeof( v ) );
+			if ( v == version )
+			{
+				blob = i;
+				break;
+			}
+		}
+	}
+	ENSURE( blob >= 0 );
+	// The registry entry is [kind byte][4-byte length] immediately before the blob bytes.
+	ENSURE( blob >= 5 );
+
+	// (a) Bad version -> refused on replay.
+	{
+		uint8_t* corrupt = (uint8_t*)malloc( (size_t)recSize );
+		ENSURE( corrupt != NULL );
+		memcpy( corrupt, recData, (size_t)recSize );
+		corrupt[blob] ^= 0xFF;
+		ENSURE( b3ValidateReplay( corrupt, recSize, 1 ) == false );
+		free( corrupt );
+	}
+
+	// (b) Truncated blob (stored byte count 8) -> refused at load.
+	{
+		uint8_t* corrupt = (uint8_t*)malloc( (size_t)recSize );
+		ENSURE( corrupt != NULL );
+		memcpy( corrupt, recData, (size_t)recSize );
+		corrupt[blob - 4 + 0] = 8;
+		corrupt[blob - 4 + 1] = 0;
+		corrupt[blob - 4 + 2] = 0;
+		corrupt[blob - 4 + 3] = 0;
+		ENSURE( b3CreatePlayer( corrupt, recSize, 1 ) == NULL );
+		free( corrupt );
+	}
+
+	// (c) Wrong kind byte -> refused by kind validation.
+	{
+		uint8_t* corrupt = (uint8_t*)malloc( (size_t)recSize );
+		ENSURE( corrupt != NULL );
+		memcpy( corrupt, recData, (size_t)recSize );
+		corrupt[blob - 5] = (uint8_t)b3_geometryMesh;
+		ENSURE( b3ValidateReplay( corrupt, recSize, 1 ) == false );
+		free( corrupt );
+	}
+
+	b3DestroyRecording( rec );
+	return 0;
+}
+
 int RecordingTest( void )
 {
 	RUN_SUBTEST( GeometryHashCollision );
@@ -2349,6 +2459,7 @@ int RecordingTest( void )
 	RUN_SUBTEST( TransformedHullRoundTrip );
 	RUN_SUBTEST( GeometryMutatorReplay );
 	RUN_SUBTEST( AllOps );
+	RUN_SUBTEST( CorruptCompound );
 	RUN_SUBTEST( ReservedHeaderBytes );
 	return 0;
 }

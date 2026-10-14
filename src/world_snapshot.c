@@ -684,13 +684,13 @@ static void b3DesShapes( b3SnapReader* r, b3World* world, b3RecReader* rdr )
 				{
 					break;
 				}
-				if ( rdr == NULL || gid >= (uint32_t)rdr->slotCount )
+				b3RegistrySlot* slot = b3RecGetSlot( rdr, gid, b3_geometryHull );
+				if ( slot == NULL )
 				{
 					r->ok = false;
 					break;
 				}
 				// Hull is cloned into the world DB; pass raw bytes directly
-				b3RegistrySlot* slot = rdr->slots + gid;
 				dst->hull = b3AddHullToDatabase( world, (const b3HullData*)slot->bytes );
 				break;
 			}
@@ -703,12 +703,12 @@ static void b3DesShapes( b3SnapReader* r, b3World* world, b3RecReader* rdr )
 				{
 					break;
 				}
-				if ( rdr == NULL || gid >= (uint32_t)rdr->slotCount )
+				b3RegistrySlot* slot = b3RecGetSlot( rdr, gid, b3_geometryMesh );
+				if ( slot == NULL )
 				{
 					r->ok = false;
 					break;
 				}
-				b3RegistrySlot* slot = rdr->slots + gid;
 				// Mesh is a self-contained blob used by reference; point straight at the pristine bytes.
 				dst->mesh.data = (const b3MeshData*)slot->bytes;
 				dst->mesh.scale = scale;
@@ -721,12 +721,12 @@ static void b3DesShapes( b3SnapReader* r, b3World* world, b3RecReader* rdr )
 				{
 					break;
 				}
-				if ( rdr == NULL || gid >= (uint32_t)rdr->slotCount )
+				b3RegistrySlot* slot = b3RecGetSlot( rdr, gid, b3_geometryHeightField );
+				if ( slot == NULL )
 				{
 					r->ok = false;
 					break;
 				}
-				b3RegistrySlot* slot = rdr->slots + gid;
 				// Self-contained blob used by reference; point straight at the pristine bytes.
 				dst->heightField = (const b3HeightFieldData*)slot->bytes;
 				break;
@@ -738,19 +738,19 @@ static void b3DesShapes( b3SnapReader* r, b3World* world, b3RecReader* rdr )
 				{
 					break;
 				}
-				if ( rdr == NULL || gid >= (uint32_t)rdr->slotCount )
+				b3RegistrySlot* slot = b3RecGetSlot( rdr, gid, b3_geometryCompound );
+				if ( slot == NULL )
 				{
 					r->ok = false;
 					break;
 				}
-				b3RegistrySlot* slot = rdr->slots + gid;
-				if ( slot->live == NULL )
+				const b3CompoundData* compound = b3RecGetLiveCompound( slot );
+				if ( compound == NULL )
 				{
-					slot->live = b3Alloc( (size_t)slot->byteCount );
-					memcpy( slot->live, slot->bytes, (size_t)slot->byteCount );
-					b3ConvertBytesToCompound( (uint8_t*)slot->live, slot->byteCount );
+					r->ok = false;
+					break;
 				}
-				dst->compound = (const b3CompoundData*)slot->live;
+				dst->compound = compound;
 				break;
 			}
 			default:
