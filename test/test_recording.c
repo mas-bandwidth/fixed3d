@@ -5,8 +5,10 @@
 #define _CRT_SECURE_NO_WARNINGS
 #endif
 
+#include "core.h"
 #include "physics_world.h"
 #include "recording.h"
+#include "recording_replay.h"
 #include "test_macros.h"
 
 #include "box3d/box3d.h"
@@ -14,6 +16,7 @@
 
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 static const char* s_recPath = "recording_allops_test.b3rec";
@@ -1499,6 +1502,11 @@ static int AllOps( void )
 		b3RecPlayer* player = b3CreatePlayer( recData, recSize, 1 );
 		ENSURE( player != NULL );
 
+		// Capture keyframes every 4 frames so the whole 12-frame run keys while every geometry kind
+		// (including the compound) is live. Coverage for the 003a3f7 keyframe-intern path; it cannot
+		// be seen failing here because this tree's compound has a single pointer.
+		b3RecPlayer_SetKeyframePolicy( player, (size_t)256 * 1024 * 1024, 4 );
+
 		b3RecPlayerInfo info = b3RecPlayer_GetInfo( player );
 		b3Vec3 recExtents = b3Sub( b3BoundToVec3(info.bounds.upperBound), b3BoundToVec3(info.bounds.lowerBound) );
 		ENSURE( recExtents.x > B3_FIX( 0.0f ) && recExtents.y > B3_FIX( 0.0f ) );
@@ -2327,6 +2335,190 @@ static int GeometryMutatorReplay( void )
 	return 0;
 }
 
+// A compound baked into a recording, then corrupted across all three arms (replay, snapshot, validate).
+// Each corruption must be refused rather than handing a NULL tree pointer to the broad phase:
+//   (a) replay arm: flip the version word -> b3ConvertBytesToCompound returns NULL in
+//       b3RecDispatch_CreateCompoundShape -> b3RecGetLiveCompound (b3ValidateReplay false)
+//   (b) snapshot arm: corrupt the registry compound blob with a bad version and restore a
+//       snapshot containing the compound (both via b3RecPlayer_SeekFrame keyframe restore and
+//       via a mid-stream seed snapshot in b3CreatePlayer), reaching b3DesShapes in
+//       src/world_snapshot.c:747 -> restore refuses (player->rdr.ok == false / b3CreatePlayer NULL)
+//   (c) validate / load / kind arms: truncated compound slot (stored byte count 8 -> b3CreatePlayer NULL
+//       in b3RecLoadSlots) and wrong kind byte (b3_geometryMesh -> b3RecGetSlot refuses in both
+//       replay b3ValidateReplay == false and snapshot b3CreatePlayer == NULL)
+static int CorruptCompound( void )
+{
+	b3Recording* rec = b3CreateRecording( 0 );
+	ENSURE( rec != NULL );
+
+	b3WorldDef worldDef = b3DefaultWorldDef();
+	worldDef.workerCount = 1;
+	b3WorldId worldId = b3CreateWorld( &worldDef );
+	ENSURE( b3World_IsValid( worldId ) );
+
+	b3World_StartRecording( worldId, rec );
+
+	b3BodyDef bodyDef = b3DefaultBodyDef();
+	bodyDef.type = b3_staticBody;
+	b3BodyId bodyId = b3CreateBody( worldId, &bodyDef );
+	ENSURE( b3Body_IsValid( bodyId ) );
+
+	b3CompoundSphereDef compSphere;
+	compSphere.sphere = (b3Sphere){ { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, B3_FIX( 1.0f ) };
+	compSphere.material = b3DefaultSurfaceMaterial();
+	b3CompoundDef compoundDef;
+	memset( &compoundDef, 0, sizeof( compoundDef ) );
+	compoundDef.spheres = &compSphere;
+	compoundDef.sphereCount = 1;
+	b3CompoundData* compound = b3CreateCompound( &compoundDef );
+	ENSURE( compound != NULL );
+	b3ShapeDef shapeDef = b3DefaultShapeDef();
+	b3ShapeId shapeId = b3CreateBakedCompoundShape( bodyId, &shapeDef, compound );
+	ENSURE( b3Shape_IsValid( shapeId ) );
+
+	b3Fixed dt = b3FixDiv( B3_FIX( 1.0f ), B3_FIX( 60.0f ) );
+	b3World_Step( worldId, dt, 4 );
+	b3World_Step( worldId, dt, 4 );
+	b3World_Step( worldId, dt, 4 );
+
+	b3World_StopRecording( worldId );
+
+	// Also capture a mid-stream recording on the same world while the compound shape is already
+	// live, so its seed snapshot (serialized at b3World_StartRecording) contains the compound shape.
+	b3Recording* snapRec = b3CreateRecording( 0 );
+	ENSURE( snapRec != NULL );
+	b3World_StartRecording( worldId, snapRec );
+	b3World_Step( worldId, dt, 4 );
+	b3World_StopRecording( worldId );
+
+	b3DestroyWorld( worldId );
+	b3DestroyCompound( compound );
+
+	const uint8_t* recData = b3Recording_GetData( rec );
+	int recSize = b3Recording_GetSize( rec );
+	ENSURE( recSize > 0 );
+
+	// Sanity: the pristine recording replays clean.
+	ENSURE( b3ValidateReplay( recData, recSize, 1 ) );
+
+	// Locate the compound blob in the registry by its version word.
+	int blob = -1;
+	{
+		uint64_t version = B3_COMPOUND_VERSION;
+		for ( int i = 0; i + (int)sizeof( version ) <= recSize; ++i )
+		{
+			uint64_t v;
+			memcpy( &v, recData + i, sizeof( v ) );
+			if ( v == version )
+			{
+				blob = i;
+				break;
+			}
+		}
+	}
+	ENSURE( blob >= 0 );
+	// The registry entry is [kind byte][4-byte length] immediately before the blob bytes.
+	ENSURE( blob >= 5 );
+
+	// (a) Replay arm: bad version -> refused in b3RecDispatch_CreateCompoundShape -> b3RecGetLiveCompound.
+	{
+		uint8_t* corrupt = (uint8_t*)malloc( (size_t)recSize );
+		ENSURE( corrupt != NULL );
+		memcpy( corrupt, recData, (size_t)recSize );
+		corrupt[blob] ^= 0xFF;
+		ENSURE( b3ValidateReplay( corrupt, recSize, 1 ) == false );
+		free( corrupt );
+	}
+
+	// (b) Snapshot arm (keyframe restore + seed snapshot -> b3DesShapes in src/world_snapshot.c:747):
+	// First: create player on rec, capture a keyframe at frame 1 with the compound shape live,
+	// advance to frame 3, corrupt the registry compound slot with a bad version and clear its cached
+	// live pointer, then seek backward to frame 2 so b3RecPlayerRestoreKeyframe deserializes the
+	// frame-1 keyframe through b3DesShapes.
+	{
+		b3RecPlayer* player = b3CreatePlayer( recData, recSize, 1 );
+		ENSURE( player != NULL );
+		b3RecPlayer_SetKeyframePolicy( player, (size_t)256 * 1024 * 1024, 1 );
+		ENSURE( b3RecPlayer_StepFrame( player ) );
+		ENSURE( b3RecPlayer_StepFrame( player ) );
+		ENSURE( b3RecPlayer_StepFrame( player ) );
+		ENSURE( player->keyframeCount >= 1 );
+		ENSURE( player->rdr.slotCount == 1 );
+		b3RegistrySlot* slot = &player->rdr.slots[0];
+		ENSURE( slot->kind == b3_geometryCompound );
+		if ( slot->live != NULL )
+		{
+			b3Free( slot->live, (size_t)slot->byteCount );
+			slot->live = NULL;
+		}
+		slot->bytes[0] ^= 0xFF;
+		b3RecPlayer_SeekFrame( player, 2 );
+		ENSURE( player->rdr.ok == false );
+		b3DestroyPlayer( player );
+	}
+	// Second: corrupt the compound version in snapRec (whose frame-0 seed snapshot contains the
+	// compound shape); b3RecLoadSlots accepts the slot length, and b3CreatePlayer's seed-snapshot
+	// b3DeserializeIntoShell -> b3DesShapes refuses the corrupt compound and returns NULL.
+	{
+		const uint8_t* snapData = b3Recording_GetData( snapRec );
+		int snapSize = b3Recording_GetSize( snapRec );
+		ENSURE( snapSize > 0 );
+		ENSURE( b3ValidateReplay( snapData, snapSize, 1 ) );
+
+		int snapBlob = -1;
+		uint64_t version = B3_COMPOUND_VERSION;
+		for ( int i = 0; i + (int)sizeof( version ) <= snapSize; ++i )
+		{
+			uint64_t v;
+			memcpy( &v, snapData + i, sizeof( v ) );
+			if ( v == version )
+			{
+				snapBlob = i;
+				break;
+			}
+		}
+		ENSURE( snapBlob >= 5 );
+
+		uint8_t* corrupt = (uint8_t*)malloc( (size_t)snapSize );
+		ENSURE( corrupt != NULL );
+		memcpy( corrupt, snapData, (size_t)snapSize );
+		corrupt[snapBlob] ^= 0xFF;
+		ENSURE( b3CreatePlayer( corrupt, snapSize, 1 ) == NULL );
+
+		// Also verify b3DesShapes kind validation when the snapshot compound slot is marked as mesh.
+		memcpy( corrupt, snapData, (size_t)snapSize );
+		corrupt[snapBlob - 5] = (uint8_t)b3_geometryMesh;
+		ENSURE( b3CreatePlayer( corrupt, snapSize, 1 ) == NULL );
+		free( corrupt );
+	}
+
+	// (c) Validate / load / kind arms: truncated blob (stored byte count 8 -> refused at load)
+	// and wrong kind byte on replay -> refused by b3RecGetSlot kind validation.
+	{
+		uint8_t* corrupt = (uint8_t*)malloc( (size_t)recSize );
+		ENSURE( corrupt != NULL );
+		memcpy( corrupt, recData, (size_t)recSize );
+		corrupt[blob - 4 + 0] = 8;
+		corrupt[blob - 4 + 1] = 0;
+		corrupt[blob - 4 + 2] = 0;
+		corrupt[blob - 4 + 3] = 0;
+		ENSURE( b3CreatePlayer( corrupt, recSize, 1 ) == NULL );
+		free( corrupt );
+	}
+	{
+		uint8_t* corrupt = (uint8_t*)malloc( (size_t)recSize );
+		ENSURE( corrupt != NULL );
+		memcpy( corrupt, recData, (size_t)recSize );
+		corrupt[blob - 5] = (uint8_t)b3_geometryMesh;
+		ENSURE( b3ValidateReplay( corrupt, recSize, 1 ) == false );
+		free( corrupt );
+	}
+
+	b3DestroyRecording( snapRec );
+	b3DestroyRecording( rec );
+	return 0;
+}
+
 int RecordingTest( void )
 {
 	RUN_SUBTEST( GeometryHashCollision );
@@ -2349,6 +2541,7 @@ int RecordingTest( void )
 	RUN_SUBTEST( TransformedHullRoundTrip );
 	RUN_SUBTEST( GeometryMutatorReplay );
 	RUN_SUBTEST( AllOps );
+	RUN_SUBTEST( CorruptCompound );
 	RUN_SUBTEST( ReservedHeaderBytes );
 	return 0;
 }

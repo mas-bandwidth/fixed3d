@@ -51,6 +51,63 @@ The PORT RECORDs below run newest first and are the detail for each step.
 
 ## Current status (as of 2026-08-31 — v1.4.0, MAINTENANCE MODE)
 
+- **PORT RECORD 3d9db79 "various recording fixes (#182)" + 003a3f7 "Fix recording crash on
+  compounds (#181)" (2026-10-14) — PORTED.** The live bug: both callers discarded
+  `b3ConvertBytesToCompound`'s NULL return (`src/recording_replay.c` `b3RecGetLiveCompound`,
+  `src/world_snapshot.c` `b3DesShapes`), so a stale-version, wrong-size or `nodeOffset <= 0`
+  compound blob produced a NULL tree pointer handed straight to the broad phase. Now:
+  `b3RecGetLiveCompound` is exported and failure-returning (`b3CompoundData*`, NULL on a
+  refused blob, with the scratch copy freed), the compound arm of `b3DesShapes` goes through
+  it and fails on NULL, `b3RecLoadSlots` rejects a compound slot smaller than
+  `sizeof( b3CompoundData )` at load, and a new `b3RecGetSlot( rdr, id, kind )` replaces the
+  seven open-coded `id >= slotCount` checks (CreateHull/Mesh/HeightField/CompoundShape,
+  ShapeSetHull/Mesh, and `b3DesShapes` ×4) with out-of-range **and kind** validation, so an op
+  that says "mesh" is refused a compound slot instead of reinterpreting it. **The rename is
+  HELD**: `recording_replay.*` keeps its name (the upstream `replay.c` rename buys nothing and
+  adds a conflict surface). **`src/core.c` `b3Free` size-0 guard SKIPPED**: our free callback
+  takes only the pointer, so the `(size-1)|(align-1)+1` underflow has no counterpart.
+  **`src/compound.c` field-by-field tree copy NOT HERE**: it is its own card (measure the blob
+  bytes first — a nondeterministic padding hole in a hashed blob is a determinism defect in its
+  own right, flagged not claimed). **RECORDING FORMAT: UNCHANGED** — `B3_REC_VERSION_MAJOR`
+  stays 8 and `B3_REC_VERSION_MINOR` stays 6: this port only refuses corrupt input and writes
+  no byte differently (the 003a3f7 hunks are hash-input hygiene, and the hash input is
+  unchanged here). **003a3f7 future-proofing PORTED as coverage, NOT a regression**: the leaked
+  pointer upstream was `tree.proxies`, which this tree's `b3DynamicTree` does not have (no
+  `proxies`, no `parents`, no `dfsOrdered` — leaf `categoryBits`/`userData` live in
+  `b3TreeNode`), so the crash is **structurally unreachable** and the test cannot be seen
+  failing. `b3RecInternCompound` now scrubs through `b3ConvertCompoundToBytes` (not a hand-rolled
+  null), `b3RecSeedKeyframeRegistry` hashes the nulled copy rather than `slot->bytes`, and
+  `AllOps` sets `b3RecPlayer_SetKeyframePolicy( player, budget, 4 )` so the whole 12-frame run
+  keys while every geometry kind is live. **If `f555ee4` is ever ported past this point the
+  fix must land in the same step, or the crash arrives with it.** **TESTS:** `CorruptCompound`
+  (new, `test/test_recording.c`) drives all three arms (replay, snapshot, validate) over
+  in-memory recordings and asserts only booleans — (a) **replay arm**: bad version →
+  `b3ValidateReplay == false` (`b3RecDispatch_CreateCompoundShape` → `b3RecGetLiveCompound`),
+  (b) **snapshot arm**: bad version in the registry compound slot when restoring a keyframe
+  (`b3RecPlayer_SeekFrame` → `b3RecPlayerRestoreKeyframe` → `b3DesShapes` at
+  `src/world_snapshot.c:747`, asserting `player->rdr.ok == false`) and when deserializing a
+  mid-stream seed snapshot (`b3CreatePlayer == NULL` on both bad version and wrong kind byte in
+  `b3DesShapes`), (c) **validate arm** (load + kind validation): stored byte count 8 →
+  `b3CreatePlayer == NULL` (`b3RecLoadSlots`), and kind byte → `b3_geometryMesh` →
+  `b3ValidateReplay == false` (`b3RecGetSlot`) — all three arms seen red on BASE.
+  **VERIFIED (2026-10-14, Linux bench, gcc 15):** both configs green — `build` (narrow) and
+  `build-ludicrous` (`BOX3D_LUDICROUS_MODE`) — full `./bin/test` passes in each, `CorruptCompound`
+  green in all three arms. Red-first confirmed by reverting the four `src/` files to BASE
+  (`8f51d2d`) and rebuilding: `CorruptCompound` does not merely fail, it **crashes** (SIGILL,
+  exit 132) — the NULL tree pointer handed to the broad phase, exactly the live bug this port
+  refuses. `conversion_audit.py` clean over the touched TUs (the four `test/test_math.c`
+  findings are pre-existing and unrelated).
+  **REFERENCE:** `tools/reference/scenes/ref-3d9db79-record-replay.scene` added for the harness
+  glob; the `tools/reference/` harness (card fixed3d-box3d-reference-harness) is absent at BASE,
+  so the scene's tolerance is stated (0.02 m, twice the measured maximum once measured), not
+  measured, and `ctest -L reference` is reported not-done until the harness lands.
+  **DETERMINISM:** none of the replay/snapshot hunks touch the solver, so no golden moves; the
+  compound.c blob-byte question is deferred to its own card.
+  **REPLAY (2026-10-14):** the landing refused head `ac0ff0769339b5631517d2c26f7fd019b9411f09`
+  because this record and the SAT record below both inserted at this heading. The recording
+  work is replayed onto base tip `1df2e22`; this record stays above the SAT record (newest
+  first). The f555ee4 sentence the snapshot-arm edit had cut off is restored here.
+
 - **PORT RECORD adec25b + 9f998c8 "SAT set, the portable pieces" (2026-10-14) —
   PORTED in one step (card port-adec25b-9f998c8-sat-set-portable-pieces).** The
   four-commit SAT series lives inside `b3ComputeSeparatingAxis`, which this tree never
