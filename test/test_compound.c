@@ -1365,6 +1365,67 @@ static int CompoundBlobInvariants( void )
 	return 0;
 }
 
+// A forward-only, index-in-range mesh can still exhaust the fixed traversal stack.
+// Replace a large valid mesh's preorder nodes with a 256-level right spine and
+// require validation to reject it before any mesh query can traverse the blob.
+static int CompoundBlobDeepMesh( void )
+{
+	enum { triangleCount = 1028 };
+	b3Vec3* vertices = (b3Vec3*)malloc( 3 * triangleCount * sizeof( b3Vec3 ) );
+	int32_t* indices = (int32_t*)malloc( 3 * triangleCount * sizeof( int32_t ) );
+	ENSURE( vertices != NULL && indices != NULL );
+	for ( int i = 0; i < triangleCount; ++i )
+	{
+		b3Fixed x = b3FixFromInt( 4 * i );
+		vertices[3 * i + 0] = (b3Vec3){ x, 0, 0 };
+		vertices[3 * i + 1] = (b3Vec3){ x + B3_FIX( 1.0f ), 0, 0 };
+		vertices[3 * i + 2] = (b3Vec3){ x, 0, B3_FIX( 1.0f ) };
+		indices[3 * i + 0] = 3 * i + 0;
+		indices[3 * i + 1] = 3 * i + 1;
+		indices[3 * i + 2] = 3 * i + 2;
+	}
+	b3MeshDef meshDef = { .vertices = vertices, .indices = indices, .vertexCount = 3 * triangleCount,
+						  .triangleCount = triangleCount, .useMedianSplit = true };
+	b3MeshData* sourceMesh = b3CreateMesh( &meshDef, NULL, 0 );
+	ENSURE( sourceMesh != NULL && sourceMesh->nodeCount >= 513 );
+	b3SurfaceMaterial mat = b3DefaultSurfaceMaterial();
+	b3CompoundMeshDef child = { .meshData = sourceMesh, .transform = b3Transform_identity,
+						 .scale = { B3_FIX( 1.0f ), B3_FIX( 1.0f ), B3_FIX( 1.0f ) },
+						 .materials = &mat, .materialCount = 1 };
+	b3CompoundDef def = { .meshes = &child, .meshCount = 1 };
+	b3CompoundData* compound = b3CreateCompound( &def );
+	ENSURE( compound != NULL );
+	int byteCount = compound->byteCount;
+	uint8_t* bytes = (uint8_t*)malloc( (size_t)byteCount );
+	ENSURE( bytes != NULL );
+	memcpy( bytes, compound, (size_t)byteCount );
+	b3CompoundData* blob = (b3CompoundData*)bytes;
+	ENSURE( b3ValidateCompound( bytes, byteCount ) == blob );
+	b3MeshData* mesh = (b3MeshData*)b3GetCompoundMesh( blob, 0 ).meshData;
+	b3MeshNode* nodes = (b3MeshNode*)b3GetMeshNodes( mesh );
+	for ( int i = 0; i < mesh->nodeCount; ++i )
+	{
+		if ( i < mesh->nodeCount - 1 && ( i & 1 ) == 0 )
+		{
+			nodes[i].data.asNode.axis = 0;
+			nodes[i].data.asNode.childOffset = 2;
+		}
+		else
+		{
+			nodes[i].data.asLeaf.type = 3;
+			nodes[i].data.asLeaf.triangleCount = 1;
+			nodes[i].triangleOffset = 0;
+		}
+	}
+	ENSURE( b3ValidateCompound( bytes, byteCount ) == NULL );
+	free( bytes );
+	b3DestroyCompound( compound );
+	b3DestroyMesh( sourceMesh );
+	free( indices );
+	free( vertices );
+	return 0;
+}
+
 int CompoundTest( void )
 {
 	RUN_SUBTEST( CompoundCreateMixed );
@@ -1409,6 +1470,7 @@ int CompoundTest( void )
 	RUN_SUBTEST( CompoundSerializeWrongByteCount );
 	RUN_SUBTEST( CompoundBlobHasNoIndeterminateBytes );
 	RUN_SUBTEST( CompoundBlobInvariants );
+	RUN_SUBTEST( CompoundBlobDeepMesh );
 
 	return 0;
 }
