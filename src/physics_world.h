@@ -228,6 +228,8 @@ typedef struct b3World
 	b3Vec3 gravity;
 	b3Fixed hitEventThreshold;
 	b3Fixed restitutionThreshold;
+	int restitutionIterations;
+	bool enableRestitutionPropagation;
 	b3Fixed maxLinearSpeed;
 	b3Fixed contactSpeed;
 	b3Fixed contactHertz;

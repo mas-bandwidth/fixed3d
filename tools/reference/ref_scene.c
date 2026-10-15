@@ -249,6 +249,11 @@ static bool parseWorld( char* p, b3RefScene* scene )
 	{
 		return false;
 	}
+	if ( takeWord( &p, "restitutionIterations" ) &&
+		( !takeInt( &p, &w->restitutionIterations ) || w->restitutionIterations < 1 || w->restitutionIterations > 8 ) )
+	{
+		return false;
+	}
 	if ( !endOfLine( p ) )
 	{
 		return false;

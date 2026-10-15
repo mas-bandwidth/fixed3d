@@ -333,6 +333,8 @@ b3WorldId b3CreateWorld( const b3WorldDef* def )
 	world->gravity = def->gravity;
 	world->hitEventThreshold = def->hitEventThreshold;
 	world->restitutionThreshold = def->restitutionThreshold;
+	world->restitutionIterations = b3ClampInt( def->restitutionIterations, 0, B3_MAX_RESTITUTION_ITERATIONS );
+	world->enableRestitutionPropagation = def->enableRestitutionPropagation;
 	world->maxLinearSpeed = def->maximumLinearSpeed;
 	world->contactSpeed = def->contactSpeed;
 	world->contactHertz = def->contactHertz;
@@ -1133,7 +1135,6 @@ void b3World_Step( b3WorldId worldId, b3Fixed timeStep, int subStepCount )
 	context.contactSoftness = b3MakeSoft( contactHertz, world->contactDampingRatio, context.h );
 	context.staticSoftness = b3MakeSoft( b3FixMul( B3_FIX( 2.0f ) , contactHertz ), b3FixMul( B3_FIX( 0.5f ) , world->contactDampingRatio ), context.h );
 
-	context.restitutionThreshold = world->restitutionThreshold;
 	context.maxLinearVelocity = world->maxLinearSpeed;
 	context.enableWarmStarting = world->enableWarmStarting;
 
@@ -2088,6 +2089,55 @@ b3Fixed b3World_GetRestitutionThreshold( b3WorldId worldId )
 {
 	b3World* world = b3GetWorldFromId( worldId );
 	return world->restitutionThreshold;
+}
+
+void b3World_SetRestitutionIterations( b3WorldId worldId, int iterations )
+{
+	b3World* world = b3GetUnlockedWorldFromId( worldId );
+	if ( world == NULL )
+	{
+		return;
+	}
+
+	iterations = b3ClampInt( iterations, 0, B3_MAX_RESTITUTION_ITERATIONS );
+	if ( iterations == world->restitutionIterations )
+	{
+		return;
+	}
+
+	B3_REC( world, WorldSetRestitutionIterations, worldId, iterations );
+
+	world->restitutionIterations = iterations;
+}
+
+int b3World_GetRestitutionIterations( b3WorldId worldId )
+{
+	b3World* world = b3GetWorldFromId( worldId );
+	return world->restitutionIterations;
+}
+
+void b3World_EnableRestitutionPropagation( b3WorldId worldId, bool flag )
+{
+	b3World* world = b3GetUnlockedWorldFromId( worldId );
+	if ( world == NULL )
+	{
+		return;
+	}
+
+	if ( flag == world->enableRestitutionPropagation )
+	{
+		return;
+	}
+
+	B3_REC( world, WorldEnableRestitutionPropagation, worldId, flag );
+
+	world->enableRestitutionPropagation = flag;
+}
+
+bool b3World_IsRestitutionPropagationEnabled( b3WorldId worldId )
+{
+	b3World* world = b3GetWorldFromId( worldId );
+	return world->enableRestitutionPropagation;
 }
 
 void b3World_SetHitEventThreshold( b3WorldId worldId, b3Fixed value )
