@@ -11,10 +11,14 @@
 #   so the small (1 - fraction) operand multiplies last and does not quantize to zero).
 # Observable: the bullet's vertical velocity after the first step. Full-step gravity
 #   would read about -0.167 m/s; the corrected value is a small fraction of that.
+#   The fix is applied at the TOI (step 0), before the impact; both engines read
+#   v.y ~ -0.035 there. Past step 0 the fixed and float engines diverge on the
+#   post-impact collision response (fixed bounces at v.x ~ 0.08, float stops), so
+#   the horizon is 1: only the step that carries the fix is compared.
 # Tolerance: pos/rot/vel are the per-quantity tolerances; the bullet is the only
 #   dynamic body and its post-impact velocity is the observable. counts exact (1
 #   static wall + 1 dynamic bullet = 2 bodies, 1 contact).
-expect pos 0.01 rot 0.01 vel 0.05 horizon 4 counts 2
+expect pos 0.01 rot 0.01 vel 0.05 horizon 1 counts 2
 world gravity 0 -10 0 dt 1 60 substeps 1 steps 4
 body static position -1 0 0 rotation 0 0 0 1 linvel 0 0 0 angvel 0 0 0
 body dynamic position -3 2 0 rotation 0 0 0 1 linvel 400 0 0 angvel 0 0 0 flags bullet

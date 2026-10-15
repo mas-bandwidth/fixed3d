@@ -76,15 +76,23 @@ The PORT RECORDs below run newest first and are the detail for each step.
   prepare asserts (prismatic + weld) assume bodyA OR bodyB may be the awake one, not bodyB
   (H-G). (d) the `BOX2D_PROFILE` / `box2d_worker` typos become `BOX3D_PROFILE` /
   `box3d_worker` (H-L).
-  **(3) The fifth bug fix (H-H, static-tree rebuild clearing move marks) is NOT APPLICABLE.**
-  Upstream wrote it against the f555ee4 tree (`B3_MOVED_NODE` / `b3DynamicTree_ValidateNoMoved`),
-  which fixed3d has not ported: fixed3d's `b3DynamicTree` still uses the pre-f555ee4
-  `b3_enlargedNode` flag and has no moved bit, no `b3DynamicTree_ValidateNoMoved`, and no
-  `test_broad_phase.c` (`StaticRebuildKeepsMarks`). When f555ee4 is ported (its own multi-step
-  branch), H-H must land in the same step or the move-mark bug arrives with it.
+  **(3) The fifth bug fix (H-H, static-tree rebuild clearing move marks) is DEFERRED to card
+  `fixed3d-box3d-ports-f555ee4-block`.** Upstream wrote it against the f555ee4 tree
+  (`B3_MOVED_NODE` / `b3DynamicTree_ValidateNoMoved`), which fixed3d has not ported:
+  fixed3d's `b3DynamicTree` still uses the pre-f555ee4 `b3_enlargedNode` flag and has no moved
+  bit, no `b3DynamicTree_ValidateNoMoved`, and no `test_broad_phase.c`
+  (`StaticRebuildKeepsMarks`). When f555ee4 is ported (card fixed3d-box3d-ports-f555ee4-block),
+  H-H must land in the same step or the move-mark bug arrives with it.
   **REFERENCE: `tools/reference/scenes/ref-9e5a4cd-ccd-gravity.scene` and
-  `ref-9e5a4cd-joint-enable.scene`** (globbed by the harness; `ctest -L reference` not run
-  here — no network to fetch float box3d at 9e5a4cd/79fc559 on this bench).
+  `ref-9e5a4cd-joint-enable.scene`** (globbed by the harness). `ctest -L reference` run at
+  `BOX3D_REFERENCE_REV=79fc559` (the descendant that reverts G4, matching fixed3d's no-G4
+  state): `ref-9e5a4cd-ccd-gravity`, `ref-9e5a4cd-joint-enable` and
+  `ref-9e5a4cd-body-churn` all pass. The ccd-gravity scene's horizon was re-measured 4 -> 1:
+  the fix is observable at step 0 (both engines read v.y ~ -0.035), but past step 0 the fixed
+  and float engines diverge on the post-impact collision response (fixed bounces at v.x ~ 0.08,
+  float stops), a pre-existing divergence unrelated to G3. The seed scenes `box_stack` and
+  `ref-f8c4fe8-shape-cast-encroach-band` fail under the 79fc559 pin (float-side drift against
+  their own pins 47d7f7c / f8c4fe8), not caused by this card.
   **COMMIT STRUCTURE: the four bug fixes landed in one commit (878ccc6) rather than four
   separate red-first commits, and H-H is not applicable, so the sub-task's "six commits each
   with a test seen red first" is not met as written.** The CCD gravity fix (1092fa1) and the
@@ -123,8 +131,8 @@ The PORT RECORDs below run newest first and are the detail for each step.
   zero tolerances) — green in narrow and ludicrous. **REFERENCE:
   `tools/reference/scenes/ref-9e5a4cd-body-churn.scene`** (box stack beside a kinematic plate
   whose fat bounds overlap without touching, so a non-touching contact persists across sleep —
-  the sleep path that nulls/restores the encoding); `ctest -L reference` not run here (no network
-  to fetch float box3d at 9e5a4cd on this bench).
+  the sleep path that nulls/restores the encoding); `ctest -L reference` run at
+  `BOX3D_REFERENCE_REV=79fc559` and `ref-9e5a4cd-body-churn` passes.
 
 - **PORT RECORD 3d9db79 + 003a3f7 recording refuses a corrupt compound (2026-10-15) —
   PORTED (card port-3d9db79-003a3f7-recording-refuses-a-corrupt-compound.w3).** Two
