@@ -3,6 +3,8 @@
 
 #include "test_macros.h"
 
+#include "shape.h"
+
 #include "box3d/collision.h"
 #include "box3d/math_functions.h"
 
@@ -634,6 +636,43 @@ static int MeshCreators( void )
 	return 0;
 }
 
+// b3GetMeshTriangle swaps vertices 2 and 3 under a reflected scale (negative determinant).
+// The swap is decided by the sign of the scale determinant, but forming that determinant with
+// b3FixMul quantizes a small reflected scale to zero -- measured in Q48.16, the product of
+// (0.01, 0.01, -0.01) is exactly 0 -- so the swap is skipped. The parity of negative components
+// with the zero case stated explicitly answers exactly as product < 0 does.
+static int MeshTriangleSmallReflectedScaleTest( void )
+{
+	b3Vec3 vertices[VALLEY_VERTEX_COUNT];
+	int32_t indices[3 * VALLEY_TRIANGLE_COUNT];
+	MakeValley( vertices, indices );
+
+	b3MeshDef def = MakeValleyDef( vertices, indices );
+	b3MeshData* data = b3CreateMesh( &def, NULL, 0 );
+	ENSURE( data != NULL );
+
+	b3Vec3 scales[] = {
+		{ B3_FIX( 1.0f ), B3_FIX( 1.0f ), -B3_FIX( 1.0f ) },	   // reference, safely reflected
+		{ B3_FIX( 0.01f ), B3_FIX( 0.01f ), -B3_FIX( 0.01f ) }, // reflected, product quantizes to zero
+	};
+
+	b3Mesh refMesh = { data, scales[0] };
+	b3Mesh smallMesh = { data, scales[1] };
+
+	for ( int t = 0; t < data->triangleCount; ++t )
+	{
+		b3Triangle ref = b3GetMeshTriangle( &refMesh, t );
+		b3Triangle small = b3GetMeshTriangle( &smallMesh, t );
+
+		// The same winding order (i2/i3) as the safely reflected reference.
+		ENSURE( ref.i2 == small.i2 );
+		ENSURE( ref.i3 == small.i3 );
+	}
+
+	b3DestroyMesh( data );
+	return 0;
+}
+
 int MeshTest( void )
 {
 	RUN_SUBTEST( MeshDenseStride );
@@ -647,6 +686,7 @@ int MeshTest( void )
 	RUN_SUBTEST( MeshDegenerateReport );
 	RUN_SUBTEST( MeshScaledWinding );
 	RUN_SUBTEST( MeshBackSideCull );
+	RUN_SUBTEST( MeshTriangleSmallReflectedScaleTest );
 	RUN_SUBTEST( MeshCreators );
 
 	return 0;
