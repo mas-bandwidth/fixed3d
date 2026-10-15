@@ -337,6 +337,7 @@ static int CompoundMeshSharingPointer( void )
 	b3CompoundData* c = b3CreateCompound( &def );
 	ENSURE( c->meshCount == 3 );
 	ENSURE( c->sharedMeshCount == 1 );
+	ENSURE( b3ValidateCompound( (const uint8_t*)c, c->byteCount ) == c );
 
 	b3DestroyCompound( c );
 	b3DestroyMesh( md );
@@ -359,6 +360,7 @@ static int CompoundMeshSharingContent( void )
 	b3CompoundDef def = { .meshes = meshes, .meshCount = 2 };
 	b3CompoundData* c = b3CreateCompound( &def );
 	ENSURE( c->sharedMeshCount == 1 );
+	ENSURE( b3ValidateCompound( (const uint8_t*)c, c->byteCount ) == c );
 
 	b3DestroyCompound( c );
 	b3DestroyMesh( mdA );
@@ -381,6 +383,7 @@ static int CompoundMeshDistinct( void )
 	b3CompoundDef def = { .meshes = meshes, .meshCount = 2 };
 	b3CompoundData* c = b3CreateCompound( &def );
 	ENSURE( c->sharedMeshCount == 2 );
+	ENSURE( b3ValidateCompound( (const uint8_t*)c, c->byteCount ) == c );
 
 	b3DestroyCompound( c );
 	b3DestroyMesh( mdA );
@@ -961,6 +964,11 @@ static int CompoundBlobInvariants( void )
 	memcpy( bytes, a, (size_t)byteCount );
 	b3CompoundData* blob = (b3CompoundData*)bytes;
 	ENSURE( b3ValidateCompound( bytes, byteCount ) == blob );
+	uint8_t* unaligned = (uint8_t*)malloc( (size_t)byteCount + 1 );
+	ENSURE( unaligned != NULL );
+	memcpy( unaligned + 1, bytes, (size_t)byteCount );
+	ENSURE( b3ValidateCompound( unaligned + 1, byteCount ) == NULL );
+	free( unaligned );
 
 	blob->nodeOffset = byteCount + 8;
 	ENSURE( b3ValidateCompound( bytes, byteCount ) == NULL );

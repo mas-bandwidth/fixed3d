@@ -720,7 +720,8 @@ static bool b3CompoundRegion( int offset, int count, size_t elementSize, size_t 
 
 const b3CompoundData* b3ValidateCompound( const uint8_t* bytes, int byteCount )
 {
-	if ( bytes == NULL || byteCount < (int)sizeof( b3CompoundData ) )
+	if ( bytes == NULL || ( (uintptr_t)bytes & ( _Alignof( b3CompoundData ) - 1 ) ) != 0 ||
+		 byteCount < (int)sizeof( b3CompoundData ) )
 	{
 		return NULL;
 	}
@@ -787,7 +788,7 @@ const b3CompoundData* b3ValidateCompound( const uint8_t* bytes, int byteCount )
 		if ( offset < (uint64_t)meshArrayEnd || offset + sizeof( b3MeshData ) > (uint64_t)compound->sphereOffset ||
 			 ( offset & ( _Alignof( b3MeshData ) - 1 ) ) != 0 || meshes[i].materialCount == 0 ||
 			 (uint64_t)meshes[i].materialOffset < (uint64_t)meshArrayEnd ||
-			 ( meshes[i].materialOffset & 7 ) != 0 ||
+			 ( meshes[i].materialOffset & ( _Alignof( uint16_t ) - 1 ) ) != 0 ||
 			 (uint64_t)meshes[i].materialOffset + (uint64_t)meshes[i].materialCount * sizeof( uint16_t ) >
 				 (uint64_t)compound->sphereOffset )
 		{
