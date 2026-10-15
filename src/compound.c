@@ -724,6 +724,10 @@ static bool b3CompoundHullValid( const b3HullData* hull )
 	{
 		return false;
 	}
+	if ( hull->vertexCount > UINT8_MAX + 1 || hull->edgeCount > UINT8_MAX + 1 || hull->faceCount > UINT8_MAX + 1 )
+	{
+		return false;
+	}
 	int64_t end = sizeof( b3HullData );
 	if ( !( b3CompoundRegion( hull->vertexOffset, hull->vertexCount, sizeof( b3HullVertex ), _Alignof( b3HullVertex ), end,
 							 hull->byteCount, &end ) &&
@@ -752,19 +756,68 @@ static bool b3CompoundHullValid( const b3HullData* hull )
 	for ( int i = 0; i < hull->edgeCount; ++i )
 	{
 		if ( edges[i].next >= hull->edgeCount || edges[i].twin >= hull->edgeCount || edges[i].origin >= hull->vertexCount ||
-			 edges[i].face >= hull->faceCount )
+			 edges[i].face >= hull->faceCount || edges[i].twin == i || edges[edges[i].twin].twin != i )
 		{
 			return false;
 		}
 	}
+	bool seen[UINT8_MAX + 1] = { false };
 	for ( int i = 0; i < hull->faceCount; ++i )
 	{
 		if ( faces[i].edge >= hull->edgeCount )
 		{
 			return false;
 		}
+		int edge = faces[i].edge;
+		for ( int steps = 0; steps < hull->edgeCount; ++steps )
+		{
+			if ( seen[edge] || edges[edge].face != i )
+			{
+				return false;
+			}
+			seen[edge] = true;
+			edge = edges[edge].next;
+			if ( edge == faces[i].edge )
+			{
+				break;
+			}
+		}
+		if ( edge != faces[i].edge )
+		{
+			return false;
+		}
+	}
+	for ( int i = 0; i < hull->edgeCount; ++i )
+	{
+		if ( !seen[i] )
+		{
+			return false;
+		}
 	}
 	return true;
+}
+
+// Mesh consumers keep a 256-entry traversal stack. A preorder parse enforces one
+// reachable tree (no shared subtrees) and bounds the actual depth, not the header claim.
+static bool b3CompoundMeshTreeValid( const b3MeshNode* nodes, int start, int end, int depth, int triangleCount )
+{
+	if ( start >= end || depth >= 256 )
+	{
+		return false;
+	}
+	const b3MeshNode* node = nodes + start;
+	if ( node->data.asLeaf.type == 3 )
+	{
+		return start + 1 == end && node->data.asLeaf.triangleCount > 0 &&
+			   (uint64_t)node->triangleOffset + node->data.asLeaf.triangleCount <= (uint64_t)triangleCount;
+	}
+	int64_t right = (int64_t)start + node->data.asNode.childOffset;
+	if ( depth >= 255 || right <= start + 1 || right >= end )
+	{
+		return false;
+	}
+	return b3CompoundMeshTreeValid( nodes, start + 1, (int)right, depth + 1, triangleCount ) &&
+		   b3CompoundMeshTreeValid( nodes, (int)right, end, depth + 1, triangleCount );
 }
 
 static bool b3CompoundMeshValid( const b3MeshData* mesh )
@@ -792,22 +845,9 @@ static bool b3CompoundMeshValid( const b3MeshData* mesh )
 	const b3MeshNode* nodes = (const b3MeshNode*)( bytes + mesh->nodeOffset );
 	const b3MeshTriangle* triangles = (const b3MeshTriangle*)( bytes + mesh->triangleOffset );
 	const uint8_t* materials = bytes + mesh->materialOffset;
-	for ( int i = 0; i < mesh->nodeCount; ++i )
+	if ( !b3CompoundMeshTreeValid( nodes, 0, mesh->nodeCount, 0, mesh->triangleCount ) )
 	{
-		const b3MeshNode* node = nodes + i;
-		if ( node->data.asLeaf.type == 3 )
-		{
-			if ( node->data.asLeaf.triangleCount == 0 ||
-				 (uint64_t)node->triangleOffset + node->data.asLeaf.triangleCount > (uint64_t)mesh->triangleCount )
-			{
-				return false;
-			}
-		}
-		else if ( i + 1 >= mesh->nodeCount || node->data.asNode.childOffset < 2 ||
-				  (uint64_t)i + node->data.asNode.childOffset >= (uint64_t)mesh->nodeCount )
-		{
-			return false;
-		}
+		return false;
 	}
 	for ( int i = 0; i < mesh->triangleCount; ++i )
 	{

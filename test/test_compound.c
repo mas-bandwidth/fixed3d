@@ -1018,6 +1018,15 @@ static int CompoundBlobInvariants( void )
 	edges[0].origin = (uint8_t)hull->vertexCount;
 	ENSURE( b3ValidateCompound( bytes, byteCount ) == NULL );
 	memcpy( bytes, a, (size_t)byteCount );
+	hull = (b3HullData*)b3GetCompoundHull( blob, 0 ).hull;
+	edges = (b3HullHalfEdge*)( (uint8_t*)hull + hull->edgeOffset );
+	const b3HullFace* faces = b3GetHullFaces( hull );
+	int firstEdge = faces[0].edge;
+	int nextEdge = edges[firstEdge].next;
+	ENSURE( nextEdge != firstEdge );
+	edges[nextEdge].next = (uint8_t)nextEdge;
+	ENSURE( b3ValidateCompound( bytes, byteCount ) == NULL );
+	memcpy( bytes, a, (size_t)byteCount );
 	b3MeshData* mesh = (b3MeshData*)b3GetCompoundMesh( blob, 0 ).meshData;
 	mesh->triangleOffset = mesh->byteCount + 8;
 	ENSURE( b3ValidateCompound( bytes, byteCount ) == NULL );
