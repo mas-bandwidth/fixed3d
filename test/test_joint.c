@@ -677,6 +677,62 @@ static int TestJointInverseScaleCorrection( void )
 	return 0;
 }
 
+static int TestNonDynamicJointDisable( void )
+{
+	b3WorldDef worldDef = b3DefaultWorldDef();
+	worldDef.gravity = b3Vec3_zero;
+	b3WorldId worldId = b3CreateWorld( &worldDef );
+
+	b3BodyDef bodyDef = b3DefaultBodyDef();
+	bodyDef.type = b3_dynamicBody;
+	b3BodyId bodyIdA = b3CreateBody( worldId, &bodyDef );
+	bodyDef.position = (b3Pos){ B3_FIX( 2.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
+	b3BodyId bodyIdB = b3CreateBody( worldId, &bodyDef );
+
+	b3ShapeDef shapeDef = b3DefaultShapeDef();
+	b3BoxHull box = b3MakeCubeHull( B3_FIX( 0.5f ) );
+	b3CreateHullShape( bodyIdA, &shapeDef, &box.base );
+	b3CreateHullShape( bodyIdB, &shapeDef, &box.base );
+
+	b3WeldJointDef jointDef = b3DefaultWeldJointDef();
+	jointDef.base.bodyIdA = bodyIdA;
+	jointDef.base.bodyIdB = bodyIdB;
+	b3JointId weldId = b3CreateWeldJoint( worldId, &jointDef );
+
+	b3Body_SetType( bodyIdA, b3_staticBody );
+	b3Body_SetType( bodyIdB, b3_kinematicBody );
+	b3World_Step( worldId, b3FixDiv( B3_FIX( 1.0f ), B3_FIX( 60.0f ) ), 4 );
+
+	b3Body_Disable( bodyIdB );
+	b3World_Step( worldId, b3FixDiv( B3_FIX( 1.0f ), B3_FIX( 60.0f ) ), 4 );
+	b3Body_Enable( bodyIdB );
+	b3World_Step( worldId, b3FixDiv( B3_FIX( 1.0f ), B3_FIX( 60.0f ) ), 4 );
+	ENSURE( b3Joint_IsValid( weldId ) );
+
+	b3Body_SetType( bodyIdB, b3_dynamicBody );
+	b3World_Step( worldId, b3FixDiv( B3_FIX( 1.0f ), B3_FIX( 60.0f ) ), 4 );
+	ENSURE( b3Joint_IsAwake( weldId ) );
+
+	// Created directly between a static and a kinematic body
+	bodyDef.type = b3_kinematicBody;
+	bodyDef.position = (b3Pos){ B3_FIX( 4.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
+	b3BodyId bodyIdC = b3CreateBody( worldId, &bodyDef );
+	b3CreateHullShape( bodyIdC, &shapeDef, &box.base );
+
+	b3RevoluteJointDef revoluteDef = b3DefaultRevoluteJointDef();
+	revoluteDef.base.bodyIdA = bodyIdA;
+	revoluteDef.base.bodyIdB = bodyIdC;
+	b3JointId revoluteId = b3CreateRevoluteJoint( worldId, &revoluteDef );
+
+	b3Body_Disable( bodyIdC );
+	b3Body_Enable( bodyIdC );
+	b3World_Step( worldId, b3FixDiv( B3_FIX( 1.0f ), B3_FIX( 60.0f ) ), 4 );
+	ENSURE( b3Joint_IsAwake( revoluteId ) == false );
+
+	b3DestroyWorld( worldId );
+	return 0;
+}
+
 int JointTest( void )
 {
 	RUN_SUBTEST( TestJointInverseScaleCorrection );
@@ -690,6 +746,7 @@ int JointTest( void )
 	RUN_SUBTEST( TestSphericalJoint );
 	RUN_SUBTEST( TestWeldJoint );
 	RUN_SUBTEST( TestWheelJoint );
+	RUN_SUBTEST( TestNonDynamicJointDisable );
 
 	return 0;
 }

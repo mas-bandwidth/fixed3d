@@ -120,8 +120,8 @@ void b3SyncBodyFlags( b3World* world, b3Body* body )
 {
 	b3BodySim* bodySim = b3GetBodySim( world, body );
 
-	// Preserve the fast flag for contact recycling.
-	bodySim->flags = ( bodySim->flags & b3_isFast ) | ( body->flags & ~b3_bodyTransientFlags );
+	// Preserve the sim only flags: fast for contact recycling, time of impact for debug draw.
+	bodySim->flags = ( bodySim->flags & ( b3_isFast | b3_hadTimeOfImpact ) ) | ( body->flags & ~b3_bodyTransientFlags );
 
 	b3BodyState* bodyState = b3GetBodyState( world, body );
 	if ( bodyState != NULL )
@@ -2263,7 +2263,7 @@ void b3Body_Disable( b3BodyId bodyId )
 			continue;
 		}
 
-		B3_ASSERT( joint->setIndex == set->setIndex || set->setIndex == b3_staticSet );
+		B3_ASSERT( joint->setIndex == set->setIndex || set->setIndex == b3_staticSet || joint->setIndex == b3_staticSet );
 
 		// Remove joint from island
 		b3UnlinkJoint( world, joint );
@@ -2360,7 +2360,7 @@ void b3Body_Enable( b3BodyId bodyId )
 
 		// Transfer joint first
 		int jointSetId;
-		if ( bodyA->setIndex == b3_staticSet && bodyB->setIndex == b3_staticSet )
+		if ( bodyA->type != b3_dynamicBody && bodyB->type != b3_dynamicBody )
 		{
 			jointSetId = b3_staticSet;
 		}

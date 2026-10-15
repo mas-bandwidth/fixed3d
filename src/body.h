@@ -41,7 +41,7 @@ enum b3BodyFlags
 	// This body was speed capped in the current time step
 	b3_isSpeedCapped = 0x00000100,
 
-	// This body had a time of impact event in the current time step
+	// This body had a time of impact event in the current time step (body sim only)
 	b3_hadTimeOfImpact = 0x00000200,
 
 	// This body has no limit on angular velocity

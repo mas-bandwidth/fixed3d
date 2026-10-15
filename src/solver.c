@@ -390,7 +390,7 @@ static bool b3ContinuousQueryCallback( int proxyId, uint64_t userData, void* con
 	B3_ASSERT( body->type == b3_staticBody || ( fastBodySim->flags & b3_isBullet ) );
 
 	// Skip bullets
-	if ( bodySim->flags & b3_isBullet )
+	if ( body->flags & b3_isBullet )
 	{
 		return true;
 	}
@@ -458,7 +458,6 @@ static bool b3ContinuousQueryCallback( int proxyId, uint64_t userData, void* con
 
 		if ( didHit )
 		{
-			fastBodySim->flags |= b3_hadTimeOfImpact;
 			continuousContext->fraction = output.fraction;
 			continuousContext->distanceIterations = b3MaxInt( continuousContext->distanceIterations, output.distanceIterations );
 			continuousContext->pushBackIterations = b3MaxInt( continuousContext->pushBackIterations, output.pushBackIterations );
@@ -575,6 +574,7 @@ static void b3SolveContinuous( b3World* world, int bodySimIndex, b3TaskContext* 
 		fastBodySim->center = center;
 		fastBodySim->rotation0 = q;
 		fastBodySim->center0 = center;
+		fastBodySim->flags |= b3_hadTimeOfImpact;
 
 		// Timeloss means there is a lost gravity contribution. Other forces and torques are
 		// ignored for now. In fixed point the two chained products must not be formed as
@@ -775,9 +775,10 @@ static void b3FinalizeBodiesTask( int startIndex, int endIndex, int workerIndex,
 		B3_ASSERT( ( body->flags & b3_dirtyMass ) == 0 );
 
 		body->flags &= ~b3_bodyTransientFlags;
-		body->flags |= ( sim->flags & ( b3_isSpeedCapped | b3_hadTimeOfImpact ) );
-		body->flags |= ( state->flags & ( b3_isSpeedCapped | b3_hadTimeOfImpact ) );
 		sim->flags &= ~( b3_isFast | b3_bodyTransientFlags );
+
+		// The body state flag knows about speed capping (used for debug draw).
+		body->flags |= ( state->flags & b3_isSpeedCapped );
 		state->flags &= ~b3_bodyTransientFlags;
 
 		if ( enableSleep == false || ( body->flags & b3_enableSleep ) == 0 || sleepVelocity > body->sleepThreshold )
