@@ -1,0 +1,41 @@
+# spike-hull-int32-soa-baked-in-the-blob — raw measurement output
+
+## cpu_info.sh
+
+model name      : AMD Ryzen 9 7950X3D 16-Core Processor
+ISA flags       : avx2 avx512dq avx512f avx512vl
+compiler        : gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0
+cmake           : 3.28.3
+taskset -cp $$  : pid affinity list: 0-31
+load (start)    : 0.62, 0.52, 0.55
+load (end)      : 2.75, 3.61, 2.60   (shared box; sibling spike cards ran concurrently)
+workers         : 4
+build           : Release + LTO (default) + BOX3D_AVX512=ON + BOX3D_VALIDATE=ON
+
+## ab.sh tables (ms, 4 workers, 7 repeats, min-of-run reported by benchmark)
+
+BEFORE (base, no SoA bake):
+  convex_pile: run 0 7020.8 / 1 7104.25 / 2 7135.1 / 3 6953.38 / 4 6968.32 / 5 8038.56 / 6 7125.93
+  junkyard:    run 0 12147.6 / 1 11102.2 / 2 11369.3 / 3 11247.2 / 4 11136.6 / 5 11350.2 / 6 11174.2
+
+AFTER (SoA baked into the hull blob):
+  convex_pile: run 0 7172.73 / 1 7157.26 / 2 7254.35 / 3 7275.4 / 4 7428.11 / 5 7259.98 / 6 7039.98
+  junkyard:    run 0 11056.2 / 1 11206.5 / 2 11187.1 / 3 11248.5 / 4 11164.3 / 5 11324.9 / 6 11304.7
+
+## oracle_check lines
+
+tools/perf/oracle_check.sh is absent at this base (DEPENDS-ON fixed3d-perf-harness
+not landed). Stand-in bit-exact evidence:
+
+  ./bin/test (narrow, RelWithDebInfo+VALIDATE+Werror)  -> All Fixed3D tests passed!
+  ./bin/test (AVX-512, Release+VALIDATE)               -> All Fixed3D tests passed!
+  ./bin/test DeterminismTest (AVX-512)                 -> All Fixed3D tests passed!
+  ./bin/test HullTest (narrow)                         -> subtest passed: HullBlobSoaMatchesAosTest
+
+Determinism goldens (ragdoll/wave-pile/query-spawn/mesh-drop) unchanged in the
+AVX-512 build, so the SoA wide support scan is bit-identical to the scalar oracle.
+
+## sizeof
+
+sizeof(b3HullData) narrow = 224 (unchanged; padding -> soaOffset rename)
+sizeof(b3HullData) ludicrous = 272 (unchanged)
