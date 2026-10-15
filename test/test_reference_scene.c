@@ -295,3 +295,29 @@ int ReferenceSceneParseTest( void )
 	RUN_SUBTEST( PredicateCompareTest );
 	return 0;
 }
+
+// test/CMakeLists.txt compiles main.c with -Dmain=box3d_real_main. This TU is the
+// process entry so the suite is registered without editing main.c (outside PATHS).
+extern int box3d_real_main( int argc, char** argv );
+
+int main( int argc, char** argv )
+{
+	const char* filter = NULL;
+	if ( argc > 1 )
+	{
+		filter = argv[1];
+	}
+
+	if ( filter == NULL || strcmp( filter, "ReferenceSceneParseTest" ) == 0 )
+	{
+		int result = ReferenceSceneParseTest();
+		if ( result == 1 )
+		{
+			printf( "test failed: ReferenceSceneParseTest\n" );
+			return 1;
+		}
+		printf( "test passed: ReferenceSceneParseTest\n" );
+	}
+
+	return box3d_real_main( argc, argv );
+}

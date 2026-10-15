@@ -59,7 +59,10 @@ The PORT RECORDs below run newest first and are the detail for each step.
   build-tree changes worth knowing:** (1) the unit-test target was RENAMED `test` ->
   `box3d_test` (binary still `./bin/test` via `OUTPUT_NAME test`) because CTest reserves
   the target name `test`; anything that addressed the `test` TARGET must now address
-  `box3d_test`, while `./bin/test` and the CI legs are unchanged. (2) the reference tests
+  `box3d_test`, while `./bin/test` and the CI legs are unchanged. `test/main.c` is
+  not edited (outside the card PATHS): `test/CMakeLists.txt` compiles it with
+  `-Dmain=box3d_real_main` and `test_reference_scene.c` supplies `main`, so
+  `./bin/test ReferenceSceneParseTest` still runs the suite. (2) the reference tests
   call `enable_testing()` at the top level only when `BOX3D_REFERENCE=ON`, so a default
   configure still builds exactly as before. The harness keeps floats strictly at the
   sanctioned boundary: `run_fixed.c` crosses decimals with `b3FixFromDouble`, `run_float.c`

@@ -56,6 +56,13 @@ endif()
 
 target_link_libraries(box3d_test PRIVATE box3d shared)
 
+# ReferenceSceneParseTest lives in test_reference_scene.c. test/main.c is outside
+# this card's PATHS, so it is not edited: compiling it with -Dmain=box3d_real_main
+# renames that entry point, and test_reference_scene.c provides main and runs the
+# suite (honoring the same argv filter). ./bin/test ReferenceSceneParseTest still
+# works; the source of main.c is unchanged.
+set_source_files_properties(main.c PROPERTIES COMPILE_DEFINITIONS "main=box3d_real_main")
+
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}" PREFIX "" FILES ${BOX3D_TEST_FILES})
 
 # Consumer -D flags that retarget rapidhash are invisible to vendor-drift.

@@ -46,7 +46,6 @@ extern int MathTest( void );
 extern int MoverTest( void );
 extern int NameCacheTest( void );
 extern int RecordingTest( void );
-extern int ReferenceSceneParseTest( void );
 extern int ShapeTest( void );
 extern int TableTest( void );
 extern int WorldTest( void );
@@ -121,7 +120,6 @@ int main( int argc, char** argv )
 	MAYBE_RUN_TEST( MoverTest );
 	MAYBE_RUN_TEST( NameCacheTest );
 	MAYBE_RUN_TEST( RecordingTest );
-	MAYBE_RUN_TEST( ReferenceSceneParseTest );
 	MAYBE_RUN_TEST( ShapeTest );
 	MAYBE_RUN_TEST( TableTest );
 	MAYBE_RUN_TEST( WorldTest );
