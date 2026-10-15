@@ -211,12 +211,6 @@ void b3CreateContact( b3World* world, b3Shape* shapeA, b3Shape* shapeB, int chil
 	contact->shapeIdB = shapeIdB;
 	contact->childIndex = childIndex;
 
-	// Both bodies must enable recycling
-	if ( ( bodyA->flags & b3_bodyEnableContactRecycling ) != 0 && ( bodyB->flags & b3_bodyEnableContactRecycling ) != 0 )
-	{
-		contact->flags |= b3_contactRecycleFlag;
-	}
-
 	if ( shapeA->type == b3_meshShape || shapeA->type == b3_heightShape )
 	{
 		contact->flags |= b3_simMeshContact;
@@ -251,6 +245,13 @@ void b3CreateContact( b3World* world, b3Shape* shapeA, b3Shape* shapeB, int chil
 	if ( ( shapeA->flags & b3_enableSpeculative ) && ( shapeB->flags & b3_enableSpeculative ) )
 	{
 		contact->flags |= b3_enableSpeculativePoints;
+	}
+
+	// Disabling speculative collision also disables recycling.
+	if ( ( bodyA->flags & b3_bodyEnableContactRecycling ) != 0 && ( bodyB->flags & b3_bodyEnableContactRecycling ) != 0 &&
+		 ( contact->flags & b3_enableSpeculativePoints ) != 0 )
+	{
+		contact->flags |= b3_contactRecycleFlag;
 	}
 
 	// Connect to body A
@@ -708,6 +709,9 @@ static bool b3UpdateConvexContact( b3World* world, int workerIndex, b3Contact* c
 			b3FreeManifolds( world, contact->manifolds, contact->manifoldCount );
 			contact->manifolds = NULL;
 			contact->manifoldCount = 0;
+
+			// Invalidate recycling cache.
+			contact->flags &= ~b3_relativeTransformValid;
 			return false;
 		}
 	}
