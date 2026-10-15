@@ -426,15 +426,8 @@ B3_API b3CompoundData* b3CreateCompound( const b3CompoundDef* def );
 /// Destroy a compound shape.
 B3_API void b3DestroyCompound( b3CompoundData* compound );
 
-/// If bytes is null then this returns the number of required bytes. This clones all the
-/// data into the bytes buffer. This is expected to run offline or asynchronously.
-/// This mutates the compound to nullify pointers, leaving the compound in an unusable state.
-B3_API uint8_t* b3ConvertCompoundToBytes( b3CompoundData* compound );
-
-/// Convert bytes to compound. This does not clone. The bytes must remain in scope while the
-/// compound is used. This is done to improve run-time performance and allow for instancing.
-/// The bytes are mutated to fixup pointers.
-B3_API b3CompoundData* b3ConvertBytesToCompound( uint8_t* bytes, int byteCount );
+/// Validate a pointer-free baked compound without modifying its bytes.
+B3_API const b3CompoundData* b3ValidateCompound( const uint8_t* bytes, int byteCount );
 
 /**@}*/ // compound
 

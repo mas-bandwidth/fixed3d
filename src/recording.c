@@ -1193,14 +1193,7 @@ uint32_t b3RecInternHeightField( b3Recording* rec, const b3HeightFieldData* hf )
 
 uint32_t b3RecInternCompound( b3Recording* rec, const b3CompoundData* compound )
 {
-	int byteCount = compound->byteCount;
-	uint8_t* bytes = b3Alloc( (size_t)byteCount );
-	memcpy( bytes, compound, (size_t)byteCount );
-	// This pre-pointer-free format still needs a temporary canonical copy.
-	b3ConvertCompoundToBytes( (b3CompoundData*)bytes );
-	uint32_t id = b3RecInternBlob( rec, b3_geometryCompound, bytes, byteCount );
-	b3Free( bytes, (size_t)byteCount );
-	return id;
+	return b3RecInternBlob( rec, b3_geometryCompound, compound, compound->byteCount );
 }
 
 uint64_t b3HashWorldState( b3World* world )

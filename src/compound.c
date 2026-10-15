@@ -574,23 +574,10 @@ b3CompoundData* b3CreateCompound( const b3CompoundDef* def )
 	compound->byteCount = byteCount;
 	compound->nodeOffset = nodeOffset;
 
-	// Copy the serialized tree fields one by one rather than the whole struct: b3DynamicTree
-	// carries 8 bytes of implicit padding (after freeList and after rebuildCapacity) that a
-	// whole-struct memcpy would copy from the caller's stack 'tree' into the baked blob. The blob
-	// is content-hashed and replayed byte-for-byte, so those padding bytes must be deterministic;
-	// the memset above leaves them zero. The pointer/rebuild fields are runtime-only and stay zero.
-	compound->tree.version = tree.version;
-	compound->tree.nodes = NULL;
-	compound->tree.root = tree.root;
-	compound->tree.nodeCount = tree.nodeCount;
-	compound->tree.nodeCapacity = tree.nodeCapacity;
-	compound->tree.proxyCount = tree.proxyCount;
-	compound->tree.freeList = 0;
-	compound->tree.leafIndices = NULL;
-	compound->tree.leafBoxes = NULL;
-	compound->tree.leafCenters = NULL;
-	compound->tree.binIndices = NULL;
-	compound->tree.rebuildCapacity = 0;
+	compound->bounds = b3DynamicTree_GetRootBounds( &tree );
+	compound->treeHeight = b3DynamicTree_GetHeight( &tree );
+	compound->nodeCount = tree.nodeCapacity;
+	compound->root = tree.root;
 
 	compound->materialOffset = materialOffset;
 	compound->materialCount = materialCount;
@@ -606,7 +593,6 @@ b3CompoundData* b3CreateCompound( const b3CompoundDef* def )
 	// Tree nodes
 	b3TreeNode* nodes = b3GetCompoundNodes( compound );
 	memcpy( nodes, tree.nodes, tree.nodeCapacity * sizeof( b3TreeNode ) );
-	compound->tree.nodes = nodes;
 
 	// Materials
 	B3_ASSERT( materialCount > 0 );
@@ -702,49 +688,23 @@ void b3DestroyCompound( b3CompoundData* compound )
 	b3Free( compound, compound->byteCount );
 }
 
-uint8_t* b3ConvertCompoundToBytes( b3CompoundData* compound )
+const b3CompoundData* b3ValidateCompound( const uint8_t* bytes, int byteCount )
 {
-	// scrub this pointer before serialization
-	compound->tree.nodes = NULL;
-	return (uint8_t*)compound;
-}
-
-b3CompoundData* b3ConvertBytesToCompound( uint8_t* bytes, int byteCount )
-{
-	b3CompoundData* compound = (b3CompoundData*)bytes;
-	if ( compound->version != B3_COMPOUND_VERSION )
+	if ( bytes == NULL || byteCount < (int)sizeof( b3CompoundData ) )
 	{
 		return NULL;
 	}
-
-	if ( compound->byteCount < (int)sizeof( b3CompoundData ) )
+	const b3CompoundData* compound = (const b3CompoundData*)bytes;
+	if ( compound->version != B3_COMPOUND_VERSION || compound->byteCount != byteCount )
 	{
 		return NULL;
 	}
-
-	if ( byteCount != compound->byteCount )
-	{
-		return NULL;
-	}
-
-	if ( compound->nodeOffset <= 0 )
-	{
-		return NULL;
-	}
-
-	// this mutates the input bytes
-	compound->tree.nodes = (b3TreeNode*)( (intptr_t)compound + compound->nodeOffset );
 	return compound;
 }
 
 b3AABB b3ComputeCompoundAABB( const b3CompoundData* shape, b3Transform transform )
 {
-	B3_ASSERT( shape->nodeOffset > 0 );
-
-	const b3TreeNode* nodes = (const b3TreeNode*)( (intptr_t)shape + shape->nodeOffset );
-	int root = shape->tree.root;
-	b3AABB aabb = nodes[root].aabb;
-	return b3AABB_Transform( transform, aabb );
+	return b3AABB_Transform( transform, shape->bounds );
 }
 
 struct b3CompoundOverlapContext
@@ -821,7 +781,8 @@ bool b3OverlapCompound( const b3CompoundData* shape, b3Transform shapeTransform,
 	aabb.lowerBound = b3Vec3ToBound( b3Sub( b3BoundToVec3( aabb.lowerBound ), r ) );
 	aabb.upperBound = b3Vec3ToBound( b3Add( b3BoundToVec3( aabb.upperBound ), r ) );
 
-	(void)b3DynamicTree_Query( &shape->tree, aabb, ~0ull, false, b3CompoundOverlapCallback, &context );
+	b3DynamicTree tree = b3MakeCompoundTree( shape );
+	(void)b3DynamicTree_Query( &tree, aabb, ~0ull, false, b3CompoundOverlapCallback, &context );
 
 	return context.overlap;
 }
@@ -901,7 +862,8 @@ b3CastOutput b3RayCastCompound( const b3CompoundData* shape, const b3RayCastInpu
 		.compound = shape,
 		.output = &result,
 	};
-	(void)b3DynamicTree_RayCast( &shape->tree, input, ~0ull, false, b3CompoundRayCastCallback, &context );
+	b3DynamicTree tree = b3MakeCompoundTree( shape );
+	(void)b3DynamicTree_RayCast( &tree, input, ~0ull, false, b3CompoundRayCastCallback, &context );
 	return result;
 }
 
@@ -997,7 +959,8 @@ b3CastOutput b3ShapeCastCompound( const b3CompoundData* shape, const b3ShapeCast
 	// The compound tree is in the compound local frame, so the proxy box needs no origin offset
 	b3AABB box = b3MakeAABB( input->proxy.points, input->proxy.count, input->proxy.radius );
 	b3BoxCastInput treeInput = { box, input->translation, input->maxFraction };
-	(void)b3DynamicTree_BoxCast( &shape->tree, &treeInput, ~0ull, false, b3CompoundShapeCastCallback, &context );
+	b3DynamicTree tree = b3MakeCompoundTree( shape );
+	(void)b3DynamicTree_BoxCast( &tree, &treeInput, ~0ull, false, b3CompoundShapeCastCallback, &context );
 	return result;
 }
 
@@ -1023,7 +986,8 @@ void b3QueryCompound( const b3CompoundData* compound, b3AABB aabb, b3CompoundQue
 		.userContext = context,
 	};
 
-	b3DynamicTree_Query( &compound->tree, aabb, B3_DEFAULT_MASK_BITS, false, TreeQueryCallbackFcn, &compoundContext );
+	b3DynamicTree tree = b3MakeCompoundTree( compound );
+	b3DynamicTree_Query( &tree, aabb, B3_DEFAULT_MASK_BITS, false, TreeQueryCallbackFcn, &compoundContext );
 }
 
 #if 0
@@ -1158,7 +1122,8 @@ b3TOIOutput b3CompoundTimeOfImpact(const b3CompoundData* compound, b3Transform t
 	b3AABB localBounds = b3AABB_Transform( b3InvertTransform( context.compoundTransform ), bounds );
 	context.localSweepBoundsB = localBounds;
 
-	b3DynamicTree_Query( &compound->tree, aabb, B3_DEFAULT_MASK_BITS, false, TreeQueryCallbackFcn, &compoundContext );
+	b3DynamicTree tree = b3MakeCompoundTree( compound );
+	b3DynamicTree_Query( &tree, aabb, B3_DEFAULT_MASK_BITS, false, TreeQueryCallbackFcn, &compoundContext );
 
 	return context.toiOutput;
 }
@@ -1263,7 +1228,8 @@ int b3CollideMoverAndCompound( b3PlaneResult* planes, int capacity, const b3Comp
 	aabb.lowerBound = b3Vec3ToBound( b3Sub( b3BoundToVec3( aabb.lowerBound ), r ) );
 	aabb.upperBound = b3Vec3ToBound( b3Add( b3BoundToVec3( aabb.upperBound ), r ) );
 
-	(void)b3DynamicTree_Query( &shape->tree, aabb, ~0ull, false, b3CompoundMoverCallback, &context );
+	b3DynamicTree tree = b3MakeCompoundTree( shape );
+	(void)b3DynamicTree_Query( &tree, aabb, ~0ull, false, b3CompoundMoverCallback, &context );
 
 	return context.planeCount;
 }

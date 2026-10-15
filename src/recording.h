@@ -85,7 +85,8 @@ typedef struct b3World b3World;
 // three int32 fields per hit, so a v7 reader walking a v8 stream desynchronises at the
 // first plane and every op after it. Upstream box3d made the same widening its own major
 // bump (4 -> 5); ours is 8 because this fork's major counter is ahead.
-#define B3_REC_VERSION_MAJOR 8
+// Major 9 stores pointer-free compound blobs; older recordings are refused.
+#define B3_REC_VERSION_MAJOR 9
 
 // Minor tracks op-stream additions that keep the 48 byte header shape.
 // Minor version 3 added name cache.

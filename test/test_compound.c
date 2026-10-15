@@ -76,8 +76,8 @@ static int CompoundCreateMixed( void )
 	ENSURE( compound->sharedHullCount == 1 );
 	ENSURE( compound->sharedMeshCount == 1 );
 
-	ENSURE( compound->tree.nodeCount > 0 );
-	ENSURE( compound->tree.nodes != NULL );
+	ENSURE( compound->nodeCount >= 2 );
+	ENSURE( compound->root >= 0 && compound->root < compound->nodeCount );
 
 	b3DestroyCompound( compound );
 	b3DestroyMesh( meshData );
@@ -853,18 +853,22 @@ static int CompoundSerializeRoundtrip( void )
 	uint8_t* buffer = (uint8_t*)malloc( (size_t)byteCount );
 	ENSURE( buffer != NULL );
 
-	uint8_t* serialized = b3ConvertCompoundToBytes( a );
-	memcpy( buffer, serialized, (size_t)byteCount );
+	memcpy( buffer, a, (size_t)byteCount );
 	b3DestroyCompound( a );
 
-	b3CompoundData* b = b3ConvertBytesToCompound( buffer, byteCount );
+	uint8_t* reference = (uint8_t*)malloc( (size_t)byteCount );
+	ENSURE( reference != NULL );
+	memcpy( reference, buffer, (size_t)byteCount );
+	const b3CompoundData* b = b3ValidateCompound( buffer, byteCount );
 	ENSURE( b != NULL );
+	ENSURE( b == (const b3CompoundData*)buffer );
+	ENSURE( memcmp( reference, buffer, (size_t)byteCount ) == 0 );
 	ENSURE( b->byteCount == byteCount );
 	ENSURE( b->capsuleCount == 1 );
 	ENSURE( b->hullCount == 1 );
 	ENSURE( b->meshCount == 1 );
 	ENSURE( b->sphereCount == 1 );
-	ENSURE( b->tree.nodes != NULL );
+	ENSURE( b->nodeCount >= 2 );
 
 	// Bounds and ray cast on the deserialized compound match the original.
 	b3AABB aabbB = b3ComputeCompoundAABB( b, b3Transform_identity );
@@ -877,6 +881,7 @@ static int CompoundSerializeRoundtrip( void )
 	ENSURE( rayB.childIndex == rayA.childIndex );
 
 	free( buffer );
+	free( reference );
 	b3DestroyMesh( md );
 	return 0;
 }
@@ -888,13 +893,13 @@ static int CompoundSerializeBadVersion( void )
 
 	int byteCount = a->byteCount;
 	uint8_t* buffer = (uint8_t*)malloc( (size_t)byteCount );
-	memcpy( buffer, b3ConvertCompoundToBytes( a ), (size_t)byteCount );
+	memcpy( buffer, a, (size_t)byteCount );
 	b3DestroyCompound( a );
 
 	// Corrupt the version word (first 8 bytes of b3Compound).
 	( (b3CompoundData*)buffer )->version ^= 0x1ull;
 
-	b3CompoundData* b = b3ConvertBytesToCompound( buffer, byteCount );
+	const b3CompoundData* b = b3ValidateCompound( buffer, byteCount );
 	ENSURE( b == NULL );
 
 	free( buffer );
@@ -909,11 +914,11 @@ static int CompoundSerializeWrongByteCount( void )
 
 	int byteCount = a->byteCount;
 	uint8_t* buffer = (uint8_t*)malloc( (size_t)byteCount );
-	memcpy( buffer, b3ConvertCompoundToBytes( a ), (size_t)byteCount );
+	memcpy( buffer, a, (size_t)byteCount );
 	b3DestroyCompound( a );
 
 	// Off-by-one in the declared length is rejected.
-	b3CompoundData* b = b3ConvertBytesToCompound( buffer, byteCount + 1 );
+	const b3CompoundData* b = b3ValidateCompound( buffer, byteCount + 1 );
 	ENSURE( b == NULL );
 
 	free( buffer );
@@ -933,20 +938,12 @@ static int CompoundBlobHasNoIndeterminateBytes( void )
 	ENSURE( a != NULL && c != NULL );
 	ENSURE( a->byteCount == c->byteCount );
 
-	uint8_t* bytesA = b3ConvertCompoundToBytes( a );
-	uint8_t* bytesC = b3ConvertCompoundToBytes( c );
+	const uint8_t* bytesA = (const uint8_t*)a;
+	const uint8_t* bytesC = (const uint8_t*)c;
 	int equal = memcmp( bytesA, bytesC, (size_t)a->byteCount );
 	ENSURE( equal == 0 );
 
-	// The embedded tree's implicit padding must stay at the blob memset's zero value. b3DynamicTree
-	// has a 4-byte gap between freeList and leafIndices and a 4-byte tail gap after rebuildCapacity.
-	for ( int i = 0; i < 4; ++i )
-	{
-		size_t gap1 = offsetof( b3DynamicTree, freeList ) + sizeof( int ) + (size_t)i;
-		size_t tail = offsetof( b3DynamicTree, rebuildCapacity ) + sizeof( int ) + (size_t)i;
-		ENSURE( bytesA[offsetof( b3CompoundData, tree ) + gap1] == 0 );
-		ENSURE( bytesA[offsetof( b3CompoundData, tree ) + tail] == 0 );
-	}
+	ENSURE( b3ValidateCompound( bytesA, a->byteCount ) == a );
 
 	b3DestroyCompound( a );
 	b3DestroyCompound( c );
