@@ -17,7 +17,10 @@ jobs:
     name: ${{ matrix.name }}
     runs-on: ${{ matrix.os }}
     # Target 1-2 minutes per run; leave a small runner-variance backstop.
-    timeout-minutes: 3
+    # IsaVariantsMatchScalarTest re-runs the determinism goldens once per
+    # supported ISA variant (~21 s per variant in Debug, measured on a
+    # Threadripper 2990WX), so the backstop is one minute wider.
+    timeout-minutes: 4
     if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     strategy:
       fail-fast: false
@@ -68,9 +71,24 @@ jobs:
         run: cmake --build build --config ${{ matrix.config }} --parallel 2
 
       # Run all suites, including cross-worker and uncached-golden checks.
+      # The output is kept for the ISA variants report below.
       - name: Test
         working-directory: build
-        run: ${{ matrix.test }}
+        shell: bash
+        run: ${{ matrix.test }} 2>&1 | tee test.out
+
+      # Runtime ISA dispatch (src/isa.h): one binary holds every variant, and
+      # IsaVariantsMatchScalarTest (in the suite above) forced each one this
+      # runner supports through the determinism goldens. Report which variants
+      # RAN and which the runner lacks, without paying for a second run. The
+      # ARM hosts are card fixed3d-isa-dispatch-arm-and-ci.
+      - name: ISA variants
+        if: runner.os == 'Linux'
+        working-directory: build
+        run: |
+          grep -m1 'model name' /proc/cpuinfo || true
+          grep -E '^HOST |^VARIANT |^test passed: IsaVariantsMatchScalarTest' test.out
+          grep -q '^VARIANT scalar RAN' test.out
 
   result:
     name: build_test result

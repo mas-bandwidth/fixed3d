@@ -510,6 +510,12 @@ int main( int argc, char** argv )
 			PrintBenchmarks( benchmarks, benchmarkCount );
 			exit( 0 );
 		}
+		else if ( strcmp( arg, "--isa" ) == 0 )
+		{
+			// The ISA variant runtime dispatch picks on this host (FIXED3D_ISA forces one)
+			printf( "isa = %s\n", b3GetIsaName() );
+			exit( 0 );
+		}
 		else if ( strcmp( arg, "-h" ) == 0 || strcmp( arg, "--help" ) == 0 )
 		{
 			printf( "Usage\n"
@@ -524,6 +530,7 @@ int main( int argc, char** argv )
 					"--phases-json=<file>: min/median/max ns per step for each profile phase\n"
 					"--steps=<n>: cap the step count of every scene (default unchanged)\n"
 					"-l, --list: list the registered benchmarks\n"
+					"--isa: print the ISA variant runtime dispatch picks (FIXED3D_ISA forces one) and exit\n"
 					"-h, --help: print this help\n" );
 			exit( 0 );
 		}
@@ -538,7 +545,9 @@ int main( int argc, char** argv )
 		singleWorkerCount = b3ClampInt( singleWorkerCount, 1, maxThreadCount );
 	}
 
-	printf( "Starting benchmarks\n" );
+	// The ISA variant runtime dispatch picked (FIXED3D_ISA forces one), so a
+	// spike compares variants with one binary
+	printf( "Starting benchmarks, isa = %s\n", b3GetIsaName() );
 	printf( "======================================\n" );
 
 	PerfRecord* records = NULL;
