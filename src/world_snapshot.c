@@ -33,7 +33,7 @@
 
 // Snapshot image magic 'BNS3' and version
 #define B3_SNAP_MAGIC 0x33534E42u
-#define B3_SNAP_VERSION 3u
+#define B3_SNAP_VERSION 4u // safetyFactor plus pointer-free compound geometry and layout hash
 
 #define B3_SNAP_FLAG_VALIDATION 0x1u
 

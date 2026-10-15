@@ -194,7 +194,8 @@ B3_API b3HullData* b3CreateCone( b3Fixed height, b3Fixed radius1, b3Fixed radius
 /// Create a rock shaped hull.
 B3_API b3HullData* b3CreateRock( b3Fixed radius );
 
-/// Create a generic convex hull.
+/// Create a generic convex hull. This can fail if B3_MAX_HULL_VERTICES, B3_MAX_HULL_FACES,
+/// or B3_MAX_HULL_EDGES is exceeded.
 B3_API b3HullData* b3CreateHull( const b3Vec3* points, int pointCount, int maxVertexCount );
 
 /// Deep clone a hull.
