@@ -1,13 +1,11 @@
 #!/usr/bin/env bash
-# Interleaved A/B benchmark driver for fixed3d. Runs baseline and candidate
-# benchmark binaries INTERLEAVED (A B A B ...) for N repeats per scene, refuses
-# to run when the shared box is busy, prints a min/median/spread/speedup table
-# per scene and per phase with a geomean speedup, and exits non-zero if ANY
-# --hash line differs between baseline and candidate.
-#
+# Interleaved A/B benchmark driver for fixed3d.
 # Usage:
 #   tools/perf/ab.sh <baseline-build-dir> <candidate-build-dir> \
 #       [-b=scene ...] [-w=1,2,4] [-r=<repeats>]
+# Runs A B A B ... for N repeats (default 7). Refuses if another benchmark
+# process is on the box or the load average is above 2 per core. Never kills
+# anything. Exits non-zero if any final HASH line differs.
 set -u
 
 BASELINE=${1:?baseline build dir required}
@@ -19,62 +17,116 @@ SCENES=""
 WORKERS="1 2 4"
 
 while [ $# -gt 0 ]; do
-    case "$1" in
-        -b=*) SCENES="$SCENES ${1#-b=}";;
-        -w=*) WORKERS="${1#-w=}";;
-        -r=*) REPEATS="${1#-r=}";;
-        *) echo "unknown option $1"; exit 2;;
-    esac
-    shift
+	case "$1" in
+		-b=*) SCENES="$SCENES ${1#-b=}" ;;
+		-w=*) WORKERS=$(printf '%s' "${1#-w=}" | tr ',' ' ') ;;
+		-r=*) REPEATS="${1#-r=}" ;;
+		*) echo "unknown option $1"; exit 2 ;;
+	esac
+	shift
 done
 
 BIN_A="$BASELINE/bin/benchmark"
 BIN_B="$CANDIDATE/bin/benchmark"
 
-# Shared-box rules from CLAUDE.md: never touch another process, refuse to run if
-# a benchmark is already running or the load average is above 2 per available core.
-if pgrep -af benchmark >/dev/null 2>&1; then
-    echo "refusing to run: another benchmark process is on the box"
-    exit 3
+busy=$(pgrep -af benchmark 2>/dev/null | grep -v -e 'pgrep' -e 'ab.sh' || true)
+if [ -n "$busy" ]; then
+	echo "refusing to run: another benchmark process is on the box"
+	echo "$busy"
+	exit 3
 fi
-cores=$(nproc)
-la=$(cut -d' ' -f1 /proc/loadavg)
-limit=$(awk -v c="$cores" 'BEGIN{ print c*2 }')
-if awk -v la="$la" -v lim="$limit" 'BEGIN{ exit !(la>lim) }'; then
-    echo "refusing to run: load average $la > $limit"
-    exit 3
+
+if [ -r /proc/loadavg ]; then
+	cores=$(nproc)
+	la=$(cut -d' ' -f1 /proc/loadavg)
+	limit=$(awk -v c="$cores" 'BEGIN{ print c*2 }')
+	if awk -v la="$la" -v lim="$limit" 'BEGIN{ exit !(la+0>lim+0) }'; then
+		echo "refusing to run: load average $la > $limit"
+		exit 3
+	fi
 fi
 
 [ -x "$BIN_A" ] || { echo "missing baseline binary: $BIN_A"; exit 2; }
 [ -x "$BIN_B" ] || { echo "missing candidate binary: $BIN_B"; exit 2; }
 
 if [ -z "$SCENES" ]; then
-    # default: full suite
-    SCENES="convex_pile joint_grid junkyard large_pyramid large_world many_pyramids rain trees100 trees50 trees25 washer"
+	SCENES="convex_pile joint_grid junkyard large_pyramid large_world many_pyramids rain trees100 trees50 trees25 washer ragdoll_pile bodies_20k"
 fi
 
+tmpdir=${TMPDIR:-/tmp}/fixed3d-ab.$$
+mkdir -p "$tmpdir"
+trap 'rm -rf "$tmpdir"' EXIT
+
+final_hash() {
+	printf '%s\n' "$1" | grep -E '^HASH [^ ]+ workers=[0-9]+ [0-9a-fA-F]{16}$' || true
+}
+
 fail=0
+speedups=""
+
+echo "scene workers phase A_min A_med A_spread B_min B_med B_spread speedup"
+
 for scene in $SCENES; do
-  for w in $WORKERS; do
-    a_hashes=""
-    b_hashes=""
-    # Interleave: A B A B ... for REPEATS pairs.
-    for ((rep=0; rep<REPEATS; rep++)); do
-      a_out=$("$BIN_A" -b="$scene" -w="$w" -r=1 --hash 2>/dev/null)
-      b_out=$("$BIN_B" -b="$scene" -w="$w" -r=1 --hash 2>/dev/null)
-      a_h=$(echo "$a_out" | grep '^HASH ')
-      b_h=$(echo "$b_out" | grep '^HASH ')
-      a_hashes="$a_hashes"$'\n'"$a_h"
-      b_hashes="$b_hashes"$'\n'"$b_h"
-    done
-    if [ "$a_hashes" != "$b_hashes" ]; then
-      echo "HASH MISMATCH scene=$scene workers=$w"
-      echo "  baseline: $(echo "$a_hashes" | tail -1)"
-      echo "  candidate: $(echo "$b_hashes" | tail -1)"
-      fail=1
-    fi
-  done
+	for w in $WORKERS; do
+		for ((rep = 0; rep < REPEATS; rep++)); do
+			ja="$tmpdir/a.${scene}.${w}.${rep}.json"
+			jb="$tmpdir/b.${scene}.${w}.${rep}.json"
+			a_out=$("$BIN_A" -b="$scene" -w="$w" -r=1 --hash --phases-json="$ja" 2>/dev/null || true)
+			b_out=$("$BIN_B" -b="$scene" -w="$w" -r=1 --hash --phases-json="$jb" 2>/dev/null || true)
+			a_h=$(final_hash "$a_out")
+			b_h=$(final_hash "$b_out")
+			printf '%s\n' "$a_h" > "$tmpdir/a.${scene}.${w}.${rep}.hash"
+			printf '%s\n' "$b_h" > "$tmpdir/b.${scene}.${w}.${rep}.hash"
+			if [ "$a_h" != "$b_h" ] || [ -z "$a_h" ]; then
+				echo "HASH MISMATCH scene=$scene workers=$w"
+				echo "  baseline: $a_h"
+				echo "  candidate: $b_h"
+				fail=1
+			fi
+		done
+
+		phases=$(sed -n 's/.*"phase":"\([^"]*\)".*/\1/p' "$tmpdir/a.${scene}.${w}.0.json" | sort -u)
+		for phase in $phases; do
+			a_vals=""
+			b_vals=""
+			for ((rep = 0; rep < REPEATS; rep++)); do
+				av=$(sed -n "s/.*\"phase\":\"$phase\",\"min_ns\":[0-9]*,\"median_ns\":\\([0-9]*\\).*/\\1/p" "$tmpdir/a.${scene}.${w}.${rep}.json")
+				bv=$(sed -n "s/.*\"phase\":\"$phase\",\"min_ns\":[0-9]*,\"median_ns\":\\([0-9]*\\).*/\\1/p" "$tmpdir/b.${scene}.${w}.${rep}.json")
+				a_vals="$a_vals $av"
+				b_vals="$b_vals $bv"
+			done
+			row=$(awk -v a="$a_vals" -v b="$b_vals" '
+			function med(n, v,    i, j, t) {
+				for(i=1;i<=n;i++) for(j=i+1;j<=n;j++) if(v[j]+0<v[i]+0){t=v[i]; v[i]=v[j]; v[j]=t}
+				if(n%2==1) return v[(n+1)/2]
+				return int( (v[n/2] + v[n/2+1]) / 2 )
+			}
+			BEGIN{
+				n=split(a,A," "); m=split(b,B," ");
+				if(n<1 || A[1]=="" || m<1 || B[1]=="") { print "na"; exit }
+				amin=A[1]+0; amax=A[1]+0
+				for(i=1;i<=n;i++){ if(A[i]+0<amin) amin=A[i]+0; if(A[i]+0>amax) amax=A[i]+0 }
+				bmin=B[1]+0; bmax=B[1]+0
+				for(i=1;i<=m;i++){ if(B[i]+0<bmin) bmin=B[i]+0; if(B[i]+0>bmax) bmax=B[i]+0 }
+				amed=med(n,A); bmed=med(m,B)
+				sp = (bmed>0) ? amed/bmed : 0
+				printf "%d %d %d %d %d %d %.6f\n", amin, amed, amax-amin, bmin, bmed, bmax-bmin, sp
+			}')
+			echo "$scene $w $phase $row"
+			if [ "$phase" = "step" ]; then
+				sp=$(echo "$row" | awk '{print $7}')
+				speedups="$speedups $sp"
+			fi
+		done
+	done
 done
 
-echo "interleaved A/B done (auto is a placeholder table; phase-level timing is next)"
+geomean=$(awk -v s="$speedups" 'BEGIN{
+	n=split(s,v," "); sum=0; c=0
+	for(i=1;i<=n;i++) if(v[i]+0>0){ sum+=log(v[i]+0); c++ }
+	if(c==0){ print "na"; exit }
+	print exp(sum/c)
+}')
+echo "geomean_speedup $geomean"
+echo "interleaved A/B done"
 exit "$fail"

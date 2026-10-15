@@ -1,80 +1,93 @@
 # fixed3d perf lab
 
-A lab for measuring a change and proving it did not change a bit. Every spike
-card in this stream needs two things: a way to measure a change (`tools/perf/ab.sh`)
-and a way to prove it changed nothing (`tools/perf/oracle_check.sh`).
+Measure a change and prove it did not change a bit. `ab.sh` measures.
+`oracle_check.sh` proves the bits.
 
-## The oracle
+## Build
 
-`tools/perf/scalar-oracle.txt` holds frozen `HASH` lines for every scene x
-workers {1,2,4} x {narrow, ludicrous}, produced by the plain **scalar** build
-(no `BOX3D_AVX512`, no `BOX3D_NEON`). The scalar build is the exact oracle the
-card describes; a candidate build (e.g. an AVX-512 one) must hash bit-identical.
-
-To freeze or refresh the oracle:
-
-    tools/perf/oracle_check.sh --regenerate
-
-This refuses to overwrite the oracle unless two runs on the scalar build agree,
-and it asserts the hash agrees across worker counts for the same scene/build
-(the determinism claim).
-
-To check a candidate (it builds both configs for you, runs all scenes, diffs):
-
-    tools/perf/oracle_check.sh
-
-Exit non-zero means a bit changed.
-
-## A/B measurement
-
-Interleaved `A B A B ...` runs of the baseline and candidate binaries, `-r`
-repeats (default 7) per scene, printing a table and exiting non-zero on any
-hash difference:
-
-    tools/perf/ab.sh build build-candidate [-b=scene ...] [-w=1,2,4]
-
-The driver refuses to run while another benchmark process is on the box or the
-load average is above 2 per available core, and it never kills anything.
-
-## How to build
-
-From the repo root:
+From the repo root, on the Linux bench (never the working Mac). Benchmarks are
+OFF by default, so the lab adds `-DBOX3D_BENCHMARKS=ON`. Scalar means no
+`BOX3D_AVX512` and no `BOX3D_NEON`.
 
     cmake -B build -DCMAKE_BUILD_TYPE=RelWithDebInfo \
         -DBOX3D_SAMPLES=OFF -DBOX3D_VALIDATE=ON \
-        -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
+        -DCMAKE_COMPILE_WARNING_AS_ERROR=ON -DBOX3D_BENCHMARKS=ON
     cmake --build build --parallel 2
 
-The candidate is the same with its own dir; the ludicrous config adds
-`-DBOX3D_LUDICROUS_MODE=ON`. Always run on the Linux bench, never the working
-Mac.
+Ludicrous is the same with `-B build-ludicrous -DBOX3D_LUDICROUS_MODE=ON`.
+`oracle_check.sh` configures and builds both.
 
-## Shared-box rules (CLAUDE.md)
+The unit suite is `./bin/test` from the build dir. One suite:
+`./bin/test PerfStateHashGoldenTest`.
 
-- The space box is SHARED. Check `pgrep -af benchmark` and the load average
-  before benchmarking; never kill a process you did not start.
-- A benchmark run must be interleaved A/B, never two sequential full suites.
-- `-b=<scene>` and friends need the equals form; space-separated flags are
-  silently ignored.
+## Header
+
+Paste `tools/perf/cpu_info.sh` at the top of every finding: CPU model, ISA
+flags (`avx2`, `avx512f/dq/vl/ifma`, `neon`, `sme/sme2`), `taskset -cp $$`,
+load average, compiler, cmake flags.
+
+## Oracle
+
+`tools/perf/scalar-oracle.txt` holds frozen lines
+
+    HASH <scene> workers=<n> <narrow|ludicrous> <16 hex>
+
+for every scene x workers {1,2,4} x {narrow, ludicrous}, from the plain scalar
+build. The benchmark prints `HASH <scene> workers=<n> <16 hex>` (no mode); the
+script tags the mode. Hashes are FNV-1a/64 over every body's position, rotation,
+linear and angular velocity in body-id order. They must not depend on thread
+count, allocator, or wall clock. The script asserts workers 1/2/4 agree for the
+same scene and build.
+
+    tools/perf/oracle_check.sh --regenerate   # two agreeing scalar runs, or refuse
+    tools/perf/oracle_check.sh                # build both configs, diff, exit 1 on any bit
+
+## A/B
+
+Interleaved `A B A B ...` (default 7 repeats). Refuses if `pgrep -af benchmark`
+shows another benchmark (it never kills it) or load average is above 2 per
+core.
+
+    tools/perf/ab.sh build build-candidate [-b=scene ...] [-w=1,2,4] [-r=7]
+
+Equals form is mandatory. A space-separated flag is ignored and the full suite
+runs. The table is min/median/spread/speedup per scene and per phase, plus
+geomean of the whole-step speedups (baseline median / candidate median; above
+1 is faster). Exit non-zero if any final `HASH` line differs. A spike's gain
+must exceed that scene's A/A spread.
+
+`tools/perf/ab.sh build build` is A against A. Speedups should sit inside the
+spread and the script should exit 0.
 
 ## Noise floor
 
-Run five A/A passes (baseline against itself) per scene; a spike's gain must
-exceed its scene's A/A spread.
+Five A/A runs (`ab.sh build build -r=7`, five times) set the floor. A gain
+inside that spread is noise.
+
+Measured on this bench (AMD EPYC 9124, 32 cores, avx2/avx512f/dq/vl/ifma, load
+~3): one A/A pass of `many_pyramids` at `-w=1 -r=1` exited 0 with step speedup
+1.020 and spread 0 (one repeat has no spread). The five-pass full-suite floor
+was not measured; `many_pyramids` alone is ~17s/run, so a 7-repeat 3-worker
+A/A of the suite does not fit a short wall.
 
 ## Adding a scene
 
-1. Author it in `shared/benchmarks.c` around `GetSceneOrigin()` with exact
-   integer-scaled placement (CLAUDE.md "large_world scene bug": inexact math
-   runs a different workload).
-2. Register it in the `benchmarks[]` table in `benchmark/main.c`.
-3. Add it to the scene lists in `ab.sh` and `oracle_check.sh` (or rely on the
-   full-suite default).
+1. Author it in `shared/benchmarks.c` around `GetSceneOrigin()` with integer
+   scaling (`b3FixFromInt`). Inexact placement runs a different workload
+   (CLAUDE.md, large_world scene bug).
+2. Register it at the end of `benchmarks[]` in `benchmark/main.c` so old
+   numeric `-b=` indexes stay put.
+3. Add the name to the scene lists in `ab.sh` and `oracle_check.sh`.
+4. Regenerate the oracle only when two scalar runs agree.
 
-## Status
+`ragdoll_pile` is 200 `CreateHuman` ragdolls from the determinism corpus
+(friction/hertz/damping copied from `shared/determinism.c`), dropped onto an
+integer-scaled ground box. `bodies_20k` is 20,000 mixed spheres, capsules and
+boxes on an integer grid. The existing pyramid scenes remain the pyramid case.
 
-The lab is scaffolded: `oracle_check.sh`/`ab.sh`/`cpu_info.sh` and the oracle
-file are committed, and `test/test_perf_hash.c` pins the determinism claim. The
-`--hash`/`--hash-every`/`--phases-json` benchmark flags and the `ragdoll_pile`/
-`bodies_20k` scenes are not yet implemented (see the card report) — the oracle
-file is an empty template until `--hash` lands.
+## Shared-box rules
+
+The space box is shared. Check `pgrep -af benchmark` and the load average
+before a run. One bench at a time. Never kill a process you did not start.
+`isolcpus` / affinity is the caller's job; `cpu_info.sh` prints `taskset -cp $$`
+so the finding records it.

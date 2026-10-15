@@ -18,6 +18,9 @@ else
     done
 fi
 
+echo "== cores =="
+nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null
+
 echo "== CPU pinning =="
 taskset -cp $$ 2>/dev/null || echo "taskset unavailable"
 
