@@ -9,6 +9,7 @@ Planned work for fixed3d. Each item below was an open sprint card, moved out of 
 - [Moved from GitHub issues on 2026-10-14](#moved-from-github-issues-on-2026-10-14) (10)
 - [Moved out of the sprint on 2026-10-14: fixed3d-box3d-ports](#moved-out-of-the-sprint-on-2026-10-14-fixed3d-box3d-ports) (6)
 - [Moved out of the sprint on 2026-10-14: fixed3d-perf](#moved-out-of-the-sprint-on-2026-10-14-fixed3d-perf) (1)
+- [Moved out of the sprint on 2026-10-15: fixed3d-arch-opt](#moved-out-of-the-sprint-on-2026-10-15-fixed3d-arch-opt) (22)
 
 ## Moved from GitHub issues on 2026-10-14
 
@@ -145,3 +146,183 @@ Measure, do not change code.
 Why it waits: Moved out of the stopped sprint on 2026-10-14: neither rocketnet nor v1.3 work. Triage 2026-10-15: partial evidence is open as draft PR #83 (perf/PROFILE-2026-10-14.md: 78 uninstrumented phase rows, 13 scenes, workers 1 and 4, Vision scalar, b3 scalar, b3 AVX-512). Not done by its own account: top-15 sampled symbols, Apple/NEON coverage, hardware counters, several bucket attributions. This item also stands for fixed3d issue #62 (closed 2026-10-15), whose acceptance criteria (bit-exact across worker counts, the 40-bit inverse scale and 256-bit arithmetic kept, the failed experiments not repeated) bind every perf change.
 
 From: sprint card fixed3d-perf-profile-report (stream fixed3d-perf, column waiting, tier pro, base sprint/fixed3d-perf), moved out of the sprint 2026-10-14
+
+## Moved out of the sprint on 2026-10-15: fixed3d-arch-opt
+
+The open cards of sprint stream fixed3d-arch-opt, moved out of the sprint on 2026-10-15 when Glenn scoped the sprint down to tools/sprint, rocketnet and schema (2026-10-15), one item per card. Landed cards of the stream are in git and are not listed. Each item names its card, its tier, its base branch and any pushed work to resume from.
+
+### Runtime ISA dispatch for fixed3d, the interface: the variant table, the registration point and the scalar equivalence test
+
+OWNER RULING (2026-10-15): fixed3d must be deterministic itself, bit-identical across runs, worker counts and platforms; it may diverge slightly from box3d. Every ISA variant is bit-identical to the scalar variant, so a mixed fleet stays in lockstep. Source: split from fixed3d-isa-dispatch-core by the needs audit of 2026-10-15 afternoon: the dispatch core held 20 cards, and the avx2 spike and the NEON card use only its interface (the variant table, the registration point, the name-based force and the equivalence test), not its AVX-512 variant, its x86 CI or its AVX-512 bench gate. The owner, 2026-10-15 13:54Z: "I don't want to have to for example, have to do a build per-instruction set. They should all be automatically detected and used, where appropriate."
+
+Why it waits: Scoped out of the sprint by Glenn 2026-10-15 ("I want nothing in it except the tools/sprint work and rocketnet and schema. The rest should go out to the appropriate roadmap."): not tools/sprint, rocketnet or schema work.
+
+From: sprint card fixed3d-isa-dispatch-interface (stream fixed3d-arch-opt, column ready, tier pro, base sprint/fixed3d-box3d-ports), moved out of the sprint 2026-10-15
+
+### Runtime ISA dispatch for fixed3d, part 2: NEON as a variant and CI on every host kind
+
+OWNER RULING (2026-10-15): fixed3d must be deterministic itself, bit-identical across runs, worker counts and platforms; it may diverge slightly from box3d. Every ISA variant is bit-identical to the scalar variant, so a mixed fleet stays in lockstep. Source: the owner, 2026-10-15 13:54Z: "I don't want to have to for example, have to do a build per-instruction set. They should all be automatically detected and used, where appropriate." the owner, 2026-10-15 13:51Z: "Please card all the optimizations for architectures."
+
+Why it waits: Scoped out of the sprint by Glenn 2026-10-15 ("I want nothing in it except the tools/sprint work and rocketnet and schema. The rest should go out to the appropriate roadmap."): not tools/sprint, rocketnet or schema work.
+
+From: sprint card fixed3d-isa-dispatch-arm-and-ci (stream fixed3d-arch-opt, column waiting, tier pro, base sprint/fixed3d-box3d-ports), moved out of the sprint 2026-10-15
+
+### Runtime ISA dispatch for fixed3d: one build, every variant, detected and forced
+
+OWNER RULING (Glenn, 2026-10-15): fixed3d must be deterministic itself, bit-identical across runs, worker counts and platforms; it may diverge slightly from box3d. Every ISA variant is bit-identical to the scalar variant, so a mixed fleet stays in lockstep. Source: Glenn 2026-10-15 13:54Z: "I don't want to have to for example, have to do a build per-instruction set. They should all be automatically detected and used, where appropriate." Glenn 2026-10-15 13:51Z: "Please card all the optimizations for architectures." Evidence: perf/findings/spike-runtime-cpu-dispatch-per-world.md (detection harvested; the dispatch refactor is this follow-up).
+
+Why it waits: Scoped out of the sprint by Glenn 2026-10-15 ("I want nothing in it except the tools/sprint work and rocketnet and schema. The rest should go out to the appropriate roadmap."): not tools/sprint, rocketnet or schema work.
+
+From: sprint card fixed3d-isa-dispatch-core (stream fixed3d-arch-opt, column ready, tier heavy, base sprint/fixed3d-box3d-ports), moved out of the sprint 2026-10-15
+
+### An avx2 variant of the wide contact solver: the portable x86 floor, measured end to end
+
+SPIKE CONTRACT (KIND: spike; Glenn's tracer-bullet rule). Its end is stated before it starts: it runs end to end ONCE (change, measure, check, write up), then STOPS and names what it showed. No tuning past the first full measurement; a promising direction is a sentence in the finding. What is kept is what it taught; production code arrives only through the separate port card that needs this one, and only on a KEEP ve Source: Glenn 2026-10-15 13:51Z: "Please card all the optimizations for architectures." Glenn 2026-10-15 13:54Z: "I don't want to have to for example, have to do a build per-instruction set. They should all be automatically detected and used, where appropriate."
+
+Why it waits: Scoped out of the sprint by Glenn 2026-10-15 ("I want nothing in it except the tools/sprint work and rocketnet and schema. The rest should go out to the appropriate roadmap."): not tools/sprint, rocketnet or schema work.
+
+From: sprint card spike-f3d-avx2-wide-solver-variant (stream fixed3d-arch-opt, column waiting, tier pro, base sprint/fixed3d-box3d-ports), moved out of the sprint 2026-10-15
+
+### The AVX-512 variant on Skylake-W: bit-identical, and is it faster after the frequency cost?
+
+SPIKE CONTRACT (KIND: spike; Glenn's tracer-bullet rule). Its end is stated before it starts: it runs end to end ONCE (change, measure, check, write up), then STOPS and names what it showed. No tuning past the first full measurement; a promising direction is a sentence in the finding. What is kept is what it taught; production code arrives only through the separate port card that needs this one, and only on a KEEP ve Source: Glenn 2026-10-15 13:51Z: "Please card all the optimizations for architectures." Glenn 2026-10-15 13:54Z: "I don't want to have to for example, have to do a build per-instruction set. They should all be automatically detected and used, where appropriate."
+
+Why it waits: Scoped out of the sprint by Glenn 2026-10-15 ("I want nothing in it except the tools/sprint work and rocketnet and schema. The rest should go out to the appropriate roadmap."): not tools/sprint, rocketnet or schema work.
+
+From: sprint card spike-f3d-avx512-variant-on-skylake-w (stream fixed3d-arch-opt, column waiting, tier pro, base sprint/fixed3d-box3d-ports), moved out of the sprint 2026-10-15
+
+### Does the AVX-512 variant beat scalar on Zen 4, scene by scene and kernel by kernel?
+
+SPIKE CONTRACT (KIND: spike; Glenn's tracer-bullet rule). Its end is stated before it starts: it runs end to end ONCE (change, measure, check, write up), then STOPS and names what it showed. No tuning past the first full measurement; a promising direction is a sentence in the finding. What is kept is what it taught; production code arrives only through the separate port card that needs this one, and only on a KEEP ve Source: Glenn 2026-10-15 13:51Z: "Please card all the optimizations for architectures." Glenn 2026-10-15 13:54Z: "I don't want to have to for example, have to do a build per-instruction set. They should all be automatically detected and used, where appropriate."
+
+Why it waits: Scoped out of the sprint by Glenn 2026-10-15 ("I want nothing in it except the tools/sprint work and rocketnet and schema. The rest should go out to the appropriate roadmap."): not tools/sprint, rocketnet or schema work.
+
+From: sprint card spike-f3d-avx512-variant-vs-scalar-zen4 (stream fixed3d-arch-opt, column waiting, tier pro, base sprint/fixed3d-box3d-ports), moved out of the sprint 2026-10-15
+
+### Eight lanes in zmm: a width-8 avx512 variant on Zen 4
+
+SPIKE CONTRACT (KIND: spike; Glenn's tracer-bullet rule). Its end is stated before it starts: it runs end to end ONCE (change, measure, check, write up), then STOPS and names what it showed. No tuning past the first full measurement; a promising direction is a sentence in the finding. What is kept is what it taught; production code arrives only through the separate port card that needs this one, and only on a KEEP ve Source: Glenn 2026-10-15 13:51Z: "Please card all the optimizations for architectures." Glenn 2026-10-15 13:54Z: "I don't want to have to for example, have to do a build per-instruction set. They should all be automatically detected and used, where appropriate."
+
+Why it waits: Scoped out of the sprint by Glenn 2026-10-15 ("I want nothing in it except the tools/sprint work and rocketnet and schema. The rest should go out to the appropriate roadmap."): not tools/sprint, rocketnet or schema work.
+
+From: sprint card spike-f3d-avx512-zmm-width-8 (stream fixed3d-arch-opt, column waiting, tier pro, base sprint/fixed3d-box3d-ports), moved out of the sprint 2026-10-15
+
+### Body-state gather and scatter by in-register transposes (vpermt2q, VBMI2) instead of scalar loads
+
+SPIKE CONTRACT (KIND: spike; Glenn's tracer-bullet rule). Its end is stated before it starts: it runs end to end ONCE (change, measure, check, write up), then STOPS and names what it showed. No tuning past the first full measurement; a promising direction is a sentence in the finding. What is kept is what it taught; production code arrives only through the separate port card that needs this one, and only on a KEEP ve Source: Glenn 2026-10-15 13:51Z: "Please card all the optimizations for architectures." Glenn 2026-10-15 13:54Z: "I don't want to have to for example, have to do a build per-instruction set. They should all be automatically detected and used, where appropriate."
+
+Why it waits: Scoped out of the sprint by Glenn 2026-10-15 ("I want nothing in it except the tools/sprint work and rocketnet and schema. The rest should go out to the appropriate roadmap."): not tools/sprint, rocketnet or schema work.
+
+From: sprint card spike-f3d-body-gather-transpose-permutes (stream fixed3d-arch-opt, column waiting, tier pro, base sprint/fixed3d-box3d-ports), moved out of the sprint 2026-10-15
+
+### AVX-512 IFMA (vpmadd52luq/huq) for the exact lane products on Zen 4
+
+SPIKE CONTRACT (KIND: spike; Glenn's tracer-bullet rule). Its end is stated before it starts: it runs end to end ONCE (change, measure, check, write up), then STOPS and names what it showed. No tuning past the first full measurement; a promising direction is a sentence in the finding. What is kept is what it taught; production code arrives only through the separate port card that needs this one, and only on a KEEP ve Source: Glenn 2026-10-15 13:51Z: "Please card all the optimizations for architectures." Glenn 2026-10-15 13:54Z: "I don't want to have to for example, have to do a build per-instruction set. They should all be automatically detected and used, where appropriate."
+
+Why it waits: Scoped out of the sprint by Glenn 2026-10-15 ("I want nothing in it except the tools/sprint work and rocketnet and schema. The rest should go out to the appropriate roadmap."): not tools/sprint, rocketnet or schema work.
+
+From: sprint card spike-f3d-ifma-lane-products-zen4 (stream fixed3d-arch-opt, column waiting, tier pro, base sprint/fixed3d-box3d-ports), moved out of the sprint 2026-10-15
+
+### The b3InvMul fits-64 arm on arm64, where the 128-bit multiply is two instructions
+
+SPIKE CONTRACT (KIND: spike; Glenn's tracer-bullet rule). Its end is stated before it starts: it runs end to end ONCE (change, measure, check, write up), then STOPS and names what it showed. No tuning past the first full measurement; a promising direction is a sentence in the finding. What is kept is what it taught; production code arrives only through the separate port card that needs this one, and only on a KEEP ve Source: Glenn 2026-10-15 13:51Z: "Please card all the optimizations for architectures." Glenn 2026-10-15 13:54Z: "I don't want to have to for example, have to do a build per-instruction set. They should all be automatically detected and used, where appropriate."
+
+Why it waits: Scoped out of the sprint by Glenn 2026-10-15 ("I want nothing in it except the tools/sprint work and rocketnet and schema. The rest should go out to the appropriate roadmap."): not tools/sprint, rocketnet or schema work.
+
+From: sprint card spike-f3d-invmul-fits-64-on-m5 (stream fixed3d-arch-opt, column waiting, tier pro, base sprint/fixed3d-box3d-ports), moved out of the sprint 2026-10-15
+
+### b3InvMulW in lanes: a uniform fits-64 gate so the impulse side stops scalarising
+
+SPIKE CONTRACT (KIND: spike; Glenn's tracer-bullet rule). Its end is stated before it starts: it runs end to end ONCE (change, measure, check, write up), then STOPS and names what it showed. No tuning past the first full measurement; a promising direction is a sentence in the finding. What is kept is what it taught; production code arrives only through the separate port card that needs this one, and only on a KEEP ve Source: Glenn 2026-10-15 13:51Z: "Please card all the optimizations for architectures." Glenn 2026-10-15 13:54Z: "I don't want to have to for example, have to do a build per-instruction set. They should all be automatically detected and used, where appropriate."
+
+Why it waits: Scoped out of the sprint by Glenn 2026-10-15 ("I want nothing in it except the tools/sprint work and rocketnet and schema. The rest should go out to the appropriate roadmap."): not tools/sprint, rocketnet or schema work.
+
+From: sprint card spike-f3d-invmulw-lanes-fits-64-gate (stream fixed3d-arch-opt, column waiting, tier pro, base sprint/fixed3d-box3d-ports), moved out of the sprint 2026-10-15
+
+### The neon narrow-phase variant on the M5: still bit-identical, still faster?
+
+SPIKE CONTRACT (KIND: spike; Glenn's tracer-bullet rule). Its end is stated before it starts: it runs end to end ONCE (change, measure, check, write up), then STOPS and names what it showed. No tuning past the first full measurement; a promising direction is a sentence in the finding. What is kept is what it taught; production code arrives only through the separate port card that needs this one, and only on a KEEP ve Source: Glenn 2026-10-15 13:51Z: "Please card all the optimizations for architectures." Glenn 2026-10-15 13:54Z: "I don't want to have to for example, have to do a build per-instruction set. They should all be automatically detected and used, where appropriate."
+
+Why it waits: Scoped out of the sprint by Glenn 2026-10-15 ("I want nothing in it except the tools/sprint work and rocketnet and schema. The rest should go out to the appropriate roadmap."): not tools/sprint, rocketnet or schema work.
+
+From: sprint card spike-f3d-neon-variant-on-m5 (stream fixed3d-arch-opt, column waiting, tier flash, base sprint/fixed3d-box3d-ports), moved out of the sprint 2026-10-15
+
+### SME2 streaming SVE for the wide contact solver on the M5: SMULH lanes, mode cost, shared unit
+
+SPIKE CONTRACT (KIND: spike; Glenn's tracer-bullet rule). Its end is stated before it starts: it runs end to end ONCE (change, measure, check, write up), then STOPS and names what it showed. No tuning past the first full measurement; a promising direction is a sentence in the finding. What is kept is what it taught; production code arrives only through the separate port card that needs this one, and only on a KEEP ve Source: Glenn 2026-10-15 13:51Z: "Please card all the optimizations for architectures." Glenn 2026-10-15 13:54Z: "I don't want to have to for example, have to do a build per-instruction set. They should all be automatically detected and used, where appropriate."
+
+Why it waits: Scoped out of the sprint by Glenn 2026-10-15 ("I want nothing in it except the tools/sprint work and rocketnet and schema. The rest should go out to the appropriate roadmap."): not tools/sprint, rocketnet or schema work.
+
+From: sprint card spike-f3d-sme2-streaming-contact-solve-m5 (stream fixed3d-arch-opt, column waiting, tier pro, base sprint/fixed3d-box3d-ports), moved out of the sprint 2026-10-15
+
+### Port: the avx2 variant of the wide solver
+
+OWNER RULING (Glenn, 2026-10-15): fixed3d must be deterministic itself, bit-identical across runs, worker counts and platforms; it may diverge slightly from box3d. Every ISA variant is bit-identical to the scalar variant, so a mixed fleet stays in lockstep. Source: Glenn 2026-10-15 13:51Z: "Please card all the optimizations for architectures." Glenn 2026-10-15 13:54Z: "I don't want to have to for example, have to do a build per-instruction set. They should all be automatically detected and used, where appropriate." The spike spike-f3d-avx2-wide-solver-variant (perf/findings/spike-f3d-avx2-wide-solver-variant.md) is this card's evidence.
+
+Why it waits: Scoped out of the sprint by Glenn 2026-10-15 ("I want nothing in it except the tools/sprint work and rocketnet and schema. The rest should go out to the appropriate roadmap."): not tools/sprint, rocketnet or schema work.
+
+From: sprint card port-f3d-avx2-wide-solver-variant (stream fixed3d-arch-opt, column waiting, tier pro, base sprint/fixed3d-box3d-ports), moved out of the sprint 2026-10-15
+
+### Port: width-8 avx512 contact solve
+
+OWNER RULING (Glenn, 2026-10-15): fixed3d must be deterministic itself, bit-identical across runs, worker counts and platforms; it may diverge slightly from box3d. Every ISA variant is bit-identical to the scalar variant, so a mixed fleet stays in lockstep. Source: Glenn 2026-10-15 13:51Z: "Please card all the optimizations for architectures." Glenn 2026-10-15 13:54Z: "I don't want to have to for example, have to do a build per-instruction set. They should all be automatically detected and used, where appropriate." The spike spike-f3d-avx512-zmm-width-8 (perf/findings/spike-f3d-avx512-zmm-width-8.md) is this card's evidence.
+
+Why it waits: Scoped out of the sprint by Glenn 2026-10-15 ("I want nothing in it except the tools/sprint work and rocketnet and schema. The rest should go out to the appropriate roadmap."): not tools/sprint, rocketnet or schema work.
+
+From: sprint card port-f3d-avx512-zmm-width-8 (stream fixed3d-arch-opt, column waiting, tier pro, base sprint/fixed3d-box3d-ports), moved out of the sprint 2026-10-15
+
+### Port: transposed body gather and scatter
+
+OWNER RULING (Glenn, 2026-10-15): fixed3d must be deterministic itself, bit-identical across runs, worker counts and platforms; it may diverge slightly from box3d. Every ISA variant is bit-identical to the scalar variant, so a mixed fleet stays in lockstep. Source: Glenn 2026-10-15 13:51Z: "Please card all the optimizations for architectures." Glenn 2026-10-15 13:54Z: "I don't want to have to for example, have to do a build per-instruction set. They should all be automatically detected and used, where appropriate." The spike spike-f3d-body-gather-transpose-permutes (perf/findings/spike-f3d-body-gather-transpose-permutes.md) is this card's evidence.
+
+Why it waits: Scoped out of the sprint by Glenn 2026-10-15 ("I want nothing in it except the tools/sprint work and rocketnet and schema. The rest should go out to the appropriate roadmap."): not tools/sprint, rocketnet or schema work.
+
+From: sprint card port-f3d-body-gather-transpose-permutes (stream fixed3d-arch-opt, column waiting, tier pro, base sprint/fixed3d-box3d-ports), moved out of the sprint 2026-10-15
+
+### Port: the avx512ifma variant
+
+OWNER RULING (Glenn, 2026-10-15): fixed3d must be deterministic itself, bit-identical across runs, worker counts and platforms; it may diverge slightly from box3d. Every ISA variant is bit-identical to the scalar variant, so a mixed fleet stays in lockstep. Source: Glenn 2026-10-15 13:51Z: "Please card all the optimizations for architectures." Glenn 2026-10-15 13:54Z: "I don't want to have to for example, have to do a build per-instruction set. They should all be automatically detected and used, where appropriate." The spike spike-f3d-ifma-lane-products-zen4 (perf/findings/spike-f3d-ifma-lane-products-zen4.md) is this card's evidence.
+
+Why it waits: Scoped out of the sprint by Glenn 2026-10-15 ("I want nothing in it except the tools/sprint work and rocketnet and schema. The rest should go out to the appropriate roadmap."): not tools/sprint, rocketnet or schema work.
+
+From: sprint card port-f3d-ifma-lane-products (stream fixed3d-arch-opt, column waiting, tier pro, base sprint/fixed3d-box3d-ports), moved out of the sprint 2026-10-15
+
+### Port: the b3InvMul fits-64 arm on aarch64
+
+OWNER RULING (Glenn, 2026-10-15): fixed3d must be deterministic itself, bit-identical across runs, worker counts and platforms; it may diverge slightly from box3d. Every ISA variant is bit-identical to the scalar variant, so a mixed fleet stays in lockstep. Source: Glenn 2026-10-15 13:51Z: "Please card all the optimizations for architectures." Glenn 2026-10-15 13:54Z: "I don't want to have to for example, have to do a build per-instruction set. They should all be automatically detected and used, where appropriate." The spike spike-f3d-invmul-fits-64-on-m5 (perf/findings/spike-f3d-invmul-fits-64-on-m5.md) is this card's evidence.
+
+Why it waits: Scoped out of the sprint by Glenn 2026-10-15 ("I want nothing in it except the tools/sprint work and rocketnet and schema. The rest should go out to the appropriate roadmap."): not tools/sprint, rocketnet or schema work.
+
+From: sprint card port-f3d-invmul-fits-64-arm64 (stream fixed3d-arch-opt, column waiting, tier pro, base sprint/fixed3d-box3d-ports), moved out of the sprint 2026-10-15
+
+### Port: b3InvMulW in lanes behind the fits-64 gate
+
+OWNER RULING (Glenn, 2026-10-15): fixed3d must be deterministic itself, bit-identical across runs, worker counts and platforms; it may diverge slightly from box3d. Every ISA variant is bit-identical to the scalar variant, so a mixed fleet stays in lockstep. Source: Glenn 2026-10-15 13:51Z: "Please card all the optimizations for architectures." Glenn 2026-10-15 13:54Z: "I don't want to have to for example, have to do a build per-instruction set. They should all be automatically detected and used, where appropriate." The spike spike-f3d-invmulw-lanes-fits-64-gate (perf/findings/spike-f3d-invmulw-lanes-fits-64-gate.md) is this card's evidence.
+
+Why it waits: Scoped out of the sprint by Glenn 2026-10-15 ("I want nothing in it except the tools/sprint work and rocketnet and schema. The rest should go out to the appropriate roadmap."): not tools/sprint, rocketnet or schema work.
+
+From: sprint card port-f3d-invmulw-lanes-fits-64-gate (stream fixed3d-arch-opt, column waiting, tier pro, base sprint/fixed3d-box3d-ports), moved out of the sprint 2026-10-15
+
+### Port: the sme2 variant of the contact solve
+
+OWNER RULING (Glenn, 2026-10-15): fixed3d must be deterministic itself, bit-identical across runs, worker counts and platforms; it may diverge slightly from box3d. Every ISA variant is bit-identical to the scalar variant, so a mixed fleet stays in lockstep. Source: Glenn 2026-10-15 13:51Z: "Please card all the optimizations for architectures." Glenn 2026-10-15 13:54Z: "I don't want to have to for example, have to do a build per-instruction set. They should all be automatically detected and used, where appropriate." The spike spike-f3d-sme2-streaming-contact-solve-m5 (perf/findings/spike-f3d-sme2-streaming-contact-solve-m5.md) is this card's evidence.
+
+Why it waits: Scoped out of the sprint by Glenn 2026-10-15 ("I want nothing in it except the tools/sprint work and rocketnet and schema. The rest should go out to the appropriate roadmap."): not tools/sprint, rocketnet or schema work.
+
+From: sprint card port-f3d-sme2-streaming-contact-solve (stream fixed3d-arch-opt, column waiting, tier pro, base sprint/fixed3d-box3d-ports), moved out of the sprint 2026-10-15
+
+### Port: the sve2 variant on the M6
+
+OWNER RULING (Glenn, 2026-10-15): fixed3d must be deterministic itself, bit-identical across runs, worker counts and platforms; it may diverge slightly from box3d. Every ISA variant is bit-identical to the scalar variant, so a mixed fleet stays in lockstep. Source: Glenn 2026-10-15 13:51Z: "Please card all the optimizations for architectures." Glenn 2026-10-15 13:54Z: "I don't want to have to for example, have to do a build per-instruction set. They should all be automatically detected and used, where appropriate." The spike spike-f3d-sve2-non-streaming-m6 (perf/findings/spike-f3d-sve2-non-streaming-m6.md) is this card's evidence.
+
+Why it waits: Scoped out of the sprint by Glenn 2026-10-15 ("I want nothing in it except the tools/sprint work and rocketnet and schema. The rest should go out to the appropriate roadmap."): not tools/sprint, rocketnet or schema work.
+
+From: sprint card port-f3d-sve2-non-streaming-solver (stream fixed3d-arch-opt, column waiting, tier pro, base sprint/fixed3d-box3d-ports), moved out of the sprint 2026-10-15
+
+### If the M6 has non-streaming SVE2: the lane multiply without a mode switch
+
+SPIKE CONTRACT (KIND: spike; Glenn's tracer-bullet rule). Its end is stated before it starts: it runs end to end ONCE (change, measure, check, write up), then STOPS and names what it showed. No tuning past the first full measurement; a promising direction is a sentence in the finding. What is kept is what it taught; production code arrives only through the separate port card that needs this one, and only on a KEEP ve Source: Glenn 2026-10-15 13:51Z: "Please card all the optimizations for architectures." Glenn 2026-10-15 13:54Z: "I don't want to have to for example, have to do a build per-instruction set. They should all be automatically detected and used, where appropriate."
+
+Why it waits: Scoped out of the sprint by Glenn 2026-10-15 ("I want nothing in it except the tools/sprint work and rocketnet and schema. The rest should go out to the appropriate roadmap."): not tools/sprint, rocketnet or schema work.
+
+From: sprint card spike-f3d-sve2-non-streaming-m6 (stream fixed3d-arch-opt, column waiting, tier pro, base sprint/fixed3d-box3d-ports), moved out of the sprint 2026-10-15
