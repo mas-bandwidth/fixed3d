@@ -356,6 +356,10 @@ int main( int argc, char** argv )
 
 	b3WorldDef worldDef = b3DefaultWorldDef();
 	worldDef.gravity = vecFromDouble( scene.world.gravity );
+	if ( scene.world.restitutionIterations > 0 )
+	{
+		worldDef.restitutionIterations = scene.world.restitutionIterations;
+	}
 	b3WorldId worldId = b3CreateWorld( &worldDef );
 
 	b3BodyId bodies[B3_REF_MAX_BODIES];
@@ -575,6 +579,11 @@ int main( int argc, char** argv )
 					b3FixToDouble( p.y ), b3FixToDouble( p.z ), b3FixToDouble( q.v.x ), b3FixToDouble( q.v.y ),
 					b3FixToDouble( q.v.z ), b3FixToDouble( q.s ), b3FixToDouble( v.x ), b3FixToDouble( v.y ),
 					b3FixToDouble( v.z ), b3FixToDouble( w.x ), b3FixToDouble( w.y ), b3FixToDouble( w.z ) );
+		}
+		if ( scene.expect.firstBounceApex && s == steps - 1 )
+		{
+			for ( int i = 0; i < scene.bodyCount; ++i )
+				printf( "awake %d %d\n", i, b3Body_IsAwake( bodies[i] ) ? 1 : 0 );
 		}
 
 		if ( scene.traceContacts && !traceContacts( bodies, scene.bodyCount ) )

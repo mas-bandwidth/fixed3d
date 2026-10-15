@@ -2468,6 +2468,42 @@ new sample code — keep them clean.
 
 ## Known leftovers / follow-ups
 
+- **79fc559 restitution port (2026-10-15):** The world definition now owns
+  `restitutionIterations`; its default is 2, matching upstream 79fc559. The
+  restored post-solve stage uses raw-128 normal-speed products and a gated
+  kinetic cap, with scalar and wide lanes sharing the same fixed-point rules.
+  Snapshot wire version 5 preserves the version-3 `safetyFactor` and version-4
+  compound layouts and adds the restitution setting; recording minor 8 follows
+  the broad-phase card's reserved minor 7. Version-3 and version-4 snapshots
+  are refused by the existing exact-version policy. The 79fc559 bounce and pile
+  reference scenes pin two sweeps in both engines. Glenn retained fixed3d's
+  speculative sphere contacts through radius plus 0.02 m; upstream 79fc559
+  creates them only at radius. At step 38 the center gap is 1.018494 m fixed
+  versus 1.019231 m float. At step 39 fixed3d has a sphere manifold with
+  separation +0.018494 and a bounce, while float has no contact yet. The
+  pile reference therefore compares the first bounce apex of the top sphere
+  and the exact final per-body awake set, preserving the distinct contact
+  phase. Its Linux-measured apex difference is 0.00027418 m, so its bound is
+  twice that difference; the bounce reference keeps its per-step trace gate.
+  The pile bodies have sleep enabled so the awake set is an outcome: the pile
+  sleeps at step 76 fixed and step 80 float, both final sets are 0x0 at step
+  100, and keeping one sphere awake in the fixed run alone fails the gate
+  (0x1110 vs 0x0). An all-nosleep pile would make the set fixed by setup.
+  The restitution stage now rebuilds inverse inertia in the body's orientation
+  after position substeps, including scalar and wide mesh paths. A spinning
+  thin-box contact pins the prior one-step normalized energy rise of 1.16145
+  to 1.57017 against the corrected rise of 1.10727 to 1.15106.
+  Six upstream restitution-battery subtests already
+  fail on clean fixed3d BASE. After the restored stage (and the current-frame
+  inertia fix) two of them -- DropTest and SingleBoxTest, both e=1 elastic
+  energy-conservation measurements -- now pass and are regular RUN_MEASUREMENT
+  subtests; the four that still fail because of the baseline contact/integration
+  energy floor (Resting, Overshoot, Energy, Impulse) stay XFAIL individually,
+  with XPASS a failure; the original bounds remain intact. The follow-up card is
+  `fixed3d-energy-floor-matches-upstream`. A hard
+  default-elastic-energy comparison against BASE remains in the suite so the
+  configured default cannot silently regress while that floor is repaired.
+
 - ~~Quickhull iteration guard~~ DONE (bug-hunt pass): the builder has a
   `failed` flag, bounded ring walks in ConnectFaces/merge loops, release-safe
   pool allocators, and `b3FindFarthestPointFromLine` no longer divides by a

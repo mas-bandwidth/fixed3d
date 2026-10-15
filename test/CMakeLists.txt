@@ -27,6 +27,7 @@ set(BOX3D_TEST_FILES
     test_perf_hash.c
     test_recording.c
 	test_reference_scene.c
+    test_restitution.c
     test_shape.c
     test_table.c
     test_world.c
