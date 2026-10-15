@@ -44,12 +44,12 @@
 	{                                                                                                                            \
 		if ( T() == 0 )                                                                                                          \
 		{                                                                                                                        \
-			printf( "  XPASS: " #T " (baseline-contact-and-integration-energy-floor)\n" );                                       \
+			printf( "  XPASS: " #T " (fixed3d-energy-floor-matches-upstream)\n" );                                        \
 			failureCount += 1;                                                                                                   \
 		}                                                                                                                        \
 		else                                                                                                                     \
 		{                                                                                                                        \
-			printf( "  XFAIL: " #T " (baseline-contact-and-integration-energy-floor)\n" );                                       \
+			printf( "  XFAIL: " #T " (fixed3d-energy-floor-matches-upstream)\n" );                                        \
 		}                                                                                                                        \
 	}                                                                                                                            \
 	while ( false )
@@ -738,7 +738,12 @@ typedef struct EnergyScene
 	int stepCount;
 } EnergyScene;
 
-static double MeasurePeakEnergy( const EnergyScene* scene, b3Fixed restitution, int iterations )
+typedef struct EnergyImpact
+{
+	double beforeRatio, afterRatio, spinBefore;
+} EnergyImpact;
+
+static double MeasurePeakEnergy( const EnergyScene* scene, b3Fixed restitution, int iterations, EnergyImpact* impact )
 {
 	b3WorldId worldId = iterations == 0 ? MakeWorld( -B3_FIX( 10.0f ) ) : MakeWorldIterations( -B3_FIX( 10.0f ), iterations );
 	b3BodyDef groundDef = b3DefaultBodyDef();
@@ -782,10 +787,16 @@ static double MeasurePeakEnergy( const EnergyScene* scene, b3Fixed restitution, 
 	int peakStep = -1;
 	for ( int step = 0; step < scene->stepCount; ++step )
 	{
+		if ( impact != NULL && step == 257 )
+			impact->spinBefore = b3FixToDouble( b3Length( b3Body_GetAngularVelocity( bodies[count - 1] ) ) );
 		b3World_Step( worldId, TIME_STEP, SUB_STEP_COUNT );
 		double energy = 0.0;
 		for ( int i = 0; i < count; ++i )
 			energy += MeasureEnergy( bodies[i], worldId );
+		if ( impact != NULL && step == 256 )
+			impact->beforeRatio = energy / start;
+		if ( impact != NULL && step == 257 )
+			impact->afterRatio = energy / start;
 		if ( energy > peak )
 		{
 			peak = energy;
@@ -819,7 +830,7 @@ static int EnergyTest( void )
 	int failed = 0;
 	for ( int i = 0; i < ARRAY_COUNT( energyScenes ); ++i )
 	{
-		double ratio = MeasurePeakEnergy( energyScenes + i, B3_FIX( 1.0f ), RESTITUTION_ITERATIONS );
+		double ratio = MeasurePeakEnergy( energyScenes + i, B3_FIX( 1.0f ), RESTITUTION_ITERATIONS, NULL );
 		double limit = energyScenes[i].safetyFactor < .1 ? .005 : .02;
 		if ( ratio > 1.0 + limit )
 			failed = 1;
@@ -840,7 +851,7 @@ static int StageImprovementTest( void )
 	int failed = 0;
 	for ( int i = 0; i < ARRAY_COUNT( energyScenes ); ++i )
 	{
-		double ratio = MeasurePeakEnergy( energyScenes + i, B3_FIX( 0.0f ), RESTITUTION_ITERATIONS );
+		double ratio = MeasurePeakEnergy( energyScenes + i, B3_FIX( 0.0f ), RESTITUTION_ITERATIONS, NULL );
 		if ( ratio > baselineZero[i] + quantumFloor )
 		{
 			printf( "    e=0 regression %s: %.5f > %.5f\n", energyScenes[i].name, ratio, baselineZero[i] + quantumFloor );
@@ -850,7 +861,7 @@ static int StageImprovementTest( void )
 	for ( int i = 0; i < ARRAY_COUNT( improvedCases ); ++i )
 	{
 		int index = improvedCases[i];
-		double ratio = MeasurePeakEnergy( energyScenes + index, B3_FIX( 1.0f ), RESTITUTION_ITERATIONS );
+		double ratio = MeasurePeakEnergy( energyScenes + index, B3_FIX( 1.0f ), RESTITUTION_ITERATIONS, NULL );
 		if ( ratio >= baselineElastic[i] - 0.01 )
 		{
 			printf( "    e=1 not improved %s: %.5f vs base %.5f\n", energyScenes[index].name, ratio, baselineElastic[i] );
@@ -872,12 +883,26 @@ static int DefaultRestitutionNoRegressionTest( void )
 	for ( int i = 0; i < ARRAY_COUNT( cases ); ++i )
 	{
 		int index = cases[i];
-		double ratio = MeasurePeakEnergy( energyScenes + index, B3_FIX( 1.0f ), 0 );
+		double ratio = MeasurePeakEnergy( energyScenes + index, B3_FIX( 1.0f ), 0, NULL );
 		printf( "    default e=1 %-24s %.5f vs base %.5f\n", energyScenes[index].name, ratio, baselineElastic[i] );
 		if ( ratio > baselineElastic[i] + quantumFloor )
 			failed = 1;
 	}
 	return failed;
+}
+
+// A thin spinning box changes orientation substantially during its contact step.
+// The restitution impulse must use inertia in that final orientation. The stale
+// pre-step inertia raised normalized energy by 0.409 in this one step; with the
+// current inertia the increase is 0.044. Keep this local check separate from
+// the scene-wide peak comparison so the failure identifies its contact.
+static int RotatedInertiaContactTest( void )
+{
+	EnergyImpact impact = { 0 };
+	MeasurePeakEnergy( energyScenes + 11, B3_FIX( 1.0f ), 0, &impact );
+	printf( "    rotated inertia contact spin %.3f energy %.5f -> %.5f\n", impact.spinBefore, impact.beforeRatio,
+			impact.afterRatio );
+	return impact.spinBefore < 10.0 || impact.afterRatio > impact.beforeRatio + 0.10;
 }
 
 typedef struct ImpulseResult
@@ -1005,6 +1030,7 @@ int RestitutionTest( void )
 	RUN_BASELINE_XFAIL( EnergyTest );
 	RUN_BASELINE_XFAIL( ImpulseTest );
 	RUN_MEASUREMENT( StageImprovementTest );
+	RUN_MEASUREMENT( RotatedInertiaContactTest );
 	RUN_MEASUREMENT( DefaultRestitutionNoRegressionTest );
 	RUN_MEASUREMENT( WorkerParityTest );
 	return failureCount != 0;

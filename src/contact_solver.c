@@ -16,6 +16,23 @@
 #include "shape.h"
 #endif
 
+// Restitution runs after the position substeps. Inverse inertia captured by
+// contact preparation is in the body's pre-step frame; rebuild it in the
+// current frame before applying the kinetic restitution cap.
+static b3Matrix3 b3RestitutionInverseInertia( const b3StepContext* context, int index )
+{
+	if ( index == B3_NULL_INDEX )
+	{
+		return b3Mat3_zero;
+	}
+
+	const b3BodySim* sim = context->sims + index;
+	const b3BodyState* state = context->states + index;
+	b3Quat q = b3MulQuat( state->deltaRotation, sim->transform.q );
+	b3Matrix3 rotation = b3MakeMatrixFromQuat( q );
+	return b3MulMM( b3MulMM( rotation, sim->invInertiaLocal ), b3Transpose( rotation ) );
+}
+
 // contact separation for sub-stepping
 // s = s0 + dot(cB + rB - cA - rA, normal)
 // normal is held constant
@@ -884,9 +901,9 @@ void b3ApplyRestitution_Mesh( b3SolverBlock block, b3StepContext* context )
 		b3Vec3 dp = b3Sub( stateB->deltaPosition, stateA->deltaPosition );
 
 		b3Fixed mA = contactConstraint->invMassA;
-		b3Matrix3 iA = contactConstraint->invIA;
+		b3Matrix3 iA = b3RestitutionInverseInertia( context, indexA );
 		b3Fixed mB = contactConstraint->invMassB;
-		b3Matrix3 iB = contactConstraint->invIB;
+		b3Matrix3 iB = b3RestitutionInverseInertia( context, indexB );
 
 		int manifoldCount = contactConstraint->manifoldCount;
 		for ( int manifoldIndex = 0; manifoldIndex < manifoldCount; ++manifoldIndex )
@@ -927,14 +944,19 @@ void b3ApplyRestitution_Mesh( b3SolverBlock block, b3StepContext* context )
 				b3Vec3 vrA = b3Add( vA, b3Cross( wA, rA ) );
 				b3Fixed vn = b3Dot( b3Sub( vrB, vrA ), normal );
 
+				b3Vec3 rnA = b3Cross( rA, normal );
+				b3Vec3 rnB = b3Cross( rB, normal );
+				b3Fixed kNormal = mA + mB + b3Dot( rnA, b3MulMV( iA, rnA ) ) + b3Dot( rnB, b3MulMV( iB, rnB ) );
+				b3Fixed normalMass = cp->normalMass > 0 && kNormal > 0 ? b3InvReciprocal( kNormal ) : B3_FIX( 0.0f );
+
 				// compute normal impulse
-				b3Fixed impulse = b3FixMul( -cp->normalMass, ( vn + velocityBias ) );
+				b3Fixed impulse = b3FixMul( -normalMass, ( vn + velocityBias ) );
 
 				// clamp the accumulated impulse
 				b3Fixed newImpulse = b3FixMax( cp->normalImpulse + impulse, B3_FIX( 0.0f ) );
 				impulse = newImpulse - cp->normalImpulse;
 
-				b3Fixed approachImpulse = b3FixMin( b3FixMax( b3FixMul( -cp->normalMass, vn ), B3_FIX( 0.0f ) ),
+				b3Fixed approachImpulse = b3FixMin( b3FixMax( b3FixMul( -normalMass, vn ), B3_FIX( 0.0f ) ),
 												   b3FixMax( impulse, B3_FIX( 0.0f ) ) );
 
 				if ( armed )
@@ -1863,6 +1885,19 @@ typedef struct b3Matrix3FullW
 	b3FloatW cyx, cyy, cyz; // column y
 	b3FloatW czx, czy, czz; // column z
 } b3Matrix3FullW;
+
+static inline void b3SetMatrix3FullLane( b3Matrix3FullW* wide, int lane, b3Matrix3 matrix )
+{
+	( (b3Fixed*)&wide->cxx )[lane] = matrix.cx.x;
+	( (b3Fixed*)&wide->cxy )[lane] = matrix.cx.y;
+	( (b3Fixed*)&wide->cxz )[lane] = matrix.cx.z;
+	( (b3Fixed*)&wide->cyx )[lane] = matrix.cy.x;
+	( (b3Fixed*)&wide->cyy )[lane] = matrix.cy.y;
+	( (b3Fixed*)&wide->cyz )[lane] = matrix.cy.z;
+	( (b3Fixed*)&wide->czx )[lane] = matrix.cz.x;
+	( (b3Fixed*)&wide->czy )[lane] = matrix.cz.y;
+	( (b3Fixed*)&wide->czz )[lane] = matrix.cz.z;
+}
 
 // Wide m * v with the scalar b3MulMV rounding: per-product rounding, plain
 // adds (deliberately NOT fused, see the round-3 notes).
@@ -3668,6 +3703,28 @@ void b3ApplyRestitution_Convex( b3SolverBlock block, b3StepContext* context )
 		b3BodyStateW bA = b3GatherBodies( states, c->indexA );
 		b3BodyStateW bB = b3GatherBodies( states, c->indexB );
 
+		// Restitution runs after all position substeps. The inverse inertia
+		// prepared before those substeps is in the old body frame, so using it
+		// here can exceed the kinetic cap after a fast rotation. Rebuild only the
+		// active lanes in the bodies' current frames.
+		b3Matrix3FullW invIA = { 0 }, invIB = { 0 };
+		b3Matrix3FullW* inverseInertias[2] = { &invIA, &invIB };
+		for ( int side = 0; side < 2; ++side )
+		{
+			const int* indices = side == 0 ? c->indexA : c->indexB;
+			b3Matrix3FullW* wideI = inverseInertias[side];
+			for ( int lane = 0; lane < B3_SIMD_WIDTH; ++lane )
+			{
+				int index = indices[lane] - 1;
+				if ( index == B3_NULL_INDEX )
+				{
+					continue;
+				}
+
+				b3SetMatrix3FullLane( wideI, lane, b3RestitutionInverseInertia( context, index ) );
+			}
+		}
+
 		// Lanes with restitution get a nonzero mass; without propagation the
 		// mass is what zeros lanes with no restitution, mirroring the scalar
 		// mesh path's all-zero-restitution skip.
@@ -3686,7 +3743,25 @@ void b3ApplyRestitution_Convex( b3SolverBlock block, b3StepContext* context )
 			b3Vec3W rA = b3WidenVW( cp->anchorAs );
 			b3Vec3W rB = b3WidenVW( cp->anchorBs );
 
-			b3FloatW normalMass = propagate ? cp->normalMasses : b3BlendW( zeroW, cp->normalMasses, restitutionMask );
+			b3Vec3W rnA = b3WidenVW( cp->rnAs );
+			b3Vec3W rnB = b3WidenVW( cp->rnBs );
+			b3Vec3W iRnA = b3MulMVFullW( &invIA, rnA );
+			b3Vec3W iRnB = b3MulMVFullW( &invIB, rnB );
+			b3FloatW kNormal = b3AddW( b3AddW( c->invMassA, c->invMassB ),
+				b3AddW( b3DotW( rnA, iRnA ), b3DotW( rnB, iRnB ) ) );
+			b3FloatW normalMass = zeroW;
+			for ( int lane = 0; lane < B3_SIMD_WIDTH; ++lane )
+			{
+				b3Fixed k = ( (const b3Fixed*)&kNormal )[lane];
+				if ( ( (const b3Fixed*)&cp->normalMasses )[lane] > 0 && k > 0 )
+				{
+					( (b3Fixed*)&normalMass )[lane] = b3InvReciprocal( k );
+				}
+			}
+			if ( propagate == false )
+			{
+				normalMass = b3BlendW( zeroW, normalMass, restitutionMask );
+			}
 
 			// The total normal impulse is 0 for speculative points.
 			b3FloatW compressionImpulse = b3SubW( cp->totalNormalImpulses, cp->restitutionImpulses );
@@ -3702,8 +3777,7 @@ void b3ApplyRestitution_Convex( b3SolverBlock block, b3StepContext* context )
 			b3FloatW velocityBias = b3BlendW( specBias, b3MulW( c->restitution, cp->relativeVelocities ), armed );
 
 			// Relative velocity at contact through the precomputed Jacobian rows
-			b3FloatW vn = b3RelVelocityW( b3SubVW( bB.v, bA.v ), normal, bB.w, b3WidenVW( cp->rnBs ), bA.w,
-										  b3WidenVW( cp->rnAs ) );
+			b3FloatW vn = b3RelVelocityW( b3SubVW( bB.v, bA.v ), normal, bB.w, rnB, bA.w, rnA );
 
 			// Compute normal impulse
 			b3FloatW negImpulse = b3MulW( normalMass, b3AddW( vn, velocityBias ) );
@@ -3726,9 +3800,9 @@ void b3ApplyRestitution_Convex( b3SolverBlock block, b3StepContext* context )
 
 			// Apply contact impulse through the precomputed Jacobian rows
 			bA.v = b3InvMulSubSVW( bA.v, impulse, c->mNormalA );
-			bA.w = b3InvMulSubSVW( bA.w, impulse, cp->iRnAs );
+			bA.w = b3InvMulSubSVW( bA.w, impulse, iRnA );
 			bB.v = b3InvMulAddSVW( bB.v, impulse, c->mNormalB );
-			bB.w = b3InvMulAddSVW( bB.w, impulse, cp->iRnBs );
+			bB.w = b3InvMulAddSVW( bB.w, impulse, iRnB );
 		}
 
 		b3ScatterBodies( states, c->indexA, &bA );
@@ -4508,6 +4582,12 @@ void b3ApplyRestitution_MeshWide( b3SolverBlock block, b3StepContext* context )
 
 		b3BodyStateW bA = b3GatherBodies( states, c->indexA );
 		b3BodyStateW bB = b3GatherBodies( states, c->indexB );
+		b3Matrix3FullW invIA = { 0 }, invIB = { 0 };
+		for ( int lane = 0; lane < B3_SIMD_WIDTH; ++lane )
+		{
+			b3SetMatrix3FullLane( &invIA, lane, b3RestitutionInverseInertia( context, c->indexA[lane] - 1 ) );
+			b3SetMatrix3FullLane( &invIB, lane, b3RestitutionInverseInertia( context, c->indexB[lane] - 1 ) );
+		}
 
 		b3Vec3W dp = b3SubVW( bB.dp, bA.dp );
 
@@ -4539,16 +4619,29 @@ void b3ApplyRestitution_MeshWide( b3SolverBlock block, b3StepContext* context )
 				b3Vec3W vrB = b3AddVW( bB.v, b3CrossUnfusedW( bB.w, rB ) );
 				b3Vec3W vrA = b3AddVW( bA.v, b3CrossUnfusedW( bA.w, rA ) );
 				b3FloatW vn = b3DotW( b3SubVW( vrB, vrA ), normal );
+				b3Vec3W rnA = b3CrossUnfusedW( rA, normal );
+				b3Vec3W rnB = b3CrossUnfusedW( rB, normal );
+				b3FloatW kNormal = b3AddW( b3AddW( c->invMassA, c->invMassB ),
+					b3AddW( b3DotW( rnA, b3MulMVFullW( &invIA, rnA ) ), b3DotW( rnB, b3MulMVFullW( &invIB, rnB ) ) ) );
+				b3FloatW normalMass = zeroW;
+				for ( int lane = 0; lane < B3_SIMD_WIDTH; ++lane )
+				{
+					b3Fixed k = ( (const b3Fixed*)&kNormal )[lane];
+					if ( ( (const b3Fixed*)&cp->normalMass )[lane] > 0 && k > 0 )
+					{
+						( (b3Fixed*)&normalMass )[lane] = b3InvReciprocal( k );
+					}
+				}
 
 				// compute normal impulse
-				b3FloatW impulse = b3MulW( b3NegW( cp->normalMass ), b3AddW( vn, velocityBias ) );
+				b3FloatW impulse = b3MulW( b3NegW( normalMass ), b3AddW( vn, velocityBias ) );
 
 				// clamp the accumulated impulse
 				b3FloatW newImpulse = b3MaxW( b3AddW( cp->normalImpulse, impulse ), zeroW );
 				impulse = b3SubW( newImpulse, cp->normalImpulse );
 
 				b3FloatW approachImpulse =
-					b3MinW( b3MaxW( b3MulW( b3NegW( cp->normalMass ), vn ), zeroW ), b3MaxW( impulse, zeroW ) );
+					b3MinW( b3MaxW( b3MulW( b3NegW( normalMass ), vn ), zeroW ), b3MaxW( impulse, zeroW ) );
 
 				// Poisson kinetic restitution guarantees no energy gain.
 				b3FloatW allowance =
@@ -4563,9 +4656,9 @@ void b3ApplyRestitution_MeshWide( b3SolverBlock block, b3StepContext* context )
 				// apply contact impulse
 				b3Vec3W P = b3MulSVW( impulse, normal );
 				bA.v = b3InvMulSubSVW( bA.v, c->invMassA, P );
-				bA.w = b3SubVW( bA.w, b3InvMulMVFullW( &c->invIA, b3CrossUnfusedW( rA, P ) ) );
+				bA.w = b3SubVW( bA.w, b3InvMulMVFullW( &invIA, b3CrossUnfusedW( rA, P ) ) );
 				bB.v = b3InvMulAddSVW( bB.v, c->invMassB, P );
-				bB.w = b3AddVW( bB.w, b3InvMulMVFullW( &c->invIB, b3CrossUnfusedW( rB, P ) ) );
+				bB.w = b3AddVW( bB.w, b3InvMulMVFullW( &invIB, b3CrossUnfusedW( rB, P ) ) );
 			}
 		}
 
