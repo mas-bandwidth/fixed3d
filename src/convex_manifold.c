@@ -32,8 +32,10 @@ static int b3ClipSegment( b3ClipVertex segment[2], b3Plane plane )
 		segment[vertexCount++] = vertex2;
 	}
 
-	// If the points are on different sides of the plane
-	if ( b3FixMul( distance1 , distance2 ) < B3_FIX( 0.0f ) )
+	// If the points are on different sides of the plane. This is a sign test, not a product:
+	// b3FixMul of two small opposite-sign separations (e.g. raw -3 and +5) quantizes to zero
+	// below one ULP, dropping a real crossing point. Compare signs directly.
+	if ( ( distance1 < B3_FIX( 0.0f ) && distance2 > B3_FIX( 0.0f ) ) || ( distance1 > B3_FIX( 0.0f ) && distance2 < B3_FIX( 0.0f ) ) )
 	{
 		// Find intersection point of edge and plane
 		b3Fixed t = b3FixDiv( distance1 , ( distance1 - distance2 ) );

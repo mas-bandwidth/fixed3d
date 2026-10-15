@@ -1560,8 +1560,11 @@ Fixes landed in session 2 (beyond the session-1 list):
 6. **Tiny-body inertia floor**: bodies smaller than ~4 cm have true inertia below
    1 ULP. `b3FloorInertia` in src/body.c floors the diagonal at 4 ULP so rotation
    stays finite (symptom: |w| frozen forever, mesh-drop test never sleeps).
-7. **Squared-tolerance guards collapse**: `FixMul(d, d) > 0` is false for
-   d < √ULP ≈ 0.004. Use `d > 0` directly.
+7. **Squared-tolerance guards collapse — and so does any product used as a sign test**:
+   `FixMul(d, d) > 0` is false for d < √ULP ≈ 0.004 (use `d > 0` directly), and
+   `FixMul(a, b) < 0` of two small opposite-sign values quantizes to zero below one ULP
+   whatever its true sign — a sign test is never spelled as a product in fixed point;
+   compare signs directly.
 8. **Int-vs-fixed operand mixups**: `b3FixDiv(fixedValue, SOME_INT_MACRO)` is
    catastrophically wrong (found in height-field compression `UINT16_MAX`,
    ragdoll `RAGDOLL_GRID_COUNT` spacing, mesh BVH `B3_BIN_COUNT`). Conversely

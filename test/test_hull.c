@@ -662,6 +662,50 @@ static int CreateComplexHullTerminatesTest( void )
 	return 0;
 }
 
+// b3CloneAndTransformHull reverses the face winding when the scale is reflected (negative
+// determinant). The reflection is decided by the sign of the scale determinant, but forming
+// that determinant with b3FixMul quantizes a small reflected scale to zero -- measured in
+// Q48.16, the product of (0.01, 0.01, -0.01) is exactly 0 -- so the winding is not reversed
+// and the mirrored hull is baked inside out (negative volume, rejected as NULL). The parity of
+// negative components with the zero case stated explicitly answers exactly as product < 0 does.
+static int CloneHullSmallReflectedScaleTest( void )
+{
+	// A cube large enough that a 0.01 scale still yields a positive volume and inner radius.
+	b3Vec3 corners[8] = {
+		{ B3_FIX( 10.0f ), B3_FIX( 10.0f ), B3_FIX( 10.0f ) },	 { -B3_FIX( 10.0f ), B3_FIX( 10.0f ), B3_FIX( 10.0f ) },
+		{ -B3_FIX( 10.0f ), -B3_FIX( 10.0f ), B3_FIX( 10.0f ) },	 { B3_FIX( 10.0f ), -B3_FIX( 10.0f ), B3_FIX( 10.0f ) },
+		{ B3_FIX( 10.0f ), B3_FIX( 10.0f ), -B3_FIX( 10.0f ) },	 { -B3_FIX( 10.0f ), B3_FIX( 10.0f ), -B3_FIX( 10.0f ) },
+		{ -B3_FIX( 10.0f ), -B3_FIX( 10.0f ), -B3_FIX( 10.0f ) }, { B3_FIX( 10.0f ), -B3_FIX( 10.0f ), -B3_FIX( 10.0f ) },
+	};
+	b3HullData* original = b3CreateHull( corners, 8, 8 );
+	ENSURE( original != NULL );
+
+	b3Vec3 scales[] = {
+		{ B3_FIX( 1.0f ), B3_FIX( 1.0f ), -B3_FIX( 1.0f ) },	   // reference, safely reflected
+		{ B3_FIX( 0.01f ), B3_FIX( 0.01f ), -B3_FIX( 0.01f ) }, // reflected, product quantizes to zero
+	};
+
+	for ( int i = 0; i < ARRAY_COUNT( scales ); ++i )
+	{
+		b3HullData* clone = b3CloneAndTransformHull( original, b3Transform_identity, scales[i] );
+		ENSURE( clone != NULL );
+		ENSURE( clone->faceCount == 6 );
+
+		// Outward normals: the hull center lies behind every face plane. An unreversed
+		// winding bakes the normals inward and this check fails for every face.
+		const b3Plane* planes = b3GetHullPlanes( clone );
+		for ( int f = 0; f < clone->faceCount; ++f )
+		{
+			ENSURE( b3PlaneSeparation( planes[f], clone->center ) < B3_FIX( 0.0f ) );
+		}
+
+		b3DestroyHull( clone );
+	}
+
+	b3DestroyHull( original );
+	return 0;
+}
+
 int HullTest( void )
 {
 	RUN_SUBTEST( CreateHullCubeTest );
@@ -679,6 +723,7 @@ int HullTest( void )
 	RUN_SUBTEST( CreateHullNearDegenerateTest );
 	RUN_SUBTEST( CreateComplexHullTest );
 	RUN_SUBTEST( CreateComplexHullTerminatesTest );
+	RUN_SUBTEST( CloneHullSmallReflectedScaleTest );
 
 	return 0;
 }
