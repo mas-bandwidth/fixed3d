@@ -3,6 +3,8 @@
 
 #include "test_macros.h"
 
+#include "manifold.h"
+
 #include "box3d/collision.h"
 #include "box3d/constants.h"
 #include "box3d/math_functions.h"
@@ -1544,8 +1546,224 @@ static int SpeculativeMarginTest( void )
 	return 0;
 }
 
+static void FillPoints2D( b3HullPoint2D* pts, const b3Vec2* input, int count )
+{
+	for ( int i = 0; i < count; ++i )
+	{
+		pts[i].p = input[i];
+		pts[i].separation = B3_FIX( 0.0f );
+		pts[i].originalIndex = i;
+	}
+}
+
+static b3Fixed Hull2DArea( const b3HullPoint2D* hull, int count )
+{
+	b3Fixed sum = B3_FIX( 0.0f );
+	for ( int i = 0; i < count; ++i )
+	{
+		int next = ( i + 1 ) % count;
+		sum += b3FixMul( hull[i].p.x , hull[next].p.y ) - b3FixMul( hull[i].p.y , hull[next].p.x );
+	}
+
+	return sum / 2;
+}
+
+// The 2D hull reduction (box3d 954cf87) builds a convex hull of the candidate manifold points
+// and simplifies it to the target by dropping the vertices that contribute the least area. It is
+// only wired into b3ReduceManifoldPoints when B3_MAX_MANIFOLD_POINTS > 4, but the hull and
+// simplify routines are always compiled so they can be exercised directly here.
+static int Hull2DReductionTest( void )
+{
+	// Interior points contribute no area, so they must not survive the hull.
+	{
+		b3Vec2 input[8] = {
+			{ B3_FIX( -1.0f ), B3_FIX( -1.0f ) }, { B3_FIX( 1.0f ), B3_FIX( -1.0f ) },
+			{ B3_FIX( 1.0f ), B3_FIX( 1.0f ) },	  { B3_FIX( -1.0f ), B3_FIX( 1.0f ) },
+			{ B3_FIX( 0.0f ), B3_FIX( 0.0f ) },	  { B3_FIX( 0.5f ), B3_FIX( 0.25f ) },
+			{ B3_FIX( -0.3f ), B3_FIX( 0.6f ) },  { B3_FIX( 0.1f ), B3_FIX( -0.4f ) },
+		};
+
+		b3HullPoint2D pts[8];
+		b3HullPoint2D hull[16];
+		FillPoints2D( pts, input, 8 );
+
+		int count = b3Hull2D( pts, 8, hull );
+		ENSURE( count == 4 );
+
+		// The reduction code assumes counter clockwise winding
+		ENSURE( Hull2DArea( hull, count ) > B3_FIX( 0.0f ) );
+
+		bool onHull[8] = { false };
+		for ( int i = 0; i < count; ++i )
+		{
+			ENSURE( 0 <= hull[i].originalIndex && hull[i].originalIndex < 8 );
+			onHull[hull[i].originalIndex] = true;
+		}
+
+		for ( int i = 0; i < 4; ++i )
+		{
+			ENSURE( onHull[i] == true );
+		}
+
+		for ( int i = 4; i < 8; ++i )
+		{
+			ENSURE( onHull[i] == false );
+		}
+	}
+
+	// Collinear points collapse to a segment.
+	{
+		b3Vec2 input[5] = {
+			{ B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, { B3_FIX( 1.0f ), B3_FIX( 0.0f ) },
+			{ B3_FIX( 2.0f ), B3_FIX( 0.0f ) }, { B3_FIX( 3.0f ), B3_FIX( 0.0f ) },
+			{ B3_FIX( 4.0f ), B3_FIX( 0.0f ) },
+		};
+
+		b3HullPoint2D pts[5];
+		b3HullPoint2D hull[10];
+		FillPoints2D( pts, input, 5 );
+
+		ENSURE( b3Hull2D( pts, 5, hull ) == 2 );
+	}
+
+	// Coincident points weld and the lower input index wins, so a sort order change cannot
+	// swap which of the two survives.
+	{
+		b3Fixed offset = b3FixMul( B3_FIX( 0.1f ) , B3_LINEAR_SLOP );
+
+		b3Vec2 input[5] = {
+			{ B3_FIX( -1.0f ), B3_FIX( -1.0f ) },
+			{ B3_FIX( 1.0f ), B3_FIX( -1.0f ) },
+			{ B3_FIX( 1.0f ), B3_FIX( 1.0f ) },
+			{ B3_FIX( -1.0f ), B3_FIX( 1.0f ) },
+			{ B3_FIX( -1.0f ) + offset, B3_FIX( -1.0f ) + offset },
+		};
+
+		b3HullPoint2D pts[5];
+		b3HullPoint2D hull[10];
+		FillPoints2D( pts, input, 5 );
+
+		int count = b3Hull2D( pts, 5, hull );
+		ENSURE( count == 4 );
+
+		for ( int i = 0; i < count; ++i )
+		{
+			ENSURE( hull[i].originalIndex != 4 );
+		}
+	}
+
+	// The surviving point set must not depend on the order the points arrive in.
+	{
+		b3Vec2 input[8] = {
+			{ B3_FIX( -2.0f ), B3_FIX( -1.0f ) }, { B3_FIX( 0.0f ), B3_FIX( -1.5f ) },
+			{ B3_FIX( 2.0f ), B3_FIX( -1.0f ) },	 { B3_FIX( 2.5f ), B3_FIX( 0.5f ) },
+			{ B3_FIX( 1.0f ), B3_FIX( 2.0f ) },	 { B3_FIX( -1.0f ), B3_FIX( 1.8f ) },
+			{ B3_FIX( -2.5f ), B3_FIX( 0.4f ) },	 { B3_FIX( 0.2f ), B3_FIX( 0.1f ) },
+		};
+
+		int permutation[8] = { 5, 2, 7, 0, 4, 6, 1, 3 };
+
+		b3HullPoint2D pts[8];
+		b3HullPoint2D hull[16];
+		FillPoints2D( pts, input, 8 );
+
+		int count1 = b3Hull2D( pts, 8, hull );
+		ENSURE( count1 == 7 );
+
+		bool onHull1[8] = { false };
+		for ( int i = 0; i < count1; ++i )
+		{
+			onHull1[hull[i].originalIndex] = true;
+		}
+
+		b3HullPoint2D shuffled[8];
+		b3HullPoint2D shuffledHull[16];
+		for ( int i = 0; i < 8; ++i )
+		{
+			shuffled[i].p = input[permutation[i]];
+			shuffled[i].separation = B3_FIX( 0.0f );
+			shuffled[i].originalIndex = i;
+		}
+
+		int count2 = b3Hull2D( shuffled, 8, shuffledHull );
+		ENSURE( count2 == count1 );
+
+		bool onHull2[8] = { false };
+		for ( int i = 0; i < count2; ++i )
+		{
+			onHull2[permutation[shuffledHull[i].originalIndex]] = true;
+		}
+
+		for ( int i = 0; i < 8; ++i )
+		{
+			ENSURE( onHull1[i] == onHull2[i] );
+		}
+	}
+
+	return 0;
+}
+
+static int SimplifyHull2DTest( void )
+{
+	// A 20-gon simplifies to the requested target.
+	{
+		b3HullPoint2D pts[20];
+		b3HullPoint2D hull[40];
+
+		for ( int i = 0; i < 20; ++i )
+		{
+			double angle = 2.0 * M_PI * (double)i / 20.0;
+			pts[i].p = (b3Vec2){ b3FixFromDouble( cos( angle ) ), b3FixFromDouble( sin( angle ) ) };
+			pts[i].separation = B3_FIX( 0.0f );
+			pts[i].originalIndex = i;
+		}
+
+		int hullCount = b3Hull2D( pts, 20, hull );
+		ENSURE( hullCount == 20 );
+
+		int count = b3SimplifyHull2D( hull, hullCount, 6 );
+		ENSURE( count == 6 );
+		ENSURE( Hull2DArea( hull, count ) > B3_FIX( 0.0f ) );
+	}
+
+	// A square is already at or below the target, so simplification is a no-op.
+	{
+		b3Vec2 input[4] = {
+			{ B3_FIX( -1.0f ), B3_FIX( -1.0f ) },
+			{ B3_FIX( 1.0f ), B3_FIX( -1.0f ) },
+			{ B3_FIX( 1.0f ), B3_FIX( 1.0f ) },
+			{ B3_FIX( -1.0f ), B3_FIX( 1.0f ) },
+		};
+
+		b3HullPoint2D pts[4];
+		b3HullPoint2D hull[8];
+		FillPoints2D( pts, input, 4 );
+
+		int hullCount = b3Hull2D( pts, 4, hull );
+		ENSURE( hullCount == 4 );
+
+		ENSURE( b3SimplifyHull2D( hull, hullCount, 8 ) == 4 );
+		ENSURE( b3SimplifyHull2D( hull, hullCount, 4 ) == 4 );
+	}
+
+	return 0;
+}
+
+// The library reports the point count it was built with. A mismatch against the manifold
+// this translation unit sees means the app and the library disagree on b3Manifold.
+static int MaxPointCountTest( void )
+{
+	b3Manifold manifold;
+	ENSURE( b3GetMaxManifoldPoints() == (int)( sizeof( manifold.points ) / sizeof( manifold.points[0] ) ) );
+
+	return 0;
+}
+
 int ManifoldTest( void )
 {
+	RUN_SUBTEST( MaxPointCountTest );
+	RUN_SUBTEST( Hull2DReductionTest );
+	RUN_SUBTEST( SimplifyHull2DTest );
 	RUN_SUBTEST( CrossedEdgeTest );
 	RUN_SUBTEST( EdgeAxisScaleTest );
 	RUN_SUBTEST( EdgeAxisLargeScaleTest );

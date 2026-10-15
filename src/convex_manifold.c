@@ -752,6 +752,192 @@ static b3SeparatingAxis b3QueryEdgeDirections( const b3HullData* hullA, const b3
 
 _Static_assert( B3_MAX_MANIFOLD_POINTS >= 4, "must be 4 or more" );
 
+int b3GetMaxManifoldPoints( void )
+{
+	return B3_MAX_MANIFOLD_POINTS;
+}
+
+// cross(b - a, c - a)
+static inline b3Fixed b3Cross2D( b3Vec2 a, b3Vec2 b, b3Vec2 c )
+{
+	return b3FixMul( b.x - a.x , c.y - a.y ) - b3FixMul( b.y - a.y , c.x - a.x );
+}
+
+// Iteratively remove the vertices contributing the least area.
+int b3SimplifyHull2D( b3HullPoint2D* hull, int count1, int target )
+{
+	B3_ASSERT( target >= 3 );
+
+	if ( count1 <= 3 )
+	{
+		return count1;
+	}
+
+	b3Fixed linearSlop = B3_LINEAR_SLOP;
+	b3Fixed areaTol = b3FixMul( b3FixMul( B3_FIX( 0.25f ) , linearSlop ) , linearSlop );
+	int count2 = count1;
+
+	for ( ;; )
+	{
+		b3Fixed minArea = B3_FIXED_MAX;
+		int minIndex = 0;
+
+		for ( int i = 0; i < count2; i++ )
+		{
+			int prev = ( i + count2 - 1 ) % count2;
+			int next = ( i + 1 ) % count2;
+			b3Fixed area = b3Cross2D( hull[prev].p, hull[i].p, hull[next].p );
+			B3_VALIDATE( area >= -B3_FIXED_EPSILON );
+
+			if ( area + areaTol < minArea )
+			{
+				minArea = area;
+				minIndex = i;
+			}
+		}
+
+		if ( count2 <= 3 || ( minArea > areaTol && count2 <= target ) )
+		{
+			break;
+		}
+
+		count2 -= 1;
+		if ( minIndex < count2 )
+		{
+			memmove( hull + minIndex, hull + ( minIndex + 1 ), ( count2 - minIndex ) * sizeof( b3HullPoint2D ) );
+		}
+	}
+
+	return count2;
+}
+
+// Sort comparator: by x, then by y. Insertion since n is typically 20 or less.
+static void b3Sort2D( b3HullPoint2D* pts, int count )
+{
+	for ( int i = 1; i < count; ++i )
+	{
+		b3HullPoint2D base = pts[i];
+		int j = i - 1;
+		while ( j >= 0 && ( pts[j].p.x > base.p.x || ( pts[j].p.x == base.p.x && pts[j].p.y > base.p.y ) ) )
+		{
+			pts[j + 1] = pts[j];
+			j -= 1;
+		}
+		pts[j + 1] = base;
+	}
+}
+
+// Welds points that have been sorted O(n) time
+static int b3Weld2D( b3HullPoint2D* pts, int count1 )
+{
+	if ( count1 <= 1 )
+	{
+		return count1;
+	}
+
+	b3Fixed linearSlop = b3FixMul( B3_FIX( 0.25f ) , B3_LINEAR_SLOP );
+	b3Fixed tolSqr = b3FixMul( linearSlop , linearSlop );
+
+	int count2 = 1;
+	int baseIndex = 0;
+	for ( int i = 1; i < count1; i++ )
+	{
+		b3Fixed distanceSqr = b3LengthSquared2( b3Sub2( pts[i].p, pts[baseIndex].p ) );
+		if ( distanceSqr < tolSqr )
+		{
+			if ( pts[i].originalIndex < pts[baseIndex].originalIndex )
+			{
+				pts[baseIndex] = pts[i];
+			}
+		}
+		else
+		{
+			pts[count2] = pts[i];
+			baseIndex = count2;
+			count2 += 1;
+		}
+	}
+
+	return count2;
+}
+
+// Andrew's monotone chain convex hull algorithm
+// hull must have space for 2 * count1 points
+int b3Hull2D( b3HullPoint2D* pts, int count, b3HullPoint2D* hull )
+{
+	int count1 = count;
+
+	if ( count1 <= 0 )
+	{
+		return 0;
+	}
+
+	if ( count1 == 1 )
+	{
+		hull[0] = pts[0];
+		return 1;
+	}
+
+	b3Sort2D( pts, count1 );
+	count1 = b3Weld2D( pts, count1 );
+
+	if ( count1 == 1 )
+	{
+		hull[0] = pts[0];
+		return 1;
+	}
+
+	if ( count1 == 2 )
+	{
+		hull[0] = pts[0];
+		hull[1] = pts[1];
+		return 2;
+	}
+
+	int count2 = 0;
+
+	for ( int i = 0; i < count1; i++ )
+	{
+		while ( count2 >= 2 )
+		{
+			b3Fixed area = b3Cross2D( hull[count2 - 2].p, hull[count2 - 1].p, pts[i].p );
+			if ( area > 0 )
+			{
+				break;
+			}
+
+			count2 -= 1;
+		}
+
+		B3_VALIDATE( count2 < 2 * count1 );
+		hull[count2] = pts[i];
+		count2 += 1;
+	}
+
+	int lowerCount = count2 + 1;
+
+	for ( int i = count1 - 2; i >= 0; i-- )
+	{
+		while ( count2 >= lowerCount )
+		{
+			b3Fixed area = b3Cross2D( hull[count2 - 2].p, hull[count2 - 1].p, pts[i].p );
+			if ( area > 0 )
+			{
+				break;
+			}
+
+			count2 -= 1;
+		}
+
+		B3_VALIDATE( count2 < 2 * count1 );
+		hull[count2] = pts[i];
+		count2 += 1;
+	}
+
+	B3_VALIDATE( hull[0].originalIndex == hull[count2 - 1].originalIndex );
+	return count2 - 1;
+}
+
 #if B3_MAX_MANIFOLD_POINTS == 4
 
 // Reduce the manifold points to a maximum of 4 points.
@@ -920,194 +1106,6 @@ static void b3ReduceManifoldPoints( b3LocalManifold* manifold, int capacity, b3L
 
 #else
 
-typedef struct b3Point2D
-{
-	b3Vec2 p;
-	b3Fixed separation;
-	int originalIndex;
-} b3Point2D;
-
-// cross(b - a, c - a)
-static inline b3Fixed b3Cross2D( b3Vec2 a, b3Vec2 b, b3Vec2 c )
-{
-	return b3FixMul( b.x - a.x , c.y - a.y ) - b3FixMul( b.y - a.y , c.x - a.x );
-}
-
-// Iteratively remove the vertices contributing the least area.
-static int b3SimplifyHull2D( b3Point2D* hull, int count1, int target )
-{
-	B3_ASSERT( target >= 3 );
-
-	if ( count1 <= 3 )
-	{
-		return count1;
-	}
-
-	b3Fixed linearSlop = B3_LINEAR_SLOP;
-	b3Fixed areaTol = b3FixMul( b3FixMul( B3_FIX( 0.25f ) , linearSlop ) , linearSlop );
-	int count2 = count1;
-
-	for ( ;; )
-	{
-		b3Fixed minArea = B3_FIXED_MAX;
-		int minIndex = 0;
-
-		for ( int i = 0; i < count2; i++ )
-		{
-			int prev = ( i + count2 - 1 ) % count2;
-			int next = ( i + 1 ) % count2;
-			b3Fixed area = b3Cross2D( hull[prev].p, hull[i].p, hull[next].p );
-			B3_VALIDATE( area >= -B3_FIXED_EPSILON );
-
-			if ( area + areaTol < minArea )
-			{
-				minArea = area;
-				minIndex = i;
-			}
-		}
-
-		if ( count2 <= 3 || ( minArea > areaTol && count2 <= target ) )
-		{
-			break;
-		}
-
-		count2 -= 1;
-		if ( minIndex < count2 )
-		{
-			memmove( hull + minIndex, hull + ( minIndex + 1 ), ( count2 - minIndex ) * sizeof( b3Point2D ) );
-		}
-	}
-
-	return count2;
-}
-
-// Sort comparator: by x, then by y. Insertion since n is typically 20 or less.
-static void b3Sort2D( b3Point2D* pts, int count )
-{
-	for ( int i = 1; i < count; ++i )
-	{
-		b3Point2D base = pts[i];
-		int j = i - 1;
-		while ( j >= 0 && ( pts[j].p.x > base.p.x || ( pts[j].p.x == base.p.x && pts[j].p.y > base.p.y ) ) )
-		{
-			pts[j + 1] = pts[j];
-			j -= 1;
-		}
-		pts[j + 1] = base;
-	}
-}
-
-// Welds points that have been sorted O(n) time
-static int b3Weld2D( b3Point2D* pts, int count1 )
-{
-	if ( count1 <= 1 )
-	{
-		return count1;
-	}
-
-	b3Fixed linearSlop = b3FixMul( B3_FIX( 0.25f ) , B3_LINEAR_SLOP );
-	b3Fixed tolSqr = b3FixMul( linearSlop , linearSlop );
-
-	int count2 = 1;
-	int baseIndex = 0;
-	for ( int i = 1; i < count1; i++ )
-	{
-		b3Fixed distanceSqr = b3LengthSquared2( b3Sub2( pts[i].p, pts[baseIndex].p ) );
-		if ( distanceSqr < tolSqr )
-		{
-			if ( pts[i].originalIndex < pts[baseIndex].originalIndex )
-			{
-				pts[baseIndex] = pts[i];
-			}
-		}
-		else
-		{
-			pts[count2] = pts[i];
-			baseIndex = count2;
-			count2 += 1;
-		}
-	}
-
-	return count2;
-}
-
-// Andrew's monotone chain convex hull algorithm
-// hull must have space for 2 * count1 points
-static int b3Hull2D( b3Point2D* pts, int count, b3Point2D* hull )
-{
-	int count1 = count;
-
-	if ( count1 <= 0 )
-	{
-		return 0;
-	}
-
-	if ( count1 == 1 )
-	{
-		hull[0] = pts[0];
-		return 1;
-	}
-
-	b3Sort2D( pts, count1 );
-	count1 = b3Weld2D( pts, count1 );
-
-	if ( count1 == 1 )
-	{
-		hull[0] = pts[0];
-		return 1;
-	}
-
-	if ( count1 == 2 )
-	{
-		hull[0] = pts[0];
-		hull[1] = pts[1];
-		return 2;
-	}
-
-	int count2 = 0;
-
-	for ( int i = 0; i < count1; i++ )
-	{
-		while ( count2 >= 2 )
-		{
-			b3Fixed area = b3Cross2D( hull[count2 - 2].p, hull[count2 - 1].p, pts[i].p );
-			if ( area > 0 )
-			{
-				break;
-			}
-
-			count2 -= 1;
-		}
-
-		B3_VALIDATE( count2 < 2 * count1 );
-		hull[count2] = pts[i];
-		count2 += 1;
-	}
-
-	int lowerCount = count2 + 1;
-
-	for ( int i = count1 - 2; i >= 0; i-- )
-	{
-		while ( count2 >= lowerCount )
-		{
-			b3Fixed area = b3Cross2D( hull[count2 - 2].p, hull[count2 - 1].p, pts[i].p );
-			if ( area > 0 )
-			{
-				break;
-			}
-
-			count2 -= 1;
-		}
-
-		B3_VALIDATE( count2 < 2 * count1 );
-		hull[count2] = pts[i];
-		count2 += 1;
-	}
-
-	B3_VALIDATE( hull[0].originalIndex == hull[count2 - 1].originalIndex );
-	return count2 - 1;
-}
-
 static void b3ReduceManifoldPoints( b3LocalManifold* manifold, int capacity, b3LocalManifoldPoint* points, int count )
 {
 	if ( capacity < 4 )
@@ -1135,7 +1133,7 @@ static void b3ReduceManifoldPoints( b3LocalManifold* manifold, int capacity, b3L
 	b3Vec3 v = b3Cross( normal, u );
 	b3Vec3 origin = points[0].point;
 
-	b3Point2D pts[B3_MAX_CLIP_POINTS];
+	b3HullPoint2D pts[B3_MAX_CLIP_POINTS];
 	for ( int i = 0; i < count; ++i )
 	{
 		b3Vec3 d = b3Sub( points[i].point, origin );
@@ -1144,7 +1142,7 @@ static void b3ReduceManifoldPoints( b3LocalManifold* manifold, int capacity, b3L
 		pts[i].originalIndex = i;
 	}
 
-	b3Point2D hull[2 * B3_MAX_CLIP_POINTS];
+	b3HullPoint2D hull[2 * B3_MAX_CLIP_POINTS];
 	int hullCount = b3Hull2D( pts, count, hull );
 	int finalCount = b3SimplifyHull2D( hull, hullCount, target );
 	B3_ASSERT( 0 < finalCount && finalCount <= target );

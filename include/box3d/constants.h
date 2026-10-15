@@ -113,6 +113,9 @@ B3_API b3Fixed b3GetStallThreshold( void );
 #define B3_MAX_MANIFOLD_POINTS 4
 #endif
 
+/// The maximum number of contact points between two touching shapes, as the library was built.
+B3_API int b3GetMaxManifoldPoints( void );
+
 /// The number of iterations for gyroscopic torques.
 #ifndef B3_GYROSCOPIC_ITERATIONS
 #define B3_GYROSCOPIC_ITERATIONS 1
