@@ -53,13 +53,18 @@ if(_box3d_perf_extern LESS 0 OR _box3d_perf_run LESS 0)
 endif()
 set(_box3d_main_gen "${CMAKE_CURRENT_BINARY_DIR}/main_with_perf.c")
 file(WRITE "${_box3d_main_gen}" "${_box3d_main_src}")
-list(REMOVE_ITEM BOX3D_TEST_FILES main.c)
-list(APPEND BOX3D_TEST_FILES "${_box3d_main_gen}")
+# The generated file lives in the build dir. source_group(TREE) refuses a file
+# outside CMAKE_CURRENT_SOURCE_DIR, so the grouped list stays source-tree files
+# and the generated copy is added only to the target.
+set(_box3d_grouped ${BOX3D_TEST_FILES})
+list(REMOVE_ITEM _box3d_grouped main.c)
+set(_box3d_compile ${_box3d_grouped})
+list(APPEND _box3d_compile "${_box3d_main_gen}")
 
 # The target is named box3d_test (not "test") so CTest can be enabled for the
 # reference harness: the name "test" is reserved when testing is enabled. The
 # binary is still ./bin/test, which is what CI and the docs run.
-add_executable(box3d_test ${BOX3D_TEST_FILES})
+add_executable(box3d_test ${_box3d_compile})
 
 set_target_properties(box3d_test PROPERTIES
     C_STANDARD 17
@@ -89,7 +94,7 @@ target_link_libraries(box3d_test PRIVATE box3d shared)
 # still work; the source of main.c is unchanged.
 set_source_files_properties("${_box3d_main_gen}" PROPERTIES COMPILE_DEFINITIONS "main=box3d_real_main")
 
-source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}" PREFIX "" FILES ${BOX3D_TEST_FILES})
+source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}" PREFIX "" FILES ${_box3d_grouped})
 
 # Consumer -D flags that retarget rapidhash are invisible to vendor-drift.
 # This invokes the compiler, so it is a ctest entry, not a ./bin/test suite.
