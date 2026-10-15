@@ -694,6 +694,95 @@ static int MoverTOIClosestShape( void )
 	return 0;
 }
 
+// A shape the sweep clears must not erase a hit found earlier in the list. The off path sphere
+// is created first so the list hands it over last.
+static int MoverTOIKeepsHitAfterMiss( void )
+{
+	b3BodyId bodyId;
+	b3WorldId worldId = CreateQueryWorld( &bodyId );
+
+	b3ShapeDef shapeDef = b3DefaultShapeDef();
+	b3Sphere offPath = { { B3_FIX( 5.0f ), B3_FIX( 0.0f ), B3_FIX( 20.0f ) }, B3_FIX( 0.5f ) };
+	b3Sphere onPath = { { B3_FIX( 5.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, B3_FIX( 0.5f ) };
+	b3CreateSphereShape( bodyId, &shapeDef, &offPath );
+	b3ShapeId onPathId = b3CreateSphereShape( bodyId, &shapeDef, &onPath );
+
+	b3Capsule mover = MakeStandingMover();
+	b3WorldTransform bodyTransform = IdentityAt( B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) );
+	b3Vec3 translation = { B3_FIX( 10.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
+	b3BodyTOIResult result =
+		b3Body_TimeOfImpactMover( bodyId, b3Pos_zero, &mover, translation, b3DefaultQueryFilter(), bodyTransform, bodyTransform );
+
+	ENSURE_SMALL( result.fraction - B3_FIX( 0.425f ), B3_FIX( 0.01f ) );
+	ENSURE( result.shapeId.index1 == onPathId.index1 );
+
+	b3DestroyWorld( worldId );
+	return 0;
+}
+
+// The body sweeps between the two supplied transforms. A bar spinning a quarter turn about Y
+// reaches a mover that its start pose clears.
+static int MoverTOIRotatingBody( void )
+{
+	b3BodyId bodyId;
+	b3WorldId worldId = CreateQueryWorld( &bodyId );
+
+	b3BoxHull bar = b3MakeBoxHull( B3_FIX( 2.0f ), B3_FIX( 0.25f ), B3_FIX( 0.25f ) );
+	b3ShapeDef shapeDef = b3DefaultShapeDef();
+	b3CreateHullShape( bodyId, &shapeDef, &bar.base );
+
+	// Query origin puts the mover at world (0,0,2.1), just inside the swept end of the bar.
+	b3Pos origin = { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 2.1f ) };
+	b3Capsule mover = MakeStandingMover();
+	b3WorldTransform transform1 = IdentityAt( B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) );
+	b3WorldTransform transform2 = {
+		.p = (b3Pos){ B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) },
+		.q = b3MakeQuatFromAxisAngle( (b3Vec3){ B3_FIX( 0.0f ), B3_FIX( 1.0f ), B3_FIX( 0.0f ) },
+									  b3FixMul( B3_FIX( 0.5f ), B3_PI ) ),
+	};
+
+	b3BodyTOIResult spinning =
+		b3Body_TimeOfImpactMover( bodyId, origin, &mover, b3Vec3_zero, b3DefaultQueryFilter(), transform1, transform2 );
+
+	ENSURE( B3_FIX( 0.0f ) < spinning.fraction && spinning.fraction < B3_FIX( 1.0f ) );
+
+	// Holding the start pose leaves the bar along X and well clear.
+	b3BodyTOIResult still =
+		b3Body_TimeOfImpactMover( bodyId, origin, &mover, b3Vec3_zero, b3DefaultQueryFilter(), transform1, transform1 );
+
+	ENSURE( still.fraction == B3_FIX( 1.0f ) );
+	ENSURE( B3_IS_NULL( still.shapeId ) );
+
+	b3DestroyWorld( worldId );
+	return 0;
+}
+
+// Everything is re-centered on the origin, so a huge origin must not shift the fraction and the
+// hit point comes back in the origin frame.
+static int MoverTOIFarFromOrigin( void )
+{
+	b3BodyId bodyId;
+	b3WorldId worldId = CreateQueryWorld( &bodyId );
+
+	b3BoxHull box = b3MakeBoxHull( B3_FIX( 0.5f ), B3_FIX( 0.5f ), B3_FIX( 0.5f ) );
+	b3ShapeDef shapeDef = b3DefaultShapeDef();
+	b3CreateHullShape( bodyId, &shapeDef, &box.base );
+
+	b3Pos origin = { B3_FIX( 1000000.0f ), -B3_FIX( 2000000.0f ), B3_FIX( 500000.0f ) };
+	b3Capsule mover = MakeStandingMover();
+	b3WorldTransform bodyTransform = { .p = b3OffsetPos( origin, (b3Vec3){ B3_FIX( 5.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) } ), .q = b3Quat_identity };
+	b3Vec3 translation = { B3_FIX( 10.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
+	b3BodyTOIResult result =
+		b3Body_TimeOfImpactMover( bodyId, origin, &mover, translation, b3DefaultQueryFilter(), bodyTransform, bodyTransform );
+
+	ENSURE_SMALL( result.fraction - B3_FIX( 0.425f ), B3_FIX( 0.01f ) );
+	ENSURE_SMALL( result.normal.x + B3_FIX( 1.0f ), B3_FIX( 0.001f ) );
+	ENSURE_SMALL( (result.point.x - origin.x) - B3_FIX( 4.4f ), B3_FIX( 0.5f ) );
+
+	b3DestroyWorld( worldId );
+	return 0;
+}
+
 int BodyQueryTest( void )
 {
 	RUN_SUBTEST( CastRayHitsSphere );
@@ -722,6 +811,9 @@ int BodyQueryTest( void )
 	RUN_SUBTEST( MoverTOISeparated );
 	RUN_SUBTEST( MoverTOIOverlapped );
 	RUN_SUBTEST( MoverTOIClosestShape );
+	RUN_SUBTEST( MoverTOIKeepsHitAfterMiss );
+	RUN_SUBTEST( MoverTOIRotatingBody );
+	RUN_SUBTEST( MoverTOIFarFromOrigin );
 
 	return 0;
 }
