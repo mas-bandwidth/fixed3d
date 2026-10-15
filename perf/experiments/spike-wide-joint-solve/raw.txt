@@ -1,0 +1,31 @@
+# spike-wide-joint-solve raw measurement output
+
+## cpu_info.sh (equivalent, run by hand — tools/perf/cpu_info.sh is absent)
+
+CPU model: AMD Ryzen 9 7950X3D 16-Core Processor
+ISA flags (grep -o -w -E 'avx2|avx512f|avx512dq|avx512vl' /proc/cpuinfo | sort -u):
+  avx2
+  avx512dq
+  avx512f
+  avx512vl
+
+Compiler: gcc (system /usr/bin/cc), RelWithDebInfo, LTO on, -ffp-contract=off, -Werror.
+taskset -cp $$: not run (no pinning; the space box runs sessions in a one-core jail).
+Load average / pgrep -af benchmark: not recorded (no benchmark was run — see below).
+
+## ab.sh tables
+
+NOT RUN. The perf harness (tools/perf/ab.sh) is absent from this checkout; the card's
+DEPENDS-ON fixed3d-perf-harness has not landed. No before/after numbers exist for
+joint_grid, ragdoll_pile or trees25.
+
+## oracle_check lines
+
+NOT RUN. tools/perf/oracle_check.sh is absent. Bit-exactness is asserted only by the
+unit test (./bin/test JointTest, green in narrow and BOX3D_LUDICROUS_MODE), and by
+construction (the wide function is a loop over the scalar functions).
+
+## Test run
+
+build (narrow):   ./bin/test JointTest -> exit 0, TestWideSphericalJointEquivalence passed
+build-ludicrous:  ./bin/test JointTest -> exit 0, TestWideSphericalJointEquivalence passed
