@@ -163,10 +163,8 @@ PR checks target 1–2 minutes and retain the full determinism suite. Slower
 sanitizer, platform and sample/audit jobs are available through the manually
 triggered **Extended checks** workflow; see [CI instructions](CONTRIBUTING.md#fast-and-extended-ci).
 
-Issues specific to Fixed3D are welcome
-[here](https://github.com/mas-bandwidth/fixed3d/issues). For issues with Box3D
-in general, please use the
-[Box3D repository](https://github.com/erincatto/box3d).
+Issues specific to Fixed3D are welcome [here](https://github.com/mas-bandwidth/fixed3d/issues). 
+For issues with Box3D in general, please use the [Box3D repository](https://github.com/erincatto/box3d).
 
 ## License
 
@@ -176,6 +174,6 @@ MIT, same as Box3D.
 
 If you use fixed3d in a product, please credit it in your product credits:
 
-> Fixed3d - Glenn Fiedler and Rowan Claude
+> fixed3d - Glenn Fiedler and Rowan Claude
 
 fixed3d is a conversion of [Box3D](https://github.com/erincatto/box3d) — please also credit **Box3D - Erin Catto**. The license doesn't require either credit. It's an official request, and honoring it is appreciated. Fair credit keeps open source honest.
