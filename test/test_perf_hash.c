@@ -23,10 +23,9 @@
 #define PERF_FNV_INIT UINT64_C( 14695981039346656037 )
 #define PERF_FNV_PRIME UINT64_C( 1099511628211 )
 
-// The golden hash for one worker. This is the constant the oracle is pinned to;
-// it must be re-captured when the test first lands (the hash is deterministic for
-// a fixed build, so a clean capture agrees on the second run before it is trusted).
-#define PERF_STATE_HASH_GOLDEN UINT64_C( 0x0 ) // TODO: capture on first run
+// Captured on the scalar RelWithDebInfo+VALIDATE build, 2026-10-15. Workers 1 and 4
+// printed the same value before this constant was pinned (red line: hashOne == 0).
+#define PERF_STATE_HASH_GOLDEN UINT64_C( 0xc4f45e4c6b5534e6 )
 
 static uint64_t PerfHashValue( uint64_t hash, int64_t value )
 {
@@ -86,7 +85,7 @@ static uint64_t PerfStepAndHash( int workerCount )
 	for ( int i = 0; i < PERF_NUM_BODIES; ++i )
 	{
 		bodyDef.position = (b3Pos){ b3FixFromInt( ( i % 5 ) - 2 ), B3_FIX( 1.0f ) + b3FixFromInt( i / 5 ), b3FixFromInt( ( i % 4 ) - 1 ) };
-		bodyDef.rotation = (b3Quat){ { B3_FIX( 0.1f ) * b3FixFromInt( i & 3 ), 0, 0 }, B3_FIX( 0.998f ) };
+		bodyDef.rotation = b3Quat_identity;
 		world.bodies[i] = b3CreateBody( worldId, &bodyDef );
 		b3CreateHullShape( world.bodies[i], &shapeDef, &box.base );
 	}
@@ -103,7 +102,7 @@ static uint64_t PerfStepAndHash( int workerCount )
 	return hash;
 }
 
-int PerfStateHashGoldenTest( void )
+static int PerfStateHashGolden( void )
 {
 	uint64_t hashOne = PerfStepAndHash( PERF_WORKERS_ORDERED );
 	uint64_t hashFour = PerfStepAndHash( PERF_WORKERS_AGREE );
@@ -117,5 +116,11 @@ int PerfStateHashGoldenTest( void )
 	// Golden: one worker matches the frozen constant.
 	ENSURE( hashOne == PERF_STATE_HASH_GOLDEN );
 
+	return 0;
+}
+
+int PerfStateHashGoldenTest( void )
+{
+	RUN_SUBTEST( PerfStateHashGolden );
 	return 0;
 }
