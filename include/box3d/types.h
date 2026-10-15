@@ -2454,6 +2454,8 @@ typedef struct b3CompoundData
 
 	/// The total number of bytes for this compound.
 	int byteCount;
+	/// Explicit alignment padding, always zero in serialized bytes.
+	int padding;
 
 	/// Bounds of the baked tree.
 	b3AABB bounds;

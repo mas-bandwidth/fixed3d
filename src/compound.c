@@ -54,6 +54,11 @@ typedef struct b3MeshInstance
 // (b3Pos/b3AABB), not b3Vec3, so these sizes are identical in both configs.
 _Static_assert( sizeof( b3CompoundCapsule ) == 64, "review padding" );
 _Static_assert( sizeof( b3CompoundSphere ) == 40, "review padding" );
+#if defined( BOX3D_LUDICROUS_MODE )
+_Static_assert( sizeof( b3CompoundData ) == 176, "review pointer-free compound layout" );
+#else
+_Static_assert( sizeof( b3CompoundData ) == 128, "review pointer-free compound layout" );
+#endif
 
 static inline b3TreeNode* b3GetCompoundNodes( b3CompoundData* compound )
 {
@@ -720,7 +725,7 @@ const b3CompoundData* b3ValidateCompound( const uint8_t* bytes, int byteCount )
 		return NULL;
 	}
 	const b3CompoundData* compound = (const b3CompoundData*)bytes;
-	if ( compound->version != B3_COMPOUND_VERSION || compound->byteCount != byteCount || compound->nodeCount < 2 ||
+	if ( compound->version != B3_COMPOUND_VERSION || compound->byteCount != byteCount || compound->padding != 0 || compound->nodeCount < 2 ||
 		 compound->root < 0 || compound->root >= compound->nodeCount || compound->materialCount <= 0 )
 	{
 		return NULL;

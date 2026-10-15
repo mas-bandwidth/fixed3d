@@ -54,6 +54,39 @@ and says *closed*. Record below.)*
 
 The PORT RECORDs below run newest first and are the detail for each step.
 
+- **PORT RECORD 5d83df8 "Improve compound serialization (#183)" (2026-10-15) —
+  fixed3d-local pointer-free harvest (card fixed3d-box3d-ports-compound-block,
+  sub-task 3).** The upstream proxy-array removal and `b3TreeView` traversal
+  rewrite remain HELD on `f555ee4`; this fork has no baked proxy array. The
+  baked `b3CompoundData` now stores `bounds`, `treeHeight`, `nodeCount`, and
+  `root` beside offsets instead of an embedded `b3DynamicTree` with a live
+  pointer. Traversal constructs a stack tree view over the node offset. The
+  validator reads const bytes and rejects short, misaligned, overlapping, or
+  out-of-range sections, node counts below two, invalid roots, bad nested
+  hull/mesh offsets and mesh material maps. Every count-times-size bound uses
+  64-bit arithmetic. `CompoundBlobInvariants` was RED against the permissive
+  validator (`condition false: b3ValidateCompound( bytes, byteCount ) == NULL`)
+  and is green after the checks; `CompoundSerializeRoundtrip` asserts validation
+  leaves the input bytes untouched. `b3InternGeometry` and `b3AppendGeometry`
+  now copy const input; replay borrows the validated registry compound bytes.
+  `b3Shape_GetCompound` closes the public accessor gap.
+  **MEASURED LAYOUT** (compiled on Linux in both configurations):
+  `sizeof(b3CompoundData)` narrow 128, ludicrous 176; an explicit zero `padding`
+  int makes sum-of-members equal `sizeof` in both. The corresponding single
+  sphere blobs were 2464 and 4248 bytes; each validates only in its own build.
+  The twelve geometry `sizeof` terms and hull/mesh/height-field/compound
+  version words now enter the snapshot layout hash. Direct cross-configuration
+  snapshot loads in both directions print `b3DeserializeIntoShell: layout hash
+  mismatch` and refuse the image. **FORMAT COUNTERS:** effective compound
+  version `0xC42D52D5E8DBE365` -> `0xE95D159AECB9642F` (new fixed3d constant
+  `0xC4B2A90E7D613F58` XOR mesh and hull versions); snapshot 2 -> 3;
+  recording major 8 -> 9 (minor remains 6). Older recordings are refused at
+  the major check, and old snapshots at the version/hash check. GOLDENS: none
+  moved. Full `./bin/test` is green in narrow and ludicrous; a cross-config
+  reference scene is deferred because the current harness has no compound,
+  mesh, or snapshot/restore directives. The separate harness extension card
+  owns the float comparison and roundtrip scene.
+
 - **PORT RECORD 3d9db79 (field-by-field tree copy) "various recording fixes (#182)" (2026-10-15) —
   PORTED (card fixed3d-box3d-ports-compound-block, sub-task 2; the compound.c half only).**
   `b3CreateCompound` baked the runtime dynamic tree with a whole-struct

@@ -997,6 +997,15 @@ static int EmptyWorldRoundTrip( void )
 	ENSURE( hdr.snapshotSize > 0 );
 
 	ENSURE( b3ValidateReplay( data, size, 1 ) );
+	// The pointer-free compound format changed the recording major and the snapshot layout hash.
+	uint8_t* incompatible = (uint8_t*)b3Alloc( (size_t)size );
+	memcpy( incompatible, data, (size_t)size );
+	( (b3RecHeader*)incompatible )->versionMajor = 8;
+	ENSURE( b3CreatePlayer( incompatible, size, 1 ) == NULL );
+	memcpy( incompatible, data, (size_t)size );
+	incompatible[sizeof( b3RecHeader ) + 8] ^= 1; // snapshot layoutHash
+	ENSURE( b3CreatePlayer( incompatible, size, 1 ) == NULL );
+	b3Free( incompatible, (size_t)size );
 
 	// Restart restores in place, so the replay world id survives a rewind.
 	b3RecPlayer* player = b3CreatePlayer( data, size, 1 );

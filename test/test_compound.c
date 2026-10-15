@@ -992,6 +992,9 @@ static int CompoundBlobInvariants( void )
 	memcpy( bytes, a, (size_t)byteCount );
 	blob->version ^= 1;
 	ENSURE( b3ValidateCompound( bytes, byteCount ) == NULL );
+	memcpy( bytes, a, (size_t)byteCount );
+	blob->padding = 1;
+	ENSURE( b3ValidateCompound( bytes, byteCount ) == NULL );
 
 	free( bytes );
 	b3DestroyCompound( a );
