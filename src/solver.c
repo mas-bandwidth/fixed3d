@@ -482,7 +482,7 @@ static bool b3ContinuousQueryCallback( int proxyId, uint64_t userData, void* con
 }
 
 // Continuous collision of dynamic versus static
-static void b3SolveContinuous( b3World* world, int bodySimIndex, b3TaskContext* taskContext )
+static void b3SolveContinuous( b3World* world, int bodySimIndex, b3TaskContext* taskContext, b3Fixed dt )
 {
 	b3TracyCZoneNC( ccd, "CCD", b3_colorDarkGoldenRod, true );
 
@@ -575,6 +575,22 @@ static void b3SolveContinuous( b3World* world, int bodySimIndex, b3TaskContext* 
 		fastBodySim->center = center;
 		fastBodySim->rotation0 = q;
 		fastBodySim->center0 = center;
+
+		// Timeloss means there is a lost gravity contribution. Other forces and torques are
+		// ignored for now. In fixed point the two chained products must not be formed as
+		// (1 - fraction) * dt first: that quantizes to zero for a fraction near 1. Multiply the
+		// large operands (gravityScale, gravity, dt) first and the small (1 - fraction) last.
+		b3BodyState* fastBodyState = b3Array_Get( awakeSet->bodyStates, bodySimIndex );
+		b3Vec3 v = fastBodyState->linearVelocity;
+		b3Fixed oneMinusFraction = B3_FIX( 1.0f ) - context.fraction;
+		b3Fixed scaleDt = b3FixMul( fastBodySim->gravityScale, dt );
+		b3Vec3 dv = { -b3FixMul( oneMinusFraction, b3FixMul( scaleDt, world->gravity.x ) ),
+					  -b3FixMul( oneMinusFraction, b3FixMul( scaleDt, world->gravity.y ) ),
+					  -b3FixMul( oneMinusFraction, b3FixMul( scaleDt, world->gravity.z ) ) };
+		dv.x = ( fastBodyState->flags & b3_lockLinearX ) ? 0 : dv.x;
+		dv.y = ( fastBodyState->flags & b3_lockLinearY ) ? 0 : dv.y;
+		dv.z = ( fastBodyState->flags & b3_lockLinearZ ) ? 0 : dv.z;
+		fastBodyState->linearVelocity = b3Add( v, dv );
 
 		// The move event was written before CCD, so correct it with the impact pose
 		b3BodyMoveEvent* event = b3Array_Get( world->bodyMoveEvents, bodySimIndex );
@@ -785,7 +801,7 @@ static void b3FinalizeBodiesTask( int startIndex, int endIndex, int workerIndex,
 				}
 				else
 				{
-					b3SolveContinuous( world, simIndex, taskContext );
+					b3SolveContinuous( world, simIndex, taskContext, timeStep );
 				}
 			}
 			else
@@ -1475,7 +1491,7 @@ static void b3BulletBodyTask( int startIndex, int endIndex, int workerIndex, voi
 	for ( int i = startIndex; i < endIndex; ++i )
 	{
 		int simIndex = stepContext->bulletBodies[i];
-		b3SolveContinuous( stepContext->world, simIndex, taskContext );
+		b3SolveContinuous( stepContext->world, simIndex, taskContext, stepContext->dt );
 	}
 
 	b3TracyCZoneEnd( bullet_body_task );

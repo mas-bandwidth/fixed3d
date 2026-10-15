@@ -29,13 +29,15 @@
 // vs 56-byte). Full 128 bits are hashed.
 //
 // The 954cf87 re-rig (shared/human.c) moved this scene: sleep 325 both builds,
-// hash narrow 0x97AB456D / ludicrous 0x7ACB4BED. Workers 1-5 and two generation
-// runs agree. A SLEEP STEP OF 0 MEANS THE RAGDOLLS NEVER SETTLED.
-#define RAGDOLL_SLEEP_STEP 325
+// hash narrow 0x97AB456D / ludicrous 0x7ACB4BED. The 9e5a4cd CCD time-loss gravity
+// fix moved it again: sleep 349 both builds, hash narrow 0xCCF7BCE5 / ludicrous
+// 0xC1DB33A5. Workers 1-5 and two generation runs agree.
+// A SLEEP STEP OF 0 MEANS THE RAGDOLLS NEVER SETTLED.
+#define RAGDOLL_SLEEP_STEP 349
 #if defined( BOX3D_LUDICROUS_MODE )
-#define RAGDOLL_HASH 0x7ACB4BED
+#define RAGDOLL_HASH 0xC1DB33A5
 #else
-#define RAGDOLL_HASH 0x97AB456D
+#define RAGDOLL_HASH 0xCCF7BCE5
 #endif
 
 // Goldens for the wave pile, query spawn and mesh drop scenarios. Fixed-point goldens
@@ -46,25 +48,27 @@
 #define QUERY_SPAWN_SLEEP_STEP 243
 #define QUERY_SPAWN_HIT_COUNT 59
 #define QUERY_SPAWN_QUERY_HASH 0xE583B246
-#define MESH_DROP_SLEEP_STEP 210
+#define MESH_DROP_SLEEP_STEP 284
 #if defined( BOX3D_LUDICROUS_MODE )
 #define WAVE_PILE_HASH 0x253BEF8E
 #define QUERY_SPAWN_HASH 0x7C6B3268
-#define MESH_DROP_HASH 0xDB1DA8B9
+#define MESH_DROP_HASH 0xE44E6A0E
 #else
 #define WAVE_PILE_HASH 0x22BF35CE
 #define QUERY_SPAWN_HASH 0x49ECDEA8
-#define MESH_DROP_HASH 0x491E324B
+#define MESH_DROP_HASH 0x784AD80A
 #endif
 
 // Re-rigged single ragdoll (box3d 954cf87) dropped on a ground box. Harvested
 // on this bench: sleep 228 both builds, hash narrow 0xB12CCFAE / ludicrous
-// 0x8075582E, identical for workers 1-5 and across two generation runs.
-#define RAGDOLL_HUMAN_SLEEP_STEP 228
+// 0x8075582E, identical for workers 1-5 and across two generation runs. The
+// 9e5a4cd CCD time-loss gravity fix moved it again: sleep 233 both builds, hash
+// narrow 0xB7304EDD / ludicrous 0x4BED5D1D, identical across workers 1-5.
+#define RAGDOLL_HUMAN_SLEEP_STEP 233
 #if defined( BOX3D_LUDICROUS_MODE )
-#define RAGDOLL_HUMAN_HASH 0x8075582E
+#define RAGDOLL_HUMAN_HASH 0x4BED5D1D
 #else
-#define RAGDOLL_HUMAN_HASH 0xB12CCFAE
+#define RAGDOLL_HUMAN_HASH 0xB7304EDD
 #endif
 
 static int SingleMultithreadingTest( int workerCount )

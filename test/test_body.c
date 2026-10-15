@@ -1071,6 +1071,46 @@ static int LocatorFastFlagTest( void )
 	return 0;
 }
 
+static int CcdGravityTimeLossTest( void )
+{
+	b3WorldDef worldDef = b3DefaultWorldDef();
+	worldDef.gravity = (b3Vec3){ B3_FIX( 0.0f ), -B3_FIX( 10.0f ), B3_FIX( 0.0f ) };
+	b3WorldId worldId = b3CreateWorld( &worldDef );
+
+	// Vertical wall
+	b3BodyDef wallDef = b3DefaultBodyDef();
+	wallDef.type = b3_staticBody;
+	wallDef.position = (b3Pos){ -B3_FIX( 1.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
+	b3BodyId wallId = b3CreateBody( worldId, &wallDef );
+	b3ShapeDef shapeDef = b3DefaultShapeDef();
+	b3BoxHull box = b3MakeBoxHull( B3_FIX( 0.5f ), B3_FIX( 10.0f ), B3_FIX( 1.0f ) );
+	b3CreateHullShape( wallId, &shapeDef, &box.base );
+
+	// Bullet fired toward the wall, under gravity, with no vertical velocity. It impacts
+	// early in the first step, so the lost time (1 - fraction) * dt is most of the step.
+	b3BodyDef bulletDef = b3DefaultBodyDef();
+	bulletDef.type = b3_dynamicBody;
+	bulletDef.isBullet = true;
+	bulletDef.gravityScale = B3_FIX( 1.0f );
+	bulletDef.position = (b3Pos){ -B3_FIX( 3.0f ), B3_FIX( 2.0f ), B3_FIX( 0.0f ) };
+	bulletDef.linearVelocity = (b3Vec3){ B3_FIX( 400.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
+	b3BodyId bulletId = b3CreateBody( worldId, &bulletDef );
+	b3Sphere sphere = { { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, B3_FIX( 0.1f ) };
+	b3CreateSphereShape( bulletId, &shapeDef, &sphere );
+
+	b3World_Step( worldId, b3FixDiv( B3_FIX( 1.0f ), B3_FIX( 60.0f ) ), 1 );
+
+	// After the time-of-impact, the vertical velocity must carry only the pre-impact gravity
+	// (gravity * dt * fraction), not the full-step gravity (gravity * dt): once the body is
+	// supported by the wall the lost time contributes no downward velocity. Full-step gravity
+	// would read about -0.167; the corrected value is a small fraction of that.
+	b3Vec3 v = b3Body_GetLinearVelocity( bulletId );
+	ENSURE( v.y > -B3_FIX( 0.1f ) );
+
+	b3DestroyWorld( worldId );
+	return 0;
+}
+
 static int BodySimLocatorTest( void )
 {
 	typedef uint64_t ( *LocatorScene )( int workerCount, int* failed );
@@ -1110,6 +1150,7 @@ int BodyTest( void )
 	RUN_SUBTEST( SetMassDataZeroMass );
 	RUN_SUBTEST( SetMassDataConsistentVelocity );
 	RUN_SUBTEST( ShapeExtents );
+	RUN_SUBTEST( CcdGravityTimeLossTest );
 	RUN_SUBTEST( BodySimLocatorTest );
 	return 0;
 }
