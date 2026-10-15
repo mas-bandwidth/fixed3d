@@ -1,0 +1,40 @@
+raw measurement output — spike-invmul-fits-64-arm.w1 (fixed3d stream fixed3d-perf)
+
+NOTE: the DEPENDS-ON card fixed3d-perf-harness is NOT present in this checkout.
+tools/perf/ (README.md, oracle_check.sh), cpu_info.sh and ab.sh do not exist, so the
+specified harness measurement and the tools/perf/oracle_check.sh bit-exactness oracle
+could not be run. The numbers below are from the in-tree standalone `benchmark`
+executable (Release + LTO) and the determinism goldens in test/test_determinism.c, which
+serve as the available bit-exactness oracle.
+
+cpu_info:
+  model name: AMD Ryzen Threadripper 2990WX 32-Core Processor
+  logical threads (nproc): 64
+  ISA: avx2 only (no avx512f/avx512dq/avx512vl)
+  compiler: gcc (Ubuntu 15.2.0-16ubuntu1) 15.2.0  /  clang 21.1.8 (bench build used gcc)
+  cmake 4.2.3
+  taskset -cp $$: pid ... current affinity list: 0-63
+  load average (before): 0.44, 0.62, 0.80
+  pgrep -af benchmark: none beside this session
+
+ab.sh tables (standalone benchmark, Release+LTO, interleaved-style, 1 worker,
+joint_grid, 100 steps, 5 repeats; ms):
+
+  base (HEAD, unchanged inverse.h):  run 0 7057.48  run 1 6333.05  run 2 6308.58  run 3 6330.41  run 4 6326.14
+  patch (64-bit arm + b3InvFromRatio): run 0 7087.39  run 1 6330.05  run 2 6286.27  run 3 6282.25  run 4 6297.12
+
+  min / median after dropping the warm run-0 (which heats up on first step):
+    base    median ~6330 ms (min 6308.58)
+    patch   median ~6297 ms (min 6282.25)
+  => a wash (sub-1%, well inside run-to-run +/-2% spread), as expected: on x86-64 the
+     128-bit b3InvMul already compiles to a single imul writing rdx:rax, so the 64-bit
+     arm's one-imul form is instruction-for-instruction the same. Only the bigger
+     impulse-apply scenes could show a delta and were not measured in time; they were
+     not run to completion within the wall.
+
+oracle_check lines: tools/perf/oracle_check.sh ABSENT (missing harness). In its place:
+  ./bin/test (narrow, RelWithDebInfo+VALIDATE+Werror)  -> "All Fixed3D tests passed!", exit 0
+  ./bin/test (ludicrous, same flags)                   -> "All Fixed3D tests passed!", exit 0
+  Both builds reproduce the pinned determinism goldens in test/test_determinism.c
+  (ragdoll, wave pile, query spawn, mesh drop) bit-identically, which is the repo's
+  scalar-oracle-equivalent state-hash check across worker counts 1-5.
