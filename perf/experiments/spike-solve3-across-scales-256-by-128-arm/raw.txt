@@ -1,0 +1,46 @@
+=== tools/perf/cpu_info.sh ===
+== CPU model ==
+model name	: AMD EPYC 9124 16-Core Processor
+== ISA flags ==
+avx2
+avx512dq
+avx512f
+avx512ifma
+avx512vl
+== cores ==
+32
+== CPU pinning ==
+pid 211382's current affinity list: 0-31
+== Load average ==
+2.69 2.68 2.32 4/1471 211400
+== Compiler ==
+cc (Ubuntu 15.2.0-16ubuntu1) 15.2.0
+c++ (Ubuntu 15.2.0-16ubuntu1) 15.2.0
+== cmake ==
+cmake version 4.2.3
+== cmake flags ==
+configured by the build dir; paste the cmake -B ... line used
+
+=== build/bin/test JointTest (subtest Solve3AcrossScalesMiddleArmTest) ===
+Filter: JointTest
+  subtest passed: Solve3AcrossScalesMiddleArmTest
+test passed: JointTest
+All Fixed3D tests passed!
+Test duration = 6.43 s
+
+=== build/bin/test full suite tail ===
+======================================
+All Fixed3D tests passed!
+Test duration = 10.86 s
+
+=== microbench: division alone (20M) ===
+middle-arm 256/128: 1235.65 ms (20000000)
+full 256/256 Knuth: 1392.06 ms (20000000)
+speedup: 1.13x
+sink=280
+
+=== microbench: end-to-end solve (5M) ===
+solve middle-arm: 1391.54 ms
+solve full-path : 1316.86 ms
+speedup 0.95x
+sink=-855765195
