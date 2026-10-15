@@ -60,6 +60,19 @@ and says *closed*. Record below.)*
 
 The PORT RECORDs below run newest first and are the detail for each step.
 
+- **PORT RECORD reference harness compound/mesh/snapshot/contact vocabulary (2026-10-15).**
+  `ref-harness-compound-mesh-vocabulary`, `ref-harness-snapshot-restore`,
+  `ref-5d83df8-compound-roundtrip`, and `ref-954cf87-manifold-points-exact` exercise
+  genuine static baked compounds (box/sphere/capsule/hull children), material-indexed
+  static meshes, public snapshot-seed restore in both engines, and exact nonzero
+  contact point-set cardinalities with position/separation tolerance and bijective
+  matching. Baked compounds require static bodies and equal child densities; the
+  parser refuses unsupported cases. Narrow/ludicrous full suites and all four new
+  refs pass at float `79fc559`; all 25 older scene traces remain byte-identical to
+  base `59eff1c`, including its five mixed-pin failures named in the harness README.
+  No engine edits or golden changes. The two historical six-material-mesh-child
+  and identical-build scene names remain deferred; see README for scope and evidence.
+
 - **PORT RECORD 9e5a4cd + 79fc559 "CCD time-loss gravity + five bug fixes" (2026-10-15) —
   PORTED, engine half (card port-9e5a4cd-ccd-gravity-loss-and-five-bug-fixes).** This is
   sub-task 2 of the fixed3d#65 3+4 step (T2's G3 and the five bug fixes H-F/H-G/H-H/H-L).

@@ -5,8 +5,8 @@
 // the trace comparer WITHOUT either engine. The parser reads an in-memory scene
 // string; the comparer compares hand-written traces inside and outside tolerance.
 
-#include "test_macros.h"
 #include "ref_scene.h"
+#include "test_macros.h"
 
 #include <string.h>
 
@@ -14,19 +14,20 @@
 // the unit tier stays a single self-contained test (no separate library target).
 #include "ref_scene.c"
 
-static const char* kScene = "# a small static scene\n"
-							"expect pos 0.01 rot 0.001 vel 0.01 horizon 120 counts exact\n"
-							"world gravity 0 -10 0 dt 1 60 substeps 4 steps 2\n"
-							"body static position 0 0 0 rotation 0 0 0 1 linvel 0 0 0 angvel 0 0 0\n"
-							"body dynamic position 0 1 0 rotation 0 0 0 1 linvel 0 0 0 angvel 0 0 0\n"
-							"shape 0 box 5 0.5 5 density 1 friction 0.5 restitution 0.1\n"
-							"shape 1 sphere 0.5 density 1 friction 0.5 restitution 0.2 rolling 0.05\n"
-							"shape 1 capsule 0.25 0.5 axis 0 1 0 density 1 friction 0.5 restitution 0.2\n"
-							"shape 1 hull points 4 0.5 0 0.5 -0.5 0 0.5 -0.5 0 -0.5 0.5 0 -0.5 density 1 friction 0.5 restitution 0\n"
-							"joint revolute 0 1 anchor 0 0.5 0 axis 0 0 1\n"
-							"query raycast origin 0 5 0 translation 0 -10 0\n"
-							"query overlap_aabb lower -1 -1 -1 upper 1 1 1\n"
-							"query closest_points 0 1\n";
+static const char* kScene =
+	"# a small static scene\n"
+	"expect pos 0.01 rot 0.001 vel 0.01 horizon 120 counts exact\n"
+	"world gravity 0 -10 0 dt 1 60 substeps 4 steps 2\n"
+	"body static position 0 0 0 rotation 0 0 0 1 linvel 0 0 0 angvel 0 0 0\n"
+	"body dynamic position 0 1 0 rotation 0 0 0 1 linvel 0 0 0 angvel 0 0 0\n"
+	"shape 0 box 5 0.5 5 density 1 friction 0.5 restitution 0.1\n"
+	"shape 1 sphere 0.5 density 1 friction 0.5 restitution 0.2 rolling 0.05\n"
+	"shape 1 capsule 0.25 0.5 axis 0 1 0 density 1 friction 0.5 restitution 0.2\n"
+	"shape 1 hull points 4 0.5 0 0.5 -0.5 0 0.5 -0.5 0 -0.5 0.5 0 -0.5 density 1 friction 0.5 restitution 0\n"
+	"joint revolute 0 1 anchor 0 0.5 0 axis 0 0 1\n"
+	"query raycast origin 0 5 0 translation 0 -10 0\n"
+	"query overlap_aabb lower -1 -1 -1 upper 1 1 1\n"
+	"query closest_points 0 1\n";
 
 static int ParseDirectivesTest( void )
 {
@@ -217,8 +218,7 @@ static int GeneratorSceneTest( void )
 	// the generator is deterministic: the same seed parses to the same points
 	b3RefScene again;
 	ENSURE( b3RefParseScene( kGeneratorScene, &again, error, sizeof( error ) ) );
-	ENSURE( memcmp( again.shapes[0].hullPoints, scene.shapes[0].hullPoints,
-					sizeof( scene.shapes[0].hullPoints ) ) == 0 );
+	ENSURE( memcmp( again.shapes[0].hullPoints, scene.shapes[0].hullPoints, sizeof( scene.shapes[0].hullPoints ) ) == 0 );
 
 	// a hull body without a pending generator is a parse error
 	const char* bad = "expect contactCount >= 1\nbody hull position 0 5 0\n";
@@ -286,8 +286,128 @@ static int PredicateCompareTest( void )
 	return 0;
 }
 
+static int ReferenceSceneCompoundMeshSnapshotParseTest( void )
+{
+	const char* text =
+		"expect pos 0.001 rot 0.001 vel 0.001 horizon 90 counts exact\n"
+		"world gravity 0 -10 0 dt 1 60 substeps 4 steps 90\n"
+		"body box half 1 1 1 position 0 -2 0 static\n"
+		"body box half 0.1 0.1 0.1 position 0 3 0 dynamic\n"
+		"shape 0 compound children 1 sphere 0.5 position 1 0 0 rotation 0 0 0 1 density 1 friction 0.5 restitution 0.2\n"
+		"shape 0 mesh vertices 3 -5 0 -5 0 0 5 5 0 -5 triangles 1 0 1 2 materials 1 0.5 0.2 indices 0\n"
+		"snapshot save at 30\n"
+		"snapshot restore at 60\n"
+		"trace contacts\n";
+	b3RefScene scene;
+	char error[256];
+	bool ok = b3RefParseScene( text, &scene, error, sizeof( error ) );
+	if ( !ok )
+		printf( "ReferenceSceneCompoundMeshSnapshotParseTest: %s\n", error );
+	ENSURE( ok );
+	ENSURE( scene.shapeCount == 4 );
+	ENSURE( scene.shapes[2].kind == b3_refCompound );
+	ENSURE( scene.shapes[2].childCount == 1 );
+	ENSURE( scene.children[0].kind == b3_refSphere );
+	ENSURE( scene.children[0].position[0] == 1 );
+	ENSURE( scene.children[0].rotation[3] == 1 );
+	ENSURE( scene.children[0].density == 1 );
+	ENSURE( scene.children[0].friction == 0.5 );
+	ENSURE( scene.children[0].restitution == 0.2 );
+	ENSURE( scene.shapes[3].kind == b3_refMesh );
+	ENSURE( scene.shapes[3].vertexCount == 3 );
+	ENSURE( scene.shapes[3].triangleCount == 1 );
+	ENSURE( scene.shapes[3].triangles[0][2] == 2 );
+	ENSURE( scene.shapes[3].materials[0][1] == 0.2 );
+	ENSURE( scene.shapes[3].materialIndices[0] == 0 );
+	ENSURE( scene.snapshotSaveStep == 30 && scene.snapshotRestoreStep == 60 );
+	ENSURE( scene.traceContacts && scene.expect.traceContacts );
+	return 0;
+}
+
+static int ReferenceSceneGeometryValidationTest( void )
+{
+	const char* prefix = "expect pos 0.001 rot 0.001 vel 0.001 horizon 90 counts exact\n"
+						 "world gravity 0 0 0 dt 1 60 substeps 4 steps 90\n"
+						 "body box half 1 1 1 position 0 0 0 static\n"
+						 "body box half 1 1 1 position 0 3 0 dynamic\n";
+	const char* valid =
+		"shape 0 compound children 3 "
+		"box 1 2 3 position 0 1 0 rotation 0 0 0 1 density 2 friction 0.3 restitution 0.1 "
+		"capsule 0.2 0.4 position 2 0 0 rotation 0 0 0.7071 0.7071 density 2 friction 0.5 restitution 0.2 "
+		"hull points 4 0 0 0 1 0 0 0 1 0 0 0 1 position -2 0 0 rotation 0 0 0 1 density 2 friction 0.7 restitution 0.3\n";
+	char text[4096], error[256];
+	b3RefScene scene;
+	snprintf( text, sizeof( text ), "%s%s", prefix, valid );
+	ENSURE( b3RefParseScene( text, &scene, error, sizeof( error ) ) );
+	ENSURE( scene.children[0].kind == b3_refBox && scene.children[0].halfExtents[2] == 3 );
+	ENSURE( scene.children[1].kind == b3_refCapsule && scene.children[1].halfLength == 0.4 );
+	ENSURE( scene.children[2].kind == b3_refHull && scene.children[2].hullCount == 4 );
+	const char* invalid[] = {
+		"shape 1 compound children 1 sphere 1 position 0 0 0 rotation 0 0 0 1 density 1 friction 0 restitution 0\n",
+		"shape 0 compound children 0\n",
+		"shape 0 compound children 1.5\n",
+		"shape 0 compound children 129\n",
+		"shape 0 compound children 1 sphere nan position 0 0 0 rotation 0 0 0 1 density 1 friction 0 restitution 0\n",
+		"shape 0 compound children 1 sphere 1 position 0 0 0 rotation 0 0 0 0 density 1 friction 0 restitution 0\n",
+		"shape 0 mesh vertices 3 0 0 0 1 0 0 0 0 1 triangles 1 0 1 3\n",
+		"shape 1 mesh vertices 3 0 0 0 1 0 0 0 0 1 triangles 1 0 1 2\n",
+		"shape 0 mesh vertices 3 0 0 0 1 0 0 0 0 1 triangles 1 0 1 2 materials 1 0.5 0 indices 1\n",
+		"snapshot save at 30\n",
+		"snapshot save at 30\nsnapshot restore at 30\n",
+		"snapshot save at 30\nsnapshot restore at 90\n",
+		"snapshot save at 30\nsnapshot save at 31\nsnapshot restore at 60\n",
+		"trace contacts extra\n",
+		"shape 0 compound children 2 sphere 1 position 0 0 0 rotation 0 0 0 1 density 1 friction 0 restitution 0 sphere 1 "
+		"position 2 0 0 rotation 0 0 0 1 density 2 friction 0 restitution 0\n",
+	};
+	for ( int i = 0; i < (int)( sizeof( invalid ) / sizeof( invalid[0] ) ); ++i )
+	{
+		snprintf( text, sizeof( text ), "%s%s", prefix, invalid[i] );
+		ENSURE( !b3RefParseScene( text, &scene, error, sizeof( error ) ) );
+	}
+	ENSURE( strstr( error, "public baked-compound API" ) != NULL );
+	return 0;
+}
+
+static int ReferenceContactPointSetCompareTest( void )
+{
+	b3RefExpect expect = { 0 };
+	expect.posTolerance = 0.001;
+	expect.rotTolerance = 0.001;
+	expect.velTolerance = 0.001;
+	expect.horizon = 1;
+	expect.countsExact = 1;
+	expect.traceContacts = true;
+	const char* original = "step 0 counters 1 1 0\ncontacts 1\ncontact 0 129 2 -1 0 0 -0.01 1 0 0 -0.01\n";
+	const char* reordered = "step 0 counters 1 1 0\ncontacts 1\ncontact 0 129 2 1.0001 0 0 -0.01 -1 0 0 -0.01\n";
+	char report[2048];
+	ENSURE( b3RefCompareTraces( original, reordered, &expect, report, sizeof( report ) ) );
+	const char* tiedA = "step 0 counters 1 1 0\ncontacts 1\ncontact 0 129 2 0.49998 0 0.5 0 0.50003 0 -0.5 0\n";
+	const char* tiedB = "step 0 counters 1 1 0\ncontacts 1\ncontact 0 129 2 0.5 0 -0.5 0 0.5 0 0.5 0\n";
+	ENSURE( b3RefCompareTraces( tiedA, tiedB, &expect, report, sizeof( report ) ) );
+	const char* duplicated = "step 0 counters 1 1 0\ncontacts 1\ncontact 0 129 2 -1 0 0 -0.01 -1 0 0 -0.01\n";
+	ENSURE( !b3RefCompareTraces( original, duplicated, &expect, report, sizeof( report ) ) );
+	const char* bad[] = {
+		"step 0 counters 1 1 0\ncontacts 1\ncontact 0 129 1 -1 0 0 -0.01\n",			   // point count
+		"step 0 counters 1 1 0\ncontacts 0\n",											   // manifold count
+		"step 0 counters 1 1 0\ncontacts 1\ncontact 0 130 2 -1 0 0 -0.01 1 0 0 -0.01\n",   // pair
+		"step 0 counters 1 1 0\ncontacts 1\ncontact 0 129 2 -1 0 0 -0.01 1.1 0 0 -0.01\n", // position
+		"step 0 counters 1 1 0\ncontacts 1\ncontact 0 129 2 -1 0 0 -0.1 1 0 0 -0.01\n",	   // separation
+		"step 0 counters 1 1 0\n",														   // missing opt-in trace
+		"step 0 counters 1 1 0\ncontacts 1\n",											   // truncated
+		"step 0 counters 1 1 0\ncontacts 1\ncontact 0 129 2 nan 0 0 0 1 0 0 0\n",
+	};
+	for ( int i = 0; i < (int)( sizeof( bad ) / sizeof( bad[0] ) ); ++i )
+		ENSURE( !b3RefCompareTraces( original, bad[i], &expect, report, sizeof( report ) ) );
+	ENSURE( !b3RefCompareTraces( bad[5], bad[5], &expect, report, sizeof( report ) ) );
+	return 0;
+}
+
 int ReferenceSceneParseTest( void )
 {
+	RUN_SUBTEST( ReferenceSceneCompoundMeshSnapshotParseTest );
+	RUN_SUBTEST( ReferenceSceneGeometryValidationTest );
+	RUN_SUBTEST( ReferenceContactPointSetCompareTest );
 	RUN_SUBTEST( ParseDirectivesTest );
 	RUN_SUBTEST( GoldenCompareInsideTest );
 	RUN_SUBTEST( GoldenCompareOutsideTest );
