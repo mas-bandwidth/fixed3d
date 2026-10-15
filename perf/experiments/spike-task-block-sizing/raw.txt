@@ -1,0 +1,68 @@
+# spike-task-block-sizing raw measurement output
+
+## cpu_info (working Mac — NOT the required bench)
+
+The card requires a Linux bench (clang/gcc, cmake, make, perf) and measurement on
+a Zen 4 box AND an Apple silicon box. Neither is reachable from this run: the only
+machine available is the working Mac, which the card forbids for build/test. The
+perf harness (tools/perf/) is also absent from this checkout (it lives on
+origin/sprint/fixed3d-perf-harness.*, not merged into sprint/fixed3d-box3d-ports),
+so cpu_info.sh / ab.sh / oracle_check.sh do not exist here.
+
+What was run (best-effort, on the working Mac, to prove the change is bit-identical):
+
+    CPU model:      Intel(R) Xeon(R) W-2140B CPU @ 3.20GHz (iMacPro1,1)
+    ISA flags:      avx2=1 avx512f=1 avx512dq=1 avx512vl=1 avx512ifma=0
+    cores:          16
+    compiler:       Apple clang version 17.0.0 (clang-1700.6.3.2)
+    load average:   { 1.64 1.50 1.23 }
+    taskset:        n/a (macOS; no affinity pinning)
+
+## Build
+
+    cmake -B build -DCMAKE_BUILD_TYPE=RelWithDebInfo -DBOX3D_SAMPLES=OFF \
+        -DBOX3D_VALIDATE=ON -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
+    cmake --build build --parallel 2
+
+Grid cell (extreme) build:
+
+    cmake -B build-grid ... -DCMAKE_C_FLAGS="-DB3_MIN_CONTACTS_PER_BLOCK=32 \
+        -DB3_MIN_JOINTS_PER_BLOCK=32 -DB3_MIN_BODIES_PER_BLOCK=64 \
+        -DB3_MAX_BLOCK_COUNT_MULTIPLIER=8"
+
+## Bit-exact evidence (BlockSizingBitIdenticalTest)
+
+Default build (BASE values: contacts=4 joints=4 bodies=32 mult=4):
+
+    $ ./bin/test DeterminismTest
+      subtest passed: RagdollHumanTest
+      subtest passed: MultithreadingTest
+      subtest passed: BlockSizingBitIdenticalTest
+      subtest passed: CrossPlatformTest
+      subtest passed: WavePileTest
+      subtest passed: QuerySpawnTest
+      subtest passed: MeshDropTest
+      subtest passed: SphericalGeometryTest
+    test passed: DeterminismTest
+
+Extreme grid cell (contacts=32 joints=32 bodies=64 mult=8):
+
+    $ ./bin/test DeterminismTest
+      subtest passed: BlockSizingBitIdenticalTest
+    test passed: DeterminismTest
+
+Full suite green in the default build (./bin/test, all suites, 4.45 s).
+
+The ragdoll hash is RAGDOLL_HASH (0xD8C71580 narrow) at workers 1-5 in both the
+default and the extreme grid cell, so block sizing does not change any result.
+
+## NOT MEASURED (blocking the KEEP verdict)
+
+- ab.sh before/after tables on rain, many_pyramids, large_pyramid, convex_pile at
+  workers 1/2/4/8 on a Zen 4 box and an Apple silicon box: NOT RUN (no such boxes,
+  no harness).
+- oracle_check.sh scalar-oracle verification: NOT RUN (no harness, no Linux bench).
+- The A/A noise floor and the per-scene spread: NOT RUN.
+
+The measurement half of the acceptance criteria is therefore unmet; the verdict is
+LEARNED (bit-exactness proven, perf sweep not run).
