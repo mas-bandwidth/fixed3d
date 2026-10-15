@@ -1,0 +1,49 @@
+AVX2 lane multiply feasibility — first and only micro measurement
+Base: 59eff1c450f7c6d308f73d8a88c633f42e160ecb (sprint/fixed3d-box3d-ports)
+Host: vision, AMD Ryzen Threadripper 2990WX 32-Core Processor (Zen+), 64 logical CPUs
+ISA observed: avx2; avx512f/avx512dq/avx512vl absent from /proc/cpuinfo flags
+Affinity: taskset -cp $$ => 0-63 (not repinned)
+Compiler: cc (Ubuntu 15.2.0-16ubuntu1) 15.2.0
+Load before: 0.48 0.52 0.79; after: 0.48 0.52 0.79 (1/5/15 min)
+Other active benchmark/build processes: none in the process-name inventory. A broad pgrep matched an unrelated sandbox's command text, not a benchmark process.
+Source SHA-256:
+  c0643d083f42c9386af7c1bd2493f0fbf757806a6b46e173a1509aaa9761b734  benchmark/avx2_lane_mul.c
+  a4553c25103dd03a762a7b87b74ae459af7f9c2ca76faa4cdc1cc99bd8d14ce2  benchmark/avx2_lane_mul.h
+Build: nice -n 10 cc -O2 -g -DNDEBUG -flto -std=c17 -mavx2 -ffp-contract=off -Iinclude -Iextern/fixed/include benchmark/avx2_lane_mul.c -o avx2_lane_mul
+Build exit: 0
+Run: nice -n 10 ./avx2_lane_mul
+Run exit: 0
+
+differential pairs=25000000 edges=225 random=24999775 mismatches=0
+pass=1 scalar_ns_per_mul=1.1695 avx2_ns_per_mul=1.0171 speedup=1.1499
+pass=2 scalar_ns_per_mul=1.1727 avx2_ns_per_mul=1.0199 speedup=1.1498
+pass=3 scalar_ns_per_mul=1.2139 avx2_ns_per_mul=1.0486 speedup=1.1577
+pass=4 scalar_ns_per_mul=1.1992 avx2_ns_per_mul=1.0455 speedup=1.1470
+pass=5 scalar_ns_per_mul=1.2042 avx2_ns_per_mul=1.0759 speedup=1.1192
+pass=6 scalar_ns_per_mul=1.2580 avx2_ns_per_mul=1.0541 speedup=1.1935
+pass=7 scalar_ns_per_mul=1.2791 avx2_ns_per_mul=1.1776 speedup=1.0862
+scalar min=1.1695 median=1.2042 spread=0.1096 ns/mul
+avx2 min=1.0171 median=1.0486 spread=0.1605 ns/mul
+median_speedup=1.1484 sink=0
+elapsed_seconds=0.20
+
+Decision: 1.1484x < required 1.5x. Stopped at Step 1. No solver wiring, full-scene A/B, scalar oracle, or Zen 4 cross-check was run on this candidate. The unit-test source/CMake registration is in experiment.patch but was not run after the stop decision.
+
+Read-only tools/perf/cpu_info.sh snapshot after the micro (load here is later than the measured before/after lines above):
+== CPU model ==
+model name	: AMD Ryzen Threadripper 2990WX 32-Core Processor
+== ISA flags ==
+avx2
+== cores ==
+64
+== CPU pinning ==
+pid 2396208's current affinity list: 0-63
+== Load average ==
+0.37 0.43 0.71 4/1264 2396216
+== Compiler ==
+cc (Ubuntu 15.2.0-16ubuntu1) 15.2.0
+c++ (Ubuntu 15.2.0-16ubuntu1) 15.2.0
+== cmake ==
+cmake version 4.2.3
+== cmake flags ==
+configured by the build dir; paste the cmake -B ... line used
