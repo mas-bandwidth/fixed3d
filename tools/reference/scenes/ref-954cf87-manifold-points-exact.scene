@@ -1,0 +1,8 @@
+# Wide face-face contact: exact nonzero manifold point sets, not only counters.
+expect pos 0.000122 rot 0.000122 vel 0.000122 horizon 4 counts exact
+world gravity 0 0 0 dt 0 1 substeps 1 steps 4
+body static position 0 -0.5 0 rotation 0 0 0 1 linvel 0 0 0 angvel 0 0 0 flags nosleep
+body dynamic position 0 0.5 0 rotation 0 0 0 1 linvel 0 0 0 angvel 0 0 0 flags nosleep
+shape 0 box 2 0.5 2 density 1 friction 0.5 restitution 0
+shape 1 box 0.5 0.5 0.5 density 1 friction 0.5 restitution 0
+trace contacts

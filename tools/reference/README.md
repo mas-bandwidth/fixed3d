@@ -184,3 +184,157 @@ records, not a guess. The complex-hull scene's fixed hull differs from the float
 hull by construction (the shared generator point list is quantized to Q48.16 at
 the `b3FixFromDouble` boundary), which is why its observable is the resting
 height and contact count, not the transform trace.
+
+## Compound, mesh, snapshot, and point-set directives
+
+These directives use the same public APIs in both drivers. A baked compound and a
+mesh **must attach to a static body**. Both engines reject a baked compound on a
+dynamic/kinematic body; the parser reports this instead of silently running a
+scene without its geometry. Use ordinary multiple shapes for runtime compounds.
+
+```
+shape <body> compound children <n> <child> ...
+```
+
+Each child is one of the following, followed by the **required** common tail:
+
+```
+box <hx> <hy> <hz>
+sphere <radius>
+capsule <radius> <halfLength>
+hull points <n> <x> <y> <z> ...
+
+position <x> <y> <z> rotation <qx> <qy> <qz> <qw>
+density <d> friction <f> restitution <r>
+```
+
+Write the entire shape on one line. Positions and rotations are local to the
+compound. Quaternions are normalized at the driver boundary; capsules initially
+lie along local +Y. A box becomes a public box hull, not a set of independent
+runtime shapes. A compound has one genuine baked shape and owns its geometry
+until its world has been destroyed. The current bounds are 128 children across
+the scene and 128 points per hull. Non-finite numbers, zero quaternions,
+nonpositive dimensions, invalid counts and negative material values are refused.
+
+**Public API limitation:** both engines' `b3Compound*Def` children carry surface
+materials, but density belongs to the enclosing `b3ShapeDef`. Child densities
+must therefore be equal; unequal values fail with an explicit API-gap error.
+A future heterogeneous-density extension requires an engine public API addition
+(per-child density in compound definitions plus corresponding baked mass data).
+This harness does not flatten geometry or implement substitute mass mathematics.
+
+```
+shape <body> mesh vertices <n> <x> <y> <z> ... triangles <m> <i> <j> <k> ...
+    [materials <count> <friction> <restitution> ... indices <material-index> ...]
+```
+
+Again, one physical line. Indices are zero-based, triangles use counterclockwise
+winding, and the optional material table has one friction/restitution pair per
+material and **one material index per triangle**. The default is one material
+(friction 0.5, restitution 0). Bounds: 64 vertices, 128 triangles, 16 materials.
+The mesh builder identifies shared edges. Invalid vertex/material indices and
+non-static bodies are refused. Degenerate triangles cause the driver to fail
+rather than silently reduce the requested triangle count. For example:
+
+```
+shape 0 mesh vertices 4 -10 0 -10 -10 0 10 10 0 10 10 0 -10 triangles 2 0 1 2 0 2 3 materials 2 0.5 0 0.7 0.1 indices 0 1
+shape 1 compound children 1 box 2 0.5 2 position 0 0 0 rotation 0 0 0 1 density 1 friction 0.5 restitution 0
+```
+
+### Snapshot boundaries
+
+```
+snapshot save at 30
+snapshot restore at 60
+```
+
+There is one save/restore pair, with `0 <= save < restore < steps`. Both boundaries
+are **before** the numbered step and its events. Each driver saves a snapshot seed
+using public `b3CreateRecording`, `b3World_StartRecording`, and
+`b3World_StopRecording`; restoration uses `b3CreatePlayer`,
+`b3RecPlayer_GetWorldId`, and `b3RecPlayer_GetBodyId`. The restored player remains
+alive while its world is stepped directly so borrowed geometry remains valid.
+No private headers or serialization structures enter the harness.
+
+Trace step numbers continue monotonically. Simulation time rewinds: output step
+60 executes logical step 30, so output steps 60–89 repeat 30–59. Scheduled joints
+and mass events follow that logical clock, including repetition after restore.
+Queries run against the final restored world. Bodies are never deleted by this
+vocabulary, so the public player's seed body enumeration matches creation order.
+
+The checked vanilla pins `954cf87`, `f8c4fe8`, and `79fc559` all expose this real
+snapshot-seeded player API: **neither driver uses a replay fallback at these
+pins**. The brief's fallback for a float pin without public restore is to rebuild
+from step zero and replay all events through the save boundary, without emitting
+those replay steps. Such an older pin would need that adapter before it can be
+used here; there is no simulated restore substituted for the fixed snapshot.
+
+### Complete contact point sets
+
+```
+trace contacts
+```
+
+This requires a numeric tolerance header (predicate mode is refused). It adds
+these lines after the bodies of **every** step, including steps with zero touching
+manifolds:
+
+```
+contacts <manifold-count>
+contact <shape-a> <shape-b> <point-count> <x> <y> <z> <separation> ...
+```
+
+Shape ordinals are `body-creation-index * (B3_REF_MAX_SHAPES + 1) + body-local-shape-index`,
+using public body/shape enumeration, never the internals of engine handles. The
+smaller ordinal comes first. Contact positions are world-space midpoints of the
+two center-relative anchors. Separation retains its sign. Rows are sorted by
+shape pair, point count, then lexicographic point coordinates/separation; each
+row's points are likewise sorted. Zero-point manifolds are omitted. The current
+limits are 256 nonempty manifolds per step and four points per manifold; exceeding
+a limit fails explicitly instead of truncating the trace.
+
+The comparer requires both complete sets, matches shape pairs and both manifold
+and point counts **exactly**, and compares positions **and separations** within
+`pos`. `counts <delta>` does not relax these checks. It finds a bijection between
+point sets, and between compatible manifolds, rather than relying on rounded
+lexicographic order or greedy nearest-neighbor selection. Near-equal coordinates
+can legitimately swap order between float and fixed; a point still cannot be
+reused to cover two different points. Missing/truncated sets and non-finite
+contact values fail. Existing scenes omit the directive and retain byte-identical
+traces.
+
+### Measured new scenes
+
+On Linux, fixed stream base `59eff1c` versus vanilla
+`79fc55976a041d63f160da1de3ef8d224249ce7e`, narrow and ludicrous produced the same
+maximum errors below. Tolerances were tightened after measurement, never widened
+to hide a failing scene.
+
+| Scene | Maximum position/point error | Maximum velocity error | Query error | Horizon |
+|---|---:|---:|---:|---:|
+| ref-harness-compound-mesh-vocabulary | 0.00011086 | 0.00048745 | 0.000002861 | 12 |
+| ref-harness-snapshot-restore | 0.001709133 | 0 | 0 | 90 |
+| ref-5d83df8-compound-roundtrip | 0.000976487 | 0 | 0.000042916 | 90 |
+| ref-954cf87-manifold-points-exact | 0.000030518 | 0 | 0 | 4 |
+
+The roundtrip scene builds all four convex child kinds, keeps a sphere touching
+the static compound, and moves a separate free body to make the restore boundary
+observable. A sliding touching sphere was unsuitable for this horizon: fixed and
+float contact-recycling cadence diverged at step 36 (point error 0.024405882).
+The final scene avoids that unrelated divergence without relaxing tolerances.
+The exact-point scene uses zero dt to isolate the four-point face manifold from
+the solver. Both contact scenes have nonzero point sets. Within each engine,
+steps 60–89 of both snapshot scenes repeat steps 30–59 byte-for-byte. Omitting
+the compound or the restore makes the roundtrip comparison fail.
+
+At this single float pin, the unchanged baseline already fails `box_stack`,
+`pendulum_chain`, `ref-954cf87-collide-connected-false`,
+`ref-a2e4816-speculative-sphere-sphere`, and
+`ref-f8c4fe8-shape-cast-encroach-band`. The change preserves all 25 older scenes'
+fixed and float traces byte-for-byte in both configurations; it neither changes
+those mixed-pin scenes nor relaxes their tolerances.
+
+The historical deferred `ref-5643cd8-compound-six-materials.scene` and
+`ref-3d9db79-compound-identical-builds.scene` remain follow-up work. Mesh children
+inside compounds and their per-child material query vocabulary are outside this
+extension's four convex child types.

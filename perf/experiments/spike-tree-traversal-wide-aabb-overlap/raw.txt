@@ -1,0 +1,54 @@
+# spike-tree-traversal-wide-aabb-overlap raw measurement
+# BASE sha: a6dbe4cc8a14f7db3cbd83339b327f286d47961b
+
+## cpu_info
+model name: AMD Ryzen 7 PRO 8700GE w/ Radeon 780M Graphics (Zen 4)
+ISA flags: avx2 avx512dq avx512f avx512vl
+compiler: gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0
+cmake: 3.28.3
+nproc: 16
+build: RelWithDebInfo (tests) / Release (benchmarks), LTO ON (default), -Werror
+
+## benchmark (min of 5 runs, -w=4 -t=4 -r=5, ms)
+# narrow = scalar query + scalar solver (bench-narrow)
+# avx512-scalar = scalar query + AVX512 solver (bench-avx512, wide compare #if 0)
+# avx512-wide = wide query + AVX512 solver (bench-avx512, wide compare on)
+
+scene        narrow(min)  avx512-scalar(min)  avx512-wide(min)
+trees25      533.03       596.83              624.89
+trees50      263.22       332.60              336.26
+trees100     180.90       264.79              267.75
+rain         1949.17      1946.34             1946.34
+
+# per-run detail (narrow)
+trees25: 541.169 1848.36 533.03 2513.65 607.875
+trees50: 265.726 263.899 263.762 263.218 264.522
+trees100: 181.729 181.581 182.012 180.904 181.254
+rain: 2002.5 2179.69 1961.79 2034.2 1949.17
+
+# per-run detail (avx512-wide)
+trees25: 688.815 711.856 630.577 674.481 624.893
+trees50: 351.442 353.264 352.928 336.258 340.611
+trees100: 270.697 272.924 267.753 273.637 270.975
+rain: 1981.11 1971.4 1957.97 1971.14 1946.34
+
+# per-run detail (avx512-scalar, wide compare disabled)
+trees25: 604.156 597.488 599.867 596.827 603.017
+trees50: 336.634 332.6 333.132 334.665 337.524
+trees100: 272.024 264.789 266.851 267.631 265.352
+
+## bit-exactness
+# TreeQueryWideEquivalenceTest: 20000 seeded boxes, 1000 seeded query boxes,
+# compares the SEQUENCE of proxy ids from the wide query vs a scalar reference
+# traversal. Passes in narrow (scalar), narrow+AVX512 (wide), and ludicrous.
+./bin/test ShapeTest  -> subtest passed: TreeQueryWideEquivalenceTest (all three builds)
+./bin/test            -> All Fixed3D tests passed! (narrow, 2.70s)
+./bin/test            -> All Fixed3D tests passed! (ludicrous, 2.72s)
+
+# red-first: with the wide compare's overlap mask swapped (overlap1<->overlap2),
+# TreeQueryWideEquivalenceTest fails (subtest failed), proving the test
+# discriminates the visit order.
+
+# NOTE: tools/perf/ (the fixed3d-perf-harness) is absent at this BASE, so
+# oracle_check.sh and ab.sh could not be run; the determinism goldens in
+# test_determinism.c are the bit-exactness evidence (unchanged, full suite green).
