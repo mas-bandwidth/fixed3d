@@ -1,0 +1,640 @@
+diff --git a/src/convex_manifold.c b/src/convex_manifold.c
+index d274e12..dae2121 100644
+--- a/src/convex_manifold.c
++++ b/src/convex_manifold.c
+@@ -3,6 +3,7 @@
+ 
+ #include "algorithm.h"
+ #include "ctz.h"
++#include "hull.h"
+ #include "manifold.h"
+ #include "shape.h"
+ 
+@@ -131,11 +132,23 @@ static b3SeparatingAxis b3QueryFaceDirections( const b3HullData* hullA, const b3
+ 	int maxVertexIndex = -1;
+ 	b3Fixed maxFaceSeparation = -B3_FIXED_MAX;
+ 
++#if defined( B3_SIMD_AVX512 ) || defined( B3_SIMD_NEON )
++	// Stage hull B's vertices once per query: each face scans the stage instead
++	// of re-de-swizzling the AoS points on every b3FindHullSupportVertex call.
++	// The stage lives on this stack frame and is discarded with it.
++	b3HullSupportStage stage;
++	b3StageHullSupport( hullB, &stage );
++#endif
++
+ 	for ( int faceIndex = 0; faceIndex < hullA->faceCount; ++faceIndex )
+ 	{
+ 		b3Plane plane = b3TransformPlane( transform, planesA[faceIndex] );
+ 
++#if defined( B3_SIMD_AVX512 ) || defined( B3_SIMD_NEON )
++		int vertexIndex = b3FindHullSupportVertexStaged( hullB, &stage, b3Neg( plane.normal ) );
++#else
+ 		int vertexIndex = b3FindHullSupportVertex( hullB, b3Neg( plane.normal ) );
++#endif
+ 		b3Vec3 support = pointsB[vertexIndex];
+ 		b3Fixed separation = b3PlaneSeparation( plane, support );
+ 		if ( separation > maxFaceSeparation )
+diff --git a/src/hull.c b/src/hull.c
+index e97ccbe..680c721 100644
+--- a/src/hull.c
++++ b/src/hull.c
+@@ -2189,6 +2189,415 @@ int b3FindHullSupportFace( const b3HullData* hull, b3Vec3 direction )
+ 	return bestIndex;
+ }
+ 
++// ---------------------------------------------------------------------------
++// spike-hull-support-query-local-staging. Stage the AoS points/normals into SoA
++// lanes once per query; the per-face scan reads the stage. Results are
++// bit-identical to the existing scans: same exact raw-128 dots, same first-wins
++// tie rule, same scalar tail. See hull.h.
++// ---------------------------------------------------------------------------
++
++void b3StageHullSupport( const b3HullData* hull, b3HullSupportStage* stage )
++{
++	int vertexCount = hull->vertexCount;
++	int faceCount = hull->faceCount;
++	const b3Vec3* points = b3GetHullPoints( hull );
++	const b3Plane* planes = b3GetHullPlanes( hull );
++
++	stage->vertexCount = 0;
++	stage->faceCount = 0;
++
++#if defined( B3_SIMD_AVX512 ) || defined( B3_SIMD_NEON )
++	// Same operand bound as b3FindHullSupportVertex: every |vertex component| is
++	// bounded by the hull's local AABB (the cooker computes it from the points).
++	stage->vertexBound = b3AbsBoundU64( hull->aabb.lowerBound.x );
++	uint64_t candidates[5] = { b3AbsBoundU64( hull->aabb.lowerBound.y ), b3AbsBoundU64( hull->aabb.lowerBound.z ),
++							   b3AbsBoundU64( hull->aabb.upperBound.x ), b3AbsBoundU64( hull->aabb.upperBound.y ),
++							   b3AbsBoundU64( hull->aabb.upperBound.z ) };
++	for ( int i = 0; i < 5; ++i )
++	{
++		stage->vertexBound = candidates[i] > stage->vertexBound ? candidates[i] : stage->vertexBound;
++	}
++#endif
++
++#if defined( B3_SIMD_NEON )
++	// NEON narrows to int32: the stage is only valid when every vertex component
++	// fits int32, otherwise the truncated values are never read (vertexCount 0).
++	bool vertexFits = true;
++	for ( int i = 0; i < vertexCount; ++i )
++	{
++		if ( points[i].x >= ( (b3Fixed)1 << 31 ) || points[i].x < -( (b3Fixed)1 << 31 ) || points[i].y >= ( (b3Fixed)1 << 31 ) ||
++			 points[i].y < -( (b3Fixed)1 << 31 ) || points[i].z >= ( (b3Fixed)1 << 31 ) || points[i].z < -( (b3Fixed)1 << 31 ) )
++		{
++			vertexFits = false;
++			break;
++		}
++	}
++	if ( vertexFits )
++	{
++		for ( int i = 0; i < vertexCount; ++i )
++		{
++			stage->px[i] = (b3SupportLane)points[i].x;
++			stage->py[i] = (b3SupportLane)points[i].y;
++			stage->pz[i] = (b3SupportLane)points[i].z;
++		}
++		stage->vertexCount = vertexCount;
++	}
++#else
++	// int64 lanes hold the full b3Fixed range: always stageable.
++	for ( int i = 0; i < vertexCount; ++i )
++	{
++		stage->px[i] = (b3SupportLane)points[i].x;
++		stage->py[i] = (b3SupportLane)points[i].y;
++		stage->pz[i] = (b3SupportLane)points[i].z;
++	}
++	stage->vertexCount = vertexCount;
++#endif
++
++	// Face normals are validated unit vectors (|component| <= B3_FIXED_ONE), so
++	// they always fit int32 and int64.
++	for ( int i = 0; i < faceCount; ++i )
++	{
++		stage->nx[i] = (b3SupportLane)planes[i].normal.x;
++		stage->ny[i] = (b3SupportLane)planes[i].normal.y;
++		stage->nz[i] = (b3SupportLane)planes[i].normal.z;
++	}
++	stage->faceCount = faceCount;
++}
++
++#if defined( B3_SIMD_AVX512 )
++
++// Argmax of dot(direction, p) over SoA int64 lanes; the caller has proven
++// b3WideScanAdmissible so the int64 dots are exact.
++static int b3FindSupportVertexLanesSoA( const b3SupportLane* x, const b3SupportLane* y, const b3SupportLane* z, int count,
++										b3Vec3 direction )
++{
++	__m256i dirX = _mm256_set1_epi64x( direction.x );
++	__m256i dirY = _mm256_set1_epi64x( direction.y );
++	__m256i dirZ = _mm256_set1_epi64x( direction.z );
++
++	__m256i bestVal = _mm256_setzero_si256();
++	__m256i bestIdx = _mm256_setzero_si256();
++	__m256i curIdx = _mm256_setr_epi64x( 0, 1, 2, 3 );
++	const __m256i four = _mm256_set1_epi64x( 4 );
++
++	int groupCount = count / 4;
++	for ( int group = 0; group < groupCount; ++group )
++	{
++		__m256i px = _mm256_loadu_si256( (const __m256i*)( x + 4 * group ) );
++		__m256i py = _mm256_loadu_si256( (const __m256i*)( y + 4 * group ) );
++		__m256i pz = _mm256_loadu_si256( (const __m256i*)( z + 4 * group ) );
++
++		__m256i dot = _mm256_add_epi64( _mm256_add_epi64( _mm256_mullo_epi64( dirX, px ), _mm256_mullo_epi64( dirY, py ) ),
++										_mm256_mullo_epi64( dirZ, pz ) );
++
++		if ( group == 0 )
++		{
++			bestVal = dot;
++			bestIdx = curIdx;
++		}
++		else
++		{
++			__mmask8 greater = _mm256_cmpgt_epi64_mask( dot, bestVal );
++			bestVal = _mm256_mask_blend_epi64( greater, bestVal, dot );
++			bestIdx = _mm256_mask_blend_epi64( greater, bestIdx, curIdx );
++		}
++		curIdx = _mm256_add_epi64( curIdx, four );
++	}
++
++	int64_t vals[4], idxs[4];
++	_mm256_storeu_si256( (__m256i*)vals, bestVal );
++	_mm256_storeu_si256( (__m256i*)idxs, bestIdx );
++	int bestIndex = (int)idxs[0];
++	b3Int128 bestDot = vals[0];
++	for ( int lane = 1; lane < 4; ++lane )
++	{
++		if ( vals[lane] > bestDot || ( vals[lane] == bestDot && idxs[lane] < bestIndex ) )
++		{
++			bestDot = vals[lane];
++			bestIndex = (int)idxs[lane];
++		}
++	}
++
++	for ( int index = 4 * groupCount; index < count; ++index )
++	{
++		b3Int128 dot = b3DotRaw( direction, (b3Vec3){ (b3Fixed)x[index], (b3Fixed)y[index], (b3Fixed)z[index] } );
++		if ( dot > bestDot )
++		{
++			bestDot = dot;
++			bestIndex = index;
++		}
++	}
++
++	return bestIndex;
++}
++
++// Argmax of dot(direction, n) over SoA int64 face normals.
++static int b3FindSupportFaceLanesSoA( const b3SupportLane* x, const b3SupportLane* y, const b3SupportLane* z, int count,
++									  b3Vec3 direction )
++{
++	__m256i dirX = _mm256_set1_epi64x( direction.x );
++	__m256i dirY = _mm256_set1_epi64x( direction.y );
++	__m256i dirZ = _mm256_set1_epi64x( direction.z );
++
++	__m256i bestVal = _mm256_setzero_si256();
++	__m256i bestIdx = _mm256_setzero_si256();
++	__m256i curIdx = _mm256_setr_epi64x( 0, 1, 2, 3 );
++	const __m256i four = _mm256_set1_epi64x( 4 );
++
++	int groupCount = count / 4;
++	for ( int group = 0; group < groupCount; ++group )
++	{
++		__m256i nx = _mm256_loadu_si256( (const __m256i*)( x + 4 * group ) );
++		__m256i ny = _mm256_loadu_si256( (const __m256i*)( y + 4 * group ) );
++		__m256i nz = _mm256_loadu_si256( (const __m256i*)( z + 4 * group ) );
++
++		__m256i dot = _mm256_add_epi64( _mm256_add_epi64( _mm256_mullo_epi64( dirX, nx ), _mm256_mullo_epi64( dirY, ny ) ),
++										_mm256_mullo_epi64( dirZ, nz ) );
++
++		if ( group == 0 )
++		{
++			bestVal = dot;
++			bestIdx = curIdx;
++		}
++		else
++		{
++			__mmask8 greater = _mm256_cmpgt_epi64_mask( dot, bestVal );
++			bestVal = _mm256_mask_blend_epi64( greater, bestVal, dot );
++			bestIdx = _mm256_mask_blend_epi64( greater, bestIdx, curIdx );
++		}
++		curIdx = _mm256_add_epi64( curIdx, four );
++	}
++
++	int64_t vals[4], idxs[4];
++	_mm256_storeu_si256( (__m256i*)vals, bestVal );
++	_mm256_storeu_si256( (__m256i*)idxs, bestIdx );
++	int bestIndex = (int)idxs[0];
++	b3Int128 bestDot = vals[0];
++	for ( int lane = 1; lane < 4; ++lane )
++	{
++		if ( vals[lane] > bestDot || ( vals[lane] == bestDot && idxs[lane] < bestIndex ) )
++		{
++			bestDot = vals[lane];
++			bestIndex = (int)idxs[lane];
++		}
++	}
++
++	for ( int index = 4 * groupCount; index < count; ++index )
++	{
++		b3Int128 dot = b3DotRaw( direction, (b3Vec3){ (b3Fixed)x[index], (b3Fixed)y[index], (b3Fixed)z[index] } );
++		if ( dot > bestDot )
++		{
++			bestDot = dot;
++			bestIndex = index;
++		}
++	}
++
++	return bestIndex;
++}
++
++#elif defined( B3_SIMD_NEON )
++
++// Argmax of dot(direction, p) over SoA int32 lanes with smull/smlal; the caller
++// has proven every operand fits int32 and every dot fits int64. No de-swizzle:
++// the SoA columns are loaded directly.
++static int b3FindSupportVertexLanesSoA( const b3SupportLane* x, const b3SupportLane* y, const b3SupportLane* z, int count,
++										b3Vec3 direction )
++{
++	int32x2_t dirX2 = vdup_n_s32( (int32_t)direction.x );
++	int32x2_t dirY2 = vdup_n_s32( (int32_t)direction.y );
++	int32x2_t dirZ2 = vdup_n_s32( (int32_t)direction.z );
++	int32x4_t dirX4 = vdupq_n_s32( (int32_t)direction.x );
++	int32x4_t dirY4 = vdupq_n_s32( (int32_t)direction.y );
++	int32x4_t dirZ4 = vdupq_n_s32( (int32_t)direction.z );
++
++	b3ArgmaxNEON state;
++	const int64_t initLo[2] = { 0, 1 };
++	const int64_t initHi[2] = { 2, 3 };
++	int64x2_t curLo = vld1q_s64( initLo );
++	int64x2_t curHi = vld1q_s64( initHi );
++	int64x2_t four = vdupq_n_s64( 4 );
++
++	int groupCount = count / 4;
++	for ( int group = 0; group < groupCount; ++group )
++	{
++		int32x4_t px = vld1q_s32( x + 4 * group );
++		int32x4_t py = vld1q_s32( y + 4 * group );
++		int32x4_t pz = vld1q_s32( z + 4 * group );
++
++		int64x2_t dotLo = vmull_s32( vget_low_s32( px ), dirX2 );
++		dotLo = vmlal_s32( dotLo, vget_low_s32( py ), dirY2 );
++		dotLo = vmlal_s32( dotLo, vget_low_s32( pz ), dirZ2 );
++		int64x2_t dotHi = vmull_high_s32( px, dirX4 );
++		dotHi = vmlal_high_s32( dotHi, py, dirY4 );
++		dotHi = vmlal_high_s32( dotHi, pz, dirZ4 );
++
++		if ( group == 0 )
++		{
++			state.bestLo = dotLo;
++			state.bestHi = dotHi;
++			state.idxLo = curLo;
++			state.idxHi = curHi;
++		}
++		else
++		{
++			b3ArgmaxStepNEON( &state, dotLo, dotHi, curLo, curHi );
++		}
++		curLo = vaddq_s64( curLo, four );
++		curHi = vaddq_s64( curHi, four );
++	}
++
++	b3Int128 bestDot;
++	int bestIndex = b3ArgmaxReduceNEON( &state, &bestDot );
++
++	for ( int index = 4 * groupCount; index < count; ++index )
++	{
++		b3Int128 dot = b3DotRaw( direction, (b3Vec3){ (b3Fixed)x[index], (b3Fixed)y[index], (b3Fixed)z[index] } );
++		if ( dot > bestDot )
++		{
++			bestDot = dot;
++			bestIndex = index;
++		}
++	}
++
++	return bestIndex;
++}
++
++// Argmax of dot(direction, n) over SoA int32 face normals.
++static int b3FindSupportFaceLanesSoA( const b3SupportLane* x, const b3SupportLane* y, const b3SupportLane* z, int count,
++									  b3Vec3 direction )
++{
++	int32x2_t dirX2 = vdup_n_s32( (int32_t)direction.x );
++	int32x2_t dirY2 = vdup_n_s32( (int32_t)direction.y );
++	int32x2_t dirZ2 = vdup_n_s32( (int32_t)direction.z );
++	int32x4_t dirX4 = vdupq_n_s32( (int32_t)direction.x );
++	int32x4_t dirY4 = vdupq_n_s32( (int32_t)direction.y );
++	int32x4_t dirZ4 = vdupq_n_s32( (int32_t)direction.z );
++
++	b3ArgmaxNEON state;
++	const int64_t initLo[2] = { 0, 1 };
++	const int64_t initHi[2] = { 2, 3 };
++	int64x2_t curLo = vld1q_s64( initLo );
++	int64x2_t curHi = vld1q_s64( initHi );
++	int64x2_t four = vdupq_n_s64( 4 );
++
++	int groupCount = count / 4;
++	for ( int group = 0; group < groupCount; ++group )
++	{
++		int32x4_t nx = vld1q_s32( x + 4 * group );
++		int32x4_t ny = vld1q_s32( y + 4 * group );
++		int32x4_t nz = vld1q_s32( z + 4 * group );
++
++		int64x2_t dotLo = vmull_s32( vget_low_s32( nx ), dirX2 );
++		dotLo = vmlal_s32( dotLo, vget_low_s32( ny ), dirY2 );
++		dotLo = vmlal_s32( dotLo, vget_low_s32( nz ), dirZ2 );
++		int64x2_t dotHi = vmull_high_s32( nx, dirX4 );
++		dotHi = vmlal_high_s32( dotHi, ny, dirY4 );
++		dotHi = vmlal_high_s32( dotHi, nz, dirZ4 );
++
++		if ( group == 0 )
++		{
++			state.bestLo = dotLo;
++			state.bestHi = dotHi;
++			state.idxLo = curLo;
++			state.idxHi = curHi;
++		}
++		else
++		{
++			b3ArgmaxStepNEON( &state, dotLo, dotHi, curLo, curHi );
++		}
++		curLo = vaddq_s64( curLo, four );
++		curHi = vaddq_s64( curHi, four );
++	}
++
++	b3Int128 bestDot;
++	int bestIndex = b3ArgmaxReduceNEON( &state, &bestDot );
++
++	for ( int index = 4 * groupCount; index < count; ++index )
++	{
++		b3Int128 dot = b3DotRaw( direction, (b3Vec3){ (b3Fixed)x[index], (b3Fixed)y[index], (b3Fixed)z[index] } );
++		if ( dot > bestDot )
++		{
++			bestDot = dot;
++			bestIndex = index;
++		}
++	}
++
++	return bestIndex;
++}
++
++#else
++
++// Scalar SoA scans: same raw-128 dot loop as the AoS scan, reading the stage
++// columns directly. Bit-identical by construction (int64 lanes hold the full
++// b3Fixed range).
++static int b3FindSupportVertexLanesSoA( const b3SupportLane* x, const b3SupportLane* y, const b3SupportLane* z, int count,
++										b3Vec3 direction )
++{
++	int bestIndex = B3_NULL_INDEX;
++	b3Int128 bestDot = 0;
++	for ( int index = 0; index < count; ++index )
++	{
++		b3Int128 dot = b3DotRaw( direction, (b3Vec3){ (b3Fixed)x[index], (b3Fixed)y[index], (b3Fixed)z[index] } );
++		if ( bestIndex == B3_NULL_INDEX || dot > bestDot )
++		{
++			bestDot = dot;
++			bestIndex = index;
++		}
++	}
++	return bestIndex;
++}
++
++static int b3FindSupportFaceLanesSoA( const b3SupportLane* x, const b3SupportLane* y, const b3SupportLane* z, int count,
++									  b3Vec3 direction )
++{
++	int bestIndex = B3_NULL_INDEX;
++	b3Int128 bestDot = 0;
++	for ( int index = 0; index < count; ++index )
++	{
++		b3Int128 dot = b3DotRaw( direction, (b3Vec3){ (b3Fixed)x[index], (b3Fixed)y[index], (b3Fixed)z[index] } );
++		if ( bestIndex == B3_NULL_INDEX || dot > bestDot )
++		{
++			bestDot = dot;
++			bestIndex = index;
++		}
++	}
++	return bestIndex;
++}
++
++#endif
++
++int b3FindHullSupportVertexStaged( const b3HullData* hull, const b3HullSupportStage* stage, b3Vec3 direction )
++{
++#if defined( B3_SIMD_AVX512 ) || defined( B3_SIMD_NEON )
++	if ( stage->vertexCount >= 4 && b3WideScanAdmissible( direction, stage->vertexBound ) )
++	{
++		int bestIndex = b3FindSupportVertexLanesSoA( stage->px, stage->py, stage->pz, stage->vertexCount, direction );
++		B3_ASSERT( 0 <= bestIndex && bestIndex < stage->vertexCount );
++		return bestIndex;
++	}
++	return b3FindHullSupportVertex( hull, direction );
++#else
++	(void)hull;
++	return b3FindSupportVertexLanesSoA( stage->px, stage->py, stage->pz, stage->vertexCount, direction );
++#endif
++}
++
++int b3FindHullSupportFaceStaged( const b3HullData* hull, const b3HullSupportStage* stage, b3Vec3 direction )
++{
++#if defined( B3_SIMD_AVX512 ) || defined( B3_SIMD_NEON )
++	if ( stage->faceCount >= 4 && b3WideScanAdmissible( direction, (uint64_t)( 4 * B3_FIXED_ONE ) ) )
++	{
++		int bestIndex = b3FindSupportFaceLanesSoA( stage->nx, stage->ny, stage->nz, stage->faceCount, direction );
++		B3_ASSERT( 0 <= bestIndex && bestIndex < stage->faceCount );
++		return bestIndex;
++	}
++	return b3FindHullSupportFace( hull, direction );
++#else
++	(void)hull;
++	return b3FindSupportFaceLanesSoA( stage->nx, stage->ny, stage->nz, stage->faceCount, direction );
++#endif
++}
++
+ #if B3_ENABLE_VALIDATION
+ 
+ bool b3IsValidHull( const b3HullData* hull )
+diff --git a/src/hull.h b/src/hull.h
+index d5ea252..5320346 100644
+--- a/src/hull.h
++++ b/src/hull.h
+@@ -4,6 +4,7 @@
+ #pragma once
+ 
+ #include "box3d/types.h"
++#include "core.h"
+ 
+ #include <stddef.h>
+ 
+@@ -28,3 +29,46 @@ size_t b3HullMapByteCount( b3HullMap* map );
+ // the reference harness, which can drive the generator with a chosen seed.
+ b3HullData* b3CreateComplexHull( b3Fixed radius );
+ b3HullData* b3CreateComplexHullSeeded( b3Fixed radius, uint32_t seed );
++
++// ---------------------------------------------------------------------------
++// spike-hull-support-query-local-staging: a caller-owned (stack) SoA stage of a
++// hull's vertex xyz and face normals. The face-SAT loop scans hull B's support
++// vertex once per face; staging de-swizzles the AoS points into wide SoA lanes
++// ONCE per query and each face scan reads the stage, instead of re-de-swizzling
++// (vuzp1q_s32 + vqtbl3q_u8 on NEON, permutex2var on AVX-512) on every call.
++//
++// The lane type follows the same per-ISA rule as b3EdgeLane: int64 on AVX-512
++// (direct 64-bit lane multiply) and scalar, int32 on NEON (smull/smlal widening
++// multiply). Staging is lossless only when every component fits the lane type;
++// when it does not (NEON rejects components >= 2^31), the count field is left 0
++// and the staged scan falls back to the exact AoS path, so results stay
++// bit-identical to b3FindHullSupportVertex / b3FindHullSupportFace for every
++// input. No allocation, no cross-stage ownership: the stage lives on the query
++// stack frame and is discarded with it.
++// ---------------------------------------------------------------------------
++#if defined( B3_SIMD_NEON )
++typedef int32_t b3SupportLane;
++#else
++typedef b3Fixed b3SupportLane;
++#endif
++
++typedef struct b3HullSupportStage
++{
++	b3SupportLane px[B3_MAX_HULL_VERTICES];
++	b3SupportLane py[B3_MAX_HULL_VERTICES];
++	b3SupportLane pz[B3_MAX_HULL_VERTICES];
++	b3SupportLane nx[B3_MAX_HULL_FACES];
++	b3SupportLane ny[B3_MAX_HULL_FACES];
++	b3SupportLane nz[B3_MAX_HULL_FACES];
++	int vertexCount;
++	int faceCount;
++	uint64_t vertexBound;
++} b3HullSupportStage;
++
++void b3StageHullSupport( const b3HullData* hull, b3HullSupportStage* stage );
++
++// Identical result to b3FindHullSupportVertex / b3FindHullSupportFace (exact
++// raw-128 dots, first-wins tie rule). Fall back to the exact AoS scan when the
++// stage is not usable for the given direction.
++int b3FindHullSupportVertexStaged( const b3HullData* hull, const b3HullSupportStage* stage, b3Vec3 direction );
++int b3FindHullSupportFaceStaged( const b3HullData* hull, const b3HullSupportStage* stage, b3Vec3 direction );
+diff --git a/test/test_hull.c b/test/test_hull.c
+index 5422bf6..757ddcb 100644
+--- a/test/test_hull.c
++++ b/test/test_hull.c
+@@ -706,6 +706,112 @@ static int CloneHullSmallReflectedScaleTest( void )
+ 	return 0;
+ }
+ 
++// ---------------------------------------------------------------------------
++// spike-hull-support-query-local-staging. The staged SoA support scans must be
++// bit-identical to the existing scans: same vertex index AND face index for
++// every direction, including exact ties (directions orthogonal to a box edge or
++// face, and diagonal directions that tie two faces). The stage is built once per
++// hull and scanned over 100,000 seeded directions covering tiny (wide-path) and
++// huge (exact-scalar-path) magnitudes.
++// ---------------------------------------------------------------------------
++static void StageNextDirection( uint32_t* seed, int magnitudeClass, b3Vec3* d )
++{
++	b3Fixed c[3];
++	for ( int k = 0; k < 3; ++k )
++	{
++		*seed ^= *seed << 13;
++		*seed ^= *seed >> 17;
++		*seed ^= *seed << 5;
++		c[k] = (b3Fixed)b3FixFromInt( (int)( ( *seed & 0x7fffu ) - 0x4000u ) );
++	}
++	d->x = c[0];
++	d->y = c[1];
++	d->z = c[2];
++	// Scale so the run covers the wide (int64/int32 exact) scan and the exact
++	// AoS fallback: tiny directions stay admissible, huge ones force the fallback.
++	b3Fixed scale = B3_FIX( 1.0f );
++	if ( magnitudeClass == 1 )
++	{
++		scale = (b3Fixed)1 << 20;
++	}
++	else if ( magnitudeClass == 2 )
++	{
++		scale = B3_FIXED_EPSILON;
++	}
++	d->x = b3FixMul( d->x, scale );
++	d->y = b3FixMul( d->y, scale );
++	d->z = b3FixMul( d->z, scale );
++}
++
++static int HullSupportStagedEquivalenceTest( void )
++{
++	// Corpus: the canonical box, a tetrahedron, a dense sphere hull, and the
++	// thin boxes the ragdoll rig is built from.
++	b3BoxHull box = b3MakeBoxHull( B3_FIX( 1.0f ), B3_FIX( 1.0f ), B3_FIX( 1.0f ) );
++	b3BoxHull limb = b3MakeBoxHull( B3_FIX( 0.5f ), B3_FIX( 0.15f ), B3_FIX( 0.15f ) );
++
++	b3Vec3 tetraPoints[4] = {
++		{ B3_FIX( 1.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) },
++		{ -B3_FIX( 1.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) },
++		{ B3_FIX( 0.0f ), B3_FIX( 1.0f ), B3_FIX( 0.0f ) },
++		{ B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 1.0f ) },
++	};
++	b3HullData* tetra = b3CreateHull( tetraPoints, 4, 4 );
++
++	enum { SPHERE_SAMPLE_N = 128 };
++	b3Vec3 spherePoints[SPHERE_SAMPLE_N];
++	FillSphereSample( spherePoints, SPHERE_SAMPLE_N, 12345u );
++	// The half-edge index is uint8 (256 half-edges), so a fully-triangulated
++	// sphere is capped near 44 vertices: 128 input points reduce to a 32-vertex
++	// hull, the largest the cooker admits (F = 2M-4 = 60, E = 3M-6 = 90).
++	b3HullData* sphere = b3CreateHull( spherePoints, SPHERE_SAMPLE_N, 32 );
++
++	ENSURE( tetra != NULL );
++	ENSURE( sphere != NULL );
++
++	b3HullData* hulls[4] = { &box.base, tetra, sphere, &limb.base };
++
++	// Exact-tie directions first: axis-aligned ties whole faces of a box, and
++	// diagonal directions tie faces (dot(1,1,0) with +x and +y normals) and
++	// edges of the sphere hulls.
++	b3Vec3 tieDirs[13] = {
++		{ B3_FIX( 1.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) },  { -B3_FIX( 1.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) },
++		{ B3_FIX( 0.0f ), B3_FIX( 1.0f ), B3_FIX( 0.0f ) },  { B3_FIX( 0.0f ), -B3_FIX( 1.0f ), B3_FIX( 0.0f ) },
++		{ B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 1.0f ) },  { B3_FIX( 0.0f ), B3_FIX( 0.0f ), -B3_FIX( 1.0f ) },
++		{ B3_FIX( 1.0f ), B3_FIX( 1.0f ), B3_FIX( 0.0f ) },  { B3_FIX( 1.0f ), B3_FIX( 0.0f ), B3_FIX( 1.0f ) },
++		{ B3_FIX( 0.0f ), B3_FIX( 1.0f ), B3_FIX( 1.0f ) },  { B3_FIX( 1.0f ), B3_FIX( 1.0f ), B3_FIX( 1.0f ) },
++		{ B3_FIX( 1.0f ), -B3_FIX( 1.0f ), B3_FIX( 0.0f ) }, { B3_FIX( 1.0f ), B3_FIX( 0.0f ), -B3_FIX( 1.0f ) },
++		{ B3_FIX( 0.0f ), B3_FIX( 1.0f ), -B3_FIX( 1.0f ) },
++	};
++
++	for ( int h = 0; h < 4; ++h )
++	{
++		b3HullData* hull = hulls[h];
++		b3HullSupportStage stage;
++		b3StageHullSupport( hull, &stage );
++
++		for ( int t = 0; t < ARRAY_COUNT( tieDirs ); ++t )
++		{
++			b3Vec3 d = tieDirs[t];
++			ENSURE( b3FindHullSupportVertexStaged( hull, &stage, d ) == b3FindHullSupportVertex( hull, d ) );
++			ENSURE( b3FindHullSupportFaceStaged( hull, &stage, d ) == b3FindHullSupportFace( hull, d ) );
++		}
++
++		uint32_t seed = 0x9e3779b9u + (uint32_t)h;
++		for ( int i = 0; i < 100000; ++i )
++		{
++			b3Vec3 d;
++			StageNextDirection( &seed, i % 3, &d );
++			ENSURE( b3FindHullSupportVertexStaged( hull, &stage, d ) == b3FindHullSupportVertex( hull, d ) );
++			ENSURE( b3FindHullSupportFaceStaged( hull, &stage, d ) == b3FindHullSupportFace( hull, d ) );
++		}
++	}
++
++	b3DestroyHull( tetra );
++	b3DestroyHull( sphere );
++	return 0;
++}
++
+ int HullTest( void )
+ {
+ 	RUN_SUBTEST( CreateHullCubeTest );
+@@ -724,6 +830,7 @@ int HullTest( void )
+ 	RUN_SUBTEST( CreateComplexHullTest );
+ 	RUN_SUBTEST( CreateComplexHullTerminatesTest );
+ 	RUN_SUBTEST( CloneHullSmallReflectedScaleTest );
++	RUN_SUBTEST( HullSupportStagedEquivalenceTest );
+ 
+ 	return 0;
+ }
