@@ -267,6 +267,7 @@ The PORT RECORDs below run newest first and are the detail for each step.
   of every hull, mesh and height field and silently following a newer rapidhash would
   re-key every geometry and invalidate every recording. Proved it fails on a one-line
   edit.
+  **FLAG GUARD:** `src/core.c` `#error`s before including `rapidhash.h` if a consumer predefines `RAPIDHASH_PROTECTED`, `RAPIDHASH_UNROLLED`, `RAPIDHASH_LITTLE_ENDIAN`, `RAPIDHASH_BIG_ENDIAN`, `RAPIDHASH_FAST` or `RAPIDHASH_COMPACT`, or if byte order cannot be established by the header's own tests.
 
 - **PORT RECORD f42be21 "64-bit hashes (#126)" (2026-08-11) — the triangle-manifold
   half, landed 2026-08-22. Its remainder landed 2026-08-23; see the record above.**
