@@ -73,8 +73,15 @@ set_target_properties(box3d_test PROPERTIES
     OUTPUT_NAME test
 )
 
-# Special access to Fixed3D internals for testing
-target_include_directories(box3d_test PRIVATE ${CMAKE_SOURCE_DIR}/src ${CMAKE_SOURCE_DIR}/tools/reference)
+# Special access to Fixed3D internals for testing.
+# The generated main is written under the build dir and quotes "test_macros.h".
+# A quoted include searches the including file's directory first, then these
+# -I paths. The header lives beside the committed main.c, so the source test
+# dir has to be on the path or the out-of-source build stops at line 4.
+target_include_directories(box3d_test PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/tools/reference)
 
 if(BOX3D_VALIDATE)
 	target_compile_definitions(box3d_test PRIVATE BOX3D_VALIDATE)
