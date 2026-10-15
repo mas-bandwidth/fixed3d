@@ -753,9 +753,9 @@ static b3SeparatingAxis b3QueryEdgeDirections( const b3HullData* hullA, const b3
 _Static_assert( B3_MAX_MANIFOLD_POINTS >= 4, "must be 4 or more" );
 
 // cross(b - a, c - a)
-static inline b3Fixed b3Cross2D( b3Vec2 a, b3Vec2 b, b3Vec2 c )
+static inline b3Int128 b3Cross2D( b3Vec2 a, b3Vec2 b, b3Vec2 c )
 {
-	return b3FixMul( b.x - a.x , c.y - a.y ) - b3FixMul( b.y - a.y , c.x - a.x );
+	return ( (b3Int128)b.x - a.x ) * ( (b3Int128)c.y - a.y ) - ( (b3Int128)b.y - a.y ) * ( (b3Int128)c.x - a.x );
 }
 
 // Iteratively remove the vertices contributing the least area.
@@ -769,22 +769,24 @@ int b3SimplifyHull2D( b3HullPoint2D* hull, int count1, int target )
 	}
 
 	b3Fixed linearSlop = B3_LINEAR_SLOP;
-	b3Fixed areaTol = b3FixMul( b3FixMul( B3_FIX( 0.25f ) , linearSlop ) , linearSlop );
+	// Cross products have scale 2^32. Keep the slop area in that raw domain:
+	// two Q48.16 multiplies would round this small tolerance to zero.
+	b3Int128 areaTol = (b3Int128)linearSlop * linearSlop / 4;
 	int count2 = count1;
 
 	for ( ;; )
 	{
-		b3Fixed minArea = B3_FIXED_MAX;
+		b3Int128 minArea = 0;
 		int minIndex = 0;
 
 		for ( int i = 0; i < count2; i++ )
 		{
 			int prev = ( i + count2 - 1 ) % count2;
 			int next = ( i + 1 ) % count2;
-			b3Fixed area = b3Cross2D( hull[prev].p, hull[i].p, hull[next].p );
-			B3_VALIDATE( area >= -B3_FIXED_EPSILON );
+			b3Int128 area = b3Cross2D( hull[prev].p, hull[i].p, hull[next].p );
+			B3_VALIDATE( area >= -(b3Int128)B3_FIXED_EPSILON * B3_FIXED_ONE );
 
-			if ( area + areaTol < minArea )
+			if ( i == 0 || area + areaTol < minArea )
 			{
 				minArea = area;
 				minIndex = i;
@@ -831,13 +833,15 @@ static int b3Weld2D( b3HullPoint2D* pts, int count1 )
 	}
 
 	b3Fixed linearSlop = b3FixMul( B3_FIX( 0.25f ) , B3_LINEAR_SLOP );
-	b3Fixed tolSqr = b3FixMul( linearSlop , linearSlop );
+	b3Int128 tolSqr = (b3Int128)linearSlop * linearSlop;
 
 	int count2 = 1;
 	int baseIndex = 0;
 	for ( int i = 1; i < count1; i++ )
 	{
-		b3Fixed distanceSqr = b3LengthSquared2( b3Sub2( pts[i].p, pts[baseIndex].p ) );
+		b3Vec2 delta = b3Sub2( pts[i].p, pts[baseIndex].p );
+		b3Vec3 delta3 = { delta.x, delta.y, 0 };
+		b3Int128 distanceSqr = b3DotRaw( delta3, delta3 );
 		if ( distanceSqr < tolSqr )
 		{
 			if ( pts[i].originalIndex < pts[baseIndex].originalIndex )
@@ -891,11 +895,13 @@ int b3Hull2D( b3HullPoint2D* pts, int count, b3HullPoint2D* hull )
 
 	int count2 = 0;
 
+	// Each pass consumes one sorted input point; a non-left turn pops a hull point.
+	// Thus even coincident or collinear inputs cannot make either loop cycle.
 	for ( int i = 0; i < count1; i++ )
 	{
 		while ( count2 >= 2 )
 		{
-			b3Fixed area = b3Cross2D( hull[count2 - 2].p, hull[count2 - 1].p, pts[i].p );
+			b3Int128 area = b3Cross2D( hull[count2 - 2].p, hull[count2 - 1].p, pts[i].p );
 			if ( area > 0 )
 			{
 				break;
@@ -915,7 +921,7 @@ int b3Hull2D( b3HullPoint2D* pts, int count, b3HullPoint2D* hull )
 	{
 		while ( count2 >= lowerCount )
 		{
-			b3Fixed area = b3Cross2D( hull[count2 - 2].p, hull[count2 - 1].p, pts[i].p );
+			b3Int128 area = b3Cross2D( hull[count2 - 2].p, hull[count2 - 1].p, pts[i].p );
 			if ( area > 0 )
 			{
 				break;
@@ -1169,16 +1175,16 @@ void b3CollideSpheres( b3LocalManifold* manifold, int capacity, const b3Sphere* 
 	b3Fixed totalRadius = sphereA->radius + sphereB->radius;
 	b3Fixed maxDistance = totalRadius + B3_SPECULATIVE_DISTANCE;
 	b3Vec3 offset = b3Sub( center2, center1 );
-	b3Fixed distanceSq = b3LengthSquared( offset );
+	b3Int128 distanceSq = b3DotRaw( offset, offset );
 
-	if ( distanceSq > b3FixMul( maxDistance , maxDistance ) )
+	if ( distanceSq > (b3Int128)maxDistance * maxDistance )
 	{
 		// We found a separating axis
 		return;
 	}
 
 	b3Vec3 normal = { B3_FIX( 0.0f ), B3_FIX( 1.0f ), B3_FIX( 0.0f ) };
-	b3Fixed distance = b3FixSqrt( distanceSq );
+	b3Fixed distance = b3Length( offset );
 	if ( distance > 0 )
 	{
 		normal = b3MulSV( b3FixDiv( B3_FIX( 1.0f ) , distance ), offset );
@@ -1219,16 +1225,16 @@ void b3CollideCapsuleAndSphere( b3LocalManifold* manifold, int capacity, const b
 
 	b3Vec3 closestPoint = b3PointToSegmentDistance( center1, center2, center );
 	b3Vec3 offset = b3Sub( center, closestPoint );
-	b3Fixed distanceSq = b3LengthSquared( offset );
+	b3Int128 distanceSq = b3DotRaw( offset, offset );
 
-	if ( distanceSq > b3FixMul( maxDistance , maxDistance ) )
+	if ( distanceSq > (b3Int128)maxDistance * maxDistance )
 	{
 		// We found a separating axis
 		return;
 	}
 
 	b3Vec3 normal = { B3_FIX( 0.0f ), B3_FIX( 1.0f ), B3_FIX( 0.0f ) };
-	b3Fixed distance = b3FixSqrt( distanceSq );
+	b3Fixed distance = b3Length( offset );
 	if ( distance > 0 )
 	{
 		normal = b3MulSV( b3FixDiv( B3_FIX( 1.0f ) , distance ), offset );

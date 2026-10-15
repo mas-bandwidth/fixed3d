@@ -1703,6 +1703,104 @@ static int Hull2DReductionTest( void )
 	return 0;
 }
 
+static int Hull2DDegenerateTest( void )
+{
+	const b3Fixed tolerance = B3_LINEAR_SLOP / 4;
+	const b3Vec2 zero = { 0, 0 };
+	b3HullPoint2D points[8];
+	b3HullPoint2D hull[16];
+
+	// Sorted neighbours closer than the weld radius collapse; those farther
+	// apart remain distinct. Squaring this tolerance at Q48.16 loses the radius.
+	const b3Vec2 nearPair[2] = { zero, { tolerance / 2, 0 } };
+	FillPoints2D( points, nearPair, 2 );
+	ENSURE( b3Hull2D( points, 2, hull ) == 1 );
+
+	const b3Vec2 farPair[2] = { zero, { tolerance + 8 * B3_FIXED_EPSILON, 0 } };
+	FillPoints2D( points, farPair, 2 );
+	ENSURE( b3Hull2D( points, 2, hull ) == 2 );
+
+	const b3Vec2 coincident[4] = { zero, zero, zero, zero };
+	FillPoints2D( points, coincident, 4 );
+	ENSURE( b3Hull2D( points, 4, hull ) == 1 );
+
+	const b3Vec2 collinear[5] = { { 0, 0 }, { B3_FIX( 1.0f ), 0 }, { B3_FIX( 2.0f ), 0 },
+		{ B3_FIX( 3.0f ), 0 }, { B3_FIX( 4.0f ), 0 } };
+	FillPoints2D( points, collinear, 5 );
+	ENSURE( b3Hull2D( points, 5, hull ) == 2 );
+
+	const b3Vec2 ulpPair[2] = { zero, { B3_FIXED_EPSILON, B3_FIXED_EPSILON } };
+	FillPoints2D( points, ulpPair, 2 );
+	ENSURE( b3Hull2D( points, 2, hull ) == 1 );
+	return 0;
+}
+
+#if B3_MAX_MANIFOLD_POINTS >= 8
+static int Hull2DBoxFaceClipTest( void )
+{
+	// Equal square faces, one yawed by 45 degrees, clip to an octagon.
+	b3BoxHull box = b3MakeBoxHull( B3_FIX( 1.0f ), B3_FIX( 1.0f ), B3_FIX( 1.0f ) );
+	b3LocalManifoldPoint points[B3_MAX_MANIFOLD_POINTS];
+	b3LocalManifold manifold = { 0 };
+	manifold.points = points;
+	b3SATCache cache = { 0 };
+	b3Transform transform = { { 0, B3_FIX( 1.99f ), 0 }, ExactQuat( kAxisY, B3_PI / 4 ) };
+	b3CollideHulls( &manifold, B3_MAX_MANIFOLD_POINTS, &box.base, &box.base, transform, &cache );
+	ENSURE( manifold.pointCount == 8 );
+	return 0;
+}
+#endif
+
+// The default four-point path must remain byte-for-byte stable across this port.
+#if B3_MAX_MANIFOLD_POINTS == 4
+static int Hull2DDefaultHashTest( void )
+{
+	b3BoxHull box = b3MakeBoxHull( B3_FIX( 1.0f ), B3_FIX( 1.0f ), B3_FIX( 1.0f ) );
+	uint32_t seed = 0x954CF87u;
+	uint32_t hash = 2166136261u;
+	for ( int contact = 0; contact < 50; ++contact )
+	{
+		seed = seed * 1664525u + 1013904223u;
+		b3Fixed x = (b3Fixed)( ( seed >> 16 ) & 0x3fff ) - 0x2000;
+		seed = seed * 1664525u + 1013904223u;
+		b3Fixed z = (b3Fixed)( ( seed >> 16 ) & 0x3fff ) - 0x2000;
+		b3Transform transform = { { x, B3_FIX( 1.9f ), z }, b3Quat_identity };
+		b3LocalManifoldPoint points[4];
+		b3LocalManifold manifold = { .points = points };
+		b3SATCache cache = { 0 };
+		b3CollideHulls( &manifold, 4, &box.base, &box.base, transform, &cache );
+		ENSURE( manifold.pointCount == 4 );
+		for ( int i = -1; i < manifold.pointCount; ++i )
+		{
+			b3Fixed values[4] = { 0, 0, 0, 0 };
+			if ( i < 0 )
+			{
+				values[0] = manifold.pointCount;
+			}
+			else
+			{
+				values[0] = points[i].point.x;
+				values[1] = points[i].point.y;
+				values[2] = points[i].point.z;
+				values[3] = points[i].separation;
+			}
+			for ( int j = 0; j < 4; ++j )
+			{
+				uint64_t bits = (uint64_t)values[j];
+				for ( int k = 0; k < 8; ++k )
+				{
+					hash = ( hash ^ (uint8_t)bits ) * 16777619u;
+					bits >>= 8;
+				}
+			}
+		}
+	}
+	// The unchanged base and this branch both produce 0x59A27095 for all 50 contacts.
+	ENSURE( hash == 0x59A27095u );
+	return 0;
+}
+#endif
+
 static int SimplifyHull2DTest( void )
 {
 	// A 20-gon simplifies to the requested target.
@@ -1712,7 +1810,7 @@ static int SimplifyHull2DTest( void )
 
 		for ( int i = 0; i < 20; ++i )
 		{
-			double angle = 2.0 * M_PI * (double)i / 20.0;
+            double angle = 2.0 * b3FixToDouble( B3_PI ) * (double)i / 20.0;
 			pts[i].p = (b3Vec2){ b3FixFromDouble( cos( angle ) ), b3FixFromDouble( sin( angle ) ) };
 			pts[i].separation = B3_FIX( 0.0f );
 			pts[i].originalIndex = i;
@@ -1763,6 +1861,13 @@ int ManifoldTest( void )
 {
 	RUN_SUBTEST( MaxPointCountTest );
 	RUN_SUBTEST( Hull2DReductionTest );
+	RUN_SUBTEST( Hull2DDegenerateTest );
+#if B3_MAX_MANIFOLD_POINTS == 4
+	RUN_SUBTEST( Hull2DDefaultHashTest );
+#endif
+#if B3_MAX_MANIFOLD_POINTS >= 8
+	RUN_SUBTEST( Hull2DBoxFaceClipTest );
+#endif
 	RUN_SUBTEST( SimplifyHull2DTest );
 	RUN_SUBTEST( CrossedEdgeTest );
 	RUN_SUBTEST( EdgeAxisScaleTest );
