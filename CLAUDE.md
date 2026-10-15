@@ -54,6 +54,41 @@ and says *closed*. Record below.)*
 
 The PORT RECORDs below run newest first and are the detail for each step.
 
+- **PORT RECORD 5643cd8 "Remove compound mesh child material limit (#172)" (2026-10-15) —
+  PORTED (card fixed3d-box3d-ports-compound-block, sub-task 1). Closes fixed3d#52.**
+  The 4-material-per-mesh-child clamp (`B3_MAX_COMPOUND_MESH_MATERIALS`) is gone: `b3CompoundMesh`
+  and `b3ChildShape` now carry `const uint16_t* materialIndices` + `int materialCount` (a pointer
+  into the compound's per-mesh material map, not a fixed 4-slot array), and mesh children bake an
+  arbitrary number of materials (material count capped only at `UINT16_MAX`, asserted at
+  `src/compound.c`). `b3CompoundCapsule`/`b3CompoundHull`/`b3CompoundSphere` shrink their
+  `int materialIndex` to `uint16_t materialIndex` + explicit `uint16_t padding` for determinism;
+  `b3MeshInstance` replaces the fixed `materialIndices[4]` with `materialOffset`/`materialCount`,
+  and the compound blob gains a packed 16-bit per-mesh material map section between the mesh
+  instance array and the shared mesh blobs. `b3ComputeMeshManifolds`' `materialMap` argument widens
+  `const int*` -> `const uint16_t*` (contact.h, mesh_contact.c, contact.c). The three ray/shape-cast
+  and mover call sites, and `b3GetShapeUserMaterialId` (`src/shape.c`), drop the `b3MinInt(...,3)`
+  clamp and instead assert `index < child.materialCount`.
+  **SERIALIZED LAYOUT: `B3_COMPOUND_VERSION` bumped to `0x7A2F41C9E6D0B358` (a fresh fixed3d value,
+  chosen over the upstream constant because these blob layouts are fixed3d's own, not upstream's).**
+  The upstream `_Static_assert`s for the material fields are FALSE here (they assume the float
+  layouts); measured instead, in BOTH configs (identical because `b3Vec3` is 24 bytes everywhere and
+  LUDICROUS_MODE widens `b3Pos`/`b3AABB`, not `b3Vec3`): `b3CompoundCapsule` 64 (== 56 b3Capsule + 2
+  materialIndex + 2 padding + 4 tail), `b3CompoundSphere` 40 (== 32 + 2 + 2 + 4 tail),
+  `b3CompoundHull` 72, `b3CompoundMesh` 104, `b3ChildShape` 128. Sum-of-members == sizeof holds for
+  the fields named (no UNNAMED padding): the 4 tail bytes of the capsule/sphere structs are
+  deterministic because the compound blob is `memset` before these instances are written
+  field-by-field, and the explicit `padding` field makes the int->uint16_t shrink explicit rather
+  than leaving an unnamed hole. GOLDENS: NONE MOVED — the corpus has no compound mesh child (counter:
+  `git grep -l 'meshCount' test/ | xargs grep -l 'materialCount = [2-9]'` → empty), so no determinism
+  golden is exposed. TESTS: `CompoundMeshChildSixMaterials` in test/test_compound.c (6-material mesh,
+  verifies `materialCount==6`, ray-casts the sixth triangle and asserts the resolved material is
+  #6 not the clamped #4), seen RED against the old `b3MinInt(...,3)` clamp in the ray-cast (neutered
+  build fails the subtest, verified). `./bin/test` green in narrow and ludicrous. REFERENCE SCENE:
+  `tools/reference/scenes/ref-5643cd8-compound-six-materials.scene` NOT landed here — the reference
+  harness vocabulary has no compound directive and no per-triangle-material query, so the scene needs
+  a `ref_scene.c`/`run_fixed.c`/`run_float.c` extension (a shared-file change this card's New-files-only
+  rule forbids); reported as not-done.
+
 - **REFERENCE HARNESS (fixed3d-box3d-reference-harness, 2026-10-14) — the float box3d
   reference harness.** New `tools/reference/` runs one scenario through vanilla float
   box3d (the reference, fetched at `BOX3D_REFERENCE_REV=47d7f7c` via ExternalProject

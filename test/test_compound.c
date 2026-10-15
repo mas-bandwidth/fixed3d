@@ -582,6 +582,111 @@ static int CompoundShapeCastClosest( void )
 	return 0;
 }
 
+// Six separated upward-facing triangles, one per material index 0..5. Ray-casting the sixth
+// triangle must resolve material index 5 through the child's material table instead of being
+// clamped to slot 3 (the old B3_MAX_COMPOUND_MESH_MATERIALS limit).
+static b3MeshData* MakeSixMaterialMesh( void )
+{
+	b3Vec3 vertices[18];
+	int32_t indices[18];
+	uint8_t materialIndices[6];
+
+	for ( int i = 0; i < 6; ++i )
+	{
+		b3Vec3 x = { b3FixFromInt( 3 * i ), b3FixFromInt( 0 ), b3FixFromInt( 0 ) };
+		vertices[3 * i + 0] = (b3Vec3){ x.x - B3_FIX( 1.0f ), b3FixFromInt( 0 ), -B3_FIX( 1.0f ) };
+		vertices[3 * i + 1] = (b3Vec3){ x.x, b3FixFromInt( 0 ), B3_FIX( 1.0f ) };
+		vertices[3 * i + 2] = (b3Vec3){ x.x + B3_FIX( 1.0f ), b3FixFromInt( 0 ), -B3_FIX( 1.0f ) };
+
+		indices[3 * i + 0] = 3 * i + 0;
+		indices[3 * i + 1] = 3 * i + 1;
+		indices[3 * i + 2] = 3 * i + 2;
+
+		materialIndices[i] = (uint8_t)i;
+	}
+
+	b3MeshDef def = { 0 };
+	def.vertices = vertices;
+	def.stride = sizeof( b3Vec3 );
+	def.indices = indices;
+	def.materialIndices = materialIndices;
+	def.vertexCount = 18;
+	def.triangleCount = 6;
+
+	return b3CreateMesh( &def, NULL, 0 );
+}
+
+static int CompoundMeshChildSixMaterials( void )
+{
+	b3SurfaceMaterial capsuleMat = MakeMaterial( B3_FIX( 0.4f ), 1000 );
+
+	b3MeshData* md = MakeSixMaterialMesh();
+	ENSURE( md != NULL );
+	ENSURE( md->materialCount == 6 );
+
+	b3SurfaceMaterial meshMats[6];
+	for ( int i = 0; i < 6; ++i )
+	{
+		meshMats[i] = MakeMaterial( B3_FIX( 0.2f ) + b3FixMul( B3_FIX( 0.1f ) , (b3Fixed)b3FixFromInt( i ) ), (uint64_t)( i + 1 ) );
+	}
+
+	b3CompoundCapsuleDef cap = {
+		.capsule = { { b3FixFromInt( -10 ), b3FixFromInt( 0 ), b3FixFromInt( 0 ) }, { b3FixFromInt( -9 ), b3FixFromInt( 0 ), b3FixFromInt( 0 ) }, B3_FIX( 0.25f ) },
+		.material = capsuleMat,
+	};
+	b3CompoundMeshDef mesh = {
+		.meshData = md,
+		.transform = b3Transform_identity,
+		.scale = { b3FixFromInt( 1 ), b3FixFromInt( 1 ), b3FixFromInt( 1 ) },
+		.materials = meshMats,
+		.materialCount = 6,
+	};
+
+	b3CompoundDef def = {
+		.capsules = &cap,
+		.capsuleCount = 1,
+		.meshes = &mesh,
+		.meshCount = 1,
+	};
+	b3CompoundData* c = b3CreateCompound( &def );
+	ENSURE( c != NULL );
+	ENSURE( c->materialCount == 7 );
+
+	const b3SurfaceMaterial* table = b3GetCompoundMaterials( c );
+
+	b3ChildShape capChild = b3GetCompoundChild( c, 0 );
+	ENSURE( capChild.type == b3_capsuleShape );
+	ENSURE( capChild.materialCount == 1 );
+	ENSURE( table[capChild.materialIndices[0]].userMaterialId == 1000 );
+
+	b3ChildShape meshChild = b3GetCompoundChild( c, 1 );
+	ENSURE( meshChild.type == b3_meshShape );
+	ENSURE( meshChild.materialCount == 6 );
+	for ( int k = 0; k < 6; ++k )
+	{
+		ENSURE( table[meshChild.materialIndices[k]].userMaterialId == (uint64_t)( k + 1 ) );
+	}
+
+	// Ray-cast the sixth triangle (material index 5); the resolved table material must be
+	// material 6, not clamped to material 4.
+	const uint8_t* triangleMaterials = b3GetMeshMaterialIndices( md );
+	b3RayCastInput ray = {
+		.origin = { b3FixFromInt( 15 ), b3FixFromInt( 5 ), b3FixFromInt( 0 ) },
+		.translation = { b3FixFromInt( 0 ), b3FixFromInt( -10 ), b3FixFromInt( 0 ) },
+		.maxFraction = B3_FIX( 1.0f ),
+	};
+	b3CastOutput out = b3RayCastCompound( c, &ray );
+	ENSURE( out.hit == true );
+	ENSURE( out.childIndex == 1 );
+	int rawIndex = triangleMaterials[out.triangleIndex];
+	ENSURE( rawIndex >= 4 );
+	ENSURE( table[out.materialIndex].userMaterialId == (uint64_t)( rawIndex + 1 ) );
+
+	b3DestroyCompound( c );
+	b3DestroyMesh( md );
+	return 0;
+}
+
 static int CompoundOverlap( void )
 {
 	b3SurfaceMaterial mat = b3DefaultSurfaceMaterial();
@@ -840,6 +945,7 @@ int CompoundTest( void )
 	RUN_SUBTEST( CompoundRayCastClosest );
 	RUN_SUBTEST( CompoundRayCastHullNormalRotation );
 	RUN_SUBTEST( CompoundShapeCastClosest );
+	RUN_SUBTEST( CompoundMeshChildSixMaterials );
 
 	RUN_SUBTEST( CompoundOverlap );
 	RUN_SUBTEST( CompoundQuery );
