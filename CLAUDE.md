@@ -54,6 +54,39 @@ and says *closed*. Record below.)*
 
 The PORT RECORDs below run newest first and are the detail for each step.
 
+- **PORT RECORD 9e5a4cd + 79fc559 "body-sim locator + fat AABB split" (2026-10-15) —
+  PORTED, engine half (card port-9e5a4cd-body-sim-locator-and-fat-aabb-split).** This is
+  sub-task 1 of the fixed3d#65 3+4 step (T2's G1/G2, the pure-integer bookkeeping half).
+  **(1) The encoded body-sim index (G1).** A contact now stores one encoded int per body
+  (`contact->encodedBodySimA/B`, `src/contact.h:130`): awake = `localIndex`, static =
+  `-(localIndex + 2)`, asleep/kinematic = `B3_NULL_INDEX`, decoded through
+  `b3EncodeBodySimIndex` / `b3IsStaticSimIndex` / `b3DecodeAwakeIndex` /
+  `b3SleepBodySimIndex` (`src/body.h:263-291`), kept correct across destroy/sleep/wake/
+  transfer by `b3RefreshBodyContactIndices` (`src/body.c:95`, `src/solver_set.c`) instead of
+  recomputed every narrow-phase step, and resolved in the collide task by
+  `b3ResolveContactBodySim` (`src/physics_world.c:568`). No `b3Fixed` value is touched — pure
+  integer bookkeeping — so it cannot move a golden. `b3ValidateSolverSets` gained a per-contact
+  encoding check (`src/physics_world.c:3604`). **(2) `b3Shape::fatAABB` moves out of the shape
+  into the parallel `world->fatAABBs` array indexed by shape id (`src/physics_world.h`,
+  `src/shape.h`, 12 sites in `src/shape.c`, 8 in `src/solver.c`, create/destroy/reserve in
+  `src/physics_world.c`); the overlap test touches one cache line per shape. The cache argument
+  is weaker here than upstream (`sizeof(b3AABB)` is 48 narrow / 96 ludicrous vs upstream's 24)
+  but the split still buys a full-`b3Shape` miss. The six hand-written `lower - margin`
+  inflation lines fold into the existing `b3AABB_Inflate` helper. **(3) `B3_ALIGNMENT` already
+  satisfied:** the block allocator stride is spelled `B3_ALIGNMENT` (`src/block_allocator.c:14`),
+  which forks 32 under `B3_SIMD_AVX512` / 16 otherwise (`src/core.h:158-160`) — upstream's
+  literal `B3_BLOCK_ALIGNMENT 16` never existed here, so no stride lowering is possible. **HELD:
+  the restitution rewrite (G4/H-A) and the `b3BodyState` relayout (H-C) and the samples halves —
+  they belong to the sub-task 2 card, not this one.** **GOLDENS: NONE MOVED** (narrow and
+  ludicrous), expected: G1/G2 relocate identical AABB values and resolve identical body sims in
+  the same order. **TEST: `BodySimLocatorTest`** (`test/test_body.c:797-1100`, five sub-scenes
+  sleep-wake / awake-neighbor / destroy / kinematic / transfer, hash parity across worker counts,
+  zero tolerances) — green in narrow and ludicrous. **REFERENCE:
+  `tools/reference/scenes/ref-9e5a4cd-body-churn.scene`** (box stack beside a kinematic plate
+  whose fat bounds overlap without touching, so a non-touching contact persists across sleep —
+  the sleep path that nulls/restores the encoding); `ctest -L reference` not run here (no network
+  to fetch float box3d at 9e5a4cd on this bench).
+
 - **PORT RECORD 3d9db79 + 003a3f7 recording refuses a corrupt compound (2026-10-15) —
   PORTED (card port-3d9db79-003a3f7-recording-refuses-a-corrupt-compound.w3).** Two
   upstream recording fixes in one step. **The rename to `replay.*` is HELD** (pure rename
