@@ -333,12 +333,12 @@ static void b3RecW_STR( b3RecBuffer* buf, const char* s )
 #if defined( BOX3D_LUDICROUS_MODE )
 _Static_assert( sizeof( void* ) != 8 || sizeof( b3ExplosionDef ) == 96,
 				"b3ExplosionDef changed: update b3RecW_EXPLOSIONDEF and b3RecR_EXPLOSIONDEF together" );
-_Static_assert( sizeof( void* ) != 8 || sizeof( b3BodyDef ) == 208,
+_Static_assert( sizeof( void* ) != 8 || sizeof( b3BodyDef ) == 224,
 				"b3BodyDef changed: update b3RecW_BODYDEF and b3RecR_BODYDEF together" );
 #else
 _Static_assert( sizeof( void* ) != 8 || sizeof( b3ExplosionDef ) == 56,
 				"b3ExplosionDef changed: update b3RecW_EXPLOSIONDEF and b3RecR_EXPLOSIONDEF together" );
-_Static_assert( sizeof( void* ) != 8 || sizeof( b3BodyDef ) == 176,
+_Static_assert( sizeof( void* ) != 8 || sizeof( b3BodyDef ) == 184,
 				"b3BodyDef changed: update b3RecW_BODYDEF and b3RecR_BODYDEF together" );
 #endif
 _Static_assert( sizeof( void* ) != 8 || sizeof( b3ShapeDef ) == 152,
@@ -382,6 +382,7 @@ void b3RecW_BODYDEF( b3RecBuffer* buf, b3BodyDef v )
 	b3RecW_F32( buf, v.angularDamping );
 	b3RecW_F32( buf, v.gravityScale );
 	b3RecW_F32( buf, v.sleepThreshold );
+	b3RecW_F32( buf, v.safetyFactor );
 	b3RecW_STR( buf, v.name );
 	// userData: not preserved
 	b3RecW_U64( buf, 0u );

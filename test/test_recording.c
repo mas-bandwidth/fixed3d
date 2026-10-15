@@ -969,6 +969,22 @@ static int TaggedQuery( void )
 // Empty world: recording starts with no bodies and none are ever created. The empty world is still
 // seed-serialized like any other, so replay validates and Restart restores in place with a stable
 // world id rather than tearing down and rebuilding the world.
+// Safety factor of the named body in a replay world, or -1 if the body is not in the list
+static b3Fixed ReplaySafetyFactor( b3RecPlayer* player, const char* name )
+{
+	int count = b3RecPlayer_GetBodyCount( player );
+	for ( int i = 0; i < count; ++i )
+	{
+		b3BodyId bodyId = b3RecPlayer_GetBodyId( player, i );
+		if ( b3Body_IsValid( bodyId ) && strcmp( b3Body_GetName( bodyId ), name ) == 0 )
+		{
+			return b3Body_GetSafetyFactor( bodyId );
+		}
+	}
+
+	return -B3_FIX( 1.0f );
+}
+
 static int EmptyWorldRoundTrip( void )
 {
 	b3Recording* rec = b3CreateRecording( 0 );
@@ -1239,11 +1255,27 @@ static int AllOps( void )
 	b3BodyDef disableDef = b3DefaultBodyDef();
 	disableDef.type = b3_dynamicBody;
 	disableDef.position = (b3Pos){ B3_FIX( 9.0f ), B3_FIX( 5.0f ), B3_FIX( 0.0f ) };
+	disableDef.name = "dropBody";
 	b3BodyId disableId = b3CreateBody( worldId, &disableDef );
 	b3Sphere disableSphere = { { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, B3_FIX( 0.3f ) };
 	b3CreateSphereShape( disableId, &sphereShapeDef, &disableSphere );
 	b3Body_Disable( disableId );
 	b3Body_Enable( disableId );
+	b3Body_SetSafetyFactor( disableId, B3_FIX( 0.25f ) );
+
+	// A body that falls fast enough to stay on the continuous path for the whole session. The
+	// non-default factor is what proves the widened body def payload round-trips, since every
+	// other body records the default. Named so the replay check can find it.
+	b3BodyDef fastDef = b3DefaultBodyDef();
+	fastDef.type = b3_dynamicBody;
+	fastDef.position = (b3Pos){ -B3_FIX( 14.0f ), B3_FIX( 30.0f ), B3_FIX( 0.0f ) };
+	fastDef.linearVelocity = (b3Vec3){ B3_FIX( 0.0f ), -B3_FIX( 8.0f ), B3_FIX( 0.0f ) };
+	fastDef.safetyFactor = B3_FIX( 0.1f );
+	fastDef.name = "fastBody";
+	b3BodyId fastId = b3CreateBody( worldId, &fastDef );
+	ENSURE( b3Body_GetSafetyFactor( fastId ) == B3_FIX( 0.1f ) );
+	b3BoxHull fastBox = b3MakeBoxHull( B3_FIX( 0.5f ), B3_FIX( 0.5f ), B3_FIX( 0.5f ) );
+	b3CreateHullShape( fastId, &sphereShapeDef, &fastBox.base );
 
 	// Force/impulse/torque (Vec3 args in 3D)
 	b3Body_ApplyForce( bodyId, (b3Vec3){ B3_FIX( 0.0f ), B3_FIX( 50.0f ), B3_FIX( 0.0f ) }, (b3Pos){ B3_FIX( 1.0f ), B3_FIX( 6.0f ), B3_FIX( 0.0f ) }, true );
@@ -1456,6 +1488,7 @@ static int AllOps( void )
 		{
 			b3Body_ApplyLinearImpulseToCenter( capsuleBodyId, (b3Vec3){ B3_FIX( 2.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, true );
 			b3Body_SetGravityScale( bodyId, B3_FIX( 1.0f ) );
+			b3Body_SetSafetyFactor( fastId, B3_FIX( 0.4f ) );
 		}
 
 		// Issue queries mid-loop to exercise recording across steps
@@ -1538,6 +1571,26 @@ static int AllOps( void )
 		}
 		ENSURE( frames2 == 12 );
 		ENSURE( b3RecPlayer_HasDiverged( player ) == false );
+
+		b3DestroyPlayer( player );
+	}
+
+	// The state hash only proves the op stream stayed aligned. Read the safety factor back out of
+	// the replay world so a value that is written but never restored is caught too.
+	{
+		b3RecPlayer* player = b3CreatePlayer( recData, recSize, 1 );
+		ENSURE( player != NULL );
+
+		// Frame 0 replays the pre-step creates, so the def value is in place
+		ENSURE( b3RecPlayer_StepFrame( player ) );
+		ENSURE( ReplaySafetyFactor( player, "fastBody" ) == B3_FIX( 0.1f ) );
+		ENSURE( ReplaySafetyFactor( player, "dropBody" ) == B3_FIX( 0.25f ) );
+
+		// The setter is injected at frame 6
+		while ( b3RecPlayer_StepFrame( player ) )
+		{
+		}
+		ENSURE( ReplaySafetyFactor( player, "fastBody" ) == B3_FIX( 0.4f ) );
 
 		b3DestroyPlayer( player );
 	}
