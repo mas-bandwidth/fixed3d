@@ -83,9 +83,16 @@ The PORT RECORDs below run newest first and are the detail for each step.
   `BOX3D ASSERTION: compound->version == B3_COMPOUND_VERSION`, exit 132. Green after the fix:
   all three arms print their refusal ("compound geometry 1 is corrupt", "registry entry 1
   compound too small", "geometryId 1 kind mismatch"). Full `./bin/test` green (narrow,
-  RelWithDebInfo+VALIDATE+Werror). **NOT DONE: the reference scene/ctest** (the harness must
-  fetch float box3d at 3d9db79 and run two engines; recording is not a float-simulation
-  observable) and the **ludicrous build** — both named as owed.
+  RelWithDebInfo+VALIDATE+Werror) and in the **ludicrous build** (BOX3D_LUDICROUS_MODE=ON,
+  same flags). **REFERENCE: `tools/reference/scenes/ref-3d9db79-record-replay.scene`** (the
+  5-box stack the card names, 60 steps dt=1/60 substeps 4), globbed into
+  `ctest -L reference`, builds float box3d at 3d9db79 and fixed3d and passes: measured max
+  pos 0.0027932885, rot 0.000532077829, vel 0.0304918997, angvel 0.0215322822, awake delta
+  5 (header states 2x). The scene cannot carry a literal box3d **compound** body: the v1
+  scene vocabulary in `tools/reference/ref_scene.c`/`run_fixed.c`/`run_float.c` has no
+  compound directive and those files are outside this card's paths, so the compound
+  recording path is covered red-first by `CorruptCompound` and a `shape <body> compound`
+  vocabulary extension is proposed, not committed. Everything the card names is done.
 
 - **PORT RECORD 954cf87 ragdoll human (2026-10-15) — the re-rig only, not the
   engine half of Fixes (#157).** `shared/human.c` now authors the 954cf87 rig in
