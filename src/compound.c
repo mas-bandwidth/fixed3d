@@ -573,9 +573,18 @@ b3CompoundData* b3CreateCompound( const b3CompoundDef* def )
 	compound->version = B3_COMPOUND_VERSION;
 	compound->byteCount = byteCount;
 	compound->nodeOffset = nodeOffset;
-	memcpy( &compound->tree, &tree, sizeof( b3DynamicTree ) );
 
-	// todo clean up this mess
+	// Copy the serialized tree fields one by one rather than the whole struct: b3DynamicTree
+	// carries 8 bytes of implicit padding (after freeList and after rebuildCapacity) that a
+	// whole-struct memcpy would copy from the caller's stack 'tree' into the baked blob. The blob
+	// is content-hashed and replayed byte-for-byte, so those padding bytes must be deterministic;
+	// the memset above leaves them zero. The pointer/rebuild fields are runtime-only and stay zero.
+	compound->tree.version = tree.version;
+	compound->tree.nodes = NULL;
+	compound->tree.root = tree.root;
+	compound->tree.nodeCount = tree.nodeCount;
+	compound->tree.nodeCapacity = tree.nodeCapacity;
+	compound->tree.proxyCount = tree.proxyCount;
 	compound->tree.freeList = 0;
 	compound->tree.leafIndices = NULL;
 	compound->tree.leafBoxes = NULL;
@@ -583,7 +592,6 @@ b3CompoundData* b3CreateCompound( const b3CompoundDef* def )
 	compound->tree.binIndices = NULL;
 	compound->tree.rebuildCapacity = 0;
 
-	compound->tree.nodes = NULL;
 	compound->materialOffset = materialOffset;
 	compound->materialCount = materialCount;
 	compound->capsuleOffset = capsuleOffset;

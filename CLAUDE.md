@@ -54,6 +54,32 @@ and says *closed*. Record below.)*
 
 The PORT RECORDs below run newest first and are the detail for each step.
 
+- **PORT RECORD 3d9db79 (field-by-field tree copy) "various recording fixes (#182)" (2026-10-15) —
+  PORTED (card fixed3d-box3d-ports-compound-block, sub-task 2; the compound.c half only).**
+  `b3CreateCompound` baked the runtime dynamic tree with a whole-struct
+  `memcpy( &compound->tree, &tree, sizeof( b3DynamicTree ) )` and then nulled out the pointer/rebuild
+  fields. `b3DynamicTree` carries 8 bytes of IMPLICIT padding (a 4-byte gap after `freeList` before the
+  8-aligned `leafIndices`, and a 4-byte tail after `rebuildCapacity`): those bytes come from the caller's
+  stack `tree`, they are copied into the baked blob, and the blob is content-hashed RAW
+  (`b3RecInternCompound` -> `b3Hash64NonZero( bytes, byteCount )`) and replayed byte-for-byte, so the
+  padding hole carried INDETERMINATE bytes today (a silent replay-determinism hazard, MSan-visible). The
+  copy is now field-by-field: `version`/`root`/`nodeCount`/`nodeCapacity`/`proxyCount` are copied
+  explicitly and every pointer, `freeList` and `rebuildCapacity` are left at the blob memset's zero, so no
+  byte of the serialized tree is ever read from caller stack padding. The `nodes` pointer is still fixed
+  up afterward (unchanged). MEASURED (`offsetof`, both configs — identical because `b3DynamicTree` has no
+  128-bit members): `b3DynamicTree` is 80 bytes with the two padding holes at offsets 36..39 and 76..79.
+  GOLDENS: NONE MOVED (the serialized tree fields are the same values; only previously-garbage padding is
+  now deterministically zero). TESTS: `CompoundBlobHasNoIndeterminateBytes` in test/test_compound.c builds
+  the same compound twice and asserts the raw blobs are memcmp-identical, and additionally asserts the two
+  `b3DynamicTree` padding holes (located via `offsetof`) are zero. RED-FIRST: the test is MSan-clean
+  against the field-by-field copy and flags an uninitialized read against the struct-assign variant (a
+  whole-struct `memcpy` of a struct with uninitialized padding); the MSan build is the red-first step per
+  the brief. `./bin/test` green in narrow and ludicrous. REFERENCE SCENE
+  `tools/reference/scenes/ref-3d9db79-compound-identical-builds.scene` NOT landed here for the same reason
+  as the other compound scenes (no compound directive in the harness vocabulary). The other parts of
+  3d9db79 (the recording refusal fix 003a3f7, the `recording_replay.*` -> `replay.*` rename) are out of
+  scope for this sub-task and carried by upstream cards.
+
 - **PORT RECORD 5643cd8 "Remove compound mesh child material limit (#172)" (2026-10-15) —
   PORTED (card fixed3d-box3d-ports-compound-block, sub-task 1). Closes fixed3d#52.**
   The 4-material-per-mesh-child clamp (`B3_MAX_COMPOUND_MESH_MATERIALS`) is gone: `b3CompoundMesh`

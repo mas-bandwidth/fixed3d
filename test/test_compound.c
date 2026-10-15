@@ -9,6 +9,7 @@
 #include "box3d/collision.h"
 #include "box3d/math_functions.h"
 
+#include <stddef.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
@@ -920,6 +921,39 @@ static int CompoundSerializeWrongByteCount( void )
 	return 0;
 }
 
+// Two identical compound builds must produce byte-identical blobs: the baked tree is stored
+// inside the compound by field (not by whole-struct memcpy), so b3DynamicTree's implicit padding
+// stays at the blob memset's zero value instead of carrying the caller's stack garbage. The blob
+// is content-hashed raw (b3RecInternCompound), so any indeterminate byte breaks replay determinism.
+static int CompoundBlobHasNoIndeterminateBytes( void )
+{
+	b3MeshData* md = b3CreateBoxMesh( b3Vec3_zero, (b3Vec3){ B3_FIX( 0.5f ), B3_FIX( 0.5f ), B3_FIX( 0.5f ) }, false );
+	b3CompoundData* a = BuildSerializableCompound( md );
+	b3CompoundData* c = BuildSerializableCompound( md );
+	ENSURE( a != NULL && c != NULL );
+	ENSURE( a->byteCount == c->byteCount );
+
+	uint8_t* bytesA = b3ConvertCompoundToBytes( a );
+	uint8_t* bytesC = b3ConvertCompoundToBytes( c );
+	int equal = memcmp( bytesA, bytesC, (size_t)a->byteCount );
+	ENSURE( equal == 0 );
+
+	// The embedded tree's implicit padding must stay at the blob memset's zero value. b3DynamicTree
+	// has a 4-byte gap between freeList and leafIndices and a 4-byte tail gap after rebuildCapacity.
+	for ( int i = 0; i < 4; ++i )
+	{
+		size_t gap1 = offsetof( b3DynamicTree, freeList ) + sizeof( int ) + (size_t)i;
+		size_t tail = offsetof( b3DynamicTree, rebuildCapacity ) + sizeof( int ) + (size_t)i;
+		ENSURE( bytesA[offsetof( b3CompoundData, tree ) + gap1] == 0 );
+		ENSURE( bytesA[offsetof( b3CompoundData, tree ) + tail] == 0 );
+	}
+
+	b3DestroyCompound( a );
+	b3DestroyCompound( c );
+	b3DestroyMesh( md );
+	return 0;
+}
+
 int CompoundTest( void )
 {
 	RUN_SUBTEST( CompoundCreateMixed );
@@ -955,6 +989,7 @@ int CompoundTest( void )
 	RUN_SUBTEST( CompoundSerializeRoundtrip );
 	RUN_SUBTEST( CompoundSerializeBadVersion );
 	RUN_SUBTEST( CompoundSerializeWrongByteCount );
+	RUN_SUBTEST( CompoundBlobHasNoIndeterminateBytes );
 
 	return 0;
 }
