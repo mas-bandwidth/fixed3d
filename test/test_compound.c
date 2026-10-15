@@ -1003,6 +1003,21 @@ static int CompoundBlobInvariants( void )
 	memcpy( bytes, a, (size_t)byteCount );
 	blob->padding = 1;
 	ENSURE( b3ValidateCompound( bytes, byteCount ) == NULL );
+	memcpy( bytes, a, (size_t)byteCount );
+	b3TreeNode* nodes = (b3TreeNode*)( bytes + blob->nodeOffset );
+	ENSURE( ( nodes[blob->root].flags & b3_leafNode ) == 0 );
+	nodes[blob->root].children.child1 = blob->nodeCount;
+	ENSURE( b3ValidateCompound( bytes, byteCount ) == NULL );
+	memcpy( bytes, a, (size_t)byteCount );
+	b3HullInstance* hulls = (b3HullInstance*)( bytes + blob->hullOffset );
+	b3HullData* hull = (b3HullData*)( bytes + hulls[0].hullOffset );
+	hull->pointOffset = hull->byteCount + 8;
+	ENSURE( b3ValidateCompound( bytes, byteCount ) == NULL );
+	memcpy( bytes, a, (size_t)byteCount );
+	b3MeshInstance* meshes = (b3MeshInstance*)( bytes + blob->meshOffset );
+	b3MeshData* mesh = (b3MeshData*)( bytes + meshes[0].meshOffset );
+	mesh->triangleOffset = mesh->byteCount + 8;
+	ENSURE( b3ValidateCompound( bytes, byteCount ) == NULL );
 
 	free( bytes );
 	b3DestroyCompound( a );
