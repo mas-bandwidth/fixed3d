@@ -2455,6 +2455,31 @@ new sample code — keep them clean.
 
 ## Known leftovers / follow-ups
 
+- **79fc559 restitution port (2026-10-15):** The world definition now owns
+  `restitutionIterations`; its default is 2, matching upstream 79fc559. The
+  restored post-solve stage uses raw-128 normal-speed products and a gated
+  kinetic cap, with scalar and wide lanes sharing the same fixed-point rules.
+  Snapshot wire version 5 preserves the version-3 `safetyFactor` and version-4
+  compound layouts and adds the restitution setting; recording minor 8 follows
+  the broad-phase card's reserved minor 7. Version-3 and version-4 snapshots
+  are refused by the existing exact-version policy. The 79fc559 bounce and pile
+  reference scenes pin two sweeps in both engines. The bounce scene passes;
+  the pile scene is held for a collision-policy decision: fixed3d creates
+  speculative sphere contacts through radius plus 0.02 m while upstream
+  79fc559 creates them only at radius. At step 39 fixed3d has a sphere manifold
+  with separation +0.018494 and a bounce, while float has no contact yet.
+  Neither the pile scene nor its tolerance was changed to hide this mismatch.
+  The restitution stage now rebuilds inverse inertia in the body's orientation
+  after position substeps, including scalar and wide mesh paths. A spinning
+  thin-box contact pins the prior one-step normalized energy rise of 1.16145
+  to 1.57017 against the corrected rise of 1.10727 to 1.15106.
+  Six upstream restitution-battery subtests already
+  fail on clean fixed3d BASE and are marked XFAIL individually, with XPASS a
+  failure; the original bounds remain intact. The follow-up card is
+  `fixed3d-energy-floor-matches-upstream`. A hard
+  default-elastic-energy comparison against BASE remains in the suite so the
+  configured default cannot silently regress while that floor is repaired.
+
 - ~~Quickhull iteration guard~~ DONE (bug-hunt pass): the builder has a
   `failed` flag, bounded ring walks in ConnectFaces/merge loops, release-safe
   pool allocators, and `b3FindFarthestPointFromLine` no longer divides by a

@@ -1,0 +1,35 @@
+# Twelve spheres in three four-ball layers fall onto a hull ground. All use 0.6
+# restitution. This exercises repeated sphere-sphere and sphere-ground contacts
+# in the post-solve stage over 100 steps; the trace records first-bounce apexes
+# and the awake count at every step, including the final step.
+# Reference: float box3d at 79fc559. Both engines use two restitution stage iterations.
+# Measured Linux max position/rotation/velocity(including angular): 0.003608232233, 0.005104766247, 0.012263.
+# Header bounds are twice these maxima over all 100 steps; awake counts agree exactly.
+expect pos 0.007216464466 rot 0.010209532494 vel 0.024526 horizon 100 counts exact
+world gravity 0 -10 0 dt 1 60 substeps 4 steps 100 restitutionIterations 2
+body static position 0 -0.5 0 rotation 0 0 0 1 linvel 0 0 0 angvel 0 0 0
+shape 0 box 10 0.5 10 density 1 friction 0.5 restitution 0
+body dynamic position -1.575 0.8 0 rotation 0 0 0 1 linvel 0 0 0 angvel 0 0 0 flags nosleep
+body dynamic position -0.525 0.8 0 rotation 0 0 0 1 linvel 0 0 0 angvel 0 0 0 flags nosleep
+body dynamic position 0.525 0.8 0 rotation 0 0 0 1 linvel 0 0 0 angvel 0 0 0 flags nosleep
+body dynamic position 1.575 0.8 0 rotation 0 0 0 1 linvel 0 0 0 angvel 0 0 0 flags nosleep
+body dynamic position -1.575 1.85 0 rotation 0 0 0 1 linvel 0 0 0 angvel 0 0 0 flags nosleep
+body dynamic position -0.525 1.85 0 rotation 0 0 0 1 linvel 0 0 0 angvel 0 0 0 flags nosleep
+body dynamic position 0.525 1.85 0 rotation 0 0 0 1 linvel 0 0 0 angvel 0 0 0 flags nosleep
+body dynamic position 1.575 1.85 0 rotation 0 0 0 1 linvel 0 0 0 angvel 0 0 0 flags nosleep
+body dynamic position -1.575 2.9 0 rotation 0 0 0 1 linvel 0 0 0 angvel 0 0 0 flags nosleep
+body dynamic position -0.525 2.9 0 rotation 0 0 0 1 linvel 0 0 0 angvel 0 0 0 flags nosleep
+body dynamic position 0.525 2.9 0 rotation 0 0 0 1 linvel 0 0 0 angvel 0 0 0 flags nosleep
+body dynamic position 1.575 2.9 0 rotation 0 0 0 1 linvel 0 0 0 angvel 0 0 0 flags nosleep
+shape 1 sphere 0.5 density 1 friction 0.2 restitution 0.6
+shape 2 sphere 0.5 density 1 friction 0.2 restitution 0.6
+shape 3 sphere 0.5 density 1 friction 0.2 restitution 0.6
+shape 4 sphere 0.5 density 1 friction 0.2 restitution 0.6
+shape 5 sphere 0.5 density 1 friction 0.2 restitution 0.6
+shape 6 sphere 0.5 density 1 friction 0.2 restitution 0.6
+shape 7 sphere 0.5 density 1 friction 0.2 restitution 0.6
+shape 8 sphere 0.5 density 1 friction 0.2 restitution 0.6
+shape 9 sphere 0.5 density 1 friction 0.2 restitution 0.6
+shape 10 sphere 0.5 density 1 friction 0.2 restitution 0.6
+shape 11 sphere 0.5 density 1 friction 0.2 restitution 0.6
+shape 12 sphere 0.5 density 1 friction 0.2 restitution 0.6

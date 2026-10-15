@@ -155,6 +155,19 @@ B3_API void b3World_SetRestitutionThreshold( b3WorldId worldId, b3Fixed value );
 /// Get the restitution speed threshold. Usually in meters per second.
 B3_API b3Fixed b3World_GetRestitutionThreshold( b3WorldId worldId );
 
+/// Set the number of iterations used by the restitution solver.
+/// @see B3_MAX_RESTITUTION_ITERATIONS
+B3_API void b3World_SetRestitutionIterations( b3WorldId worldId, int iterations );
+
+/// Get the number of iterations used by the restitution solver.
+B3_API int b3World_GetRestitutionIterations( b3WorldId worldId );
+
+/// Enable restitution propagation.
+B3_API void b3World_EnableRestitutionPropagation( b3WorldId worldId, bool flag );
+
+/// Is restitution propagation enabled?
+B3_API bool b3World_IsRestitutionPropagationEnabled( b3WorldId worldId );
+
 /// Adjust the hit event threshold. This controls the collision speed needed to generate a b3ContactHitEvent.
 /// Usually in meters per second.
 /// @see b3WorldDef::hitEventThreshold

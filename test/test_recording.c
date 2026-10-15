@@ -1049,6 +1049,42 @@ static int EmptyWorldRoundTrip( void )
 	return 0;
 }
 
+// Snapshot v3 has the safety-factor layout and v4 adds pointer-free compound
+// geometry. Neither has restitution settings. Exact-version refusal prevents
+// either older world-config layout from being read as v5.
+static int PreviousSnapshotVersionRefused( void )
+{
+	b3Recording* rec = b3CreateRecording( 0 );
+	ENSURE( rec != NULL );
+	b3WorldDef worldDef = b3DefaultWorldDef();
+	b3WorldId worldId = b3CreateWorld( &worldDef );
+	b3World_StartRecording( worldId, rec );
+	b3World_StopRecording( worldId );
+	b3DestroyWorld( worldId );
+
+	const uint8_t* data = b3Recording_GetData( rec );
+	int size = b3Recording_GetSize( rec );
+	ENSURE( size >= (int)sizeof( b3RecHeader ) + 8 );
+	uint32_t version = 0;
+	memcpy( &version, data + sizeof( b3RecHeader ) + 4, sizeof( version ) );
+	ENSURE( version == 5u );
+
+	b3RecPlayer* current = b3CreatePlayer( data, size, 1 );
+	ENSURE( current != NULL );
+	b3DestroyPlayer( current );
+
+	uint8_t* old = (uint8_t*)b3Alloc( (size_t)size );
+	memcpy( old, data, (size_t)size );
+	for ( version = 3u; version <= 4u; ++version )
+	{
+		memcpy( old + sizeof( b3RecHeader ) + 4, &version, sizeof( version ) );
+		ENSURE( b3CreatePlayer( old, size, 1 ) == NULL );
+	}
+	b3Free( old, (size_t)size );
+	b3DestroyRecording( rec );
+	return 0;
+}
+
 // Exercise every recorded op in a single session, then validate replay at two worker
 // counts, round-trip through a file, and drive the incremental player. Mirrors the
 // comprehensive RecordingTest in Box2D's test suite (box2d/test/test_recording.c).
@@ -2503,6 +2539,7 @@ int RecordingTest( void )
 	RUN_SUBTEST( HullMeshSwapReplay );
 	RUN_SUBTEST( SphereRoundTrip );
 	RUN_SUBTEST( EmptyWorldRoundTrip );
+	RUN_SUBTEST( PreviousSnapshotVersionRefused );
 	RUN_SUBTEST( HullDedup );
 	RUN_SUBTEST( MidStreamNoContacts );
 	RUN_SUBTEST( MidStreamContacts );

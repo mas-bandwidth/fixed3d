@@ -16,6 +16,8 @@ b3WorldDef b3DefaultWorldDef( void )
 	def.gravity.y = -B3_FIX( 10.0f );
 	def.hitEventThreshold = b3FixMul( B3_FIX( 1.0f ) , lengthUnits );
 	def.restitutionThreshold = b3FixMul( B3_FIX( 1.0f ) , lengthUnits );
+	def.restitutionIterations = B3_RESTITUTION_ITERATIONS;
+	def.enableRestitutionPropagation = false;
 	def.contactSpeed = b3FixMul( B3_FIX( 3.0f ) , lengthUnits );
 	def.contactHertz = B3_FIX( 30.0f );
 	def.contactDampingRatio = B3_FIX( 10.0f );
