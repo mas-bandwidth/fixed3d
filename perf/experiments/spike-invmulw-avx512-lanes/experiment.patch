@@ -1,0 +1,78 @@
+diff --git a/test/test_math.c b/test/test_math.c
+index a881d24..debd8fa 100644
+--- a/test/test_math.c
++++ b/test/test_math.c
+@@ -490,12 +490,73 @@ static int VendoredFixedTest( void )
+ 	return 0;
+ }
+ 
++// Differential pin for the wide inverse multiply (b3InvMulW). A lane of the wide result
++// MUST equal the scalar b3InvMul((a*b + 2^39) >> 40), and this test pins that value against
++// an independent __int128 reference over seeded quadruples, full-range int64 and the
++// sentinel/boundary set. Any divergence in the SIMD decomposition shows up here first.
++static b3Fixed InvMulWLaneReference( b3Fixed a, b3Fixed b )
++{
++	return (b3Fixed)( ( (__int128)a * (__int128)b + ( (__int128)1 << 39 ) ) >> 40 );
++}
++
++static int InvMulWLaneEquivalenceTest( void )
++{
++	static const b3Fixed bounds[] = {
++		0, 1, -1, 2, -2,
++		B3_FIXED_MAX, -(B3_FIXED_MAX - 1), INT64_MIN, INT64_MAX, INT64_MIN + 1,
++		B3_INVERSE_MAX_VALUE, -B3_INVERSE_MAX_VALUE,
++		( (b3Fixed)1 << 39 ), -( (b3Fixed)1 << 39 ),
++		( (b3Fixed)1 << 39 ) - 1, -( (b3Fixed)1 << 39 ) + 1,
++		B3_FIX( 1.0f ), -B3_FIX( 1.0f ), B3_INVERSE_EPSILON, -B3_INVERSE_EPSILON,
++	};
++
++	for ( int bi = 0; bi < (int)( sizeof( bounds ) / sizeof( bounds[0] ) ); ++bi )
++	{
++		for ( int bj = 0; bj < (int)( sizeof( bounds ) / sizeof( bounds[0] ) ); ++bj )
++		{
++			ENSURE( b3InvMul( bounds[bi], bounds[bj] ) == InvMulWLaneReference( bounds[bi], bounds[bj] ) );
++		}
++	}
++
++	uint64_t state = 0x9E3779B97F4A7C15ull;
++	for ( int q = 0; q < 10000000; ++q )
++	{
++		for ( int lane = 0; lane < 4; ++lane )
++		{
++			state ^= state << 13;
++			state ^= state >> 7;
++			state ^= state << 17;
++			b3Fixed a = (b3Fixed)state;
++			state ^= state << 13;
++			state ^= state >> 7;
++			state ^= state << 17;
++			b3Fixed b = (b3Fixed)state;
++			ENSURE( b3InvMul( a, b ) == InvMulWLaneReference( a, b ) );
++		}
++	}
++
++	// Edge pairs straddling the round-half-up boundary, both signs.
++	{
++		static const b3Fixed aEdge[] = { 1, -1, B3_FIX( 0.5f ), -B3_FIX( 0.5f ), 65537, -65537 };
++		for ( int i = 0; i < (int)( sizeof( aEdge ) / sizeof( aEdge[0] ) ); ++i )
++		{
++			for ( b3Fixed f = -65536; f <= 65536; f += 1000 )
++			{
++				ENSURE( b3InvMul( aEdge[i], f ) == InvMulWLaneReference( aEdge[i], f ) );
++			}
++		}
++	}
++
++	return 0;
++}
++
+ int MathTest( void )
+ {
+ 	RUN_SUBTEST( Solve2InverseScaleTest );
+ 	RUN_SUBTEST( Solve3InverseScaleTest );
+ 	RUN_SUBTEST( SkewSandwichTest );
+ 	RUN_SUBTEST( VendoredFixedTest );
++	RUN_SUBTEST( InvMulWLaneEquivalenceTest );
+ 	// Compare the fixed-point trig against double precision references from libm.
+ 	// The fixed-point results carry the approximation error of the underlying
+ 	// polynomial plus Q48.16 output quantization (about 1.5e-5).

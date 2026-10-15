@@ -1,0 +1,22 @@
+=== cpu_info ===
+model name	: AMD Ryzen 7 255 w/ Radeon 780M Graphics
+ISA: avx2 avx512dq avx512f avx512vl 
+compiler: Ubuntu clang version 21.1.8 (6ubuntu1)
+nproc: 16
+affinity: pid 1704953's current affinity list: 0-15
+load: load average: 1.16, 0.66, 0.38
+
+=== red-first (shift 16 bug) ===
+condition false: b3InvMul( bounds[bi], bounds[bj] ) == InvMulWLaneReference( bounds[bi], bounds[bj] )
+  subtest failed: InvMulWLaneEquivalenceTest  (exit 1)
+
+=== green (shift 40) ===
+  subtest passed: InvMulWLaneEquivalenceTest
+./build/bin/test MathTest -> exit 0; full ./build/bin/test -> exit 0
+build-avx512 ./bin/test MathTest -> exit 0
+
+=== ab.sh tables ===
+NOT RUN: tools/perf/ (fixed3d-perf-harness) absent on BASE
+
+=== oracle_check ===
+NOT RUN: tools/perf/oracle_check.sh absent on BASE
