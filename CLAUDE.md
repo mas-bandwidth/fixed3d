@@ -172,6 +172,17 @@ The PORT RECORDs below run newest first and are the detail for each step.
   upstream issue, and every group in the diff appears below with a disposition. Port plan:
   **fixed3d#65**. The cursor does not move until this branch merges; see the clause above.
 
+  **LANDED 2026-10-15 on `sprint/fixed3d-box3d-ports` (card port-954cf87-fixes-land-the-branch).**
+  The branch merged onto the sprint tip (which already carries the fixed3d#67 re-rig), so the
+  ragdoll golden is the re-rig AND group A together: re-rig alone 325, group A on the re-rigged
+  scene 354 (narrow 0xD8C71580 / ludicrous 0xD13E51C0), and the single-ragdoll scenario 331
+  (narrow 0xCD6AC1EB / ludicrous 0xCD75B56B), all bit-identical across workers 1-5 and two
+  generation runs. Wave-pile re-measured on the sprint stream (issue-36 `b3ClipSegment` sign
+  fix): sleep 275, hash 0xC8EA9BBB narrow / 0xD4E8E9FB ludicrous. Query-spawn and mesh-drop hold.
+  The five reference scenes this card names (`ref-954cf87-collide-connected-false`,
+  `-center-of-mass-move`, `-safety-factor`, `-compound-overlap`, `-stale-tree-rebuild`) are
+  added under `tools/reference/scenes/`; see the card's report for the vocabulary they need.
+
   **THE SHAPE OF THE SPLIT: six engine steps, two test steps, one compile-only step, one
   record.** Each step built `build-port`, `build-ludicrous`, `build-debug`
   (Debug + VALIDATE + ASan + UBSan) and `build-samples`, and ran the three test binaries

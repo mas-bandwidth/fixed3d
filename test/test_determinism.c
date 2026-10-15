@@ -38,12 +38,14 @@
 // Ragdoll and wave pile were re-captured for upstream 954cf87, which stops a body on
 // the continuous (fast) path from recycling a cached manifold at all, mesh or not.
 // Query-spawn has no fast bodies and mesh-drop's fast contacts are all mesh contacts,
-// which the old condition already excluded, so both HELD.
-#define RAGDOLL_SLEEP_STEP 325
+// which the old condition already excluded, so both HELD. The ragdoll golden here is
+// the re-rig (fixed3d#67) AND group A together: the re-rig alone moved it to 325, and
+// group A lands on the re-rigged scene to move it again to 354.
+#define RAGDOLL_SLEEP_STEP 354
 #if defined( BOX3D_LUDICROUS_MODE )
-#define RAGDOLL_HASH 0x7ACB4BED
+#define RAGDOLL_HASH 0xD13E51C0
 #else
-#define RAGDOLL_HASH 0x97AB456D
+#define RAGDOLL_HASH 0xD8C71580
 #endif
 
 // Goldens for the wave pile, query spawn and mesh drop scenarios. Fixed-point goldens
@@ -66,13 +68,14 @@
 #endif
 
 // Re-rigged single ragdoll (box3d 954cf87) dropped on a ground box. Harvested
-// on this bench: sleep 228 both builds, hash narrow 0xB12CCFAE / ludicrous
-// 0x8075582E, identical for workers 1-5 and across two generation runs.
-#define RAGDOLL_HUMAN_SLEEP_STEP 228
+// on this bench: sleep 331 both builds, hash narrow 0xCD6AC1EB / ludicrous
+// 0xCD75B56B, identical for workers 1-5 and across two generation runs. The
+// re-rig alone moved it to 228; group A lands on the re-rigged scene to move it again.
+#define RAGDOLL_HUMAN_SLEEP_STEP 331
 #if defined( BOX3D_LUDICROUS_MODE )
-#define RAGDOLL_HUMAN_HASH 0x8075582E
+#define RAGDOLL_HUMAN_HASH 0xCD75B56B
 #else
-#define RAGDOLL_HUMAN_HASH 0xB12CCFAE
+#define RAGDOLL_HUMAN_HASH 0xCD6AC1EB
 #endif
 
 // The goldens above pin exact values for the default four point manifold. A build that
@@ -597,8 +600,8 @@ static int SingleRagdollHumanTest( int workerCount )
 		printf( "  ragdoll-human workers=%d sleepStep=%d hash=0x%08X\n", workerCount, data.sleepStep, data.hash );
 	}
 
-	ENSURE( data.sleepStep == RAGDOLL_HUMAN_SLEEP_STEP );
-	ENSURE( data.hash == RAGDOLL_HUMAN_HASH );
+	ENSURE_GOLDEN( data.sleepStep == RAGDOLL_HUMAN_SLEEP_STEP );
+	ENSURE_GOLDEN( data.hash == RAGDOLL_HUMAN_HASH );
 	DestroyRagdollHuman( &data );
 	return 0;
 }
