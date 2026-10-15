@@ -2476,12 +2476,15 @@ new sample code — keep them clean.
   compound layouts and adds the restitution setting; recording minor 8 follows
   the broad-phase card's reserved minor 7. Version-3 and version-4 snapshots
   are refused by the existing exact-version policy. The 79fc559 bounce and pile
-  reference scenes pin two sweeps in both engines. The bounce scene passes;
-  the pile scene is held for a collision-policy decision: fixed3d creates
-  speculative sphere contacts through radius plus 0.02 m while upstream
-  79fc559 creates them only at radius. At step 39 fixed3d has a sphere manifold
-  with separation +0.018494 and a bounce, while float has no contact yet.
-  Neither the pile scene nor its tolerance was changed to hide this mismatch.
+  reference scenes pin two sweeps in both engines. Glenn retained fixed3d's
+  speculative sphere contacts through radius plus 0.02 m; upstream 79fc559
+  creates them only at radius. At step 38 the center gap is 1.018494 m fixed
+  versus 1.019231 m float. At step 39 fixed3d has a sphere manifold with
+  separation +0.018494 and a bounce, while float has no contact yet. The
+  pile reference therefore compares the first bounce apex of the top sphere
+  and the exact final per-body awake set, preserving the distinct contact
+  phase. Its Linux-measured apex difference is 0.00027418 m, so its bound is
+  twice that difference; the bounce reference keeps its per-step trace gate.
   The restitution stage now rebuilds inverse inertia in the body's orientation
   after position substeps, including scalar and wide mesh paths. A spinning
   thin-box contact pins the prior one-step normalized energy rise of 1.16145

@@ -3,9 +3,12 @@
 # in the post-solve stage over 100 steps; the trace records first-bounce apexes
 # and the awake count at every step, including the final step.
 # Reference: float box3d at 79fc559. Both engines use two restitution stage iterations.
-# Measured Linux max position/rotation/velocity(including angular): 0.003608232233, 0.005104766247, 0.012263.
-# Header bounds are twice these maxima over all 100 steps; awake counts agree exactly.
-expect pos 0.007216464466 rot 0.010209532494 vel 0.024526 horizon 100 counts exact
+# Fixed3D keeps speculative sphere contacts through radius + 0.02 m while float
+# creates them only at radius. The contact may start one step apart, so compare
+# the first top-sphere bounce apex and the exact final per-body awake set.
+# Linux b1 at float 79fc559 measured apex heights 2.66017151 fixed and
+# 2.66044569 float (difference 0.00027418 m); the bound is twice that difference.
+expect firstBounceApex body 9 tolerance 0.00054836 finalAwake exact
 world gravity 0 -10 0 dt 1 60 substeps 4 steps 100 restitutionIterations 2
 body static position 0 -0.5 0 rotation 0 0 0 1 linvel 0 0 0 angvel 0 0 0
 shape 0 box 10 0.5 10 density 1 friction 0.5 restitution 0

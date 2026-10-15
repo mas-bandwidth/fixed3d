@@ -586,6 +586,11 @@ int main( int argc, char** argv )
 					(double)p.y, (double)p.z, (double)q.v.x, (double)q.v.y, (double)q.v.z, (double)q.s, (double)v.x, (double)v.y,
 					(double)v.z, (double)w.x, (double)w.y, (double)w.z );
 		}
+		if ( scene.expect.firstBounceApex && s == steps - 1 )
+		{
+			for ( int i = 0; i < scene.bodyCount; ++i )
+				printf( "awake %d %d\n", i, b3Body_IsAwake( bodies[i] ) ? 1 : 0 );
+		}
 
 		if ( scene.traceContacts && !traceContacts( bodies, scene.bodyCount ) )
 		{

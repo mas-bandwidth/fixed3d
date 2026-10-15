@@ -89,6 +89,23 @@ static bool endOfLine( char* p )
 static bool parseExpect( char* p, b3RefScene* scene, char* error, int errorSize )
 {
 	b3RefExpect* e = &scene->expect;
+	char* apex = p;
+	if ( takeWord( &apex, "firstBounceApex" ) )
+	{
+		memset( e, 0, sizeof( *e ) );
+		if ( !takeWord( &apex, "body" ) || !takeInt( &apex, &e->apexBody ) || e->apexBody < 0 ||
+			 e->apexBody >= B3_REF_MAX_BODIES || !takeWord( &apex, "tolerance" ) ||
+			 !takeDouble( &apex, &e->apexTolerance ) || !isfinite( e->apexTolerance ) || e->apexTolerance <= 0.0 ||
+			 !takeWord( &apex, "finalAwake" ) || !takeWord( &apex, "exact" ) || !endOfLine( apex ) )
+		{
+			if ( error && errorSize > 0 )
+				snprintf( error, errorSize, "malformed firstBounceApex expectation" );
+			return false;
+		}
+		e->firstBounceApex = true;
+		e->hasExpect = true;
+		return true;
+	}
 
 	// predicate form first: the header form is anchored on the word "pos"
 	{
@@ -1397,6 +1414,13 @@ bool b3RefParseScene( const char* text, b3RefScene* scene, char* error, int erro
 		free( buf );
 		return false;
 	}
+	if ( scene->expect.firstBounceApex && scene->expect.apexBody >= scene->bodyCount )
+	{
+		if ( error && errorSize > 0 )
+			snprintf( error, errorSize, "firstBounceApex body is missing" );
+		free( buf );
+		return false;
+	}
 	if ( !expectSeen )
 	{
 		if ( error && errorSize > 0 )
@@ -1615,6 +1639,7 @@ typedef struct b3RefStepSample
 {
 	int step;
 	int counters[3]; // contact, awake, joint
+	uint64_t awakeBits, awakeSeenBits; // apex mode: final per-body awake set
 	bool hasContacts;
 	int contactCount, expectedContacts;
 	b3RefContactSample contacts[B3_REF_MAX_CONTACTS];
@@ -1783,6 +1808,20 @@ static bool parseTrace( char* text, b3RefTrace* trace )
 			}
 			st->bodyCount += 1;
 		}
+		else if ( takeWord( &p, "awake" ) )
+		{
+			int index = -1, value = -1;
+			if ( curStep < 0 || !takeInt( &p, &index ) || !takeInt( &p, &value ) || !endOfLine( p ) ||
+				 index < 0 || index >= B3_REF_MAX_BODIES || ( value != 0 && value != 1 ) )
+				return false;
+			b3RefStepSample* st = &trace->steps[curStep];
+			uint64_t bit = UINT64_C( 1 ) << index;
+			if ( st->awakeSeenBits & bit )
+				return false;
+			st->awakeSeenBits |= bit;
+			if ( value != 0 )
+				st->awakeBits |= bit;
+		}
 		else if ( takeWord( &p, "contacts" ) )
 		{
 			if ( curStep < 0 || trace->steps[curStep].hasContacts )
@@ -1858,6 +1897,46 @@ static bool parseTrace( char* text, b3RefTrace* trace )
 	return true;
 }
 
+// Find the first complete upward arc after a downward impact. The contact may
+// begin on different steps, so compare its apex height rather than aligned
+// per-step velocities. Requiring the return to nonpositive velocity prevents
+// an incomplete trace from passing as an apex.
+static bool firstBounceApex( const b3RefTrace* trace, int body, double* height, int* step )
+{
+	bool rising = false;
+	for ( int i = 1; i < trace->stepCount; ++i )
+	{
+		const b3RefStepSample* prev = trace->steps + i - 1;
+		const b3RefStepSample* cur = trace->steps + i;
+		if ( body >= prev->bodyCount || body >= cur->bodyCount )
+			return false;
+		const b3RefBodySample* before = prev->bodies + body;
+		const b3RefBodySample* after = cur->bodies + body;
+		if ( !isfinite( after->p[1] ) || !isfinite( after->v[1] ) )
+			return false;
+		if ( !rising )
+		{
+			if ( before->v[1] < 0.0 && after->v[1] > 0.0 )
+			{
+				rising = true;
+				*height = after->p[1];
+				*step = cur->step;
+			}
+		}
+		else
+		{
+			if ( after->p[1] > *height )
+			{
+				*height = after->p[1];
+				*step = cur->step;
+			}
+			if ( after->v[1] <= 0.0 )
+				return true;
+		}
+	}
+	return false;
+}
+
 bool b3RefCompareTraces( const char* traceA, const char* traceB, const b3RefExpect* expect, char* report, int reportSize )
 {
 	// The traces are several MB each (2048 steps x 64 bodies), so they live on the
@@ -1909,6 +1988,37 @@ bool b3RefCompareTraces( const char* traceA, const char* traceB, const b3RefExpe
 		free( a );
 		free( b );
 		return false;
+	}
+
+	if ( expect->firstBounceApex )
+	{
+		double apexA = 0.0, apexB = 0.0;
+		int apexStepA = -1, apexStepB = -1;
+		bool foundA = firstBounceApex( a, expect->apexBody, &apexA, &apexStepA );
+		bool foundB = firstBounceApex( b, expect->apexBody, &apexB, &apexStepB );
+		const b3RefStepSample* finalA = a->stepCount > 0 ? a->steps + a->stepCount - 1 : NULL;
+		const b3RefStepSample* finalB = b->stepCount > 0 ? b->steps + b->stepCount - 1 : NULL;
+		bool complete = false, awakeMatch = false;
+		if ( finalA != NULL && finalB != NULL && finalA->bodyCount == finalB->bodyCount && finalA->bodyCount > 0 )
+		{
+			uint64_t mask = finalA->bodyCount == B3_REF_MAX_BODIES ? UINT64_MAX :
+														 ( UINT64_C( 1 ) << finalA->bodyCount ) - 1;
+			complete = finalA->awakeSeenBits == mask && finalB->awakeSeenBits == mask;
+			awakeMatch = finalA->awakeBits == finalB->awakeBits && finalA->counters[1] == finalB->counters[1];
+		}
+		double difference = fabs( apexA - apexB );
+		bool passed = foundA && foundB && complete && awakeMatch && difference <= expect->apexTolerance;
+		if ( report && reportSize > 0 )
+			snprintf( report, reportSize,
+					  "first-bounce apex body %d: %.9g (step %d) vs %.9g (step %d), difference %.9g (tol %.9g); final awake set 0x%llx vs 0x%llx (complete=%d)",
+					  expect->apexBody, apexA, apexStepA, apexB, apexStepB, difference, expect->apexTolerance,
+					  (unsigned long long)( finalA ? finalA->awakeBits : 0 ), (unsigned long long)( finalB ? finalB->awakeBits : 0 ),
+					  complete );
+		free( copyA );
+		free( copyB );
+		free( a );
+		free( b );
+		return passed;
 	}
 
 	// Predicate mode: the expect lines are absolute final-step bounds, not a

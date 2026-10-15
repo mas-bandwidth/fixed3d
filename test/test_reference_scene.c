@@ -152,6 +152,53 @@ static int GoldenCompareOutsideTest( void )
 	return 0;
 }
 
+static int FirstBounceApexCompareTest( void )
+{
+	const char* sceneText = "expect firstBounceApex body 0 tolerance 0.02 finalAwake exact\n"
+		"world gravity 0 -10 0 dt 1 60 substeps 4 steps 5\n"
+		"body dynamic position 0 2 0 rotation 0 0 0 1 linvel 0 0 0 angvel 0 0 0\n";
+	b3RefScene scene;
+	char error[256];
+	ENSURE( b3RefParseScene( sceneText, &scene, error, sizeof( error ) ) );
+	ENSURE( scene.expect.firstBounceApex && scene.expect.apexBody == 0 && scene.expect.apexTolerance == 0.02 );
+	const char* traceA =
+		"step 0 counters 0 1 0\nbody 0 p 0 0.9 0 q 0 0 0 1 v 0 -1 0 w 0 0 0\n"
+		"step 1 counters 1 1 0\nbody 0 p 0 1.0 0 q 0 0 0 1 v 0 1 0 w 0 0 0\n"
+		"step 2 counters 0 1 0\nbody 0 p 0 1.20 0 q 0 0 0 1 v 0 0.2 0 w 0 0 0\n"
+		"step 3 counters 0 1 0\nbody 0 p 0 1.22 0 q 0 0 0 1 v 0 -0.1 0 w 0 0 0\n"
+		"step 4 counters 0 1 0\nbody 0 p 0 1.20 0 q 0 0 0 1 v 0 -0.2 0 w 0 0 0\nawake 0 1\n";
+	const char* traceB =
+		"step 0 counters 0 1 0\nbody 0 p 0 0.9 0 q 0 0 0 1 v 0 -1 0 w 0 0 0\n"
+		"step 1 counters 0 1 0\nbody 0 p 0 0.8 0 q 0 0 0 1 v 0 -1 0 w 0 0 0\n"
+		"step 2 counters 1 1 0\nbody 0 p 0 1.00 0 q 0 0 0 1 v 0 1 0 w 0 0 0\n"
+		"step 3 counters 0 1 0\nbody 0 p 0 1.21 0 q 0 0 0 1 v 0 0.1 0 w 0 0 0\n"
+		"step 4 counters 0 1 0\nbody 0 p 0 1.20 0 q 0 0 0 1 v 0 -0.1 0 w 0 0 0\nawake 0 1\n";
+	char report[2048];
+	ENSURE( b3RefCompareTraces( traceA, traceB, &scene.expect, report, sizeof( report ) ) );
+	char farApex[2048];
+	ENSURE( strlen( traceB ) < sizeof( farApex ) );
+	strcpy( farApex, traceB );
+	char* peak = strstr( farApex, "body 0 p 0 1.21 0" );
+	ENSURE( peak != NULL );
+	memcpy( peak + strlen( "body 0 p 0 " ), "1.30", 4 );
+	ENSURE( !b3RefCompareTraces( traceA, farApex, &scene.expect, report, sizeof( report ) ) );
+	const char* differentAwake =
+		"step 0 counters 0 1 0\nbody 0 p 0 0.9 0 q 0 0 0 1 v 0 -1 0 w 0 0 0\n"
+		"step 1 counters 0 1 0\nbody 0 p 0 0.8 0 q 0 0 0 1 v 0 -1 0 w 0 0 0\n"
+		"step 2 counters 1 1 0\nbody 0 p 0 1.00 0 q 0 0 0 1 v 0 1 0 w 0 0 0\n"
+		"step 3 counters 0 1 0\nbody 0 p 0 1.21 0 q 0 0 0 1 v 0 0.1 0 w 0 0 0\n"
+		"step 4 counters 0 0 0\nbody 0 p 0 1.20 0 q 0 0 0 1 v 0 -0.1 0 w 0 0 0\nawake 0 0\n";
+	ENSURE( !b3RefCompareTraces( traceA, differentAwake, &scene.expect, report, sizeof( report ) ) );
+	const char* incompleteAwake =
+		"step 0 counters 0 1 0\nbody 0 p 0 0.9 0 q 0 0 0 1 v 0 -1 0 w 0 0 0\n"
+		"step 1 counters 0 1 0\nbody 0 p 0 0.8 0 q 0 0 0 1 v 0 -1 0 w 0 0 0\n"
+		"step 2 counters 1 1 0\nbody 0 p 0 1.00 0 q 0 0 0 1 v 0 1 0 w 0 0 0\n"
+		"step 3 counters 0 1 0\nbody 0 p 0 1.21 0 q 0 0 0 1 v 0 0.1 0 w 0 0 0\n"
+		"step 4 counters 0 1 0\nbody 0 p 0 1.20 0 q 0 0 0 1 v 0 -0.1 0 w 0 0 0\n";
+	ENSURE( !b3RefCompareTraces( traceA, incompleteAwake, &scene.expect, report, sizeof( report ) ) );
+	return 0;
+}
+
 // The generator form (README.md "Generator-form scenes"): the grammar of the
 // ref-9f998c8 scene the adec25b card landed for the glob.
 static const char* kGeneratorScene = "# complex hull drop\n"
@@ -411,6 +458,7 @@ int ReferenceSceneParseTest( void )
 	RUN_SUBTEST( ParseDirectivesTest );
 	RUN_SUBTEST( GoldenCompareInsideTest );
 	RUN_SUBTEST( GoldenCompareOutsideTest );
+	RUN_SUBTEST( FirstBounceApexCompareTest );
 	RUN_SUBTEST( GeneratorSceneTest );
 	RUN_SUBTEST( PredicateCompareTest );
 	return 0;

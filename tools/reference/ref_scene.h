@@ -61,6 +61,13 @@ typedef struct b3RefPredicate
 
 typedef struct b3RefExpect
 {
+	// `expect firstBounceApex body <i> tolerance <m> finalAwake exact` compares
+	// the first upward-to-downward apex and the final per-body awake set. This
+	// permits a contact to begin one step apart when engine collision policies
+	// differ while still checking the observable restitution result.
+	bool firstBounceApex;
+	int apexBody;
+	double apexTolerance;
 	double posTolerance; // meters
 	double rotTolerance; // radians
 	double velTolerance; // m/s

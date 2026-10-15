@@ -580,6 +580,11 @@ int main( int argc, char** argv )
 					b3FixToDouble( q.v.z ), b3FixToDouble( q.s ), b3FixToDouble( v.x ), b3FixToDouble( v.y ),
 					b3FixToDouble( v.z ), b3FixToDouble( w.x ), b3FixToDouble( w.y ), b3FixToDouble( w.z ) );
 		}
+		if ( scene.expect.firstBounceApex && s == steps - 1 )
+		{
+			for ( int i = 0; i < scene.bodyCount; ++i )
+				printf( "awake %d %d\n", i, b3Body_IsAwake( bodies[i] ) ? 1 : 0 );
+		}
 
 		if ( scene.traceContacts && !traceContacts( bodies, scene.bodyCount ) )
 		{
