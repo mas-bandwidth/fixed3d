@@ -82,20 +82,23 @@ a gain inside the largest spread is noise. A spike on a scene not in the table
 measures that scene's A/A first.
 
 Measured on this bench (AMD EPYC 9124, 32 cores, avx2/avx512f/dq/vl/ifma),
-one A/A pass per scene at `-w=1 -r=3 --steps=120` (whole-step ns, min/median
-and the median relative spread):
+five A/A passes per scene at `-w=1 -r=3 --steps=120` (whole-step ns; median
+and spread are over the ten medians, five baseline and five candidate):
 
 | scene          | median ns   | spread ns | spread % |
 |----------------|-------------|-----------|----------|
-| large_pyramid  | 74,966,824  | 1,009,114 | 1.3      |
-| many_pyramids  | 167,505,743 | 5,930,738 | 3.5      |
-| junkyard       | 13,446,243  | 386,829   | 2.9      |
-| bodies_20k     | 37,334,099  | 548,600   | 1.5      |
+| large_pyramid  | 74,604,912  | 5,399,404 | 7.2      |
+| many_pyramids  | 168,512,253 | 4,370,108 | 2.6      |
+| junkyard       | 13,803,975  | 1,875,969 | 13.6     |
+| bodies_20k     | 37,507,172  | 1,021,348 | 2.7      |
 
-geomean step speedup for the A/A pass was 0.997 (baseline vs baseline). A
-five-pass floor is the full protocol; the pass above is one of the five.
-`many_pyramids` at full step count is ~17s/run at `-w=1`, so the `--steps`
-cap (default 120) is what makes even one pass fit a short wall.
+geomean step speedup across the twenty A/A passes was 0.9986 (baseline vs
+baseline). A spike's gain must exceed its scene's spread above; the junkyard
+spread is dominated by one transient pass (a load spike between the heavy
+`many_pyramids` and the light `junkyard`), so a spike on junkyard should
+re-measure its A/A floor first. `many_pyramids` at full step count is
+~17s/run at `-w=1`, so the `--steps` cap (default 120) is what makes even
+one pass fit a short wall.
 
 The oracle gate is proven live: neutering one rounding (fixMul's round-half-up
 -> truncate, in a throwaway copy, never committed) flips large_pyramid's hash
