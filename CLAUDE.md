@@ -2485,6 +2485,10 @@ new sample code — keep them clean.
   and the exact final per-body awake set, preserving the distinct contact
   phase. Its Linux-measured apex difference is 0.00027418 m, so its bound is
   twice that difference; the bounce reference keeps its per-step trace gate.
+  The pile bodies have sleep enabled so the awake set is an outcome: the pile
+  sleeps at step 76 fixed and step 80 float, both final sets are 0x0 at step
+  100, and keeping one sphere awake in the fixed run alone fails the gate
+  (0x1110 vs 0x0). An all-nosleep pile would make the set fixed by setup.
   The restitution stage now rebuilds inverse inertia in the body's orientation
   after position substeps, including scalar and wide mesh paths. A spinning
   thin-box contact pins the prior one-step normalized energy rise of 1.16145
