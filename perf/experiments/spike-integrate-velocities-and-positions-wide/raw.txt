@@ -1,0 +1,21 @@
+# raw measurement output — spike-integrate-velocities-and-positions-wide
+
+No measurement was produced on this attempt. Every tool the ACCEPTANCE
+gate routes through is absent or off-limits:
+
+- cpu_info.sh:    absent (no tools/perf/, fixed3d-perf-harness not landed)
+- ab.sh:          absent (same)
+- oracle_check.sh: absent (same)
+
+Host actually available this attempt (NOT the bench the card requires):
+
+  CPU:        Intel(R) Xeon(R) W-2191B CPU @ 2.30GHz (Skylake-X)
+  Platform:   Darwin x86_64 (the working Mac)
+  ISA flags:  AVX1.0, AVX2, AVX512F, AVX512DQ, AVX512CD, AVX512BW, AVX512VL
+              (machdep.cpu.features / leaf7_features)
+  Compiler:   Apple clang 17.0.0 (x86_64-apple-darwin24.6.0)
+
+The card's TOOLCHAIN forbids benching on the working Mac, and the harness
+(DEPENDS-ON fixed3d-perf-harness) has not landed, so there are no
+before/after tables, no oracle hashes, and no 7-repeat interleaved A/B runs
+to record. Verdict is therefore LEARNED (not measured); see the finding.
