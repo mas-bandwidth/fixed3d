@@ -33,10 +33,15 @@ silent holes is worse than no cursor:
   content, no simulation content, so it does not gate the cursor. The samples tree still
   BUILDS clean against the new API (verified after a forced header rebuild).
 
-- **fixed3d#48 — the remainder of `47d7f7c`'s test additions** — upstream's `test_mover.c` block and
+- *(~~**fixed3d#48 — the remainder of `47d7f7c`'s test additions** — upstream's `test_mover.c` block and
   the three `test_body_query.c` TOI cases beyond the four ported here. These are ADDITIONAL
   coverage of engine changes that already landed WITH tests of their own; named rather than
-  silently skipped, because a cursor with unnamed holes is worse than no cursor.
+  silently skipped, because a cursor with unnamed holes is worse than no cursor.~~ —
+  **DISCHARGED 2026-10-15, verified rather than assumed:** the ten mover cases are in
+  `test/test_mover.c` and the three further TOI cases are in `test/test_body_query.c`
+  (those three at `e8a4394`, the mover block at `114d93a`). Struck rather than deleted
+  because the reason is the reusable part and still true: a cursor with unnamed holes is
+  worse than no cursor.)*
 
 *(~~**fixed3d#21 closes WITH this change, not before it**~~ — **DISCHARGED 2026-08-25, verified
 rather than assumed: the branch merged and fixed3d#21 is CLOSED, so the cursor above states a
