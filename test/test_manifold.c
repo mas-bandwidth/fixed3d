@@ -9,6 +9,11 @@
 
 #include <math.h>
 
+// A face contact keeps the whole clipped polygon when the manifold has room for it, so a build
+// with a larger B3_MAX_MANIFOLD_POINTS legitimately reports more than four points. At the default
+// this is still an exact count.
+#define ENSURE_FACE_POINTS( count ) ENSURE( 4 <= ( count ) && ( count ) <= B3_MAX_MANIFOLD_POINTS )
+
 static const b3Fixed kRoot2 = B3_FIX( 1.41421356f );
 static const b3Fixed kHalfRoot2 = B3_FIX( 0.70710678f );
 
@@ -45,6 +50,11 @@ static void MakeCrossedEdgeHulls( b3BoxHull* hullA, b3BoxHull* hullB, b3Fixed ha
 static b3Transform SlideX( b3Fixed x )
 {
 	return (b3Transform){ { x, B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, b3Quat_identity };
+}
+
+static b3Transform SlideY( b3Fixed y )
+{
+	return (b3Transform){ { B3_FIX( 0.0f ), y, B3_FIX( 0.0f ) }, b3Quat_identity };
 }
 
 static b3Fixed MinSeparation( const b3LocalManifold* manifold )
@@ -295,7 +305,7 @@ static int ParallelEdgeTest( void )
 			b3SATCache cache = { 0 };
 			b3CollideHulls( &manifold, 8, &hullA.base, &hullB.base, transform, &cache );
 
-			ENSURE( manifold.pointCount == 4 );
+			ENSURE_FACE_POINTS( manifold.pointCount );
 			ENSURE( cache.type == b3_faceAxisA || cache.type == b3_faceAxisB );
 			ENSURE( b3Dot( manifold.normal, kAxisY ) > B3_FIX( 0.998f ) );
 
@@ -513,7 +523,7 @@ static int TriangleParallelEdgeTest( void )
 			b3SATCache cache = { 0 };
 			b3CollideTriangleAndHull( &manifold, 8, v1, v2, v3, 0, &hull.base, &cache, true );
 
-			ENSURE( manifold.pointCount == 4 );
+			ENSURE_FACE_POINTS( manifold.pointCount );
 			ENSURE( cache.type == b3_faceAxisA );
 			ENSURE( b3Dot( manifold.normal, kAxisY ) > B3_FIX( 0.99f ) );
 
@@ -530,7 +540,7 @@ static int TriangleParallelEdgeTest( void )
 // separation can be no deeper than root2 times the vertical overlap.
 static int CheckRoofFaceContact( const b3LocalManifold* manifold, const b3SATCache* cache, b3Fixed overlap )
 {
-	ENSURE( manifold->pointCount == 4 );
+	ENSURE_FACE_POINTS( manifold->pointCount );
 	ENSURE( cache->type == b3_faceAxisA || cache->type == b3_faceAxisB );
 
 	// A roof face of one hull, so 45 degrees off the vertical
@@ -1423,6 +1433,117 @@ static int ClipSegmentSmallCrossingTest( void )
 	return 0;
 }
 
+static int CheckSpeculativePoints( const b3LocalManifold* manifold, b3Fixed gap )
+{
+	ENSURE( manifold->pointCount > 0 );
+	ENSURE_SMALL( MinSeparation( manifold ) - gap, 8 * B3_FIXED_EPSILON );
+	return 0;
+}
+
+// Contact recycling treats a pair without points as separated by at least the speculative distance.
+// Every manifold routine must report a pair inside that distance or recycling can skip real overlap.
+// Discussion #175.
+static int SpeculativeMarginTest( void )
+{
+	b3Fixed gaps[] = { B3_FIX( 0.0f ), b3FixMul( B3_FIX( 0.25f ) , B3_SPECULATIVE_DISTANCE ),
+						b3FixMul( B3_FIX( 0.75f ) , B3_SPECULATIVE_DISTANCE ) };
+	int gapCount = sizeof( gaps ) / sizeof( gaps[0] );
+
+	b3Sphere sphere = { b3Vec3_zero, B3_FIX( 0.25f ) };
+	b3Sphere bigSphere = { b3Vec3_zero, B3_FIX( 0.5f ) };
+	b3Capsule capsuleX = { { -B3_FIX( 0.5f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) },
+						   { B3_FIX( 0.5f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, B3_FIX( 0.25f ) };
+	b3Capsule capsuleZ = { { B3_FIX( 0.0f ), B3_FIX( 0.0f ), -B3_FIX( 0.5f ) },
+						   { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.5f ) }, B3_FIX( 0.25f ) };
+	b3BoxHull box = b3MakeBoxHull( B3_FIX( 0.5f ), B3_FIX( 0.5f ), B3_FIX( 0.5f ) );
+
+	// Normal is +y
+	b3Vec3 triangle[3] = { { -B3_FIX( 2.0f ), B3_FIX( 0.0f ), -B3_FIX( 2.0f ) },
+						   { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 2.0f ) },
+						   { B3_FIX( 2.0f ), B3_FIX( 0.0f ), -B3_FIX( 2.0f ) } };
+
+	b3LocalManifoldPoint points[B3_MAX_MANIFOLD_POINTS];
+	b3LocalManifold manifold = { 0 };
+	manifold.points = points;
+
+	for ( int i = 0; i < gapCount; ++i )
+	{
+		b3Fixed gap = gaps[i];
+
+		manifold.pointCount = 0;
+		b3CollideSpheres( &manifold, B3_MAX_MANIFOLD_POINTS, &bigSphere, &sphere, SlideY( B3_FIX( 0.75f ) + gap ) );
+		ENSURE( CheckSpeculativePoints( &manifold, gap ) == 0 );
+
+		manifold.pointCount = 0;
+		b3CollideCapsuleAndSphere( &manifold, B3_MAX_MANIFOLD_POINTS, &capsuleX, &sphere, SlideY( B3_FIX( 0.5f ) + gap ) );
+		ENSURE( CheckSpeculativePoints( &manifold, gap ) == 0 );
+
+		manifold.pointCount = 0;
+		b3CollideCapsules( &manifold, B3_MAX_MANIFOLD_POINTS, &capsuleX, &capsuleZ, SlideY( B3_FIX( 0.5f ) + gap ) );
+		ENSURE( CheckSpeculativePoints( &manifold, gap ) == 0 );
+
+		{
+			manifold.pointCount = 0;
+			b3SimplexCache cache = { 0 };
+			b3CollideHullAndSphere( &manifold, B3_MAX_MANIFOLD_POINTS, &box.base, &sphere, SlideY( B3_FIX( 0.75f ) + gap ), &cache );
+			ENSURE( CheckSpeculativePoints( &manifold, gap ) == 0 );
+		}
+
+		{
+			manifold.pointCount = 0;
+			b3SimplexCache cache = { 0 };
+			b3CollideHullAndCapsule( &manifold, B3_MAX_MANIFOLD_POINTS, &box.base, &capsuleX, SlideY( B3_FIX( 0.75f ) + gap ), &cache );
+			ENSURE( CheckSpeculativePoints( &manifold, gap ) == 0 );
+		}
+
+		{
+			manifold.pointCount = 0;
+			b3SATCache cache = { 0 };
+			b3CollideHulls( &manifold, B3_MAX_MANIFOLD_POINTS, &box.base, &box.base, SlideY( B3_FIX( 1.0f ) + gap ), &cache );
+			ENSURE( CheckSpeculativePoints( &manifold, gap ) == 0 );
+		}
+
+		{
+			manifold.pointCount = 0;
+			b3Sphere raised = { { B3_FIX( 0.0f ), B3_FIX( 0.25f ) + gap, B3_FIX( 0.0f ) }, B3_FIX( 0.25f ) };
+			b3CollideTriangleAndSphere( &manifold, B3_MAX_MANIFOLD_POINTS, triangle, &raised );
+			ENSURE( CheckSpeculativePoints( &manifold, gap ) == 0 );
+		}
+
+		{
+			manifold.pointCount = 0;
+			b3Capsule raised = capsuleX;
+			raised.center1.y = B3_FIX( 0.25f ) + gap;
+			raised.center2.y = B3_FIX( 0.25f ) + gap;
+			b3SimplexCache cache = { 0 };
+			b3CollideTriangleAndCapsule( &manifold, B3_MAX_MANIFOLD_POINTS, triangle, &raised, &cache );
+			ENSURE( CheckSpeculativePoints( &manifold, gap ) == 0 );
+		}
+
+		{
+			manifold.pointCount = 0;
+			b3BoxHull raised = b3MakeTransformedBoxHull( B3_FIX( 0.5f ), B3_FIX( 0.5f ), B3_FIX( 0.5f ), SlideY( B3_FIX( 0.5f ) + gap ) );
+			b3SATCache cache = { 0 };
+			b3CollideTriangleAndHull( &manifold, B3_MAX_MANIFOLD_POINTS, triangle[0], triangle[1], triangle[2], 0, &raised.base,
+									  &cache, true );
+			ENSURE( CheckSpeculativePoints( &manifold, gap ) == 0 );
+		}
+	}
+
+	// Beyond the speculative distance the closed form routines report nothing
+	b3Fixed farGap = b3FixMul( B3_FIX( 1.5f ) , B3_SPECULATIVE_DISTANCE );
+
+	manifold.pointCount = 0;
+	b3CollideSpheres( &manifold, B3_MAX_MANIFOLD_POINTS, &bigSphere, &sphere, SlideY( B3_FIX( 0.75f ) + farGap ) );
+	ENSURE( manifold.pointCount == 0 );
+
+	manifold.pointCount = 0;
+	b3CollideCapsuleAndSphere( &manifold, B3_MAX_MANIFOLD_POINTS, &capsuleX, &sphere, SlideY( B3_FIX( 0.5f ) + farGap ) );
+	ENSURE( manifold.pointCount == 0 );
+
+	return 0;
+}
+
 int ManifoldTest( void )
 {
 	RUN_SUBTEST( CrossedEdgeTest );
@@ -1447,6 +1568,7 @@ int ManifoldTest( void )
 	RUN_SUBTEST( ClipSegmentSmallCrossingTest );
 	RUN_SUBTEST( CapsuleTriangleFaceDeepTest );
 	RUN_SUBTEST( HullCapsuleFaceDeepTest );
+	RUN_SUBTEST( SpeculativeMarginTest );
 
 	return 0;
 }

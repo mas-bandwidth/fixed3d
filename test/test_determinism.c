@@ -45,17 +45,17 @@
 // hold across platforms and worker counts by construction. The sleep steps are shared
 // between builds; the hashes cover absolute transform bytes, so the ludicrous build
 // (128-bit positions, 80-byte b3WorldTransform) carries its own values.
-#define WAVE_PILE_SLEEP_STEP 275
+#define WAVE_PILE_SLEEP_STEP 310
 #define QUERY_SPAWN_SLEEP_STEP 243
 #define QUERY_SPAWN_HIT_COUNT 59
 #define QUERY_SPAWN_QUERY_HASH 0xE583B246
 #define MESH_DROP_SLEEP_STEP 210
 #if defined( BOX3D_LUDICROUS_MODE )
-#define WAVE_PILE_HASH 0x253BEF8E
+#define WAVE_PILE_HASH 0xB9B1018F
 #define QUERY_SPAWN_HASH 0x7C6B3268
 #define MESH_DROP_HASH 0xDB1DA8B9
 #else
-#define WAVE_PILE_HASH 0x22BF35CE
+#define WAVE_PILE_HASH 0x7A82190F
 #define QUERY_SPAWN_HASH 0x49ECDEA8
 #define MESH_DROP_HASH 0x491E324B
 #endif
