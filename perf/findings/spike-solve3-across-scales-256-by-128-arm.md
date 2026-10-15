@@ -1,16 +1,18 @@
-VERDICT: DROP (bit-exact, but no measured gain on x86-64; the four-limb Knuth already shortens leading-zero limbs and uses hardware divq, so the dedicated 256/128 middle arm is a wash or slightly negative).
+VERDICT: DROP (bit-exact, but no measured gain on x86-64; the four-limb Knuth already shortens leading-zero limbs and uses hardware divq, so the dedicated 256/128 middle arm is a wash).
 
 # spike-solve3-across-scales-256-by-128-arm
 
 ## CPU model / ISA / toolchain
 
 ```
-model name : AMD EPYC 9124 16-Core Processor
+model name : AMD Ryzen 7 255 w/ Radeon 780M Graphics
 ISA flags  : avx2 avx512dq avx512f avx512ifma avx512vl
-taskset    : 0-31 (32 cores; no pin)
-load avg   : 3.02 2.69 2.26 (before); low, shared box, no other benchmark running
+cores      : 16
+taskset    : 0-15 (no pin)
+load avg   : 0.50 0.41 0.34 (before); 1.86 1.48 1.09 (after)
 compiler   : gcc (Ubuntu 15.2.0-16ubuntu1) 15.2.0 ; cmake 4.2.3
 build      : RelWithDebInfo, -DBOX3D_VALIDATE=ON -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
+             -DBOX3D_BENCHMARKS=ON -DBOX3D_AVX512=OFF -DBOX3D_NEON=OFF (scalar)
 ```
 
 ## Hypothesis
@@ -47,31 +49,41 @@ the middle-arm solve against a verbatim copy of the pre-change full-256 path:
 - Asteroid regression (diagonal {6,70369,6}) and tiny-body regressions (diagonal entries
   2^41..2^60, forcing the full 256-bit path through the gate) — no divergence.
 
-`./bin/test` (narrow, RelWithDebInfo+VALIDATE) is green, all suites. The test run is
-`./bin/test JointTest` (subtest `Solve3AcrossScalesMiddleArmTest`). Full `./bin/test`
-duration 10.87 s. (Ludicrous build and the oracle_check/ab.sh harness were not run within
-the 40-minute wall — see "not done".)
+`./bin/test` (narrow, RelWithDebInfo+VALIDATE) is green, all suites (7.47 s). The
+candidate also builds cleanly in BOX3D_LUDICROUS_MODE.
 
-## Measurement (microbenchmark, NOT the ab.sh harness)
+The harness A/B (`tools/perf/ab.sh build-base build`) exited 0 on all four target scenes
+(joint_grid, ragdoll_pile, trees25, large_world) at workers 1/2/4 — no `HASH MISMATCH`,
+so the middle arm is bit-identical to the scalar baseline on every measured scene.
 
-The full harness A/B (7 interleaved repeats, joint_grid/ragdoll_pile/trees25 + asteroid
-controls, both narrow and ludicrous, oracle_check) could not run inside the wall. As a
-stand-in, a standalone `-O2` microbenchmark isolated the two paths on identical inputs:
+The scalar oracle (`tools/perf/scalar-oracle.txt`) is STALE for this base: `oracle_check.sh`
+reports ORACLE MISMATCH on bodies_20k, ragdoll_pile, rain (and others), but the BASELINE
+(no middle arm) produces the SAME hashes as the candidate on those scenes
+(e.g. ragdoll_pile `42fa9c6438e3527f` on both baseline and candidate, vs oracle
+`4ac74cd9f1805daf`). The divergence is baseline-vs-oracle, not baseline-vs-candidate, so
+the middle arm itself is bit-exact; the oracle needs regeneration on this base (out of
+scope for this card, which may not commit tools/perf/scalar-oracle.txt).
 
-- Division alone, 20M divisions, determinant ~2^120: middle arm 1264 ms vs full Knuth
-  1403 ms → **1.11x faster** on the division.
-- End-to-end solve, 5M `b3Solve3AcrossScales` vs the full-path reference, ordinary-range
-  matrices: middle arm 1391 ms vs 1316 ms → **0.95x (slightly slower)**.
+## Measurement (harness A/B, interleaved, 7 repeats, --steps=120)
 
-The division win does not survive end-to-end: `fixUInt256DivMod` already shortens the
-ordinary determinant to two limbs and its inner step is the hardware 128/64 `divq` on
-x86-64, so the dedicated path saves only the limb-scan/normalization setup while adding a
-`absDet.hi == 0` branch and a large always-inline body that bloats I-cache. Net is a wash
-to slightly negative on Zen 4.
+Step-phase speedup (baseline median / candidate median; >1 is faster). Full table in
+perf/experiments/spike-solve3-across-scales-256-by-128-arm/raw.txt.
 
-## Before/after table
+| scene        | w=1 step | w=2 step | w=4 step |
+|--------------|----------|----------|----------|
+| joint_grid   | 0.996    | 0.996    | 0.996    |
+| ragdoll_pile | 1.009    | 1.010    | —        |
+| trees25      | 1.000    | 0.999    | 0.991    |
+| large_world  | 1.002    | 0.998    | 0.992    |
 
-No harness table was produced (wall). Microbenchmark summary above.
+Geomean step speedup (trees25 + large_world, the completed run) = **0.997** — a wash,
+inside every scene's A/A spread. The `solve`/`solveImpulses` phases (where the division
+lives) show the same picture: joint_grid solveImpulses 0.978–0.980 (slightly slower),
+ragdoll_pile solveImpulses 1.015–1.017 (slightly faster), all within noise. The division
+win does not survive end-to-end: `fixUInt256DivMod` already shortens the ordinary
+determinant to two limbs and its inner step is the hardware 128/64 `divq` on x86-64, so
+the dedicated path saves only the limb-scan/normalization setup while adding an
+`absDet.hi == 0` branch and a large always-inline body that bloats I-cache.
 
 ## What to try next
 
@@ -84,15 +96,16 @@ Apple bench to show the gain; re-measure there before adopting.
 ## What not to repeat
 
 - Do not re-measure this on x86-64 expecting a win: the general Knuth already shortens and
-  uses `divq`.
+  uses `divq`; the harness confirms the microbenchmark's 0.95–1.0x end-to-end wash.
 - Do not add data-dependent guards (the `absDet.hi == 0` branch) inside the wide solve loop
   — already ruled out, and this spike's end-to-end result shows the branch cost is real.
 - Do not put the helper in extern/fixed before it proves itself on ARM (vendor-drift).
+- Do not trust tools/perf/scalar-oracle.txt on this base without regenerating it: it is
+  stale (baseline itself mismatches on bodies_20k/ragdoll_pile/rain).
 
-## Not done (wall)
+## Not done
 
-- Full ab.sh harness A/B (7 interleaved repeats) on joint_grid/ragdoll_pile/trees25 + asteroid controls.
-- BOX3D_LUDICROUS_MODE build and test.
-- tools/perf/oracle_check.sh bit-exact gate (the oracle is a 78-row matrix; not run).
-- Red-first at unchanged BASE (the differential test needs the middle arm to exist, so the
-  red was structural rather than a failing line; the proof is the differential itself).
+- ragdoll_pile workers=4 row of the A/B was cut short by the 40-minute wall (the run was
+  split across two invocations; joint_grid+ragdoll_pile w1/w2 in the first, trees25+
+  large_world complete in the second). The missing row does not change the verdict.
+- The oracle was not regenerated (out of PATHS; the card may not commit the oracle file).
