@@ -1,0 +1,14 @@
+# A revolute pendulum and a two-link spherical chain swinging under gravity.
+expect pos 0.005 rot 0.005 vel 0.15 horizon 60 counts 2
+world gravity 0 -10 0 dt 1 60 substeps 4 steps 120
+body static position 0 2 0 rotation 0 0 0 1 linvel 0 0 0 angvel 0 0 0
+body dynamic position 0 1 0 rotation 0 0 0 1 linvel 0 0 0 angvel 0 0 0
+body static position 3 2 0 rotation 0 0 0 1 linvel 0 0 0 angvel 0 0 0
+body dynamic position 3 1 0 rotation 0 0 0 1 linvel 0 0 0 angvel 0 0 0
+body dynamic position 3 0 0 rotation 0 0 0 1 linvel 0 0 0 angvel 0 0 0
+shape 1 box 0.2 0.5 0.2 density 1 friction 0.3 restitution 0
+shape 3 box 0.2 0.5 0.2 density 1 friction 0.3 restitution 0
+shape 4 box 0.2 0.5 0.2 density 1 friction 0.3 restitution 0
+joint revolute 0 1 anchor 0 1 0 axis 0 0 1
+joint spherical 2 3 anchor 3 1 0
+joint spherical 3 4 anchor 3 0 0
