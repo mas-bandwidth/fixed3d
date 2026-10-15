@@ -1021,8 +1021,8 @@ int RestitutionTest( void )
 	RUN_MEASUREMENT( SupportedTest );
 	RUN_MEASUREMENT( FlatLandingTest );
 	RUN_MEASUREMENT( SpinTest );
-	RUN_BASELINE_XFAIL( DropTest );
-	RUN_BASELINE_XFAIL( SingleBoxTest );
+	RUN_MEASUREMENT( DropTest );
+	RUN_MEASUREMENT( SingleBoxTest );
 	RUN_MEASUREMENT( ThresholdTest );
 	RUN_BASELINE_XFAIL( RestingTest );
 	RUN_MEASUREMENT( NormalVelocityTest );
