@@ -688,6 +688,31 @@ void b3DestroyCompound( b3CompoundData* compound )
 	b3Free( compound, compound->byteCount );
 }
 
+static bool b3CompoundRegion( int offset, int count, size_t elementSize, size_t alignment, int64_t previousEnd, int byteCount,
+							 int64_t* end )
+{
+	if ( alignment < 8 )
+	{
+		alignment = 8;
+	}
+	if ( offset < previousEnd || count < 0 || ( (size_t)offset & ( alignment - 1 ) ) != 0 )
+	{
+		return false;
+	}
+	uint64_t start = (uint64_t)offset;
+	if ( elementSize != 0 && (uint64_t)count > ( UINT64_MAX - start ) / elementSize )
+	{
+		return false;
+	}
+	uint64_t limit = start + (uint64_t)count * elementSize;
+	if ( limit > (uint64_t)byteCount )
+	{
+		return false;
+	}
+	*end = (int64_t)limit;
+	return true;
+}
+
 const b3CompoundData* b3ValidateCompound( const uint8_t* bytes, int byteCount )
 {
 	if ( bytes == NULL || byteCount < (int)sizeof( b3CompoundData ) )
@@ -695,9 +720,86 @@ const b3CompoundData* b3ValidateCompound( const uint8_t* bytes, int byteCount )
 		return NULL;
 	}
 	const b3CompoundData* compound = (const b3CompoundData*)bytes;
-	if ( compound->version != B3_COMPOUND_VERSION || compound->byteCount != byteCount )
+	if ( compound->version != B3_COMPOUND_VERSION || compound->byteCount != byteCount || compound->nodeCount < 2 ||
+		 compound->root < 0 || compound->root >= compound->nodeCount || compound->materialCount <= 0 )
 	{
 		return NULL;
+	}
+	int64_t end = sizeof( b3CompoundData );
+	if ( !b3CompoundRegion( compound->nodeOffset, compound->nodeCount, sizeof( b3TreeNode ), _Alignof( b3TreeNode ), end,
+						 byteCount, &end ) ||
+		 !b3CompoundRegion( compound->materialOffset, compound->materialCount, sizeof( b3SurfaceMaterial ),
+							 _Alignof( b3SurfaceMaterial ), end, byteCount, &end ) ||
+		 !b3CompoundRegion( compound->capsuleOffset, compound->capsuleCount, sizeof( b3CompoundCapsule ),
+							 _Alignof( b3CompoundCapsule ), end, byteCount, &end ) ||
+		 !b3CompoundRegion( compound->hullOffset, compound->hullCount, sizeof( b3HullInstance ), _Alignof( b3HullInstance ),
+							 end, byteCount, &end ) )
+	{
+		return NULL;
+	}
+	// Shared hull blobs live between the hull instance array and the mesh instance array.
+	if ( compound->meshOffset < end || ( compound->meshOffset & 7 ) != 0 )
+	{
+		return NULL;
+	}
+	if ( !b3CompoundRegion( compound->meshOffset, compound->meshCount, sizeof( b3MeshInstance ), _Alignof( b3MeshInstance ),
+							 end, byteCount, &end ) )
+	{
+		return NULL;
+	}
+	int64_t meshArrayEnd = end;
+	if ( compound->sphereOffset < end || ( compound->sphereOffset & 7 ) != 0 ||
+		 !b3CompoundRegion( compound->sphereOffset, compound->sphereCount, sizeof( b3CompoundSphere ),
+							 _Alignof( b3CompoundSphere ), end, byteCount, &end ) )
+	{
+		return NULL;
+	}
+	const b3HullInstance* hulls = (const b3HullInstance*)( bytes + compound->hullOffset );
+	for ( int i = 0; i < compound->hullCount; ++i )
+	{
+		uint64_t offset = hulls[i].hullOffset;
+		if ( offset < (uint64_t)compound->hullOffset + (uint64_t)compound->hullCount * sizeof( b3HullInstance ) ||
+			 offset > (uint64_t)compound->meshOffset || ( offset & ( _Alignof( b3HullData ) - 1 ) ) != 0 ||
+			 offset + sizeof( b3HullData ) > (uint64_t)compound->meshOffset )
+		{
+			return NULL;
+		}
+		const b3HullData* hull = (const b3HullData*)( bytes + offset );
+		if ( hull->byteCount < (int)sizeof( b3HullData ) || offset + (uint64_t)hull->byteCount > (uint64_t)compound->meshOffset )
+		{
+			return NULL;
+		}
+	}
+	const b3MeshInstance* meshes = (const b3MeshInstance*)( bytes + compound->meshOffset );
+	uint64_t firstMeshBlob = (uint64_t)compound->sphereOffset;
+	for ( int i = 0; i < compound->meshCount; ++i )
+	{
+		uint64_t offset = meshes[i].meshOffset;
+		if ( offset < firstMeshBlob )
+		{
+			firstMeshBlob = offset;
+		}
+		if ( offset < (uint64_t)meshArrayEnd || offset + sizeof( b3MeshData ) > (uint64_t)compound->sphereOffset ||
+			 ( offset & ( _Alignof( b3MeshData ) - 1 ) ) != 0 || meshes[i].materialCount == 0 ||
+			 (uint64_t)meshes[i].materialOffset < (uint64_t)meshArrayEnd ||
+			 ( meshes[i].materialOffset & 7 ) != 0 ||
+			 (uint64_t)meshes[i].materialOffset + (uint64_t)meshes[i].materialCount * sizeof( uint16_t ) >
+				 (uint64_t)compound->sphereOffset )
+		{
+			return NULL;
+		}
+		const b3MeshData* mesh = (const b3MeshData*)( bytes + offset );
+		if ( mesh->byteCount < (int)sizeof( b3MeshData ) || offset + (uint64_t)mesh->byteCount > (uint64_t)compound->sphereOffset )
+		{
+			return NULL;
+		}
+	}
+	for ( int i = 0; i < compound->meshCount; ++i )
+	{
+		if ( (uint64_t)meshes[i].materialOffset + (uint64_t)meshes[i].materialCount * sizeof( uint16_t ) > firstMeshBlob )
+		{
+			return NULL;
+		}
 	}
 	return compound;
 }

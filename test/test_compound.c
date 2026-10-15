@@ -951,6 +951,54 @@ static int CompoundBlobHasNoIndeterminateBytes( void )
 	return 0;
 }
 
+static int CompoundBlobInvariants( void )
+{
+	b3MeshData* md = b3CreateBoxMesh( b3Vec3_zero, (b3Vec3){ B3_FIX( 0.5f ), B3_FIX( 0.5f ), B3_FIX( 0.5f ) }, false );
+	b3CompoundData* a = BuildSerializableCompound( md );
+	int byteCount = a->byteCount;
+	uint8_t* bytes = (uint8_t*)malloc( (size_t)byteCount );
+	ENSURE( bytes != NULL );
+	memcpy( bytes, a, (size_t)byteCount );
+	b3CompoundData* blob = (b3CompoundData*)bytes;
+	ENSURE( b3ValidateCompound( bytes, byteCount ) == blob );
+
+	blob->nodeOffset = byteCount + 8;
+	ENSURE( b3ValidateCompound( bytes, byteCount ) == NULL );
+	blob->nodeOffset = a->nodeOffset + 1;
+	ENSURE( b3ValidateCompound( bytes, byteCount ) == NULL );
+	blob->nodeOffset = a->nodeOffset;
+	blob->nodeCount = 0;
+	ENSURE( b3ValidateCompound( bytes, byteCount ) == NULL );
+	blob->nodeCount = 1;
+	ENSURE( b3ValidateCompound( bytes, byteCount ) == NULL );
+	blob->nodeCount = INT32_MAX;
+	ENSURE( b3ValidateCompound( bytes, byteCount ) == NULL );
+
+	memcpy( bytes, a, (size_t)byteCount );
+	blob->materialOffset += 1;
+	ENSURE( b3ValidateCompound( bytes, byteCount ) == NULL );
+	memcpy( bytes, a, (size_t)byteCount );
+	blob->capsuleOffset = blob->materialOffset;
+	ENSURE( b3ValidateCompound( bytes, byteCount ) == NULL );
+	memcpy( bytes, a, (size_t)byteCount );
+	blob->hullCount = INT32_MAX;
+	ENSURE( b3ValidateCompound( bytes, byteCount ) == NULL );
+	memcpy( bytes, a, (size_t)byteCount );
+	blob->meshOffset = byteCount + 8;
+	ENSURE( b3ValidateCompound( bytes, byteCount ) == NULL );
+	memcpy( bytes, a, (size_t)byteCount );
+	blob->sphereOffset = blob->meshOffset;
+	ENSURE( b3ValidateCompound( bytes, byteCount ) == NULL );
+	memcpy( bytes, a, (size_t)byteCount );
+	blob->version ^= 1;
+	ENSURE( b3ValidateCompound( bytes, byteCount ) == NULL );
+
+	free( bytes );
+	b3DestroyCompound( a );
+	b3DestroyMesh( md );
+	return 0;
+}
+
 int CompoundTest( void )
 {
 	RUN_SUBTEST( CompoundCreateMixed );
@@ -987,6 +1035,7 @@ int CompoundTest( void )
 	RUN_SUBTEST( CompoundSerializeBadVersion );
 	RUN_SUBTEST( CompoundSerializeWrongByteCount );
 	RUN_SUBTEST( CompoundBlobHasNoIndeterminateBytes );
+	RUN_SUBTEST( CompoundBlobInvariants );
 
 	return 0;
 }
