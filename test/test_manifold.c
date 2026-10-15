@@ -1383,6 +1383,46 @@ static int CapsuleTriangleEdgeWalkTest( void )
 	return 0;
 }
 
+// A capsule core laid across a box corner so a clip plane (a side plane of the reference
+// face) is straddled by a few quanta. b3ClipSegment decides the crossing with the product
+// b3FixMul(distance1, distance2) < 0, and a product of two separations under ~0.004 quantizes
+// to zero, so a shallow crossing is dropped and the face contact loses the crossing point.
+// The sign comparison keeps it. A large crossing (where the product cannot quantize) is the
+// control that pins the expected two point face contact.
+static int ClipSegmentSmallCrossingTest( void )
+{
+	b3BoxHull hull = b3MakeBoxHull( B3_FIX( 0.5f ), B3_FIX( 0.5f ), B3_FIX( 0.5f ) );
+	b3Fixed radius = B3_FIX( 0.05f );
+
+	// dx1/dx2 are the two endpoint offsets from x = 0.5 in raw ulps; the core is long in z and
+	// pinned just under the top face (y = 0.5 minus a couple of quanta) so the top face is the
+	// reference face and x = +0.5 is one of its side planes.
+	int offsets[2][2] = {
+		{ -5, 3 },		 // crossing by a few quanta: the old product reads zero
+		{ -500, 300 }, // the same crossing, large enough that the product cannot quantize
+	};
+
+	for ( int i = 0; i < 2; ++i )
+	{
+		b3Capsule capsule;
+		capsule.radius = radius;
+		capsule.center1 = ( b3Vec3 ){ B3_FIX( 0.5f ) + offsets[i][0] * B3_FIXED_EPSILON,
+									   B3_FIX( 0.5f ) - 2 * B3_FIXED_EPSILON, -B3_FIX( 0.3f ) };
+		capsule.center2 = ( b3Vec3 ){ B3_FIX( 0.5f ) + offsets[i][1] * B3_FIXED_EPSILON,
+									   B3_FIX( 0.5f ) - 3 * B3_FIXED_EPSILON, B3_FIX( 0.3f ) };
+
+		b3LocalManifoldPoint points[8];
+		b3LocalManifold manifold = { 0 };
+		manifold.points = points;
+		b3SimplexCache cache = { 0 };
+		b3CollideHullAndCapsule( &manifold, 8, &hull.base, &capsule, b3Transform_identity, &cache );
+
+		ENSURE( manifold.pointCount == 2 );
+	}
+
+	return 0;
+}
+
 int ManifoldTest( void )
 {
 	RUN_SUBTEST( CrossedEdgeTest );
@@ -1404,6 +1444,7 @@ int ManifoldTest( void )
 	RUN_SUBTEST( CapsuleTriangleEdgeWalkTest );
 	RUN_SUBTEST( SphereHullSeamTest );
 	RUN_SUBTEST( CapsuleHullSeamTest );
+	RUN_SUBTEST( ClipSegmentSmallCrossingTest );
 	RUN_SUBTEST( CapsuleTriangleFaceDeepTest );
 	RUN_SUBTEST( HullCapsuleFaceDeepTest );
 
