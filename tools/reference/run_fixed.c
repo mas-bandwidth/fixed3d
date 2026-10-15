@@ -98,6 +98,68 @@ static b3ShapeProxy makeProxy( b3RefQuery* q, b3BoxHull* boxOut )
 	return proxy;
 }
 
+static void createJointsAtStep( b3RefScene* scene, b3WorldId worldId, b3BodyId* bodies, int step )
+{
+	for ( int i = 0; i < scene->jointCount; ++i )
+	{
+		b3RefJoint* rj = &scene->joints[i];
+		if ( rj->atStep != step )
+		{
+			continue;
+		}
+		b3Vec3 a = vecFromDouble( rj->anchorA );
+		b3Vec3 b = vecFromDouble( rj->anchorB );
+		switch ( rj->kind )
+		{
+			case b3_refRevolute:
+			{
+				b3RevoluteJointDef jd = b3DefaultRevoluteJointDef();
+				jd.base.bodyIdA = bodies[rj->bodyA];
+				jd.base.bodyIdB = bodies[rj->bodyB];
+				jd.base.localFrameA = (b3Transform){ a, b3Quat_identity };
+				jd.base.localFrameB = (b3Transform){ b, b3Quat_identity };
+				jd.base.collideConnected = rj->collideConnected;
+				b3CreateRevoluteJoint( worldId, &jd );
+			}
+			break;
+			case b3_refSpherical:
+			{
+				b3SphericalJointDef jd = b3DefaultSphericalJointDef();
+				jd.base.bodyIdA = bodies[rj->bodyA];
+				jd.base.bodyIdB = bodies[rj->bodyB];
+				jd.base.localFrameA = (b3Transform){ a, b3Quat_identity };
+				jd.base.localFrameB = (b3Transform){ b, b3Quat_identity };
+				jd.base.collideConnected = rj->collideConnected;
+				b3CreateSphericalJoint( worldId, &jd );
+			}
+			break;
+			case b3_refDistance:
+			{
+				b3DistanceJointDef jd = b3DefaultDistanceJointDef();
+				jd.base.bodyIdA = bodies[rj->bodyA];
+				jd.base.bodyIdB = bodies[rj->bodyB];
+				jd.base.localFrameA = (b3Transform){ a, b3Quat_identity };
+				jd.base.localFrameB = (b3Transform){ b, b3Quat_identity };
+				jd.length = b3FixFromDouble( rj->length );
+				jd.base.collideConnected = rj->collideConnected;
+				b3CreateDistanceJoint( worldId, &jd );
+			}
+			break;
+			case b3_refWeld:
+			{
+				b3WeldJointDef jd = b3DefaultWeldJointDef();
+				jd.base.bodyIdA = bodies[rj->bodyA];
+				jd.base.bodyIdB = bodies[rj->bodyB];
+				jd.base.localFrameA = (b3Transform){ a, b3Quat_identity };
+				jd.base.localFrameB = (b3Transform){ b, b3Quat_identity };
+				jd.base.collideConnected = rj->collideConnected;
+				b3CreateWeldJoint( worldId, &jd );
+			}
+			break;
+		}
+	}
+}
+
 int main( int argc, char** argv )
 {
 	if ( argc < 2 )
@@ -142,6 +204,7 @@ int main( int argc, char** argv )
 		def.isBullet = rb->isBullet;
 		def.allowFastRotation = rb->allowFastRotation;
 		def.enableSleep = rb->enableSleep;
+		def.safetyFactor = b3FixFromDouble( rb->safetyFactor );
 		bodies[i] = b3CreateBody( worldId, &def );
 	}
 
@@ -201,54 +264,29 @@ int main( int argc, char** argv )
 		}
 	}
 
-	for ( int i = 0; i < scene.jointCount; ++i )
+	b3CompoundData* compounds[B3_REF_MAX_BODIES] = { 0 };
+	for ( int i = 0; i < scene.bodyCount; ++i )
 	{
-		b3RefJoint* rj = &scene.joints[i];
-		b3Vec3 a = vecFromDouble( rj->anchorA );
-		b3Vec3 b = vecFromDouble( rj->anchorB );
-		switch ( rj->kind )
+		if ( scene.compoundChildCount[i] == 0 )
 		{
-			case b3_refRevolute:
-			{
-				b3RevoluteJointDef jd = b3DefaultRevoluteJointDef();
-				jd.base.bodyIdA = bodies[rj->bodyA];
-				jd.base.bodyIdB = bodies[rj->bodyB];
-				jd.base.localFrameA = (b3Transform){ a, b3Quat_identity };
-				jd.base.localFrameB = (b3Transform){ b, b3Quat_identity };
-				b3CreateRevoluteJoint( worldId, &jd );
-			}
-			break;
-			case b3_refSpherical:
-			{
-				b3SphericalJointDef jd = b3DefaultSphericalJointDef();
-				jd.base.bodyIdA = bodies[rj->bodyA];
-				jd.base.bodyIdB = bodies[rj->bodyB];
-				jd.base.localFrameA = (b3Transform){ a, b3Quat_identity };
-				jd.base.localFrameB = (b3Transform){ b, b3Quat_identity };
-				b3CreateSphericalJoint( worldId, &jd );
-			}
-			break;
-			case b3_refDistance:
-			{
-				b3DistanceJointDef jd = b3DefaultDistanceJointDef();
-				jd.base.bodyIdA = bodies[rj->bodyA];
-				jd.base.bodyIdB = bodies[rj->bodyB];
-				jd.base.localFrameA = (b3Transform){ a, b3Quat_identity };
-				jd.base.localFrameB = (b3Transform){ b, b3Quat_identity };
-				jd.length = b3FixFromDouble( rj->length );
-				b3CreateDistanceJoint( worldId, &jd );
-			}
-			break;
-			case b3_refWeld:
-			{
-				b3WeldJointDef jd = b3DefaultWeldJointDef();
-				jd.base.bodyIdA = bodies[rj->bodyA];
-				jd.base.bodyIdB = bodies[rj->bodyB];
-				jd.base.localFrameA = (b3Transform){ a, b3Quat_identity };
-				jd.base.localFrameB = (b3Transform){ b, b3Quat_identity };
-				b3CreateWeldJoint( worldId, &jd );
-			}
-			break;
+			continue;
+		}
+		b3CompoundSphereDef spheres[B3_REF_MAX_COMPOUND_CHILDREN];
+		for ( int k = 0; k < scene.compoundChildCount[i]; ++k )
+		{
+			spheres[k].sphere = (b3Sphere){ vecFromDouble( scene.compoundChildren[i][k].center ),
+											b3FixFromDouble( scene.compoundChildren[i][k].radius ) };
+			spheres[k].material = b3DefaultSurfaceMaterial();
+		}
+		b3CompoundDef compoundDef = { 0 };
+		compoundDef.spheres = spheres;
+		compoundDef.sphereCount = scene.compoundChildCount[i];
+		b3CompoundData* compound = b3CreateCompound( &compoundDef );
+		if ( compound != NULL )
+		{
+			b3ShapeDef shapeDef = b3DefaultShapeDef();
+			b3CreateBakedCompoundShape( bodies[i], &shapeDef, compound );
+			compounds[i] = compound; // the shape references this data; free it after the world
 		}
 	}
 
@@ -256,6 +294,19 @@ int main( int argc, char** argv )
 	int steps = scene.world.steps;
 	for ( int s = 0; s < steps; ++s )
 	{
+		createJointsAtStep( &scene, worldId, bodies, s );
+		for ( int e = 0; e < scene.eventCount; ++e )
+		{
+			if ( scene.events[e].step == s )
+			{
+				if ( scene.events[e].kind == b3_refEventSetMass )
+				{
+					b3MassData massData = b3Body_GetMassData( bodies[scene.events[e].bodyIndex] );
+					massData.center = vecFromDouble( scene.events[e].center );
+					b3Body_SetMassData( bodies[scene.events[e].bodyIndex], massData );
+				}
+			}
+		}
 		b3World_Step( worldId, dt, scene.world.subSteps );
 
 		b3Counters counters = b3World_GetCounters( worldId );
@@ -330,7 +381,7 @@ int main( int argc, char** argv )
 			break;
 			case b3_refOverlapAABB:
 			{
-				b3AABB aabb = { vecFromDouble( q->lower ), vecFromDouble( q->upper ) };
+				b3AABB aabb = { b3ToPos( vecFromDouble( q->lower ) ), b3ToPos( vecFromDouble( q->upper ) ) };
 				OverlapContext ctx = { 0 };
 				b3World_OverlapAABB( worldId, aabb, filter, CountOverlapCallback, &ctx );
 				printf( "query %d overlap_aabb %d\n", i, ctx.count );
@@ -390,5 +441,12 @@ int main( int argc, char** argv )
 	}
 
 	b3DestroyWorld( worldId );
+	for ( int i = 0; i < scene.bodyCount; ++i )
+	{
+		if ( compounds[i] != NULL )
+		{
+			b3DestroyCompound( compounds[i] );
+		}
+	}
 	return 0;
 }

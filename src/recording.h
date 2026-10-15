@@ -85,7 +85,11 @@ typedef struct b3World b3World;
 // three int32 fields per hit, so a v7 reader walking a v8 stream desynchronises at the
 // first plane and every op after it. Upstream box3d made the same widening its own major
 // bump (4 -> 5); ours is 8 because this fork's major counter is ahead.
-#define B3_REC_VERSION_MAJOR 8
+// Major version 9 widens b3BodyDef with safetyFactor. The body def payload gains one
+// 64-bit field, so a v8 reader walking a v9 stream desynchronises at the first body
+// create and every op after it. Upstream box3d made the same widening its own major
+// bump (5 -> 6); ours is 9 because this fork's major counter is ahead.
+#define B3_REC_VERSION_MAJOR 9
 
 // Minor tracks op-stream additions that keep the 48 byte header shape.
 // Minor version 3 added name cache.

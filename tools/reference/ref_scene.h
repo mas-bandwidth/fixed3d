@@ -91,6 +91,7 @@ typedef struct b3RefBody
 	bool isBullet;
 	bool allowFastRotation;
 	bool enableSleep;
+	double safetyFactor; // b3BodyDef::safetyFactor, default 0.5
 } b3RefBody;
 
 typedef enum b3RefShapeKind
@@ -136,6 +137,8 @@ typedef struct b3RefJoint
 	double anchorB[3]; // spherical uses anchorA only; revolute/weld use both
 	double axis[3];	   // revolute axis
 	double length;	   // distance rest length
+	bool collideConnected; // b3JointDef::collideConnected, default true
+	int atStep;			  // world step index (0-based) before which the joint is created
 } b3RefJoint;
 
 typedef enum b3RefQueryKind
@@ -177,6 +180,37 @@ typedef struct b3RefWorld
 	bool hasWorld;
 } b3RefWorld;
 
+// ---- mid-run events and compound children -------------------------------------
+
+// A per-step action. `at_step <n> set_mass <body> center <x> <y> <z>` moves a
+// resting body's center of mass so its cached contact manifolds go stale
+// (upstream #155). The event fires before the world step whose index is `step`.
+typedef enum b3RefEventKind
+{
+	b3_refEventSetMass = 0,
+} b3RefEventKind;
+
+typedef struct b3RefEvent
+{
+	int step;	  // world step index (0-based) before which the action fires
+	int kind;	  // b3RefEventKind
+	int bodyIndex;
+	double center[3];
+} b3RefEvent;
+
+#define B3_REF_MAX_EVENTS 16
+
+// A sphere child of a compound shape, built by repeated `compound <body> sphere ...`
+// directives. Only sphere children are expressible: that is all the 954cf87
+// compound-overlap scene needs.
+typedef struct b3RefCompoundChild
+{
+	double center[3];
+	double radius;
+} b3RefCompoundChild;
+
+#define B3_REF_MAX_COMPOUND_CHILDREN 16
+
 // ---- the parsed scene ----------------------------------------------------------
 
 // The generator form (README.md "Generator-form scenes"): `scene <name>`,
@@ -196,6 +230,10 @@ typedef struct b3RefScene
 	b3RefJoint joints[B3_REF_MAX_JOINTS];
 	int queryCount;
 	b3RefQuery queries[B3_REF_MAX_QUERIES];
+	int eventCount;
+	b3RefEvent events[B3_REF_MAX_EVENTS];
+	int compoundChildCount[B3_REF_MAX_BODIES];
+	b3RefCompoundChild compoundChildren[B3_REF_MAX_BODIES][B3_REF_MAX_COMPOUND_CHILDREN];
 	char name[64]; // `scene <name>` line, information only
 	bool hasName;
 	// pending `hull_generator complex <seed> [radius <r>]`, consumed by the next

@@ -703,8 +703,7 @@ b3AABB b3ComputeCompoundAABB( const b3CompoundData* shape, b3Transform transform
 struct b3CompoundOverlapContext
 {
 	const b3CompoundData* compound;
-	// transform of the compound
-	b3Transform transform;
+	// proxy in the compound frame
 	b3ShapeProxy proxy;
 	bool overlap;
 };
@@ -717,25 +716,23 @@ static bool b3CompoundOverlapCallback( int proxyId, uint64_t userData, void* con
 	struct b3CompoundOverlapContext* overlapContext = context;
 	b3ChildShape child = b3GetCompoundChild( overlapContext->compound, childIndex );
 
-	b3Transform transform = b3MulTransforms( overlapContext->transform, child.transform );
-
 	bool overlap = false;
 	switch ( child.type )
 	{
 		case b3_capsuleShape:
-			overlap = b3OverlapCapsule( &child.capsule, transform, &overlapContext->proxy );
+			overlap = b3OverlapCapsule( &child.capsule, child.transform, &overlapContext->proxy );
 			break;
 
 		case b3_hullShape:
-			overlap = b3OverlapHull( child.hull, transform, &overlapContext->proxy );
+			overlap = b3OverlapHull( child.hull, child.transform, &overlapContext->proxy );
 			break;
 
 		case b3_meshShape:
-			overlap = b3OverlapMesh( &child.mesh, transform, &overlapContext->proxy );
+			overlap = b3OverlapMesh( &child.mesh, child.transform, &overlapContext->proxy );
 			break;
 
 		case b3_sphereShape:
-			overlap = b3OverlapSphere( &child.sphere, transform, &overlapContext->proxy );
+			overlap = b3OverlapSphere( &child.sphere, child.transform, &overlapContext->proxy );
 			break;
 
 		default:
@@ -754,26 +751,24 @@ static bool b3CompoundOverlapCallback( int proxyId, uint64_t userData, void* con
 	return true;
 }
 
+// This is dealing with multiple transforms:
+// - the compound shape transform
+// - the compound child shape transforms
 bool b3OverlapCompound( const b3CompoundData* shape, b3Transform shapeTransform, const b3ShapeProxy* proxy )
 {
+	B3_ASSERT( 0 < proxy->count && proxy->count <= B3_MAX_SHAPE_CAST_POINTS );
+
+	// Use local proxy.
+	b3Vec3 buffer[B3_MAX_SHAPE_CAST_POINTS];
 	struct b3CompoundOverlapContext context = {
 		.compound = shape,
-		.transform = shapeTransform,
-		.proxy = *proxy,
+		.proxy = b3MakeLocalProxy( proxy, shapeTransform, buffer ),
 		.overlap = false,
 	};
 
-	b3AABB aabb = { b3Vec3ToBound( proxy->points[0] ), b3Vec3ToBound( proxy->points[0] ) };
-	for ( int i = 1; i < proxy->count; ++i )
-	{
-		aabb.lowerBound = b3Vec3ToBound( b3Min( b3BoundToVec3( aabb.lowerBound ), proxy->points[i] ) );
-		aabb.upperBound = b3Vec3ToBound( b3Max( b3BoundToVec3( aabb.upperBound ), proxy->points[i] ) );
-	}
+	b3AABB aabb = b3ComputeProxyAABB( &context.proxy );
 
-	b3Vec3 r = { proxy->radius, proxy->radius, proxy->radius };
-	aabb.lowerBound = b3Vec3ToBound( b3Sub( b3BoundToVec3( aabb.lowerBound ), r ) );
-	aabb.upperBound = b3Vec3ToBound( b3Add( b3BoundToVec3( aabb.upperBound ), r ) );
-
+	// This query must be in the compound frame.
 	(void)b3DynamicTree_Query( &shape->tree, aabb, ~0ull, false, b3CompoundOverlapCallback, &context );
 
 	return context.overlap;
