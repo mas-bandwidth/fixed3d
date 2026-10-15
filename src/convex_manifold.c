@@ -758,6 +758,30 @@ static inline b3Int128 b3Cross2D( b3Vec2 a, b3Vec2 b, b3Vec2 c )
 	return ( (b3Int128)b.x - a.x ) * ( (b3Int128)c.y - a.y ) - ( (b3Int128)b.y - a.y ) * ( (b3Int128)c.x - a.x );
 }
 
+typedef struct b3HullExtrema2D
+{
+	int minX, maxX, minY, maxY;
+} b3HullExtrema2D;
+
+static b3HullExtrema2D b3FindHullExtrema2D( const b3HullPoint2D* hull, int count )
+{
+	B3_ASSERT( count > 0 );
+	b3HullExtrema2D e = { 0 };
+	for ( int i = 1; i < count; ++i )
+	{
+		if ( hull[i].p.x < hull[e.minX].p.x ) e.minX = i;
+		if ( hull[i].p.x > hull[e.maxX].p.x ) e.maxX = i;
+		if ( hull[i].p.y < hull[e.minY].p.y ) e.minY = i;
+		if ( hull[i].p.y > hull[e.maxY].p.y ) e.maxY = i;
+	}
+	return e;
+}
+
+static bool b3IsHullExtreme2D( b3HullExtrema2D e, int i )
+{
+	return i == e.minX || i == e.maxX || i == e.minY || i == e.maxY;
+}
+
 // Iteratively remove the vertices contributing the least area.
 int b3SimplifyHull2D( b3HullPoint2D* hull, int count1, int target )
 {
@@ -776,8 +800,13 @@ int b3SimplifyHull2D( b3HullPoint2D* hull, int count1, int target )
 
 	for ( ;; )
 	{
+		if ( target >= 4 && count2 <= 4 )
+		{
+			break;
+		}
+		b3HullExtrema2D extrema = b3FindHullExtrema2D( hull, count2 );
 		b3Int128 minArea = 0;
-		int minIndex = 0;
+		int minIndex = -1;
 
 		for ( int i = 0; i < count2; i++ )
 		{
@@ -785,15 +814,19 @@ int b3SimplifyHull2D( b3HullPoint2D* hull, int count1, int target )
 			int next = ( i + 1 ) % count2;
 			b3Int128 area = b3Cross2D( hull[prev].p, hull[i].p, hull[next].p );
 			B3_VALIDATE( area >= -(b3Int128)B3_FIXED_EPSILON * B3_FIXED_ONE );
+			if ( target >= 4 && b3IsHullExtreme2D( extrema, i ) )
+			{
+				continue;
+			}
 
-			if ( i == 0 || area + areaTol < minArea )
+			if ( minIndex < 0 || area + areaTol < minArea )
 			{
 				minArea = area;
 				minIndex = i;
 			}
 		}
 
-		if ( count2 <= 3 || ( minArea > areaTol && count2 <= target ) )
+		if ( minIndex < 0 || count2 <= 3 || ( minArea > areaTol && count2 <= target ) )
 		{
 			break;
 		}
@@ -1107,6 +1140,43 @@ static void b3ReduceManifoldPoints( b3LocalManifold* manifold, int capacity, b3L
 
 #else
 
+int b3IncludeDeepestHull2D( b3HullPoint2D* hull, int count, int target, b3HullPoint2D deepest )
+{
+	for ( int i = 0; i < count; ++i )
+	{
+		if ( hull[i].originalIndex == deepest.originalIndex )
+		{
+			return count;
+		}
+	}
+	if ( count < target )
+	{
+		hull[count] = deepest;
+		return count + 1;
+	}
+	// There can be up to four distinct coordinate extremes. At a full cap,
+	// replacing one would contradict the requested extreme preservation; keep
+	// the hull if every survivor is protected.
+	b3HullExtrema2D extrema = b3FindHullExtrema2D( hull, count );
+	int replace = -1;
+	for ( int i = 0; i < count; ++i )
+	{
+		if ( b3IsHullExtreme2D( extrema, i ) )
+		{
+			continue;
+		}
+		if ( replace < 0 || hull[i].separation > hull[replace].separation )
+		{
+			replace = i;
+		}
+	}
+	if ( replace >= 0 )
+	{
+		hull[replace] = deepest;
+	}
+	return count;
+}
+
 static void b3ReduceManifoldPoints( b3LocalManifold* manifold, int capacity, b3LocalManifoldPoint* points, int count )
 {
 	if ( capacity < 4 )
@@ -1143,14 +1213,6 @@ static void b3ReduceManifoldPoints( b3LocalManifold* manifold, int capacity, b3L
 		pts[i].originalIndex = i;
 	}
 
-	b3HullPoint2D hull[2 * B3_MAX_CLIP_POINTS];
-	int hullCount = b3Hull2D( pts, count, hull );
-	int finalCount = b3SimplifyHull2D( hull, hullCount, target );
-	B3_ASSERT( 0 < finalCount && finalCount <= target );
-
-	// A deeply penetrating point can lie inside the projected hull. Preserve it
-	// alongside the extreme points when capacity permits; otherwise replace the
-	// shallowest surviving vertex (stable tie break by hull order).
 	int deepestIndex = 0;
 	for ( int i = 1; i < count; ++i )
 	{
@@ -1159,31 +1221,12 @@ static void b3ReduceManifoldPoints( b3LocalManifold* manifold, int capacity, b3L
 			deepestIndex = i;
 		}
 	}
-	bool deepestOnHull = false;
-	for ( int i = 0; i < finalCount; ++i )
-	{
-		deepestOnHull |= hull[i].originalIndex == deepestIndex;
-	}
-	if ( deepestOnHull == false )
-	{
-		if ( finalCount < target )
-		{
-			hull[finalCount].originalIndex = deepestIndex;
-			finalCount += 1;
-		}
-		else
-		{
-			int replace = 0;
-			for ( int i = 1; i < finalCount; ++i )
-			{
-				if ( points[hull[i].originalIndex].separation > points[hull[replace].originalIndex].separation )
-				{
-					replace = i;
-				}
-			}
-			hull[replace].originalIndex = deepestIndex;
-		}
-	}
+	b3HullPoint2D deepest = pts[deepestIndex];
+	b3HullPoint2D hull[2 * B3_MAX_CLIP_POINTS];
+	int hullCount = b3Hull2D( pts, count, hull );
+	int finalCount = b3SimplifyHull2D( hull, hullCount, target );
+	B3_ASSERT( 0 < finalCount && finalCount <= target );
+	finalCount = b3IncludeDeepestHull2D( hull, finalCount, target, deepest );
 
 	for ( int i = 0; i < finalCount; ++i )
 	{

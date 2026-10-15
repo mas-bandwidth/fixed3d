@@ -1762,6 +1762,62 @@ static int Hull2DBoxFaceClipTest( void )
 	ENSURE_SMALL( maxZ - B3_FIX( 1.0f ), B3_FIX( 0.001f ) );
 	return 0;
 }
+
+// Eight perimeter vertices fill the cap. The ninth point is interior but has
+// the deepest separation; keeping it must not evict any cardinal extreme.
+static int Hull2DDeepestExtremeTest( void )
+{
+	const b3Vec2 ring[8] = {
+		{ -B3_FIX( 3.0f ), 0 }, { -B3_FIX( 2.0f ), -B3_FIX( 2.0f ) },
+		{ 0, -B3_FIX( 3.0f ) }, { B3_FIX( 2.0f ), -B3_FIX( 2.0f ) },
+		{ B3_FIX( 3.0f ), 0 }, { B3_FIX( 2.0f ), B3_FIX( 2.0f ) },
+		{ 0, B3_FIX( 3.0f ) }, { -B3_FIX( 2.0f ), B3_FIX( 2.0f ) },
+	};
+	b3HullPoint2D hull[9];
+	for ( int i = 0; i < 8; ++i )
+	{
+		hull[i] = (b3HullPoint2D){ .p = ring[i], .separation = 0, .originalIndex = i };
+	}
+	b3HullPoint2D deepest = { .p = { 0, 0 }, .separation = -B3_FIX( 1.0f ), .originalIndex = 8 };
+	int count = b3IncludeDeepestHull2D( hull, 8, 8, deepest );
+	ENSURE( count == 8 );
+	bool seen[9] = { false };
+	for ( int i = 0; i < count; ++i )
+	{
+		ENSURE( 0 <= hull[i].originalIndex && hull[i].originalIndex < 9 );
+		seen[hull[i].originalIndex] = true;
+	}
+	ENSURE( seen[8] );
+	ENSURE( seen[0] && seen[2] && seen[4] && seen[6] );
+	return 0;
+}
+
+// A unique extreme can contribute little area when its adjacent facets are
+// nearly collinear. Simplifying ten vertices to eight must retain it.
+static int Hull2DExtremaSimplifyTest( void )
+{
+	const b3Vec2 ring[10] = {
+		{ -B3_FIX( 3.0f ), 0 }, { -B3_FIX( 2.9f ), -B3_FIX( 1.0f ) },
+		{ -B3_FIX( 2.0f ), -B3_FIX( 2.0f ) }, { 0, -B3_FIX( 3.0f ) },
+		{ B3_FIX( 2.0f ), -B3_FIX( 2.0f ) }, { B3_FIX( 3.0f ), 0 },
+		{ B3_FIX( 2.0f ), B3_FIX( 2.0f ) }, { 0, B3_FIX( 3.0f ) },
+		{ -B3_FIX( 2.0f ), B3_FIX( 2.0f ) }, { -B3_FIX( 2.9f ), B3_FIX( 1.0f ) },
+	};
+	b3HullPoint2D hull[10];
+	for ( int i = 0; i < 10; ++i )
+	{
+		hull[i] = (b3HullPoint2D){ .p = ring[i], .separation = 0, .originalIndex = i };
+	}
+	int count = b3SimplifyHull2D( hull, 10, 8 );
+	ENSURE( count == 8 );
+	bool seen[10] = { false };
+	for ( int i = 0; i < count; ++i )
+	{
+		seen[hull[i].originalIndex] = true;
+	}
+	ENSURE( seen[0] && seen[3] && seen[5] && seen[7] );
+	return 0;
+}
 #endif
 
 // The default four-point path must remain byte-for-byte stable across this port.
@@ -1880,6 +1936,8 @@ int ManifoldTest( void )
 #endif
 #if B3_MAX_MANIFOLD_POINTS >= 8
 	RUN_SUBTEST( Hull2DBoxFaceClipTest );
+	RUN_SUBTEST( Hull2DDeepestExtremeTest );
+	RUN_SUBTEST( Hull2DExtremaSimplifyTest );
 #endif
 	RUN_SUBTEST( SimplifyHull2DTest );
 	RUN_SUBTEST( CrossedEdgeTest );

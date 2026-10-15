@@ -57,8 +57,13 @@ typedef struct b3HullPoint2D
 // Andrew's monotone chain convex hull. hull must have space for 2 * count points.
 int b3Hull2D( b3HullPoint2D* pts, int count, b3HullPoint2D* hull );
 
-// Iteratively remove the vertices contributing the least area until count <= target.
+// Iteratively remove the least-area non-extreme vertices until count <= target.
 int b3SimplifyHull2D( b3HullPoint2D* hull, int count, int target );
+
+#if B3_MAX_MANIFOLD_POINTS > 4
+// Keep an interior deepest candidate in a reduced projected hull when room permits.
+int b3IncludeDeepestHull2D( b3HullPoint2D* hull, int count, int target, b3HullPoint2D deepest );
+#endif
 
 // For single point contact, such as sphere-sphere, sphere-capsule, sphere-triangle
 static const b3FeaturePair b3FeaturePair_single = { 0 };

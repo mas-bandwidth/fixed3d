@@ -113,7 +113,16 @@ The PORT RECORDs below run newest first and are the detail for each step.
   `core.c` was removed once the cap-8 box-face test compiled and passed. Hull
   cross products, weld distances, and slop-area tolerances use raw 128-bit
   products so sub-resolution products do not vanish. A 50-contact seeded
-  cap-4 hash stays `0x59A27095` on unchanged base and this port. **(2) the speculative margin
+  cap-4 hash stays `0x59A27095` on unchanged base and this port.
+  **Cap-8 extrema correction after independent review:** an interior deepest
+  candidate used to evict the first equally shallow hull vertex, even if it
+  was the unique min/max coordinate. The wide selector now protects one
+  survivor at each projected min/max x/y; the area simplifier also protects
+  those four coordinate extrema before selecting a low-area vertex. Synthetic
+  `Hull2DDeepestExtremeTest` and `Hull2DExtremaSimplifyTest` each failed before
+  the correction and pass afterward. If all survivors are protected at a full
+  cap, the selector retains the extrema, since an additional deepest point
+  cannot fit without removing one. **(2) the speculative margin
   and recycle fixes** (a2e4816, "Fixes for #175 (#187)"): sphere/capsule manifolds
   report a pair inside `B3_SPECULATIVE_DISTANCE` (the closed-form routines now test
   `totalRadius + B3_SPECULATIVE_DISTANCE`), the recycle flag is set only when both
