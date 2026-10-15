@@ -710,7 +710,12 @@ void b3SolveContacts_Mesh( b3SolverBlock block, b3StepContext* context, bool use
 				b3Fixed newImpulse = b3FixMax( cp->normalImpulse + deltaImpulse, B3_FIX( 0.0f ) );
 				deltaImpulse = newImpulse - cp->normalImpulse;
 				cp->normalImpulse = newImpulse;
-				cp->totalNormalImpulse += newImpulse;
+				// Upstream accumulates the step's applied impulse in the no-bias solve only. Counting the
+				// soft push pass too doubles it, which inflates the restitution compression budget.
+				if ( useBias == false )
+				{
+					cp->totalNormalImpulse += newImpulse;
+				}
 
 				totalNormalImpulse += newImpulse;
 				totalTwistLimit += b3FixMul( cp->leverArm , cp->normalImpulse );
@@ -3516,7 +3521,11 @@ void b3SolveContacts_Convex( b3SolverBlock block, b3StepContext* context, bool u
 			b3FloatW newImpulse = b3MaxW( b3SubW( cp->normalImpulses, negImpulse ), b3ZeroW() );
 			b3FloatW deltaImpulse = b3SubW( newImpulse, cp->normalImpulses );
 			cp->normalImpulses = newImpulse;
-			cp->totalNormalImpulses = b3AddW( cp->totalNormalImpulses, newImpulse );
+			if ( useBias == false )
+			{
+				// Only the no-bias solve counts toward the step's applied impulse (see the scalar path).
+				cp->totalNormalImpulses = b3AddW( cp->totalNormalImpulses, newImpulse );
+			}
 
 			totalNormalImpulse = b3AddW( totalNormalImpulse, newImpulse );
 			totalTwistLimit = b3AddW( totalTwistLimit, b3MulW( cp->leverArms, newImpulse ) );
@@ -4418,7 +4427,11 @@ void b3SolveContacts_MeshWide( b3SolverBlock block, b3StepContext* context, bool
 				b3FloatW newImpulse = b3MaxW( b3AddW( cp->normalImpulse, deltaImpulse ), zeroW );
 				deltaImpulse = b3SubW( newImpulse, cp->normalImpulse );
 				cp->normalImpulse = newImpulse;
-				cp->totalNormalImpulse = b3AddW( cp->totalNormalImpulse, newImpulse );
+				if ( useBias == false )
+				{
+					// Only the no-bias solve counts toward the step's applied impulse (see the scalar path).
+					cp->totalNormalImpulse = b3AddW( cp->totalNormalImpulse, newImpulse );
+				}
 
 				totalNormalImpulse = b3AddW( totalNormalImpulse, newImpulse );
 				totalTwistLimit = b3AddW( totalTwistLimit, b3MulW( cp->leverArm, newImpulse ) );

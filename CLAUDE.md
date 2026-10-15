@@ -2497,12 +2497,30 @@ new sample code — keep them clean.
   fail on clean fixed3d BASE. After the restored stage (and the current-frame
   inertia fix) two of them -- DropTest and SingleBoxTest, both e=1 elastic
   energy-conservation measurements -- now pass and are regular RUN_MEASUREMENT
-  subtests; the four that still fail because of the baseline contact/integration
-  energy floor (Resting, Overshoot, Energy, Impulse) stay XFAIL individually,
-  with XPASS a failure; the original bounds remain intact. The follow-up card is
-  `fixed3d-energy-floor-matches-upstream`. A hard
+  subtests; the four that still fail (Resting, Overshoot, Energy, Impulse) were
+  XFAIL individually. A hard
   default-elastic-energy comparison against BASE remains in the suite so the
   configured default cannot silently regress while that floor is repaired.
+
+- **`fixed3d-energy-floor-matches-upstream` (2026-10-15): three of the four marks were one
+  accounting bug, not an energy floor.** The merged `b3SolveContacts_*` runs twice per substep
+  (soft push with `useBias`, then relax); both passes added the applied impulse to
+  `totalNormalImpulse`, while upstream 79fc559 accumulates it only in the no-bias solve (its
+  `b3PushContacts` does not). The step's reported impulse was doubled (resting ball 0.178 vs
+  weight 0.087; drop impact 5.94 vs 2.44) and the restitution stage's compression budget
+  `totalNormalImpulse - restitutionImpulse` was twice too loose, so e=1 gained speed. All three
+  paths (scalar mesh, wide convex, wide mesh) now accumulate only when `useBias == false`.
+  Measured before -> after: ImpulseTest worst step error 3.5-15.5 -> 1.5e-5; OvershootTest
+  discrete speed ratio 1.0003 -> 0.9843 (upstream 0.9825) and 1 -> 2 bounces; e=1 EnergyTest
+  peaks tall-flat-friction 1.01465 and narrow-flat-frictionless 1.01386 -> 1.00000. The e=0 peaks
+  the card quoted (1.01412, 1.02509) were already 1.00000 at BASE `adfd29a`, repaired by the
+  restitution card's current-frame inertia. Determinism goldens unchanged. RestingTest is NOT this
+  bug: it stays XFAIL, now naming `fixed3d-orientation-integration-deadband`. Its cause is that
+  one-substep rotation increments (about 1.3 quaternion quanta at 0.01 rad/s) round away in
+  `b3IntegrateRotation`, so box tilt below about 4e-4 rad never levels; tilted face normals then
+  push the 10-box stack along the frictionless ground (mixed friction is 0) at 0.046-0.061 m/s
+  against upstream's 0.00002. Fewer substeps shrinks it (1: 0.024, 2: 0.013, 4: 0.061, 8: 0.078).
+  The repair needs a persistent sub-quantum rotation residual in `b3BodyState` (`body.h`).
 
 - ~~Quickhull iteration guard~~ DONE (bug-hunt pass): the builder has a
   `failed` flag, bounded ring walks in ConnectFaces/merge loops, release-safe
