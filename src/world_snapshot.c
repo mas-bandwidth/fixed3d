@@ -33,7 +33,7 @@
 
 // Snapshot image magic 'BNS3' and version
 #define B3_SNAP_MAGIC 0x33534E42u
-#define B3_SNAP_VERSION 3u
+#define B3_SNAP_VERSION 2u
 
 #define B3_SNAP_FLAG_VALIDATION 0x1u
 
@@ -502,7 +502,6 @@ static void b3SerShapes( b3RecBuffer* buf, b3World* world, b3Recording* rec )
 			memset( &shape.capsule, 0, sizeof( shape.capsule ) );
 		}
 		b3SnapW_Bytes( buf, &shape, sizeof( b3Shape ) );
-		b3SnapW_Bytes( buf, world->fatAABBs.data + i, sizeof( b3AABB ) );
 
 		if ( !isLive )
 		{
@@ -611,13 +610,11 @@ static void b3DesShapes( b3SnapReader* r, b3World* world, b3RecReader* rdr )
 
 	b3Array_Resize( world->shapes, count );
 	memset( world->shapes.data, 0, (size_t)count * sizeof( b3Shape ) );
-	b3Array_Resize( world->fatAABBs, count );
 
 	for ( int i = 0; i < count && r->ok; ++i )
 	{
 		b3Shape* dst = world->shapes.data + i;
 		b3SnapR_Bytes( r, dst, sizeof( b3Shape ) );
-		b3SnapR_Bytes( r, world->fatAABBs.data + i, sizeof( b3AABB ) );
 		// Pointer fields were written as NULL; set them cleanly
 		dst->materials = NULL;
 		dst->userData = NULL;
@@ -797,6 +794,8 @@ static void b3SerContacts( b3RecBuffer* buf, b3World* world )
 		// Write raw struct with pointer fields zeroed
 		b3Contact copy = *c;
 		copy.manifolds = NULL;
+		copy.bodySimIndexA = B3_NULL_INDEX;
+		copy.bodySimIndexB = B3_NULL_INDEX;
 		if ( copy.flags & b3_simMeshContact )
 		{
 			copy.meshContact.triangleCache.data = NULL;
@@ -853,6 +852,8 @@ static void b3DesContacts( b3SnapReader* r, b3World* world )
 		b3Contact* dst = world->contacts.data + i;
 		b3SnapR_Bytes( r, dst, sizeof( b3Contact ) );
 		dst->manifolds = NULL;
+		dst->bodySimIndexA = B3_NULL_INDEX;
+		dst->bodySimIndexB = B3_NULL_INDEX;
 		if ( dst->flags & b3_simMeshContact )
 		{
 			dst->meshContact.triangleCache.data = NULL;

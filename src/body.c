@@ -92,41 +92,19 @@ b3BodyState* b3GetBodyState( b3World* world, b3Body* body )
 	return NULL;
 }
 
-void b3RefreshBodyContactIndices( b3World* world, b3Body* body )
-{
-	int encodedBodySimIndex = b3EncodeBodySimIndex( body );
-
-	int contactKey = body->headContactKey;
-	while ( contactKey != B3_NULL_INDEX )
-	{
-		int edgeIndex = contactKey & 1;
-		int contactId = contactKey >> 1;
-
-		b3Contact* contact = b3Array_Get( world->contacts, contactId );
-		contactKey = contact->edges[edgeIndex].nextKey;
-
-		if ( edgeIndex == 0 )
-		{
-			contact->encodedBodySimA = encodedBodySimIndex;
-		}
-		else
-		{
-			contact->encodedBodySimB = encodedBodySimIndex;
-		}
-	}
-}
-
 void b3SyncBodyFlags( b3World* world, b3Body* body )
 {
-	b3BodySim* bodySim = b3GetBodySim( world, body );
+	// Never sync transient flags
+	uint32_t flags = body->flags & ~b3_bodyTransientFlags;
 
-	// Preserve the sim only flags: fast for contact recycling, time of impact for debug draw.
-	bodySim->flags = ( bodySim->flags & ( b3_isFast | b3_hadTimeOfImpact ) ) | ( body->flags & ~b3_bodyTransientFlags );
+	b3BodySim* bodySim = b3GetBodySim( world, body );
+	// Preserve the time of impact flag for debug draw (body sim only).
+	bodySim->flags = ( bodySim->flags & b3_hadTimeOfImpact ) | flags;
 
 	b3BodyState* bodyState = b3GetBodyState( world, body );
 	if ( bodyState != NULL )
 	{
-		bodyState->flags = body->flags & ~b3_bodyTransientFlags;
+		bodyState->flags = flags;
 	}
 }
 
@@ -448,7 +426,6 @@ void b3DestroyBody( b3BodyId bodyId )
 		b3Body* movedBody = b3Array_Get( world->bodies, movedId );
 		B3_ASSERT( movedBody->localIndex == movedIndex );
 		movedBody->localIndex = body->localIndex;
-		b3RefreshBodyContactIndices( world, movedBody );
 	}
 
 	// Remove body state from awake set
@@ -1199,8 +1176,7 @@ void b3Body_SetTransform( b3BodyId bodyId, b3Pos position, b3Quat rotation )
 		b3AABB aabb = b3ComputeFatShapeAABB( shape, transform, speculativeDistance );
 		shape->aabb = aabb;
 
-		b3AABB* shapeFatAABB = world->fatAABBs.data + shapeId;
-		if ( b3AABB_Contains( *shapeFatAABB, aabb ) == false )
+		if ( b3AABB_Contains( shape->fatAABB, aabb ) == false )
 		{
 			b3Fixed margin = shape->aabbMargin;
 			b3AABB fatAABB;
@@ -1210,7 +1186,7 @@ void b3Body_SetTransform( b3BodyId bodyId, b3Pos position, b3Quat rotation )
 			fatAABB.upperBound.x = aabb.upperBound.x + margin;
 			fatAABB.upperBound.y = aabb.upperBound.y + margin;
 			fatAABB.upperBound.z = aabb.upperBound.z + margin;
-			*shapeFatAABB = fatAABB;
+			shape->fatAABB = fatAABB;
 
 			// The body could be disabled
 			if ( shape->proxyKey != B3_NULL_INDEX )
@@ -1797,7 +1773,7 @@ void b3Body_SetType( b3BodyId bodyId, b3BodyType type )
 		shapeId = shape->nextShapeId;
 		b3DestroyShapeProxy( shape, &world->broadPhase );
 		bool forcePairCreation = true;
-		b3CreateShapeProxy( world, shape, type, transform, forcePairCreation );
+		b3CreateShapeProxy( shape, &world->broadPhase, type, transform, forcePairCreation );
 	}
 
 	// Relink all joints
@@ -2327,7 +2303,7 @@ void b3Body_Enable( b3BodyId bodyId )
 		b3Shape* shape = b3Array_Get( world->shapes, shapeId );
 		shapeId = shape->nextShapeId;
 
-		b3CreateShapeProxy( world, shape, proxyType, transform, forcePairCreation );
+		b3CreateShapeProxy( shape, &world->broadPhase, proxyType, transform, forcePairCreation );
 	}
 
 	if ( setId != b3_staticSet )

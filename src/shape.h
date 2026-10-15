@@ -38,6 +38,7 @@ typedef struct b3Shape
 	b3Fixed aabbMargin;
 
 	b3AABB aabb;
+	b3AABB fatAABB;
 	b3Vec3 localCentroid;
 
 	int materialCount;
@@ -91,7 +92,7 @@ static inline void b3StageMaterial( b3SurfaceMaterial* target, const b3SurfaceMa
 	target->customColor = source->customColor;
 }
 
-void b3CreateShapeProxy( b3World* world, b3Shape* shape, b3BodyType type, b3WorldTransform transform, bool forcePairCreation );
+void b3CreateShapeProxy( b3Shape* shape, b3BroadPhase* bp, b3BodyType type, b3WorldTransform transform, bool forcePairCreation );
 void b3DestroyShapeProxy( b3Shape* shape, b3BroadPhase* bp );
 
 void b3DestroyShapeAllocations( b3World* world, b3Shape* shape );

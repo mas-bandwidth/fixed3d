@@ -149,8 +149,8 @@ void b3AddContactToGraph( b3World* world, b3Contact* contact )
 	b3GraphColor* color = graph->colors + colorIndex;
 	contact->colorIndex = colorIndex;
 	contact->localIndex = isScalar ? color->contacts.count : color->convexContacts.count;
-	contact->encodedBodySimA = b3EncodeBodySimIndex( bodyA );
-	contact->encodedBodySimB = b3EncodeBodySimIndex( bodyB );
+	contact->bodySimIndexA = bodyA->type == b3_staticBody ? B3_NULL_INDEX : bodyA->localIndex;
+	contact->bodySimIndexB = bodyB->type == b3_staticBody ? B3_NULL_INDEX : bodyB->localIndex;
 
 	if ( isScalar )
 	{

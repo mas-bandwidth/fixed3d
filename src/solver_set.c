@@ -62,8 +62,7 @@ void b3WakeSolverSet( b3World* world, int setIndex )
 		*state = b3_identityBodyState;
 		state->flags = body->flags;
 
-		// Move non-touching contacts from disabled set to awake set.
-		int encodedBodySimIndex = body->localIndex;
+		// move non-touching contacts from disabled set to awake set
 		int contactKey = body->headContactKey;
 		while ( contactKey != B3_NULL_INDEX )
 		{
@@ -76,21 +75,6 @@ void b3WakeSolverSet( b3World* world, int setIndex )
 			if ( contact->setIndex != b3_disabledSet )
 			{
 				B3_ASSERT( contact->setIndex == b3_awakeSet || contact->setIndex == setIndex );
-
-				// If this contact is awake but not touching I need to fixup the body sim index here.
-				if ( contact->setIndex == b3_awakeSet )
-				{
-					B3_ASSERT( contact->colorIndex == B3_NULL_INDEX );
-					if ( edgeIndex == 0 )
-					{
-						contact->encodedBodySimA = encodedBodySimIndex;
-					}
-					else
-					{
-						contact->encodedBodySimB = encodedBodySimIndex;
-					}
-				}
-
 				continue;
 			}
 
@@ -104,15 +88,6 @@ void b3WakeSolverSet( b3World* world, int setIndex )
 			contact->setIndex = b3_awakeSet;
 			contact->localIndex = awakeSet->contactIndices.count;
 			b3Array_Push( awakeSet->contactIndices, contactId );
-
-			if ( edgeIndex == 0 )
-			{
-				contact->encodedBodySimA = encodedBodySimIndex;
-			}
-			else
-			{
-				contact->encodedBodySimB = encodedBodySimIndex;
-			}
 
 			int movedLocalIndex = b3Array_RemoveSwap( disabledSet->contactIndices, localIndex );
 			if ( movedLocalIndex != B3_NULL_INDEX )
@@ -252,11 +227,6 @@ void b3TrySleepIsland( b3World* world, int islandId )
 				b3Body* movedBody = b3Array_Get( world->bodies, movedId );
 				B3_ASSERT( movedBody->localIndex == movedIndex );
 				movedBody->localIndex = awakeBodyIndex;
-
-				if ( movedBody->islandId != islandId )
-				{
-					b3RefreshBodyContactIndices( world, movedBody );
-				}
 			}
 
 			// destroy state, no need to clone
@@ -275,23 +245,20 @@ void b3TrySleepIsland( b3World* world, int islandId )
 
 				b3Contact* contact = b3Array_Get( world->contacts, contactId );
 
-				B3_ASSERT( contact->setIndex == b3_awakeSet );
+				B3_ASSERT( contact->setIndex == b3_awakeSet || contact->setIndex == b3_disabledSet );
 				contactKey = contact->edges[edgeIndex].nextKey;
+
+				if ( contact->setIndex == b3_disabledSet )
+				{
+					// already moved to disabled set by another body in the island
+					continue;
+				}
 
 				if ( contact->colorIndex != B3_NULL_INDEX )
 				{
 					// contact is touching and will be moved separately
 					B3_ASSERT( ( contact->flags & b3_contactTouchingFlag ) != 0 );
 					continue;
-				}
-
-				if ( edgeIndex == 0 )
-				{
-					contact->encodedBodySimA = B3_NULL_INDEX;
-				}
-				else
-				{
-					contact->encodedBodySimB = B3_NULL_INDEX;
 				}
 
 				// the other body may still be awake, it still may go to sleep and then it will be responsible
@@ -385,8 +352,6 @@ void b3TrySleepIsland( b3World* world, int islandId )
 			contact->setIndex = sleepSetId;
 			contact->colorIndex = B3_NULL_INDEX;
 			contact->localIndex = sleepContactIndex;
-			contact->encodedBodySimA = b3SleepBodySimIndex( contact->encodedBodySimA );
-			contact->encodedBodySimB = b3SleepBodySimIndex( contact->encodedBodySimB );
 		}
 	}
 
@@ -565,8 +530,6 @@ void b3MergeSolverSets( b3World* world, int setId1, int setId2 )
 
 void b3TransferBody( b3World* world, b3SolverSet* targetSet, b3SolverSet* sourceSet, b3Body* body )
 {
-	B3_ASSERT( body->headContactKey == B3_NULL_INDEX );
-
 	if ( targetSet == sourceSet )
 	{
 		return;
@@ -580,8 +543,7 @@ void b3TransferBody( b3World* world, b3SolverSet* targetSet, b3SolverSet* source
 	memcpy( targetSim, sourceSim, sizeof( b3BodySim ) );
 
 	// Clear transient body flags
-	body->flags &= ~b3_bodyTransientFlags;
-	targetSim->flags &= ~( b3_isFast | b3_bodyTransientFlags );
+	targetSim->flags &= ~( b3_isFast | b3_isSpeedCapped | b3_hadTimeOfImpact );
 
 	// Remove body sim from solver set that owns it
 	int movedIndex = b3Array_RemoveSwap( sourceSet->bodySims, sourceIndex );
@@ -593,7 +555,6 @@ void b3TransferBody( b3World* world, b3SolverSet* targetSet, b3SolverSet* source
 		b3Body* movedBody = b3Array_Get( world->bodies, movedId );
 		B3_ASSERT( movedBody->localIndex == movedIndex );
 		movedBody->localIndex = sourceIndex;
-		b3RefreshBodyContactIndices( world, movedBody );
 	}
 
 	if ( sourceSet->setIndex == b3_awakeSet )

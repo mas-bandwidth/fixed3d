@@ -608,15 +608,14 @@ static void b3SolveContinuous( b3World* world, int bodySimIndex, b3TaskContext* 
 			b3AABB aabb = b3ComputeFatShapeAABB( shape, transform, speculativeScalar );
 			shape->aabb = aabb;
 
-			b3AABB* shapeFatAABB = world->fatAABBs.data + shapeId;
-			if ( b3AABB_Contains( *shapeFatAABB, aabb ) == false )
+			if ( b3AABB_Contains( shape->fatAABB, aabb ) == false )
 			{
 				b3Fixed marginScalar = shape->aabbMargin;
 				b3Vec3 aabbMargin = { marginScalar, marginScalar, marginScalar };
-				*shapeFatAABB = (b3AABB){ b3Vec3ToBound( b3Sub( b3BoundToVec3( aabb.lowerBound ), aabbMargin ) ), b3Vec3ToBound( b3Add( b3BoundToVec3( aabb.upperBound ), aabbMargin ) ) };
+				shape->fatAABB = (b3AABB){ b3Vec3ToBound( b3Sub( b3BoundToVec3( aabb.lowerBound ), aabbMargin ) ), b3Vec3ToBound( b3Add( b3BoundToVec3( aabb.upperBound ), aabbMargin ) ) };
 
 				shape->flags |= b3_enlargedAABB;
-				fastBodySim->flags |= b3_enlargeBulletBounds;
+				fastBodySim->flags |= b3_enlargeBounds;
 			}
 
 			shapeId = shape->nextShapeId;
@@ -638,18 +637,17 @@ static void b3SolveContinuous( b3World* world, int bodySimIndex, b3TaskContext* 
 
 			// shape->aabb is still valid from above
 
-			b3AABB* shapeFatAABB = world->fatAABBs.data + shapeId;
-			if ( b3AABB_Contains( *shapeFatAABB, shape->aabb ) == false )
+			if ( b3AABB_Contains( shape->fatAABB, shape->aabb ) == false )
 			{
 				b3Fixed marginScalar = shape->aabbMargin;
 				b3Vec3 aabbMargin = { marginScalar, marginScalar, marginScalar };
-				*shapeFatAABB = (b3AABB){
+				shape->fatAABB = (b3AABB){
 					.lowerBound = b3Vec3ToBound( b3Sub( b3BoundToVec3( shape->aabb.lowerBound ), aabbMargin ) ),
 					.upperBound = b3Vec3ToBound( b3Add( b3BoundToVec3( shape->aabb.upperBound ), aabbMargin ) ),
 				};
 
 				shape->flags |= b3_enlargedAABB;
-				fastBodySim->flags |= b3_enlargeBulletBounds;
+				fastBodySim->flags |= b3_enlargeBounds;
 			}
 
 			shapeId = shape->nextShapeId;
@@ -775,7 +773,7 @@ static void b3FinalizeBodiesTask( int startIndex, int endIndex, int workerIndex,
 		B3_ASSERT( ( body->flags & b3_dirtyMass ) == 0 );
 
 		body->flags &= ~b3_bodyTransientFlags;
-		sim->flags &= ~( b3_isFast | b3_bodyTransientFlags );
+		sim->flags &= ~b3_bodyTransientFlags;
 
 		// The body state flag knows about speed capping (used for debug draw).
 		body->flags |= ( state->flags & b3_isSpeedCapped );
@@ -870,12 +868,11 @@ static void b3FinalizeBodiesTask( int startIndex, int endIndex, int workerIndex,
 
 				B3_ASSERT( ( shape->flags & b3_enlargedAABB ) == 0 );
 
-				b3AABB* shapeFatAABB = world->fatAABBs.data + shapeId;
-				if ( b3AABB_Contains( *shapeFatAABB, aabb ) == false )
+				if ( b3AABB_Contains( shape->fatAABB, aabb ) == false )
 				{
 					b3Fixed marginScalar = shape->aabbMargin;
 					b3Vec3 aabbMargin = { marginScalar, marginScalar, marginScalar };
-					*shapeFatAABB = (b3AABB){ b3Vec3ToBound( b3Sub( b3BoundToVec3( aabb.lowerBound ), aabbMargin ) ), b3Vec3ToBound( b3Add( b3BoundToVec3( aabb.upperBound ), aabbMargin ) ) };
+					shape->fatAABB = (b3AABB){ b3Vec3ToBound( b3Sub( b3BoundToVec3( aabb.lowerBound ), aabbMargin ) ), b3Vec3ToBound( b3Add( b3BoundToVec3( aabb.upperBound ), aabbMargin ) ) };
 					shape->flags |= b3_enlargedAABB;
 
 					// Bit-set to keep the move array sorted
@@ -2317,7 +2314,7 @@ void b3Solve( b3World* world, b3StepContext* stepContext )
 							// A fast body may have been flagged as enlarged despite having no shapes enlarged.
 							if ( shape->flags & b3_enlargedAABB )
 							{
-								b3BroadPhase_EnlargeProxy( broadPhase, shape->proxyKey, world->fatAABBs.data[shapeId] );
+								b3BroadPhase_EnlargeProxy( broadPhase, shape->proxyKey, shape->fatAABB );
 								shape->flags &= ~b3_enlargedAABB;
 							}
 
@@ -2364,13 +2361,13 @@ void b3Solve( b3World* world, b3StepContext* stepContext )
 		for ( int i = 0; i < bulletBodyCount; ++i )
 		{
 			b3BodySim* bulletBodySim = bodySimArray + bulletBodySimIndices[i];
-			if ( ( bulletBodySim->flags & b3_enlargeBulletBounds ) == 0 )
+			if ( ( bulletBodySim->flags & b3_enlargeBounds ) == 0 )
 			{
 				continue;
 			}
 
 			// Clear flag
-			bulletBodySim->flags &= ~b3_enlargeBulletBounds;
+			bulletBodySim->flags &= ~b3_enlargeBounds;
 
 			int bodyId = bulletBodySim->bodyId;
 			B3_ASSERT( 0 <= bodyId && bodyId < world->bodies.count );
@@ -2396,7 +2393,7 @@ void b3Solve( b3World* world, b3StepContext* stepContext )
 				// all fast bullet shapes should already be in the move buffer
 				B3_ASSERT( b3GetBit( &broadPhase->movedProxies[b3_dynamicBody], proxyId ) );
 
-				b3DynamicTree_EnlargeProxy( dynamicTree, proxyId, world->fatAABBs.data[shapeId] );
+				b3DynamicTree_EnlargeProxy( dynamicTree, proxyId, shape->fatAABB );
 
 				shapeId = shape->nextShapeId;
 			}

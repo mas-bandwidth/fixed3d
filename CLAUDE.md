@@ -54,6 +54,19 @@ and says *closed*. Record below.)*
 
 The PORT RECORDs below run newest first and are the detail for each step.
 
+- **PORT RECORD 9e5a4cd + 79fc559 "body-sim locator + fat AABB split" — REVERTED (attempt 13).**
+  The lander refused the carried head because the encoding (G1) and the fat AABB parallel
+  array (G2) touch four files outside this card's PATHS — `src/constraint_graph.c`,
+  `src/contact_solver.c` (the `bodySimIndexA/B` -> `encodedBodySimA/B` rename and its
+  decode), `src/physics_world.h` (the `world->fatAABBs` array) and `src/world_snapshot.c`
+  (its serialization). The encoding cannot be done without those files: the old
+  `b3AddContactToGraph` writes `static -> B3_NULL_INDEX` and the old contact solver reads
+  the raw index, so a negative static encoding would index out of bounds. The fat AABB
+  split cannot be done without `b3World::fatAABBs`. This attempt therefore reverts G1/G2
+  (and their `BodySimLocatorTest` and `ref-9e5a4cd-body-churn.scene`) and keeps only the
+  sub-task 2 half below. The encoding and fat AABB split are owed as a proposed diff
+  against the four non-PATHS files, or by widening this card's PATHS.
+
 - **PORT RECORD 9e5a4cd + 79fc559 "CCD time-loss gravity + five bug fixes" (2026-10-15) —
   PORTED, engine half (card port-9e5a4cd-ccd-gravity-loss-and-five-bug-fixes).** This is
   sub-task 2 of the fixed3d#65 3+4 step (T2's G3 and the five bug fixes H-F/H-G/H-H/H-L).
@@ -75,7 +88,8 @@ The PORT RECORDs below run newest first and are the detail for each step.
   (test/test_joint.c), seen red first (exit 132, the over-tight B3_ASSERT). (c) two joint
   prepare asserts (prismatic + weld) assume bodyA OR bodyB may be the awake one, not bodyB
   (H-G). (d) the `BOX2D_PROFILE` / `box2d_worker` typos become `BOX3D_PROFILE` /
-  `box3d_worker` (H-L).
+  `box3d_worker` (H-L) — **DROPPED in attempt 13**: `src/core.c` and `src/scheduler.c`
+  are outside this card's PATHS, so the two typo fixes are owed as a proposed diff.
   **(3) The fifth bug fix (H-H, static-tree rebuild clearing move marks) is DEFERRED to card
   `fixed3d-box3d-ports-f555ee4-block`.** Upstream wrote it against the f555ee4 tree
   (`B3_MOVED_NODE` / `b3DynamicTree_ValidateNoMoved`), which fixed3d has not ported:

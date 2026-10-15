@@ -81,8 +81,8 @@ void b3PrepareContacts_Mesh( b3SolverBlock block, b3StepContext* context )
 			b3Contact* contact = b3Array_Get( world->contacts, contactId );
 			B3_ASSERT( contact->contactId == contactId );
 
-			int indexA = b3DecodeAwakeIndex( contact->encodedBodySimA );
-			int indexB = b3DecodeAwakeIndex( contact->encodedBodySimB );
+			int indexA = contact->bodySimIndexA;
+			int indexB = contact->bodySimIndexB;
 
 #if B3_ENABLE_VALIDATION
 			if ( indexA != B3_NULL_INDEX )
@@ -2491,8 +2491,8 @@ void b3PrepareContacts_Convex( b3SolverBlock block, b3StepContext* context )
 				B3_ASSERT( contact->manifoldCount == 1 );
 				b3Manifold* manifold = contact->manifolds + 0;
 
-				int indexA = b3DecodeAwakeIndex( contact->encodedBodySimA );
-				int indexB = b3DecodeAwakeIndex( contact->encodedBodySimB );
+				int indexA = contact->bodySimIndexA;
+				int indexB = contact->bodySimIndexB;
 
 #if B3_ENABLE_VALIDATION
 				b3Body* bodyA = bodies + contact->edges[0].bodyId;
@@ -2953,8 +2953,8 @@ void b3PrepareContacts_Convex( b3SolverBlock block, b3StepContext* context )
 				B3_ASSERT( contact->manifoldCount == 1 );
 				b3Manifold* manifold = contact->manifolds + 0;
 
-				int indexA = b3DecodeAwakeIndex( contact->encodedBodySimA );
-				int indexB = b3DecodeAwakeIndex( contact->encodedBodySimB );
+				int indexA = contact->bodySimIndexA;
+				int indexB = contact->bodySimIndexB;
 
 #if B3_ENABLE_VALIDATION
 				b3Body* bodyA = bodies + contact->edges[0].bodyId;
@@ -3862,8 +3862,8 @@ void b3PrepareContacts_MeshWide( b3SolverBlock block, b3StepContext* context )
 				b3Contact* contact = b3Array_Get( world->contacts, contactId );
 				B3_ASSERT( contact->contactId == contactId );
 
-				int indexA = b3DecodeAwakeIndex( contact->encodedBodySimA );
-				int indexB = b3DecodeAwakeIndex( contact->encodedBodySimB );
+				int indexA = contact->bodySimIndexA;
+				int indexB = contact->bodySimIndexB;
 
 #if B3_ENABLE_VALIDATION
 				if ( indexA != B3_NULL_INDEX )

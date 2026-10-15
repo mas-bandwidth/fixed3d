@@ -31,7 +31,7 @@
 #include <stdarg.h>
 #include <string.h>
 
-#ifdef BOX3D_PROFILE
+#ifdef BOX2D_PROFILE
 
 #include <tracy/TracyC.h>
 #define b3TracyCAlloc( ptr, size ) TracyCAlloc( ptr, size )
