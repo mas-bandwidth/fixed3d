@@ -147,6 +147,21 @@ The PORT RECORDs below run newest first and are the detail for each step.
   both new fields default to the old behaviour; extents bound behaviour rather than
   producing it.
 
+  **ISSUE #50 MEASUREMENT (2026-10-15): the winding collapse did NOT leave clockwise
+  shape-cast results unchanged.** A throwaway probe (not committed) built a clockwise and a
+  counter-clockwise height field with the same varied surface and ran `b3ShapeCastHeightField`
+  (through `b3ShapeCast`) for 1000 seeded casts per proxy (sphere, capsule, box hull) on the
+  pre-change build (`bddc87f`) and the post-change build (`135e64a`). The counter-clockwise
+  control is bit-identical across all 3000 casts (0 differing lines). Against the clockwise
+  field, measured to differ on **1738 of 3000 casts** (capsule 837/1000, box 901/1000,
+  sphere 0/1000) — every difference is a **hit-to-miss flip**: the post-change back-side
+  culling rejects every clockwise triangle from an above-ground query, so the post-change
+  build records **0 hits of any proxy on any clockwise field** (also reproduced on a flat
+  clockwise field). Among the casts that both builds hit, outputs are **bit-identical (0
+  quanta)** — the corner swap's proxy-order and shift-origin changes shift no fraction, point
+  or normal. The decision to keep or restore the old spelling is Glenn's (roadmap item
+  issue-50).
+
   **TESTS: `test/test_mesh.c` is new** (upstream's, in Q48.16, plus five cases of our own:
   zero stride, bad stride, the degenerate report, scaled winding, back-side culling), plus
   `ShapeExtents` in `test_body.c`, four back-side/winding cases in `test_height_field.c`,
