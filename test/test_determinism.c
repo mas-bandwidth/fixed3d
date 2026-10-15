@@ -41,11 +41,15 @@
 // which the old condition already excluded, so both HELD. The ragdoll golden here is
 // the re-rig (fixed3d#67) AND group A together: the re-rig alone moved it to 325, and
 // group A lands on the re-rigged scene to move it again to 354.
-#define RAGDOLL_SLEEP_STEP 354
+// The 9e5a4cd CCD time-loss gravity fix (G3) lands on top of group A on this merge and
+// moves the ragdoll again: 354 -> 408 (narrow 0xD8C71580 -> 0x69572D49, ludicrous
+// 0xD13E51C0 -> 0x7D29E209). Re-harvested on this bench by the printed-value procedure,
+// identical across workers 1-5 and across two generation runs.
+#define RAGDOLL_SLEEP_STEP 408
 #if defined( BOX3D_LUDICROUS_MODE )
-#define RAGDOLL_HASH 0xD13E51C0
+#define RAGDOLL_HASH 0x7D29E209
 #else
-#define RAGDOLL_HASH 0xD8C71580
+#define RAGDOLL_HASH 0x69572D49
 #endif
 
 // Goldens for the wave pile, query spawn and mesh drop scenarios. Fixed-point goldens
@@ -55,31 +59,37 @@
 // The speculative sphere/capsule margin and contact-recycle flag change the
 // contact history in wave pile and query spawn. Harvested on Linux after the
 // a2e4816 port: workers 1-5 match each other in two independent runs of each
-// numeric mode. Mesh drop and the other scene goldens remain unchanged.
+// numeric mode. The 9e5a4cd CCD time-loss gravity fix (G3) moves mesh drop
+// 210 -> 284 (narrow 0x491E324B -> 0x784AD80A, ludicrous 0xDB1DA8B9 ->
+// 0xE44E6A0E); wave pile and query spawn do not trigger CCD and are unchanged.
 #define WAVE_PILE_SLEEP_STEP 335
 #define QUERY_SPAWN_SLEEP_STEP 243
 #define QUERY_SPAWN_HIT_COUNT 59
 #define QUERY_SPAWN_QUERY_HASH 0xE583B246
-#define MESH_DROP_SLEEP_STEP 210
+#define MESH_DROP_SLEEP_STEP 284
 #if defined( BOX3D_LUDICROUS_MODE )
 #define WAVE_PILE_HASH 0x22E6F859
 #define QUERY_SPAWN_HASH 0xC3538B7A
-#define MESH_DROP_HASH 0xDB1DA8B9
+#define MESH_DROP_HASH 0xE44E6A0E
 #else
 #define WAVE_PILE_HASH 0x64609ED9
 #define QUERY_SPAWN_HASH 0x250D3BFA
-#define MESH_DROP_HASH 0x491E324B
+#define MESH_DROP_HASH 0x784AD80A
 #endif
 
 // Re-rigged single ragdoll (box3d 954cf87) dropped on a ground box. Harvested
 // on this bench: sleep 331 both builds, hash narrow 0xCD6AC1EB / ludicrous
 // 0xCD75B56B, identical for workers 1-5 and across two generation runs. The
 // re-rig alone moved it to 228; group A lands on the re-rigged scene to move it again.
-#define RAGDOLL_HUMAN_SLEEP_STEP 331
+// The 9e5a4cd CCD time-loss gravity fix (G3) lands on top of group A on this merge and
+// moves it again: 331 -> 219 (narrow 0xCD6AC1EB -> 0xD945B8B3, ludicrous
+// 0xCD75B56B -> 0x407D12F3). Re-harvested on this bench, identical across workers 1-5
+// and across two generation runs.
+#define RAGDOLL_HUMAN_SLEEP_STEP 219
 #if defined( BOX3D_LUDICROUS_MODE )
-#define RAGDOLL_HUMAN_HASH 0xCD75B56B
+#define RAGDOLL_HUMAN_HASH 0x407D12F3
 #else
-#define RAGDOLL_HUMAN_HASH 0xCD6AC1EB
+#define RAGDOLL_HUMAN_HASH 0xD945B8B3
 #endif
 
 // The goldens above pin exact values for the default four point manifold. A build that

@@ -210,6 +210,8 @@ void b3CreateContact( b3World* world, b3Shape* shapeA, b3Shape* shapeB, int chil
 	contact->shapeIdA = shapeIdA;
 	contact->shapeIdB = shapeIdB;
 	contact->childIndex = childIndex;
+	contact->encodedBodySimA = b3EncodeBodySimIndex( bodyA );
+	contact->encodedBodySimB = b3EncodeBodySimIndex( bodyB );
 
 	if ( shapeA->type == b3_meshShape || shapeA->type == b3_heightShape )
 	{
