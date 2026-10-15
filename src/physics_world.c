@@ -575,7 +575,7 @@ static inline b3BodySim* b3ResolveContactBodySim( b3World* world, b3BodySim* awa
 
 	if ( b3IsStaticSimIndex( encodedIndex ) )
 	{
-		return staticSims - encodedIndex - 2;
+		return staticSims + ( -( encodedIndex + 2 ) );
 	}
 
 	b3Body* body = b3Array_Get( world->bodies, bodyId );
