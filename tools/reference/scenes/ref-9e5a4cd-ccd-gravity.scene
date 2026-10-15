@@ -1,0 +1,22 @@
+# ref-9e5a4cd-ccd-gravity
+# A bullet fired horizontally at a vertical wall under gravity. It impacts early in
+# the first step, so the CCD time of impact consumes most of the step and the lost
+# time (1 - fraction) * dt is large. The 9e5a4cd fix adds the gravity lost to that
+# time loss back to the body's linear velocity (respecting the linear lock flags), so
+# the post-impact vertical velocity carries only the pre-impact gravity, not the
+# full-step gravity.
+# Reference: vanilla float box3d at upstream commit 9e5a4cd (the commit that
+#   introduced the fix).
+# Fixed: fixed3d on this branch (the CCD time-loss gravity fix ported, reassociated
+#   so the small (1 - fraction) operand multiplies last and does not quantize to zero).
+# Observable: the bullet's vertical velocity after the first step. Full-step gravity
+#   would read about -0.167 m/s; the corrected value is a small fraction of that.
+# Tolerance: pos/rot/vel are the per-quantity tolerances; the bullet is the only
+#   dynamic body and its post-impact velocity is the observable. counts exact (1
+#   static wall + 1 dynamic bullet = 2 bodies, 1 contact).
+expect pos 0.01 rot 0.01 vel 0.05 horizon 4 counts 2
+world gravity 0 -10 0 dt 1 60 substeps 1 steps 4
+body static position -1 0 0 rotation 0 0 0 1 linvel 0 0 0 angvel 0 0 0
+body dynamic position -3 2 0 rotation 0 0 0 1 linvel 400 0 0 angvel 0 0 0 flags bullet
+shape 0 box 0.5 10 1 density 1 friction 0.5 restitution 0
+shape 1 sphere 0.1 density 1 friction 0.5 restitution 0
