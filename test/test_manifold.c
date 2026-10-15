@@ -1747,6 +1747,19 @@ static int Hull2DBoxFaceClipTest( void )
 	b3Transform transform = { { 0, B3_FIX( 1.99f ), 0 }, ExactQuat( kAxisY, B3_PI / 4 ) };
 	b3CollideHulls( &manifold, B3_MAX_MANIFOLD_POINTS, &box.base, &box.base, transform, &cache );
 	ENSURE( manifold.pointCount == 8 );
+	b3Fixed minX = B3_FIXED_MAX, maxX = B3_FIXED_MIN;
+	b3Fixed minZ = B3_FIXED_MAX, maxZ = B3_FIXED_MIN;
+	for ( int i = 0; i < manifold.pointCount; ++i )
+	{
+		minX = b3FixMin( minX, points[i].point.x );
+		maxX = b3FixMax( maxX, points[i].point.x );
+		minZ = b3FixMin( minZ, points[i].point.z );
+		maxZ = b3FixMax( maxZ, points[i].point.z );
+	}
+	ENSURE_SMALL( minX + B3_FIX( 1.0f ), B3_FIX( 0.001f ) );
+	ENSURE_SMALL( maxX - B3_FIX( 1.0f ), B3_FIX( 0.001f ) );
+	ENSURE_SMALL( minZ + B3_FIX( 1.0f ), B3_FIX( 0.001f ) );
+	ENSURE_SMALL( maxZ - B3_FIX( 1.0f ), B3_FIX( 0.001f ) );
 	return 0;
 }
 #endif
@@ -1761,9 +1774,9 @@ static int Hull2DDefaultHashTest( void )
 	for ( int contact = 0; contact < 50; ++contact )
 	{
 		seed = seed * 1664525u + 1013904223u;
-		b3Fixed x = (b3Fixed)( ( seed >> 16 ) & 0x3fff ) - 0x2000;
+		b3Fixed x = (b3Fixed)( (int32_t)( ( seed >> 16 ) & 0x3fff ) - 0x2000 );
 		seed = seed * 1664525u + 1013904223u;
-		b3Fixed z = (b3Fixed)( ( seed >> 16 ) & 0x3fff ) - 0x2000;
+		b3Fixed z = (b3Fixed)( (int32_t)( ( seed >> 16 ) & 0x3fff ) - 0x2000 );
 		b3Transform transform = { { x, B3_FIX( 1.9f ), z }, b3Quat_identity };
 		b3LocalManifoldPoint points[4];
 		b3LocalManifold manifold = { .points = points };
@@ -1775,7 +1788,7 @@ static int Hull2DDefaultHashTest( void )
 			b3Fixed values[4] = { 0, 0, 0, 0 };
 			if ( i < 0 )
 			{
-				values[0] = manifold.pointCount;
+				values[0] = (b3Fixed)manifold.pointCount; // intentional raw integer tag
 			}
 			else
 			{

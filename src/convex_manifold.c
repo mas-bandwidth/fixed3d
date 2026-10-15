@@ -1148,6 +1148,43 @@ static void b3ReduceManifoldPoints( b3LocalManifold* manifold, int capacity, b3L
 	int finalCount = b3SimplifyHull2D( hull, hullCount, target );
 	B3_ASSERT( 0 < finalCount && finalCount <= target );
 
+	// A deeply penetrating point can lie inside the projected hull. Preserve it
+	// alongside the extreme points when capacity permits; otherwise replace the
+	// shallowest surviving vertex (stable tie break by hull order).
+	int deepestIndex = 0;
+	for ( int i = 1; i < count; ++i )
+	{
+		if ( points[i].separation < points[deepestIndex].separation )
+		{
+			deepestIndex = i;
+		}
+	}
+	bool deepestOnHull = false;
+	for ( int i = 0; i < finalCount; ++i )
+	{
+		deepestOnHull |= hull[i].originalIndex == deepestIndex;
+	}
+	if ( deepestOnHull == false )
+	{
+		if ( finalCount < target )
+		{
+			hull[finalCount].originalIndex = deepestIndex;
+			finalCount += 1;
+		}
+		else
+		{
+			int replace = 0;
+			for ( int i = 1; i < finalCount; ++i )
+			{
+				if ( points[hull[i].originalIndex].separation > points[hull[replace].originalIndex].separation )
+				{
+					replace = i;
+				}
+			}
+			hull[replace].originalIndex = deepestIndex;
+		}
+	}
+
 	for ( int i = 0; i < finalCount; ++i )
 	{
 		int index = hull[i].originalIndex;
