@@ -5,7 +5,111 @@
 #include "core.h"
 #include "test_macros.h"
 
+#include "box3d/box3d.h"
+#include "box3d/math_functions.h"
 #include "box3d/types.h"
+
+#include <stdlib.h>
+
+typedef struct
+{
+	int64_t allocCount;
+	int64_t freeCount;
+	int64_t totalAllocated;
+	int64_t totalFreed;
+	int maxSize;
+	bool badAlignment;
+} CountAllocator;
+
+static CountAllocator g_alloc = { 0, 0, 0, 0, 0, false };
+
+static void* CountingAlloc( size_t size, int32_t alignment )
+{
+	g_alloc.allocCount += 1;
+	g_alloc.totalAllocated += (int64_t)size;
+
+	if ( ( size & ( B3_ALIGNMENT - 1 ) ) != 0 )
+	{
+		g_alloc.badAlignment = true;
+	}
+
+	if ( alignment != B3_ALIGNMENT )
+	{
+		g_alloc.badAlignment = true;
+	}
+
+	if ( (int)size > g_alloc.maxSize )
+	{
+		g_alloc.maxSize = (int)size;
+	}
+
+	return aligned_alloc( alignment, size );
+}
+
+static void CountingFree( void* mem, size_t size )
+{
+	g_alloc.freeCount += 1;
+	g_alloc.totalFreed += (int64_t)size;
+
+	if ( ( size & ( B3_ALIGNMENT - 1 ) ) != 0 )
+	{
+		g_alloc.badAlignment = true;
+	}
+
+	free( mem );
+}
+
+// The allocator API widening (b3AllocFcn/b3FreeFcn/b3GetByteCount). Installs a
+// counting allocator through the widened signatures and checks the sizes and
+// alignments the engine passes for a world create/step/destroy, and that every
+// byte is freed at destroy.
+static int AllocatorWidenedSignatureTest( void )
+{
+	g_alloc = (CountAllocator){ 0, 0, 0, 0, 0, false };
+
+	b3SetAllocator( CountingAlloc, CountingFree );
+
+	int64_t base = b3GetByteCount();
+
+	b3WorldDef worldDef = b3DefaultWorldDef();
+	b3WorldId worldId = b3CreateWorld( &worldDef );
+	ENSURE( b3World_IsValid( worldId ) );
+
+	b3BodyDef groundDef = b3DefaultBodyDef();
+	groundDef.position = (b3Pos){ B3_FIX( 0.0f ), B3_FIX( -10.0f ), B3_FIX( 0.0f ) };
+	b3BodyId groundId = b3CreateBody( worldId, &groundDef );
+	b3BoxHull groundBox = b3MakeBoxHull( B3_FIX( 50.0f ), B3_FIX( 10.0f ), B3_FIX( 50.0f ) );
+	b3ShapeDef groundShape = b3DefaultShapeDef();
+	b3CreateHullShape( groundId, &groundShape, &groundBox.base );
+
+	b3BodyDef bodyDef = b3DefaultBodyDef();
+	bodyDef.type = b3_dynamicBody;
+	bodyDef.position = (b3Pos){ B3_FIX( 0.0f ), B3_FIX( 4.0f ), B3_FIX( 0.0f ) };
+	b3BodyId bodyId = b3CreateBody( worldId, &bodyDef );
+	b3BoxHull dynBox = b3MakeCubeHull( B3_FIX( 1.0f ) );
+	b3ShapeDef shapeDef = b3DefaultShapeDef();
+	shapeDef.density = B3_FIX( 1.0f );
+	b3CreateHullShape( bodyId, &shapeDef, &dynBox.base );
+
+	b3Fixed timeStep = b3FixDiv( B3_FIX( 1.0f ), B3_FIX( 60.0f ) );
+	for ( int i = 0; i < 10; ++i )
+	{
+		b3World_Step( worldId, timeStep, 4 );
+	}
+
+	b3DestroyWorld( worldId );
+
+	b3SetAllocator( NULL, NULL );
+
+	ENSURE( g_alloc.allocCount > 0 );
+	ENSURE( g_alloc.freeCount == g_alloc.allocCount );
+	ENSURE( g_alloc.totalFreed == g_alloc.totalAllocated );
+	ENSURE( !g_alloc.badAlignment );
+	ENSURE( g_alloc.maxSize >= 16 );
+	ENSURE( b3GetByteCount() == base );
+
+	return 0;
+}
 
 typedef struct
 {
@@ -94,6 +198,7 @@ int AllocatorTest( void )
 	RUN_SUBTEST( TestBlockAllocate );
 	RUN_SUBTEST( TestBlockClear );
 	RUN_SUBTEST( TestBlockAlignment );
+	RUN_SUBTEST( AllocatorWidenedSignatureTest );
 
 	return 0;
 }

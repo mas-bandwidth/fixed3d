@@ -124,6 +124,27 @@ The PORT RECORDs below run newest first and are the detail for each step.
 
 ## Current status (as of 2026-08-31 — v1.4.0, MAINTENANCE MODE)
 
+- **PORT RECORD 9e5a4cd "the allocator API widening" (2026-10-15) — PORTED (card
+  port-9e5a4cd-allocator-api-widening).** Widens the allocator callbacks as upstream
+  spells them: `b3AllocFcn` size becomes `size_t` (was `int32_t`),
+  `b3FreeFcn` gains a `size_t size` parameter (fixed3d's free callback took only the
+  pointer before), and `b3GetByteCount` returns `int64_t` (was `int`). The byte
+  counter is an `b3AtomicI64` (new `b3AtomicFetchAddI64`/`b3AtomicLoadI64` helpers);
+  the alloc path passes the aligned size (`size_t`), and the free callback now
+  receives the aligned size — the size argument buys the user the memory of the
+  allocation at free time, so a counting allocator can balance totals without
+  bookkeeping of its own. `b3Free`'s size-0 guard has no counterpart here because our
+  free callback takes the size (not a guard); the callback is called with the aligned
+  size in bytes. PUBLIC API BREAK: every in-tree caller uses the new signatures. Tests:
+  `AllocatorWidenedSignatureTest` (counting allocator through the new signatures,
+  asserts the engine's sizes/alignments for world create/step/destroy, leak check at
+  destroy). Reference scene `ref-9e5a4cd-allocator-neutral.scene` added for the harness
+  glob; the allocator widening is not a simulation observable, so the reference check
+  is that the 5-box stack settles unchanged (60 steps) — the ctest -L reference run is
+  not-done until the reference harness (fixed3d-box3d-reference-harness) lands.
+  GOLDENS: NONE MOVED (narrow and ludicrous). VERIFIED: both configs green,
+  -Werror clean.
+
 - **PORT RECORD adec25b + 9f998c8 "SAT set, the portable pieces" (2026-10-14) —
   PORTED in one step (card port-adec25b-9f998c8-sat-set-portable-pieces).** The
   four-commit SAT series lives inside `b3ComputeSeparatingAxis`, which this tree never

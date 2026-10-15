@@ -114,6 +114,43 @@ typedef struct b3AtomicU32
 	uint32_t value;
 } b3AtomicU32;
 
+typedef struct b3AtomicI64
+{
+	// 64-bit atomic wants 8-byte alignment
+	_Alignas( 8 ) int64_t value;
+} b3AtomicI64;
+
+static inline int64_t b3AtomicFetchAddI64( b3AtomicI64* a, int64_t increment )
+{
+#if defined( _MSC_VER )
+	return (int64_t)_InterlockedExchangeAdd64( (__int64*)&a->value, (__int64)increment );
+#elif defined( __GNUC__ ) || defined( __clang__ )
+	return __atomic_fetch_add( &a->value, increment, __ATOMIC_SEQ_CST );
+#else
+#error "Unsupported platform"
+#endif
+}
+
+static inline int64_t b3AtomicLoadI64( b3AtomicI64* a )
+{
+#if defined( _MSC_VER ) && !defined( __clang__ ) && !defined( _M_ARM )
+	int64_t value = __iso_volatile_load64( (volatile __int64*)&a->value );
+#if defined( _M_ARM64 ) || defined( _M_ARM64EC )
+	__dmb( 0xB );
+#else
+	_ReadWriteBarrier();
+#endif
+	return value;
+#elif defined( _MSC_VER ) && !defined( __clang__ )
+	// 32-bit ARM has no plain atomic 64-bit load
+	return _InterlockedOr64( (__int64*)&a->value, 0 );
+#elif defined( __GNUC__ ) || defined( __clang__ )
+	return __atomic_load_n( &a->value, __ATOMIC_SEQ_CST );
+#else
+#error "Unsupported platform"
+#endif
+}
+
 // Minimum memory alignment used for all allocations. The AVX-512 solver path
 // stores wide constraint lanes as __m256i, so allocations must be 32-byte
 // aligned for its aligned vector loads and stores.
