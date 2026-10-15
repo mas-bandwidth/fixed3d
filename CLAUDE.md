@@ -390,6 +390,11 @@ The PORT RECORDs below run newest first and are the detail for each step.
   `counts exact`->`counts 2` (max pos 2.63e-2 m over steps 0-3; first contact delta moved one
   step earlier). Both pass in narrow and ludicrous; `ref-f8c4fe8-shape-cast-encroach-band`
   stays pre-existing red (identical at the unchanged base), out of scope here.
+  **LANDED 2026-10-15 on `sprint/port-954cf87-fixes-land-the-branch.w10.g3.e21`:** attempt 10
+  re-verifies the whole gate at head `0c4d0ef` (the port merge): `./bin/test` green in narrow
+  and BOX3D_LUDICROUS_MODE; `ctest -L reference` 17/18 in both configs, the five
+  `ref-954cf87-*` scenes all passing and the only red `ref-f8c4fe8-shape-cast-encroach-band`
+  pre-existing (float 954cf87 predates the f8c4fe8 fix), named and left out of scope.
 
   **THE SHAPE OF THE SPLIT: six engine steps, two test steps, one compile-only step, one
   record.** Each step built `build-port`, `build-ludicrous`, `build-debug`
