@@ -261,6 +261,8 @@ int b3IsaVariantFromName( const char* name )
 		.solveContactsMeshWide = b3SolveContacts_MeshWide_##suffix,                                                              \
 		.applyRestitutionMeshWide = b3ApplyRestitution_MeshWide_##suffix,                                                        \
 		.storeImpulsesMeshWide = b3StoreImpulses_MeshWide_##suffix,                                                              \
+		.integrateVelocities = b3IntegrateVelocities_##suffix,                                                                   \
+		.integratePositions = b3IntegratePositions_##suffix,                                                                     \
 		.findHullSupportVertex = b3FindHullSupportVertex_##suffix,                                                               \
 		.findHullSupportFace = b3FindHullSupportFace_##suffix,                                                                   \
 		.queryEdgeDirections = b3QueryEdgeDirections_##suffix,                                                                   \
@@ -384,7 +386,7 @@ int b3IsaCheckForce( const char* name, const b3IsaFacts* facts, char* reason, in
 static bool b3_isaInitDone = false;
 static b3IsaFacts b3_isaFacts;
 static b3IsaVariant b3_isaDefault = b3_isaScalar; // detection, or FIXED3D_ISA
-static int b3_isaLiveWorlds = 0;
+static b3AtomicInt b3_isaLiveWorlds = { 0 };
 static b3AtomicInt b3_isaActive = { b3_isaScalar };
 static char b3_isaRefusal[160];
 
@@ -458,14 +460,15 @@ const b3IsaFacts* b3IsaHostFacts( void )
 const b3IsaKernels* b3IsaAcquireWorld( void )
 {
 	b3IsaInit();
-	b3_isaLiveWorlds += 1;
+	b3AtomicFetchAddInt( &b3_isaLiveWorlds, 1 );
 	return b3IsaActive();
 }
 
 void b3IsaReleaseWorld( void )
 {
-	B3_ASSERT( b3_isaLiveWorlds > 0 );
-	b3_isaLiveWorlds -= 1;
+	int liveBefore = b3AtomicFetchAddInt( &b3_isaLiveWorlds, -1 );
+	B3_ASSERT( liveBefore > 0 );
+	B3_UNUSED( liveBefore );
 }
 
 bool b3ForceIsa( const char* name )
@@ -473,10 +476,11 @@ bool b3ForceIsa( const char* name )
 	b3IsaInit();
 	b3_isaRefusal[0] = 0;
 
-	if ( b3_isaLiveWorlds > 0 )
+	int liveWorlds = b3AtomicLoadInt( &b3_isaLiveWorlds );
+	if ( liveWorlds > 0 )
 	{
 		snprintf( b3_isaRefusal, sizeof( b3_isaRefusal ), "ISA variant %s refused: %d world(s) live, force before b3CreateWorld",
-				  name ? name : "(default)", b3_isaLiveWorlds );
+				  name ? name : "(default)", liveWorlds );
 		return false;
 	}
 

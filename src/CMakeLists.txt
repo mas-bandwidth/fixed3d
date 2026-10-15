@@ -237,10 +237,10 @@ if (BOX3D_ISA_X86_64)
 	else()
 		set_source_files_properties(isa_avx512.c PROPERTIES COMPILE_OPTIONS "-mavx512f;-mavx512dq;-mavx512vl")
 	endif()
-	# The variant TU re-includes contact_solver.c, convex_manifold.c and hull.c;
+	# The variant TU re-includes contact_solver.c, convex_manifold.c, hull.c and solver.c;
 	# rebuild it when they change
 	set_source_files_properties(isa_avx512.c PROPERTIES OBJECT_DEPENDS
-		"${CMAKE_CURRENT_SOURCE_DIR}/contact_solver.c;${CMAKE_CURRENT_SOURCE_DIR}/convex_manifold.c;${CMAKE_CURRENT_SOURCE_DIR}/hull.c")
+		"${CMAKE_CURRENT_SOURCE_DIR}/contact_solver.c;${CMAKE_CURRENT_SOURCE_DIR}/convex_manifold.c;${CMAKE_CURRENT_SOURCE_DIR}/hull.c;${CMAKE_CURRENT_SOURCE_DIR}/solver.c")
 else()
 	message(STATUS "Fixed3D ISA variants: scalar (runtime dispatch)")
 endif()

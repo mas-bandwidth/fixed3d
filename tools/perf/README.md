@@ -70,7 +70,19 @@ The 120-step oracle was regenerated from the current port-stream base on an
 AMD Ryzen 7 PRO 8700GE (Zen 4) and verified there in both scalar modes at
 workers 1/2/4. Four scene hashes changed when the fresh base was integrated;
 do not reuse the earlier EPYC oracle for this base. Cross-ISA verification of
-this exact base remains a separate gate.
+this exact base is `FIXED3D_ISA=avx512 tools/perf/oracle_check.sh` (and `=scalar`):
+one build holds both variants and both reproduce this oracle.
+
+2026-10-15 (card fixed3d-isa-dispatch-core): the `rain`, `ragdoll_pile` and
+`bodies_20k` rows (18 lines) were stale at the base tip: the scalar build of
+`origin/sprint/fixed3d-box3d-ports` itself failed them before any dispatch code
+existed (`oracle_check.sh --scenes=rain,ragdoll_pile,bodies_20k` on the base
+tree prints the same 18 mismatches). They were regenerated with
+`FIXED3D_ISA=scalar tools/perf/oracle_check.sh --regenerate
+--scenes=rain,ragdoll_pile,bodies_20k` (two runs agree, workers 1/2/4 agree) and
+the base's scalar build, the dispatch build forced to scalar and the dispatch
+build forced to avx512 all reproduce the same 78 rows, so the check no longer
+needs a locally regenerated oracle.
 
 ## A/B
 

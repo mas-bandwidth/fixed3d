@@ -125,6 +125,10 @@ typedef struct b3IsaKernels
 	void ( *applyRestitutionMeshWide )( b3SolverBlock block, b3StepContext* context );
 	void ( *storeImpulsesMeshWide )( b3SolverBlock block, b3StepContext* context, int workerIndex );
 
+	// Body integration stages over a block of awake bodies
+	void ( *integrateVelocities )( b3SolverBlock block, b3StepContext* context );
+	void ( *integratePositions )( b3SolverBlock block, b3StepContext* context );
+
 	int ( *findHullSupportVertex )( const b3HullData* hull, b3Vec3 direction );
 	int ( *findHullSupportFace )( const b3HullData* hull, b3Vec3 direction );
 	b3SeparatingAxis ( *queryEdgeDirections )( const b3HullData* hullA, const b3HullData* hullB, b3Transform transformBtoA );
@@ -165,6 +169,8 @@ const b3IsaFacts* b3IsaHostFacts( void );
 	void b3SolveContacts_MeshWide_##suffix( b3SolverBlock block, b3StepContext* context, bool useBias );                         \
 	void b3ApplyRestitution_MeshWide_##suffix( b3SolverBlock block, b3StepContext* context );                                    \
 	void b3StoreImpulses_MeshWide_##suffix( b3SolverBlock block, b3StepContext* context, int workerIndex );                      \
+	void b3IntegrateVelocities_##suffix( b3SolverBlock block, b3StepContext* context );                                          \
+	void b3IntegratePositions_##suffix( b3SolverBlock block, b3StepContext* context );                                           \
 	int b3FindHullSupportVertex_##suffix( const b3HullData* hull, b3Vec3 direction );                                            \
 	int b3FindHullSupportFace_##suffix( const b3HullData* hull, b3Vec3 direction );                                              \
 	b3SeparatingAxis b3QueryEdgeDirections_##suffix( const b3HullData* hullA, const b3HullData* hullB, b3Transform transformBtoA )

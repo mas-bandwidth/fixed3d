@@ -1722,7 +1722,7 @@ warns), and every build holds every variant its target can compile:
   AVX-512 variant (F/DQ/VL) is `src/isa_avx512.c`, the ONLY file given `-mavx512f -mavx512dq
   -mavx512vl` (`/arch:AVX512` on MSVC) via `set_source_files_properties`; it defines
   `B3_ISA_VARIANT_TU` + `B3_SIMD_AVX512` + `B3_ISA_FN(name) name##_avx512` and re-includes
-  `contact_solver.c`, `convex_manifold.c` and `hull.c` (Highway's foreach_target pattern, chosen
+  `contact_solver.c`, `convex_manifold.c`, `hull.c` and `solver.c` (Highway's foreach_target pattern, chosen
   so scalar and every variant are the SAME TEXT: no hand-copied kernel can drift). Each of those
   files wraps everything except its wide-kernel section in `#if !defined( B3_ISA_VARIANT_TU )`.
   Never raise a global `-m` flag: a stray AVX-512 instruction in baseline code SIGILLs on the
@@ -1736,7 +1736,9 @@ warns), and every build holds every variant its target can compile:
   save ZMM state yields no AVX-512. XGETBV runs only behind OSXSAVE and its asm is volatile.
 - **Kernel table** (`b3IsaKernels`, src/isa.h): the convex and wide-mesh prepare / warm start /
   solve / restitution / store per color block, the three wide byte counts (layouts may differ per
-  variant), `meshWide`, the hull support scans and the SAT edge scan. One indirect call per block
+  variant), `meshWide`, the hull support scans, the SAT edge scan, and the two body integration
+  stages (`integrateVelocities`, `integratePositions`, see "Why the integrate stages are in the
+  table" below). One indirect call per block
   or scan, never per multiply. `world->isa` is set in `b3CreateWorld` and never changes. The
   narrow phase runs outside worlds too, so it reads the process table (`b3IsaActive()`), which
   equals every live world's table because `b3ForceIsa` is refused while any world lives.
@@ -1752,8 +1754,65 @@ warns), and every build holds every variant its target can compile:
   against the scalar oracle; `bin/benchmark --isa` prints the pick.
 - **Leak check**: every function in the linked binary that holds a VEX/EVEX instruction must be
   an `*_avx512` entry point or reachable only from one (LTO renames the static helpers
-  `.lto_priv.N`, so key functions by address). BASE built with the old global flags fails the
-  same check with 87 functions.
+  `.lto_priv.N` and two different static functions can share a name, so key functions by
+  address, not by name). Measured 2026-10-15 on the default build (the same on `benchmark`,
+  `build-ludicrous` and `test`): 37 functions hold a ymm/zmm/k/v-prefixed instruction, 15 are the
+  `*_avx512` entry points, the other 22 are the lane helpers copied into the variant TU, and none
+  of the 22 is called or address-taken from code outside that set. The scalar build holds 0; a
+  BASE tree built with the old global `-mavx512*` flags holds 235.
+- **Measured dispatch cost: none** (hetzner2, Ryzen 9 7950X3D Zen 4, `ab.sh -w=1 -r=7
+  --steps=120`, interleaved, the script's own max-min spread as the floor). Perf counters are
+  unavailable on every bench host (`kernel.perf_event_paranoid=4`, no root), so the isolation is
+  by controlled A/B, not by `perf stat`:
+  1. *Direct-call control.* The dispatch tree against a copy of itself whose `b3ExecuteBlock`,
+     byte-count, hull-support and SAT call sites call the `_avx512` symbols directly (same TUs,
+     same flags, same table-free kernels). Final run: all 13 scenes inside their spread (geomean
+     0.977 on a loaded box, where `large_pyramid` alone spans 47%); the quiet run of the same pair on
+     the two hull-free contact scenes: `rain` 0.998 and `ragdoll_pile` 0.997 at ~1% spread.
+  2. *Scalar.* BASE built plain against the dispatch build with `FIXED3D_ISA=scalar`: 13 of 13
+     inside the spread, geomean 1.001.
+  3. *Prediction (llvm-mca -mcpu=znver4).* The call-site sequence (index load, table load,
+     method load, indirect call) is 3 dependent loads ~ 4.6 cycles/dispatch in the throughput
+     model; the work dispatched is a color-block solver stage (tens of microseconds) or a hull scan
+     (a hull-support scan is ~41k calls per step in `convex_pile`, the densest user). 41k x ~5
+     cycles ~ 50 us of an 11.6 ms step = 0.4%, below every scene's A/A floor; everything else is
+     under 0.05%. Measured in a standalone loop (iteration count an argument, 1e8 calls,
+     128-bit dot scan of 8, 16 and 32 points, 10-36 ns per scan): dispatched minus direct
+     was -0.4 to +0.5 ns per call, below the noise of the box.
+  The sampled call counts per 120 steps: `rain` and `ragdoll_pile` make no hull-scan dispatch at
+  all (spheres, capsules), `junkyard` 45k support scans and 812 SAT scans, `convex_pile` 4.9M
+  support scans and 26k SAT scans.
+- **Against a BASE built with `-DBOX3D_AVX512=ON` the differences are codegen, not dispatch.**
+  BASE put `-mavx512f -mavx512dq -mavx512vl` on EVERY translation unit, so the compiler lowered
+  all the baseline code (integrate loops, narrow phase, joints) with AVX-512-era instructions, the
+  very leak this card removes. The default build keeps that code at baseline x86-64 and gives
+  only `isa_avx512.c` the flags. Per-phase tables (`ab.sh`) show where the two builds differ:
+  `integrateVelocities` was 11% slower and `integratePositions` 6% slower in the first dispatch
+  build, which is why those two stages are now table entries compiled in the variant TU (see
+  below): after the move `junkyard` is 1.00-1.06x of BASE and `integrate*` are at or above BASE.
+  What remains: `collide` on `convex_pile` (-7%, the hull narrow phase compiled at baseline), and
+  `rain`/`ragdoll_pile` which run 13-16% FASTER than BASE in `solveImpulses`/`relaxImpulses`
+  although the kernel text is identical and the direct-call control shows the table costs
+  nothing: the same sources built with the flags global (`-DCMAKE_C_FLAGS=-mavx512f ...`, same
+  dispatch code) run ~8% SLOWER than BASE there, so it is a code-generation difference of the
+  kernel TU between the two flag layouts (the instruction mix of `b3SolveContacts_Convex` differs:
+  75 vs 78 `vpmullq`, different call-out set), not an effect of the table. Not isolated further
+  without hardware counters; a `perf stat`/`perf record` run with `perf_event_paranoid<=1` on a
+  bench host is the next step if anyone needs the micro-architectural reason.
+- **Why the integrate stages are in the table.** The old global flags gave the scalar integrate
+  loops a free speed-up; keeping them in baseline code would have been a real regression on
+  every non-solver-bound scene (`junkyard`, `joint_grid`, `convex_pile`). They are the same text
+  compiled twice (`B3_ISA_FN( b3IntegrateVelocities )` and `b3IntegratePositions`, one indirect
+  call per block of bodies), so the bit-identity argument is unchanged and
+  `IsaVariantsMatchScalarTest` covers them. The remaining narrow-phase (`b3ComputeConvexManifold`
+  and the manifold TUs) and joint solvers are candidates for the same treatment; that is a
+  follow-up measured per scene, not part of this card.
+- **Oracle**: `tools/perf/scalar-oracle.txt` was stale at the BASE tip (18 rows: `rain`,
+  `ragdoll_pile`, `bodies_20k` failed on the plain scalar BASE build before any dispatch code).
+  Those rows were regenerated; scalar BASE, dispatch-forced-scalar and dispatch-forced-avx512 all
+  reproduce the 78 rows (narrow and ludicrous, workers 1/2/4), and a Threadripper 2990WX
+  (no AVX-512; same binary, scalar selected, `FIXED3D_ISA=avx512` refused naming `avx512f`)
+  reproduced the `rain`, `convex_pile` and `ragdoll_pile` rows.
 - **No TLA+ model is owed, and why.** The dispatch has no states in the sense the TLA+ rule
   means. Detection is a pure function of the host's register and sysctl words, run once by
   `b3IsaInit`, which only `b3CreateWorld`, `b3ForceIsa` and `b3GetIsaName` call, and those are

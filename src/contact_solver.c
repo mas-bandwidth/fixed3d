@@ -23,23 +23,6 @@
 // overflow solvers compile once, here.
 #if !defined( B3_ISA_VARIANT_TU )
 
-// Restitution runs after the position substeps. Inverse inertia captured by
-// contact preparation is in the body's pre-step frame; rebuild it in the
-// current frame before applying the kinetic restitution cap.
-static b3Matrix3 b3RestitutionInverseInertia( const b3StepContext* context, int index )
-{
-	if ( index == B3_NULL_INDEX )
-	{
-		return b3Mat3_zero;
-	}
-
-	const b3BodySim* sim = context->sims + index;
-	const b3BodyState* state = context->states + index;
-	b3Quat q = b3MulQuat( state->deltaRotation, sim->transform.q );
-	b3Matrix3 rotation = b3MakeMatrixFromQuat( q );
-	return b3MulMM( b3MulMM( rotation, sim->invInertiaLocal ), b3Transpose( rotation ) );
-}
-
 // contact separation for sub-stepping
 // s = s0 + dot(cB + rB - cA - rA, normal)
 // normal is held constant
@@ -407,6 +390,23 @@ void b3WarmStartContacts_Mesh( b3SolverBlock block, b3StepContext* context )
 #endif // !B3_ISA_VARIANT_TU
 
 // Shared with the wide kernels (compiled again in each variant translation unit).
+
+// Restitution runs after the position substeps. Inverse inertia captured by
+// contact preparation is in the body's pre-step frame; rebuild it in the
+// current frame before applying the kinetic restitution cap.
+static b3Matrix3 b3RestitutionInverseInertia( const b3StepContext* context, int index )
+{
+	if ( index == B3_NULL_INDEX )
+	{
+		return b3Mat3_zero;
+	}
+
+	const b3BodySim* sim = context->sims + index;
+	const b3BodyState* state = context->states + index;
+	b3Quat q = b3MulQuat( state->deltaRotation, sim->transform.q );
+	b3Matrix3 rotation = b3MakeMatrixFromQuat( q );
+	return b3MulMM( b3MulMM( rotation, sim->invInertiaLocal ), b3Transpose( rotation ) );
+}
 
 // ---------------------------------------------------------------------------
 // Impulse-cap clamp guards

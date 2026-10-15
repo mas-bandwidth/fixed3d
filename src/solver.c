@@ -25,6 +25,15 @@
 #include <stddef.h>
 #include <stdio.h>
 
+// Highway foreach_target pattern (src/isa.h): src/isa_<variant>.c defines
+// B3_ISA_VARIANT_TU and re-includes this file, so only the two integrate stages
+// below compile again under that variant's target flags (suffixed by B3_ISA_FN);
+// everything else compiles once, here. The integrate loops are scalar fixed-point
+// code that the compiler lowers better under the variant's flags (measured, see
+// CLAUDE.md "Runtime ISA dispatch"), the same gain the old global -mavx512 build
+// gave them, without any wide instruction reaching the baseline code.
+#if !defined( B3_ISA_VARIANT_TU )
+
 _Static_assert( B3_RESTITUTION_ITERATIONS >= 1, "must be 1 or more" );
 
 // these are useful for solver testing
@@ -64,8 +73,10 @@ typedef struct b3WorkerContext
 	void* userTask;
 } b3WorkerContext;
 
+#endif // !B3_ISA_VARIANT_TU
+
 // Integrate velocities, apply damping, and gyroscopic torque
-static void b3IntegrateVelocitiesTask( b3SolverBlock block, b3StepContext* context )
+void B3_ISA_FN( b3IntegrateVelocities )( b3SolverBlock block, b3StepContext* context )
 {
 	b3TracyCZoneNC( integrate_velocity, "IntVel", b3_colorDeepPink, true );
 
@@ -178,7 +189,7 @@ static void b3IntegrateVelocitiesTask( b3SolverBlock block, b3StepContext* conte
 	b3TracyCZoneEnd( integrate_velocity );
 }
 
-static void b3IntegratePositionsTask( b3SolverBlock block, b3StepContext* context )
+void B3_ISA_FN( b3IntegratePositions )( b3SolverBlock block, b3StepContext* context )
 {
 	b3TracyCZoneNC( integrate_positions, "IntPos", b3_colorDarkSeaGreen, true );
 
@@ -230,6 +241,8 @@ static void b3IntegratePositionsTask( b3SolverBlock block, b3StepContext* contex
 
 	b3TracyCZoneEnd( integrate_positions );
 }
+
+#if !defined( B3_ISA_VARIANT_TU )
 
 static void b3PrepareJointsTask( b3SolverBlock block, b3StepContext* context )
 {
@@ -1025,7 +1038,7 @@ static void b3ExecuteBlock( b3SolverStage* stage, b3StepContext* context, b3Solv
 			break;
 
 		case b3_stageIntegrateVelocities:
-			b3IntegrateVelocitiesTask( block, context );
+			isa->integrateVelocities( block, context );
 			break;
 
 		case b3_stageWarmStart:
@@ -1071,7 +1084,7 @@ static void b3ExecuteBlock( b3SolverStage* stage, b3StepContext* context, b3Solv
 			break;
 
 		case b3_stageIntegratePositions:
-			b3IntegratePositionsTask( block, context );
+			isa->integratePositions( block, context );
 			break;
 
 		case b3_stageRelax:
@@ -2511,3 +2524,5 @@ void b3Solve( b3World* world, b3StepContext* stepContext )
 		b3TracyCZoneEnd( sleep_islands );
 	}
 }
+
+#endif // !B3_ISA_VARIANT_TU

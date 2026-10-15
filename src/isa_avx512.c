@@ -7,9 +7,10 @@
 // -mavx512f -mavx512dq -mavx512vl (/arch:AVX512 on MSVC): src/CMakeLists.txt
 // sets the flags on this file alone, never globally, so no AVX-512 instruction
 // can leak into the baseline code that runs before dispatch has checked the
-// host. It re-includes the kernel sections of the three sources that hold wide
-// kernels (Highway's foreach_target pattern), so the scalar and the AVX-512
-// variants are the same text: B3_SIMD_AVX512 selects the lane primitives, and
+// host. It re-includes the kernel sections of the four sources that hold wide
+// kernels (the contact solver, the hull scans, the convex manifold SAT scan and
+// the body integration stages; Highway's foreach_target pattern), so the scalar
+// and the AVX-512 variants are the same text: B3_SIMD_AVX512 selects the lane primitives, and
 // B3_ISA_FN suffixes the entry points with _avx512. Everything outside the
 // kernel sections compiles once, in the ordinary translation units.
 
@@ -34,5 +35,6 @@ typedef int b3IsaAvx512NotInSaturatingBuilds;
 #include "contact_solver.c"
 #include "convex_manifold.c"
 #include "hull.c"
+#include "solver.c"
 
 #endif
