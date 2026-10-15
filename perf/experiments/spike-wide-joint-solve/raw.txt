@@ -1,60 +1,518 @@
-# spike-wide-joint-solve raw measurement output (attempt 2)
+# spike-wide-joint-solve raw measurement output (attempt 5, hetzner2, 2026-10-15)
 
-## cpu_info.sh
+Trees on the bench (~/rowan-jobs/wide-joint-w5): base = origin/sprint/fixed3d-box3d-ports 6183d14 (unchanged);
+cand = base + experiment.patch. Build flags (every dir): -DCMAKE_BUILD_TYPE=RelWithDebInfo -DBOX3D_SAMPLES=OFF
+-DBOX3D_VALIDATE=ON -DCMAKE_COMPILE_WARNING_AS_ERROR=ON -DBOX3D_BENCHMARKS=ON (LTO default, -ffp-contract=off);
+build-avx adds -DBOX3D_AVX512=ON (-mavx512f -mavx512dq -mavx512vl); *-lud / build-ludicrous add -DBOX3D_LUDICROUS_MODE=ON.
 
-CPU model: AMD Ryzen 7 PRO 8700GE w/ Radeon 780M Graphics (Zen 4)
-ISA flags: avx2 avx512dq avx512f avx512ifma avx512vl
-cores: 16
-CPU pinning (taskset -cp $$): pid 2545545's current affinity list: 0-15 (no pinning)
-Load average: 1.64 2.46 1.67 (during CPU header capture, after the A/A run)
-Compiler: cc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0 ; c++ 13.3.0
-cmake 3.28.3
-cmake flags: RelWithDebInfo, BOX3D_SAMPLES=OFF, BOX3D_VALIDATE=ON,
-  -DCMAKE_COMPILE_WARNING_AS_ERROR=ON, -DBOX3D_BENCHMARKS=ON, LTO on,
-  -ffp-contract=off.
+## cpu_info.sh + both A/B tables (tools/perf/ab.sh, -r=7 --steps=120 -w=1,2,4, interleaved)
 
-## Shared-box note
+== cpu_info
+== CPU model ==
+model name	: AMD Ryzen 9 7950X3D 16-Core Processor
+== ISA flags ==
+avx2
+avx512dq
+avx512f
+avx512ifma
+avx512vl
+== cores ==
+32
+== CPU pinning ==
+pid 1778384's current affinity list: 0-31
+== Load average ==
+2.15 2.34 1.79 1/669 1778391
+== Compiler ==
+cc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0
+c++ (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0
+== cmake ==
+cmake version 3.28.3
+== cmake flags ==
+configured by the build dir; paste the cmake -B ... line used
+== pgrep benchmark before: []
+uptime before:  14:05:10 up 5 days, 18:30,  4 users,  load average: 2.15, 2.34, 1.79
+== AVX-512 A/B: base/build-avx (A) vs cand/build-avx (B, wide spherical entry wired)
+scene workers phase A_min A_med A_spread B_min B_med B_spread speedup
+joint_grid 1 applyRestitution 143 206 114 134 152 131 1.355263
+joint_grid 1 bullets 0 0 0 0 0 0 0.000000
+joint_grid 1 collide 152 185 84 162 200 59 0.925000
+joint_grid 1 constraints 27705314 27923728 374158 28037470 28133697 2169349 0.992537
+joint_grid 1 integratePositions 1399730 1403479 19697 1396824 1408555 19145 0.996396
+joint_grid 1 integrateVelocities 3635082 3665062 49335 3641656 3650212 27471 1.004068
+joint_grid 1 pairs 502008 508131 14160 509953 514173 9085 0.988249
+joint_grid 1 prepareConstraints 1420172 1460671 64359 1435360 1458955 51320 1.001176
+joint_grid 1 refit 169051 182146 39150 179090 187689 16887 0.970467
+joint_grid 1 relaxImpulses 10081575 10133101 121995 10225172 10251103 956910 0.988489
+joint_grid 1 sleepIslands 0 0 0 0 0 0 0.000000
+joint_grid 1 solve 29462880 29685519 384720 29790929 29902540 2181120 0.992742
+joint_grid 1 solveImpulses 8016690 8065178 106189 8110407 8136625 1160950 0.991219
+joint_grid 1 solverSetup 665 1500 1030 665 936 933 1.602564
+joint_grid 1 step 29971799 30194153 389406 30302344 30422092 2184595 0.992507
+joint_grid 1 storeImpulses 31 59 101 24 26 44 2.269231
+joint_grid 1 transforms 1569496 1575758 28169 1570082 1572622 69326 1.001994
+joint_grid 1 warmStart 3137666 3178454 59036 3205531 3225796 28259 0.985324
+joint_grid 2 applyRestitution 303 362 92 373 464 197 0.780172
+joint_grid 2 bullets 0 0 0 0 0 0 0.000000
+joint_grid 2 collide 137 148 82 158 197 94 0.751269
+joint_grid 2 constraints 14083435 14114420 231330 14271453 14358787 174610 0.982981
+joint_grid 2 integratePositions 705184 714066 13543 712410 715350 9188 0.998205
+joint_grid 2 integrateVelocities 1832454 1840356 18950 1834236 1839344 14177 1.000550
+joint_grid 2 pairs 212102 220485 9640 219952 223682 5258 0.985707
+joint_grid 2 prepareConstraints 799556 805119 70015 810310 825985 63278 0.974738
+joint_grid 2 refit 165857 170976 8374 165919 169374 8211 1.009458
+joint_grid 2 relaxImpulses 5083013 5095392 53045 5155197 5178851 52791 0.983885
+joint_grid 2 sleepIslands 0 0 0 0 0 0 0.000000
+joint_grid 2 solve 15063355 15100516 291082 15252733 15361491 235953 0.983011
+joint_grid 2 solveImpulses 4048085 4057253 56757 4103733 4122302 48192 0.984220
+joint_grid 2 solverSetup 634 1040 1042 983 1684 831 0.617577
+joint_grid 2 step 15284615 15322465 291383 15475896 15587243 237333 0.983013
+joint_grid 2 storeImpulses 25 69 69 27 33 59 2.090909
+joint_grid 2 transforms 808340 812086 58137 810203 818878 57611 0.991706
+joint_grid 2 warmStart 1602351 1609216 29290 1638171 1651670 21874 0.974296
+joint_grid 4 applyRestitution 1447 1689 558 2094 2179 269 0.775126
+joint_grid 4 bullets 0 0 0 0 0 0 0.000000
+joint_grid 4 collide 165 180 79 96 171 142 1.052632
+joint_grid 4 constraints 7321143 7361604 267551 7380897 7419429 54178 0.992206
+joint_grid 4 integratePositions 364905 370582 9716 364144 369798 9124 1.002120
+joint_grid 4 integrateVelocities 940846 942720 10507 939758 942323 8920 1.000421
+joint_grid 4 pairs 125527 128548 5181 128338 130604 2676 0.984258
+joint_grid 4 prepareConstraints 444102 458280 29038 444935 459075 19621 0.998268
+joint_grid 4 refit 155153 157539 15395 148994 159486 13835 0.987792
+joint_grid 4 relaxImpulses 2619541 2626681 124243 2650836 2659022 12311 0.987837
+joint_grid 4 sleepIslands 0 0 0 0 0 0 0.000000
+joint_grid 4 solve 7914514 7962073 270309 7974764 8033481 75895 0.991111
+joint_grid 4 solveImpulses 2093297 2102654 160481 2110411 2122432 15670 0.990681
+joint_grid 4 solverSetup 862 1097 931 874 1460 1082 0.751370
+joint_grid 4 step 8043715 8088256 270694 8103860 8163185 78530 0.990821
+joint_grid 4 storeImpulses 33 69 62 32 36 10 1.916667
+joint_grid 4 transforms 430762 449643 35946 439439 449468 13640 1.000389
+joint_grid 4 warmStart 831496 840824 25444 859034 863653 5582 0.973567
+ragdoll_pile 1 applyRestitution 129 137 28 137 141 18 0.971631
+ragdoll_pile 1 bullets 0 0 0 0 0 0 0.000000
+ragdoll_pile 1 collide 269753 272829 8570 270027 270658 7875 1.008021
+ragdoll_pile 1 constraints 10886575 10925464 73201 10876687 10902874 114688 1.002072
+ragdoll_pile 1 integratePositions 339932 342249 6352 339607 341111 5641 1.003336
+ragdoll_pile 1 integrateVelocities 887696 890638 9076 887032 889050 7165 1.001786
+ragdoll_pile 1 pairs 484505 492407 13000 494125 496624 48363 0.991509
+ragdoll_pile 1 prepareConstraints 723194 725722 8456 728206 730824 10489 0.993019
+ragdoll_pile 1 refit 52797 53235 5356 52513 52817 1927 1.007914
+ragdoll_pile 1 relaxImpulses 4284417 4297206 22937 4279575 4289315 40846 1.001840
+ragdoll_pile 1 sleepIslands 113 120 8 147 154 13 0.779221
+ragdoll_pile 1 solve 11687190 11729269 83479 11675636 11705647 130172 1.002018
+ragdoll_pile 1 solveImpulses 4132422 4144811 29322 4124671 4134119 46774 1.002586
+ragdoll_pile 1 solverSetup 461 488 94 463 473 36 1.031712
+ragdoll_pile 1 step 12451128 12491673 93562 12442240 12474513 149435 1.001376
+ragdoll_pile 1 storeImpulses 726 817 193 684 800 165 1.021250
+ragdoll_pile 1 transforms 746713 749839 8810 744084 748999 14925 1.001121
+ragdoll_pile 1 warmStart 515122 517694 6623 511675 515262 10046 1.004720
+ragdoll_pile 2 applyRestitution 364 576 271 498 595 167 0.968067
+ragdoll_pile 2 bullets 0 0 0 0 0 0 0.000000
+ragdoll_pile 2 collide 189679 192177 9732 187444 189026 8665 1.016670
+ragdoll_pile 2 constraints 5553135 5599308 80135 5530069 5563872 123373 1.006369
+ragdoll_pile 2 integratePositions 173669 176965 3927 173659 176166 7243 1.004535
+ragdoll_pile 2 integrateVelocities 448457 452547 6563 447178 450441 6319 1.004675
+ragdoll_pile 2 pairs 239649 246933 11300 246176 249535 6144 0.989573
+ragdoll_pile 2 prepareConstraints 406285 411564 12466 405322 408277 13003 1.008051
+ragdoll_pile 2 refit 53426 53876 6821 53044 53994 6743 0.997815
+ragdoll_pile 2 relaxImpulses 2166534 2179488 27310 2156914 2168794 42927 1.004931
+ragdoll_pile 2 sleepIslands 124 129 8 154 163 105 0.791411
+ragdoll_pile 2 solve 6000700 6047116 104092 5975046 6012666 147624 1.005730
+ragdoll_pile 2 solveImpulses 2089431 2108265 27622 2080128 2093363 49713 1.007119
+ragdoll_pile 2 solverSetup 542 582 65 541 585 64 0.994872
+ragdoll_pile 2 step 6433073 6486102 119586 6408824 6447840 162435 1.005934
+ragdoll_pile 2 storeImpulses 349 357 56 348 359 48 0.994429
+ragdoll_pile 2 transforms 392577 398863 17564 389441 394011 18845 1.012314
+ragdoll_pile 2 warmStart 262527 266551 6809 262023 266646 8721 0.999644
+ragdoll_pile 4 applyRestitution 1302 1681 857 1574 1896 491 0.886603
+ragdoll_pile 4 bullets 0 0 0 0 0 0 0.000000
+ragdoll_pile 4 collide 107798 113382 29449 106764 109531 7280 1.035159
+ragdoll_pile 4 constraints 2894512 2969962 222874 2885043 2936271 91653 1.011474
+ragdoll_pile 4 integratePositions 90853 96142 15721 91598 95375 6138 1.008042
+ragdoll_pile 4 integrateVelocities 231144 237672 16333 230227 234350 6396 1.014175
+ragdoll_pile 4 pairs 143846 148103 20930 146157 149758 8771 0.988949
+ragdoll_pile 4 prepareConstraints 220817 233549 38064 222590 230658 15906 1.012534
+ragdoll_pile 4 refit 53822 65197 36037 53331 58962 12726 1.105746
+ragdoll_pile 4 relaxImpulses 1120597 1137125 42928 1115449 1126701 25494 1.009252
+ragdoll_pile 4 sleepIslands 142 156 40 164 180 38 0.866667
+ragdoll_pile 4 solve 3155411 3260756 310345 3146206 3215183 127300 1.014174
+ragdoll_pile 4 solveImpulses 1082063 1109024 84328 1076785 1096909 35134 1.011045
+ragdoll_pile 4 solverSetup 699 867 367 723 778 162 1.114396
+ragdoll_pile 4 step 3408928 3522434 359057 3399740 3475942 142921 1.013375
+ragdoll_pile 4 storeImpulses 240 257 374 239 241 27 1.066390
+ragdoll_pile 4 transforms 205793 224052 50886 206030 216925 23121 1.032855
+ragdoll_pile 4 warmStart 143786 150935 23834 142430 147678 9390 1.022055
+trees25 1 applyRestitution 63 65 8 62 67 6 0.970149
+trees25 1 bullets 0 0 0 0 0 0 0.000000
+trees25 1 collide 668820 669488 10989 665912 668499 4840 1.001479
+trees25 1 constraints 187429 188080 2180 187965 188095 457 0.999920
+trees25 1 integratePositions 7258 7335 154 7294 7369 226 0.995386
+trees25 1 integrateVelocities 19786 19843 197 19777 19837 162 1.000302
+trees25 1 pairs 175666 176920 3313 180618 181764 2078 0.973350
+trees25 1 prepareConstraints 23974 24161 630 24020 24093 472 1.002822
+trees25 1 refit 25403 25490 775 25393 25492 3411 0.999922
+trees25 1 relaxImpulses 58578 58856 606 58655 58824 491 1.000544
+trees25 1 sleepIslands 47 50 5 49 52 27 0.961538
+trees25 1 solve 671044 672261 10053 671047 672561 35225 0.999554
+trees25 1 solveImpulses 37663 37792 431 37621 37729 280 1.001670
+trees25 1 solverSetup 362 373 31 366 373 69 1.000000
+trees25 1 step 1517084 1518725 22989 1518761 1522540 41111 0.997494
+trees25 1 storeImpulses 627 629 47 632 636 13 0.988994
+trees25 1 transforms 457257 457691 7320 456680 458309 34999 0.998652
+trees25 1 warmStart 39134 39206 295 39110 39247 676 0.998955
+trees25 2 applyRestitution 87 96 78 93 123 44 0.780488
+trees25 2 bullets 0 0 0 0 0 0 0.000000
+trees25 2 collide 386700 395047 54260 392883 405122 35618 0.975131
+trees25 2 constraints 125927 127233 24753 127852 134202 14679 0.948071
+trees25 2 integratePositions 5380 5485 3644 5512 6709 2259 0.817559
+trees25 2 integrateVelocities 14376 14562 2299 14613 15291 1334 0.952325
+trees25 2 pairs 83725 85469 19240 86828 95363 12159 0.896249
+trees25 2 prepareConstraints 16490 16685 4107 16602 17608 2651 0.947581
+trees25 2 refit 26050 27223 44493 26410 51149 28713 0.532229
+trees25 2 relaxImpulses 37584 37871 4971 38036 39267 3009 0.964449
+trees25 2 sleepIslands 57 58 26 52 57 18 1.017544
+trees25 2 solve 448879 451872 96772 452261 502070 65959 0.900018
+trees25 2 solveImpulses 24232 24355 4287 24492 25533 2608 0.953864
+trees25 2 solverSetup 388 403 457 396 565 253 0.713274
+trees25 2 step 921198 934447 168605 932120 1002736 113780 0.931897
+trees25 2 storeImpulses 598 616 1442 618 1103 959 0.558477
+trees25 2 transforms 295545 296618 27553 297120 314443 22682 0.943312
+trees25 2 warmStart 25267 25527 3361 25659 26598 1867 0.959734
+trees25 4 applyRestitution 156 252 143 146 275 180 0.916364
+trees25 4 bullets 0 0 0 0 0 0 0.000000
+trees25 4 collide 314375 340797 38185 311143 327563 34919 1.040401
+trees25 4 constraints 89823 108708 19936 89219 103968 22137 1.045591
+trees25 4 integratePositions 5696 9021 3903 5438 7875 4333 1.145524
+trees25 4 integrateVelocities 13911 16162 2730 13809 15470 3171 1.044732
+trees25 4 pairs 53321 60903 8325 53812 61236 9677 0.994562
+trees25 4 prepareConstraints 11103 14192 3460 10845 13805 3522 1.028033
+trees25 4 refit 30286 60589 38251 30067 49990 38663 1.212022
+trees25 4 relaxImpulses 23381 26490 3519 23778 26233 3542 1.009797
+trees25 4 sleepIslands 88 134 57 74 117 57 1.145299
+trees25 4 solve 303115 371730 78784 300617 352224 87319 1.055380
+trees25 4 solveImpulses 15186 17729 2757 15115 17150 2854 1.033761
+trees25 4 solverSetup 502 874 431 473 827 407 1.056832
+trees25 4 step 670986 774160 121024 665744 741247 131968 1.044402
+trees25 4 storeImpulses 762 1802 1071 618 1437 1166 1.254001
+trees25 4 transforms 182053 200862 20029 180418 196847 25938 1.020397
+trees25 4 warmStart 15955 17919 2105 15952 17419 2204 1.028704
+geomean_speedup 0.995245
+interleaved A/B done
+ab exit=0
+uptime between:  14:07:25 up 5 days, 18:32,  4 users,  load average: 1.71, 2.09, 1.77
+== scalar control A/B: base/build (A) vs cand/build (B, wide path not compiled)
+scene workers phase A_min A_med A_spread B_min B_med B_spread speedup
+joint_grid 1 applyRestitution 149 206 129 165 272 146 0.757353
+joint_grid 1 bullets 0 0 0 0 0 0 0.000000
+joint_grid 1 collide 145 165 46 148 210 100 0.785714
+joint_grid 1 constraints 29796069 29946630 341532 29816152 29910312 258650 1.001214
+joint_grid 1 integratePositions 1474262 1481862 13029 1474479 1478068 11813 1.002567
+joint_grid 1 integrateVelocities 4184465 4198777 29120 4174640 4186307 33576 1.002979
+joint_grid 1 pairs 491824 500769 24887 497421 501361 12347 0.998819
+joint_grid 1 prepareConstraints 1389646 1472185 156778 1439620 1475861 146086 0.997509
+joint_grid 1 refit 171456 183457 38627 179080 181637 20473 1.010020
+joint_grid 1 relaxImpulses 10741401 10754539 67134 10723593 10736907 74977 1.001642
+joint_grid 1 sleepIslands 0 0 0 0 0 0 0.000000
+joint_grid 1 solve 31511261 31683817 389274 31537932 31634892 291242 1.001547
+joint_grid 1 solveImpulses 8682077 8699609 60860 8679983 8687471 53899 1.001397
+joint_grid 1 solverSetup 629 1489 951 835 1564 807 0.952046
+joint_grid 1 step 32003723 32197390 414259 32037903 32136716 301505 1.001888
+joint_grid 1 storeImpulses 24 71 90 65 94 63 0.755319
+joint_grid 1 transforms 1540295 1550812 20611 1537663 1550173 15609 1.000412
+joint_grid 1 warmStart 3289842 3342412 83224 3322623 3342821 39740 0.999878
+joint_grid 2 applyRestitution 284 365 255 283 401 197 0.910224
+joint_grid 2 bullets 0 0 0 0 0 0 0.000000
+joint_grid 2 collide 98 158 102 54 172 178 0.918605
+joint_grid 2 constraints 15174282 15240385 466344 15165703 15278891 144730 0.997480
+joint_grid 2 integratePositions 748733 752849 22679 749318 752268 8498 1.000772
+joint_grid 2 integrateVelocities 2119906 2128394 41598 2120612 2130901 13254 0.998824
+joint_grid 2 pairs 213327 214028 3919 212658 213853 3900 1.000818
+joint_grid 2 prepareConstraints 814963 833800 107152 812881 840370 40283 0.992182
+joint_grid 2 refit 169192 174294 11002 165490 170459 11940 1.022498
+joint_grid 2 relaxImpulses 5419619 5435361 97515 5411848 5433142 29586 1.000408
+joint_grid 2 sleepIslands 0 0 0 0 0 0 0.000000
+joint_grid 2 solve 16148806 16217157 575100 16138066 16274319 179127 0.996488
+joint_grid 2 solveImpulses 4381870 4395148 114262 4376767 4400741 35312 0.998729
+joint_grid 2 solverSetup 628 953 442 1042 1646 726 0.578979
+joint_grid 2 step 16364354 16430967 577311 16352062 16488906 180104 0.996486
+joint_grid 2 storeImpulses 24 29 66 24 62 74 0.467742
+joint_grid 2 transforms 798716 805947 101797 795352 816602 39073 0.986952
+joint_grid 2 warmStart 1686874 1697725 83042 1681439 1704467 33823 0.996045
+joint_grid 4 applyRestitution 1714 2197 682 1782 2128 759 1.032425
+joint_grid 4 bullets 0 0 0 0 0 0 0.000000
+joint_grid 4 collide 108 165 100 54 151 108 1.092715
+joint_grid 4 constraints 7824090 7965611 264144 7911302 7964824 253519 1.000099
+joint_grid 4 integratePositions 386049 393529 14394 390155 393846 15086 0.999195
+joint_grid 4 integrateVelocities 1084289 1097786 24628 1092979 1095937 26696 1.001687
+joint_grid 4 pairs 122990 123867 1570 121439 124516 7604 0.994788
+joint_grid 4 prepareConstraints 446309 483661 71152 466131 477883 62058 1.012091
+joint_grid 4 refit 154134 158051 10848 151962 162531 18662 0.972436
+joint_grid 4 relaxImpulses 2777799 2810589 47116 2792501 2805298 55891 1.001886
+joint_grid 4 sleepIslands 0 0 0 0 0 0 0.000000
+joint_grid 4 solve 8412043 8584887 324471 8508546 8575104 319472 1.001141
+joint_grid 4 solveImpulses 2252864 2282595 61051 2272435 2286277 57587 0.998390
+joint_grid 4 solverSetup 803 911 510 1140 1556 708 0.585476
+joint_grid 4 step 8536691 8709896 323533 8630584 8700300 325527 1.001103
+joint_grid 4 storeImpulses 28 32 59 30 55 46 0.581818
+joint_grid 4 transforms 420142 454326 66911 441552 451829 53071 1.005526
+joint_grid 4 warmStart 870809 891147 48485 888928 898303 37335 0.992034
+ragdoll_pile 1 applyRestitution 147 154 44 150 153 16 1.006536
+ragdoll_pile 1 bullets 0 0 0 0 0 0 0.000000
+ragdoll_pile 1 collide 282292 283972 19390 283695 292602 35461 0.970506
+ragdoll_pile 1 constraints 9799388 9823518 84730 9808352 9829031 46191 0.999439
+ragdoll_pile 1 integratePositions 358475 360267 5396 359013 359974 1885 1.000814
+ragdoll_pile 1 integrateVelocities 1015173 1017966 13003 1014110 1023370 14314 0.994719
+ragdoll_pile 1 pairs 510080 511952 8778 509631 513451 7723 0.997081
+ragdoll_pile 1 prepareConstraints 651444 653516 8301 652668 654186 6647 0.998976
+ragdoll_pile 1 refit 52371 52951 1680 52623 53287 1340 0.993695
+ragdoll_pile 1 relaxImpulses 3717776 3727076 29649 3718869 3726544 15411 1.000143
+ragdoll_pile 1 sleepIslands 151 153 9 152 154 44 0.993506
+ragdoll_pile 1 solve 10578121 10604636 92854 10602502 10619306 56671 0.998619
+ragdoll_pile 1 solveImpulses 3571332 3577901 24051 3575011 3581841 12856 0.998900
+ragdoll_pile 1 solverSetup 457 480 84 483 497 77 0.965795
+ragdoll_pile 1 step 11372524 11398839 103966 11397260 11425918 65218 0.997630
+ragdoll_pile 1 storeImpulses 564 858 349 577 853 361 1.005862
+ragdoll_pile 1 transforms 724380 727522 17201 723061 734316 50996 0.990748
+ragdoll_pile 1 warmStart 480689 483936 7638 476324 481775 9385 1.004485
+ragdoll_pile 2 applyRestitution 524 578 79 555 580 54 0.996552
+ragdoll_pile 2 bullets 0 0 0 0 0 0 0.000000
+ragdoll_pile 2 collide 200630 202123 10344 199541 202059 5570 1.000317
+ragdoll_pile 2 constraints 5009707 5025694 40098 5011954 5033383 47775 0.998472
+ragdoll_pile 2 integratePositions 183093 184421 4102 184449 186079 2434 0.991090
+ragdoll_pile 2 integrateVelocities 518018 520509 4059 517867 521461 5844 0.998174
+ragdoll_pile 2 pairs 243987 245721 7205 244314 245839 5337 0.999520
+ragdoll_pile 2 prepareConstraints 365363 367848 7431 365679 369623 8874 0.995198
+ragdoll_pile 2 refit 52819 53594 5555 52914 53505 5803 1.001663
+ragdoll_pile 2 relaxImpulses 1882027 1885668 9469 1883879 1887461 8731 0.999050
+ragdoll_pile 2 sleepIslands 152 155 12 149 154 9 1.006494
+ragdoll_pile 2 solve 5444617 5464781 56446 5446156 5475526 64833 0.998038
+ragdoll_pile 2 solveImpulses 1809350 1814603 10975 1810399 1816164 14690 0.999140
+ragdoll_pile 2 solverSetup 565 586 39 550 599 109 0.978297
+ragdoll_pile 2 step 5889910 5910654 72796 5890175 5926479 74532 0.997330
+ragdoll_pile 2 storeImpulses 355 387 58 358 365 40 1.060274
+ragdoll_pile 2 transforms 380202 385120 17352 380104 387492 15087 0.993879
+ragdoll_pile 2 warmStart 248200 251150 5542 246340 249660 7653 1.005968
+ragdoll_pile 4 applyRestitution 1602 1896 409 1829 2134 1743 0.888472
+ragdoll_pile 4 bullets 0 0 0 0 0 0 0.000000
+ragdoll_pile 4 collide 112148 117263 6794 112335 120162 46251 0.975874
+ragdoll_pile 4 constraints 2649261 2680013 86146 2665832 2721643 334103 0.984704
+ragdoll_pile 4 integratePositions 98254 103174 7580 101127 107166 33519 0.962749
+ragdoll_pile 4 integrateVelocities 270648 275549 8646 271808 279585 39821 0.985564
+ragdoll_pile 4 pairs 145092 151115 9120 146398 155568 34361 0.971376
+ragdoll_pile 4 prepareConstraints 203687 215056 15157 210863 220567 72099 0.975014
+ragdoll_pile 4 refit 53155 63293 21183 55944 68309 68137 0.926569
+ragdoll_pile 4 relaxImpulses 984013 986949 17287 983268 997268 60196 0.989653
+ragdoll_pile 4 sleepIslands 168 179 18 170 181 67 0.988950
+ragdoll_pile 4 solve 2909696 2968315 120964 2936300 3023748 497912 0.981667
+ragdoll_pile 4 solveImpulses 948482 952047 30214 952254 965633 83133 0.985930
+ragdoll_pile 4 solverSetup 750 835 98 764 890 557 0.938202
+ragdoll_pile 4 step 3167590 3237689 134855 3195200 3300894 578565 0.980852
+ragdoll_pile 4 storeImpulses 248 253 41 250 254 392 0.996063
+ragdoll_pile 4 transforms 205901 223536 23046 213094 229933 94947 0.972179
+ragdoll_pile 4 warmStart 138760 143022 7203 140668 147546 42550 0.969338
+trees25 1 applyRestitution 87 89 31 80 83 37 1.072289
+trees25 1 bullets 0 0 0 0 0 0 0.000000
+trees25 1 collide 666306 671105 40663 666300 668345 8483 1.004130
+trees25 1 constraints 190527 192178 4221 190506 191215 1898 1.005036
+trees25 1 integratePositions 7636 7700 369 7654 7664 78 1.004697
+trees25 1 integrateVelocities 22212 22556 526 22145 22362 290 1.008675
+trees25 1 pairs 169873 171343 17720 169546 170561 1834 1.004585
+trees25 1 prepareConstraints 21492 21654 398 21523 21586 414 1.003150
+trees25 1 refit 25343 25726 532 25044 25401 741 1.012795
+trees25 1 relaxImpulses 64290 64859 1020 64383 64555 631 1.004709
+trees25 1 sleepIslands 51 53 10 50 51 18 1.039216
+trees25 1 solve 670759 672633 11001 670550 672226 7462 1.000605
+trees25 1 solveImpulses 47260 47497 1819 47167 47337 501 1.003380
+trees25 1 solverSetup 321 344 72 323 342 23 1.005848
+trees25 1 step 1507304 1527590 41900 1506541 1511466 17783 1.010668
+trees25 1 storeImpulses 521 529 21 523 532 27 0.994361
+trees25 1 transforms 453831 455189 6717 454161 454663 5059 1.001157
+trees25 1 warmStart 26718 26893 686 26631 26829 324 1.002385
+trees25 2 applyRestitution 181 329 227 171 209 232 1.574163
+trees25 2 bullets 0 0 0 0 0 0 0.000000
+trees25 2 collide 393932 415383 41527 388772 411517 47307 1.009395
+trees25 2 constraints 118055 136536 29741 116771 126204 31436 1.081867
+trees25 2 integratePositions 5744 8549 4450 5733 6621 4680 1.291195
+trees25 2 integrateVelocities 16468 19074 3852 16321 17630 4304 1.081906
+trees25 2 pairs 81034 92301 16552 79065 86568 16945 1.066225
+trees25 2 prepareConstraints 13456 16680 5159 13239 14330 5279 1.163992
+trees25 2 refit 26632 62027 48954 25933 45624 48224 1.359526
+trees25 2 relaxImpulses 36480 39918 5418 36196 37597 5637 1.061734
+trees25 2 sleepIslands 53 56 10 52 69 25 0.811594
+trees25 2 solve 445209 517252 103733 438858 481110 107948 1.075122
+trees25 2 solveImpulses 26912 30482 5660 26793 28212 5841 1.080462
+trees25 2 solverSetup 328 644 580 347 484 556 1.330579
+trees25 2 step 923074 1025101 159095 906846 976724 172224 1.049530
+trees25 2 storeImpulses 505 1091 1116 506 712 1018 1.532303
+trees25 2 transforms 299394 317826 24798 295439 311709 27619 1.019624
+trees25 2 warmStart 16133 18133 3663 15969 17097 3738 1.060595
+trees25 4 applyRestitution 340 590 531 314 602 564 0.980066
+trees25 4 bullets 0 0 0 0 0 0 0.000000
+trees25 4 collide 308308 332912 41279 310647 331368 41253 1.004659
+trees25 4 constraints 78548 99152 31662 81619 100162 28282 0.989916
+trees25 4 integratePositions 5466 9052 6550 6107 9662 5309 0.936866
+trees25 4 integrateVelocities 15575 18240 5505 16109 18892 4651 0.965488
+trees25 4 pairs 47508 56431 11637 50544 58136 8724 0.970672
+trees25 4 prepareConstraints 8389 11165 3905 8662 11163 3686 1.000179
+trees25 4 refit 26876 41103 36946 30351 53336 36221 0.770643
+trees25 4 relaxImpulses 20276 23966 4598 20693 23858 4585 1.004527
+trees25 4 sleepIslands 65 93 41 70 102 40 0.911765
+trees25 4 solve 278085 338949 101157 291338 348955 88131 0.971326
+trees25 4 solveImpulses 15272 18792 4524 15814 18530 4242 1.014139
+trees25 4 solverSetup 342 724 592 433 833 490 0.869148
+trees25 4 step 634054 721575 154119 654112 738641 134953 0.976895
+trees25 4 storeImpulses 594 1278 1019 660 1353 1020 0.944568
+trees25 4 transforms 171935 195941 31781 178530 194112 26924 1.009422
+trees25 4 warmStart 9435 11846 3547 9741 11773 3365 1.006201
+geomean_speedup 1.00119
+interleaved A/B done
+ab exit=0
+uptime after:  14:09:42 up 5 days, 18:34,  4 users,  load average: 1.43, 1.84, 1.72
+ABDONE
 
-A concurrent card (spike-tree-traversal-wide-aabb-overlap.w1.g1.e21) was running
-its own benchmark on the box when the A/B was first attempted. ab.sh refused with
-exit 3 ("another benchmark process is on the box") as designed; the run was
-retried only after that benchmark's processes cleared (pgrep -af benchmark empty).
-No process was killed. Load average at the actual A/A run was idle (~0.8).
+## Unit suites (./bin/test from each build dir)
 
-## oracle_check lines (bit-exact evidence)
+build full suite exit=0 All Fixed3D tests passed! Test duration = 2.91 s 
+build-ludicrous full suite exit=0 All Fixed3D tests passed! Test duration = 2.94 s 
+build-avx full suite exit=1   subtest failed: AllocatorWidenedSignatureTest test failed: AllocatorTest 
+build-avx-lud full suite exit=1   subtest failed: AllocatorWidenedSignatureTest test failed: AllocatorTest 
+TESTSDONE
+build-avx per-suite (each of the 26 suites run alone): passed=25 failed: AllocatorTest
+build-avx-lud per-suite: passed=25 failed: AllocatorTest
+base/build-avx (unchanged base) full suite: exit=1 subtest failed: AllocatorWidenedSignatureTest  -> red at BASE, file unchanged by this patch
+JointTest (includes TestWideSphericalJointEquivalence, 10,000 seeded quadruples): green in build, build-ludicrous, build-avx, build-avx-lud
+Mutation check: wide solve loop i<4 -> i<3 makes TestWideSphericalJointEquivalence fail (condition false), restored after.
 
-tools/perf/oracle_check.sh --scenes=joint_grid,ragdoll_pile,trees25
+## Scalar oracle (tools/perf/oracle_check.sh), candidate tree
 
-    [narrow] joint_grid workers=1/2/4 (all matched)
-    [narrow] ragdoll_pile workers=1/2/4 (all matched)
-    [narrow] trees25 workers=1/2/4 (all matched)
-    [ludicrous] joint_grid workers=1/2/4 (all matched)
-    [ludicrous] ragdoll_pile workers=1/2/4 (all matched)
-    [ludicrous] trees25 workers=1/2/4 (all matched)
+--scenes=junkyard,large_pyramid,large_world   oracle check passed (narrow + ludicrous, workers 1/2/4) exit=0
+--scenes=trees100,trees25,trees50             oracle check passed (narrow + ludicrous, workers 1/2/4) exit=0
+--scenes=washer                               oracle check passed (narrow + ludicrous, workers 1/2/4) exit=0
+--scenes=many_pyramids                        oracle check passed (narrow + ludicrous, workers 1/2/4) exit=0
+--scenes=bodies_20k,convex_pile,joint_grid    ORACLE MISMATCH exit=1 (bodies_20k rows only; convex_pile and joint_grid rows match)
+--scenes=bodies_20k,ragdoll_pile,rain         ORACLE MISMATCH exit=1
 
-result: "oracle check passed (narrow + ludicrous, workers 1/2/4)" — exit 0.
+The same check on the UNCHANGED base tree, --scenes=bodies_20k,ragdoll_pile,rain: ORACLE MISMATCH exit=1,
+and its diff is byte-identical to the candidate's (cmp d-base.txt d-cand.txt: identical). The frozen
+oracle is stale for these three scenes at BASE 6183d14; nothing in this patch moves them. The diff:
 
-The wide entry point is present as an un-called symbol in spherical_joint.c, so
-it changes no hash; the check proves the harness itself is now live and green on
-this box (the thing attempt 1 found absent). ./bin/test JointTest is green in both
-build (narrow) and build-ludicrous, including the red-first test
-TestWideSphericalJointEquivalence (which does not compile at BASE).
+-HASH bodies_20k workers=1 ludicrous 3e7cbde301a4f6c2
++HASH bodies_20k workers=1 ludicrous ed59e6aff81bcd26
+-HASH bodies_20k workers=1 narrow 3e7cbde301a4f6c2
++HASH bodies_20k workers=1 narrow ed59e6aff81bcd26
+-HASH bodies_20k workers=2 ludicrous 3e7cbde301a4f6c2
++HASH bodies_20k workers=2 ludicrous ed59e6aff81bcd26
+-HASH bodies_20k workers=2 narrow 3e7cbde301a4f6c2
++HASH bodies_20k workers=2 narrow ed59e6aff81bcd26
+-HASH bodies_20k workers=4 ludicrous 3e7cbde301a4f6c2
++HASH bodies_20k workers=4 ludicrous ed59e6aff81bcd26
+-HASH bodies_20k workers=4 narrow 3e7cbde301a4f6c2
++HASH bodies_20k workers=4 narrow ed59e6aff81bcd26
++HASH ragdoll_pile workers=1 ludicrous 42fa9c6438e3527f
+-HASH ragdoll_pile workers=1 ludicrous 4ac74cd9f1805daf
++HASH ragdoll_pile workers=1 narrow 42fa9c6438e3527f
+-HASH ragdoll_pile workers=1 narrow 4ac74cd9f1805daf
++HASH ragdoll_pile workers=2 ludicrous 42fa9c6438e3527f
+-HASH ragdoll_pile workers=2 ludicrous 4ac74cd9f1805daf
++HASH ragdoll_pile workers=2 narrow 42fa9c6438e3527f
+-HASH ragdoll_pile workers=2 narrow 4ac74cd9f1805daf
++HASH ragdoll_pile workers=4 ludicrous 42fa9c6438e3527f
+-HASH ragdoll_pile workers=4 ludicrous 4ac74cd9f1805daf
++HASH ragdoll_pile workers=4 narrow 42fa9c6438e3527f
+-HASH ragdoll_pile workers=4 narrow 4ac74cd9f1805daf
+-HASH rain workers=1 ludicrous d3e59885dbca43e1
++HASH rain workers=1 ludicrous f96c9e008d59a375
+-HASH rain workers=1 narrow d3e59885dbca43e1
++HASH rain workers=1 narrow f96c9e008d59a375
+-HASH rain workers=2 ludicrous d3e59885dbca43e1
++HASH rain workers=2 ludicrous f96c9e008d59a375
+-HASH rain workers=2 narrow d3e59885dbca43e1
++HASH rain workers=2 narrow f96c9e008d59a375
+-HASH rain workers=4 ludicrous d3e59885dbca43e1
++HASH rain workers=4 ludicrous f96c9e008d59a375
+-HASH rain workers=4 narrow d3e59885dbca43e1
++HASH rain workers=4 narrow f96c9e008d59a375
 
-## ab.sh tables (A/A noise floor, baseline vs baseline)
+## Same-commit hash matrix: every scene x workers 1/2/4 x narrow/ludicrous, --steps=120
+## scalar = cand/build or cand/build-ludicrous; cand_avx = cand AVX-512 (wide spherical entry wired);
+## base_avx = unchanged base AVX-512 (narrow only)
 
-tools/perf/ab.sh build build -b=joint_grid -b=ragdoll_pile -b=trees25 -w=1 -r=5 --steps=60
-exit 0, geomean_speedup 0.999825 (A vs A, inside spread as expected).
+ROW narrow bodies_20k workers=1 scalar=ed59e6aff81bcd26 cand_avx=ed59e6aff81bcd26 base_avx=ed59e6aff81bcd26 match
+ROW narrow bodies_20k workers=2 scalar=ed59e6aff81bcd26 cand_avx=ed59e6aff81bcd26 base_avx=ed59e6aff81bcd26 match
+ROW narrow bodies_20k workers=4 scalar=ed59e6aff81bcd26 cand_avx=ed59e6aff81bcd26 base_avx=ed59e6aff81bcd26 match
+ROW narrow convex_pile workers=1 scalar=bd565a23dc405289 cand_avx=bd565a23dc405289 base_avx=bd565a23dc405289 match
+ROW narrow convex_pile workers=2 scalar=bd565a23dc405289 cand_avx=bd565a23dc405289 base_avx=bd565a23dc405289 match
+ROW narrow convex_pile workers=4 scalar=bd565a23dc405289 cand_avx=bd565a23dc405289 base_avx=bd565a23dc405289 match
+ROW narrow joint_grid workers=1 scalar=321bf6a01ccc5cdd cand_avx=321bf6a01ccc5cdd base_avx=321bf6a01ccc5cdd match
+ROW narrow joint_grid workers=2 scalar=321bf6a01ccc5cdd cand_avx=321bf6a01ccc5cdd base_avx=321bf6a01ccc5cdd match
+ROW narrow joint_grid workers=4 scalar=321bf6a01ccc5cdd cand_avx=321bf6a01ccc5cdd base_avx=321bf6a01ccc5cdd match
+ROW narrow junkyard workers=1 scalar=9d648b065fa43a76 cand_avx=9d648b065fa43a76 base_avx=9d648b065fa43a76 match
+ROW narrow junkyard workers=2 scalar=9d648b065fa43a76 cand_avx=9d648b065fa43a76 base_avx=9d648b065fa43a76 match
+ROW narrow junkyard workers=4 scalar=9d648b065fa43a76 cand_avx=9d648b065fa43a76 base_avx=9d648b065fa43a76 match
+ROW narrow large_pyramid workers=1 scalar=72331624b02f2508 cand_avx=72331624b02f2508 base_avx=72331624b02f2508 match
+ROW narrow large_pyramid workers=2 scalar=72331624b02f2508 cand_avx=72331624b02f2508 base_avx=72331624b02f2508 match
+ROW narrow large_pyramid workers=4 scalar=72331624b02f2508 cand_avx=72331624b02f2508 base_avx=72331624b02f2508 match
+ROW narrow large_world workers=1 scalar=f870777f07e0fc8d cand_avx=f870777f07e0fc8d base_avx=f870777f07e0fc8d match
+ROW narrow large_world workers=2 scalar=f870777f07e0fc8d cand_avx=f870777f07e0fc8d base_avx=f870777f07e0fc8d match
+ROW narrow large_world workers=4 scalar=f870777f07e0fc8d cand_avx=f870777f07e0fc8d base_avx=f870777f07e0fc8d match
+ROW narrow many_pyramids workers=1 scalar=a44faad65bd17db3 cand_avx=a44faad65bd17db3 base_avx=a44faad65bd17db3 match
+ROW narrow many_pyramids workers=2 scalar=a44faad65bd17db3 cand_avx=a44faad65bd17db3 base_avx=a44faad65bd17db3 match
+ROW narrow many_pyramids workers=4 scalar=a44faad65bd17db3 cand_avx=a44faad65bd17db3 base_avx=a44faad65bd17db3 match
+ROW narrow ragdoll_pile workers=1 scalar=42fa9c6438e3527f cand_avx=42fa9c6438e3527f base_avx=42fa9c6438e3527f match
+ROW narrow ragdoll_pile workers=2 scalar=42fa9c6438e3527f cand_avx=42fa9c6438e3527f base_avx=42fa9c6438e3527f match
+ROW narrow ragdoll_pile workers=4 scalar=42fa9c6438e3527f cand_avx=42fa9c6438e3527f base_avx=42fa9c6438e3527f match
+ROW narrow rain workers=1 scalar=f96c9e008d59a375 cand_avx=f96c9e008d59a375 base_avx=f96c9e008d59a375 match
+ROW narrow rain workers=2 scalar=f96c9e008d59a375 cand_avx=f96c9e008d59a375 base_avx=f96c9e008d59a375 match
+ROW narrow rain workers=4 scalar=f96c9e008d59a375 cand_avx=f96c9e008d59a375 base_avx=f96c9e008d59a375 match
+ROW narrow trees100 workers=1 scalar=637a0532ce5d1583 cand_avx=637a0532ce5d1583 base_avx=637a0532ce5d1583 match
+ROW narrow trees100 workers=2 scalar=637a0532ce5d1583 cand_avx=637a0532ce5d1583 base_avx=637a0532ce5d1583 match
+ROW narrow trees100 workers=4 scalar=637a0532ce5d1583 cand_avx=637a0532ce5d1583 base_avx=637a0532ce5d1583 match
+ROW narrow trees25 workers=1 scalar=aab50c7a021e993d cand_avx=aab50c7a021e993d base_avx=aab50c7a021e993d match
+ROW narrow trees25 workers=2 scalar=aab50c7a021e993d cand_avx=aab50c7a021e993d base_avx=aab50c7a021e993d match
+ROW narrow trees25 workers=4 scalar=aab50c7a021e993d cand_avx=aab50c7a021e993d base_avx=aab50c7a021e993d match
+ROW narrow trees50 workers=1 scalar=0784ab5eef8835ae cand_avx=0784ab5eef8835ae base_avx=0784ab5eef8835ae match
+ROW narrow trees50 workers=2 scalar=0784ab5eef8835ae cand_avx=0784ab5eef8835ae base_avx=0784ab5eef8835ae match
+ROW narrow trees50 workers=4 scalar=0784ab5eef8835ae cand_avx=0784ab5eef8835ae base_avx=0784ab5eef8835ae match
+ROW narrow washer workers=1 scalar=aa2172b77d7d304a cand_avx=aa2172b77d7d304a base_avx=aa2172b77d7d304a match
+ROW narrow washer workers=2 scalar=aa2172b77d7d304a cand_avx=aa2172b77d7d304a base_avx=aa2172b77d7d304a match
+ROW narrow washer workers=4 scalar=aa2172b77d7d304a cand_avx=aa2172b77d7d304a base_avx=aa2172b77d7d304a match
+ROW ludicrous bodies_20k workers=1 scalar=ed59e6aff81bcd26 cand_avx=ed59e6aff81bcd26 base_avx=- match
+ROW ludicrous bodies_20k workers=2 scalar=ed59e6aff81bcd26 cand_avx=ed59e6aff81bcd26 base_avx=- match
+ROW ludicrous bodies_20k workers=4 scalar=ed59e6aff81bcd26 cand_avx=ed59e6aff81bcd26 base_avx=- match
+ROW ludicrous convex_pile workers=1 scalar=bd565a23dc405289 cand_avx=bd565a23dc405289 base_avx=- match
+ROW ludicrous convex_pile workers=2 scalar=bd565a23dc405289 cand_avx=bd565a23dc405289 base_avx=- match
+ROW ludicrous convex_pile workers=4 scalar=bd565a23dc405289 cand_avx=bd565a23dc405289 base_avx=- match
+ROW ludicrous joint_grid workers=1 scalar=321bf6a01ccc5cdd cand_avx=321bf6a01ccc5cdd base_avx=- match
+ROW ludicrous joint_grid workers=2 scalar=321bf6a01ccc5cdd cand_avx=321bf6a01ccc5cdd base_avx=- match
+ROW ludicrous joint_grid workers=4 scalar=321bf6a01ccc5cdd cand_avx=321bf6a01ccc5cdd base_avx=- match
+ROW ludicrous junkyard workers=1 scalar=9d648b065fa43a76 cand_avx=9d648b065fa43a76 base_avx=- match
+ROW ludicrous junkyard workers=2 scalar=9d648b065fa43a76 cand_avx=9d648b065fa43a76 base_avx=- match
+ROW ludicrous junkyard workers=4 scalar=9d648b065fa43a76 cand_avx=9d648b065fa43a76 base_avx=- match
+ROW ludicrous large_pyramid workers=1 scalar=72331624b02f2508 cand_avx=72331624b02f2508 base_avx=- match
+ROW ludicrous large_pyramid workers=2 scalar=72331624b02f2508 cand_avx=72331624b02f2508 base_avx=- match
+ROW ludicrous large_pyramid workers=4 scalar=72331624b02f2508 cand_avx=72331624b02f2508 base_avx=- match
+ROW ludicrous large_world workers=1 scalar=f870777f07e0fc8d cand_avx=f870777f07e0fc8d base_avx=- match
+ROW ludicrous large_world workers=2 scalar=f870777f07e0fc8d cand_avx=f870777f07e0fc8d base_avx=- match
+ROW ludicrous large_world workers=4 scalar=f870777f07e0fc8d cand_avx=f870777f07e0fc8d base_avx=- match
+ROW ludicrous many_pyramids workers=1 scalar=a44faad65bd17db3 cand_avx=a44faad65bd17db3 base_avx=- match
+ROW ludicrous many_pyramids workers=2 scalar=a44faad65bd17db3 cand_avx=a44faad65bd17db3 base_avx=- match
+ROW ludicrous many_pyramids workers=4 scalar=a44faad65bd17db3 cand_avx=a44faad65bd17db3 base_avx=- match
+ROW ludicrous ragdoll_pile workers=1 scalar=42fa9c6438e3527f cand_avx=42fa9c6438e3527f base_avx=- match
+ROW ludicrous ragdoll_pile workers=2 scalar=42fa9c6438e3527f cand_avx=42fa9c6438e3527f base_avx=- match
+ROW ludicrous ragdoll_pile workers=4 scalar=42fa9c6438e3527f cand_avx=42fa9c6438e3527f base_avx=- match
+ROW ludicrous rain workers=1 scalar=f96c9e008d59a375 cand_avx=f96c9e008d59a375 base_avx=- match
+ROW ludicrous rain workers=2 scalar=f96c9e008d59a375 cand_avx=f96c9e008d59a375 base_avx=- match
+ROW ludicrous rain workers=4 scalar=f96c9e008d59a375 cand_avx=f96c9e008d59a375 base_avx=- match
+ROW ludicrous trees100 workers=1 scalar=637a0532ce5d1583 cand_avx=637a0532ce5d1583 base_avx=- match
+ROW ludicrous trees100 workers=2 scalar=637a0532ce5d1583 cand_avx=637a0532ce5d1583 base_avx=- match
+ROW ludicrous trees100 workers=4 scalar=637a0532ce5d1583 cand_avx=637a0532ce5d1583 base_avx=- match
+ROW ludicrous trees25 workers=1 scalar=aab50c7a021e993d cand_avx=aab50c7a021e993d base_avx=- match
+ROW ludicrous trees25 workers=2 scalar=aab50c7a021e993d cand_avx=aab50c7a021e993d base_avx=- match
+ROW ludicrous trees25 workers=4 scalar=aab50c7a021e993d cand_avx=aab50c7a021e993d base_avx=- match
+ROW ludicrous trees50 workers=1 scalar=0784ab5eef8835ae cand_avx=0784ab5eef8835ae base_avx=- match
+ROW ludicrous trees50 workers=2 scalar=0784ab5eef8835ae cand_avx=0784ab5eef8835ae base_avx=- match
+ROW ludicrous trees50 workers=4 scalar=0784ab5eef8835ae cand_avx=0784ab5eef8835ae base_avx=- match
+ROW ludicrous washer workers=1 scalar=aa2172b77d7d304a cand_avx=aa2172b77d7d304a base_avx=- match
+ROW ludicrous washer workers=2 scalar=aa2172b77d7d304a cand_avx=aa2172b77d7d304a base_avx=- match
+ROW ludicrous washer workers=4 scalar=aa2172b77d7d304a cand_avx=aa2172b77d7d304a base_avx=- match
 
-Per-scene step phase (median ns, spread is min/max over the 5×2 medians):
-
-joint_grid step     A_med 33,887,213  spread 1,345,754  (4.0%)
-  - solve             33,302,456   (solveImpulses 8,830,553 + relaxImpulses 10,827,289 + warmStart 3,708,479 + applyRestitution 368)
-ragdoll_pile step   A_med 11,151,955  spread 216,358    (1.9%)
-  - solve             10,385,408   (solveImpulses 3,554,029 + relaxImpulses 3,661,343 + warmStart 461,984)
-trees25 step        A_med  1,109,224  spread 5,418      (0.5%)
-  - solve                458,760
-
-Joint solving (solve + warmStart + relaxImpulses + solveImpulses) is ~62% of the
-joint_grid step and ~72% of the ragdoll_pile step, so the phase is where a wide
-joint solve would register — but the joint_grid step A/A spread is 4.0%, so a
-KEEP requires a gain greater than that scene's spread.
+78 rows, 78 match, 0 differ.

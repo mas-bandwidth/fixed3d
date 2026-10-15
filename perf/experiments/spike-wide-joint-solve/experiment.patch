@@ -16,6 +16,86 @@ index 033b8d3..ce45615 100644
  void b3SolveWeldJoint( b3JointSim* base, b3StepContext* context, bool useBias );
  void b3SolveWheelJoint( b3JointSim* base, b3StepContext* context, bool useBias );
  
+diff --git a/src/solver.c b/src/solver.c
+index 7e76603..ca28158 100644
+--- a/src/solver.c
++++ b/src/solver.c
+@@ -268,6 +268,28 @@ static void b3PrepareJointsTask( b3SolverBlock block, b3StepContext* context )
+ 	b3TracyCZoneEnd( prepare_joints );
+ }
+ 
++#if defined( B3_SIMD_AVX512 )
++static inline bool b3IsSphericalQuad( const b3JointSim* joint )
++{
++	return joint[0].type == b3_sphericalJoint && joint[1].type == b3_sphericalJoint &&
++		   joint[2].type == b3_sphericalJoint && joint[3].type == b3_sphericalJoint;
++}
++
++static void b3CheckJointThreshold( b3JointSim* joint, b3StepContext* context, bool useBias, b3BitSet* jointStateBitSet )
++{
++	if ( useBias && ( joint->forceThreshold < B3_FIXED_MAX || joint->torqueThreshold < B3_FIXED_MAX ) &&
++		 b3GetBit( jointStateBitSet, joint->jointId ) == false )
++	{
++		b3Fixed force, torque;
++		b3GetJointReaction( context->world, joint, context->inv_h, &force, &torque );
++		if ( force >= joint->forceThreshold || torque >= joint->torqueThreshold )
++		{
++			b3SetBit( jointStateBitSet, joint->jointId );
++		}
++	}
++}
++#endif
++
+ static void b3WarmStartJointsTask( b3SolverBlock block, b3StepContext* context )
+ {
+ 	b3TracyCZoneNC( warm_joints, "WarmJoints", b3_colorGold, true );
+@@ -275,9 +297,21 @@ static void b3WarmStartJointsTask( b3SolverBlock block, b3StepContext* context )
+ 	b3GraphColor* color = context->graph->colors + block.colorIndex;
+ 	b3JointSim* joints = color->jointSims.data;
+ 
+-	for ( int i = block.startIndex; i < block.startIndex + block.count; ++i )
++	int end = block.startIndex + block.count;
++	for ( int i = block.startIndex; i < end; ++i )
+ 	{
+ 		b3JointSim* joint = joints + i;
++#if defined( B3_SIMD_AVX512 )
++		// Spike (spike-wide-joint-solve): four consecutive spherical joints of one
++		// graph color go through the wide entry point. Coloring keeps their bodies
++		// disjoint; overflow joints never reach this task.
++		if ( i + 3 < end && b3IsSphericalQuad( joint ) )
++		{
++			b3WarmStartSphericalJointWide( joint, context );
++			i += 3;
++			continue;
++		}
++#endif
+ 		b3WarmStartJoint( joint, context );
+ 	}
+ 
+@@ -295,9 +329,22 @@ static void b3SolveJointsTask( b3SolverBlock block, b3StepContext* context, bool
+ 
+ 	b3BitSet* jointStateBitSet = &context->world->taskContexts.data[workerIndex].jointStateBitSet;
+ 
+-	for ( int i = block.startIndex; i < block.startIndex + block.count; ++i )
++	int end = block.startIndex + block.count;
++	for ( int i = block.startIndex; i < end; ++i )
+ 	{
+ 		b3JointSim* joint = joints + i;
++#if defined( B3_SIMD_AVX512 )
++		if ( i + 3 < end && b3IsSphericalQuad( joint ) )
++		{
++			b3SolveSphericalJointWide( joint, context, useBias );
++			for ( int lane = 0; lane < 4; ++lane )
++			{
++				b3CheckJointThreshold( joint + lane, context, useBias, jointStateBitSet );
++			}
++			i += 3;
++			continue;
++		}
++#endif
+ 		b3SolveJoint( joint, context, useBias );
+ 
+ 		if ( useBias && ( joint->forceThreshold < B3_FIXED_MAX || joint->torqueThreshold < B3_FIXED_MAX ) &&
 diff --git a/src/spherical_joint.c b/src/spherical_joint.c
 index 7db6afc..981e9da 100644
 --- a/src/spherical_joint.c
@@ -50,7 +130,7 @@ index 7db6afc..981e9da 100644
  {
  	b3WorldTransform frameA = b3MulWorldTransforms( transformA, base->localFrameA );
 diff --git a/test/test_joint.c b/test/test_joint.c
-index f9f11d2..e2d38f0 100644
+index 6187b9c..4bbe641 100644
 --- a/test/test_joint.c
 +++ b/test/test_joint.c
 @@ -6,6 +6,14 @@
@@ -68,7 +148,7 @@ index f9f11d2..e2d38f0 100644
  // One sub-test per joint type. Each creates the joint, exercises the shared
  // b3Joint_* API plus every type-specific accessor, then steps to make sure the
  // joint solves without tripping a validation assert.
-@@ -723,8 +731,146 @@ static int TestCreateJointClearsContacts( void )
+@@ -779,8 +787,185 @@ static int TestNonDynamicJointDisable( void )
  	return 0;
  }
  
@@ -152,58 +232,97 @@ index f9f11d2..e2d38f0 100644
 +	b3SolverSet* awakeSet = b3Array_Get( world->solverSets, b3_awakeSet );
 +	b3BodyState* states = awakeSet->bodyStates.data;
 +
-+	// Snapshot the joints and the body states they touch.
-+	b3JointSim jointCopy[4];
-+	b3BodyState stateCopy[8];
-+	memcpy( jointCopy, joints[0], 4 * sizeof( b3JointSim ) );
++	int stateCount = awakeSet->bodyStates.count;
++	ENSURE( stateCount >= 8 && stateCount <= 16 );
++
++	// 10,000 seeded quadruples. Each seed randomizes the body velocities and
++	// delta positions, the accumulated (warm-start) impulses, the feature flags
++	// and useBias, then runs the scalar functions joint by joint on one copy and
++	// the wide entry points on another, and compares impulses and every body
++	// state byte for byte. Seeds are a fixed xorshift: no clock, no rand().
++	b3JointSim scalarJoints[4], wideJoints[4], baseJoints[4];
++	b3BodyState scalarStates[16], wideStates[16];
++	memset( scalarJoints, 0, sizeof( scalarJoints ) );
++	memset( scalarStates, 0, sizeof( scalarStates ) );
 +	for ( int j = 0; j < 4; ++j )
 +	{
-+		int indexA = joints[j]->sphericalJoint.indexA;
-+		int indexB = joints[j]->sphericalJoint.indexB;
-+		stateCopy[2 * j] = states[indexA];
-+		stateCopy[2 * j + 1] = states[indexB];
++		baseJoints[j] = *joints[j];
 +	}
 +
-+	// Build a minimal step context for the direct solver calls.
++	uint64_t rng = 0x9E3779B97F4A7C15ull;
++#define WIDE_NEXT() ( rng ^= rng << 13, rng ^= rng >> 7, rng ^= rng << 17, rng )
++	// A raw value in [-range, range] (range in raw Q48.16 units).
++#define WIDE_RAND( range ) ( (b3Fixed)( WIDE_NEXT() % ( 2 * (uint64_t)( range ) + 1 ) ) - (b3Fixed)( range ) )
++
 +	b3StepContext context = { 0 };
 +	context.h = b3FixDiv( timeStep, b3FixFromInt( 4 ) );
 +	context.inv_h = b3FixDiv( B3_FIX( 1.0f ), context.h );
 +	context.positionGeneration = 1;
-+	context.states = states;
 +	context.enableWarmStarting = true;
 +
-+	// Scalar reference: warm start + solve each joint in turn against the live
-+	// states.
-+	context.states = states;
-+	for ( int j = 0; j < 4; ++j )
++	const b3Fixed velRange = B3_FIX( 20.0f );
++	const b3Fixed posRange = B3_FIX( 0.25f );
++	const b3Fixed impRange = B3_FIX( 5.0f );
++
++	for ( int seed = 0; seed < 10000; ++seed )
 +	{
-+		b3WarmStartSphericalJoint( joints[j], &context );
-+		b3SolveSphericalJoint( joints[j], &context, true );
++		for ( int k = 0; k < stateCount; ++k )
++		{
++			b3BodyState st = states[k];
++			st.linearVelocity = (b3Vec3){ WIDE_RAND( velRange ), WIDE_RAND( velRange ), WIDE_RAND( velRange ) };
++			st.angularVelocity = (b3Vec3){ WIDE_RAND( velRange ), WIDE_RAND( velRange ), WIDE_RAND( velRange ) };
++			st.deltaPosition = (b3Vec3){ WIDE_RAND( posRange ), WIDE_RAND( posRange ), WIDE_RAND( posRange ) };
++			scalarStates[k] = st;
++		}
++		// Copy bytes, padding included, so the byte compare below sees only
++		// what the solvers wrote.
++		memcpy( wideStates, scalarStates, (size_t)stateCount * sizeof( b3BodyState ) );
++
++		for ( int j = 0; j < 4; ++j )
++		{
++			b3JointSim js = baseJoints[j];
++			b3SphericalJoint* sj = &js.sphericalJoint;
++			uint64_t flags = WIDE_NEXT();
++			sj->enableSpring = ( flags & 1 ) != 0;
++			sj->enableMotor = ( flags & 2 ) != 0;
++			sj->enableConeLimit = ( flags & 4 ) != 0;
++			sj->enableTwistLimit = ( flags & 8 ) != 0;
++			sj->linearImpulse = (b3Vec3){ WIDE_RAND( impRange ), WIDE_RAND( impRange ), WIDE_RAND( impRange ) };
++			sj->springImpulse = (b3Vec3){ WIDE_RAND( impRange ), WIDE_RAND( impRange ), WIDE_RAND( impRange ) };
++			sj->motorImpulse = (b3Vec3){ WIDE_RAND( impRange ), WIDE_RAND( impRange ), WIDE_RAND( impRange ) };
++			sj->lowerTwistImpulse = (b3Fixed)( WIDE_NEXT() % ( (uint64_t)impRange + 1 ) );
++			sj->upperTwistImpulse = (b3Fixed)( WIDE_NEXT() % ( (uint64_t)impRange + 1 ) );
++			sj->swingImpulse = (b3Fixed)( WIDE_NEXT() % ( (uint64_t)impRange + 1 ) );
++			// generation 0 forces the anchor cache to refresh from the random state
++			sj->geometryGeneration = 0;
++			scalarJoints[j] = js;
++		}
++		memcpy( wideJoints, scalarJoints, sizeof( scalarJoints ) );
++
++		bool useBias = ( WIDE_NEXT() & 1 ) != 0;
++
++		context.states = scalarStates;
++		for ( int j = 0; j < 4; ++j )
++		{
++			b3WarmStartSphericalJoint( scalarJoints + j, &context );
++		}
++		for ( int j = 0; j < 4; ++j )
++		{
++			b3SolveSphericalJoint( scalarJoints + j, &context, useBias );
++		}
++
++		context.states = wideStates;
++		b3WarmStartSphericalJointWide( wideJoints, &context );
++		b3SolveSphericalJointWide( wideJoints, &context, useBias );
++
++		for ( int j = 0; j < 4; ++j )
++		{
++			ENSURE( memcmp( &scalarJoints[j], &wideJoints[j], sizeof( b3JointSim ) ) == 0 );
++		}
++		ENSURE( memcmp( scalarStates, wideStates, (size_t)stateCount * sizeof( b3BodyState ) ) == 0 );
 +	}
-+
-+	// Wide path: warm start + solve all four joints as one wide constraint
-+	// against the snapshot states.
-+	context.states = stateCopy;
-+	b3WarmStartSphericalJointWide( jointCopy, &context );
-+	b3SolveSphericalJointWide( jointCopy, &context, true );
-+
-+	// Compare every joint impulse and body delta byte for byte.
-+	for ( int j = 0; j < 4; ++j )
-+	{
-+		b3SphericalJoint* a = &joints[j]->sphericalJoint;
-+		b3SphericalJoint* b = &jointCopy[j].sphericalJoint;
-+		ENSURE( a->linearImpulse.x == b->linearImpulse.x && a->linearImpulse.y == b->linearImpulse.y && a->linearImpulse.z == b->linearImpulse.z );
-+		ENSURE( a->springImpulse.x == b->springImpulse.x && a->springImpulse.y == b->springImpulse.y && a->springImpulse.z == b->springImpulse.z );
-+		ENSURE( a->motorImpulse.x == b->motorImpulse.x && a->motorImpulse.y == b->motorImpulse.y && a->motorImpulse.z == b->motorImpulse.z );
-+		ENSURE( a->lowerTwistImpulse == b->lowerTwistImpulse );
-+		ENSURE( a->upperTwistImpulse == b->upperTwistImpulse );
-+		ENSURE( a->swingImpulse == b->swingImpulse );
-+
-+		int indexA = joints[j]->sphericalJoint.indexA;
-+		int indexB = joints[j]->sphericalJoint.indexB;
-+		ENSURE( memcmp( &states[indexA], &stateCopy[2 * j], sizeof( b3BodyState ) ) == 0 );
-+		ENSURE( memcmp( &states[indexB], &stateCopy[2 * j + 1], sizeof( b3BodyState ) ) == 0 );
-+	}
++#undef WIDE_RAND
++#undef WIDE_NEXT
 +
 +	b3DestroyWorld( worldId );
 +	return 0;
