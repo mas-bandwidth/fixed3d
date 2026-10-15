@@ -1,0 +1,60 @@
+# spike-wide-joint-solve raw measurement output (attempt 2)
+
+## cpu_info.sh
+
+CPU model: AMD Ryzen 7 PRO 8700GE w/ Radeon 780M Graphics (Zen 4)
+ISA flags: avx2 avx512dq avx512f avx512ifma avx512vl
+cores: 16
+CPU pinning (taskset -cp $$): pid 2545545's current affinity list: 0-15 (no pinning)
+Load average: 1.64 2.46 1.67 (during CPU header capture, after the A/A run)
+Compiler: cc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0 ; c++ 13.3.0
+cmake 3.28.3
+cmake flags: RelWithDebInfo, BOX3D_SAMPLES=OFF, BOX3D_VALIDATE=ON,
+  -DCMAKE_COMPILE_WARNING_AS_ERROR=ON, -DBOX3D_BENCHMARKS=ON, LTO on,
+  -ffp-contract=off.
+
+## Shared-box note
+
+A concurrent card (spike-tree-traversal-wide-aabb-overlap.w1.g1.e21) was running
+its own benchmark on the box when the A/B was first attempted. ab.sh refused with
+exit 3 ("another benchmark process is on the box") as designed; the run was
+retried only after that benchmark's processes cleared (pgrep -af benchmark empty).
+No process was killed. Load average at the actual A/A run was idle (~0.8).
+
+## oracle_check lines (bit-exact evidence)
+
+tools/perf/oracle_check.sh --scenes=joint_grid,ragdoll_pile,trees25
+
+    [narrow] joint_grid workers=1/2/4 (all matched)
+    [narrow] ragdoll_pile workers=1/2/4 (all matched)
+    [narrow] trees25 workers=1/2/4 (all matched)
+    [ludicrous] joint_grid workers=1/2/4 (all matched)
+    [ludicrous] ragdoll_pile workers=1/2/4 (all matched)
+    [ludicrous] trees25 workers=1/2/4 (all matched)
+
+result: "oracle check passed (narrow + ludicrous, workers 1/2/4)" — exit 0.
+
+The wide entry point is present as an un-called symbol in spherical_joint.c, so
+it changes no hash; the check proves the harness itself is now live and green on
+this box (the thing attempt 1 found absent). ./bin/test JointTest is green in both
+build (narrow) and build-ludicrous, including the red-first test
+TestWideSphericalJointEquivalence (which does not compile at BASE).
+
+## ab.sh tables (A/A noise floor, baseline vs baseline)
+
+tools/perf/ab.sh build build -b=joint_grid -b=ragdoll_pile -b=trees25 -w=1 -r=5 --steps=60
+exit 0, geomean_speedup 0.999825 (A vs A, inside spread as expected).
+
+Per-scene step phase (median ns, spread is min/max over the 5×2 medians):
+
+joint_grid step     A_med 33,887,213  spread 1,345,754  (4.0%)
+  - solve             33,302,456   (solveImpulses 8,830,553 + relaxImpulses 10,827,289 + warmStart 3,708,479 + applyRestitution 368)
+ragdoll_pile step   A_med 11,151,955  spread 216,358    (1.9%)
+  - solve             10,385,408   (solveImpulses 3,554,029 + relaxImpulses 3,661,343 + warmStart 461,984)
+trees25 step        A_med  1,109,224  spread 5,418      (0.5%)
+  - solve                458,760
+
+Joint solving (solve + warmStart + relaxImpulses + solveImpulses) is ~62% of the
+joint_grid step and ~72% of the ragdoll_pile step, so the phase is where a wide
+joint solve would register — but the joint_grid step A/A spread is 4.0%, so a
+KEEP requires a gain greater than that scene's spread.
