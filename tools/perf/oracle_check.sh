@@ -3,12 +3,28 @@
 # workers {1,2,4}, and diff HASH lines against tools/perf/scalar-oracle.txt.
 # --regenerate re-derives the oracle and refuses to overwrite it unless two
 # scalar runs agree. Worker counts for the same scene and build must agree.
+# The step count every run is capped at ORACLE_STEPS (default 120).
 set -u
 
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"
 ORACLE="$REPO/tools/perf/scalar-oracle.txt"
 REGEN=0
-[ "${1:-}" = "--regenerate" ] && REGEN=1
+SCENES=""
+STEPS="${ORACLE_STEPS:-120}"
+
+for arg in "$@"; do
+	case "$arg" in
+		--regenerate) REGEN=1 ;;
+		--scenes=*) SCENES="${arg#--scenes=}" ;;
+		--steps=*) STEPS="${arg#--steps=}" ;;
+		*) echo "unknown argument: $arg" >&2; exit 2 ;;
+	esac
+done
+
+case "$STEPS" in
+	''|*[!0-9]*) echo "ORACLE_STEPS must be a positive integer, got '$STEPS'" >&2; exit 2 ;;
+esac
+[ "$STEPS" -ge 1 ] || { echo "ORACLE_STEPS must be a positive integer" >&2; exit 2; }
 
 CMAKE_COMMON="-DCMAKE_BUILD_TYPE=RelWithDebInfo -DBOX3D_SAMPLES=OFF -DBOX3D_VALIDATE=ON -DCMAKE_COMPILE_WARNING_AS_ERROR=ON -DBOX3D_BENCHMARKS=ON -DBOX3D_AVX512=OFF -DBOX3D_NEON=OFF"
 
@@ -19,7 +35,12 @@ build_one() {
 	cmake --build "$dir" --parallel 2
 }
 
-scenes="convex_pile joint_grid junkyard large_pyramid large_world many_pyramids rain trees100 trees50 trees25 washer ragdoll_pile bodies_20k"
+all_scenes="convex_pile joint_grid junkyard large_pyramid large_world many_pyramids rain trees100 trees50 trees25 washer ragdoll_pile bodies_20k"
+if [ -n "$SCENES" ]; then
+	scenes=$(printf '%s' "$SCENES" | tr ',' ' ')
+else
+	scenes="$all_scenes"
+fi
 workers="1 2 4"
 
 busy=$(pgrep -af benchmark 2>/dev/null | grep -v -e 'pgrep' -e 'oracle_check.sh' || true)
@@ -55,7 +76,8 @@ collect() {
 	local scene w line hex
 	for scene in $scenes; do
 		for w in $workers; do
-			line=$("$dir/bin/benchmark" -b="$scene" -w="$w" -r=1 --hash 2>/dev/null | grep -E '^HASH [^ ]+ workers=[0-9]+ [0-9a-fA-F]{16}$' || true)
+			echo "  [$mode] $scene workers=$w" >&2
+			line=$("$dir/bin/benchmark" -b="$scene" -w="$w" -r=1 --hash --steps="$STEPS" 2>/dev/null | grep -E '^HASH [^ ]+ workers=[0-9]+ [0-9a-fA-F]{16}$' || true)
 			hex=$(printf '%s\n' "$line" | awk '{print $NF}')
 			if [ -z "$hex" ]; then
 				echo "missing HASH for $scene workers=$w ($mode)" >&2
@@ -84,12 +106,23 @@ if [ "$REGEN" -eq 1 ]; then
 	fi
 	assert_workers "$r1" || exit 1
 	assert_workers "$l1" || exit 1
+
+	# Preserve oracle lines for scenes outside this invocation so a --scenes
+	# split can accumulate the full matrix across several calls.
+	if [ -n "$SCENES" ] && [ -f "$ORACLE" ]; then
+		kept=$(grep '^HASH ' "$ORACLE" | awk -v list="$scenes" 'BEGIN{n=split(list,a," "); for(i=1;i<=n;i++) sel[a[i]]=1} {if(!($2 in sel)) print}')
+	else
+		kept=""
+	fi
+
 	{
 		echo "# HASH <scene> workers=<n> <narrow|ludicrous> <16 hex>"
-		echo "# scalar build, no BOX3D_AVX512, no BOX3D_NEON. Regenerated only when two runs agree."
+		echo "# scalar build, no BOX3D_AVX512, no BOX3D_NEON. steps=$STEPS."
+		echo "# Regenerated only when two runs agree and workers {1,2,4} agree."
 		printf '%s\n' "$r1"
 		printf '%s\n' "$l1"
-	} > "$ORACLE"
+		[ -z "$kept" ] || printf '%s\n' "$kept"
+	} | sort -k2,2 -k3,3n -k4,4 > "$ORACLE"
 	echo "oracle regenerated: $ORACLE"
 	exit 0
 fi
@@ -99,7 +132,7 @@ fi
 new=$(collect "$REPO/build" narrow | sort)
 new_lud=$(collect "$REPO/build-ludicrous" ludicrous | sort)
 got=$(printf '%s\n%s\n' "$new" "$new_lud" | sort)
-want=$(grep '^HASH ' "$ORACLE" | sort)
+want=$(grep '^HASH ' "$ORACLE" | awk -v list="$scenes" 'BEGIN{n=split(list,a," "); for(i=1;i<=n;i++) sel[a[i]]=1} {if($2 in sel) print}' | sort)
 assert_workers "$new" || exit 1
 assert_workers "$new_lud" || exit 1
 if [ "$got" != "$want" ]; then
@@ -107,4 +140,4 @@ if [ "$got" != "$want" ]; then
 	diff -u <(printf '%s\n' "$want") <(printf '%s\n' "$got") | head -80
 	exit 1
 fi
-echo "oracle check passed (narrow + ludicrous, all scenes, workers 1/2/4)"
+echo "oracle check passed (narrow + ludicrous, workers 1/2/4)"

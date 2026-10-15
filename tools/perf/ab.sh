@@ -15,16 +15,26 @@ shift 2
 REPEATS=7
 SCENES=""
 WORKERS="1 2 4"
+STEPS=""
 
 while [ $# -gt 0 ]; do
 	case "$1" in
 		-b=*) SCENES="$SCENES ${1#-b=}" ;;
 		-w=*) WORKERS=$(printf '%s' "${1#-w=}" | tr ',' ' ') ;;
 		-r=*) REPEATS="${1#-r=}" ;;
+		--steps=*) STEPS="${1#--steps=}" ;;
 		*) echo "unknown option $1"; exit 2 ;;
 	esac
 	shift
 done
+
+STEPARG=""
+if [ -n "$STEPS" ]; then
+	case "$STEPS" in
+		''|*[!0-9]*) echo "invalid --steps: $STEPS" >&2; exit 2 ;;
+	esac
+	STEPARG="--steps=$STEPS"
+fi
 
 BIN_A="$BASELINE/bin/benchmark"
 BIN_B="$CANDIDATE/bin/benchmark"
@@ -71,8 +81,8 @@ for scene in $SCENES; do
 		for ((rep = 0; rep < REPEATS; rep++)); do
 			ja="$tmpdir/a.${scene}.${w}.${rep}.json"
 			jb="$tmpdir/b.${scene}.${w}.${rep}.json"
-			a_out=$("$BIN_A" -b="$scene" -w="$w" -r=1 --hash --phases-json="$ja" 2>/dev/null || true)
-			b_out=$("$BIN_B" -b="$scene" -w="$w" -r=1 --hash --phases-json="$jb" 2>/dev/null || true)
+			a_out=$("$BIN_A" -b="$scene" -w="$w" -r=1 --hash --phases-json="$ja" $STEPARG 2>/dev/null || true)
+			b_out=$("$BIN_B" -b="$scene" -w="$w" -r=1 --hash --phases-json="$jb" $STEPARG 2>/dev/null || true)
 			a_h=$(final_hash "$a_out")
 			b_h=$(final_hash "$b_out")
 			printf '%s\n' "$a_h" > "$tmpdir/a.${scene}.${w}.${rep}.hash"

@@ -39,8 +39,18 @@ linear and angular velocity in body-id order. They must not depend on thread
 count, allocator, or wall clock. The script asserts workers 1/2/4 agree for the
 same scene and build.
 
-    tools/perf/oracle_check.sh --regenerate   # two agreeing scalar runs, or refuse
-    tools/perf/oracle_check.sh                # build both configs, diff, exit 1 on any bit
+Every run is capped at `ORACLE_STEPS` (default 120) steps so the full matrix
+fits a short wall; the cap is recorded in the oracle header. Split the gate
+with `--scenes=a,b,...` (two or three scenes per invocation) so no single call
+runs the whole 78-line matrix:
+
+    tools/perf/oracle_check.sh --regenerate                  # all scenes, or refuse
+    tools/perf/oracle_check.sh --regenerate --scenes=large_pyramid,many_pyramids
+    tools/perf/oracle_check.sh                               # build both, diff, exit 1 on any bit
+    tools/perf/oracle_check.sh --scenes=junkyard,bodies_20k  # check a subset
+
+A regenerate with `--scenes` merges those scenes into the oracle and keeps the
+rest, so several split invocations accumulate the full matrix.
 
 ## A/B
 
@@ -48,13 +58,14 @@ Interleaved `A B A B ...` (default 7 repeats). Refuses if `pgrep -af benchmark`
 shows another benchmark (it never kills it) or load average is above 2 per
 core.
 
-    tools/perf/ab.sh build build-candidate [-b=scene ...] [-w=1,2,4] [-r=7]
+    tools/perf/ab.sh build build-candidate [-b=scene ...] [-w=1,2,4] [-r=7] [--steps=120]
 
 Equals form is mandatory. A space-separated flag is ignored and the full suite
-runs. The table is min/median/spread/speedup per scene and per phase, plus
-geomean of the whole-step speedups (baseline median / candidate median; above
-1 is faster). Exit non-zero if any final `HASH` line differs. A spike's gain
-must exceed that scene's A/A spread.
+runs. `--steps=` caps the step count passed to both binaries. The table is
+min/median/spread/speedup per scene and per phase, plus geomean of the
+whole-step speedups (baseline median / candidate median; above 1 is faster).
+Exit non-zero if any final `HASH` line differs. A spike's gain must exceed that
+scene's A/A spread.
 
 `tools/perf/ab.sh build build` is A against A. Speedups should sit inside the
 spread and the script should exit 0.

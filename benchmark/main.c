@@ -425,6 +425,7 @@ int main( int argc, char** argv )
 	int hashEvery = 0;
 	const char* phasesJsonPath = NULL;
 	int hashFailed = 0;
+	int stepCap = 0;
 
 	assert( maxThreadCount <= B3_MAX_WORKERS );
 
@@ -495,6 +496,15 @@ int main( int argc, char** argv )
 				exit( 1 );
 			}
 		}
+		else if ( ( value = MatchValue( arg, "--steps=", "--steps=" ) ) != NULL )
+		{
+			stepCap = atoi( value );
+			if ( stepCap < 1 )
+			{
+				printf( "--steps requires a positive integer\n" );
+				exit( 1 );
+			}
+		}
 		else if ( strcmp( arg, "-l" ) == 0 || strcmp( arg, "--list" ) == 0 )
 		{
 			PrintBenchmarks( benchmarks, benchmarkCount );
@@ -512,6 +522,7 @@ int main( int argc, char** argv )
 					"--hash: print HASH <scene> workers=<n> <16 hex> after the last step\n"
 					"--hash-every=<k>: also print a running hash every k steps\n"
 					"--phases-json=<file>: min/median/max ns per step for each profile phase\n"
+					"--steps=<n>: cap the step count of every scene (default unchanged)\n"
 					"-l, --list: list the registered benchmarks\n"
 					"-h, --help: print this help\n" );
 			exit( 0 );
@@ -546,6 +557,10 @@ int main( int argc, char** argv )
 #else
 		int stepCount = 10;
 #endif
+		if ( stepCap > 0 && stepCount > stepCap )
+		{
+			stepCount = stepCap;
+		}
 
 		Benchmark* benchmark = benchmarks + benchmarkIndex;
 
