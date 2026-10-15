@@ -138,12 +138,11 @@ The PORT RECORDs below run newest first and are the detail for each step.
   size in bytes. PUBLIC API BREAK: every in-tree caller uses the new signatures. Tests:
   `AllocatorWidenedSignatureTest` (counting allocator through the new signatures,
   asserts the engine's sizes/alignments for world create/step/destroy, leak check at
-  destroy). Reference scene `ref-9e5a4cd-allocator-neutral.scene` added for the harness
+  destroy).   Reference scene `ref-9e5a4cd-allocator-neutral.scene` added for the harness
   glob; the allocator widening is not a simulation observable, so the reference check
   is that the 5-box stack settles unchanged (60 steps) — the ctest -L reference run is
   not-done until the reference harness (fixed3d-box3d-reference-harness) lands.
-  GOLDENS: NONE MOVED (narrow and ludicrous). VERIFIED: both configs green,
-  -Werror clean.
+  Scene corrected (w3): rewritten in v1 header form (`expect pos <m> rot <rad> vel <m/s> horizon <steps> counts <n>`) at 60 steps dt 1/60 (mirrors box_stack; the generator-form predicates are only for hull bodies, which this stack does not have). Tolerance from 2x measured max delta vs float@9e5a4cd. Also updated test/test_name_cache.c (int64_t for b3GetByteCount) to keep tree -Werror clean. GOLDENS: NONE MOVED (narrow and ludicrous). VERIFIED: both configs green, -Werror clean.
 
 - **PORT RECORD adec25b + 9f998c8 "SAT set, the portable pieces" (2026-10-14) —
   PORTED in one step (card port-adec25b-9f998c8-sat-set-portable-pieces).** The
