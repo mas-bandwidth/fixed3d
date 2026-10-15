@@ -54,6 +54,39 @@ and says *closed*. Record below.)*
 
 The PORT RECORDs below run newest first and are the detail for each step.
 
+- **PORT RECORD 3d9db79 + 003a3f7 recording refuses a corrupt compound (2026-10-15) —
+  PORTED (card port-3d9db79-003a3f7-recording-refuses-a-corrupt-compound.w3).** Two
+  upstream recording fixes in one step. **The rename to `replay.*` is HELD** (pure rename
+  of a diverged 3,700-line file, no content; keep `recording_replay.*`), and **the
+  `src/core.c` `b3Free` size-0 guard is skipped** (our free callback takes the pointer, so
+  upstream's `( ( size - 1 ) | ( B3_ALIGNMENT - 1 ) ) + 1` underflow has no counterpart).
+  **LIVE BUG FIXED:** both callers discarded `b3ConvertBytesToCompound`'s NULL return, so a
+  stale/truncated/bad-node-offset compound blob handed `b3DynamicTree_Query` a NULL
+  `tree.nodes` (upstream `shape.c` asserts; release UB). `b3RecGetLiveCompound` is now
+  failure-returning and freed-and-cleared on NULL, used by both `recording_replay.c` and
+  `world_snapshot.c` (exported in `recording_replay.h`). New `b3RecGetSlot( rdr, id, kind )`
+  replaces the open-coded `id >= slotCount` checks at all eight sites and adds **kind
+  validation**, so an op that says "mesh" but points at a compound slot is refused instead
+  of reinterpreted. `b3RecLoadSlots` refuses a compound slot smaller than
+  `sizeof( b3CompoundData )`. **FUTURE-PROOFING (003a3f7, the seven lines): ported.**
+  `b3RecInternCompound` now routes through `b3ConvertCompoundToBytes` (behaviour-identical:
+  it nulls the same single `tree.nodes` pointer), and `b3RecSeedKeyframeRegistry` hashes the
+  nulled copy rather than `slot->bytes`. **The crash this fixes is UNREACHABLE here:
+  fixed3d's `b3DynamicTree` has no `tree.proxies`, so the two hashes agree by construction
+  and the test CANNOT FAIL — recorded as coverage, not a regression test.** If `f555ee4` is
+  ever ported past this point, this fix must land in the same step or the crash arrives with
+  it. **RECORDING FORMAT: UNCHANGED.** No byte is written differently: both 3d9db79 hunks are
+  hash-input hygiene and the hash input is identical here, and 003a3f7 is pointer scrubbing;
+  `B3_REC_VERSION_MAJOR`/`MINOR` do not move. **TESTS: `CorruptCompound`** (test_recording.c,
+  registered in RecordingTest), boolean-only so fully portable to Q48.16. Seen RED first on
+  the unchanged base: the version-flip arm SIGILLs at `shape.c:512`
+  `BOX3D ASSERTION: compound->version == B3_COMPOUND_VERSION`, exit 132. Green after the fix:
+  all three arms print their refusal ("compound geometry 1 is corrupt", "registry entry 1
+  compound too small", "geometryId 1 kind mismatch"). Full `./bin/test` green (narrow,
+  RelWithDebInfo+VALIDATE+Werror). **NOT DONE: the reference scene/ctest** (the harness must
+  fetch float box3d at 3d9db79 and run two engines; recording is not a float-simulation
+  observable) and the **ludicrous build** — both named as owed.
+
 - **PORT RECORD 954cf87 ragdoll human (2026-10-15) — the re-rig only, not the
   engine half of Fixes (#157).** `shared/human.c` now authors the 954cf87 rig in
   local coordinates and offsets once with `b3OffsetPos` / `GetSceneOrigin()`.

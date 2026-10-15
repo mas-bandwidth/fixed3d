@@ -2327,6 +2327,106 @@ static int GeometryMutatorReplay( void )
 	return 0;
 }
 
+// A corrupt compound blob must be refused, not reinterpreted. Record a live compound, then corrupt
+// its registry entry three ways and require each to fail: (a) a flipped version word and (c) a kind
+// byte rewritten to mesh make b3ValidateReplay return false (the op stream refuses), while (b) a
+// truncated byte count makes b3CreatePlayer return NULL (the registry loader refuses). Every arm is
+// a boolean, so the test is fully portable to Q48.16 with no tolerance work.
+static int CorruptCompound( void )
+{
+	b3Recording* rec = b3CreateRecording( 0 );
+	ENSURE( rec != NULL );
+
+	b3WorldDef worldDef = b3DefaultWorldDef();
+	b3WorldId worldId = b3CreateWorld( &worldDef );
+	b3World_StartRecording( worldId, rec );
+
+	b3BodyDef groundDef = b3DefaultBodyDef();
+	groundDef.type = b3_staticBody;
+	b3BodyId groundId = b3CreateBody( worldId, &groundDef );
+	b3BoxHull groundBox = b3MakeBoxHull( B3_FIX( 5.0f ), B3_FIX( 1.0f ), B3_FIX( 5.0f ) );
+	b3ShapeDef groundShapeDef = b3DefaultShapeDef();
+	b3CreateHullShape( groundId, &groundShapeDef, &groundBox.base );
+
+	b3BodyDef compoundBodyDef = b3DefaultBodyDef();
+	compoundBodyDef.type = b3_staticBody;
+	compoundBodyDef.position = (b3Pos){ B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
+	b3BodyId compoundBodyId = b3CreateBody( worldId, &compoundBodyDef );
+	b3CompoundSphereDef compSphere;
+	compSphere.sphere = (b3Sphere){ { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, B3_FIX( 1.0f ) };
+	compSphere.material = b3DefaultSurfaceMaterial();
+	b3CompoundDef compoundDef;
+	memset( &compoundDef, 0, sizeof( compoundDef ) );
+	compoundDef.spheres = &compSphere;
+	compoundDef.sphereCount = 1;
+	b3CompoundData* compound = b3CreateCompound( &compoundDef );
+	ENSURE( compound != NULL );
+	b3ShapeDef compoundShapeDef = b3DefaultShapeDef();
+	b3CreateBakedCompoundShape( compoundBodyId, &compoundShapeDef, compound );
+
+	b3Fixed timeStep = b3FixDiv( B3_FIX( 1.0f ), B3_FIX( 60.0f ) );
+	for ( int i = 0; i < 4; ++i )
+	{
+		b3World_Step( worldId, timeStep, 4 );
+	}
+
+	b3World_StopRecording( worldId );
+	b3DestroyWorld( worldId );
+	b3DestroyCompound( compound );
+
+	const uint8_t* data = b3Recording_GetData( rec );
+	int size = b3Recording_GetSize( rec );
+	ENSURE( size > 0 );
+
+	// The compound version is always the first field of the serialized blob, so the version word
+	// identifies the entry. The registry entry is kind(1) + byteCount(4) + bytes, so the kind byte
+	// sits at versionOffset - 5 and the entry's byte count at versionOffset - 4.
+	uint64_t version = (uint64_t)B3_COMPOUND_VERSION;
+	int versionOffset = -1;
+	for ( int i = 0; i + (int)sizeof( uint64_t ) <= size; ++i )
+	{
+		uint64_t w;
+		memcpy( &w, data + i, sizeof( w ) );
+		if ( w == version )
+		{
+			versionOffset = i;
+			break;
+		}
+	}
+	ENSURE( versionOffset >= 5 );
+
+	uint8_t* buf = (uint8_t*)b3Alloc( (size_t)size );
+	ENSURE( buf != NULL );
+
+	// Control: the uncorrupted bytes replay cleanly.
+	memcpy( buf, data, (size_t)size );
+	ENSURE( b3ValidateReplay( buf, size, 1 ) );
+
+	// (a) Flip a byte of the version word. b3ConvertBytesToCompound refuses and the compound op
+	// must fail the replay instead of creating a shape with a NULL tree pointer.
+	memcpy( buf, data, (size_t)size );
+	buf[versionOffset] ^= 0xFF;
+	ENSURE( b3ValidateReplay( buf, size, 1 ) == false );
+
+	// (b) Truncate the registry entry's byte count to 8. The loader refuses the slot outright.
+	memcpy( buf, data, (size_t)size );
+	for ( int i = 0; i < 4; ++i )
+	{
+		buf[versionOffset - 4 + i] = i == 0 ? 8 : 0;
+	}
+	ENSURE( b3CreatePlayer( buf, size, 1 ) == NULL );
+
+	// (c) Rewrite the entry's kind byte to mesh. The op asks for a compound and the slot holds a
+	// different kind, so b3RecGetSlot refuses rather than reinterpret the bytes.
+	memcpy( buf, data, (size_t)size );
+	buf[versionOffset - 5] = (uint8_t)b3_geometryMesh;
+	ENSURE( b3ValidateReplay( buf, size, 1 ) == false );
+
+	b3Free( buf, (size_t)size );
+	b3DestroyRecording( rec );
+	return 0;
+}
+
 int RecordingTest( void )
 {
 	RUN_SUBTEST( GeometryHashCollision );
@@ -2349,6 +2449,7 @@ int RecordingTest( void )
 	RUN_SUBTEST( TransformedHullRoundTrip );
 	RUN_SUBTEST( GeometryMutatorReplay );
 	RUN_SUBTEST( AllOps );
+	RUN_SUBTEST( CorruptCompound );
 	RUN_SUBTEST( ReservedHeaderBytes );
 	return 0;
 }

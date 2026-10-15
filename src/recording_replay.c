@@ -739,7 +739,10 @@ static void* b3RecGetLiveHeightField( b3RegistrySlot* slot )
 	return slot->bytes;
 }
 
-static void* b3RecGetLiveCompound( b3RegistrySlot* slot )
+// Failure-returning: a stale, truncated or otherwise corrupt compound blob makes
+// b3ConvertBytesToCompound return NULL, and the slot's live pointer is freed and cleared so the
+// caller refuses the shape rather than handing a NULL tree pointer to the dynamic tree.
+void* b3RecGetLiveCompound( b3RegistrySlot* slot )
 {
 	if ( slot->live != NULL )
 	{
@@ -750,8 +753,38 @@ static void* b3RecGetLiveCompound( b3RegistrySlot* slot )
 	// keep both the serialized bytes and a separate converted live object.
 	slot->live = b3Alloc( (size_t)slot->byteCount );
 	memcpy( slot->live, slot->bytes, (size_t)slot->byteCount );
-	b3ConvertBytesToCompound( (uint8_t*)slot->live, slot->byteCount );
+	if ( b3ConvertBytesToCompound( (uint8_t*)slot->live, slot->byteCount ) == NULL )
+	{
+		b3Free( slot->live, (size_t)slot->byteCount );
+		slot->live = NULL;
+		return NULL;
+	}
 	return slot->live;
+}
+
+// Resolve a registry slot by id, refusing an out-of-range id and a slot whose kind does not match
+// the kind the op expects. Kind validation is corrupt-input hardening: an op that says "mesh" but
+// points at a compound slot is refused instead of being reinterpreted as the wrong type.
+b3RegistrySlot* b3RecGetSlot( b3RecReader* rdr, uint32_t id, b3GeometryKind kind )
+{
+	if ( rdr == NULL )
+	{
+		return NULL;
+	}
+	if ( rdr->slots == NULL || id >= (uint32_t)rdr->slotCount )
+	{
+		printf( "b3ReplayFile: geometryId %u out of range\n", id );
+		rdr->ok = false;
+		return NULL;
+	}
+	b3RegistrySlot* slot = rdr->slots + id;
+	if ( slot->kind != kind )
+	{
+		printf( "b3ReplayFile: geometryId %u kind mismatch\n", id );
+		rdr->ok = false;
+		return NULL;
+	}
+	return slot;
 }
 
 // Dispatch functions, one per op
@@ -1009,14 +1042,11 @@ static void b3RecDispatch_CreateHullShape( const b3RecArgs_CreateHullShape* a, b
 	{
 		return;
 	}
-	uint32_t id = a->geometryId;
-	if ( id >= (uint32_t)rdr->slotCount )
+	b3RegistrySlot* slot = b3RecGetSlot( rdr, a->geometryId, b3_geometryHull );
+	if ( slot == NULL )
 	{
-		printf( "b3ReplayFile: hull geometryId %u out of range\n", id );
-		rdr->ok = false;
 		return;
 	}
-	b3RegistrySlot* slot = rdr->slots + id;
 	b3BodyId bodyId = b3RecMakeBodyId( rdr, a->body );
 	// Hull is cloned by b3CreateHullShape into the world DB; no caching needed.
 	b3ShapeId gotId = b3CreateHullShape( bodyId, &a->def, (const b3HullData*)slot->bytes );
@@ -1030,14 +1060,11 @@ static void b3RecDispatch_CreateMeshShape( const b3RecArgs_CreateMeshShape* a, b
 	{
 		return;
 	}
-	uint32_t id = a->geometryId;
-	if ( id >= (uint32_t)rdr->slotCount )
+	b3RegistrySlot* slot = b3RecGetSlot( rdr, a->geometryId, b3_geometryMesh );
+	if ( slot == NULL )
 	{
-		printf( "b3ReplayFile: mesh geometryId %u out of range\n", id );
-		rdr->ok = false;
 		return;
 	}
-	b3RegistrySlot* slot = rdr->slots + id;
 	const b3MeshData* mesh = b3RecGetLiveMesh( slot );
 	b3BodyId bodyId = b3RecMakeBodyId( rdr, a->body );
 	b3ShapeId gotId = b3CreateMeshShape( bodyId, &a->def, mesh, a->scale );
@@ -1051,18 +1078,15 @@ static void b3RecDispatch_CreateHeightFieldShape( const b3RecArgs_CreateHeightFi
 	{
 		return;
 	}
-	uint32_t id = a->geometryId;
-	if ( id >= (uint32_t)rdr->slotCount )
+	b3RegistrySlot* slot = b3RecGetSlot( rdr, a->geometryId, b3_geometryHeightField );
+	if ( slot == NULL )
 	{
-		printf( "b3ReplayFile: heightfield geometryId %u out of range\n", id );
-		rdr->ok = false;
 		return;
 	}
-	b3RegistrySlot* slot = rdr->slots + id;
 	const b3HeightFieldData* hf = (const b3HeightFieldData*)b3RecGetLiveHeightField( slot );
 	if ( hf == NULL )
 	{
-		printf( "b3ReplayFile: heightfield geometry %u is corrupt\n", id );
+		printf( "b3ReplayFile: heightfield geometry %u is corrupt\n", a->geometryId );
 		rdr->ok = false;
 		return;
 	}
@@ -1078,15 +1102,18 @@ static void b3RecDispatch_CreateCompoundShape( const b3RecArgs_CreateCompoundSha
 	{
 		return;
 	}
-	uint32_t id = a->geometryId;
-	if ( id >= (uint32_t)rdr->slotCount )
+	b3RegistrySlot* slot = b3RecGetSlot( rdr, a->geometryId, b3_geometryCompound );
+	if ( slot == NULL )
 	{
-		printf( "b3ReplayFile: compound geometryId %u out of range\n", id );
+		return;
+	}
+	const b3CompoundData* compound = (const b3CompoundData*)b3RecGetLiveCompound( slot );
+	if ( compound == NULL )
+	{
+		printf( "b3ReplayFile: compound geometry %u is corrupt\n", a->geometryId );
 		rdr->ok = false;
 		return;
 	}
-	b3RegistrySlot* slot = rdr->slots + id;
-	const b3CompoundData* compound = (const b3CompoundData*)b3RecGetLiveCompound( slot );
 	b3BodyId bodyId = b3RecMakeBodyId( rdr, a->body );
 	// b3CreateCompoundShape takes a non-const def pointer; cast away const for the scratch def
 	b3ShapeDef shapeDef = a->def;
@@ -1166,28 +1193,22 @@ static void b3RecDispatch_ShapeSetCapsule( const b3RecArgs_ShapeSetCapsule* a, b
 
 static void b3RecDispatch_ShapeSetHull( const b3RecArgs_ShapeSetHull* a, b3RecReader* rdr )
 {
-	uint32_t id = a->geometryId;
-	if ( id >= (uint32_t)rdr->slotCount )
+	b3RegistrySlot* slot = b3RecGetSlot( rdr, a->geometryId, b3_geometryHull );
+	if ( slot == NULL )
 	{
-		printf( "b3ReplayFile: hull geometryId %u out of range\n", id );
-		rdr->ok = false;
 		return;
 	}
-	b3RegistrySlot* slot = rdr->slots + id;
 	// Hull is cloned by b3Shape_SetHull into the world DB; no caching needed.
 	b3Shape_SetHull( b3RecMakeShapeId( rdr, a->shape ), (const b3HullData*)slot->bytes );
 }
 
 static void b3RecDispatch_ShapeSetMesh( const b3RecArgs_ShapeSetMesh* a, b3RecReader* rdr )
 {
-	uint32_t id = a->geometryId;
-	if ( id >= (uint32_t)rdr->slotCount )
+	b3RegistrySlot* slot = b3RecGetSlot( rdr, a->geometryId, b3_geometryMesh );
+	if ( slot == NULL )
 	{
-		printf( "b3ReplayFile: mesh geometryId %u out of range\n", id );
-		rdr->ok = false;
 		return;
 	}
-	b3RegistrySlot* slot = rdr->slots + id;
 	const b3MeshData* mesh = b3RecGetLiveMesh( slot );
 	b3Shape_SetMesh( b3RecMakeShapeId( rdr, a->shape ), mesh, a->scale );
 }
@@ -2479,6 +2500,22 @@ static bool b3RecLoadSlots( b3RecReader* rdr, const void* data, int size, uint64
 		uint8_t kind = rp[0];
 		uint32_t byteCount = (uint32_t)rp[1] | ( (uint32_t)rp[2] << 8 ) | ( (uint32_t)rp[3] << 16 ) | ( (uint32_t)rp[4] << 24 );
 		rp += 5;
+		// A compound slot smaller than the struct cannot be a valid blob; refuse it before any shape
+		// create reads past the bytes. The live conversion would return NULL, but b3CreatePlayer
+		// should fail at load rather than hand back a world that refuses mid-replay.
+		if ( kind == b3_geometryCompound && byteCount < (uint32_t)sizeof( b3CompoundData ) )
+		{
+			printf( "b3ReplayFile: registry entry %u compound too small\n", i );
+			for ( uint32_t j = 0; j < i; ++j )
+			{
+				if ( slots[j].bytes != NULL )
+				{
+					b3Free( slots[j].bytes, (size_t)slots[j].byteCount );
+				}
+			}
+			b3Free( slots, (size_t)count * sizeof( b3RegistrySlot ) );
+			return false;
+		}
 		if ( rp + byteCount > dataEnd )
 		{
 			printf( "b3ReplayFile: registry entry %u bytes out of bounds\n", i );
@@ -2624,7 +2661,13 @@ static void b3RecSeedKeyframeRegistry( b3RecPlayer* player )
 		{
 			memcpy( copy, slot->bytes, (size_t)slot->byteCount );
 		}
-		uint64_t h = b3Hash64NonZero( slot->bytes, slot->byteCount );
+		// Hash the canonical (pointer-nulled) copy, not slot->bytes: if a serialized compound ever
+		// carries a live pointer the two hashes must still agree with b3RecInternCompound's copy.
+		if ( slot->kind == b3_geometryCompound )
+		{
+			b3ConvertCompoundToBytes( (b3CompoundData*)copy );
+		}
+		uint64_t h = b3Hash64NonZero( copy, slot->byteCount );
 		uint32_t id = b3AppendGeometry( reg, slot->kind, h, copy, slot->byteCount );
 		// Seeding in order without dedup keeps id == slot index.
 		B3_ASSERT( id == (uint32_t)i );
