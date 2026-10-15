@@ -28,17 +28,14 @@
 // transform bytes and the wide build stores 128-bit positions (80-byte b3WorldTransform
 // vs 56-byte). Full 128 bits are hashed.
 //
-// A SLEEP STEP OF 0 MEANS THE RAGDOLLS NEVER SETTLED, which is what a missed scale
-// crossing looks like from here. Read a zero as that before re-capturing anything.
-// These references combine the inverse-scaled joint/GJK repairs with fixed
-// 2f1ed91's corrected normalization, small angles and conservative bounds.
-// Independent captures agree across workers 1-5, Debug/optimized and narrow/wide
-// builds. Query-spawn and mesh-drop retain the preceding repaired references.
-#define RAGDOLL_SLEEP_STEP 404
+// The 954cf87 re-rig (shared/human.c) moved this scene: sleep 325 both builds,
+// hash narrow 0x97AB456D / ludicrous 0x7ACB4BED. Workers 1-5 and two generation
+// runs agree. A SLEEP STEP OF 0 MEANS THE RAGDOLLS NEVER SETTLED.
+#define RAGDOLL_SLEEP_STEP 325
 #if defined( BOX3D_LUDICROUS_MODE )
-#define RAGDOLL_HASH 0x1DA55033
+#define RAGDOLL_HASH 0x7ACB4BED
 #else
-#define RAGDOLL_HASH 0xF97922B3
+#define RAGDOLL_HASH 0x97AB456D
 #endif
 
 // Goldens for the wave pile, query spawn and mesh drop scenarios. Fixed-point goldens
@@ -58,6 +55,16 @@
 #define WAVE_PILE_HASH 0x22BF35CE
 #define QUERY_SPAWN_HASH 0x49ECDEA8
 #define MESH_DROP_HASH 0x491E324B
+#endif
+
+// Re-rigged single ragdoll (box3d 954cf87) dropped on a ground box. Harvested
+// on this bench: sleep 228 both builds, hash narrow 0xB12CCFAE / ludicrous
+// 0x8075582E, identical for workers 1-5 and across two generation runs.
+#define RAGDOLL_HUMAN_SLEEP_STEP 228
+#if defined( BOX3D_LUDICROUS_MODE )
+#define RAGDOLL_HUMAN_HASH 0x8075582E
+#else
+#define RAGDOLL_HUMAN_HASH 0xB12CCFAE
 #endif
 
 static int SingleMultithreadingTest( int workerCount )
@@ -508,8 +515,51 @@ static int SphericalGeometryTest( void )
 	return 0;
 }
 
+static int SingleRagdollHumanTest( int workerCount )
+{
+	b3WorldDef worldDef = b3DefaultWorldDef();
+	worldDef.workerCount = workerCount;
+	b3WorldId worldId = b3CreateWorld( &worldDef );
+
+	RagdollHumanData data = CreateRagdollHuman( worldId );
+	b3Fixed timeStep = b3FixDiv( B3_FIX( 1.0f ), B3_FIX( 60.0f ) );
+
+	int stepLimit = 800;
+	for ( int i = 0; i < stepLimit; ++i )
+	{
+		b3World_Step( worldId, timeStep, 4 );
+		if ( UpdateRagdollHuman( worldId, &data ) )
+		{
+			break;
+		}
+	}
+
+	b3DestroyWorld( worldId );
+
+	if ( data.sleepStep != RAGDOLL_HUMAN_SLEEP_STEP || data.hash != RAGDOLL_HUMAN_HASH )
+	{
+		printf( "  ragdoll-human workers=%d sleepStep=%d hash=0x%08X\n", workerCount, data.sleepStep, data.hash );
+	}
+
+	ENSURE( data.sleepStep == RAGDOLL_HUMAN_SLEEP_STEP );
+	ENSURE( data.hash == RAGDOLL_HUMAN_HASH );
+	DestroyRagdollHuman( &data );
+	return 0;
+}
+
+static int RagdollHumanTest( void )
+{
+	for ( int workerCount = 1; workerCount < 6; ++workerCount )
+	{
+		int result = SingleRagdollHumanTest( workerCount );
+		ENSURE( result == 0 );
+	}
+	return 0;
+}
+
 int DeterminismTest( void )
 {
+	RUN_SUBTEST( RagdollHumanTest );
 	RUN_SUBTEST( MultithreadingTest );
 	RUN_SUBTEST( CrossPlatformTest );
 	RUN_SUBTEST( WavePileTest );
