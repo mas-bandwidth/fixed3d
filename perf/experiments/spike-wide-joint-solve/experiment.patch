@@ -1,0 +1,217 @@
+diff --git a/src/joint.h b/src/joint.h
+index 033b8d3..ce45615 100644
+--- a/src/joint.h
++++ b/src/joint.h
+@@ -437,6 +437,13 @@ void b3SolveParallelJoint( b3JointSim* base, b3StepContext* context );
+ void b3SolvePrismaticJoint( b3JointSim* base, b3StepContext* context, bool useBias );
+ void b3SolveRevoluteJoint( b3JointSim* base, b3StepContext* context, bool useBias );
+ void b3SolveSphericalJoint( b3JointSim* base, b3StepContext* context, bool useBias );
++
++// Wide spherical joint solver: four contiguous spherical joints solved as one
++// wide constraint (lane = whole joint). Bit-identical to the scalar functions
++// by construction; the scalar path stays as the control. `joints` points to
++// four contiguous b3JointSim of type b3_sphericalJoint.
++void b3WarmStartSphericalJointWide( b3JointSim* joints, b3StepContext* context );
++void b3SolveSphericalJointWide( b3JointSim* joints, b3StepContext* context, bool useBias );
+ void b3SolveWeldJoint( b3JointSim* base, b3StepContext* context, bool useBias );
+ void b3SolveWheelJoint( b3JointSim* base, b3StepContext* context, bool useBias );
+ 
+diff --git a/src/spherical_joint.c b/src/spherical_joint.c
+index 7db6afc..981e9da 100644
+--- a/src/spherical_joint.c
++++ b/src/spherical_joint.c
+@@ -691,6 +691,28 @@ void b3SolveSphericalJoint( b3JointSim* base, b3StepContext* context, bool useBi
+ 	}
+ }
+ 
++// Wide spherical joint solver: four contiguous spherical joints solved as one
++// wide constraint (lane = whole joint). The tracer-bullet first cut keeps the
++// per-lane math scalar (a plain four-way loop) so every lane is bit-identical
++// to the scalar functions by construction; the AVX-512 lane vectorization is
++// the follow-on work this spike is sized to measure. The scalar path stays as
++// the control and the wide path is selected at compile time (BOX3D_AVX512).
++void b3WarmStartSphericalJointWide( b3JointSim* joints, b3StepContext* context )
++{
++	for ( int i = 0; i < 4; ++i )
++	{
++		b3WarmStartSphericalJoint( joints + i, context );
++	}
++}
++
++void b3SolveSphericalJointWide( b3JointSim* joints, b3StepContext* context, bool useBias )
++{
++	for ( int i = 0; i < 4; ++i )
++	{
++		b3SolveSphericalJoint( joints + i, context, useBias );
++	}
++}
++
+ void b3DrawSphericalJoint( b3DebugDraw* draw, b3JointSim* base, b3WorldTransform transformA, b3WorldTransform transformB, b3Fixed scale )
+ {
+ 	b3WorldTransform frameA = b3MulWorldTransforms( transformA, base->localFrameA );
+diff --git a/test/test_joint.c b/test/test_joint.c
+index f9f11d2..e2d38f0 100644
+--- a/test/test_joint.c
++++ b/test/test_joint.c
+@@ -6,6 +6,14 @@
+ #include "box3d/box3d.h"
+ #include "box3d/math_functions.h"
+ 
++#include "body.h"
++#include "joint.h"
++#include "solver.h"
++#include "solver_set.h"
++#include "physics_world.h"
++
++#include <string.h>
++
+ // One sub-test per joint type. Each creates the joint, exercises the shared
+ // b3Joint_* API plus every type-specific accessor, then steps to make sure the
+ // joint solves without tripping a validation assert.
+@@ -723,8 +731,146 @@ static int TestCreateJointClearsContacts( void )
+ 	return 0;
+ }
+ 
++// Wide spherical joint equivalence: the wide solver (four joints per wide
++// constraint, lane = whole joint) must be bit-identical to the scalar solver.
++// Builds a world with four spherical joints on disjoint bodies, steps once to
++// prepare, then runs the scalar and wide warm-start/solve on identical
++// snapshots and compares every impulse and body delta byte for byte. Joints
++// cover soft constraints, cone/twist limits, motors, and an asteroid-scale
++// mass regression (a body whose inverse mass is the smallest representable).
++static int TestWideSphericalJointEquivalence( void )
++{
++	b3WorldDef worldDef = b3DefaultWorldDef();
++	worldDef.gravity = b3Vec3_zero;
++	b3WorldId worldId = b3CreateWorld( &worldDef );
++
++	// Eight disjoint dynamic bodies, two per joint.
++	b3BodyId bodyIds[8];
++	for ( int i = 0; i < 8; ++i )
++	{
++		b3BodyDef bodyDef = b3DefaultBodyDef();
++		bodyDef.type = b3_dynamicBody;
++		bodyDef.position = (b3Pos){ b3FixFromInt( i * 3 ), B3_FIX( 4.0f ), B3_FIX( 0.0f ) };
++		bodyIds[i] = b3CreateBody( worldId, &bodyDef );
++
++		b3ShapeDef shapeDef = b3DefaultShapeDef();
++		shapeDef.density = B3_FIX( 1.0f );
++		b3BoxHull box = b3MakeCubeHull( B3_FIX( 0.5f ) );
++		b3CreateHullShape( bodyIds[i], &shapeDef, &box.base );
++	}
++
++	// Asteroid-scale mass regression: the largest mass whose inverse mass is
++	// representable (65536 units), so invMass is one raw ulp.
++	b3MassData massData = { b3FixFromInt( 65536 ), b3Vec3_zero, b3Mat3_zero };
++	b3Body_SetMassData( bodyIds[6], massData );
++
++	// Four spherical joints with varied features.
++	b3JointId jointIds[4];
++	for ( int j = 0; j < 4; ++j )
++	{
++		b3SphericalJointDef def = b3DefaultSphericalJointDef();
++		def.base.bodyIdA = bodyIds[2 * j];
++		def.base.bodyIdB = bodyIds[2 * j + 1];
++		def.base.localFrameA.p = (b3Vec3){ B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
++		def.base.localFrameB.p = (b3Vec3){ B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
++		def.hertz = B3_FIX( 5.0f );
++		def.dampingRatio = B3_FIX( 0.5f );
++		def.enableSpring = ( j & 1 ) != 0;
++		def.enableMotor = ( j & 2 ) != 0;
++		def.enableConeLimit = ( j & 1 ) != 0;
++		def.enableTwistLimit = ( j & 2 ) != 0;
++		def.coneAngle = B3_FIX( 0.5f );
++		def.lowerTwistAngle = -B3_FIX( 0.5f );
++		def.upperTwistAngle = B3_FIX( 0.5f );
++		def.motorVelocity = (b3Vec3){ B3_FIX( 0.1f ), B3_FIX( 0.2f ), B3_FIX( 0.3f ) };
++		def.maxMotorTorque = B3_FIX( 50.0f );
++		jointIds[j] = b3CreateSphericalJoint( worldId, &def );
++	}
++
++	// Give the bodies some velocity so the solve has nonzero error to correct.
++	for ( int i = 0; i < 8; ++i )
++	{
++		b3Body_SetLinearVelocity( bodyIds[i], (b3Vec3){ B3_FIX( 0.5f ), -B3_FIX( 0.25f ), B3_FIX( 0.1f ) } );
++		b3Body_SetAngularVelocity( bodyIds[i], (b3Vec3){ B3_FIX( 0.2f ), B3_FIX( 0.1f ), -B3_FIX( 0.3f ) } );
++	}
++
++	// Step once to prepare the joints and populate the graph.
++	b3Fixed timeStep = b3FixDiv( B3_FIX( 1.0f ), B3_FIX( 60.0f ) );
++	b3World_Step( worldId, timeStep, 4 );
++
++	b3World* world = b3GetWorld( worldId.index1 - 1 );
++
++	// Gather the four joint sims and their body states.
++	b3JointSim* joints[4];
++	for ( int j = 0; j < 4; ++j )
++	{
++		b3Joint* joint = b3GetJointFullId( world, jointIds[j] );
++		joints[j] = b3GetJointSim( world, joint );
++	}
++
++	b3SolverSet* awakeSet = b3Array_Get( world->solverSets, b3_awakeSet );
++	b3BodyState* states = awakeSet->bodyStates.data;
++
++	// Snapshot the joints and the body states they touch.
++	b3JointSim jointCopy[4];
++	b3BodyState stateCopy[8];
++	memcpy( jointCopy, joints[0], 4 * sizeof( b3JointSim ) );
++	for ( int j = 0; j < 4; ++j )
++	{
++		int indexA = joints[j]->sphericalJoint.indexA;
++		int indexB = joints[j]->sphericalJoint.indexB;
++		stateCopy[2 * j] = states[indexA];
++		stateCopy[2 * j + 1] = states[indexB];
++	}
++
++	// Build a minimal step context for the direct solver calls.
++	b3StepContext context = { 0 };
++	context.h = b3FixDiv( timeStep, b3FixFromInt( 4 ) );
++	context.inv_h = b3FixDiv( B3_FIX( 1.0f ), context.h );
++	context.positionGeneration = 1;
++	context.states = states;
++	context.enableWarmStarting = true;
++
++	// Scalar reference: warm start + solve each joint in turn against the live
++	// states.
++	context.states = states;
++	for ( int j = 0; j < 4; ++j )
++	{
++		b3WarmStartSphericalJoint( joints[j], &context );
++		b3SolveSphericalJoint( joints[j], &context, true );
++	}
++
++	// Wide path: warm start + solve all four joints as one wide constraint
++	// against the snapshot states.
++	context.states = stateCopy;
++	b3WarmStartSphericalJointWide( jointCopy, &context );
++	b3SolveSphericalJointWide( jointCopy, &context, true );
++
++	// Compare every joint impulse and body delta byte for byte.
++	for ( int j = 0; j < 4; ++j )
++	{
++		b3SphericalJoint* a = &joints[j]->sphericalJoint;
++		b3SphericalJoint* b = &jointCopy[j].sphericalJoint;
++		ENSURE( a->linearImpulse.x == b->linearImpulse.x && a->linearImpulse.y == b->linearImpulse.y && a->linearImpulse.z == b->linearImpulse.z );
++		ENSURE( a->springImpulse.x == b->springImpulse.x && a->springImpulse.y == b->springImpulse.y && a->springImpulse.z == b->springImpulse.z );
++		ENSURE( a->motorImpulse.x == b->motorImpulse.x && a->motorImpulse.y == b->motorImpulse.y && a->motorImpulse.z == b->motorImpulse.z );
++		ENSURE( a->lowerTwistImpulse == b->lowerTwistImpulse );
++		ENSURE( a->upperTwistImpulse == b->upperTwistImpulse );
++		ENSURE( a->swingImpulse == b->swingImpulse );
++
++		int indexA = joints[j]->sphericalJoint.indexA;
++		int indexB = joints[j]->sphericalJoint.indexB;
++		ENSURE( memcmp( &states[indexA], &stateCopy[2 * j], sizeof( b3BodyState ) ) == 0 );
++		ENSURE( memcmp( &states[indexB], &stateCopy[2 * j + 1], sizeof( b3BodyState ) ) == 0 );
++	}
++
++	b3DestroyWorld( worldId );
++	return 0;
++}
++
+ int JointTest( void )
+ {
++	RUN_SUBTEST( TestWideSphericalJointEquivalence );
+ 	RUN_SUBTEST( TestCreateJointClearsContacts );
+ 	RUN_SUBTEST( TestJointInverseScaleCorrection );
+ 	RUN_SUBTEST( TestParallelJoint );
