@@ -99,6 +99,55 @@ The PORT RECORDs below run newest first and are the detail for each step.
   compound directive and those files are outside this card's paths, so the compound
   recording path is covered red-first by `CorruptCompound` and a `shape <body> compound`
   vocabulary extension is proposed, not committed. Everything the card names is done.
+- **PORT RECORD 954cf87 hull2d manifold reduction + a2e4816 speculative margin
+  and recycle fixes (2026-10-15) — one block card.** **(1) the 2D hull manifold
+  reduction** (`b3Hull2D`, `b3SimplifyHull2D`, box3d 954cf87) for
+  `B3_MAX_MANIFOLD_POINTS > 4`: `b3Hull2D` (Andrew's monotone chain) and
+  `b3SimplifyHull2D` (drop the vertices contributing the least area) are now
+  always compiled and non-static, declared in `src/manifold.h` as
+  `b3HullPoint2D` (a distinct name because `mesh_contact.c` keeps its own local
+  `b3Point2D`, which is outside this card's PATHS). The `>4` `b3ReduceManifoldPoints`
+  builds the 2D hull of the clipped polygon and simplifies to the target; the
+  default cap-4 fast path is unchanged. `b3GetMaxManifoldPoints()` is already declared in
+  `base.h` and defined in `core.c`. The obsolete cap-4-only assertion in
+  `core.c` was removed once the cap-8 box-face test compiled and passed. Hull
+  cross products, weld distances, and slop-area tolerances use raw 128-bit
+  products so sub-resolution products do not vanish. A 50-contact seeded
+  cap-4 hash stays `0x59A27095` on unchanged base and this port.
+  **Cap-8 extrema correction after independent review:** an interior deepest
+  candidate used to evict the first equally shallow hull vertex, even if it
+  was the unique min/max coordinate. The wide selector now protects one
+  survivor at each projected min/max x/y; the area simplifier also protects
+  those four coordinate extrema before selecting a low-area vertex. Synthetic
+  `Hull2DDeepestExtremeTest` and `Hull2DExtremaSimplifyTest` each failed before
+  the correction and pass afterward. If all survivors are protected at a full
+  cap, the selector retains the extrema, since an additional deepest point
+  cannot fit without removing one. **(2) the speculative margin
+  and recycle fixes** (a2e4816, "Fixes for #175 (#187)"): sphere/capsule manifolds
+  report a pair inside `B3_SPECULATIVE_DISTANCE` (the closed-form routines now test
+  `totalRadius + B3_SPECULATIVE_DISTANCE`), the recycle flag is set only when both
+  bodies enable recycling AND speculative points are on, and a freed manifold
+  invalidates the recycling cache (`b3_relativeTransformValid`). GOLDENS MOVED
+  (a2e4816 is solver-affecting, measured after merging this block with the
+  current sprint base): `WAVE_PILE_SLEEP_STEP` is 335, wave-pile hashes narrow
+  `0x64609ED9` / ludicrous `0x22E6F859`; query-spawn hashes narrow
+  `0x250D3BFA` / ludicrous `0xC3538B7A`. Mesh-drop goldens stay unchanged.
+  Both modes reproduced the values for workers 1-5 on two independent runs.
+  TESTS: `Hull2DReductionTest` and
+  `SimplifyHull2DTest` (directly exercise the always-compiled hull/simplify
+  routines: interior points dropped, collinear collapse, weld, order independence,
+  target simplification, no-op), `MaxPointCountTest` (`b3GetMaxManifoldPoints`
+  matches `sizeof(b3Manifold.points)`), `SpeculativeMarginTest` (every manifold
+  routine reports a pair inside the speculative distance and nothing beyond it),
+  and three world recycle tests (`RecycledSphereApproachTest`,
+  `PreSolveRejectRecycleTest`, `SpeculativeOffRecycleTest`), plus zero-dt contact
+  events, degenerate/welded hulls, and cap-8 box-face clipping. Reference scenes
+  `ref-954cf87-manifold-points.scene`, `ref-a2e4816-speculative-sphere-sphere.scene`,
+  `ref-a2e4816-recycle-off-when-speculative-off.scene`, `ref-a2e4816-zero-dt.scene`
+  pass individually with measured twice-maximum tolerances against float
+  box3d at their respective commits. The current reference harness traces
+  body states and contact counts, not contact point positions/separations or
+  recycle flags; a separate reference-harness card owns those observables.
 
 - **PORT RECORD 954cf87 ragdoll human (2026-10-15) — the re-rig only, not the
   engine half of Fixes (#157).** `shared/human.c` now authors the 954cf87 rig in

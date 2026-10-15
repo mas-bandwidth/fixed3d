@@ -50,12 +50,6 @@
 
 _Static_assert( B3_MAX_MANIFOLD_POINTS >= 4, "B3_MAX_MANIFOLD_POINTS must be at least 4" );
 
-// Upstream box3d switches to a 2D hull plus area based simplification above 4 points.
-// That path is not carried in this fork yet, so refuse the override rather than quietly
-// returning four points from a build that asked for more.
-_Static_assert( B3_MAX_MANIFOLD_POINTS == 4,
-				"B3_MAX_MANIFOLD_POINTS > 4 needs the 2D hull reduction path, which fixed3d has not ported" );
-
 // This allows the user to change the length units at runtime
 static b3Fixed b3_lengthUnitsPerMeter = B3_FIX( 1.0f );
 
