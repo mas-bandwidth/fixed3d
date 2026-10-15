@@ -183,6 +183,12 @@ if(PROJECT_IS_TOP_LEVEL)
 	option(BOX3D_DOCS "Build the Fixed3D documentation" OFF)
 	option(BOX3D_UNIT_TESTS "Build the Fixed3D unit tests" ON)
 
+	# The float box3d reference harness: runs one scenario through vanilla float
+	# box3d (the reference, fetched at BOX3D_REFERENCE_REV) and through fixed3d and
+	# compares the results inside a documented tolerance. OFF by default so no
+	# existing build or CI leg changes.
+	option(BOX3D_REFERENCE "Build the float box3d reference harness" OFF)
+
 	# Enable this for shader development using sokol-shdc.
 	# This can be a large download, so this is disabled by default.
 	option(BOX3D_BUILD_SHADERS "Recompile shaders with sokol-shdc" OFF)
@@ -195,7 +201,7 @@ if(PROJECT_IS_TOP_LEVEL)
 	if(NOT BUILD_SHARED_LIBS AND BOX3D_UNIT_TESTS)
 		message(STATUS "Adding Fixed3D unit tests")
 		add_subdirectory(test)
-		set_target_properties(test PROPERTIES XCODE_GENERATE_SCHEME TRUE)
+		set_target_properties(box3d_test PROPERTIES XCODE_GENERATE_SCHEME TRUE)
 	else()
 		message(STATUS "Skipping Fixed3D unit tests")
 	endif()
@@ -217,6 +223,11 @@ if(PROJECT_IS_TOP_LEVEL)
 	if(BOX3D_BENCHMARKS)
 		add_subdirectory(benchmark)
 		set_target_properties(benchmark PROPERTIES XCODE_GENERATE_SCHEME TRUE)
+	endif()
+
+	if(BOX3D_REFERENCE)
+		enable_testing()
+		add_subdirectory(tools/reference)
 	endif()
 
 	if(BOX3D_DOCS)

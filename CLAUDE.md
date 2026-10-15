@@ -54,6 +54,50 @@ and says *closed*. Record below.)*
 
 The PORT RECORDs below run newest first and are the detail for each step.
 
+- **REFERENCE HARNESS (fixed3d-box3d-reference-harness, 2026-10-14) — the float box3d
+  reference harness.** New `tools/reference/` runs one scenario through vanilla float
+  box3d (the reference, fetched at `BOX3D_REFERENCE_REV=47d7f7c` via ExternalProject
+  into `~/.cache/fixed3d-reference/<sha>`) and through fixed3d and compares the traces
+  inside a documented tolerance. OFF by default (`BOX3D_REFERENCE=OFF`); registered as
+  `ctest -L reference`. `tools/reference/README.md` documents the scene vocabulary, the
+  trace format, and the measured-error table, and is enough to add a scene cold. **Two
+  build-tree changes worth knowing:** (1) the unit-test target was RENAMED `test` ->
+  `box3d_test` (binary still `./bin/test` via `OUTPUT_NAME test`) because CTest reserves
+  the target name `test`; anything that addressed the `test` TARGET must now address
+  `box3d_test`, while `./bin/test` and the CI legs are unchanged. `test/main.c` is
+  not edited (outside the card PATHS): `test/CMakeLists.txt` compiles it with
+  `-Dmain=box3d_real_main` and `test_reference_scene.c` supplies `main`, so
+  `./bin/test ReferenceSceneParseTest` still runs the suite. (2) the reference tests
+  call `enable_testing()` at the top level only when `BOX3D_REFERENCE=ON`, so a default
+  configure still builds exactly as before. The harness keeps floats strictly at the
+  sanctioned boundary: `run_fixed.c` crosses decimals with `b3FixFromDouble`, `run_float.c`
+  and `ref_scene.c` are float/double by construction (engine-free parser). No `src/` or
+  `include/` change. **RESUME (g4.e21, 2026-10-15): the harness now runs the generator-form
+  scene the adec25b card landed for the glob.** `ref-9f998c8-complex-hull.scene` parses
+  through new vocabulary (`scene` name line, `hull_generator complex <seed>` expanded
+  engine-free in double from the documented LCG so both engines share ONE point list,
+  `body hull|box half ...` with corpus material defaults, `steps n dt num/den substeps n`
+  with default gravity 0 -10 0, and `expect contactCount|restingY <op> <value>` predicate
+  lines); the drivers emit a per-step `low <i> <y>` resting-height line in predicate mode
+  only, and the comparer gates on the predicates plus equal final contact count plus
+  resting height within `B3_REF_RESTING_Y_TOLERANCE` 0.05 (the landing card's stated
+  tolerance). MEASURED (both engines, this bench): resting height fixed 3.05e-5 vs float
+  9.15e-6, delta 2.1e-5 (2x = 4.3e-5, far inside the stated 0.05); final contact count 1
+  in both; the adec25b "stated, not measured" tolerance is now measured and holds.
+  **A latent comparer bug found red-first by the predicate mode:** the trace parser
+  dropped the `step <n> counters <c> <a> <j>` tail after consuming `step <n>`, so every
+  counter comparison in every scene passed VACUOUSLY (0 vs 0) — the seed scenes' "counts
+  exact" was never actually tested. With the tail parsed, contact and joint counts hold
+  exact everywhere and only the AWAKE count diverges (sleep timing: one engine's island
+  sleeps a few steps earlier), measured 1/5/10/1 awake for box_settle/box_stack/
+  box_pyramid/hull_drop, rest exact; those four headers now state `counts <2x measured>`
+  (2/10/20/2) per the README policy. Perturbation evidence (a pass never seen failing is
+  evidence about the runner): gravity x1.01 in a throwaway run_fixed fails box_settle at
+  step 6 (quantity vel); B3_REF_RESTING_Y_TOLERANCE neutered to 1e-5 fails the
+  complex-hull scene at delta 2.1e-5; the pre-fix counters bug failed hull_drop at
+  step 60 (quantity counters). `ref_add_scene(name rev)` now carries the per-scene
+  reference revision the contract states.
+
 ## Current status (as of 2026-08-31 — v1.4.0, MAINTENANCE MODE)
 
 - **PORT RECORD adec25b + 9f998c8 "SAT set, the portable pieces" (2026-10-14) —
@@ -87,7 +131,9 @@ The PORT RECORDs below run newest first and are the detail for each step.
   (complex hull dropped on a ground box, 120 steps at fixed dt=1/60, no wall clock), but
   the reference harness (`tools/reference/`, card fixed3d-box3d-reference-harness) is
   absent at this base, so `ctest -L reference` could not run and its tolerance is stated,
-  not measured; the run is not-done until the harness lands.
+  not measured; the run is not-done until the harness lands. *(~~DISCHARGED 2026-10-15 by
+  the harness resume above~~ — the harness landed and MEASURED the scene: `ctest -L reference` runs it green, resting-height delta 2.1e-5 against the stated 0.05, final
+  contact count 1 in both engines.)*
 
 - **PORT RECORD 47d7f7c "clockwise option, joint is awake (#130)" (2026-08-29) —
   PORTED in seven steps, 2026-08-31.** 2,466 upstream insertions; the whole engine
