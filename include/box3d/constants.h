@@ -144,7 +144,7 @@ B3_API b3Fixed b3GetStallThreshold( void );
 /// Increase this if your application needs more accurate restitution. Doing so will
 /// slow down the simulation. Must be 1 or more.
 #ifndef B3_RESTITUTION_ITERATIONS
-#define B3_RESTITUTION_ITERATIONS 1
+#define B3_RESTITUTION_ITERATIONS 2
 #endif
 
 /// The maximum number of restitution iterations. Needed to avoid a solver overflow.

@@ -2234,6 +2234,22 @@ new sample code — keep them clean.
 
 ## Known leftovers / follow-ups
 
+- **79fc559 restitution port (2026-10-15):** The world definition now owns
+  `restitutionIterations`; its default is 2, matching upstream 79fc559. The
+  restored post-solve stage uses raw-128 normal-speed products and a gated
+  kinetic cap, with scalar and wide lanes sharing the same fixed-point rules.
+  Snapshot wire version 4 preserves the existing version-3 `safetyFactor`
+  layout and adds the restitution setting; recording minor 8 follows the
+  broad-phase card's minor 7. Version-3 snapshots are refused by the existing
+  exact-version policy. The 79fc559 bounce and pile reference scenes pin two
+  sweeps in both engines; their trace tolerances are twice the measured
+  maximum differences. Six upstream restitution-battery assertions already
+  fail on clean fixed3d BASE and are marked XFAIL individually, with XPASS a
+  failure; the original bounds remain intact. The follow-up card is
+  "baseline contact and integration energy floor matches upstream". A hard
+  default-elastic-energy comparison against BASE remains in the suite so the
+  configured default cannot silently regress while that floor is repaired.
+
 - ~~Quickhull iteration guard~~ DONE (bug-hunt pass): the builder has a
   `failed` flag, bounded ring walks in ConnectFaces/merge loops, release-safe
   pool allocators, and `b3FindFarthestPointFromLine` no longer divides by a

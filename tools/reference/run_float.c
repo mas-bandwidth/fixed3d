@@ -189,6 +189,10 @@ int main( int argc, char** argv )
 
 	b3WorldDef worldDef = b3DefaultWorldDef();
 	worldDef.gravity = vecFromDouble( scene.world.gravity );
+	if ( scene.world.restitutionIterations > 0 )
+	{
+		worldDef.restitutionIterations = scene.world.restitutionIterations;
+	}
 	b3WorldId worldId = b3CreateWorld( &worldDef );
 
 	b3BodyId bodies[B3_REF_MAX_BODIES];

@@ -1051,7 +1051,7 @@ void b3StoreImpulses_Mesh( b3SolverBlock block, b3StepContext* context, int work
 					b3ManifoldPoint* mp = manifold->points + pointIndex;
 					mp->normalImpulse = cp->normalImpulse;
 					mp->totalNormalImpulse = cp->totalNormalImpulse;
-					mp->normalVelocity = cp->relativeVelocity;
+					mp->normalVelocity = checkHitEvents ? cp->relativeVelocity : B3_FIX( 0.0f );
 
 					if ( checkHitEvents && flagged == false &&
 						 mp->normalVelocity < negHitThreshold && mp->totalNormalImpulse > B3_FIX( 0.0f ) )
@@ -3814,6 +3814,8 @@ void b3StoreImpulses_Convex( b3SolverBlock block, b3StepContext* context, int wo
 					rollingImpulseZ[lane],
 				};
 
+				int contactId = contactIds[contactIndex];
+				b3Contact* contact = b3Array_Get( world->contacts, contactId );
 				int pointCount = m->pointCount;
 				for ( int pointIndex = 0; pointIndex < pointCount; ++pointIndex )
 				{
@@ -3825,11 +3827,9 @@ void b3StoreImpulses_Convex( b3SolverBlock block, b3StepContext* context, int wo
 					b3ManifoldPoint* mp = m->points + pointIndex;
 					mp->normalImpulse = normalImpulse[lane];
 					mp->totalNormalImpulse = totalNormalImpulse[lane];
-					mp->normalVelocity = normalVelocity[lane];
+					mp->normalVelocity = ( contact->flags & b3_simEnableHitEvent ) != 0 ? normalVelocity[lane] : B3_FIX( 0.0f );
 				}
 
-				int contactId = contactIds[contactIndex];
-				b3Contact* contact = b3Array_Get( world->contacts, contactId );
 				if ( ( contact->flags & b3_simEnableHitEvent ) != 0 )
 				{
 					for ( int k = 0; k < pointCount; ++k )
@@ -4663,7 +4663,7 @@ void b3StoreImpulses_MeshWide( b3SolverBlock block, b3StepContext* context, int 
 						b3ManifoldPoint* mp = manifold->points + pointIndex;
 						mp->normalImpulse = ( (const b3Fixed*)&cp->normalImpulse )[lane];
 						mp->totalNormalImpulse = ( (const b3Fixed*)&cp->totalNormalImpulse )[lane];
-						mp->normalVelocity = ( (const b3Fixed*)&cp->relativeVelocity )[lane];
+						mp->normalVelocity = checkHitEvents ? ( (const b3Fixed*)&cp->relativeVelocity )[lane] : B3_FIX( 0.0f );
 
 						if ( checkHitEvents && flagged == false && mp->normalVelocity < negHitThreshold &&
 							 mp->totalNormalImpulse > B3_FIX( 0.0f ) )
