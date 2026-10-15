@@ -1,5 +1,31 @@
 # VERDICT: LEARNED
 
+## Attempt 3 (this run): blocked by the environment, no new measurement
+
+Attempt 3 was staged on a macOS host (darwin x86_64, Apple clang 17), not the
+AVX-512 Linux bench this card names. The card's TOOLCHAIN line requires an
+AVX-512 bench (`grep -o -w -E 'avx2|avx512f|...' /proc/cpuinfo`), and the
+ACCEPTANCE gate (1) MEASURED and (2) BIT-EXACT both run on that bench. This
+host has no AVX-512 ISA (Intel x86_64 Mac; `clang -mavx512f` can *target* the
+instructions but there is no hardware to run them), and the bench is not
+reachable: `ssh space` fails with "Could not resolve hostname", no other bench
+hostname is configured, and the sandbox denies reads of `~/.ssh/config` and
+`/etc/hosts`. So the AVX-512 lane math could not be landed, compiled-and-run,
+or verified bit-exact this attempt, and no A/B or oracle run is possible.
+
+What this attempt did verify, cheaply and without the bench: the carried work
+of attempt 2 is intact at this HEAD (the finding, `experiment.patch`, and
+`raw.txt` are all present and the patch still applies cleanly to the base), and
+the base tree is unchanged in `src/`/`test/` (the wide symbols and the
+`WideSphericalJointEquivalenceTest` exist only inside `experiment.patch`, as
+the DELIVERY rule requires). Nothing in `src/`, `include/`, `shared/` or
+`test/` was edited.
+
+The blocker is not the code and not the design: it is that this attempt ran on
+the wrong machine. A future attempt that lands on the AVX-512 bench (AMD Ryzen
+7 PRO 8700GE, Zen 4, avx2/avx512f/dq/vl/ifma, gcc 13.3.0) can pick up the
+"what to try next" below unchanged.
+
 ## Hypothesis
 
 joint_grid is 2.34x float and the contact solver is already wide under AVX-512, but
