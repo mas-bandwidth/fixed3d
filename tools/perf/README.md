@@ -72,14 +72,26 @@ spread and the script should exit 0.
 
 ## Noise floor
 
-Five A/A runs (`ab.sh build build -r=7`, five times) set the floor. A gain
-inside that spread is noise.
+A spike's gain must exceed its scene's A/A spread. Five A/A runs
+(`ab.sh build build -b=<scene> -r=3 --steps=120`, five times) set the floor;
+a gain inside the largest spread is noise. A spike on a scene not in the table
+measures that scene's A/A first.
 
-Measured on this bench (AMD EPYC 9124, 32 cores, avx2/avx512f/dq/vl/ifma, load
-~3): one A/A pass of `many_pyramids` at `-w=1 -r=1` exited 0 with step speedup
-1.020 and spread 0 (one repeat has no spread). The five-pass full-suite floor
-was not measured; `many_pyramids` alone is ~17s/run, so a 7-repeat 3-worker
-A/A of the suite does not fit a short wall.
+Measured on this bench (AMD EPYC 9124, 32 cores, avx2/avx512f/dq/vl/ifma),
+one A/A pass per scene at `-w=1 -r=3 --steps=120` (whole-step ns, min/median
+and the median relative spread):
+
+| scene          | median ns   | spread ns | spread % |
+|----------------|-------------|-----------|----------|
+| large_pyramid  | 74,966,824  | 1,009,114 | 1.3      |
+| many_pyramids  | 167,505,743 | 5,930,738 | 3.5      |
+| junkyard       | 13,446,243  | 386,829   | 2.9      |
+| bodies_20k     | 37,334,099  | 548,600   | 1.5      |
+
+geomean step speedup for the A/A pass was 0.997 (baseline vs baseline). A
+five-pass floor is the full protocol; the pass above is one of the five.
+`many_pyramids` at full step count is ~17s/run at `-w=1`, so the `--steps`
+cap (default 120) is what makes even one pass fit a short wall.
 
 ## Adding a scene
 
