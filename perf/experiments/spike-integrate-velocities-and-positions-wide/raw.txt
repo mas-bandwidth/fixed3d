@@ -1,21 +1,45 @@
-# raw measurement output — spike-integrate-velocities-and-positions-wide
+# raw measurement output — spike-integrate-velocities-and-positions-wide (attempt 2)
 
-No measurement was produced on this attempt. Every tool the ACCEPTANCE
-gate routes through is absent or off-limits:
+## cpu_info.sh
 
-- cpu_info.sh:    absent (no tools/perf/, fixed3d-perf-harness not landed)
-- ab.sh:          absent (same)
-- oracle_check.sh: absent (same)
+== CPU model ==
+model name	: AMD Ryzen Threadripper 2990WX 32-Core Processor
+== ISA flags ==
+avx2
+== cores ==
+64
+== CPU pinning ==
+pid 2373768's current affinity list: 0-63
+== Load average ==
+1.83 1.37 1.06 4/1510 2373777
+== Compiler ==
+cc (Ubuntu 15.2.0-16ubuntu1) 15.2.0
+c++ (Ubuntu 15.2.0-16ubuntu1) 15.2.0
+== cmake ==
+cmake version 4.2.3
+== cmake flags ==
+cmake -B build -DCMAKE_BUILD_TYPE=RelWithDebInfo -DBOX3D_SAMPLES=OFF -DBOX3D_VALIDATE=ON -DCMAKE_COMPILE_WARNING_AS_ERROR=ON -DBOX3D_BENCHMARKS=ON
 
-Host actually available this attempt (NOT the bench the card requires):
+## Phase fractions (scalar build, -w=1 -r=1 --steps=120 --phases-json)
 
-  CPU:        Intel(R) Xeon(R) W-2191B CPU @ 2.30GHz (Skylake-X)
-  Platform:   Darwin x86_64 (the working Mac)
-  ISA flags:  AVX1.0, AVX2, AVX512F, AVX512DQ, AVX512CD, AVX512BW, AVX512VL
-              (machdep.cpu.features / leaf7_features)
-  Compiler:   Apple clang 17.0.0 (x86_64-apple-darwin24.6.0)
+bodies_20k (timed_steps 99):
+  integrateVelocities  median_ns 19701026   (37.0% of step 53249778)
+  integratePositions   median_ns  4926845   ( 9.25% of step)
+  step                 median_ns 53249778
 
-The card's TOOLCHAIN forbids benching on the working Mac, and the harness
-(DEPENDS-ON fixed3d-perf-harness) has not landed, so there are no
-before/after tables, no oracle hashes, and no 7-repeat interleaved A/B runs
-to record. Verdict is therefore LEARNED (not measured); see the finding.
+rain (timed_steps 119):
+  integrateVelocities  median_ns   737637   ( 8.28% of step 8910118)
+  integratePositions   median_ns   252191   ( 2.83% of step)
+  step                 median_ns  8910118
+
+many_pyramids (timed_steps 99):
+  integrateVelocities  median_ns  9584408   ( 5.13% of step 187003696)
+  integratePositions   median_ns  2699267   ( 1.44% of step)
+  step                 median_ns 187003696
+
+## ab.sh / oracle_check.sh
+
+Not run. The card's KEEP rule and premise are AVX-512; this bench is AVX2-only
+(no avx512f/dq/vl), so BOX3D_AVX512 cannot build or run here and there is no
+candidate binary to A/B or oracle-diff. The scalar ./bin/test is green
+(5.67 s, "All Fixed3D tests passed!").

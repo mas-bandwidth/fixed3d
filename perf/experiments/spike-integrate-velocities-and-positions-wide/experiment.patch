@@ -1,11 +1,14 @@
-# experiment.patch — spike-integrate-velocities-and-positions-wide
+# experiment.patch — spike-integrate-velocities-and-positions-wide (attempt 2)
 #
-# No code experiment was run this attempt: the measurement gate requires
-# the AVX-512 Linux bench and the fixed3d-perf-harness (DEPENDS-ON), neither
-# of which is present. There is no diff to apply; the patch is intentionally
-# empty. The finding (perf/findings/...) records the analysis and the verdict
-# (LEARNED, not measured).
+# No code experiment was run this attempt: the wide port is AVX-512-only
+# (BOX3D_AVX512, AVX-512VL 256-bit integer ops) and this bench is AVX2-only
+# (AMD Ryzen Threadripper 2990WX, Zen+; no avx512f/dq/vl), so the wide path
+# cannot be built or run here. There is no diff to apply; the patch is
+# intentionally empty. The finding records the phase measurement (the phases
+# are NOT sub-5%: integrateVelocities is 37% of bodies_20k) and the verdict
+# (LEARNED, not wide-ified).
 #
-# A future attempt that runs the experiment will write `git diff BASE` here
-# and it must apply cleanly with `git apply` on BASE, including the
-# IntegrateWideEquivalenceTest and its test/CMakeLists.txt registration.
+# A future attempt on the AVX-512 bench that runs the experiment will write
+# `git diff BASE` here and it must apply cleanly with `git apply` on BASE,
+# including the IntegrateWideEquivalenceTest and its test/CMakeLists.txt
+# registration.
