@@ -1,14 +1,789 @@
-# experiment.patch — spike-integrate-velocities-and-positions-wide (attempt 2)
-#
-# No code experiment was run this attempt: the wide port is AVX-512-only
-# (BOX3D_AVX512, AVX-512VL 256-bit integer ops) and this bench is AVX2-only
-# (AMD Ryzen Threadripper 2990WX, Zen+; no avx512f/dq/vl), so the wide path
-# cannot be built or run here. There is no diff to apply; the patch is
-# intentionally empty. The finding records the phase measurement (the phases
-# are NOT sub-5%: integrateVelocities is 37% of bodies_20k) and the verdict
-# (LEARNED, not wide-ified).
-#
-# A future attempt on the AVX-512 bench that runs the experiment will write
-# `git diff BASE` here and it must apply cleanly with `git apply` on BASE,
-# including the IntegrateWideEquivalenceTest and its test/CMakeLists.txt
-# registration.
+diff --git a/src/solver.c b/src/solver.c
+index 7e76603..1763ef4 100644
+--- a/src/solver.c
++++ b/src/solver.c
+@@ -63,43 +63,237 @@ typedef struct b3WorkerContext
+ 	void* userTask;
+ } b3WorkerContext;
+ 
+-// Integrate velocities, apply damping, and gyroscopic torque
+-static void b3IntegrateVelocitiesTask( b3SolverBlock block, b3StepContext* context )
++// Integrate velocities, apply damping, and gyroscopic torque: one body. The scalar
++// control for the wide path below and the whole path on non-AVX-512 builds.
++static inline void b3IntegrateVelocityScalar( const b3BodySim* sim, b3BodyState* state, b3Vec3 gravity, b3Fixed h )
+ {
+-	b3TracyCZoneNC( integrate_velocity, "IntVel", b3_colorDeepPink, true );
++	b3Vec3 v = state->linearVelocity;
++	b3Vec3 w = state->angularVelocity;
++
++	// Damping math
++	// Differential equation: dv/dt + c * v = 0
++	// Solution: v(t) = v0 * exp(-c * t)
++	// Time step: v(t + dt) = v0 * exp(-c * (t + dt)) = v0 * exp(-c * t) * exp(-c * dt) = v(t) * exp(-c * dt)
++	// v2 = exp(-c * dt) * v1
++	// Pade approximation:
++	// v2 = v1 * 1 / (1 + c * dt)
++	b3Fixed linearDamping = b3FixDiv( B3_FIX( 1.0f ) , ( B3_FIX( 1.0f ) + b3FixMul( h , sim->linearDamping ) ) );
++	b3Fixed angularDamping = b3FixDiv( B3_FIX( 1.0f ) , ( B3_FIX( 1.0f ) + b3FixMul( h , sim->angularDamping ) ) );
++
++	// Gravity scale will be zero for kinematic bodies
++	b3Fixed gravityScale = sim->invMass > B3_FIX( 0.0f ) ? sim->gravityScale : B3_FIX( 0.0f );
++
++	// The force term crosses out of the inverse scale (invMass * force is a velocity);
++	// the gravity term never entered it. So they are formed separately rather than
++	// through b3Blend2, which would have to apply one shift to both.
++	b3Vec3 linearVelocityDelta =
++		b3Add( b3InvMulSV( b3FixMul( h, sim->invMass ), sim->force ), b3MulSV( b3FixMul( h, gravityScale ), gravity ) );
++	v = b3MulAdd( linearVelocityDelta, linearDamping, v );
++
++	b3Vec3 angularVelocityDelta = b3MulSV( h, b3InvMulMV( sim->invInertiaWorld, sim->torque ) );
++	w = b3MulAdd( angularVelocityDelta, angularDamping, w );
++
++	// Gyroscopic torque by solving this nonlinear equation using Newton-Raphson.
++	// I * (w2 - w1) + h * cross(w2, I * w2) = 0
++	// This is all done in local coordinates where the Jacobian is easier to compute.
++	// This improves the simulation of long skinny bodies.
++	{
++		// Get current rotation.
++		b3Quat q0 = sim->transform.q;
++		b3Quat q = b3MulQuat( state->deltaRotation, q0 );
++
++		// Cached when the mass data was set, because it cannot change between
++		// substeps: this was b3InvertMatrix( sim->invInertiaLocal ) here, nine
++		// 128-bit divisions per body per substep to recompute a constant.
++		b3Matrix3 inertiaLocal = sim->inertiaLocal;
++
++		// Compute local angular velocity
++		b3Vec3 omega1 = b3InvRotateVector( q, w );
++		b3Vec3 omega2 = omega1;
++
++		// Symmetric inertia tensor: 6 unique entries (column-major)
++		const b3Fixed i00 = inertiaLocal.cx.x;
++		const b3Fixed i01 = inertiaLocal.cy.x;
++		const b3Fixed i02 = inertiaLocal.cz.x;
++		const b3Fixed i11 = inertiaLocal.cy.y;
++		const b3Fixed i12 = inertiaLocal.cz.y;
++		const b3Fixed i22 = inertiaLocal.cz.z;
++
++		for ( int gyroIteration = 0; gyroIteration < B3_GYROSCOPIC_ITERATIONS; ++gyroIteration )
++		{
++			const b3Fixed w1 = omega2.x;
++			const b3Fixed w2 = omega2.y;
++			const b3Fixed w3 = omega2.z;
++
++			// Iw = I * omega2 (shared between residual and Jacobian)
++			const b3Fixed Iw1 = b3FixMul( i00 , w1 ) + b3FixMul( i01 , w2 ) + b3FixMul( i02 , w3 );
++			const b3Fixed Iw2 = b3FixMul( i01 , w1 ) + b3FixMul( i11 , w2 ) + b3FixMul( i12 , w3 );
++			const b3Fixed Iw3 = b3FixMul( i02 , w1 ) + b3FixMul( i12 , w2 ) + b3FixMul( i22 , w3 );
++
++			// Residual: b = I*(omega2 - omega1) + h * (omega2 × I*omega2)
++			const b3Vec3 dw = b3Sub( omega2, omega1 );
++			b3Vec3 b = {
++				b3FixMul( i00 , dw.x ) + b3FixMul( i01 , dw.y ) + b3FixMul( i02 , dw.z ) + b3FixMul( h , ( b3FixMul( w2 , Iw3 ) - b3FixMul( w3 , Iw2 ) ) ),
++				b3FixMul( i01 , dw.x ) + b3FixMul( i11 , dw.y ) + b3FixMul( i12 , dw.z ) + b3FixMul( h , ( b3FixMul( w3 , Iw1 ) - b3FixMul( w1 , Iw3 ) ) ),
++				b3FixMul( i02 , dw.x ) + b3FixMul( i12 , dw.y ) + b3FixMul( i22 , dw.z ) + b3FixMul( h , ( b3FixMul( w1 , Iw2 ) - b3FixMul( w2 , Iw1 ) ) ),
++			};
+ 
+-	B3_VALIDATE( block.startIndex + block.count <= context->world->solverSets.data[b3_awakeSet].bodyStates.count );
++			// Jacobian J = I + h * (skew(omega2) * I - skew(I*omega2))
++			// Jacobian derived by Erin Catto, Ph.D. Do not attempt to do this without a Ph.D.
++			// Doubled inertia terms above fold into Iw, e.g. row 2 col 1: i00*w3 - i02*w1 - Iw3.
++			b3Matrix3 J = {
++				{ i00 + b3FixMul( h , ( b3FixMul( w2 , i02 ) - b3FixMul( w3 , i01 ) ) ), i01 + b3FixMul( h , ( b3FixMul( w3 , i00 ) - b3FixMul( w1 , i02 ) - Iw3 ) ),
++				  i02 + b3FixMul( h , ( b3FixMul( w1 , i01 ) - b3FixMul( w2 , i00 ) + Iw2 ) ) },
++				{ i01 + b3FixMul( h , ( b3FixMul( w2 , i12 ) - b3FixMul( w3 , i11 ) + Iw3 ) ), i11 + b3FixMul( h , ( b3FixMul( w3 , i01 ) - b3FixMul( w1 , i12 ) ) ),
++				  i12 + b3FixMul( h , ( b3FixMul( w1 , i11 ) - b3FixMul( w2 , i01 ) - Iw1 ) ) },
++				{ i02 + b3FixMul( h , ( b3FixMul( w2 , i22 ) - b3FixMul( w3 , i12 ) - Iw2 ) ), i12 + b3FixMul( h , ( b3FixMul( w3 , i02 ) - b3FixMul( w1 , i22 ) + Iw1 ) ),
++				  i22 + b3FixMul( h , ( b3FixMul( w1 , i12 ) - b3FixMul( w2 , i02 ) ) ) },
++			};
++
++			omega2 = b3Sub( omega2, b3Solve3( J, b ) );
++		}
+ 
+-	b3BodyState* states = context->states;
+-	b3BodySim* sims = context->sims;
++		w = b3RotateVector( q, omega2 );
++	}
+ 
+-	b3Vec3 gravity = context->world->gravity;
+-	b3Fixed h = context->h;
++	state->linearVelocity = v;
++	state->angularVelocity = w;
++}
+ 
+-	for ( int i = block.startIndex; i < block.startIndex + block.count; ++i )
++static inline void b3IntegratePositionScalar( b3BodyState* state, b3Fixed h, b3Fixed maxLinearSpeed, b3Fixed maxAngularSpeed,
++											  b3Fixed maxLinearSpeedSquared, b3Fixed maxAngularSpeedSquared )
++{
++	b3Vec3 v = state->linearVelocity;
++	b3Vec3 w = state->angularVelocity;
++
++	// Motion locks - these can be viewed as a constraint that come last
++	v.x = ( state->flags & b3_lockLinearX ) ? B3_FIX( 0.0f ) : v.x;
++	v.y = ( state->flags & b3_lockLinearY ) ? B3_FIX( 0.0f ) : v.y;
++	v.z = ( state->flags & b3_lockLinearZ ) ? B3_FIX( 0.0f ) : v.z;
++	w.x = ( state->flags & b3_lockAngularX ) ? B3_FIX( 0.0f ) : w.x;
++	w.y = ( state->flags & b3_lockAngularY ) ? B3_FIX( 0.0f ) : w.y;
++	w.z = ( state->flags & b3_lockAngularZ ) ? B3_FIX( 0.0f ) : w.z;
++
++	// Clamp to max linear speed
++	if ( b3Dot( v, v ) > maxLinearSpeedSquared )
++	{
++		b3Fixed ratio = b3FixDiv( maxLinearSpeed , b3Length( v ) );
++		v = b3MulSV( ratio, v );
++		state->flags |= b3_isSpeedCapped;
++	}
++
++	// Clamp to max angular speed
++	if ( b3Dot( w, w ) > maxAngularSpeedSquared && ( state->flags & b3_allowFastRotation ) == 0 )
++	{
++		b3Fixed ratio = b3FixDiv( maxAngularSpeed , b3Length( w ) );
++		w = b3MulSV( ratio, w );
++		state->flags |= b3_isSpeedCapped;
++	}
++
++	state->linearVelocity = v;
++	state->angularVelocity = w;
++	state->deltaPosition = b3MulAdd( state->deltaPosition, h, v );
++	state->deltaRotation = b3IntegrateRotation( state->deltaRotation, b3MulSV( h, w ) );
++}
++
++#if defined( B3_SIMD_AVX512 )
++#include <immintrin.h>
++#endif
++
++#if defined( B3_SIMD_AVX512 )
++
++// ---- Wide integrate (spike-integrate-velocities-and-positions-wide) ----------------
++//
++// Four consecutive bodies per iteration, one body per 64-bit lane of a __m256i. Every
++// fixMul is b3IntegrateMulAVX, which is contact_solver.c's b3MulLanesAVX: the exact
++// product decomposition with the same single round-half-up, so each lane is the scalar
++// b3FixMul bit for bit. Adds and subtracts are 64-bit wrapping lane ops, which equal the
++// scalar integer adds. Everything that is not a plain fixMul chain stays per-lane
++// scalar: the damping divides, b3InvMulSV/b3InvMulMV (inverse scale), b3MulQuat (fused
++// raw-128), b3Solve3 (128-bit divides) and the whole position clamp/rotation step.
++// The do-not-fuse b3InvRotateVector/b3RotateVector are reproduced in their two-cross
++// form, one rounding per product, exactly as fixed_vec.h writes them.
++
++typedef struct b3Vec3AVX
++{
++	__m256i x, y, z;
++} b3Vec3AVX;
++
++static inline __m256i b3IntegrateMulAVX( __m256i a, __m256i b )
++{
++	__m256i bh = _mm256_srai_epi64( b, B3_FIXED_FRACTION_BITS );
++	__m256i bl = _mm256_and_si256( b, _mm256_set1_epi64x( 0xFFFF ) );
++	__m256i ahi = _mm256_srai_epi64( a, 32 );
++	__m256i t = _mm256_mullo_epi64( a, bh );
++	__m256i p1 = _mm256_mul_epu32( a, bl );
++	__m256i p2 = _mm256_mul_epi32( ahi, bl );
++	__m256i low = _mm256_srli_epi64( _mm256_add_epi64( p1, _mm256_set1_epi64x( B3_FIXED_HALF ) ), B3_FIXED_FRACTION_BITS );
++	return _mm256_add_epi64( t, _mm256_add_epi64( _mm256_slli_epi64( p2, B3_FIXED_FRACTION_BITS ), low ) );
++}
++
++#define B3_IMUL( a, b ) b3IntegrateMulAVX( ( a ), ( b ) )
++#define B3_IADD( a, b ) _mm256_add_epi64( ( a ), ( b ) )
++#define B3_ISUB( a, b ) _mm256_sub_epi64( ( a ), ( b ) )
++
++static inline __m256i b3LoadLanesAVX( const b3Fixed* lanes )
++{
++	return _mm256_loadu_si256( (const __m256i*)lanes );
++}
++
++// fixCross, one rounding per product
++static inline b3Vec3AVX b3CrossAVX( b3Vec3AVX a, b3Vec3AVX b )
++{
++	b3Vec3AVX c;
++	c.x = B3_ISUB( B3_IMUL( a.y, b.z ), B3_IMUL( a.z, b.y ) );
++	c.y = B3_ISUB( B3_IMUL( a.z, b.x ), B3_IMUL( a.x, b.z ) );
++	c.z = B3_ISUB( B3_IMUL( a.x, b.y ), B3_IMUL( a.y, b.x ) );
++	return c;
++}
++
++// fixRotateVector (sign = +1) and fixInvRotateVector (sign = -1), two-cross form
++static inline b3Vec3AVX b3RotateVectorAVX( b3Vec3AVX qv, __m256i qs, b3Vec3AVX v, bool inverse )
++{
++	b3Vec3AVX t1 = b3CrossAVX( qv, v );
++	b3Vec3AVX t2;
++	if ( inverse )
++	{
++		t2.x = B3_ISUB( t1.x, B3_IMUL( qs, v.x ) );
++		t2.y = B3_ISUB( t1.y, B3_IMUL( qs, v.y ) );
++		t2.z = B3_ISUB( t1.z, B3_IMUL( qs, v.z ) );
++	}
++	else
+ 	{
+-		b3BodySim* sim = sims + i;
+-		b3BodyState* state = states + i;
++		t2.x = B3_IADD( t1.x, B3_IMUL( qs, v.x ) );
++		t2.y = B3_IADD( t1.y, B3_IMUL( qs, v.y ) );
++		t2.z = B3_IADD( t1.z, B3_IMUL( qs, v.z ) );
++	}
++	b3Vec3AVX t3 = b3CrossAVX( qv, t2 );
++	__m256i two = _mm256_set1_epi64x( B3_FIX( 2.0f ) );
++	b3Vec3AVX r;
++	r.x = B3_IADD( v.x, B3_IMUL( two, t3.x ) );
++	r.y = B3_IADD( v.y, B3_IMUL( two, t3.y ) );
++	r.z = B3_IADD( v.z, B3_IMUL( two, t3.z ) );
++	return r;
++}
++
++// Four bodies starting at sims/states. Bit-identical per lane to b3IntegrateVelocityScalar.
++static void b3IntegrateVelocitiesWide4( const b3BodySim* sims, b3BodyState* states, b3Vec3 gravity, b3Fixed h )
++{
++	b3Fixed qx[4], qy[4], qz[4], qs[4], wx[4], wy[4], wz[4];
++	b3Fixed i00[4], i01[4], i02[4], i11[4], i12[4], i22[4];
++
++	// Per-lane scalar prelude: verbatim from b3IntegrateVelocityScalar up to q and w.
++	for ( int lane = 0; lane < 4; ++lane )
++	{
++		const b3BodySim* sim = sims + lane;
++		b3BodyState* state = states + lane;
+ 
+ 		b3Vec3 v = state->linearVelocity;
+ 		b3Vec3 w = state->angularVelocity;
+ 
+-		// Damping math
+-		// Differential equation: dv/dt + c * v = 0
+-		// Solution: v(t) = v0 * exp(-c * t)
+-		// Time step: v(t + dt) = v0 * exp(-c * (t + dt)) = v0 * exp(-c * t) * exp(-c * dt) = v(t) * exp(-c * dt)
+-		// v2 = exp(-c * dt) * v1
+-		// Pade approximation:
+-		// v2 = v1 * 1 / (1 + c * dt)
+ 		b3Fixed linearDamping = b3FixDiv( B3_FIX( 1.0f ) , ( B3_FIX( 1.0f ) + b3FixMul( h , sim->linearDamping ) ) );
+ 		b3Fixed angularDamping = b3FixDiv( B3_FIX( 1.0f ) , ( B3_FIX( 1.0f ) + b3FixMul( h , sim->angularDamping ) ) );
+-
+-		// Gravity scale will be zero for kinematic bodies
+ 		b3Fixed gravityScale = sim->invMass > B3_FIX( 0.0f ) ? sim->gravityScale : B3_FIX( 0.0f );
+-
+-		// The force term crosses out of the inverse scale (invMass * force is a velocity);
+-		// the gravity term never entered it. So they are formed separately rather than
+-		// through b3Blend2, which would have to apply one shift to both.
+ 		b3Vec3 linearVelocityDelta =
+ 			b3Add( b3InvMulSV( b3FixMul( h, sim->invMass ), sim->force ), b3MulSV( b3FixMul( h, gravityScale ), gravity ) );
+ 		v = b3MulAdd( linearVelocityDelta, linearDamping, v );
+@@ -107,125 +301,253 @@ static void b3IntegrateVelocitiesTask( b3SolverBlock block, b3StepContext* conte
+ 		b3Vec3 angularVelocityDelta = b3MulSV( h, b3InvMulMV( sim->invInertiaWorld, sim->torque ) );
+ 		w = b3MulAdd( angularVelocityDelta, angularDamping, w );
+ 
+-		// Gyroscopic torque by solving this nonlinear equation using Newton-Raphson.
+-		// I * (w2 - w1) + h * cross(w2, I * w2) = 0
+-		// This is all done in local coordinates where the Jacobian is easier to compute.
+-		// This improves the simulation of long skinny bodies.
+-		{
+-			// Get current rotation.
+-			b3Quat q0 = sim->transform.q;
+-			b3Quat q = b3MulQuat( state->deltaRotation, q0 );
+-
+-			// Cached when the mass data was set, because it cannot change between
+-			// substeps: this was b3InvertMatrix( sim->invInertiaLocal ) here, nine
+-			// 128-bit divisions per body per substep to recompute a constant.
+-			b3Matrix3 inertiaLocal = sim->inertiaLocal;
+-
+-			// Compute local angular velocity
+-			b3Vec3 omega1 = b3InvRotateVector( q, w );
+-			b3Vec3 omega2 = omega1;
+-
+-			// Symmetric inertia tensor: 6 unique entries (column-major)
+-			const b3Fixed i00 = inertiaLocal.cx.x;
+-			const b3Fixed i01 = inertiaLocal.cy.x;
+-			const b3Fixed i02 = inertiaLocal.cz.x;
+-			const b3Fixed i11 = inertiaLocal.cy.y;
+-			const b3Fixed i12 = inertiaLocal.cz.y;
+-			const b3Fixed i22 = inertiaLocal.cz.z;
+-
+-			for ( int gyroIteration = 0; gyroIteration < B3_GYROSCOPIC_ITERATIONS; ++gyroIteration )
+-			{
+-				const b3Fixed w1 = omega2.x;
+-				const b3Fixed w2 = omega2.y;
+-				const b3Fixed w3 = omega2.z;
+-
+-				// Iw = I * omega2 (shared between residual and Jacobian)
+-				const b3Fixed Iw1 = b3FixMul( i00 , w1 ) + b3FixMul( i01 , w2 ) + b3FixMul( i02 , w3 );
+-				const b3Fixed Iw2 = b3FixMul( i01 , w1 ) + b3FixMul( i11 , w2 ) + b3FixMul( i12 , w3 );
+-				const b3Fixed Iw3 = b3FixMul( i02 , w1 ) + b3FixMul( i12 , w2 ) + b3FixMul( i22 , w3 );
+-
+-				// Residual: b = I*(omega2 - omega1) + h * (omega2 × I*omega2)
+-				const b3Vec3 dw = b3Sub( omega2, omega1 );
+-				b3Vec3 b = {
+-					b3FixMul( i00 , dw.x ) + b3FixMul( i01 , dw.y ) + b3FixMul( i02 , dw.z ) + b3FixMul( h , ( b3FixMul( w2 , Iw3 ) - b3FixMul( w3 , Iw2 ) ) ),
+-					b3FixMul( i01 , dw.x ) + b3FixMul( i11 , dw.y ) + b3FixMul( i12 , dw.z ) + b3FixMul( h , ( b3FixMul( w3 , Iw1 ) - b3FixMul( w1 , Iw3 ) ) ),
+-					b3FixMul( i02 , dw.x ) + b3FixMul( i12 , dw.y ) + b3FixMul( i22 , dw.z ) + b3FixMul( h , ( b3FixMul( w1 , Iw2 ) - b3FixMul( w2 , Iw1 ) ) ),
+-				};
++		b3Quat q = b3MulQuat( state->deltaRotation, sim->transform.q );
+ 
+-				// Jacobian J = I + h * (skew(omega2) * I - skew(I*omega2))
+-				// Jacobian derived by Erin Catto, Ph.D. Do not attempt to do this without a Ph.D.
+-				// Doubled inertia terms above fold into Iw, e.g. row 2 col 1: i00*w3 - i02*w1 - Iw3.
+-				b3Matrix3 J = {
+-					{ i00 + b3FixMul( h , ( b3FixMul( w2 , i02 ) - b3FixMul( w3 , i01 ) ) ), i01 + b3FixMul( h , ( b3FixMul( w3 , i00 ) - b3FixMul( w1 , i02 ) - Iw3 ) ),
+-					  i02 + b3FixMul( h , ( b3FixMul( w1 , i01 ) - b3FixMul( w2 , i00 ) + Iw2 ) ) },
+-					{ i01 + b3FixMul( h , ( b3FixMul( w2 , i12 ) - b3FixMul( w3 , i11 ) + Iw3 ) ), i11 + b3FixMul( h , ( b3FixMul( w3 , i01 ) - b3FixMul( w1 , i12 ) ) ),
+-					  i12 + b3FixMul( h , ( b3FixMul( w1 , i11 ) - b3FixMul( w2 , i01 ) - Iw1 ) ) },
+-					{ i02 + b3FixMul( h , ( b3FixMul( w2 , i22 ) - b3FixMul( w3 , i12 ) - Iw2 ) ), i12 + b3FixMul( h , ( b3FixMul( w3 , i02 ) - b3FixMul( w1 , i22 ) + Iw1 ) ),
+-					  i22 + b3FixMul( h , ( b3FixMul( w1 , i12 ) - b3FixMul( w2 , i02 ) ) ) },
+-				};
++		state->linearVelocity = v;
+ 
+-				omega2 = b3Sub( omega2, b3Solve3( J, b ) );
+-			}
++		qx[lane] = q.v.x;
++		qy[lane] = q.v.y;
++		qz[lane] = q.v.z;
++		qs[lane] = q.s;
++		wx[lane] = w.x;
++		wy[lane] = w.y;
++		wz[lane] = w.z;
++		i00[lane] = sim->inertiaLocal.cx.x;
++		i01[lane] = sim->inertiaLocal.cy.x;
++		i02[lane] = sim->inertiaLocal.cz.x;
++		i11[lane] = sim->inertiaLocal.cy.y;
++		i12[lane] = sim->inertiaLocal.cz.y;
++		i22[lane] = sim->inertiaLocal.cz.z;
++	}
++
++	b3Vec3AVX qv = { b3LoadLanesAVX( qx ), b3LoadLanesAVX( qy ), b3LoadLanesAVX( qz ) };
++	__m256i qsW = b3LoadLanesAVX( qs );
++	b3Vec3AVX wW = { b3LoadLanesAVX( wx ), b3LoadLanesAVX( wy ), b3LoadLanesAVX( wz ) };
+ 
+-			w = b3RotateVector( q, omega2 );
++	const __m256i I00 = b3LoadLanesAVX( i00 );
++	const __m256i I01 = b3LoadLanesAVX( i01 );
++	const __m256i I02 = b3LoadLanesAVX( i02 );
++	const __m256i I11 = b3LoadLanesAVX( i11 );
++	const __m256i I12 = b3LoadLanesAVX( i12 );
++	const __m256i I22 = b3LoadLanesAVX( i22 );
++	const __m256i H = _mm256_set1_epi64x( h );
++
++	b3Vec3AVX omega1 = b3RotateVectorAVX( qv, qsW, wW, true );
++	b3Vec3AVX omega2 = omega1;
++
++	for ( int gyroIteration = 0; gyroIteration < B3_GYROSCOPIC_ITERATIONS; ++gyroIteration )
++	{
++		const __m256i w1 = omega2.x;
++		const __m256i w2 = omega2.y;
++		const __m256i w3 = omega2.z;
++
++		const __m256i Iw1 = B3_IADD( B3_IADD( B3_IMUL( I00, w1 ), B3_IMUL( I01, w2 ) ), B3_IMUL( I02, w3 ) );
++		const __m256i Iw2 = B3_IADD( B3_IADD( B3_IMUL( I01, w1 ), B3_IMUL( I11, w2 ) ), B3_IMUL( I12, w3 ) );
++		const __m256i Iw3 = B3_IADD( B3_IADD( B3_IMUL( I02, w1 ), B3_IMUL( I12, w2 ) ), B3_IMUL( I22, w3 ) );
++
++		const __m256i dx = B3_ISUB( omega2.x, omega1.x );
++		const __m256i dy = B3_ISUB( omega2.y, omega1.y );
++		const __m256i dz = B3_ISUB( omega2.z, omega1.z );
++
++		b3Fixed b0[4], b1[4], b2[4];
++		b3Fixed j00[4], j01[4], j02[4], j10[4], j11[4], j12[4], j20[4], j21[4], j22[4];
++
++		_mm256_storeu_si256( (__m256i*)b0,
++							B3_IADD( B3_IADD( B3_IADD( B3_IMUL( I00, dx ), B3_IMUL( I01, dy ) ), B3_IMUL( I02, dz ) ),
++									 B3_IMUL( H, B3_ISUB( B3_IMUL( w2, Iw3 ), B3_IMUL( w3, Iw2 ) ) ) ) );
++		_mm256_storeu_si256( (__m256i*)b1,
++							B3_IADD( B3_IADD( B3_IADD( B3_IMUL( I01, dx ), B3_IMUL( I11, dy ) ), B3_IMUL( I12, dz ) ),
++									 B3_IMUL( H, B3_ISUB( B3_IMUL( w3, Iw1 ), B3_IMUL( w1, Iw3 ) ) ) ) );
++		_mm256_storeu_si256( (__m256i*)b2,
++							B3_IADD( B3_IADD( B3_IADD( B3_IMUL( I02, dx ), B3_IMUL( I12, dy ) ), B3_IMUL( I22, dz ) ),
++									 B3_IMUL( H, B3_ISUB( B3_IMUL( w1, Iw2 ), B3_IMUL( w2, Iw1 ) ) ) ) );
++
++		// J columns as the scalar initializer lists them: J.cx = {j00, j01, j02} etc.
++		_mm256_storeu_si256( (__m256i*)j00, B3_IADD( I00, B3_IMUL( H, B3_ISUB( B3_IMUL( w2, I02 ), B3_IMUL( w3, I01 ) ) ) ) );
++		_mm256_storeu_si256( (__m256i*)j01,
++							B3_IADD( I01, B3_IMUL( H, B3_ISUB( B3_ISUB( B3_IMUL( w3, I00 ), B3_IMUL( w1, I02 ) ), Iw3 ) ) ) );
++		_mm256_storeu_si256( (__m256i*)j02,
++							B3_IADD( I02, B3_IMUL( H, B3_IADD( B3_ISUB( B3_IMUL( w1, I01 ), B3_IMUL( w2, I00 ) ), Iw2 ) ) ) );
++		_mm256_storeu_si256( (__m256i*)j10,
++							B3_IADD( I01, B3_IMUL( H, B3_IADD( B3_ISUB( B3_IMUL( w2, I12 ), B3_IMUL( w3, I11 ) ), Iw3 ) ) ) );
++		_mm256_storeu_si256( (__m256i*)j11, B3_IADD( I11, B3_IMUL( H, B3_ISUB( B3_IMUL( w3, I01 ), B3_IMUL( w1, I12 ) ) ) ) );
++		_mm256_storeu_si256( (__m256i*)j12,
++							B3_IADD( I12, B3_IMUL( H, B3_ISUB( B3_ISUB( B3_IMUL( w1, I11 ), B3_IMUL( w2, I01 ) ), Iw1 ) ) ) );
++		_mm256_storeu_si256( (__m256i*)j20,
++							B3_IADD( I02, B3_IMUL( H, B3_ISUB( B3_ISUB( B3_IMUL( w2, I22 ), B3_IMUL( w3, I12 ) ), Iw2 ) ) ) );
++		_mm256_storeu_si256( (__m256i*)j21,
++							B3_IADD( I12, B3_IMUL( H, B3_IADD( B3_ISUB( B3_IMUL( w3, I02 ), B3_IMUL( w1, I22 ) ), Iw1 ) ) ) );
++		_mm256_storeu_si256( (__m256i*)j22, B3_IADD( I22, B3_IMUL( H, B3_ISUB( B3_IMUL( w1, I12 ), B3_IMUL( w2, I02 ) ) ) ) );
++
++		// b3Solve3 stays per-lane scalar: 128-bit cofactors and divides.
++		b3Fixed sx[4], sy[4], sz[4];
++		for ( int lane = 0; lane < 4; ++lane )
++		{
++			b3Matrix3 J = {
++				{ j00[lane], j01[lane], j02[lane] },
++				{ j10[lane], j11[lane], j12[lane] },
++				{ j20[lane], j21[lane], j22[lane] },
++			};
++			b3Vec3 b = { b0[lane], b1[lane], b2[lane] };
++			b3Vec3 s = b3Solve3( J, b );
++			sx[lane] = s.x;
++			sy[lane] = s.y;
++			sz[lane] = s.z;
+ 		}
+ 
+-		state->linearVelocity = v;
+-		state->angularVelocity = w;
++		omega2.x = B3_ISUB( omega2.x, b3LoadLanesAVX( sx ) );
++		omega2.y = B3_ISUB( omega2.y, b3LoadLanesAVX( sy ) );
++		omega2.z = B3_ISUB( omega2.z, b3LoadLanesAVX( sz ) );
+ 	}
+ 
+-	b3TracyCZoneEnd( integrate_velocity );
++	b3Vec3AVX wOut = b3RotateVectorAVX( qv, qsW, omega2, false );
++	_mm256_storeu_si256( (__m256i*)wx, wOut.x );
++	_mm256_storeu_si256( (__m256i*)wy, wOut.y );
++	_mm256_storeu_si256( (__m256i*)wz, wOut.z );
++
++	for ( int lane = 0; lane < 4; ++lane )
++	{
++		states[lane].angularVelocity = (b3Vec3){ wx[lane], wy[lane], wz[lane] };
++	}
+ }
+ 
+-static void b3IntegratePositionsTask( b3SolverBlock block, b3StepContext* context )
++// Four bodies. The common case (no lane speed-capped) runs the lock selects and the
++// deltaPosition/h*w products wide; the raw-128 dot compares use exact 128-bit scalar
++// b3Dot per lane, and any lane that would cap sends all four through the scalar body,
++// which is idempotent on the lock selects. b3IntegrateRotation stays per-lane scalar.
++static void b3IntegratePositionsWide4( b3BodyState* states, b3Fixed h, b3Fixed maxLinearSpeed, b3Fixed maxAngularSpeed,
++									   b3Fixed maxLinearSpeedSquared, b3Fixed maxAngularSpeedSquared )
+ {
+-	b3TracyCZoneNC( integrate_positions, "IntPos", b3_colorDarkSeaGreen, true );
++	b3Fixed vx[4], vy[4], vz[4], wx[4], wy[4], wz[4], px[4], py[4], pz[4];
+ 
+-	B3_VALIDATE( block.startIndex + block.count <= context->world->solverSets.data[b3_awakeSet].bodyStates.count );
++	for ( int lane = 0; lane < 4; ++lane )
++	{
++		b3BodyState* state = states + lane;
++		b3Vec3 v = state->linearVelocity;
++		b3Vec3 w = state->angularVelocity;
++		uint32_t flags = state->flags;
++		v.x = ( flags & b3_lockLinearX ) ? B3_FIX( 0.0f ) : v.x;
++		v.y = ( flags & b3_lockLinearY ) ? B3_FIX( 0.0f ) : v.y;
++		v.z = ( flags & b3_lockLinearZ ) ? B3_FIX( 0.0f ) : v.z;
++		w.x = ( flags & b3_lockAngularX ) ? B3_FIX( 0.0f ) : w.x;
++		w.y = ( flags & b3_lockAngularY ) ? B3_FIX( 0.0f ) : w.y;
++		w.z = ( flags & b3_lockAngularZ ) ? B3_FIX( 0.0f ) : w.z;
++
++		if ( b3Dot( v, v ) > maxLinearSpeedSquared ||
++			 ( b3Dot( w, w ) > maxAngularSpeedSquared && ( flags & b3_allowFastRotation ) == 0 ) )
++		{
++			for ( int k = 0; k < 4; ++k )
++			{
++				b3IntegratePositionScalar( states + k, h, maxLinearSpeed, maxAngularSpeed, maxLinearSpeedSquared,
++										   maxAngularSpeedSquared );
++			}
++			return;
++		}
+ 
+-	b3BodyState* states = context->states;
+-	b3Fixed h = context->h;
+-	b3Fixed maxLinearSpeed = context->maxLinearVelocity;
+-	b3Fixed maxAngularSpeed = b3FixMul( B3_MAX_ROTATION , context->inv_dt );
+-	b3Fixed maxLinearSpeedSquared = b3FixMul( maxLinearSpeed , maxLinearSpeed );
+-	b3Fixed maxAngularSpeedSquared = b3FixMul( maxAngularSpeed , maxAngularSpeed );
++		vx[lane] = v.x;
++		vy[lane] = v.y;
++		vz[lane] = v.z;
++		wx[lane] = w.x;
++		wy[lane] = w.y;
++		wz[lane] = w.z;
++		px[lane] = state->deltaPosition.x;
++		py[lane] = state->deltaPosition.y;
++		pz[lane] = state->deltaPosition.z;
++	}
+ 
+-	for ( int i = block.startIndex; i < block.startIndex + block.count; ++i )
++	const __m256i H = _mm256_set1_epi64x( h );
++	_mm256_storeu_si256( (__m256i*)px, B3_IADD( b3LoadLanesAVX( px ), B3_IMUL( H, b3LoadLanesAVX( vx ) ) ) );
++	_mm256_storeu_si256( (__m256i*)py, B3_IADD( b3LoadLanesAVX( py ), B3_IMUL( H, b3LoadLanesAVX( vy ) ) ) );
++	_mm256_storeu_si256( (__m256i*)pz, B3_IADD( b3LoadLanesAVX( pz ), B3_IMUL( H, b3LoadLanesAVX( vz ) ) ) );
++	b3Fixed hx[4], hy[4], hz[4];
++	_mm256_storeu_si256( (__m256i*)hx, B3_IMUL( H, b3LoadLanesAVX( wx ) ) );
++	_mm256_storeu_si256( (__m256i*)hy, B3_IMUL( H, b3LoadLanesAVX( wy ) ) );
++	_mm256_storeu_si256( (__m256i*)hz, B3_IMUL( H, b3LoadLanesAVX( wz ) ) );
++
++	for ( int lane = 0; lane < 4; ++lane )
+ 	{
+-		b3BodyState* state = states + i;
++		b3BodyState* state = states + lane;
++		state->linearVelocity = (b3Vec3){ vx[lane], vy[lane], vz[lane] };
++		state->angularVelocity = (b3Vec3){ wx[lane], wy[lane], wz[lane] };
++		state->deltaPosition = (b3Vec3){ px[lane], py[lane], pz[lane] };
++		state->deltaRotation = b3IntegrateRotation( state->deltaRotation, (b3Vec3){ hx[lane], hy[lane], hz[lane] } );
++	}
++}
+ 
+-		b3Vec3 v = state->linearVelocity;
+-		b3Vec3 w = state->angularVelocity;
++#undef B3_IMUL
++#undef B3_IADD
++#undef B3_ISUB
+ 
+-		// Motion locks - these can be viewed as a constraint that come last
+-		v.x = ( state->flags & b3_lockLinearX ) ? B3_FIX( 0.0f ) : v.x;
+-		v.y = ( state->flags & b3_lockLinearY ) ? B3_FIX( 0.0f ) : v.y;
+-		v.z = ( state->flags & b3_lockLinearZ ) ? B3_FIX( 0.0f ) : v.z;
+-		w.x = ( state->flags & b3_lockAngularX ) ? B3_FIX( 0.0f ) : w.x;
+-		w.y = ( state->flags & b3_lockAngularY ) ? B3_FIX( 0.0f ) : w.y;
+-		w.z = ( state->flags & b3_lockAngularZ ) ? B3_FIX( 0.0f ) : w.z;
++#endif // B3_SIMD_AVX512
+ 
+-		// Clamp to max linear speed
+-		if ( b3Dot( v, v ) > maxLinearSpeedSquared )
++void b3IntegrateVelocitiesRange( const b3BodySim* sims, b3BodyState* states, int startIndex, int count, b3Vec3 gravity, b3Fixed h,
++								 bool wide )
++{
++	int i = startIndex;
++	int end = startIndex + count;
++#if defined( B3_SIMD_AVX512 )
++	if ( wide )
++	{
++		for ( ; i + 4 <= end; i += 4 )
+ 		{
+-			b3Fixed ratio = b3FixDiv( maxLinearSpeed , b3Length( v ) );
+-			v = b3MulSV( ratio, v );
+-			state->flags |= b3_isSpeedCapped;
++			b3IntegrateVelocitiesWide4( sims + i, states + i, gravity, h );
+ 		}
++	}
++#else
++	B3_UNUSED( wide );
++#endif
++	for ( ; i < end; ++i )
++	{
++		b3IntegrateVelocityScalar( sims + i, states + i, gravity, h );
++	}
++}
+ 
+-		// Clamp to max angular speed
+-		if ( b3Dot( w, w ) > maxAngularSpeedSquared && ( state->flags & b3_allowFastRotation ) == 0 )
++void b3IntegratePositionsRange( b3BodyState* states, int startIndex, int count, b3Fixed h, b3Fixed maxLinearSpeed,
++								b3Fixed maxAngularSpeed, bool wide )
++{
++	b3Fixed maxLinearSpeedSquared = b3FixMul( maxLinearSpeed , maxLinearSpeed );
++	b3Fixed maxAngularSpeedSquared = b3FixMul( maxAngularSpeed , maxAngularSpeed );
++	int i = startIndex;
++	int end = startIndex + count;
++#if defined( B3_SIMD_AVX512 )
++	if ( wide )
++	{
++		for ( ; i + 4 <= end; i += 4 )
+ 		{
+-			b3Fixed ratio = b3FixDiv( maxAngularSpeed , b3Length( w ) );
+-			w = b3MulSV( ratio, w );
+-			state->flags |= b3_isSpeedCapped;
++			b3IntegratePositionsWide4( states + i, h, maxLinearSpeed, maxAngularSpeed, maxLinearSpeedSquared,
++									   maxAngularSpeedSquared );
+ 		}
+-
+-		state->linearVelocity = v;
+-		state->angularVelocity = w;
+-		state->deltaPosition = b3MulAdd( state->deltaPosition, h, v );
+-		state->deltaRotation = b3IntegrateRotation( state->deltaRotation, b3MulSV( h, w ) );
+ 	}
++#else
++	B3_UNUSED( wide );
++#endif
++	for ( ; i < end; ++i )
++	{
++		b3IntegratePositionScalar( states + i, h, maxLinearSpeed, maxAngularSpeed, maxLinearSpeedSquared, maxAngularSpeedSquared );
++	}
++}
++
++static void b3IntegrateVelocitiesTask( b3SolverBlock block, b3StepContext* context )
++{
++	b3TracyCZoneNC( integrate_velocity, "IntVel", b3_colorDeepPink, true );
++
++	B3_VALIDATE( block.startIndex + block.count <= context->world->solverSets.data[b3_awakeSet].bodyStates.count );
++
++	b3IntegrateVelocitiesRange( context->sims, context->states, block.startIndex, block.count, context->world->gravity, context->h,
++								true );
++
++	b3TracyCZoneEnd( integrate_velocity );
++}
++
++static void b3IntegratePositionsTask( b3SolverBlock block, b3StepContext* context )
++{
++	b3TracyCZoneNC( integrate_positions, "IntPos", b3_colorDarkSeaGreen, true );
++
++	B3_VALIDATE( block.startIndex + block.count <= context->world->solverSets.data[b3_awakeSet].bodyStates.count );
++
++	b3Fixed maxAngularSpeed = b3FixMul( B3_MAX_ROTATION , context->inv_dt );
++	b3IntegratePositionsRange( context->states, block.startIndex, block.count, context->h, context->maxLinearVelocity,
++							   maxAngularSpeed, true );
+ 
+ 	b3TracyCZoneEnd( integrate_positions );
+ }
+diff --git a/src/solver.h b/src/solver.h
+index bac84a7..54ada7d 100644
+--- a/src/solver.h
++++ b/src/solver.h
+@@ -288,6 +288,14 @@ typedef struct b3StepContext
+ 
+ void b3Solve( b3World* world, b3StepContext* stepContext );
+ 
++// The integrate kernels over a body range. wide selects the AVX-512 four-body path where
++// B3_SIMD_AVX512 is defined (ignored otherwise); both paths are bit-identical, and
++// IntegrateWideEquivalenceTest holds them to it.
++void b3IntegrateVelocitiesRange( const b3BodySim* sims, b3BodyState* states, int startIndex, int count, b3Vec3 gravity, b3Fixed h,
++								 bool wide );
++void b3IntegratePositionsRange( b3BodyState* states, int startIndex, int count, b3Fixed h, b3Fixed maxLinearSpeed,
++								b3Fixed maxAngularSpeed, bool wide );
++
+ static inline b3Softness b3MakeSoft( b3Fixed hertz, b3Fixed zeta, b3Fixed h )
+ {
+ 	if ( hertz == B3_FIX( 0.0f ) )
+diff --git a/test/test_body.c b/test/test_body.c
+index e193a42..0d49ad6 100644
+--- a/test/test_body.c
++++ b/test/test_body.c
+@@ -11,6 +11,10 @@
+ #include "body.h"
+ #include "physics_world.h"
+ #include "recording.h"
++#include "solver.h"
++
++#include <stdlib.h>
++#include <string.h>
+ 
+ #include <math.h>
+ 
+@@ -1134,6 +1138,131 @@ static int BodySimLocatorTest( void )
+ 	return LocatorFastFlagTest();
+ }
+ 
++// IntegrateWideEquivalenceTest: the integrate kernels run scalar and wide (the AVX-512
++// four-body path where B3_SIMD_AVX512 is built, the scalar path otherwise) over the same
++// seeded body states and must agree byte for byte. The states cover kinematic bodies
++// (zero inverse mass), every motion lock, fast rotation, speeds that trip both clamps,
++// and a count that is not a multiple of four so the scalar tail runs too.
++static uint64_t IntegrateRng( uint64_t* s )
++{
++	uint64_t x = *s;
++	x ^= x << 13;
++	x ^= x >> 7;
++	x ^= x << 17;
++	*s = x;
++	return x;
++}
++
++// A raw fixed value in [-range, range]
++static b3Fixed IntegrateRandFix( uint64_t* s, b3Fixed range )
++{
++	return (b3Fixed)( IntegrateRng( s ) % (uint64_t)( 2 * range + 1 ) ) - range;
++}
++
++static b3Vec3 IntegrateRandVec( uint64_t* s, b3Fixed range )
++{
++	return (b3Vec3){ IntegrateRandFix( s, range ), IntegrateRandFix( s, range ), IntegrateRandFix( s, range ) };
++}
++
++static int IntegrateWideEquivalenceTest( void )
++{
++	enum
++	{
++		bodyCount = 100002
++	};
++
++	b3BodySim* sims = calloc( bodyCount, sizeof( b3BodySim ) );
++	b3BodyState* scalarStates = calloc( bodyCount, sizeof( b3BodyState ) );
++	b3BodyState* wideStates = calloc( bodyCount, sizeof( b3BodyState ) );
++	ENSURE( sims != NULL && scalarStates != NULL && wideStates != NULL );
++
++	uint64_t seed = 0x9E3779B97F4A7C15ull;
++	for ( int i = 0; i < bodyCount; ++i )
++	{
++		b3BodySim* sim = sims + i;
++		b3BodyState* state = scalarStates + i;
++		uint64_t kind = IntegrateRng( &seed ) % 8;
++
++		// Velocities: mostly ordinary, kind 6 fast enough to trip the clamps.
++		b3Fixed speedRange = kind == 6 ? B3_FIX( 5000.0f ) : B3_FIX( 50.0f );
++		state->linearVelocity = IntegrateRandVec( &seed, speedRange );
++		state->angularVelocity = IntegrateRandVec( &seed, kind == 6 ? B3_FIX( 2000.0f ) : B3_FIX( 30.0f ) );
++		state->deltaPosition = IntegrateRandVec( &seed, B3_FIX( 2.0f ) );
++		b3Quat dq = { IntegrateRandVec( &seed, B3_FIX( 1.0f ) ), IntegrateRandFix( &seed, B3_FIX( 1.0f ) ) };
++		state->deltaRotation = b3NormalizeQuat( dq );
++		state->flags = (uint32_t)( IntegrateRng( &seed ) & ( b3_allLocks | b3_allowFastRotation | b3_isFast ) );
++		if ( kind < 4 )
++		{
++			// Half the bodies carry no locks, so the common path is the one measured.
++			state->flags &= ~(uint32_t)b3_allLocks;
++		}
++
++		b3Quat q = { IntegrateRandVec( &seed, B3_FIX( 1.0f ) ), IntegrateRandFix( &seed, B3_FIX( 1.0f ) ) };
++		sim->transform.q = b3NormalizeQuat( q );
++		sim->force = IntegrateRandVec( &seed, B3_FIX( 1000.0f ) );
++		sim->torque = IntegrateRandVec( &seed, B3_FIX( 1000.0f ) );
++		sim->invMass = kind == 7 ? B3_FIX( 0.0f ) : 1 + IntegrateRandFix( &seed, B3_FIX( 4.0f ) ) / 2 + B3_FIX( 2.0f );
++		sim->linearDamping = IntegrateRng( &seed ) % 2 ? B3_FIX( 0.0f ) : (b3Fixed)( IntegrateRng( &seed ) % B3_FIX( 2.0f ) );
++		sim->angularDamping = IntegrateRng( &seed ) % 2 ? B3_FIX( 0.0f ) : (b3Fixed)( IntegrateRng( &seed ) % B3_FIX( 2.0f ) );
++		sim->gravityScale = IntegrateRandFix( &seed, B3_FIX( 2.0f ) );
++
++		// Symmetric inertia, diagonal dominant, from thin rods (kind 5) to near-spheres.
++		b3Fixed d0 = B3_FIX( 0.01f ) + (b3Fixed)( IntegrateRng( &seed ) % B3_FIX( 50.0f ) );
++		b3Fixed d1 = kind == 5 ? d0 / 64 + 1 : B3_FIX( 0.01f ) + (b3Fixed)( IntegrateRng( &seed ) % B3_FIX( 50.0f ) );
++		b3Fixed d2 = B3_FIX( 0.01f ) + (b3Fixed)( IntegrateRng( &seed ) % B3_FIX( 50.0f ) );
++		b3Fixed o01 = IntegrateRandFix( &seed, d0 / 8 + 1 );
++		b3Fixed o02 = IntegrateRandFix( &seed, d0 / 8 + 1 );
++		b3Fixed o12 = IntegrateRandFix( &seed, d2 / 8 + 1 );
++		sim->inertiaLocal = (b3Matrix3){ { d0, o01, o02 }, { o01, d1, o12 }, { o02, o12, d2 } };
++		b3Fixed e0 = (b3Fixed)( IntegrateRng( &seed ) % B3_FIX( 4.0f ) );
++		b3Fixed e1 = (b3Fixed)( IntegrateRng( &seed ) % B3_FIX( 4.0f ) );
++		b3Fixed e2 = (b3Fixed)( IntegrateRng( &seed ) % B3_FIX( 4.0f ) );
++		sim->invInertiaWorld = (b3Matrix3){ { e0, 0, 0 }, { 0, e1, 0 }, { 0, 0, e2 } };
++	}
++
++	memcpy( wideStates, scalarStates, bodyCount * sizeof( b3BodyState ) );
++
++	b3Vec3 gravity = { B3_FIX( 0.0f ), B3_FIX( -10.0f ), B3_FIX( 0.0f ) };
++	b3Fixed h = B3_FIX( 1.0f / 240.0f );
++	b3Fixed maxLinearSpeed = B3_FIX( 400.0f );
++	b3Fixed maxAngularSpeed = b3FixMul( B3_MAX_ROTATION, B3_FIX( 240.0f ) );
++
++	// Two substeps of velocity then position, the order the solver runs them.
++	for ( int pass = 0; pass < 2; ++pass )
++	{
++		b3IntegrateVelocitiesRange( sims, scalarStates, 0, bodyCount, gravity, h, false );
++		b3IntegrateVelocitiesRange( sims, wideStates, 0, bodyCount, gravity, h, true );
++		b3IntegratePositionsRange( scalarStates, 0, bodyCount, h, maxLinearSpeed, maxAngularSpeed, false );
++		b3IntegratePositionsRange( wideStates, 0, bodyCount, h, maxLinearSpeed, maxAngularSpeed, true );
++	}
++
++	int mismatches = 0;
++	int capped = 0;
++	for ( int i = 0; i < bodyCount; ++i )
++	{
++		const b3BodyState* a = scalarStates + i;
++		const b3BodyState* b = wideStates + i;
++		bool same = memcmp( &a->linearVelocity, &b->linearVelocity, sizeof( b3Vec3 ) ) == 0 &&
++					memcmp( &a->angularVelocity, &b->angularVelocity, sizeof( b3Vec3 ) ) == 0 &&
++					memcmp( &a->deltaPosition, &b->deltaPosition, sizeof( b3Vec3 ) ) == 0 &&
++					memcmp( &a->deltaRotation, &b->deltaRotation, sizeof( b3Quat ) ) == 0 && a->flags == b->flags;
++		if ( same == false && mismatches++ < 4 )
++		{
++			printf( "IntegrateWideEquivalenceTest: body %d differs\n", i );
++		}
++		capped += ( a->flags & b3_isSpeedCapped ) != 0;
++	}
++
++	free( sims );
++	free( scalarStates );
++	free( wideStates );
++
++	ENSURE( mismatches == 0 );
++	// The clamp arm must actually have run, or the fallback is untested.
++	ENSURE( capped > 0 );
++	return 0;
++}
++
+ int BodyTest( void )
+ {
+ 	RUN_SUBTEST( AngularImpulseInverseScale );
+@@ -1152,5 +1281,6 @@ int BodyTest( void )
+ 	RUN_SUBTEST( ShapeExtents );
+ 	RUN_SUBTEST( CcdGravityTimeLossTest );
+ 	RUN_SUBTEST( BodySimLocatorTest );
++	RUN_SUBTEST( IntegrateWideEquivalenceTest );
+ 	return 0;
+ }
