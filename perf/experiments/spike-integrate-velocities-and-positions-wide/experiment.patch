@@ -1,0 +1,11 @@
+# experiment.patch — spike-integrate-velocities-and-positions-wide
+#
+# No code experiment was run this attempt: the measurement gate requires
+# the AVX-512 Linux bench and the fixed3d-perf-harness (DEPENDS-ON), neither
+# of which is present. There is no diff to apply; the patch is intentionally
+# empty. The finding (perf/findings/...) records the analysis and the verdict
+# (LEARNED, not measured).
+#
+# A future attempt that runs the experiment will write `git diff BASE` here
+# and it must apply cleanly with `git apply` on BASE, including the
+# IntegrateWideEquivalenceTest and its test/CMakeLists.txt registration.
