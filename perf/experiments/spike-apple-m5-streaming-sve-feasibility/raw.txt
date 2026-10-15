@@ -1,0 +1,309 @@
+Apple M5 Pro SME micro, epoch 21, source base 59eff1c450f7c6d308f73d8a88c633f42e160ecb
+
+Host alias mini-m5-1 (same host as mini-m5); identity Glenns-Mac-Mini.local.
+Read-only survey:
+      Model Name: Mac mini
+      Chip: Apple M5 Pro
+      Total Number of Cores: 18 (6 Super and 12 Performance)
+hw.optional.arm.FEAT_SME: 1
+hw.optional.arm.FEAT_SME2: 1
+hw.optional.arm.FEAT_SME2p1: 1
+hw.optional.arm.FEAT_SME_F64F64: 1
+hw.optional.arm.FEAT_SME_I16I64: 1
+hw.optional.arm.FEAT_SME_F16F16: 1
+hw.optional.arm.FEAT_SME_B16B16: 1
+hw.optional.arm.FEAT_SME_LUTv2: 0
+hw.optional.arm.FEAT_SME_F8F16: 0
+hw.optional.arm.FEAT_SME_F8F32: 0
+hw.optional.arm.sme_max_svl_b: 64
+Apple clang version 21.0.0 (clang-2100.3.34.2)
+Target: arm64-apple-darwin27.0.0
+Thread model: posix
+ 3:31  up 6 days, 16:46, 3 users, load averages: 1.54 1.52 1.47
+
+Command: nice -n 10 clang -O3 -Wall -Wextra -Werror sme_micro.c -o sme_micro
+Command: nice -n 10 ./sme_micro > micro-za.txt
+The +sme2 feature is confined to the __arm_locally_streaming target function; no global -march.
+No cmake found in PATH or /opt/homebrew/bin. No install attempted.
+No fixed3d build, ./bin/test, ab.sh, or oracle_check.sh run: micro did not meet the 1.5x threshold.
+No workers were used in this single-process micro. taskset is unavailable on macOS.
+
+First compiler attempt with global -march=armv9-a+sme2 trapped SIGILL at non-streaming main cntd (EXC_BAD_INSTRUCTION, imageOffset 1240); corrected scope above. That run produced no measurements.
+Disassembly of ZA variant shows smstart sm, TPIDR2_EL0 lazy-save check, smstart za, zero {za}; no pre-existing live ZA state was installed, so this measures fresh ZA scope rather than a forced full ZA spill.
+
+Seven interleaved repeats per variant and block count. Each repeat does 1,600,000 lane operations per variant (calls=200000/blocks, lanes=8*blocks). ns/mul:
+add blocks lanes kind n min median max spread
+0 1 8 neon 7 0.732 0.748 1.309 0.577
+0 1 8 scalar 7 0.388 0.400 0.694 0.306
+0 1 8 sme 7 3.593 3.780 5.593 2.000
+0 1 8 sme_za 7 3.595 3.658 6.602 3.007
+0 4 32 neon 7 0.304 0.307 0.315 0.011
+0 4 32 scalar 7 0.353 0.354 0.355 0.002
+0 4 32 sme 7 1.856 1.857 1.871 0.015
+0 4 32 sme_za 7 1.857 1.860 1.880 0.023
+0 16 128 neon 7 0.296 0.297 0.310 0.014
+0 16 128 scalar 7 0.373 0.375 0.389 0.016
+0 16 128 sme 7 2.581 2.581 2.606 0.025
+0 16 128 sme_za 7 2.583 2.583 2.597 0.014
+0 64 512 neon 7 0.302 0.304 0.315 0.013
+0 64 512 scalar 7 0.358 0.358 0.359 0.001
+0 64 512 sme 7 3.155 3.168 3.222 0.067
+0 64 512 sme_za 7 3.159 3.173 3.177 0.018
+1 1 8 neon 7 0.740 0.742 0.752 0.012
+1 1 8 scalar 7 0.416 0.432 0.439 0.023
+1 1 8 sme 7 3.825 3.840 3.863 0.038
+1 1 8 sme_za 7 3.835 3.840 3.869 0.034
+1 4 32 neon 7 0.349 0.351 0.361 0.012
+1 4 32 scalar 7 0.387 0.388 0.388 0.001
+1 4 32 sme 7 1.972 1.974 1.986 0.014
+1 4 32 sme_za 7 1.974 1.976 1.997 0.023
+1 16 128 neon 7 0.343 0.343 0.356 0.013
+1 16 128 scalar 7 0.408 0.409 0.419 0.011
+1 16 128 sme 7 2.988 2.990 3.010 0.022
+1 16 128 sme_za 7 2.992 2.999 3.019 0.027
+1 64 512 neon 7 0.332 0.332 0.345 0.013
+1 64 512 scalar 7 0.389 0.392 0.395 0.006
+1 64 512 sme 7 3.432 3.432 3.470 0.038
+1 64 512 sme_za 7 3.434 3.448 3.453 0.019
+
+Full raw output:
+EXACT 512 seeded lanes including signed extremes: SME == scalar
+RUN kind=scalar blocks=1 lanes=8 add=0 calls=200000 ns=639667 ns_per_mul=0.400 checksum=83b5e10558745674
+RUN kind=neon blocks=1 lanes=8 add=0 calls=200000 ns=1197125 ns_per_mul=0.748 checksum=83b5e10558745674
+RUN kind=sme blocks=1 lanes=8 add=0 calls=200000 ns=8191083 ns_per_mul=5.119 checksum=83b5e10558745674
+RUN kind=sme_za blocks=1 lanes=8 add=0 calls=200000 ns=10563917 ns_per_mul=6.602 checksum=83b5e10558745674
+RUN kind=scalar blocks=1 lanes=8 add=0 calls=200000 ns=1110375 ns_per_mul=0.694 checksum=83b5e10558745674
+RUN kind=neon blocks=1 lanes=8 add=0 calls=200000 ns=2094541 ns_per_mul=1.309 checksum=83b5e10558745674
+RUN kind=sme blocks=1 lanes=8 add=0 calls=200000 ns=8948833 ns_per_mul=5.593 checksum=83b5e10558745674
+RUN kind=sme_za blocks=1 lanes=8 add=0 calls=200000 ns=8072291 ns_per_mul=5.045 checksum=83b5e10558745674
+RUN kind=scalar blocks=1 lanes=8 add=0 calls=200000 ns=838250 ns_per_mul=0.524 checksum=83b5e10558745674
+RUN kind=neon blocks=1 lanes=8 add=0 calls=200000 ns=1572292 ns_per_mul=0.983 checksum=83b5e10558745674
+RUN kind=sme blocks=1 lanes=8 add=0 calls=200000 ns=7125625 ns_per_mul=4.454 checksum=83b5e10558745674
+RUN kind=sme_za blocks=1 lanes=8 add=0 calls=200000 ns=6595958 ns_per_mul=4.122 checksum=83b5e10558745674
+RUN kind=scalar blocks=1 lanes=8 add=0 calls=200000 ns=751042 ns_per_mul=0.469 checksum=83b5e10558745674
+RUN kind=neon blocks=1 lanes=8 add=0 calls=200000 ns=1366875 ns_per_mul=0.854 checksum=83b5e10558745674
+RUN kind=sme blocks=1 lanes=8 add=0 calls=200000 ns=6047250 ns_per_mul=3.780 checksum=83b5e10558745674
+RUN kind=sme_za blocks=1 lanes=8 add=0 calls=200000 ns=5853500 ns_per_mul=3.658 checksum=83b5e10558745674
+RUN kind=scalar blocks=1 lanes=8 add=0 calls=200000 ns=638375 ns_per_mul=0.399 checksum=83b5e10558745674
+RUN kind=neon blocks=1 lanes=8 add=0 calls=200000 ns=1171834 ns_per_mul=0.732 checksum=83b5e10558745674
+RUN kind=sme blocks=1 lanes=8 add=0 calls=200000 ns=5749292 ns_per_mul=3.593 checksum=83b5e10558745674
+RUN kind=sme_za blocks=1 lanes=8 add=0 calls=200000 ns=5774458 ns_per_mul=3.609 checksum=83b5e10558745674
+RUN kind=scalar blocks=1 lanes=8 add=0 calls=200000 ns=626666 ns_per_mul=0.392 checksum=83b5e10558745674
+RUN kind=neon blocks=1 lanes=8 add=0 calls=200000 ns=1174000 ns_per_mul=0.734 checksum=83b5e10558745674
+RUN kind=sme blocks=1 lanes=8 add=0 calls=200000 ns=5772041 ns_per_mul=3.608 checksum=83b5e10558745674
+RUN kind=sme_za blocks=1 lanes=8 add=0 calls=200000 ns=5752500 ns_per_mul=3.595 checksum=83b5e10558745674
+RUN kind=scalar blocks=1 lanes=8 add=0 calls=200000 ns=621209 ns_per_mul=0.388 checksum=83b5e10558745674
+RUN kind=neon blocks=1 lanes=8 add=0 calls=200000 ns=1194542 ns_per_mul=0.747 checksum=83b5e10558745674
+RUN kind=sme blocks=1 lanes=8 add=0 calls=200000 ns=5787625 ns_per_mul=3.617 checksum=83b5e10558745674
+RUN kind=sme_za blocks=1 lanes=8 add=0 calls=200000 ns=5773917 ns_per_mul=3.609 checksum=83b5e10558745674
+RUN kind=scalar blocks=4 lanes=32 add=0 calls=50000 ns=568167 ns_per_mul=0.355 checksum=a537b55bf8e75973
+RUN kind=neon blocks=4 lanes=32 add=0 calls=50000 ns=488708 ns_per_mul=0.305 checksum=a537b55bf8e75973
+RUN kind=sme blocks=4 lanes=32 add=0 calls=50000 ns=2971625 ns_per_mul=1.857 checksum=a537b55bf8e75973
+RUN kind=sme_za blocks=4 lanes=32 add=0 calls=50000 ns=2975208 ns_per_mul=1.860 checksum=a537b55bf8e75973
+RUN kind=scalar blocks=4 lanes=32 add=0 calls=50000 ns=568083 ns_per_mul=0.355 checksum=a537b55bf8e75973
+RUN kind=neon blocks=4 lanes=32 add=0 calls=50000 ns=503417 ns_per_mul=0.315 checksum=a537b55bf8e75973
+RUN kind=sme blocks=4 lanes=32 add=0 calls=50000 ns=2971667 ns_per_mul=1.857 checksum=a537b55bf8e75973
+RUN kind=sme_za blocks=4 lanes=32 add=0 calls=50000 ns=2975000 ns_per_mul=1.859 checksum=a537b55bf8e75973
+RUN kind=scalar blocks=4 lanes=32 add=0 calls=50000 ns=564334 ns_per_mul=0.353 checksum=a537b55bf8e75973
+RUN kind=neon blocks=4 lanes=32 add=0 calls=50000 ns=486208 ns_per_mul=0.304 checksum=a537b55bf8e75973
+RUN kind=sme blocks=4 lanes=32 add=0 calls=50000 ns=2989833 ns_per_mul=1.869 checksum=a537b55bf8e75973
+RUN kind=sme_za blocks=4 lanes=32 add=0 calls=50000 ns=2971708 ns_per_mul=1.857 checksum=a537b55bf8e75973
+RUN kind=scalar blocks=4 lanes=32 add=0 calls=50000 ns=564375 ns_per_mul=0.353 checksum=a537b55bf8e75973
+RUN kind=neon blocks=4 lanes=32 add=0 calls=50000 ns=490541 ns_per_mul=0.307 checksum=a537b55bf8e75973
+RUN kind=sme blocks=4 lanes=32 add=0 calls=50000 ns=2968833 ns_per_mul=1.856 checksum=a537b55bf8e75973
+RUN kind=sme_za blocks=4 lanes=32 add=0 calls=50000 ns=3008375 ns_per_mul=1.880 checksum=a537b55bf8e75973
+RUN kind=scalar blocks=4 lanes=32 add=0 calls=50000 ns=565625 ns_per_mul=0.354 checksum=a537b55bf8e75973
+RUN kind=neon blocks=4 lanes=32 add=0 calls=50000 ns=498042 ns_per_mul=0.311 checksum=a537b55bf8e75973
+RUN kind=sme blocks=4 lanes=32 add=0 calls=50000 ns=2993042 ns_per_mul=1.871 checksum=a537b55bf8e75973
+RUN kind=sme_za blocks=4 lanes=32 add=0 calls=50000 ns=2975667 ns_per_mul=1.860 checksum=a537b55bf8e75973
+RUN kind=scalar blocks=4 lanes=32 add=0 calls=50000 ns=565333 ns_per_mul=0.353 checksum=a537b55bf8e75973
+RUN kind=neon blocks=4 lanes=32 add=0 calls=50000 ns=493209 ns_per_mul=0.308 checksum=a537b55bf8e75973
+RUN kind=sme blocks=4 lanes=32 add=0 calls=50000 ns=2993042 ns_per_mul=1.871 checksum=a537b55bf8e75973
+RUN kind=sme_za blocks=4 lanes=32 add=0 calls=50000 ns=2975083 ns_per_mul=1.859 checksum=a537b55bf8e75973
+RUN kind=scalar blocks=4 lanes=32 add=0 calls=50000 ns=567750 ns_per_mul=0.355 checksum=a537b55bf8e75973
+RUN kind=neon blocks=4 lanes=32 add=0 calls=50000 ns=486333 ns_per_mul=0.304 checksum=a537b55bf8e75973
+RUN kind=sme blocks=4 lanes=32 add=0 calls=50000 ns=2971708 ns_per_mul=1.857 checksum=a537b55bf8e75973
+RUN kind=sme_za blocks=4 lanes=32 add=0 calls=50000 ns=2994042 ns_per_mul=1.871 checksum=a537b55bf8e75973
+RUN kind=scalar blocks=16 lanes=128 add=0 calls=12500 ns=600334 ns_per_mul=0.375 checksum=10e9521f7169d703
+RUN kind=neon blocks=16 lanes=128 add=0 calls=12500 ns=474459 ns_per_mul=0.297 checksum=10e9521f7169d703
+RUN kind=sme blocks=16 lanes=128 add=0 calls=12500 ns=4129875 ns_per_mul=2.581 checksum=10e9521f7169d703
+RUN kind=sme_za blocks=16 lanes=128 add=0 calls=12500 ns=4154833 ns_per_mul=2.597 checksum=10e9521f7169d703
+RUN kind=scalar blocks=16 lanes=128 add=0 calls=12500 ns=600750 ns_per_mul=0.375 checksum=10e9521f7169d703
+RUN kind=neon blocks=16 lanes=128 add=0 calls=12500 ns=474375 ns_per_mul=0.296 checksum=10e9521f7169d703
+RUN kind=sme blocks=16 lanes=128 add=0 calls=12500 ns=4129917 ns_per_mul=2.581 checksum=10e9521f7169d703
+RUN kind=sme_za blocks=16 lanes=128 add=0 calls=12500 ns=4133458 ns_per_mul=2.583 checksum=10e9521f7169d703
+RUN kind=scalar blocks=16 lanes=128 add=0 calls=12500 ns=621792 ns_per_mul=0.389 checksum=10e9521f7169d703
+RUN kind=neon blocks=16 lanes=128 add=0 calls=12500 ns=477084 ns_per_mul=0.298 checksum=10e9521f7169d703
+RUN kind=sme blocks=16 lanes=128 add=0 calls=12500 ns=4129916 ns_per_mul=2.581 checksum=10e9521f7169d703
+RUN kind=sme_za blocks=16 lanes=128 add=0 calls=12500 ns=4133166 ns_per_mul=2.583 checksum=10e9521f7169d703
+RUN kind=scalar blocks=16 lanes=128 add=0 calls=12500 ns=603125 ns_per_mul=0.377 checksum=10e9521f7169d703
+RUN kind=neon blocks=16 lanes=128 add=0 calls=12500 ns=496166 ns_per_mul=0.310 checksum=10e9521f7169d703
+RUN kind=sme blocks=16 lanes=128 add=0 calls=12500 ns=4129916 ns_per_mul=2.581 checksum=10e9521f7169d703
+RUN kind=sme_za blocks=16 lanes=128 add=0 calls=12500 ns=4133458 ns_per_mul=2.583 checksum=10e9521f7169d703
+RUN kind=scalar blocks=16 lanes=128 add=0 calls=12500 ns=600291 ns_per_mul=0.375 checksum=10e9521f7169d703
+RUN kind=neon blocks=16 lanes=128 add=0 calls=12500 ns=474792 ns_per_mul=0.297 checksum=10e9521f7169d703
+RUN kind=sme blocks=16 lanes=128 add=0 calls=12500 ns=4151375 ns_per_mul=2.595 checksum=10e9521f7169d703
+RUN kind=sme_za blocks=16 lanes=128 add=0 calls=12500 ns=4133125 ns_per_mul=2.583 checksum=10e9521f7169d703
+RUN kind=scalar blocks=16 lanes=128 add=0 calls=12500 ns=596750 ns_per_mul=0.373 checksum=10e9521f7169d703
+RUN kind=neon blocks=16 lanes=128 add=0 calls=12500 ns=475042 ns_per_mul=0.297 checksum=10e9521f7169d703
+RUN kind=sme blocks=16 lanes=128 add=0 calls=12500 ns=4148708 ns_per_mul=2.593 checksum=10e9521f7169d703
+RUN kind=sme_za blocks=16 lanes=128 add=0 calls=12500 ns=4147917 ns_per_mul=2.592 checksum=10e9521f7169d703
+RUN kind=scalar blocks=16 lanes=128 add=0 calls=12500 ns=599167 ns_per_mul=0.374 checksum=10e9521f7169d703
+RUN kind=neon blocks=16 lanes=128 add=0 calls=12500 ns=474250 ns_per_mul=0.296 checksum=10e9521f7169d703
+RUN kind=sme blocks=16 lanes=128 add=0 calls=12500 ns=4168834 ns_per_mul=2.606 checksum=10e9521f7169d703
+RUN kind=sme_za blocks=16 lanes=128 add=0 calls=12500 ns=4153958 ns_per_mul=2.596 checksum=10e9521f7169d703
+RUN kind=scalar blocks=64 lanes=512 add=0 calls=3125 ns=573250 ns_per_mul=0.358 checksum=2c1fd4e2d95840e7
+RUN kind=neon blocks=64 lanes=512 add=0 calls=3125 ns=483667 ns_per_mul=0.302 checksum=2c1fd4e2d95840e7
+RUN kind=sme blocks=64 lanes=512 add=0 calls=3125 ns=5072375 ns_per_mul=3.170 checksum=2c1fd4e2d95840e7
+RUN kind=sme_za blocks=64 lanes=512 add=0 calls=3125 ns=5053667 ns_per_mul=3.159 checksum=2c1fd4e2d95840e7
+RUN kind=scalar blocks=64 lanes=512 add=0 calls=3125 ns=573500 ns_per_mul=0.358 checksum=2c1fd4e2d95840e7
+RUN kind=neon blocks=64 lanes=512 add=0 calls=3125 ns=483833 ns_per_mul=0.302 checksum=2c1fd4e2d95840e7
+RUN kind=sme blocks=64 lanes=512 add=0 calls=3125 ns=5068708 ns_per_mul=3.168 checksum=2c1fd4e2d95840e7
+RUN kind=sme_za blocks=64 lanes=512 add=0 calls=3125 ns=5053916 ns_per_mul=3.159 checksum=2c1fd4e2d95840e7
+RUN kind=scalar blocks=64 lanes=512 add=0 calls=3125 ns=574334 ns_per_mul=0.359 checksum=2c1fd4e2d95840e7
+RUN kind=neon blocks=64 lanes=512 add=0 calls=3125 ns=504042 ns_per_mul=0.315 checksum=2c1fd4e2d95840e7
+RUN kind=sme blocks=64 lanes=512 add=0 calls=3125 ns=5047583 ns_per_mul=3.155 checksum=2c1fd4e2d95840e7
+RUN kind=sme_za blocks=64 lanes=512 add=0 calls=3125 ns=5074375 ns_per_mul=3.171 checksum=2c1fd4e2d95840e7
+RUN kind=scalar blocks=64 lanes=512 add=0 calls=3125 ns=573459 ns_per_mul=0.358 checksum=2c1fd4e2d95840e7
+RUN kind=neon blocks=64 lanes=512 add=0 calls=3125 ns=482875 ns_per_mul=0.302 checksum=2c1fd4e2d95840e7
+RUN kind=sme blocks=64 lanes=512 add=0 calls=3125 ns=5050375 ns_per_mul=3.156 checksum=2c1fd4e2d95840e7
+RUN kind=sme_za blocks=64 lanes=512 add=0 calls=3125 ns=5083542 ns_per_mul=3.177 checksum=2c1fd4e2d95840e7
+RUN kind=scalar blocks=64 lanes=512 add=0 calls=3125 ns=572625 ns_per_mul=0.358 checksum=2c1fd4e2d95840e7
+RUN kind=neon blocks=64 lanes=512 add=0 calls=3125 ns=490792 ns_per_mul=0.307 checksum=2c1fd4e2d95840e7
+RUN kind=sme blocks=64 lanes=512 add=0 calls=3125 ns=5077334 ns_per_mul=3.173 checksum=2c1fd4e2d95840e7
+RUN kind=sme_za blocks=64 lanes=512 add=0 calls=3125 ns=5076750 ns_per_mul=3.173 checksum=2c1fd4e2d95840e7
+RUN kind=scalar blocks=64 lanes=512 add=0 calls=3125 ns=573333 ns_per_mul=0.358 checksum=2c1fd4e2d95840e7
+RUN kind=neon blocks=64 lanes=512 add=0 calls=3125 ns=486917 ns_per_mul=0.304 checksum=2c1fd4e2d95840e7
+RUN kind=sme blocks=64 lanes=512 add=0 calls=3125 ns=5050375 ns_per_mul=3.156 checksum=2c1fd4e2d95840e7
+RUN kind=sme_za blocks=64 lanes=512 add=0 calls=3125 ns=5076875 ns_per_mul=3.173 checksum=2c1fd4e2d95840e7
+RUN kind=scalar blocks=64 lanes=512 add=0 calls=3125 ns=573375 ns_per_mul=0.358 checksum=2c1fd4e2d95840e7
+RUN kind=neon blocks=64 lanes=512 add=0 calls=3125 ns=486875 ns_per_mul=0.304 checksum=2c1fd4e2d95840e7
+RUN kind=sme blocks=64 lanes=512 add=0 calls=3125 ns=5155292 ns_per_mul=3.222 checksum=2c1fd4e2d95840e7
+RUN kind=sme_za blocks=64 lanes=512 add=0 calls=3125 ns=5080666 ns_per_mul=3.175 checksum=2c1fd4e2d95840e7
+RUN kind=scalar blocks=1 lanes=8 add=1 calls=200000 ns=665958 ns_per_mul=0.416 checksum=b1e587f67fcfd59c
+RUN kind=neon blocks=1 lanes=8 add=1 calls=200000 ns=1187167 ns_per_mul=0.742 checksum=b1e587f67fcfd59c
+RUN kind=sme blocks=1 lanes=8 add=1 calls=200000 ns=6180125 ns_per_mul=3.863 checksum=b1e587f67fcfd59c
+RUN kind=sme_za blocks=1 lanes=8 add=1 calls=200000 ns=6143334 ns_per_mul=3.840 checksum=b1e587f67fcfd59c
+RUN kind=scalar blocks=1 lanes=8 add=1 calls=200000 ns=696834 ns_per_mul=0.436 checksum=b1e587f67fcfd59c
+RUN kind=neon blocks=1 lanes=8 add=1 calls=200000 ns=1203125 ns_per_mul=0.752 checksum=b1e587f67fcfd59c
+RUN kind=sme blocks=1 lanes=8 add=1 calls=200000 ns=6122875 ns_per_mul=3.827 checksum=b1e587f67fcfd59c
+RUN kind=sme_za blocks=1 lanes=8 add=1 calls=200000 ns=6147625 ns_per_mul=3.842 checksum=b1e587f67fcfd59c
+RUN kind=scalar blocks=1 lanes=8 add=1 calls=200000 ns=691292 ns_per_mul=0.432 checksum=b1e587f67fcfd59c
+RUN kind=neon blocks=1 lanes=8 add=1 calls=200000 ns=1187833 ns_per_mul=0.742 checksum=b1e587f67fcfd59c
+RUN kind=sme blocks=1 lanes=8 add=1 calls=200000 ns=6143958 ns_per_mul=3.840 checksum=b1e587f67fcfd59c
+RUN kind=sme_za blocks=1 lanes=8 add=1 calls=200000 ns=6135834 ns_per_mul=3.835 checksum=b1e587f67fcfd59c
+RUN kind=scalar blocks=1 lanes=8 add=1 calls=200000 ns=689541 ns_per_mul=0.431 checksum=b1e587f67fcfd59c
+RUN kind=neon blocks=1 lanes=8 add=1 calls=200000 ns=1189291 ns_per_mul=0.743 checksum=b1e587f67fcfd59c
+RUN kind=sme blocks=1 lanes=8 add=1 calls=200000 ns=6167958 ns_per_mul=3.855 checksum=b1e587f67fcfd59c
+RUN kind=sme_za blocks=1 lanes=8 add=1 calls=200000 ns=6144167 ns_per_mul=3.840 checksum=b1e587f67fcfd59c
+RUN kind=scalar blocks=1 lanes=8 add=1 calls=200000 ns=695625 ns_per_mul=0.435 checksum=b1e587f67fcfd59c
+RUN kind=neon blocks=1 lanes=8 add=1 calls=200000 ns=1184458 ns_per_mul=0.740 checksum=b1e587f67fcfd59c
+RUN kind=sme blocks=1 lanes=8 add=1 calls=200000 ns=6122667 ns_per_mul=3.827 checksum=b1e587f67fcfd59c
+RUN kind=sme_za blocks=1 lanes=8 add=1 calls=200000 ns=6146917 ns_per_mul=3.842 checksum=b1e587f67fcfd59c
+RUN kind=scalar blocks=1 lanes=8 add=1 calls=200000 ns=690042 ns_per_mul=0.431 checksum=b1e587f67fcfd59c
+RUN kind=neon blocks=1 lanes=8 add=1 calls=200000 ns=1189209 ns_per_mul=0.743 checksum=b1e587f67fcfd59c
+RUN kind=sme blocks=1 lanes=8 add=1 calls=200000 ns=6145042 ns_per_mul=3.841 checksum=b1e587f67fcfd59c
+RUN kind=sme_za blocks=1 lanes=8 add=1 calls=200000 ns=6141542 ns_per_mul=3.838 checksum=b1e587f67fcfd59c
+RUN kind=scalar blocks=1 lanes=8 add=1 calls=200000 ns=702542 ns_per_mul=0.439 checksum=b1e587f67fcfd59c
+RUN kind=neon blocks=1 lanes=8 add=1 calls=200000 ns=1186333 ns_per_mul=0.741 checksum=b1e587f67fcfd59c
+RUN kind=sme blocks=1 lanes=8 add=1 calls=200000 ns=6120000 ns_per_mul=3.825 checksum=b1e587f67fcfd59c
+RUN kind=sme_za blocks=1 lanes=8 add=1 calls=200000 ns=6190459 ns_per_mul=3.869 checksum=b1e587f67fcfd59c
+RUN kind=scalar blocks=4 lanes=32 add=1 calls=50000 ns=618584 ns_per_mul=0.387 checksum=7ffc8aed5ca2f44d
+RUN kind=neon blocks=4 lanes=32 add=1 calls=50000 ns=558583 ns_per_mul=0.349 checksum=7ffc8aed5ca2f44d
+RUN kind=sme blocks=4 lanes=32 add=1 calls=50000 ns=3158417 ns_per_mul=1.974 checksum=7ffc8aed5ca2f44d
+RUN kind=sme_za blocks=4 lanes=32 add=1 calls=50000 ns=3194917 ns_per_mul=1.997 checksum=7ffc8aed5ca2f44d
+RUN kind=scalar blocks=4 lanes=32 add=1 calls=50000 ns=621458 ns_per_mul=0.388 checksum=7ffc8aed5ca2f44d
+RUN kind=neon blocks=4 lanes=32 add=1 calls=50000 ns=558542 ns_per_mul=0.349 checksum=7ffc8aed5ca2f44d
+RUN kind=sme blocks=4 lanes=32 add=1 calls=50000 ns=3172250 ns_per_mul=1.983 checksum=7ffc8aed5ca2f44d
+RUN kind=sme_za blocks=4 lanes=32 add=1 calls=50000 ns=3162209 ns_per_mul=1.976 checksum=7ffc8aed5ca2f44d
+RUN kind=scalar blocks=4 lanes=32 add=1 calls=50000 ns=621375 ns_per_mul=0.388 checksum=7ffc8aed5ca2f44d
+RUN kind=neon blocks=4 lanes=32 add=1 calls=50000 ns=577791 ns_per_mul=0.361 checksum=7ffc8aed5ca2f44d
+RUN kind=sme blocks=4 lanes=32 add=1 calls=50000 ns=3158417 ns_per_mul=1.974 checksum=7ffc8aed5ca2f44d
+RUN kind=sme_za blocks=4 lanes=32 add=1 calls=50000 ns=3161750 ns_per_mul=1.976 checksum=7ffc8aed5ca2f44d
+RUN kind=scalar blocks=4 lanes=32 add=1 calls=50000 ns=618458 ns_per_mul=0.387 checksum=7ffc8aed5ca2f44d
+RUN kind=neon blocks=4 lanes=32 add=1 calls=50000 ns=561500 ns_per_mul=0.351 checksum=7ffc8aed5ca2f44d
+RUN kind=sme blocks=4 lanes=32 add=1 calls=50000 ns=3176917 ns_per_mul=1.986 checksum=7ffc8aed5ca2f44d
+RUN kind=sme_za blocks=4 lanes=32 add=1 calls=50000 ns=3162167 ns_per_mul=1.976 checksum=7ffc8aed5ca2f44d
+RUN kind=scalar blocks=4 lanes=32 add=1 calls=50000 ns=620583 ns_per_mul=0.388 checksum=7ffc8aed5ca2f44d
+RUN kind=neon blocks=4 lanes=32 add=1 calls=50000 ns=557791 ns_per_mul=0.349 checksum=7ffc8aed5ca2f44d
+RUN kind=sme blocks=4 lanes=32 add=1 calls=50000 ns=3158375 ns_per_mul=1.974 checksum=7ffc8aed5ca2f44d
+RUN kind=sme_za blocks=4 lanes=32 add=1 calls=50000 ns=3184875 ns_per_mul=1.991 checksum=7ffc8aed5ca2f44d
+RUN kind=scalar blocks=4 lanes=32 add=1 calls=50000 ns=618459 ns_per_mul=0.387 checksum=7ffc8aed5ca2f44d
+RUN kind=neon blocks=4 lanes=32 add=1 calls=50000 ns=560875 ns_per_mul=0.351 checksum=7ffc8aed5ca2f44d
+RUN kind=sme blocks=4 lanes=32 add=1 calls=50000 ns=3158334 ns_per_mul=1.974 checksum=7ffc8aed5ca2f44d
+RUN kind=sme_za blocks=4 lanes=32 add=1 calls=50000 ns=3158958 ns_per_mul=1.974 checksum=7ffc8aed5ca2f44d
+RUN kind=scalar blocks=4 lanes=32 add=1 calls=50000 ns=621083 ns_per_mul=0.388 checksum=7ffc8aed5ca2f44d
+RUN kind=neon blocks=4 lanes=32 add=1 calls=50000 ns=578166 ns_per_mul=0.361 checksum=7ffc8aed5ca2f44d
+RUN kind=sme blocks=4 lanes=32 add=1 calls=50000 ns=3155625 ns_per_mul=1.972 checksum=7ffc8aed5ca2f44d
+RUN kind=sme_za blocks=4 lanes=32 add=1 calls=50000 ns=3162166 ns_per_mul=1.976 checksum=7ffc8aed5ca2f44d
+RUN kind=scalar blocks=16 lanes=128 add=1 calls=12500 ns=654709 ns_per_mul=0.409 checksum=b4d6d38c5ee5cac3
+RUN kind=neon blocks=16 lanes=128 add=1 calls=12500 ns=549500 ns_per_mul=0.343 checksum=b4d6d38c5ee5cac3
+RUN kind=sme blocks=16 lanes=128 add=1 calls=12500 ns=4804791 ns_per_mul=3.003 checksum=b4d6d38c5ee5cac3
+RUN kind=sme_za blocks=16 lanes=128 add=1 calls=12500 ns=4786791 ns_per_mul=2.992 checksum=b4d6d38c5ee5cac3
+RUN kind=scalar blocks=16 lanes=128 add=1 calls=12500 ns=653083 ns_per_mul=0.408 checksum=b4d6d38c5ee5cac3
+RUN kind=neon blocks=16 lanes=128 add=1 calls=12500 ns=549250 ns_per_mul=0.343 checksum=b4d6d38c5ee5cac3
+RUN kind=sme blocks=16 lanes=128 add=1 calls=12500 ns=4816708 ns_per_mul=3.010 checksum=b4d6d38c5ee5cac3
+RUN kind=sme_za blocks=16 lanes=128 add=1 calls=12500 ns=4797958 ns_per_mul=2.999 checksum=b4d6d38c5ee5cac3
+RUN kind=scalar blocks=16 lanes=128 add=1 calls=12500 ns=656583 ns_per_mul=0.410 checksum=b4d6d38c5ee5cac3
+RUN kind=neon blocks=16 lanes=128 add=1 calls=12500 ns=549417 ns_per_mul=0.343 checksum=b4d6d38c5ee5cac3
+RUN kind=sme blocks=16 lanes=128 add=1 calls=12500 ns=4804959 ns_per_mul=3.003 checksum=b4d6d38c5ee5cac3
+RUN kind=sme_za blocks=16 lanes=128 add=1 calls=12500 ns=4786792 ns_per_mul=2.992 checksum=b4d6d38c5ee5cac3
+RUN kind=scalar blocks=16 lanes=128 add=1 calls=12500 ns=653875 ns_per_mul=0.409 checksum=b4d6d38c5ee5cac3
+RUN kind=neon blocks=16 lanes=128 add=1 calls=12500 ns=569167 ns_per_mul=0.356 checksum=b4d6d38c5ee5cac3
+RUN kind=sme blocks=16 lanes=128 add=1 calls=12500 ns=4780625 ns_per_mul=2.988 checksum=b4d6d38c5ee5cac3
+RUN kind=sme_za blocks=16 lanes=128 add=1 calls=12500 ns=4787375 ns_per_mul=2.992 checksum=b4d6d38c5ee5cac3
+RUN kind=scalar blocks=16 lanes=128 add=1 calls=12500 ns=670708 ns_per_mul=0.419 checksum=b4d6d38c5ee5cac3
+RUN kind=neon blocks=16 lanes=128 add=1 calls=12500 ns=549167 ns_per_mul=0.343 checksum=b4d6d38c5ee5cac3
+RUN kind=sme blocks=16 lanes=128 add=1 calls=12500 ns=4783416 ns_per_mul=2.990 checksum=b4d6d38c5ee5cac3
+RUN kind=sme_za blocks=16 lanes=128 add=1 calls=12500 ns=4810417 ns_per_mul=3.007 checksum=b4d6d38c5ee5cac3
+RUN kind=scalar blocks=16 lanes=128 add=1 calls=12500 ns=657709 ns_per_mul=0.411 checksum=b4d6d38c5ee5cac3
+RUN kind=neon blocks=16 lanes=128 add=1 calls=12500 ns=552208 ns_per_mul=0.345 checksum=b4d6d38c5ee5cac3
+RUN kind=sme blocks=16 lanes=128 add=1 calls=12500 ns=4783459 ns_per_mul=2.990 checksum=b4d6d38c5ee5cac3
+RUN kind=sme_za blocks=16 lanes=128 add=1 calls=12500 ns=4830875 ns_per_mul=3.019 checksum=b4d6d38c5ee5cac3
+RUN kind=scalar blocks=16 lanes=128 add=1 calls=12500 ns=653375 ns_per_mul=0.408 checksum=b4d6d38c5ee5cac3
+RUN kind=neon blocks=16 lanes=128 add=1 calls=12500 ns=549334 ns_per_mul=0.343 checksum=b4d6d38c5ee5cac3
+RUN kind=sme blocks=16 lanes=128 add=1 calls=12500 ns=4783458 ns_per_mul=2.990 checksum=b4d6d38c5ee5cac3
+RUN kind=sme_za blocks=16 lanes=128 add=1 calls=12500 ns=4799417 ns_per_mul=3.000 checksum=b4d6d38c5ee5cac3
+RUN kind=scalar blocks=64 lanes=512 add=1 calls=3125 ns=627000 ns_per_mul=0.392 checksum=0e3b1bbc619d6e12
+RUN kind=neon blocks=64 lanes=512 add=1 calls=3125 ns=530833 ns_per_mul=0.332 checksum=0e3b1bbc619d6e12
+RUN kind=sme blocks=64 lanes=512 add=1 calls=3125 ns=5491000 ns_per_mul=3.432 checksum=0e3b1bbc619d6e12
+RUN kind=sme_za blocks=64 lanes=512 add=1 calls=3125 ns=5517250 ns_per_mul=3.448 checksum=0e3b1bbc619d6e12
+RUN kind=scalar blocks=64 lanes=512 add=1 calls=3125 ns=624417 ns_per_mul=0.390 checksum=0e3b1bbc619d6e12
+RUN kind=neon blocks=64 lanes=512 add=1 calls=3125 ns=531042 ns_per_mul=0.332 checksum=0e3b1bbc619d6e12
+RUN kind=sme blocks=64 lanes=512 add=1 calls=3125 ns=5552084 ns_per_mul=3.470 checksum=0e3b1bbc619d6e12
+RUN kind=sme_za blocks=64 lanes=512 add=1 calls=3125 ns=5494625 ns_per_mul=3.434 checksum=0e3b1bbc619d6e12
+RUN kind=scalar blocks=64 lanes=512 add=1 calls=3125 ns=627041 ns_per_mul=0.392 checksum=0e3b1bbc619d6e12
+RUN kind=neon blocks=64 lanes=512 add=1 calls=3125 ns=531292 ns_per_mul=0.332 checksum=0e3b1bbc619d6e12
+RUN kind=sme blocks=64 lanes=512 add=1 calls=3125 ns=5513041 ns_per_mul=3.446 checksum=0e3b1bbc619d6e12
+RUN kind=sme_za blocks=64 lanes=512 add=1 calls=3125 ns=5494542 ns_per_mul=3.434 checksum=0e3b1bbc619d6e12
+RUN kind=scalar blocks=64 lanes=512 add=1 calls=3125 ns=624417 ns_per_mul=0.390 checksum=0e3b1bbc619d6e12
+RUN kind=neon blocks=64 lanes=512 add=1 calls=3125 ns=552125 ns_per_mul=0.345 checksum=0e3b1bbc619d6e12
+RUN kind=sme blocks=64 lanes=512 add=1 calls=3125 ns=5491541 ns_per_mul=3.432 checksum=0e3b1bbc619d6e12
+RUN kind=sme_za blocks=64 lanes=512 add=1 calls=3125 ns=5517625 ns_per_mul=3.449 checksum=0e3b1bbc619d6e12
+RUN kind=scalar blocks=64 lanes=512 add=1 calls=3125 ns=622417 ns_per_mul=0.389 checksum=0e3b1bbc619d6e12
+RUN kind=neon blocks=64 lanes=512 add=1 calls=3125 ns=531583 ns_per_mul=0.332 checksum=0e3b1bbc619d6e12
+RUN kind=sme blocks=64 lanes=512 add=1 calls=3125 ns=5490958 ns_per_mul=3.432 checksum=0e3b1bbc619d6e12
+RUN kind=sme_za blocks=64 lanes=512 add=1 calls=3125 ns=5517875 ns_per_mul=3.449 checksum=0e3b1bbc619d6e12
+RUN kind=scalar blocks=64 lanes=512 add=1 calls=3125 ns=627416 ns_per_mul=0.392 checksum=0e3b1bbc619d6e12
+RUN kind=neon blocks=64 lanes=512 add=1 calls=3125 ns=534042 ns_per_mul=0.334 checksum=0e3b1bbc619d6e12
+RUN kind=sme blocks=64 lanes=512 add=1 calls=3125 ns=5490959 ns_per_mul=3.432 checksum=0e3b1bbc619d6e12
+RUN kind=sme_za blocks=64 lanes=512 add=1 calls=3125 ns=5525208 ns_per_mul=3.453 checksum=0e3b1bbc619d6e12
+RUN kind=scalar blocks=64 lanes=512 add=1 calls=3125 ns=631417 ns_per_mul=0.395 checksum=0e3b1bbc619d6e12
+RUN kind=neon blocks=64 lanes=512 add=1 calls=3125 ns=531291 ns_per_mul=0.332 checksum=0e3b1bbc619d6e12
+RUN kind=sme blocks=64 lanes=512 add=1 calls=3125 ns=5526792 ns_per_mul=3.454 checksum=0e3b1bbc619d6e12
+RUN kind=sme_za blocks=64 lanes=512 add=1 calls=3125 ns=5496042 ns_per_mul=3.435 checksum=0e3b1bbc619d6e12
+00000001000012f4 <_sme_mul_za>:
+1000012f4: 6dbb3bef    	stp	d15, d14, [sp, #-0x50]!
+1000012f8: 6d0133ed    	stp	d13, d12, [sp, #0x10]
+1000012fc: 6d022beb    	stp	d11, d10, [sp, #0x20]
+100001300: 6d0323e9    	stp	d9, d8, [sp, #0x30]
+100001304: a9047bfd    	stp	x29, x30, [sp, #0x40]
+100001308: 910103fd    	add	x29, sp, #0x40
+10000130c: d503437f    	smstart	sm
+100001310: d53bd0a8    	mrs	x8, TPIDR2_EL0
+100001314: b4000068    	cbz	x8, 0x100001320 <_sme_mul_za+0x2c>
+100001318: 9400003b    	bl	0x100001404 <___arm_tpidr2_save>
+10000131c: d51bd0bf    	msr	TPIDR2_EL0, xzr
+100001320: d503457f    	smstart	za
+100001324: c00800ff    	zero	{za}
+100001328: 7100045f    	cmp	w2, #0x1

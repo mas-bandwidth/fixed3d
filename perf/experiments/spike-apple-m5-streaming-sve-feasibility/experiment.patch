@@ -1,0 +1,182 @@
+diff --git a/tools/perf/sme_micro.c b/tools/perf/sme_micro.c
+new file mode 100644
+index 0000000..e19fbb2
+--- /dev/null
++++ b/tools/perf/sme_micro.c
+@@ -0,0 +1,176 @@
++// Exploratory Apple M5 Q48.16 lane multiply cost probe; not product code.
++#include <arm_neon.h>
++#include <arm_sve.h>
++#include <inttypes.h>
++#include <stdint.h>
++#include <stdio.h>
++#include <stdlib.h>
++#include <time.h>
++
++#define LANES 8
++#define MAX_BLOCKS 64
++
++static inline int64_t exact_mul(int64_t a, int64_t b)
++{
++    __int128 p = (__int128)a * b + 32768;
++    return (int64_t)(p >> 16);
++}
++
++__attribute__((noinline)) static void scalar_mul(int64_t *a, const int64_t *b, int blocks, int add)
++{
++#pragma clang loop vectorize(disable)
++    for (int i = 0; i < blocks * LANES; ++i) {
++        int64_t p = exact_mul(a[i], b[i]);
++        a[i] = add ? (int64_t)((uint64_t)a[i] + (uint64_t)p) : p;
++    }
++}
++
++__attribute__((noinline)) static void neon_mul(int64_t *a, const int64_t *b, int blocks, int add)
++{
++    for (int i = 0; i < blocks * LANES; i += 2) {
++        int64x2_t x = vld1q_s64(a + i);
++        int64x2_t y = vld1q_s64(b + i);
++        int64_t p0 = exact_mul(vgetq_lane_s64(x, 0), vgetq_lane_s64(y, 0));
++        int64_t p1 = exact_mul(vgetq_lane_s64(x, 1), vgetq_lane_s64(y, 1));
++        int64x2_t z = vdupq_n_s64(0);
++        z = vsetq_lane_s64(add ? (int64_t)((uint64_t)vgetq_lane_s64(x, 0) + (uint64_t)p0) : p0, z, 0);
++        z = vsetq_lane_s64(add ? (int64_t)((uint64_t)vgetq_lane_s64(x, 1) + (uint64_t)p1) : p1, z, 1);
++        vst1q_s64(a + i, z);
++    }
++}
++
++__arm_locally_streaming __attribute__((noinline, target("+sme2"))) static void sme_mul(int64_t *a, const int64_t *b, int blocks, int add)
++{
++    svbool_t pg = svptrue_b64();
++    for (int i = 0; i < blocks * LANES; i += svcntd()) {
++        svint64_t x = svld1_s64(pg, a + i);
++        svint64_t y = svld1_s64(pg, b + i);
++        svint64_t bh = svasr_n_s64_x(pg, y, 16);
++        svint64_t bl = svand_n_s64_x(pg, y, 65535);
++        svint64_t ahi = svasr_n_s64_x(pg, x, 32);
++        svint64_t t = svmul_s64_x(pg, x, bh);
++        svint64_t p1 = svmul_s64_x(pg, svand_n_s64_x(pg, x, 0xffffffffLL), bl);
++        svint64_t p2 = svmul_s64_x(pg, ahi, bl);
++        svint64_t low = svreinterpret_s64_u64(svlsr_n_u64_x(pg,
++            svreinterpret_u64_s64(svadd_n_s64_x(pg, p1, 32768)), 16));
++        svint64_t value = svadd_s64_x(pg, t,
++            svadd_s64_x(pg, svlsl_n_s64_x(pg, p2, 16), low));
++        if (add) value = svadd_s64_x(pg, x, value);
++        svst1_s64(pg, a + i, value);
++    }
++}
++
++// Same vector kernel with a fresh ZA scope to expose the extra call-region cost.
++__arm_locally_streaming __arm_new("za") __attribute__((noinline, target("+sme2")))
++static void sme_mul_za(int64_t *a, const int64_t *b, int blocks, int add)
++{
++    svbool_t pg = svptrue_b64();
++    for (int i = 0; i < blocks * LANES; i += svcntd()) {
++        svint64_t x = svld1_s64(pg, a + i);
++        svint64_t y = svld1_s64(pg, b + i);
++        svint64_t bh = svasr_n_s64_x(pg, y, 16);
++        svint64_t bl = svand_n_s64_x(pg, y, 65535);
++        svint64_t ahi = svasr_n_s64_x(pg, x, 32);
++        svint64_t t = svmul_s64_x(pg, x, bh);
++        svint64_t p1 = svmul_s64_x(pg, svand_n_s64_x(pg, x, 0xffffffffLL), bl);
++        svint64_t p2 = svmul_s64_x(pg, ahi, bl);
++        svint64_t low = svreinterpret_s64_u64(svlsr_n_u64_x(pg,
++            svreinterpret_u64_s64(svadd_n_s64_x(pg, p1, 32768)), 16));
++        svint64_t value = svadd_s64_x(pg, t,
++            svadd_s64_x(pg, svlsl_n_s64_x(pg, p2, 16), low));
++        if (add) value = svadd_s64_x(pg, x, value);
++        svst1_s64(pg, a + i, value);
++    }
++}
++
++static uint64_t clock_ns(void)
++{
++    struct timespec t;
++    clock_gettime(CLOCK_MONOTONIC_RAW, &t);
++    return (uint64_t)t.tv_sec * 1000000000u + (uint64_t)t.tv_nsec;
++}
++
++typedef void (*run_fn)(int64_t *, const int64_t *, int, int);
++
++static void fill(int64_t *a, int64_t *b, int count)
++{
++    uint64_t seed = 0x91e10da5c79e7b1dULL;
++    for (int i = 0; i < count; ++i) {
++        seed ^= seed << 13; seed ^= seed >> 7; seed ^= seed << 17;
++        a[i] = (int64_t)seed;
++        seed ^= seed << 13; seed ^= seed >> 7; seed ^= seed << 17;
++        b[i] = (int64_t)seed;
++    }
++}
++
++static int check(void)
++{
++    int64_t a[LANES * MAX_BLOCKS], b[LANES * MAX_BLOCKS], expected[LANES * MAX_BLOCKS];
++    fill(a, b, LANES * MAX_BLOCKS);
++    a[0] = INT64_MIN; b[0] = INT64_MIN;
++    a[1] = INT64_MAX; b[1] = INT64_MAX;
++    a[2] = INT64_MIN; b[2] = INT64_MAX;
++    a[3] = -1; b[3] = 32768;
++    for (int add = 0; add < 2; ++add) {
++        for (int i = 0; i < LANES * MAX_BLOCKS; ++i) expected[i] = a[i];
++        scalar_mul(expected, b, MAX_BLOCKS, add);
++        sme_mul(a, b, MAX_BLOCKS, add);
++        for (int i = 0; i < LANES * MAX_BLOCKS; ++i) {
++            if (a[i] != expected[i]) {
++                fprintf(stderr, "MISMATCH add=%d lane=%d got=%" PRId64 " expected=%" PRId64 "\n",
++                    add, i, a[i], expected[i]);
++                return 1;
++            }
++        }
++        for (int i = 0; i < LANES * MAX_BLOCKS; ++i) a[i] = expected[i];
++        // The ZA-scoped version has identical arithmetic. Reinitialize and compare.
++        fill(a, b, LANES * MAX_BLOCKS);
++        a[0] = INT64_MIN; b[0] = INT64_MIN;
++        a[1] = INT64_MAX; b[1] = INT64_MAX;
++        a[2] = INT64_MIN; b[2] = INT64_MAX;
++        a[3] = -1; b[3] = 32768;
++        sme_mul_za(a, b, MAX_BLOCKS, add);
++        for (int i = 0; i < LANES * MAX_BLOCKS; ++i) {
++            if (a[i] != expected[i]) return 2;
++        }
++        fill(a, b, LANES * MAX_BLOCKS);
++        a[0] = INT64_MIN; b[0] = INT64_MIN;
++        a[1] = INT64_MAX; b[1] = INT64_MAX;
++        a[2] = INT64_MIN; b[2] = INT64_MAX;
++        a[3] = -1; b[3] = 32768;
++    }
++    puts("EXACT 512 seeded lanes including signed extremes: SME == scalar");
++    return 0;
++}
++
++static void measure(const char *name, run_fn fn, int blocks, int add, int calls)
++{
++    int64_t a[LANES * MAX_BLOCKS], b[LANES * MAX_BLOCKS];
++    fill(a, b, LANES * MAX_BLOCKS);
++    for (int i = 0; i < LANES * MAX_BLOCKS; ++i) b[i] = 65536 + (b[i] & 7);
++    uint64_t start = clock_ns();
++    for (int n = 0; n < calls; ++n) fn(a, b, blocks, add);
++    uint64_t elapsed = clock_ns() - start;
++    uint64_t check = 0;
++    for (int i = 0; i < blocks * LANES; ++i) check ^= (uint64_t)a[i];
++    printf("RUN kind=%s blocks=%d lanes=%d add=%d calls=%d ns=%" PRIu64 " ns_per_mul=%.3f checksum=%016" PRIx64 "\n",
++        name, blocks, blocks * LANES, add, calls, elapsed,
++        (double)elapsed / (double)(calls * blocks * LANES), check);
++}
++
++int main(void)
++{
++    if (check()) return 1;
++    for (int add = 0; add < 2; ++add) {
++        for (int blocks = 1; blocks <= MAX_BLOCKS; blocks *= 4) {
++            int calls = 200000 / blocks;
++            for (int repeat = 0; repeat < 7; ++repeat) {
++                measure("scalar", scalar_mul, blocks, add, calls);
++                measure("neon", neon_mul, blocks, add, calls);
++                measure("sme", sme_mul, blocks, add, calls);
++                measure("sme_za", sme_mul_za, blocks, add, calls);
++            }
++        }
++    }
++    return 0;
++}
