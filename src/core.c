@@ -11,6 +11,18 @@
 #endif
 
 #include "core.h"
+
+#if !( defined( _WIN32 ) || defined( __LITTLE_ENDIAN__ ) \
+	|| ( defined( __BYTE_ORDER__ ) && __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__ ) \
+	|| defined( __BIG_ENDIAN__ ) \
+	|| ( defined( __BYTE_ORDER__ ) && __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__ ) )
+#error "rapidhash byte order cannot be established; refusing the little-endian fallback: the geometry hash is load-bearing on determinism and recordings"
+#endif
+
+#if defined( RAPIDHASH_PROTECTED ) || defined( RAPIDHASH_UNROLLED ) || defined( RAPIDHASH_LITTLE_ENDIAN ) \
+	|| defined( RAPIDHASH_BIG_ENDIAN ) || defined( RAPIDHASH_FAST ) || defined( RAPIDHASH_COMPACT )
+#error "refusing a RAPIDHASH_* compile flag: the geometry hash is load-bearing on determinism and recordings"
+#endif
 #include "rapidhash.h"
 
 #include "box3d/constants.h"
