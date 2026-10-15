@@ -725,7 +725,7 @@ static bool b3CompoundHullValid( const b3HullData* hull )
 		return false;
 	}
 	int64_t end = sizeof( b3HullData );
-	return b3CompoundRegion( hull->vertexOffset, hull->vertexCount, sizeof( b3HullVertex ), _Alignof( b3HullVertex ), end,
+	if ( !( b3CompoundRegion( hull->vertexOffset, hull->vertexCount, sizeof( b3HullVertex ), _Alignof( b3HullVertex ), end,
 							 hull->byteCount, &end ) &&
 		   b3CompoundRegion( hull->pointOffset, hull->vertexCount, sizeof( b3Vec3 ), _Alignof( b3Vec3 ), end,
 							 hull->byteCount, &end ) &&
@@ -734,7 +734,37 @@ static bool b3CompoundHullValid( const b3HullData* hull )
 		   b3CompoundRegion( hull->faceOffset, hull->faceCount, sizeof( b3HullFace ), _Alignof( b3HullFace ), end,
 							 hull->byteCount, &end ) &&
 		   b3CompoundRegion( hull->planeOffset, hull->faceCount, sizeof( b3Plane ), _Alignof( b3Plane ), end,
-							 hull->byteCount, &end );
+							 hull->byteCount, &end ) ) )
+	{
+		return false;
+	}
+	const uint8_t* bytes = (const uint8_t*)hull;
+	const b3HullVertex* vertices = (const b3HullVertex*)( bytes + hull->vertexOffset );
+	const b3HullHalfEdge* edges = (const b3HullHalfEdge*)( bytes + hull->edgeOffset );
+	const b3HullFace* faces = (const b3HullFace*)( bytes + hull->faceOffset );
+	for ( int i = 0; i < hull->vertexCount; ++i )
+	{
+		if ( vertices[i].edge >= hull->edgeCount )
+		{
+			return false;
+		}
+	}
+	for ( int i = 0; i < hull->edgeCount; ++i )
+	{
+		if ( edges[i].next >= hull->edgeCount || edges[i].twin >= hull->edgeCount || edges[i].origin >= hull->vertexCount ||
+			 edges[i].face >= hull->faceCount )
+		{
+			return false;
+		}
+	}
+	for ( int i = 0; i < hull->faceCount; ++i )
+	{
+		if ( faces[i].edge >= hull->edgeCount )
+		{
+			return false;
+		}
+	}
+	return true;
 }
 
 static bool b3CompoundMeshValid( const b3MeshData* mesh )
@@ -745,7 +775,7 @@ static bool b3CompoundMeshValid( const b3MeshData* mesh )
 		return false;
 	}
 	int64_t end = sizeof( b3MeshData );
-	return b3CompoundRegion( mesh->nodeOffset, mesh->nodeCount, sizeof( b3MeshNode ), _Alignof( b3MeshNode ), end,
+	if ( !( b3CompoundRegion( mesh->nodeOffset, mesh->nodeCount, sizeof( b3MeshNode ), _Alignof( b3MeshNode ), end,
 							 mesh->byteCount, &end ) &&
 		   b3CompoundRegion( mesh->vertexOffset, mesh->vertexCount, sizeof( b3Vec3 ), _Alignof( b3Vec3 ), end,
 							 mesh->byteCount, &end ) &&
@@ -754,7 +784,41 @@ static bool b3CompoundMeshValid( const b3MeshData* mesh )
 		   b3CompoundRegion( mesh->materialOffset, mesh->triangleCount, sizeof( uint8_t ), _Alignof( uint8_t ), end,
 							 mesh->byteCount, &end ) &&
 		   b3CompoundRegion( mesh->flagsOffset, mesh->triangleCount, sizeof( uint8_t ), _Alignof( uint8_t ), end,
-							 mesh->byteCount, &end );
+							 mesh->byteCount, &end ) ) )
+	{
+		return false;
+	}
+	const uint8_t* bytes = (const uint8_t*)mesh;
+	const b3MeshNode* nodes = (const b3MeshNode*)( bytes + mesh->nodeOffset );
+	const b3MeshTriangle* triangles = (const b3MeshTriangle*)( bytes + mesh->triangleOffset );
+	const uint8_t* materials = bytes + mesh->materialOffset;
+	for ( int i = 0; i < mesh->nodeCount; ++i )
+	{
+		const b3MeshNode* node = nodes + i;
+		if ( node->data.asLeaf.type == 3 )
+		{
+			if ( node->data.asLeaf.triangleCount == 0 ||
+				 (uint64_t)node->triangleOffset + node->data.asLeaf.triangleCount > (uint64_t)mesh->triangleCount )
+			{
+				return false;
+			}
+		}
+		else if ( i + 1 >= mesh->nodeCount || node->data.asNode.childOffset < 2 ||
+				  (uint64_t)i + node->data.asNode.childOffset >= (uint64_t)mesh->nodeCount )
+		{
+			return false;
+		}
+	}
+	for ( int i = 0; i < mesh->triangleCount; ++i )
+	{
+		if ( triangles[i].index1 < 0 || triangles[i].index1 >= mesh->vertexCount || triangles[i].index2 < 0 ||
+			 triangles[i].index2 >= mesh->vertexCount || triangles[i].index3 < 0 || triangles[i].index3 >= mesh->vertexCount ||
+			 materials[i] >= mesh->materialCount )
+		{
+			return false;
+		}
+	}
+	return true;
 }
 
 const b3CompoundData* b3ValidateCompound( const uint8_t* bytes, int byteCount )
@@ -811,6 +875,14 @@ const b3CompoundData* b3ValidateCompound( const uint8_t* bytes, int byteCount )
 			return NULL;
 		}
 	}
+	const b3CompoundCapsule* capsules = (const b3CompoundCapsule*)( bytes + compound->capsuleOffset );
+	for ( int i = 0; i < compound->capsuleCount; ++i )
+	{
+		if ( capsules[i].materialIndex >= compound->materialCount )
+		{
+			return NULL;
+		}
+	}
 	// Shared hull blobs live between the hull instance array and the mesh instance array.
 	if ( compound->meshOffset < end || ( compound->meshOffset & 7 ) != 0 )
 	{
@@ -832,7 +904,8 @@ const b3CompoundData* b3ValidateCompound( const uint8_t* bytes, int byteCount )
 	for ( int i = 0; i < compound->hullCount; ++i )
 	{
 		uint64_t offset = hulls[i].hullOffset;
-		if ( offset < (uint64_t)compound->hullOffset + (uint64_t)compound->hullCount * sizeof( b3HullInstance ) ||
+		if ( hulls[i].materialIndex >= compound->materialCount ||
+			 offset < (uint64_t)compound->hullOffset + (uint64_t)compound->hullCount * sizeof( b3HullInstance ) ||
 			 offset > (uint64_t)compound->meshOffset || ( offset & ( _Alignof( b3HullData ) - 1 ) ) != 0 ||
 			 offset + sizeof( b3HullData ) > (uint64_t)compound->meshOffset )
 		{
@@ -865,14 +938,31 @@ const b3CompoundData* b3ValidateCompound( const uint8_t* bytes, int byteCount )
 		}
 		const b3MeshData* mesh = (const b3MeshData*)( bytes + offset );
 		if ( mesh->byteCount < (int)sizeof( b3MeshData ) || offset + (uint64_t)mesh->byteCount > (uint64_t)compound->sphereOffset ||
+			 meshes[i].materialCount < (uint32_t)mesh->materialCount ||
 			 !b3CompoundMeshValid( mesh ) )
 		{
 			return NULL;
+		}
+		const uint16_t* map = (const uint16_t*)( bytes + meshes[i].materialOffset );
+		for ( uint32_t j = 0; j < meshes[i].materialCount; ++j )
+		{
+			if ( map[j] >= compound->materialCount )
+			{
+				return NULL;
+			}
 		}
 	}
 	for ( int i = 0; i < compound->meshCount; ++i )
 	{
 		if ( (uint64_t)meshes[i].materialOffset + (uint64_t)meshes[i].materialCount * sizeof( uint16_t ) > firstMeshBlob )
+		{
+			return NULL;
+		}
+	}
+	const b3CompoundSphere* spheres = (const b3CompoundSphere*)( bytes + compound->sphereOffset );
+	for ( int i = 0; i < compound->sphereCount; ++i )
+	{
+		if ( spheres[i].materialIndex >= compound->materialCount )
 		{
 			return NULL;
 		}
