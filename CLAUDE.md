@@ -54,6 +54,30 @@ and says *closed*. Record below.)*
 
 The PORT RECORDs below run newest first and are the detail for each step.
 
+- **PORT RECORD 954cf87 ragdoll human (2026-10-15) — the re-rig only, not the
+  engine half of Fixes (#157).** `shared/human.c` now authors the 954cf87 rig in
+  local coordinates and offsets once with `b3OffsetPos` / `GetSceneOrigin()`.
+  `bone_spine_02` and `bone_head` are gone (neck carries the head capsule);
+  knees and elbows stay revolute, spine/hips/shoulders/neck stay spherical,
+  all with the upstream cone/twist limits; three filter joints (thighs, neck
+  vs each upper arm). Density halving is integer scaling (`defaultDensity / 2`),
+  not a `B3_FIX` product. Reference-frame quaternions are normalized before
+  they become body rotations so `b3IsValidQuat` holds after Q48.16 quantization.
+  **GOLDENS MOVED** because `CreateHuman` is the falling-ragdoll scene:
+  `RAGDOLL_SLEEP_STEP` 404 -> 325, hash narrow `0xF97922B3` -> `0x97AB456D`,
+  ludicrous `0x1DA55033` -> `0x7ACB4BED`. New scenario `RagdollHumanTest`: one
+  human dropped on a ground box, sleep 228 both builds, hash narrow
+  `0xB12CCFAE` / ludicrous `0x8075582E`. Both harvested by the printed-value
+  procedure, identical for workers 1-5 and across two generation runs. Wave
+  pile, query spawn, mesh drop, and spherical geometry did not move.
+  Reference scene `tools/reference/scenes/ref-954cf87-ragdoll-human.scene`
+  (float box3d `954cf87`): harness v1 cannot express joint limits or joint-frame
+  rotations, so angular velocity diverges from step 0 (measured 3.17 rad/s).
+  Position tracks for 4 steps (measured max 7.60e-3 m). Horizon 4, tolerances
+  twice that window's measured maxima (pos 0.015202, rot 0.2914, vel 17.688
+  because angvel shares the vel tolerance, measured 8.84 rad/s). Counts exact
+  in that window. The full 40-step run does not agree.
+
 - **REFERENCE HARNESS (fixed3d-box3d-reference-harness, 2026-10-14) — the float box3d
   reference harness.** New `tools/reference/` runs one scenario through vanilla float
   box3d (the reference, fetched at `BOX3D_REFERENCE_REV=47d7f7c` via ExternalProject
