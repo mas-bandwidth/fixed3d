@@ -63,7 +63,7 @@ static void CountingFree( void* mem, size_t size )
 // counting allocator through the widened signatures and checks the sizes and
 // alignments the engine passes for a world create/step/destroy, and that every
 // byte is freed at destroy.
-static int TestAllocatorWidenedSignature( void )
+static int AllocatorWidenedSignatureTest( void )
 {
 	g_alloc = (CountAllocator){ 0, 0, 0, 0, 0, false };
 
@@ -198,7 +198,7 @@ int AllocatorTest( void )
 	RUN_SUBTEST( TestBlockAllocate );
 	RUN_SUBTEST( TestBlockClear );
 	RUN_SUBTEST( TestBlockAlignment );
-	RUN_SUBTEST( TestAllocatorWidenedSignature );
+	RUN_SUBTEST( AllocatorWidenedSignatureTest );
 
 	return 0;
 }
