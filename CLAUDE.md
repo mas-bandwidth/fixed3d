@@ -245,6 +245,31 @@ The PORT RECORDs below run newest first and are the detail for each step.
     cursor. Filed under the same issue that already holds the samples half of
     `47d7f7c`, on the same ground as #20.
 
+  **LANDING ADDENDUM (card port-f8c4fe8-land-mover-shape-cast, 2026-10-15):**
+  landed by merging `origin/port/f8c4fe8-mover-shape-cast` into the sprint
+  branch, plus NEW reference scene
+  `tools/reference/scenes/ref-f8c4fe8-shape-cast-encroach-band.scene` driving
+  the arm through the frozen v1 harness against float box3d pinned at f8c4fe8:
+  three `query shape_cast` box lines (toward hits at fraction
+  (492 - 164) / 16384 with retained separation, receding and across miss) and
+  three `query mover` lines (radius 0.25 => `canEncroach` true — the only
+  driver path in the harness that reaches the arm). MEASURED: max query delta
+  1.95317e-05 (slop quantum 4.9e-6 magnified by 1 / 0.25 on the box toward
+  control); twice measured is 3.9e-5, inside the contract tolerance
+  4 * B3_FIXED_EPSILON = 6.103515625e-05; every miss is exact (1 in both);
+  ctest `reference_ref-f8c4fe8-shape-cast-encroach-band` green. The scene was
+  forced to a dyadic box half-extent 0.0625: a 0.05 half quantizes to raw 3277
+  against float32's 0.04999999963, and that 3e-6 gap divergence measured 6.4e-5
+  on the toward control — outside tolerance. Red-first re-run on the landing
+  branch: BASE `src/distance.c` substituted gives RED-EXIT=1 at
+  `ShapeCastEncroachRecedeTest` (`condition false: output.hit == false`),
+  restoring HEAD gives GREEN-EXIT=0. Under the f8c4fe8 pin
+  `reference_box_stack` fails (vel 0.0305 vs tol 0.03, awake counter, first
+  break step 1) — NOT caused by this merge: the engine diff is one additive arm
+  inside `b3ShapeCast`, which no world step and no box-dynamics path calls; it
+  is float-side drift of the seed scene against the new pin, a recalibration
+  follow-up.
+
 - **PORT RECORD 47d7f7c "clockwise option, joint is awake (#130)" (2026-08-29) —
   PORTED in seven steps, 2026-08-31.** 2,466 upstream insertions; the whole engine
   half is across, the samples half is held above. Each step built and ran narrow,
