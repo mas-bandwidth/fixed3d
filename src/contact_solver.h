@@ -13,6 +13,7 @@ typedef struct b3ManifoldConstraintPoint
 	b3Fixed relativeVelocity;
 	b3Fixed normalImpulse;
 	b3Fixed totalNormalImpulse;
+	b3Fixed restitutionImpulse;
 	b3Fixed normalMass;
 	b3Fixed leverArm;
 } b3ManifoldConstraintPoint;

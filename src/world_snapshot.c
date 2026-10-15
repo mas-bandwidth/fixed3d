@@ -33,7 +33,7 @@
 
 // Snapshot image magic 'BNS3' and version
 #define B3_SNAP_MAGIC 0x33534E42u
-#define B3_SNAP_VERSION 2u
+#define B3_SNAP_VERSION 3u // post-solve restitution stage
 
 #define B3_SNAP_FLAG_VALIDATION 0x1u
 
@@ -435,6 +435,7 @@ static void b3SerWorldConfig( b3RecBuffer* buf, const b3World* world )
 	b3SnapW_Bytes( buf, &world->gravity, sizeof( b3Vec3 ) );
 	b3SnapW_Bytes( buf, &world->hitEventThreshold, sizeof( b3Fixed ) );
 	b3SnapW_Bytes( buf, &world->restitutionThreshold, sizeof( b3Fixed ) );
+	b3SnapW_I32( buf, world->restitutionIterations );
 	b3SnapW_Bytes( buf, &world->maxLinearSpeed, sizeof( b3Fixed ) );
 	b3SnapW_Bytes( buf, &world->contactSpeed, sizeof( b3Fixed ) );
 	b3SnapW_Bytes( buf, &world->contactHertz, sizeof( b3Fixed ) );
@@ -451,6 +452,7 @@ static void b3SerWorldConfig( b3RecBuffer* buf, const b3World* world )
 	flags |= world->enableWarmStarting ? 0x02u : 0u;
 	flags |= world->enableContinuous ? 0x04u : 0u;
 	flags |= world->enableSpeculative ? 0x08u : 0u;
+	flags |= world->enableRestitutionPropagation ? 0x10u : 0u;
 	b3RecBufAppend( buf, &flags, 1 );
 }
 
@@ -459,6 +461,7 @@ static void b3DesWorldConfig( b3SnapReader* r, b3World* world )
 	b3SnapR_Bytes( r, &world->gravity, sizeof( b3Vec3 ) );
 	b3SnapR_Bytes( r, &world->hitEventThreshold, sizeof( b3Fixed ) );
 	b3SnapR_Bytes( r, &world->restitutionThreshold, sizeof( b3Fixed ) );
+	world->restitutionIterations = b3SnapR_I32( r );
 	b3SnapR_Bytes( r, &world->maxLinearSpeed, sizeof( b3Fixed ) );
 	b3SnapR_Bytes( r, &world->contactSpeed, sizeof( b3Fixed ) );
 	b3SnapR_Bytes( r, &world->contactHertz, sizeof( b3Fixed ) );
@@ -476,6 +479,7 @@ static void b3DesWorldConfig( b3SnapReader* r, b3World* world )
 	world->enableWarmStarting = ( flags & 0x02u ) != 0;
 	world->enableContinuous = ( flags & 0x04u ) != 0;
 	world->enableSpeculative = ( flags & 0x08u ) != 0;
+	world->enableRestitutionPropagation = ( flags & 0x10u ) != 0;
 }
 
 // Shapes carry pointer fields: materials, userData, userShape, and the geometry union.

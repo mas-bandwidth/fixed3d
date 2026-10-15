@@ -137,6 +137,9 @@ B3_API b3Fixed b3GetStallThreshold( void );
 #define B3_RESTITUTION_ITERATIONS 1
 #endif
 
+/// The maximum number of restitution iterations. Needed to avoid a solver overflow.
+#define B3_MAX_RESTITUTION_ITERATIONS 63
+
 /// This is the limit on how many mesh or heightfield triangles a single convex shape can collide with.
 /// Increasing this will increase stack usage, so be careful. I recommend to simplify your collision data
 /// before increasing this. For example, using render mesh for collision often leads to poor performance.
