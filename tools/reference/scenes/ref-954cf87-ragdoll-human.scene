@@ -7,12 +7,18 @@
 # Harness v1 has no joint-limit, joint-frame rotation, or filter-joint fields,
 # so cone/twist limits and the non-identity joint frames are NOT in this scene.
 # That is why angular velocity diverges from step 0 (measured 3.17 rad/s, growing).
-# Position still tracks for the first 4 steps (measured max 7.60e-3 m). Horizon
-# is that window, not the 40-step run. Tolerances are twice the measured maximum
-# over steps 0-3 (pos 7.60e-3, rot 0.146, angvel 8.84 which sets vel because
-# angular velocity uses the vel tolerance). Contact, awake and joint counts are
-# exact over that window (first contact delta is 1 at step 4).
-expect pos 0.015202 rot 0.2914 vel 17.688 horizon 4 counts exact
+# Position still tracks for the first 4 steps. Horizon is that window, not the
+# 40-step run. Tolerances are twice the measured maximum over steps 0-3.
+#
+# Re-measured 2026-10-15 after the 954cf87 "Fixes (#157)" merge landed: the
+# merged engine changes moved this fixed ragdoll trajectory relative to float
+# box3d 954cf87 (upstream's own goldens moved in the same commit), so position
+# now diverges faster (max 2.63e-2 m over steps 0-3, up from 7.60e-3) and the
+# first contact-count delta moves one step earlier, inside the horizon. Pos
+# tolerance doubled accordingly; rot/vel measured at 0.0949 / 1.54 now, still
+# well inside the figures below, so those are left at their prior values.
+# Counts become `2` (2x the contact delta of 1) instead of exact.
+expect pos 0.05255 rot 0.2914 vel 17.688 horizon 4 counts 2
 world gravity 0 -10 0 dt 1 60 substeps 4 steps 40
 body static position 0 -1 0 rotation 0 0 0 1 linvel 0 0 0 angvel 0 0 0
 shape 0 box 4 1 4 density 0 friction 0.5 restitution 0

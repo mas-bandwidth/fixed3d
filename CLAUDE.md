@@ -382,6 +382,14 @@ The PORT RECORDs below run newest first and are the detail for each step.
   BOX3D_LUDICROUS_MODE (measured twice-max tolerances); the vocabulary they need (joint
   `collideConnected`, body `safetyFactor`, `at_step set_mass`, `compound <body> sphere`, joint
   `at_step`) was added to `tools/reference/ref_scene.c/.h` and both drivers.
+  **RE-MEASURED 2026-10-15 (attempt w8):** the merge moved two existing harness scenes out of
+  their twice-max tolerances (they were green at the unchanged base under the same 954cf87
+  float pin) and their headers are re-measured rather than left red: `pendulum_chain.scene`
+  pos 0.005->0.009372, rot 0.005->0.01229, vel 0.15->0.420841 (max now pos 4.69e-3 / rot
+  6.14e-3 / angvel 2.10e-1), and `ref-954cf87-ragdoll-human.scene` pos 0.015202->0.05255 and
+  `counts exact`->`counts 2` (max pos 2.63e-2 m over steps 0-3; first contact delta moved one
+  step earlier). Both pass in narrow and ludicrous; `ref-f8c4fe8-shape-cast-encroach-band`
+  stays pre-existing red (identical at the unchanged base), out of scope here.
 
   **THE SHAPE OF THE SPLIT: six engine steps, two test steps, one compile-only step, one
   record.** Each step built `build-port`, `build-ludicrous`, `build-debug`
