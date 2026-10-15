@@ -99,6 +99,36 @@ The PORT RECORDs below run newest first and are the detail for each step.
   compound directive and those files are outside this card's paths, so the compound
   recording path is covered red-first by `CorruptCompound` and a `shape <body> compound`
   vocabulary extension is proposed, not committed. Everything the card names is done.
+- **PORT RECORD 954cf87 hull2d manifold reduction + a2e4816 speculative margin
+  and recycle fixes (2026-10-15) — one block card.** **(1) the 2D hull manifold
+  reduction** (`b3Hull2D`, `b3SimplifyHull2D`, box3d 954cf87) for
+  `B3_MAX_MANIFOLD_POINTS > 4`: `b3Hull2D` (Andrew's monotone chain) and
+  `b3SimplifyHull2D` (drop the vertices contributing the least area) are now
+  always compiled and non-static, declared in `src/manifold.h` as
+  `b3HullPoint2D` (a distinct name because `mesh_contact.c` keeps its own local
+  `b3Point2D`, which is outside this card's PATHS). The `>4` `b3ReduceManifoldPoints`
+  builds the 2D hull of the clipped polygon and simplifies to the target; the
+  default cap-4 fast path is unchanged. `b3GetMaxManifoldPoints()` is already declared in
+  `base.h` and defined in `core.c`. **(2) the speculative margin
+  and recycle fixes** (a2e4816, "Fixes for #175 (#187)"): sphere/capsule manifolds
+  report a pair inside `B3_SPECULATIVE_DISTANCE` (the closed-form routines now test
+  `totalRadius + B3_SPECULATIVE_DISTANCE`), the recycle flag is set only when both
+  bodies enable recycling AND speculative points are on, and a freed manifold
+  invalidates the recycling cache (`b3_relativeTransformValid`). GOLDENS MOVED
+  (a2e4816 is solver-affecting): `WAVE_PILE_SLEEP_STEP` 275 -> 310, wave-pile hash
+  narrow `0x22BF35CE` -> `0x7A82190F` / ludicrous `0x253BEF8E` -> `0xB9B1018F`;
+  query-spawn and mesh-drop goldens unchanged. TESTS: `Hull2DReductionTest` and
+  `SimplifyHull2DTest` (directly exercise the always-compiled hull/simplify
+  routines: interior points dropped, collinear collapse, weld, order independence,
+  target simplification, no-op), `MaxPointCountTest` (`b3GetMaxManifoldPoints`
+  matches `sizeof(b3Manifold.points)`), `SpeculativeMarginTest` (every manifold
+  routine reports a pair inside the speculative distance and nothing beyond it),
+  and three world recycle tests (`RecycledSphereApproachTest`,
+  `PreSolveRejectRecycleTest`, `SpeculativeOffRecycleTest`). Reference scenes
+  `ref-954cf87-manifold-points.scene`, `ref-a2e4816-speculative-sphere-sphere.scene`,
+  `ref-a2e4816-recycle-off-when-speculative-off.scene`, `ref-a2e4816-zero-dt.scene`
+  added for the harness glob (tolerances stated, not measured: `ctest -L reference`
+  needs the Linux bench and the float box3d fetch).
 
 - **PORT RECORD 954cf87 ragdoll human (2026-10-15) — the re-rig only, not the
   engine half of Fixes (#157).** `shared/human.c` now authors the 954cf87 rig in

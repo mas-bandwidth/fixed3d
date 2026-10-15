@@ -104,11 +104,10 @@ B3_API b3Fixed b3GetStallThreshold( void );
 #define B3_TIME_TO_SLEEP B3_FIX( 0.5f )
 
 /// The maximum number of contact points between two touching shapes.
-/// The default and ONLY supported value in this fork is 4, which uses the fast approximate
-/// reduction in convex_manifold.c and mesh_contact.c. Upstream box3d also accepts a larger
-/// value and switches to a 2D convex hull plus area based simplification; that path is NOT
-/// carried here yet (see the HELD section of PORT RECORD 954cf87), so core.c refuses any
-/// other value at compile time rather than silently producing four points anyway.
+/// The default and minimum is 4 and this case uses a fast approximate hull to reduce the
+/// point count. A larger value builds a 2D convex hull of the candidate points and then
+/// simplifies it to the target by dropping the vertices that contribute the least area.
+/// Useful for testing, but I don't recommend shipping with it adjusted.
 /// WARNING: if you change this you risk breaking ABI and a corrupted runtime.
 #ifndef B3_MAX_MANIFOLD_POINTS
 #define B3_MAX_MANIFOLD_POINTS 4

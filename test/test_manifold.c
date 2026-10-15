@@ -3,6 +3,8 @@
 
 #include "test_macros.h"
 
+#include "manifold.h"
+
 #include "box3d/collision.h"
 #include "box3d/constants.h"
 #include "box3d/math_functions.h"
@@ -11,7 +13,7 @@
 
 // A face contact keeps the whole clipped polygon when the manifold has room for it, so a build
 // with a larger B3_MAX_MANIFOLD_POINTS legitimately reports more than four points. At the default
-// this is still an exact count, and 4 is the only value this fork compiles (see core.c).
+// this is still an exact count.
 #define ENSURE_FACE_POINTS( count ) ENSURE( 4 <= ( count ) && ( count ) <= B3_MAX_MANIFOLD_POINTS )
 
 static const b3Fixed kRoot2 = B3_FIX( 1.41421356f );
@@ -50,6 +52,11 @@ static void MakeCrossedEdgeHulls( b3BoxHull* hullA, b3BoxHull* hullB, b3Fixed ha
 static b3Transform SlideX( b3Fixed x )
 {
 	return (b3Transform){ { x, B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, b3Quat_identity };
+}
+
+static b3Transform SlideY( b3Fixed y )
+{
+	return (b3Transform){ { B3_FIX( 0.0f ), y, B3_FIX( 0.0f ) }, b3Quat_identity };
 }
 
 static b3Fixed MinSeparation( const b3LocalManifold* manifold )
@@ -1428,6 +1435,320 @@ static int ClipSegmentSmallCrossingTest( void )
 	return 0;
 }
 
+static int CheckSpeculativePoints( const b3LocalManifold* manifold, b3Fixed gap )
+{
+	ENSURE( manifold->pointCount > 0 );
+	ENSURE_SMALL( MinSeparation( manifold ) - gap, 8 * B3_FIXED_EPSILON );
+	return 0;
+}
+
+// Contact recycling treats a pair without points as separated by at least the speculative distance.
+// Every manifold routine must report a pair inside that distance or recycling can skip real overlap.
+// Discussion #175.
+static int SpeculativeMarginTest( void )
+{
+	b3Fixed gaps[] = { B3_FIX( 0.0f ), b3FixMul( B3_FIX( 0.25f ) , B3_SPECULATIVE_DISTANCE ),
+						b3FixMul( B3_FIX( 0.75f ) , B3_SPECULATIVE_DISTANCE ) };
+	int gapCount = sizeof( gaps ) / sizeof( gaps[0] );
+
+	b3Sphere sphere = { b3Vec3_zero, B3_FIX( 0.25f ) };
+	b3Sphere bigSphere = { b3Vec3_zero, B3_FIX( 0.5f ) };
+	b3Capsule capsuleX = { { -B3_FIX( 0.5f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) },
+						   { B3_FIX( 0.5f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, B3_FIX( 0.25f ) };
+	b3Capsule capsuleZ = { { B3_FIX( 0.0f ), B3_FIX( 0.0f ), -B3_FIX( 0.5f ) },
+						   { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.5f ) }, B3_FIX( 0.25f ) };
+	b3BoxHull box = b3MakeBoxHull( B3_FIX( 0.5f ), B3_FIX( 0.5f ), B3_FIX( 0.5f ) );
+
+	// Normal is +y
+	b3Vec3 triangle[3] = { { -B3_FIX( 2.0f ), B3_FIX( 0.0f ), -B3_FIX( 2.0f ) },
+						   { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 2.0f ) },
+						   { B3_FIX( 2.0f ), B3_FIX( 0.0f ), -B3_FIX( 2.0f ) } };
+
+	b3LocalManifoldPoint points[B3_MAX_MANIFOLD_POINTS];
+	b3LocalManifold manifold = { 0 };
+	manifold.points = points;
+
+	for ( int i = 0; i < gapCount; ++i )
+	{
+		b3Fixed gap = gaps[i];
+
+		manifold.pointCount = 0;
+		b3CollideSpheres( &manifold, B3_MAX_MANIFOLD_POINTS, &bigSphere, &sphere, SlideY( B3_FIX( 0.75f ) + gap ) );
+		ENSURE( CheckSpeculativePoints( &manifold, gap ) == 0 );
+
+		manifold.pointCount = 0;
+		b3CollideCapsuleAndSphere( &manifold, B3_MAX_MANIFOLD_POINTS, &capsuleX, &sphere, SlideY( B3_FIX( 0.5f ) + gap ) );
+		ENSURE( CheckSpeculativePoints( &manifold, gap ) == 0 );
+
+		manifold.pointCount = 0;
+		b3CollideCapsules( &manifold, B3_MAX_MANIFOLD_POINTS, &capsuleX, &capsuleZ, SlideY( B3_FIX( 0.5f ) + gap ) );
+		ENSURE( CheckSpeculativePoints( &manifold, gap ) == 0 );
+
+		{
+			manifold.pointCount = 0;
+			b3SimplexCache cache = { 0 };
+			b3CollideHullAndSphere( &manifold, B3_MAX_MANIFOLD_POINTS, &box.base, &sphere, SlideY( B3_FIX( 0.75f ) + gap ), &cache );
+			ENSURE( CheckSpeculativePoints( &manifold, gap ) == 0 );
+		}
+
+		{
+			manifold.pointCount = 0;
+			b3SimplexCache cache = { 0 };
+			b3CollideHullAndCapsule( &manifold, B3_MAX_MANIFOLD_POINTS, &box.base, &capsuleX, SlideY( B3_FIX( 0.75f ) + gap ), &cache );
+			ENSURE( CheckSpeculativePoints( &manifold, gap ) == 0 );
+		}
+
+		{
+			manifold.pointCount = 0;
+			b3SATCache cache = { 0 };
+			b3CollideHulls( &manifold, B3_MAX_MANIFOLD_POINTS, &box.base, &box.base, SlideY( B3_FIX( 1.0f ) + gap ), &cache );
+			ENSURE( CheckSpeculativePoints( &manifold, gap ) == 0 );
+		}
+
+		{
+			manifold.pointCount = 0;
+			b3Sphere raised = { { B3_FIX( 0.0f ), B3_FIX( 0.25f ) + gap, B3_FIX( 0.0f ) }, B3_FIX( 0.25f ) };
+			b3CollideTriangleAndSphere( &manifold, B3_MAX_MANIFOLD_POINTS, triangle, &raised );
+			ENSURE( CheckSpeculativePoints( &manifold, gap ) == 0 );
+		}
+
+		{
+			manifold.pointCount = 0;
+			b3Capsule raised = capsuleX;
+			raised.center1.y = B3_FIX( 0.25f ) + gap;
+			raised.center2.y = B3_FIX( 0.25f ) + gap;
+			b3SimplexCache cache = { 0 };
+			b3CollideTriangleAndCapsule( &manifold, B3_MAX_MANIFOLD_POINTS, triangle, &raised, &cache );
+			ENSURE( CheckSpeculativePoints( &manifold, gap ) == 0 );
+		}
+
+		{
+			manifold.pointCount = 0;
+			b3BoxHull raised = b3MakeTransformedBoxHull( B3_FIX( 0.5f ), B3_FIX( 0.5f ), B3_FIX( 0.5f ), SlideY( B3_FIX( 0.5f ) + gap ) );
+			b3SATCache cache = { 0 };
+			b3CollideTriangleAndHull( &manifold, B3_MAX_MANIFOLD_POINTS, triangle[0], triangle[1], triangle[2], 0, &raised.base,
+									  &cache, true );
+			ENSURE( CheckSpeculativePoints( &manifold, gap ) == 0 );
+		}
+	}
+
+	// Beyond the speculative distance the closed form routines report nothing
+	b3Fixed farGap = b3FixMul( B3_FIX( 1.5f ) , B3_SPECULATIVE_DISTANCE );
+
+	manifold.pointCount = 0;
+	b3CollideSpheres( &manifold, B3_MAX_MANIFOLD_POINTS, &bigSphere, &sphere, SlideY( B3_FIX( 0.75f ) + farGap ) );
+	ENSURE( manifold.pointCount == 0 );
+
+	manifold.pointCount = 0;
+	b3CollideCapsuleAndSphere( &manifold, B3_MAX_MANIFOLD_POINTS, &capsuleX, &sphere, SlideY( B3_FIX( 0.5f ) + farGap ) );
+	ENSURE( manifold.pointCount == 0 );
+
+	return 0;
+}
+
+static void FillPoints2D( b3HullPoint2D* pts, const b3Vec2* input, int count )
+{
+	for ( int i = 0; i < count; ++i )
+	{
+		pts[i].p = input[i];
+		pts[i].separation = B3_FIX( 0.0f );
+		pts[i].originalIndex = i;
+	}
+}
+
+static b3Fixed Hull2DArea( const b3HullPoint2D* hull, int count )
+{
+	b3Fixed sum = B3_FIX( 0.0f );
+	for ( int i = 0; i < count; ++i )
+	{
+		int next = ( i + 1 ) % count;
+		sum += b3FixMul( hull[i].p.x , hull[next].p.y ) - b3FixMul( hull[i].p.y , hull[next].p.x );
+	}
+
+	return sum / 2;
+}
+
+// The 2D hull reduction (box3d 954cf87) builds a convex hull of the candidate manifold points
+// and simplifies it to the target by dropping the vertices that contribute the least area. It is
+// only wired into b3ReduceManifoldPoints when B3_MAX_MANIFOLD_POINTS > 4, but the hull and
+// simplify routines are always compiled so they can be exercised directly here.
+static int Hull2DReductionTest( void )
+{
+	// Interior points contribute no area, so they must not survive the hull.
+	{
+		b3Vec2 input[8] = {
+			{ B3_FIX( -1.0f ), B3_FIX( -1.0f ) }, { B3_FIX( 1.0f ), B3_FIX( -1.0f ) },
+			{ B3_FIX( 1.0f ), B3_FIX( 1.0f ) },	  { B3_FIX( -1.0f ), B3_FIX( 1.0f ) },
+			{ B3_FIX( 0.0f ), B3_FIX( 0.0f ) },	  { B3_FIX( 0.5f ), B3_FIX( 0.25f ) },
+			{ B3_FIX( -0.3f ), B3_FIX( 0.6f ) },  { B3_FIX( 0.1f ), B3_FIX( -0.4f ) },
+		};
+
+		b3HullPoint2D pts[8];
+		b3HullPoint2D hull[16];
+		FillPoints2D( pts, input, 8 );
+
+		int count = b3Hull2D( pts, 8, hull );
+		ENSURE( count == 4 );
+
+		// The reduction code assumes counter clockwise winding
+		ENSURE( Hull2DArea( hull, count ) > B3_FIX( 0.0f ) );
+
+		bool onHull[8] = { false };
+		for ( int i = 0; i < count; ++i )
+		{
+			ENSURE( 0 <= hull[i].originalIndex && hull[i].originalIndex < 8 );
+			onHull[hull[i].originalIndex] = true;
+		}
+
+		for ( int i = 0; i < 4; ++i )
+		{
+			ENSURE( onHull[i] == true );
+		}
+
+		for ( int i = 4; i < 8; ++i )
+		{
+			ENSURE( onHull[i] == false );
+		}
+	}
+
+	// Collinear points collapse to a segment.
+	{
+		b3Vec2 input[5] = {
+			{ B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, { B3_FIX( 1.0f ), B3_FIX( 0.0f ) },
+			{ B3_FIX( 2.0f ), B3_FIX( 0.0f ) }, { B3_FIX( 3.0f ), B3_FIX( 0.0f ) },
+			{ B3_FIX( 4.0f ), B3_FIX( 0.0f ) },
+		};
+
+		b3HullPoint2D pts[5];
+		b3HullPoint2D hull[10];
+		FillPoints2D( pts, input, 5 );
+
+		ENSURE( b3Hull2D( pts, 5, hull ) == 2 );
+	}
+
+	// Coincident points weld and the lower input index wins, so a sort order change cannot
+	// swap which of the two survives.
+	{
+		b3Fixed offset = b3FixMul( B3_FIX( 0.1f ) , B3_LINEAR_SLOP );
+
+		b3Vec2 input[5] = {
+			{ B3_FIX( -1.0f ), B3_FIX( -1.0f ) },
+			{ B3_FIX( 1.0f ), B3_FIX( -1.0f ) },
+			{ B3_FIX( 1.0f ), B3_FIX( 1.0f ) },
+			{ B3_FIX( -1.0f ), B3_FIX( 1.0f ) },
+			{ B3_FIX( -1.0f ) + offset, B3_FIX( -1.0f ) + offset },
+		};
+
+		b3HullPoint2D pts[5];
+		b3HullPoint2D hull[10];
+		FillPoints2D( pts, input, 5 );
+
+		int count = b3Hull2D( pts, 5, hull );
+		ENSURE( count == 4 );
+
+		for ( int i = 0; i < count; ++i )
+		{
+			ENSURE( hull[i].originalIndex != 4 );
+		}
+	}
+
+	// The surviving point set must not depend on the order the points arrive in.
+	{
+		b3Vec2 input[8] = {
+			{ B3_FIX( -2.0f ), B3_FIX( -1.0f ) }, { B3_FIX( 0.0f ), B3_FIX( -1.5f ) },
+			{ B3_FIX( 2.0f ), B3_FIX( -1.0f ) },	 { B3_FIX( 2.5f ), B3_FIX( 0.5f ) },
+			{ B3_FIX( 1.0f ), B3_FIX( 2.0f ) },	 { B3_FIX( -1.0f ), B3_FIX( 1.8f ) },
+			{ B3_FIX( -2.5f ), B3_FIX( 0.4f ) },	 { B3_FIX( 0.2f ), B3_FIX( 0.1f ) },
+		};
+
+		int permutation[8] = { 5, 2, 7, 0, 4, 6, 1, 3 };
+
+		b3HullPoint2D pts[8];
+		b3HullPoint2D hull[16];
+		FillPoints2D( pts, input, 8 );
+
+		int count1 = b3Hull2D( pts, 8, hull );
+		ENSURE( count1 == 7 );
+
+		bool onHull1[8] = { false };
+		for ( int i = 0; i < count1; ++i )
+		{
+			onHull1[hull[i].originalIndex] = true;
+		}
+
+		b3HullPoint2D shuffled[8];
+		b3HullPoint2D shuffledHull[16];
+		for ( int i = 0; i < 8; ++i )
+		{
+			shuffled[i].p = input[permutation[i]];
+			shuffled[i].separation = B3_FIX( 0.0f );
+			shuffled[i].originalIndex = i;
+		}
+
+		int count2 = b3Hull2D( shuffled, 8, shuffledHull );
+		ENSURE( count2 == count1 );
+
+		bool onHull2[8] = { false };
+		for ( int i = 0; i < count2; ++i )
+		{
+			onHull2[permutation[shuffledHull[i].originalIndex]] = true;
+		}
+
+		for ( int i = 0; i < 8; ++i )
+		{
+			ENSURE( onHull1[i] == onHull2[i] );
+		}
+	}
+
+	return 0;
+}
+
+static int SimplifyHull2DTest( void )
+{
+	// A 20-gon simplifies to the requested target.
+	{
+		b3HullPoint2D pts[20];
+		b3HullPoint2D hull[40];
+
+		for ( int i = 0; i < 20; ++i )
+		{
+			double angle = 2.0 * M_PI * (double)i / 20.0;
+			pts[i].p = (b3Vec2){ b3FixFromDouble( cos( angle ) ), b3FixFromDouble( sin( angle ) ) };
+			pts[i].separation = B3_FIX( 0.0f );
+			pts[i].originalIndex = i;
+		}
+
+		int hullCount = b3Hull2D( pts, 20, hull );
+		ENSURE( hullCount == 20 );
+
+		int count = b3SimplifyHull2D( hull, hullCount, 6 );
+		ENSURE( count == 6 );
+		ENSURE( Hull2DArea( hull, count ) > B3_FIX( 0.0f ) );
+	}
+
+	// A square is already at or below the target, so simplification is a no-op.
+	{
+		b3Vec2 input[4] = {
+			{ B3_FIX( -1.0f ), B3_FIX( -1.0f ) },
+			{ B3_FIX( 1.0f ), B3_FIX( -1.0f ) },
+			{ B3_FIX( 1.0f ), B3_FIX( 1.0f ) },
+			{ B3_FIX( -1.0f ), B3_FIX( 1.0f ) },
+		};
+
+		b3HullPoint2D pts[4];
+		b3HullPoint2D hull[8];
+		FillPoints2D( pts, input, 4 );
+
+		int hullCount = b3Hull2D( pts, 4, hull );
+		ENSURE( hullCount == 4 );
+
+		ENSURE( b3SimplifyHull2D( hull, hullCount, 8 ) == 4 );
+		ENSURE( b3SimplifyHull2D( hull, hullCount, 4 ) == 4 );
+	}
+
+	return 0;
+}
+
 // The library reports the point count it was built with. A mismatch against the manifold
 // this translation unit sees means the app and the library disagree on b3Manifold.
 static int MaxPointCountTest( void )
@@ -1441,6 +1762,8 @@ static int MaxPointCountTest( void )
 int ManifoldTest( void )
 {
 	RUN_SUBTEST( MaxPointCountTest );
+	RUN_SUBTEST( Hull2DReductionTest );
+	RUN_SUBTEST( SimplifyHull2DTest );
 	RUN_SUBTEST( CrossedEdgeTest );
 	RUN_SUBTEST( EdgeAxisScaleTest );
 	RUN_SUBTEST( EdgeAxisLargeScaleTest );
@@ -1463,6 +1786,7 @@ int ManifoldTest( void )
 	RUN_SUBTEST( ClipSegmentSmallCrossingTest );
 	RUN_SUBTEST( CapsuleTriangleFaceDeepTest );
 	RUN_SUBTEST( HullCapsuleFaceDeepTest );
+	RUN_SUBTEST( SpeculativeMarginTest );
 
 	return 0;
 }
