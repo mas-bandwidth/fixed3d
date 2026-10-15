@@ -377,6 +377,11 @@ The PORT RECORDs below run newest first and are the detail for each step.
   The five reference scenes this card names (`ref-954cf87-collide-connected-false`,
   `-center-of-mass-move`, `-safety-factor`, `-compound-overlap`, `-stale-tree-rebuild`) are
   added under `tools/reference/scenes/`; see the card's report for the vocabulary they need.
+  **LANDED 2026-10-15 on `sprint/port-954cf87-fixes-land-the-branch.w7.g3.e21`:** the five
+  `ref-954cf87-*` reference scenes are committed and pass `ctest -L reference` in narrow and
+  BOX3D_LUDICROUS_MODE (measured twice-max tolerances); the vocabulary they need (joint
+  `collideConnected`, body `safetyFactor`, `at_step set_mass`, `compound <body> sphere`, joint
+  `at_step`) was added to `tools/reference/ref_scene.c/.h` and both drivers.
 
   **THE SHAPE OF THE SPLIT: six engine steps, two test steps, one compile-only step, one
   record.** Each step built `build-port`, `build-ludicrous`, `build-debug`
