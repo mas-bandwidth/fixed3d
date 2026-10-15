@@ -5,11 +5,12 @@
 // every decimal in the scene to b3Fixed at the one sanctioned boundary (b3FixFromDouble).
 // Outputs the shared trace format on stdout. See ref_scene.h.
 
-#include "box3d/box3d.h"
-#include "box3d/constants.h"
-#include "box3d/collision.h"
-#include "box3d/math_functions.h"
 #include "ref_scene.h"
+
+#include "box3d/box3d.h"
+#include "box3d/collision.h"
+#include "box3d/constants.h"
+#include "box3d/math_functions.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -160,6 +161,183 @@ static void createJointsAtStep( b3RefScene* scene, b3WorldId worldId, b3BodyId* 
 	}
 }
 
+// Own the baked bytes until after the world/player is destroyed.
+static b3CompoundData* makeCompound( const b3RefScene* scene, const b3RefShape* rs )
+{
+	b3CompoundSphereDef spheres[B3_REF_MAX_CHILDREN] = { 0 };
+	b3CompoundCapsuleDef capsules[B3_REF_MAX_CHILDREN] = { 0 };
+	b3CompoundHullDef hulls[B3_REF_MAX_CHILDREN] = { 0 };
+	b3BoxHull boxes[B3_REF_MAX_CHILDREN];
+	b3HullData* owned[B3_REF_MAX_CHILDREN] = { 0 };
+	b3CompoundDef def = { 0 };
+	def.spheres = spheres;
+	def.capsules = capsules;
+	def.hulls = hulls;
+	bool valid = true;
+	for ( int i = 0; i < rs->childCount; ++i )
+	{
+		const b3RefChild* c = &scene->children[rs->childStart + i];
+		b3Transform transform = { vecFromDouble( c->position ), b3NormalizeQuat( quatFromDouble( c->rotation ) ) };
+		b3SurfaceMaterial material = b3DefaultSurfaceMaterial();
+		material.friction = b3FixFromDouble( c->friction );
+		material.restitution = b3FixFromDouble( c->restitution );
+		if ( c->kind == b3_refSphere )
+		{
+			b3CompoundSphereDef* child = &spheres[def.sphereCount++];
+			child->sphere = (b3Sphere){ transform.p, b3FixFromDouble( c->radius ) };
+			child->material = material;
+		}
+		else if ( c->kind == b3_refCapsule )
+		{
+			b3CompoundCapsuleDef* child = &capsules[def.capsuleCount++];
+			b3Vec3 p1 = { 0, -b3FixFromDouble( c->halfLength ), 0 };
+			b3Vec3 p2 = { 0, b3FixFromDouble( c->halfLength ), 0 };
+			child->capsule =
+				(b3Capsule){ b3TransformPoint( transform, p1 ), b3TransformPoint( transform, p2 ), b3FixFromDouble( c->radius ) };
+			child->material = material;
+		}
+		else
+		{
+			b3CompoundHullDef* child = &hulls[def.hullCount++];
+			if ( c->kind == b3_refBox )
+			{
+				boxes[i] = b3MakeBoxHull( b3FixFromDouble( c->halfExtents[0] ), b3FixFromDouble( c->halfExtents[1] ),
+										  b3FixFromDouble( c->halfExtents[2] ) );
+				child->hull = &boxes[i].base;
+			}
+			else
+			{
+				b3Vec3 points[B3_REF_MAX_HULL_POINTS];
+				for ( int j = 0; j < c->hullCount; ++j )
+					points[j] = vecFromDouble( c->hullPoints[j] );
+				owned[i] = b3CreateHull( points, c->hullCount, B3_MAX_HULL_VERTICES );
+				child->hull = owned[i];
+				if ( owned[i] == NULL )
+				{
+					valid = false;
+					break;
+				}
+			}
+			child->transform = transform;
+			child->material = material;
+		}
+	}
+	b3CompoundData* compound = valid ? b3CreateCompound( &def ) : NULL;
+	for ( int i = 0; i < rs->childCount; ++i )
+		if ( owned[i] != NULL )
+			b3DestroyHull( owned[i] );
+	return compound;
+}
+
+static b3MeshData* makeMesh( const b3RefShape* rs )
+{
+	b3Vec3 vertices[B3_REF_MAX_MESH_VERTICES];
+	int32_t indices[3 * B3_REF_MAX_MESH_TRIANGLES];
+	uint8_t materials[B3_REF_MAX_MESH_TRIANGLES];
+	for ( int i = 0; i < rs->vertexCount; ++i )
+		vertices[i] = vecFromDouble( rs->vertices[i] );
+	for ( int i = 0; i < rs->triangleCount; ++i )
+	{
+		for ( int j = 0; j < 3; ++j )
+			indices[3 * i + j] = rs->triangles[i][j];
+		materials[i] = (uint8_t)rs->materialIndices[i];
+	}
+	b3MeshDef def = { 0 };
+	def.vertices = vertices;
+	def.indices = indices;
+	def.materialIndices = materials;
+	def.vertexCount = rs->vertexCount;
+	def.triangleCount = rs->triangleCount;
+	def.identifyEdges = true;
+	return b3CreateMesh( &def, NULL, 0 );
+}
+
+static int shapeOrdinal( b3ShapeId shape, b3BodyId* bodies, int bodyCount )
+{
+	b3BodyId owner = b3Shape_GetBody( shape );
+	for ( int i = 0; i < bodyCount; ++i )
+	{
+		if ( !B3_ID_EQUALS( owner, bodies[i] ) )
+			continue;
+		b3ShapeId shapes[B3_REF_MAX_SHAPES + 1];
+		int count = b3Body_GetShapes( owner, shapes, B3_REF_MAX_SHAPES + 1 );
+		for ( int j = 0; j < count; ++j )
+			if ( B3_ID_EQUALS( shape, shapes[j] ) )
+				return i * ( B3_REF_MAX_SHAPES + 1 ) + j;
+	}
+	return -1;
+}
+
+static bool traceContacts( b3BodyId* bodies, int bodyCount )
+{
+	b3RefContactSample rows[B3_REF_MAX_CONTACTS];
+	int rowCount = 0;
+	for ( int i = 0; i < bodyCount; ++i )
+	{
+		int capacity = b3Body_GetContactCapacity( bodies[i] );
+		if ( capacity == 0 )
+			continue;
+		b3ContactData* data = malloc( (size_t)capacity * sizeof( *data ) );
+		if ( data == NULL )
+			return false;
+		int count = b3Body_GetContactData( bodies[i], data, capacity );
+		for ( int j = 0; j < count; ++j )
+		{
+			// Body enumeration sees each contact twice; emit from the canonical
+			// lower shape's body. IDs themselves remain opaque.
+			b3BodyId bodyA = b3Shape_GetBody( data[j].shapeIdA );
+			b3BodyId bodyB = b3Shape_GetBody( data[j].shapeIdB );
+			int a = shapeOrdinal( data[j].shapeIdA, bodies, bodyCount );
+			int b = shapeOrdinal( data[j].shapeIdB, bodies, bodyCount );
+			if ( a < 0 || b < 0 )
+			{
+				free( data );
+				return false;
+			}
+			b3BodyId emitBody = a < b ? bodyA : bodyB;
+			if ( !B3_ID_EQUALS( emitBody, bodies[i] ) )
+				continue;
+			for ( int m = 0; m < data[j].manifoldCount; ++m )
+			{
+				const b3Manifold* manifold = &data[j].manifolds[m];
+				if ( manifold->pointCount == 0 )
+					continue;
+				if ( rowCount >= B3_REF_MAX_CONTACTS || manifold->pointCount > B3_REF_MAX_CONTACT_POINTS )
+				{
+					free( data );
+					return false;
+				}
+				b3RefContactSample* row = &rows[rowCount++];
+				row->shapeA = a < b ? a : b;
+				row->shapeB = a < b ? b : a;
+				row->pointCount = manifold->pointCount;
+				for ( int k = 0; k < row->pointCount; ++k )
+				{
+					const b3ManifoldPoint* point = &manifold->points[k];
+					b3Pos pa = b3OffsetPos( b3Body_GetWorldCenter( bodyA ), point->anchorA );
+					b3Pos pb = b3OffsetPos( b3Body_GetWorldCenter( bodyB ), point->anchorB );
+					row->points[k][0] = 0.5 * ( b3FixToDouble( pa.x ) + b3FixToDouble( pb.x ) );
+					row->points[k][1] = 0.5 * ( b3FixToDouble( pa.y ) + b3FixToDouble( pb.y ) );
+					row->points[k][2] = 0.5 * ( b3FixToDouble( pa.z ) + b3FixToDouble( pb.z ) );
+					row->points[k][3] = b3FixToDouble( point->separation );
+				}
+			}
+		}
+		free( data );
+	}
+	b3RefSortContacts( rows, rowCount );
+	printf( "contacts %d\n", rowCount );
+	for ( int i = 0; i < rowCount; ++i )
+	{
+		b3RefContactSample* c = &rows[i];
+		printf( "contact %d %d %d", c->shapeA, c->shapeB, c->pointCount );
+		for ( int j = 0; j < c->pointCount; ++j )
+			printf( " %.9g %.9g %.9g %.9g", c->points[j][0], c->points[j][1], c->points[j][2], c->points[j][3] );
+		printf( "\n" );
+	}
+	return true;
+}
+
 int main( int argc, char** argv )
 {
 	if ( argc < 2 )
@@ -168,7 +346,7 @@ int main( int argc, char** argv )
 		return 1;
 	}
 
-	b3RefScene scene;
+	static b3RefScene scene;
 	char error[256];
 	if ( !b3RefParseSceneFile( argv[1], &scene, error, sizeof( error ) ) )
 	{
@@ -212,6 +390,8 @@ int main( int argc, char** argv )
 		bodies[i] = b3CreateBody( worldId, &def );
 	}
 
+	b3CompoundData* baked[B3_REF_MAX_SHAPES] = { 0 };
+	b3MeshData* meshes[B3_REF_MAX_SHAPES] = { 0 };
 	for ( int i = 0; i < scene.shapeCount; ++i )
 	{
 		b3RefShape* rs = &scene.shapes[i];
@@ -224,6 +404,49 @@ int main( int argc, char** argv )
 
 		switch ( rs->kind )
 		{
+			case b3_refCompound:
+			{
+				baked[i] = makeCompound( &scene, rs );
+				if ( baked[i] == NULL )
+				{
+					fprintf( stderr, "compound build failed for shape %d\n", i );
+					return 1;
+				}
+				b3ShapeId id = b3CreateBakedCompoundShape( bodies[rs->bodyIndex], &def, baked[i] );
+				if ( B3_IS_NULL( id ) )
+				{
+					fprintf( stderr, "compound shape creation refused\n" );
+					return 1;
+				}
+			}
+			break;
+			case b3_refMesh:
+			{
+				meshes[i] = makeMesh( rs );
+				if ( meshes[i] == NULL || meshes[i]->triangleCount != rs->triangleCount )
+				{
+					fprintf( stderr, "mesh build failed or degenerate triangles in shape %d\n", i );
+					return 1;
+				}
+				b3SurfaceMaterial materials[B3_REF_MAX_MATERIALS];
+				for ( int j = 0; j < rs->materialCount; ++j )
+				{
+					materials[j] = b3DefaultSurfaceMaterial();
+					materials[j].friction = b3FixFromDouble( rs->materials[j][0] );
+					materials[j].restitution = b3FixFromDouble( rs->materials[j][1] );
+				}
+				def.materials = materials;
+				def.materialCount = rs->materialCount;
+				b3Vec3 scale = { b3FixFromDouble( 1 ), b3FixFromDouble( 1 ), b3FixFromDouble( 1 ) };
+				b3ShapeId id = b3CreateMeshShape( bodies[rs->bodyIndex], &def, meshes[i], scale );
+				if ( B3_IS_NULL( id ) )
+				{
+					fprintf( stderr, "mesh shape creation refused\n" );
+					return 1;
+				}
+			}
+			break;
+
 			case b3_refBox:
 			{
 				b3BoxHull hull = b3MakeBoxHull( b3FixFromDouble( rs->halfExtents[0] ), b3FixFromDouble( rs->halfExtents[1] ),
@@ -295,13 +518,43 @@ int main( int argc, char** argv )
 	}
 
 	b3Fixed dt = b3FixDiv( b3FixFromDouble( scene.world.dtNumerator ), b3FixFromDouble( scene.world.dtDenominator ) );
+
+	b3Recording* snapshot = NULL;
+	b3RecPlayer* restored = NULL;
 	int steps = scene.world.steps;
 	for ( int s = 0; s < steps; ++s )
 	{
-		createJointsAtStep( &scene, worldId, bodies, s );
+
+		// Snapshot boundaries are BEFORE this numbered step, including its events.
+		if ( s == scene.snapshotSaveStep )
+		{
+			snapshot = b3CreateRecording( 0 );
+			if ( snapshot == NULL )
+				return 1;
+			b3World_StartRecording( worldId, snapshot );
+			b3World_StopRecording( worldId );
+		}
+		if ( s == scene.snapshotRestoreStep )
+		{
+			restored = b3CreatePlayer( b3Recording_GetData( snapshot ), b3Recording_GetSize( snapshot ), 1 );
+			if ( restored == NULL || b3RecPlayer_GetBodyCount( restored ) != scene.bodyCount )
+			{
+				fprintf( stderr, "snapshot restore failed\n" );
+				return 1;
+			}
+			b3DestroyWorld( worldId );
+			worldId = b3RecPlayer_GetWorldId( restored );
+			for ( int i = 0; i < scene.bodyCount; ++i )
+				bodies[i] = b3RecPlayer_GetBodyId( restored, i );
+		}
+		// Restore rewinds simulation time. Events in the rewound interval repeat.
+		int logicalStep = s < scene.snapshotRestoreStep || scene.snapshotRestoreStep < 0
+							  ? s
+							  : scene.snapshotSaveStep + s - scene.snapshotRestoreStep;
+		createJointsAtStep( &scene, worldId, bodies, logicalStep );
 		for ( int e = 0; e < scene.eventCount; ++e )
 		{
-			if ( scene.events[e].step == s )
+			if ( scene.events[e].step == logicalStep )
 			{
 				if ( scene.events[e].kind == b3_refEventSetMass )
 				{
@@ -326,6 +579,12 @@ int main( int argc, char** argv )
 					b3FixToDouble( p.y ), b3FixToDouble( p.z ), b3FixToDouble( q.v.x ), b3FixToDouble( q.v.y ),
 					b3FixToDouble( q.v.z ), b3FixToDouble( q.s ), b3FixToDouble( v.x ), b3FixToDouble( v.y ),
 					b3FixToDouble( v.z ), b3FixToDouble( w.x ), b3FixToDouble( w.y ), b3FixToDouble( w.z ) );
+		}
+
+		if ( scene.traceContacts && !traceContacts( bodies, scene.bodyCount ) )
+		{
+			fprintf( stderr, "contact tracing failed or exceeded its capacity\n" );
+			return 1;
 		}
 
 		// Predicate-mode observable: the lowest transformed hull vertex per
@@ -377,10 +636,9 @@ int main( int argc, char** argv )
 			{
 				b3RayResult r = b3World_CastRayClosest( worldId, b3ToPos( vecFromDouble( q->origin ) ),
 														vecFromDouble( q->translation ), filter );
-				printf( "query %d raycast %d %.9g %.9g %.9g %.9g %.9g %.9g %.9g\n", i, r.hit ? 1 : 0,
-						b3FixToDouble( r.fraction ), b3FixToDouble( r.point.x ), b3FixToDouble( r.point.y ),
-						b3FixToDouble( r.point.z ), b3FixToDouble( r.normal.x ), b3FixToDouble( r.normal.y ),
-						b3FixToDouble( r.normal.z ) );
+				printf( "query %d raycast %d %.9g %.9g %.9g %.9g %.9g %.9g %.9g\n", i, r.hit ? 1 : 0, b3FixToDouble( r.fraction ),
+						b3FixToDouble( r.point.x ), b3FixToDouble( r.point.y ), b3FixToDouble( r.point.z ),
+						b3FixToDouble( r.normal.x ), b3FixToDouble( r.normal.y ), b3FixToDouble( r.normal.z ) );
 			}
 			break;
 			case b3_refOverlapAABB:
@@ -396,7 +654,8 @@ int main( int argc, char** argv )
 				b3BoxHull scratch;
 				b3ShapeProxy proxy = makeProxy( q, &scratch );
 				OverlapContext ctx = { 0 };
-				b3World_OverlapShape( worldId, b3ToPos( vecFromDouble( q->origin ) ), &proxy, filter, CountOverlapCallback, &ctx );
+				b3World_OverlapShape( worldId, b3ToPos( vecFromDouble( q->origin ) ), &proxy, filter, CountOverlapCallback,
+									  &ctx );
 				printf( "query %d overlap_shape %d\n", i, ctx.count );
 			}
 			break;
@@ -444,7 +703,18 @@ int main( int argc, char** argv )
 		}
 	}
 
-	b3DestroyWorld( worldId );
+	if ( restored != NULL )
+		b3DestroyPlayer( restored );
+	else
+		b3DestroyWorld( worldId );
+	b3DestroyRecording( snapshot );
+	for ( int i = 0; i < scene.shapeCount; ++i )
+	{
+		if ( baked[i] != NULL )
+			b3DestroyCompound( baked[i] );
+		if ( meshes[i] != NULL )
+			b3DestroyMesh( meshes[i] );
+	}
 	for ( int i = 0; i < scene.bodyCount; ++i )
 	{
 		if ( compounds[i] != NULL )
