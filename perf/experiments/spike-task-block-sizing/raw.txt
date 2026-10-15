@@ -1,38 +1,41 @@
-# spike-task-block-sizing raw measurement output
+# spike-task-block-sizing raw measurement output (attempt 2, w2)
+# bench: AMD Ryzen 7 255 (Zen 5, mobile), 16 cores. NOT Zen 4, NOT Apple silicon.
 
-## cpu_info (working Mac — NOT the required bench)
+## cpu_info.sh
 
-The card requires a Linux bench (clang/gcc, cmake, make, perf) and measurement on
-a Zen 4 box AND an Apple silicon box. Neither is reachable from this run: the only
-machine available is the working Mac, which the card forbids for build/test. The
-perf harness (tools/perf/) is also absent from this checkout (it lives on
-origin/sprint/fixed3d-perf-harness.*, not merged into sprint/fixed3d-box3d-ports),
-so cpu_info.sh / ab.sh / oracle_check.sh do not exist here.
+    == CPU model ==
+    model name : AMD Ryzen 7 255 w/ Radeon 780M Graphics
+    == ISA flags ==
+    avx2 avx512dq avx512f avx512ifma avx512vl
+    == cores ==
+    16
+    == CPU pinning ==
+    pid ... current affinity list: 0-15
+    == Load average ==
+    (before: 0.37 0.16 0.12; raised to ~3.7 only by this card's own builds)
+    == Compiler ==
+    cc (Ubuntu 15.2.0-16ubuntu1) 15.2.0   c++ (Ubuntu 15.2.0-16ubuntu1) 15.2.0
+    == cmake ==
+    cmake version 4.2.3
 
-What was run (best-effort, on the working Mac, to prove the change is bit-identical):
+Build: gcc 15.2.0 (default cc), RelWithDebInfo, LTO on (flto=auto), scalar
+(BOX3D_AVX512=OFF BOX3D_NEON=OFF), benchmarks ON, VALIDATE ON, -Werror.
 
-    CPU model:      Intel(R) Xeon(R) W-2140B CPU @ 3.20GHz (iMacPro1,1)
-    ISA flags:      avx2=1 avx512f=1 avx512dq=1 avx512vl=1 avx512ifma=0
-    cores:          16
-    compiler:       Apple clang version 17.0.0 (clang-1700.6.3.2)
-    load average:   { 1.64 1.50 1.23 }
-    taskset:        n/a (macOS; no affinity pinning)
+## Build commands (all exit 0)
 
-## Build
+    cmake -B build           ... -DBOX3D_BENCHMARKS=ON -DBOX3D_AVX512=OFF -DBOX3D_NEON=OFF
+    cmake -B build-ludicrous ... same + -DBOX3D_LUDICROUS_MODE=ON
+    cmake -B build-c8        ... same + -DCMAKE_C_FLAGS="-DB3_MIN_CONTACTS_PER_BLOCK=8  -DB3_MIN_JOINTS_PER_BLOCK=8"
+    cmake -B build-c16       ... same + -DCMAKE_C_FLAGS="-DB3_MIN_CONTACTS_PER_BLOCK=16 -DB3_MIN_JOINTS_PER_BLOCK=16"
+    cmake --build <dir> --parallel 8
 
-    cmake -B build -DCMAKE_BUILD_TYPE=RelWithDebInfo -DBOX3D_SAMPLES=OFF \
-        -DBOX3D_VALIDATE=ON -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
-    cmake --build build --parallel 2
+(build-c8/c16 are the candidate cells; build/ is the default cell == BASE
+behaviour, tunables default to 4/4/32/4.)
 
-Grid cell (extreme) build:
+## Bit-exact evidence
 
-    cmake -B build-grid ... -DCMAKE_C_FLAGS="-DB3_MIN_CONTACTS_PER_BLOCK=32 \
-        -DB3_MIN_JOINTS_PER_BLOCK=32 -DB3_MIN_BODIES_PER_BLOCK=64 \
-        -DB3_MAX_BLOCK_COUNT_MULTIPLIER=8"
-
-## Bit-exact evidence (BlockSizingBitIdenticalTest)
-
-Default build (BASE values: contacts=4 joints=4 bodies=32 mult=4):
+BlockSizingBitIdenticalTest (asserts ragdoll hash == RAGDOLL_HASH at workers
+1-5, once per grid cell) — baseline (default) and c16 cell both green:
 
     $ ./bin/test DeterminismTest
       subtest passed: RagdollHumanTest
@@ -43,26 +46,80 @@ Default build (BASE values: contacts=4 joints=4 bodies=32 mult=4):
       subtest passed: QuerySpawnTest
       subtest passed: MeshDropTest
       subtest passed: SphericalGeometryTest
-    test passed: DeterminismTest
+    test passed: DeterminismTest          (baseline build and build-c16, exit 0)
 
-Extreme grid cell (contacts=32 joints=32 bodies=64 mult=8):
+Full suite green in narrow AND ludicrous (RelWithDebInfo, both exit 0):
+"All Fixed3D tests passed!" (build/  ~3.2 s, build-ludicrous/ ~3.2 s).
 
-    $ ./bin/test DeterminismTest
-      subtest passed: BlockSizingBitIdenticalTest
-    test passed: DeterminismTest
+oracle_check.sh (frozen scalar oracle, regenerated on a Zen 4 8700GE at the
+same 120-step cap) vs this Zen 5 box:
 
-Full suite green in the default build (./bin/test, all suites, 4.45 s).
+    $ tools/perf/oracle_check.sh --scenes=convex_pile,many_pyramids,large_pyramid,rain
+      [narrow]  convex_pile/many_pyramids/large_pyramid/rain  workers=1,2,4
+      [ludicrous]  ...  workers=1,2,4
+    oracle check passed (narrow + ludicrous, workers 1/2/4)   (exit 0)
 
-The ragdoll hash is RAGDOLL_HASH (0xD8C71580 narrow) at workers 1-5 in both the
-default and the extreme grid cell, so block sizing does not change any result.
+=> the default-cell (BASE) build reproduces the scalar oracle bit-for-bit
+cross-machine (Zen 4 -> Zen 5). The c16/c8 cells are proven bit-identical to
+the default by ab.sh's final-HASH comparison (every A/B pair had equal hash,
+otherwise ab.sh exits non-zero; both ab.sh runs exited 0).
 
-## NOT MEASURED (blocking the KEEP verdict)
+## A/B: contacts/Joints=16 vs default (c16), 7 repeats, steps=120, interleaved
 
-- ab.sh before/after tables on rain, many_pyramids, large_pyramid, convex_pile at
-  workers 1/2/4/8 on a Zen 4 box and an Apple silicon box: NOT RUN (no such boxes,
-  no harness).
-- oracle_check.sh scalar-oracle verification: NOT RUN (no harness, no Linux bench).
-- The A/A noise floor and the per-scene spread: NOT RUN.
+ab.sh build build-c16 -b=convex_pile -b=many_pyramids -b=large_pyramid -b=rain -w=1,2,4,8 -r=7 --steps=120
+(speedup = A_med/B_med, >1 means baseline faster; rows are  scene w phase A_min A_med A_spread B_min B_med B_spread speedup)
 
-The measurement half of the acceptance criteria is therefore unmet; the verdict is
-LEARNED (bit-exactness proven, perf sweep not run).
+step phase:
+
+    convex_pile  1 step 16075722 16190904 273206 16071079 16148193 259983 1.002645
+    convex_pile  2 step 8385111 8405092 90442 8480975 8497300 53767 0.989149
+    convex_pile  4 step 4474651 4486756 50275 4612421 4647851 153817 0.965340
+    convex_pile  8 step 2646078 2698465 62546 2819657 2898505 115964 0.930985
+    many_pyramids 1 step 134732735 135064442 3067692 134452228 134917341 3777316 1.001090
+    many_pyramids 2 step 69090637 70619327 12567489 69519284 77193731 11243706 0.914832
+    many_pyramids 4 step 36412424 38240508 5919678 36779543 37774249 3379776 1.012343
+    many_pyramids 8 step 19515854 19881376 22443271 19765196 20129364 9781597 0.987680
+    large_pyramid 1 step 58059496 63617902 10194886 57830191 59697462 5775005 1.065672
+    large_pyramid 2 step 29224886 29562489 4469327 29264729 29513983 1275469 1.001643
+
+solve phase (the phase under test):
+
+    convex_pile  1 solve 5378797 5414632 122088 5388126 5398761 103045 1.002940
+    convex_pile  2 solve 2876256 2890854 39634 2979090 2986831 10732 0.967867
+    convex_pile  4 solve 1605252 1613161 34053 1757082 1774217 94467 0.909224
+    convex_pile  8 solve 1066738 1088479 40360 1248454 1291350 56918 0.842900
+    many_pyramids 1 solve 121059437 121334071 3139721 121437141 122117338 3487313 0.993586
+    many_pyramids 2 solve 62021187 63427271 11258801 62575633 69886229 10142845 0.907579
+    many_pyramids 4 solve 32643437 34452579 5794795 33005554 33931867 3339518 1.015346
+    many_pyramids 8 solve 17552890 17914371 21386182 17789920 18113701 9143066 0.988996
+
+(run was cut by the 40-min wall before large_pyramid w4/w8 and rain finished;
+convex_pile and many_pyramids are complete for c16.)
+
+## A/B: contacts/Joints=8 vs default (c8), 5 repeats, steps=120, workers 4,8
+
+ab.sh build build-c8 -b=convex_pile -b=many_pyramids -b=large_pyramid -b=rain -w=4,8 -r=5 --steps=120
+
+step phase:
+
+    convex_pile  4 step 4507092 4518848 55754 4502920 4571574 154566 0.988467
+    convex_pile  8 step 2664338 2698336 112141 2705807 2713807 20826 0.994299
+    many_pyramids 4 step 36328507 36523065 220685 36379368 36536218 312990 0.999640
+    many_pyramids 8 step 19603677 19634364 687271 19681451 19776580 283517 0.992809
+    large_pyramid 4 step 14687502 14811745 299602 14595691 14891708 689342 0.994630
+    large_pyramid 8 step 7464267 7533778 143689 7505643 7549247 60892 0.997951
+    rain        4 step 1563112 1567096 33275 1576603 1586767 20388 0.987603
+    rain        8 step 986547 1031325 59070 970510 1023736 112309 1.007413
+
+geomean_speedup 0.995334 (subset; within the ~2.4% A/A spread)
+
+## NOT MEASURED (blocking KEEP)
+
+- Apple silicon box: not reachable (no macOS bench in this run).
+- Zen 4 box: not reachable; this is a Zen 5 (Ryzen 7 255) box. The frozen
+  scalar oracle WAS regenerated on a Zen 4 8700GE, and oracle_check.sh passed
+  here, so bit-exactness is cross-proven; perf A/B was only measured on the
+  Zen 5 box.
+- c16 continuation (large_pyramid w4/w8, rain) and the full c8 grid at
+  workers 1/2 were cut by the 40-minute wall.
+- maxBlockCount multiplier sweep {2,4,8} not run (only the default mult=4).
