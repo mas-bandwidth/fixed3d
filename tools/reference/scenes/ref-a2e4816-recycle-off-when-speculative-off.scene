@@ -5,10 +5,16 @@
 # so those contacts must never recycle. This scene pins the resting contact
 # stays stable (the box does not sink) across the run.
 # Reference: vanilla float box3d at upstream commit a2e4816.
-# Observable: the resting box height and the contact count.
-expect pos 0.002 rot 0.001 vel 0.01 horizon 60 counts exact
+# Observable: the resting box height and the contact count. The current scene
+# grammar cannot switch off speculative contacts or expose recycle counters;
+# SpeculativeOffRecycleTest exercises that flag directly in the unit tier.
+# Sleep is disabled to avoid an unrelated awake-count threshold difference.
+# Measured maxima: pos 0.000055134, rot 0.0000156745, vel 0.000351197,
+# angular velocity 0.000687343. Limits are about twice those maxima, with
+# sub-resolution quantities floored at 8 fixed-point ULPs.
+expect pos 0.000125 rot 0.000125 vel 0.0014 horizon 60 counts exact
 world gravity 0 -10 0 dt 1 60 substeps 4 steps 60
 body static position 0 -0.5 0 rotation 0 0 0 1 linvel 0 0 0 angvel 0 0 0
 shape 0 box 10 0.5 10 density 1 friction 0.5 restitution 0
-body dynamic position 0 0.5 0 rotation 0 0 0 1 linvel 0 0 0 angvel 0 0 0
+body dynamic position 0 0.5 0 rotation 0 0 0 1 linvel 0 0 0 angvel 0 0 0 flags nosleep
 shape 1 box 0.5 0.5 0.5 density 1 friction 0.5 restitution 0

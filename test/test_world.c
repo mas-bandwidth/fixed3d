@@ -1338,6 +1338,42 @@ static int SpeculativeOffRecycleTest( void )
 	return 0;
 }
 
+// A zero time step still discovers an overlapping pair and emits its begin
+// event, while leaving the dynamic body at its exact prior state.
+static int ZeroTimeStepCollisionTest( void )
+{
+	b3WorldDef worldDef = b3DefaultWorldDef();
+	worldDef.gravity = b3Vec3_zero;
+	b3WorldId worldId = b3CreateWorld( &worldDef );
+	b3BodyDef bodyDef = b3DefaultBodyDef();
+	bodyDef.type = b3_staticBody;
+	b3BodyId staticId = b3CreateBody( worldId, &bodyDef );
+	b3ShapeDef shapeDef = b3DefaultShapeDef();
+	shapeDef.enableContactEvents = true;
+	b3Sphere sphere = { b3Vec3_zero, B3_FIX( 0.5f ) };
+	b3CreateSphereShape( staticId, &shapeDef, &sphere );
+
+	bodyDef = b3DefaultBodyDef();
+	bodyDef.type = b3_dynamicBody;
+	bodyDef.position = (b3Pos){ 0, B3_FIX( 0.75f ), 0 };
+	bodyDef.linearVelocity = (b3Vec3){ 0, -B3_FIX( 1.0f ), 0 };
+	b3BodyId dynamicId = b3CreateBody( worldId, &bodyDef );
+	shapeDef.density = B3_FIX( 1.0f );
+	b3CreateSphereShape( dynamicId, &shapeDef, &sphere );
+	b3Pos before = b3Body_GetPosition( dynamicId );
+	b3Vec3 velocityBefore = b3Body_GetLinearVelocity( dynamicId );
+
+	b3World_Step( worldId, 0, 4 );
+	b3ContactEvents events = b3World_GetContactEvents( worldId );
+	b3Pos after = b3Body_GetPosition( dynamicId );
+	b3Vec3 velocityAfter = b3Body_GetLinearVelocity( dynamicId );
+	ENSURE( events.beginCount == 1 );
+	ENSURE( before.x == after.x && before.y == after.y && before.z == after.z );
+	ENSURE( velocityBefore.x == velocityAfter.x && velocityBefore.y == velocityAfter.y && velocityBefore.z == velocityAfter.z );
+	b3DestroyWorld( worldId );
+	return 0;
+}
+
 // Identical hull data is shared through a reference counted world database.
 static int TestHullDatabase( void )
 {
@@ -1773,6 +1809,7 @@ int WorldTest( void )
 	RUN_SUBTEST( RecycledSphereApproachTest );
 	RUN_SUBTEST( PreSolveRejectRecycleTest );
 	RUN_SUBTEST( SpeculativeOffRecycleTest );
+	RUN_SUBTEST( ZeroTimeStepCollisionTest );
 	RUN_SUBTEST( TestSetWorkerCount );
 	RUN_SUBTEST( TestHullDatabase );
 

@@ -6,7 +6,9 @@
 # Reference: vanilla float box3d at upstream commit a2e4816.
 # Observable: the body transform is unchanged (zero dt) while the contact is
 #   still reported.
-expect pos 0.0001 rot 0.0001 vel 0.0001 horizon 1 counts exact
+# Measured position maximum 0.00000611, others 0; all limits use the minimum
+# 8 fixed-point ULP tolerance.
+expect pos 0.000125 rot 0.000125 vel 0.000125 horizon 1 counts exact
 world gravity 0 -10 0 dt 0 1 substeps 4 steps 1
 body static position 0 -0.5 0 rotation 0 0 0 1 linvel 0 0 0 angvel 0 0 0
 shape 0 box 10 0.5 10 density 1 friction 0.5 restitution 0

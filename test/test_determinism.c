@@ -52,18 +52,22 @@
 // hold across platforms and worker counts by construction. The sleep steps are shared
 // between builds; the hashes cover absolute transform bytes, so the ludicrous build
 // (128-bit positions, 80-byte b3WorldTransform) carries its own values.
-#define WAVE_PILE_SLEEP_STEP 310
+// The speculative sphere/capsule margin and contact-recycle flag change the
+// contact history in wave pile and query spawn. Harvested on Linux after the
+// a2e4816 port: workers 1-5 match each other in two independent runs of each
+// numeric mode. Mesh drop and the other scene goldens remain unchanged.
+#define WAVE_PILE_SLEEP_STEP 335
 #define QUERY_SPAWN_SLEEP_STEP 243
 #define QUERY_SPAWN_HIT_COUNT 59
 #define QUERY_SPAWN_QUERY_HASH 0xE583B246
 #define MESH_DROP_SLEEP_STEP 210
 #if defined( BOX3D_LUDICROUS_MODE )
-#define WAVE_PILE_HASH 0xD4E8E9FB
-#define QUERY_SPAWN_HASH 0x7C6B3268
+#define WAVE_PILE_HASH 0x22E6F859
+#define QUERY_SPAWN_HASH 0xC3538B7A
 #define MESH_DROP_HASH 0xDB1DA8B9
 #else
-#define WAVE_PILE_HASH 0xC8EA9BBB
-#define QUERY_SPAWN_HASH 0x49ECDEA8
+#define WAVE_PILE_HASH 0x64609ED9
+#define QUERY_SPAWN_HASH 0x250D3BFA
 #define MESH_DROP_HASH 0x491E324B
 #endif
 
@@ -247,7 +251,7 @@ static int SingleWavePileTest( int workerCount, DeterminismResult* reference )
 static int WavePileTest( void )
 {
 	DeterminismResult reference = { 0 };
-	for ( int workerCount = 1; workerCount <= 4; ++workerCount )
+	for ( int workerCount = 1; workerCount <= 5; ++workerCount )
 	{
 		int result = SingleWavePileTest( workerCount, &reference );
 		ENSURE( result == 0 );
@@ -306,7 +310,7 @@ static int SingleQuerySpawnTest( int workerCount, DeterminismResult* reference )
 static int QuerySpawnTest( void )
 {
 	DeterminismResult reference = { 0 };
-	for ( int workerCount = 1; workerCount <= 4; ++workerCount )
+	for ( int workerCount = 1; workerCount <= 5; ++workerCount )
 	{
 		int result = SingleQuerySpawnTest( workerCount, &reference );
 		ENSURE( result == 0 );
