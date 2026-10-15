@@ -307,3 +307,5 @@ RUN kind=sme_za blocks=64 lanes=512 add=1 calls=3125 ns=5496042 ns_per_mul=3.435
 100001320: d503457f    	smstart	za
 100001324: c00800ff    	zero	{za}
 100001328: 7100045f    	cmp	w2, #0x1
+
+Post-measurement artifact addition: test/test_sme_lane.c and its test/CMakeLists.txt source/runner registration were added to experiment.patch after the M5 slot was released. The test was not built or run. The measured tools/perf/sme_micro.c bytes are unchanged; SHA-256 9759ab399967703476704e76a68c68d5742d8211c06205e2e555059dd95145f8.
