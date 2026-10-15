@@ -3,6 +3,8 @@
 
 #include "physics_world.h"
 
+#include "isa.h"
+
 #include "arena_allocator.h"
 #include "bitset.h"
 #include "body.h"
@@ -256,6 +258,10 @@ b3WorldId b3CreateWorld( const b3WorldDef* def )
 	world->generation = revision;
 	world->inUse = true;
 
+	// The world's ISA kernel table: detection ran once (b3IsaInit), and the
+	// table is immutable for the world's life (src/isa.h)
+	world->isa = b3IsaAcquireWorld();
+
 	world->stack = b3CreateStack( 2048 );
 
 	b3Array_Reserve( world->manifoldAllocators, 16 );
@@ -421,6 +427,7 @@ void b3DestroyWorld( b3WorldId worldId )
 	}
 
 	world->locked = true;
+	b3IsaReleaseWorld();
 
 	// Detach any recording before teardown. The user owns and frees the recording buffer.
 	b3StopRecordingInternal( world );

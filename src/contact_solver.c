@@ -15,6 +15,13 @@
 #if B3_ENABLE_VALIDATION
 #include "shape.h"
 #endif
+#include "isa.h"
+
+// Highway foreach_target pattern: src/isa_<variant>.c defines B3_ISA_VARIANT_TU
+// and re-includes this file, so only the wide kernels below compile again under
+// that variant's target flags, suffixed by B3_ISA_FN. The scalar mesh and
+// overflow solvers compile once, here.
+#if !defined( B3_ISA_VARIANT_TU )
 
 // Restitution runs after the position substeps. Inverse inertia captured by
 // contact preparation is in the body's pre-step frame; rebuild it in the
@@ -397,6 +404,9 @@ void b3WarmStartContacts_Mesh( b3SolverBlock block, b3StepContext* context )
 		}
 	}
 }
+#endif // !B3_ISA_VARIANT_TU
+
+// Shared with the wide kernels (compiled again in each variant translation unit).
 
 // ---------------------------------------------------------------------------
 // Impulse-cap clamp guards
@@ -613,6 +623,8 @@ static inline void b3AuditM3( int slot, b3Matrix3 value )
 #define B3_AUDIT_M3( slot, value )
 
 #endif
+
+#if !defined( B3_ISA_VARIANT_TU )
 
 // Merged normal and friction loops. This is much more stable for the Jenga stack.
 void b3SolveContacts_Mesh( b3SolverBlock block, b3StepContext* context, bool useBias )
@@ -1093,6 +1105,8 @@ void b3StoreImpulses_Mesh( b3SolverBlock block, b3StepContext* context, int work
 	taskContext->hasHitEvents = hasHitEvents;
 }
 
+
+#endif // !B3_ISA_VARIANT_TU
 
 #if defined( B3_SIMD_AVX512 )
 
@@ -2097,7 +2111,7 @@ typedef struct b3ContactConstraintWide
 
 } b3ContactConstraintWide;
 
-int b3GetWideContactConstraintByteCount( void )
+int B3_ISA_FN( b3GetWideContactConstraintByteCount )( void )
 {
 	return sizeof( b3ContactConstraintWide );
 }
@@ -2184,12 +2198,12 @@ typedef struct b3ContactConstraintMeshWide
 	int maxManifoldCount;
 } b3ContactConstraintMeshWide;
 
-int b3GetMeshWideContactConstraintByteCount( void )
+int B3_ISA_FN( b3GetMeshWideContactConstraintByteCount )( void )
 {
 	return sizeof( b3ContactConstraintMeshWide );
 }
 
-int b3GetMeshWideManifoldConstraintByteCount( void )
+int B3_ISA_FN( b3GetMeshWideManifoldConstraintByteCount )( void )
 {
 	return sizeof( b3ManifoldConstraintMeshWide );
 }
@@ -2463,7 +2477,7 @@ static inline b3Vec3W b3ZeroVW( void )
 // matrix products, fused raw-128 dots, divides through b3FixDiv), and
 // inactive (lane, point) slots are fed zeros or masked so the stored bytes
 // match the scalar zero-fill and the solver-setup memset bit for bit.
-void b3PrepareContacts_Convex( b3SolverBlock block, b3StepContext* context )
+void B3_ISA_FN( b3PrepareContacts_Convex )( b3SolverBlock block, b3StepContext* context )
 {
 	b3TracyCZoneNC( prepare_contact, "Prepare Contact", b3_colorYellow, true );
 	b3World* world = context->world;
@@ -2962,7 +2976,7 @@ cp->baseSeparations = b3ZeroW();
 #else
 
 // Prepare convex contact constraints
-void b3PrepareContacts_Convex( b3SolverBlock block, b3StepContext* context )
+void B3_ISA_FN( b3PrepareContacts_Convex )( b3SolverBlock block, b3StepContext* context )
 {
 	b3TracyCZoneNC( prepare_contact, "Prepare Contact", b3_colorYellow, true );
 	b3World* world = context->world;
@@ -3363,7 +3377,7 @@ b3TracyCZoneEnd( prepare_contact );
 
 #endif // B3_SIMD_AVX512
 
-void b3WarmStartContacts_Convex( b3SolverBlock block, b3StepContext* context )
+void B3_ISA_FN( b3WarmStartContacts_Convex )( b3SolverBlock block, b3StepContext* context )
 {
 	b3TracyCZoneNC( warm_start_contact, "Warm Start", b3_colorGreen, true );
 
@@ -3426,7 +3440,7 @@ void b3WarmStartContacts_Convex( b3SolverBlock block, b3StepContext* context )
 	b3TracyCZoneEnd( warm_start_contact );
 }
 
-void b3SolveContacts_Convex( b3SolverBlock block, b3StepContext* context, bool useBias )
+void B3_ISA_FN( b3SolveContacts_Convex )( b3SolverBlock block, b3StepContext* context, bool useBias )
 {
 	b3TracyCZoneNC( solve_contact, "Solve Contact", b3_colorAliceBlue, true );
 
@@ -3677,7 +3691,7 @@ void b3SolveContacts_Convex( b3SolverBlock block, b3StepContext* context, bool u
 	b3TracyCZoneEnd( solve_contact );
 }
 
-void b3ApplyRestitution_Convex( b3SolverBlock block, b3StepContext* context )
+void B3_ISA_FN( b3ApplyRestitution_Convex )( b3SolverBlock block, b3StepContext* context )
 {
 	b3TracyCZoneNC( restitution, "Restitution", b3_colorDodgerBlue, true );
 
@@ -3813,7 +3827,7 @@ void b3ApplyRestitution_Convex( b3SolverBlock block, b3StepContext* context )
 }
 
 // Store impulses by contact constraint
-void b3StoreImpulses_Convex( b3SolverBlock block, b3StepContext* context, int workerIndex )
+void B3_ISA_FN( b3StoreImpulses_Convex )( b3SolverBlock block, b3StepContext* context, int workerIndex )
 {
 	b3TracyCZoneNC( store_impulses, "Store", b3_colorFireBrick, true );
 
@@ -3935,7 +3949,7 @@ void b3StoreImpulses_Convex( b3SolverBlock block, b3StepContext* context, int wo
 // values are bit-identical to the scalar path. The wide constraint and its
 // manifold slots are memset first; active lanes overwrite their elements and
 // everything else keeps the exact zeros the solve stages rely on.
-void b3PrepareContacts_MeshWide( b3SolverBlock block, b3StepContext* context )
+void B3_ISA_FN( b3PrepareContacts_MeshWide )( b3SolverBlock block, b3StepContext* context )
 {
 	b3TracyCZoneNC( prepare_contact, "Prepare Contact", b3_colorYellow, true );
 
@@ -4269,7 +4283,7 @@ if ( anyRestitution )
 b3TracyCZoneEnd( prepare_contact );
 }
 
-void b3WarmStartContacts_MeshWide( b3SolverBlock block, b3StepContext* context )
+void B3_ISA_FN( b3WarmStartContacts_MeshWide )( b3SolverBlock block, b3StepContext* context )
 {
 	b3TracyCZoneNC( warm_start_contact, "Warm Start", b3_colorGreen, true );
 
@@ -4335,7 +4349,7 @@ void b3WarmStartContacts_MeshWide( b3SolverBlock block, b3StepContext* context )
 
 // Merged normal and friction loops, wide. Each lane reproduces
 // b3SolveContacts_Mesh exactly; see the layout comment above.
-void b3SolveContacts_MeshWide( b3SolverBlock block, b3StepContext* context, bool useBias )
+void B3_ISA_FN( b3SolveContacts_MeshWide )( b3SolverBlock block, b3StepContext* context, bool useBias )
 {
 	b3TracyCZoneNC( solve_contact, "Solve Contact", b3_colorAliceBlue, true );
 
@@ -4558,7 +4572,7 @@ void b3SolveContacts_MeshWide( b3SolverBlock block, b3StepContext* context, bool
 	b3TracyCZoneEnd( solve_contact );
 }
 
-void b3ApplyRestitution_MeshWide( b3SolverBlock block, b3StepContext* context )
+void B3_ISA_FN( b3ApplyRestitution_MeshWide )( b3SolverBlock block, b3StepContext* context )
 {
 	b3TracyCZoneNC( restitution, "Restitution", b3_colorDodgerBlue, true );
 
@@ -4670,7 +4684,7 @@ void b3ApplyRestitution_MeshWide( b3SolverBlock block, b3StepContext* context )
 }
 
 // Store impulses back to the manifolds, mirroring b3StoreImpulses_Mesh per lane
-void b3StoreImpulses_MeshWide( b3SolverBlock block, b3StepContext* context, int workerIndex )
+void B3_ISA_FN( b3StoreImpulses_MeshWide )( b3SolverBlock block, b3StepContext* context, int workerIndex )
 {
 	b3TracyCZoneNC( store_impulses, "Store", b3_colorFireBrick, true );
 
@@ -4779,6 +4793,8 @@ void b3StoreImpulses_MeshWide( b3SolverBlock block, b3StepContext* context, int 
 	b3TracyCZoneEnd( store_impulses );
 }
 
+#if !defined( B3_ISA_VARIANT_TU )
+
 void b3PrepareContacts_Overflow( b3StepContext* context )
 {
 	b3ConstraintGraph* graph = context->graph;
@@ -4883,3 +4899,5 @@ void b3StoreImpulses_Overflow( b3StepContext* context )
 
 	b3StoreImpulses_Mesh( block, context, 0 );
 }
+
+#endif // !B3_ISA_VARIANT_TU

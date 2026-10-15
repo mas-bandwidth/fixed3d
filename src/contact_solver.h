@@ -54,9 +54,8 @@ typedef struct b3ContactConstraint
 	int manifoldCount;
 } b3ContactConstraint;
 
-int b3GetWideContactConstraintByteCount( void );
-int b3GetMeshWideContactConstraintByteCount( void );
-int b3GetMeshWideManifoldConstraintByteCount( void );
+// The wide constraint byte counts and the convex / wide mesh kernels are per
+// ISA variant and reached through the world's kernel table (src/isa.h).
 
 // Overflow contacts don't fit into the constraint graph coloring
 void b3PrepareContacts_Overflow( b3StepContext* context );
@@ -76,24 +75,9 @@ void b3StoreImpulses_Mesh( b3SolverBlock block, b3StepContext* context, int work
 // The wide mesh path pays off where four int64 lanes have hardware (AVX-512).
 // On scalar/NEON builds the emulated lanes plus the ragged manifold dimension
 // measured 32-46% slower than the scalar mesh solver on M3 (trees scenes,
-// min-of-3 interleaved A/B), so those builds keep the scalar colored path.
+// min-of-3 interleaved A/B), so the scalar variant keeps the scalar colored
+// path: b3IsaKernels.meshWide is true only for variants with lane hardware.
 // Both paths are bit-identical per lane, so this cannot affect determinism.
-#if defined( B3_SIMD_AVX512 )
-#define B3_MESH_WIDE 1
-#else
-#define B3_MESH_WIDE 0
-#endif
-
-// Four-lane wide mesh solver: lane = whole contact, manifolds serialize
-// in-register (Gauss-Seidel across manifolds, like the scalar loop).
-void b3PrepareContacts_MeshWide( b3SolverBlock block, b3StepContext* context );
-void b3WarmStartContacts_MeshWide( b3SolverBlock block, b3StepContext* context );
-void b3SolveContacts_MeshWide( b3SolverBlock block, b3StepContext* context, bool useBias );
-void b3ApplyRestitution_MeshWide( b3SolverBlock block, b3StepContext* context );
-void b3StoreImpulses_MeshWide( b3SolverBlock block, b3StepContext* context, int workerIndex );
-
-void b3PrepareContacts_Convex( b3SolverBlock block, b3StepContext* context );
-void b3WarmStartContacts_Convex( b3SolverBlock block, b3StepContext* context );
-void b3SolveContacts_Convex( b3SolverBlock block, b3StepContext* context, bool useBias );
-void b3ApplyRestitution_Convex( b3SolverBlock block, b3StepContext* context );
-void b3StoreImpulses_Convex( b3SolverBlock block, b3StepContext* context, int workerIndex );
+// The four-lane wide mesh kernels (lane = whole contact, manifolds serialize
+// in-register, Gauss-Seidel across manifolds like the scalar loop) and the
+// convex kernels are declared per variant in src/isa.h.

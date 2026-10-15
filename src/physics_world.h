@@ -220,6 +220,10 @@ typedef struct b3World
 	// Id that is incremented every time step
 	uint64_t stepIndex;
 
+	// ISA kernel table chosen at b3CreateWorld by runtime dispatch and fixed
+	// for the world's life (src/isa.h). Every variant is bit-identical.
+	const struct b3IsaKernels* isa;
+
 	// Identify islands for splitting as follows:
 	// - I want to split islands so smaller islands can sleep
 	// - when a body comes to rest and its sleep timer trips, I can look at the island and flag it for splitting

@@ -171,6 +171,17 @@ in general, please use the
 The perf lab (fixed scenes, per-phase ns/step, state hashes, scalar oracle) is
 `tools/perf/`. Read `tools/perf/README.md` before an A/B.
 
+## Instruction sets
+
+One build holds every instruction-set variant: on x86-64 the AVX-512 variant
+(AVX512F/DQ/VL) is always compiled, in its own translation unit, and picked at
+runtime when the CPU and OS support it; other hosts run the scalar variant from
+the same binary. Every variant is bit-identical to scalar, so a mixed fleet stays
+in lockstep. `FIXED3D_ISA=scalar|avx512` forces a variant (an unsupported one
+stops the process with the missing CPU feature named), and `b3ForceIsa` /
+`b3GetIsaName` in `box3d/base.h` do the same from code. `-DBOX3D_AVX512` is a
+deprecated no-op.
+
 ## License
 
 MIT, same as Box3D.
