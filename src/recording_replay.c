@@ -2654,21 +2654,8 @@ static void b3RecSeedKeyframeRegistry( b3RecPlayer* player )
 	for ( int i = 0; i < player->rdr.slotCount; ++i )
 	{
 		b3RegistrySlot* slot = player->rdr.slots + i;
-		// Copy so the registry can take ownership.
-		int n = slot->byteCount > 0 ? slot->byteCount : 1;
-		uint8_t* copy = (uint8_t*)b3Alloc( (size_t)n );
-		if ( slot->byteCount > 0 )
-		{
-			memcpy( copy, slot->bytes, (size_t)slot->byteCount );
-		}
-		// Hash the canonical (pointer-nulled) copy, not slot->bytes: if a serialized compound ever
-		// carries a live pointer the two hashes must still agree with b3RecInternCompound's copy.
-		if ( slot->kind == b3_geometryCompound )
-		{
-			b3ConvertCompoundToBytes( (b3CompoundData*)copy );
-		}
-		uint64_t h = b3Hash64NonZero( copy, slot->byteCount );
-		uint32_t id = b3AppendGeometry( reg, slot->kind, h, copy, slot->byteCount );
+		uint64_t h = b3Hash64NonZero( slot->bytes, slot->byteCount );
+		uint32_t id = b3AppendGeometry( reg, slot->kind, h, slot->bytes, slot->byteCount );
 		// Seeding in order without dedup keeps id == slot index.
 		B3_ASSERT( id == (uint32_t)i );
 		(void)id;
