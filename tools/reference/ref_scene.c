@@ -308,7 +308,8 @@ static bool expandComplexHull( uint32_t seed, double radius, double points[][3],
 			x = complexHullRandomCoordinate( &state );
 			y = complexHullRandomCoordinate( &state );
 			z = complexHullRandomCoordinate( &state );
-		} while ( x * x + y * y + z * z > 0.25 );
+		}
+		while ( x * x + y * y + z * z > 0.25 );
 		double len = sqrt( x * x + y * y + z * z );
 		if ( len <= 0.0 )
 		{
@@ -454,8 +455,8 @@ static bool parseBody( char* p, b3RefScene* scene )
 			b->type = b3_refDynamic;
 			b->enableSleep = true;
 			b->safetyFactor = 0.5;
-			if ( !takeWord( &q, "position" ) || !takeDouble( &q, &b->position[0] ) ||
-				 !takeDouble( &q, &b->position[1] ) || !takeDouble( &q, &b->position[2] ) )
+			if ( !takeWord( &q, "position" ) || !takeDouble( &q, &b->position[0] ) || !takeDouble( &q, &b->position[1] ) ||
+				 !takeDouble( &q, &b->position[2] ) )
 			{
 				return false;
 			}
@@ -504,8 +505,8 @@ static bool parseBody( char* p, b3RefScene* scene )
 			{
 				return false;
 			}
-			if ( !takeWord( &q, "position" ) || !takeDouble( &q, &b->position[0] ) ||
-				 !takeDouble( &q, &b->position[1] ) || !takeDouble( &q, &b->position[2] ) )
+			if ( !takeWord( &q, "position" ) || !takeDouble( &q, &b->position[0] ) || !takeDouble( &q, &b->position[1] ) ||
+				 !takeDouble( &q, &b->position[2] ) )
 			{
 				return false;
 			}
@@ -569,8 +570,8 @@ static bool parseBody( char* p, b3RefScene* scene )
 	{
 		return false;
 	}
-	if ( !takeWord( &p, "angvel" ) || !takeDouble( &p, &b->angularVelocity[0] ) ||
-		 !takeDouble( &p, &b->angularVelocity[1] ) || !takeDouble( &p, &b->angularVelocity[2] ) )
+	if ( !takeWord( &p, "angvel" ) || !takeDouble( &p, &b->angularVelocity[0] ) || !takeDouble( &p, &b->angularVelocity[1] ) ||
+		 !takeDouble( &p, &b->angularVelocity[2] ) )
 	{
 		return false;
 	}
@@ -653,7 +654,156 @@ static bool parseMaterialTail( char* p, b3RefShape* s )
 	return true;
 }
 
-static bool parseShape( char* p, b3RefScene* scene )
+// New vocabulary uses bounded integral counts and finite numbers. Reject bad
+// geometry before it can reach an engine assertion (the legacy parser is unchanged).
+static bool takeCount( char** p, int* out, int min, int max )
+{
+	double d;
+	if ( !takeDouble( p, &d ) || !isfinite( d ) || d < min || d > max || floor( d ) != d )
+		return false;
+	*out = (int)d;
+	return true;
+}
+
+static bool takeFinite( char** p, double* out )
+{
+	return takeDouble( p, out ) && isfinite( *out );
+}
+
+static bool takeVector( char** p, double* out, int n )
+{
+	for ( int i = 0; i < n; ++i )
+		if ( !takeFinite( p, out + i ) )
+			return false;
+	return true;
+}
+
+static bool parseNewShape( char* p, b3RefScene* scene, b3RefShape* s, char* error, int errorSize )
+{
+	if ( s->bodyIndex < 0 || s->bodyIndex >= scene->bodyCount )
+		return false;
+	if ( takeWord( &p, "compound" ) )
+	{
+		s->kind = b3_refCompound;
+		if ( scene->bodies[s->bodyIndex].type != b3_refStatic )
+		{
+			if ( error && errorSize > 0 )
+				snprintf( error, errorSize, "public baked-compound API requires a static body" );
+			return false;
+		}
+		s->childStart = scene->childCount;
+		if ( !takeWord( &p, "children" ) || !takeCount( &p, &s->childCount, 1, B3_REF_MAX_CHILDREN - scene->childCount ) )
+			return false;
+		for ( int i = 0; i < s->childCount; ++i )
+		{
+			b3RefChild* c = &scene->children[scene->childCount++];
+			if ( takeWord( &p, "box" ) )
+			{
+				c->kind = b3_refBox;
+				if ( !takeVector( &p, c->halfExtents, 3 ) || c->halfExtents[0] <= 0 || c->halfExtents[1] <= 0 ||
+					 c->halfExtents[2] <= 0 )
+					return false;
+			}
+			else if ( takeWord( &p, "sphere" ) )
+			{
+				c->kind = b3_refSphere;
+				if ( !takeFinite( &p, &c->radius ) || c->radius <= 0 )
+					return false;
+			}
+			else if ( takeWord( &p, "capsule" ) )
+			{
+				c->kind = b3_refCapsule;
+				if ( !takeFinite( &p, &c->radius ) || !takeFinite( &p, &c->halfLength ) || c->radius <= 0 || c->halfLength <= 0 )
+					return false;
+			}
+			else if ( takeWord( &p, "hull" ) )
+			{
+				c->kind = b3_refHull;
+				if ( !takeWord( &p, "points" ) || !takeCount( &p, &c->hullCount, 4, B3_REF_MAX_HULL_POINTS ) )
+					return false;
+				for ( int j = 0; j < c->hullCount; ++j )
+					if ( !takeVector( &p, c->hullPoints[j], 3 ) )
+						return false;
+			}
+			else
+				return false;
+			if ( !takeWord( &p, "position" ) || !takeVector( &p, c->position, 3 ) || !takeWord( &p, "rotation" ) ||
+				 !takeVector( &p, c->rotation, 4 ) || !takeWord( &p, "density" ) || !takeFinite( &p, &c->density ) ||
+				 c->density < 0 || !takeWord( &p, "friction" ) || !takeFinite( &p, &c->friction ) || c->friction < 0 ||
+				 !takeWord( &p, "restitution" ) || !takeFinite( &p, &c->restitution ) || c->restitution < 0 )
+				return false;
+			double norm = 0;
+			for ( int j = 0; j < 4; ++j )
+				norm += c->rotation[j] * c->rotation[j];
+			if ( !isfinite( norm ) || norm < 1e-12 )
+				return false;
+			// Both public baked-compound builders expose one shape density.
+			if ( i == 0 )
+				s->density = c->density;
+			else if ( c->density != s->density )
+			{
+				if ( error && errorSize > 0 )
+					snprintf( error, errorSize,
+							  "compound child densities must match: public baked-compound API exposes one shape density" );
+				return false;
+			}
+		}
+	}
+	else if ( takeWord( &p, "mesh" ) )
+	{
+		s->kind = b3_refMesh;
+		if ( scene->bodies[s->bodyIndex].type != b3_refStatic )
+			return false;
+		if ( !takeWord( &p, "vertices" ) || !takeCount( &p, &s->vertexCount, 3, B3_REF_MAX_MESH_VERTICES ) )
+			return false;
+		for ( int i = 0; i < s->vertexCount; ++i )
+			if ( !takeVector( &p, s->vertices[i], 3 ) )
+				return false;
+		if ( !takeWord( &p, "triangles" ) || !takeCount( &p, &s->triangleCount, 1, B3_REF_MAX_MESH_TRIANGLES ) )
+			return false;
+		for ( int i = 0; i < s->triangleCount; ++i )
+			for ( int j = 0; j < 3; ++j )
+				if ( !takeCount( &p, &s->triangles[i][j], 0, s->vertexCount - 1 ) )
+					return false;
+		s->materialCount = 1;
+		s->materials[0][0] = 0.5;
+		if ( takeWord( &p, "materials" ) )
+		{
+			if ( !takeCount( &p, &s->materialCount, 1, B3_REF_MAX_MATERIALS ) )
+				return false;
+			for ( int i = 0; i < s->materialCount; ++i )
+				if ( !takeVector( &p, s->materials[i], 2 ) || s->materials[i][0] < 0 || s->materials[i][1] < 0 )
+					return false;
+			if ( !takeWord( &p, "indices" ) )
+				return false;
+			for ( int i = 0; i < s->triangleCount; ++i )
+				if ( !takeCount( &p, &s->materialIndices[i], 0, s->materialCount - 1 ) )
+					return false;
+		}
+	}
+	else
+		return false;
+	if ( !endOfLine( p ) )
+		return false;
+	++scene->shapeCount;
+	return true;
+}
+
+static bool parseSnapshot( char* p, b3RefScene* scene )
+{
+	int* step;
+	if ( takeWord( &p, "save" ) )
+		step = &scene->snapshotSaveStep;
+	else if ( takeWord( &p, "restore" ) )
+		step = &scene->snapshotRestoreStep;
+	else
+		return false;
+	if ( *step != -1 )
+		return false;
+	return takeWord( &p, "at" ) && takeCount( &p, step, 0, 2047 ) && endOfLine( p );
+}
+
+static bool parseShape( char* p, b3RefScene* scene, char* error, int errorSize )
 {
 	if ( scene->shapeCount >= B3_REF_MAX_SHAPES )
 	{
@@ -667,6 +817,9 @@ static bool parseShape( char* p, b3RefScene* scene )
 		return false;
 	}
 	char* kw = skipWs( p );
+	char* probe = p;
+	if ( takeWord( &probe, "compound" ) || takeWord( &probe, "mesh" ) )
+		return parseNewShape( p, scene, s, error, errorSize );
 	if ( takeWord( &p, "box" ) )
 	{
 		s->kind = b3_refBox;
@@ -1101,7 +1254,10 @@ static bool parseCompound( char* p, b3RefScene* scene )
 
 bool b3RefParseScene( const char* text, b3RefScene* scene, char* error, int errorSize )
 {
+	if ( error && errorSize > 0 )
+		error[0] = 0;
 	memset( scene, 0, sizeof( *scene ) );
+	scene->snapshotSaveStep = scene->snapshotRestoreStep = -1;
 
 	// The line scanner NULs out newlines in place, so work on a private copy and
 	// never mutate the caller's buffer (which may be a string literal).
@@ -1165,7 +1321,7 @@ bool b3RefParseScene( const char* text, b3RefScene* scene, char* error, int erro
 			}
 			else if ( takeWord( &p, "shape" ) )
 			{
-				ok = parseShape( p, scene );
+				ok = parseShape( p, scene, error, errorSize );
 			}
 			else if ( takeWord( &p, "joint" ) )
 			{
@@ -1178,6 +1334,16 @@ bool b3RefParseScene( const char* text, b3RefScene* scene, char* error, int erro
 			else if ( takeWord( &p, "at_step" ) )
 			{
 				ok = parseEvent( p, scene );
+			}
+			else if ( takeWord( &p, "snapshot" ) )
+			{
+				ok = parseSnapshot( p, scene );
+			}
+			else if ( takeWord( &p, "trace" ) )
+			{
+				ok = !scene->traceContacts && takeWord( &p, "contacts" ) && endOfLine( p );
+				scene->traceContacts = ok;
+				scene->expect.traceContacts = ok;
 			}
 			else if ( takeWord( &p, "compound" ) )
 			{
@@ -1194,7 +1360,7 @@ bool b3RefParseScene( const char* text, b3RefScene* scene, char* error, int erro
 			}
 			if ( !ok )
 			{
-				if ( error && errorSize > 0 )
+				if ( error && errorSize > 0 && error[0] == 0 )
 				{
 					snprintf( error, errorSize, "malformed directive: %.32s", line );
 				}
@@ -1210,6 +1376,22 @@ bool b3RefParseScene( const char* text, b3RefScene* scene, char* error, int erro
 		}
 	}
 
+	if ( ( scene->snapshotSaveStep >= 0 || scene->snapshotRestoreStep >= 0 ) &&
+		 ( scene->snapshotSaveStep < 0 || scene->snapshotRestoreStep <= scene->snapshotSaveStep ||
+		   scene->snapshotRestoreStep >= scene->world.steps ) )
+	{
+		if ( error && errorSize > 0 )
+			snprintf( error, errorSize, "snapshot requires 0 <= save < restore < steps" );
+		free( buf );
+		return false;
+	}
+	if ( scene->traceContacts && scene->expect.predicateCount > 0 )
+	{
+		if ( error && errorSize > 0 )
+			snprintf( error, errorSize, "trace contacts requires a tolerance header" );
+		free( buf );
+		return false;
+	}
 	if ( !expectSeen )
 	{
 		if ( error && errorSize > 0 )
@@ -1308,10 +1490,129 @@ typedef struct b3RefBodySample
 	double w[3];
 } b3RefBodySample;
 
+static int compareContactPoint( const void* a, const void* b )
+{
+	const double* pa = a;
+	const double* pb = b;
+	for ( int i = 0; i < 4; ++i )
+	{
+		if ( pa[i] < pb[i] )
+			return -1;
+		if ( pa[i] > pb[i] )
+			return 1;
+	}
+	return 0;
+}
+
+static int compareContact( const void* a, const void* b )
+{
+	const b3RefContactSample* ca = a;
+	const b3RefContactSample* cb = b;
+	if ( ca->shapeA != cb->shapeA )
+		return ca->shapeA < cb->shapeA ? -1 : 1;
+	if ( ca->shapeB != cb->shapeB )
+		return ca->shapeB < cb->shapeB ? -1 : 1;
+	if ( ca->pointCount != cb->pointCount )
+		return ca->pointCount < cb->pointCount ? -1 : 1;
+	for ( int i = 0; i < ca->pointCount; ++i )
+	{
+		int order = compareContactPoint( ca->points[i], cb->points[i] );
+		if ( order != 0 )
+			return order;
+	}
+	return 0;
+}
+
+void b3RefSortContacts( b3RefContactSample* contacts, int count )
+{
+	for ( int i = 0; i < count; ++i )
+		qsort( contacts[i].points, (size_t)contacts[i].pointCount, sizeof( contacts[i].points[0] ), compareContactPoint );
+	qsort( contacts, (size_t)count, sizeof( *contacts ), compareContact );
+}
+
+// Sorting is the wire canonicalization, not the correspondence rule: rounding
+// can reverse nearly equal x coordinates. Match the complete point set with a
+// bijection (at most 4! assignments); never greedily reuse the same point.
+static double contactPointError( const b3RefContactSample* a, const b3RefContactSample* b, int index, unsigned used,
+								 double maximum )
+{
+	if ( index == a->pointCount )
+		return maximum;
+	double best = HUGE_VAL;
+	for ( int j = 0; j < b->pointCount; ++j )
+	{
+		if ( used & ( 1u << j ) )
+			continue;
+		double error = maximum;
+		for ( int k = 0; k < 4; ++k )
+		{
+			double delta = fabs( a->points[index][k] - b->points[j][k] );
+			if ( delta > error )
+				error = delta;
+		}
+		double candidate = contactPointError( a, b, index + 1, used | ( 1u << j ), error );
+		if ( candidate < best )
+			best = candidate;
+	}
+	return best;
+}
+
+static bool matchContactRow( int row, int count, double errors[B3_REF_MAX_CONTACTS][B3_REF_MAX_CONTACTS], double tolerance,
+							 int* matches, bool* seen )
+{
+	for ( int j = 0; j < count; ++j )
+	{
+		if ( seen[j] || errors[row][j] > tolerance )
+			continue;
+		seen[j] = true;
+		if ( matches[j] < 0 || matchContactRow( matches[j], count, errors, tolerance, matches, seen ) )
+		{
+			matches[j] = row;
+			return true;
+		}
+	}
+	return false;
+}
+
+static bool compareContactSets( const b3RefContactSample* a, const b3RefContactSample* b, int count, double tolerance,
+								double* maximum )
+{
+	double errors[B3_REF_MAX_CONTACTS][B3_REF_MAX_CONTACTS];
+	int matches[B3_REF_MAX_CONTACTS];
+	for ( int i = 0; i < count; ++i )
+	{
+		matches[i] = -1;
+		for ( int j = 0; j < count; ++j )
+			errors[i][j] = a[i].shapeA == b[j].shapeA && a[i].shapeB == b[j].shapeB && a[i].pointCount == b[j].pointCount
+							   ? contactPointError( &a[i], &b[j], 0, 0, 0 )
+							   : HUGE_VAL;
+	}
+	for ( int i = 0; i < count; ++i )
+	{
+		bool seen[B3_REF_MAX_CONTACTS] = { false };
+		if ( !matchContactRow( i, count, errors, tolerance, matches, seen ) )
+		{
+			double nearest = HUGE_VAL;
+			for ( int j = 0; j < count; ++j )
+				if ( errors[i][j] < nearest )
+					nearest = errors[i][j];
+			*maximum = nearest;
+			return false;
+		}
+	}
+	for ( int j = 0; j < count; ++j )
+		if ( errors[matches[j]][j] > *maximum )
+			*maximum = errors[matches[j]][j];
+	return true;
+}
+
 typedef struct b3RefStepSample
 {
 	int step;
 	int counters[3]; // contact, awake, joint
+	bool hasContacts;
+	int contactCount, expectedContacts;
+	b3RefContactSample contacts[B3_REF_MAX_CONTACTS];
 	int bodyCount;
 	b3RefBodySample bodies[B3_REF_MAX_BODIES];
 	// predicate-mode traces only: lowest transformed hull vertex per hull body
@@ -1349,8 +1650,8 @@ static bool parseTraceBodyLine( char* p, b3RefBodySample* b, int* index )
 	{
 		return false;
 	}
-	if ( !takeWord( &p, "q" ) || !takeDouble( &p, &b->q[0] ) || !takeDouble( &p, &b->q[1] ) ||
-		 !takeDouble( &p, &b->q[2] ) || !takeDouble( &p, &b->q[3] ) )
+	if ( !takeWord( &p, "q" ) || !takeDouble( &p, &b->q[0] ) || !takeDouble( &p, &b->q[1] ) || !takeDouble( &p, &b->q[2] ) ||
+		 !takeDouble( &p, &b->q[3] ) )
 	{
 		return false;
 	}
@@ -1439,8 +1740,7 @@ static bool parseTrace( char* text, b3RefTrace* trace )
 			// standalone counters line is also accepted, e.g. hand-written traces)
 			if ( takeWord( &p, "counters" ) )
 			{
-				if ( !takeInt( &p, &trace->steps[curStep].counters[0] ) ||
-					 !takeInt( &p, &trace->steps[curStep].counters[1] ) ||
+				if ( !takeInt( &p, &trace->steps[curStep].counters[0] ) || !takeInt( &p, &trace->steps[curStep].counters[1] ) ||
 					 !takeInt( &p, &trace->steps[curStep].counters[2] ) )
 				{
 					return false;
@@ -1477,6 +1777,33 @@ static bool parseTrace( char* text, b3RefTrace* trace )
 				return false;
 			}
 			st->bodyCount += 1;
+		}
+		else if ( takeWord( &p, "contacts" ) )
+		{
+			if ( curStep < 0 || trace->steps[curStep].hasContacts )
+				return false;
+			b3RefStepSample* st = &trace->steps[curStep];
+			if ( !takeCount( &p, &st->expectedContacts, 0, B3_REF_MAX_CONTACTS ) || !endOfLine( p ) )
+				return false;
+			st->hasContacts = true;
+		}
+		else if ( takeWord( &p, "contact" ) )
+		{
+			if ( curStep < 0 )
+				return false;
+			b3RefStepSample* st = &trace->steps[curStep];
+			if ( !st->hasContacts || st->contactCount >= st->expectedContacts )
+				return false;
+			b3RefContactSample* c = &st->contacts[st->contactCount++];
+			if ( !takeCount( &p, &c->shapeA, 0, B3_REF_MAX_BODIES * ( B3_REF_MAX_SHAPES + 1 ) ) ||
+				 !takeCount( &p, &c->shapeB, c->shapeA + 1, B3_REF_MAX_BODIES * ( B3_REF_MAX_SHAPES + 1 ) ) ||
+				 !takeCount( &p, &c->pointCount, 1, B3_REF_MAX_CONTACT_POINTS ) )
+				return false;
+			for ( int i = 0; i < c->pointCount; ++i )
+				if ( !takeVector( &p, c->points[i], 4 ) )
+					return false;
+			if ( !endOfLine( p ) )
+				return false;
 		}
 		else if ( takeWord( &p, "low" ) )
 		{
@@ -1515,6 +1842,13 @@ static bool parseTrace( char* text, b3RefTrace* trace )
 		{
 			return false;
 		}
+	}
+	for ( int i = 0; i < trace->stepCount; ++i )
+	{
+		b3RefStepSample* st = &trace->steps[i];
+		if ( st->contactCount != st->expectedContacts )
+			return false;
+		b3RefSortContacts( st->contacts, st->contactCount );
 	}
 	return true;
 }
@@ -1627,18 +1961,23 @@ bool b3RefCompareTraces( const char* traceA, const char* traceB, const b3RefExpe
 				snprintf( lines[lineCount++], sizeof( lines[0] ), "%s: no low line in trace (FAIL)", pname );
 				continue;
 			}
-			bool okA = ( pr->op == B3_REF_OP_GE ) ? ( va >= pr->value ) : ( pr->op == B3_REF_OP_GT ) ? ( va > pr->value )
+			bool okA = ( pr->op == B3_REF_OP_GE )	? ( va >= pr->value )
+					   : ( pr->op == B3_REF_OP_GT ) ? ( va > pr->value )
 					   : ( pr->op == B3_REF_OP_LE ) ? ( va <= pr->value )
 													: ( va < pr->value );
-			bool okB = ( pr->op == B3_REF_OP_GE ) ? ( vb >= pr->value ) : ( pr->op == B3_REF_OP_GT ) ? ( vb > pr->value )
+			bool okB = ( pr->op == B3_REF_OP_GE )	? ( vb >= pr->value )
+					   : ( pr->op == B3_REF_OP_GT ) ? ( vb > pr->value )
 					   : ( pr->op == B3_REF_OP_LE ) ? ( vb <= pr->value )
 													: ( vb < pr->value );
 			if ( !okA || !okB )
 			{
 				predPassed = false;
 			}
-			snprintf( lines[lineCount++], sizeof( lines[0] ), "%s: fixed %.9g float %.9g (bound %s %.9g) %s", pname, va,
-					  vb, pr->op == B3_REF_OP_GE ? ">=" : pr->op == B3_REF_OP_GT ? ">" : pr->op == B3_REF_OP_LE ? "<=" : "<",
+			snprintf( lines[lineCount++], sizeof( lines[0] ), "%s: fixed %.9g float %.9g (bound %s %.9g) %s", pname, va, vb,
+					  pr->op == B3_REF_OP_GE   ? ">="
+					  : pr->op == B3_REF_OP_GT ? ">"
+					  : pr->op == B3_REF_OP_LE ? "<="
+											   : "<",
 					  pr->value, ( okA && okB ) ? "ok" : "FAIL" );
 		}
 
@@ -1666,8 +2005,8 @@ bool b3RefCompareTraces( const char* traceA, const char* traceB, const b3RefExpe
 				snprintf( report + off, (size_t)room,
 						  "resting height: fixed %.9g float %.9g delta %.9g (tol %.9g) %s\n"
 						  "final contact count: fixed %d float %d %s",
-						  restA, restB, restDelta, (double)B3_REF_RESTING_Y_TOLERANCE, restOk ? "ok" : "FAIL", contactA,
-						  contactB, countOk ? "equal" : "FAIL" );
+						  restA, restB, restDelta, (double)B3_REF_RESTING_Y_TOLERANCE, restOk ? "ok" : "FAIL", contactA, contactB,
+						  countOk ? "equal" : "FAIL" );
 			}
 		}
 		free( copyA );
@@ -1692,13 +2031,39 @@ bool b3RefCompareTraces( const char* traceA, const char* traceB, const b3RefExpe
 		{
 			if ( report && reportSize > 0 )
 			{
-				snprintf( report, reportSize, "body count mismatch at step %d: %d vs %d", sa->step, sa->bodyCount, sb->bodyCount );
+				snprintf( report, reportSize, "body count mismatch at step %d: %d vs %d", sa->step, sa->bodyCount,
+						  sb->bodyCount );
 			}
 			free( copyA );
 			free( copyB );
 			free( a );
 			free( b );
 			return false;
+		}
+		if ( expect->traceContacts || sa->hasContacts || sb->hasContacts )
+		{
+			const char* failure = NULL;
+			double maximum = 0;
+			if ( !sa->hasContacts || !sb->hasContacts )
+				failure = "missing contact point set";
+			else if ( sa->contactCount != sb->contactCount )
+				failure = "manifold count differs";
+			else if ( !compareContactSets( sa->contacts, sb->contacts, sa->contactCount, expect->posTolerance, &maximum ) )
+				failure = "shape pair, point count, or point position/separation differs";
+			if ( maximum > maxPos )
+				maxPos = maximum;
+			if ( failure != NULL )
+			{
+				if ( report && reportSize > 0 )
+					snprintf( report, reportSize,
+							  "contact mismatch at step %d: %s (manifolds %d/%d, max point error %.9g, tolerance %.9g)", sa->step,
+							  failure, sa->contactCount, sb->contactCount, maximum, expect->posTolerance );
+				free( copyA );
+				free( copyB );
+				free( a );
+				free( b );
+				return false;
+			}
 		}
 		for ( int i = 0; i < sa->bodyCount; ++i )
 		{
@@ -1820,10 +2185,9 @@ bool b3RefCompareTraces( const char* traceA, const char* traceB, const b3RefExpe
 	// Verdict: every quantity inside tolerance.
 	bool passed = ( maxPos <= expect->posTolerance && maxRot <= expect->rotTolerance && maxVel <= expect->velTolerance &&
 					maxAng <= expect->velTolerance && maxQuery <= expect->posTolerance &&
-					( expect->countsExact
-						  ? ( maxContactDelta == 0 && maxAwakeDelta == 0 && maxJointDelta == 0 )
-						  : ( maxContactDelta <= expect->countsDelta && maxAwakeDelta <= expect->countsDelta &&
-							  maxJointDelta <= expect->countsDelta ) ) );
+					( expect->countsExact ? ( maxContactDelta == 0 && maxAwakeDelta == 0 && maxJointDelta == 0 )
+										  : ( maxContactDelta <= expect->countsDelta && maxAwakeDelta <= expect->countsDelta &&
+											  maxJointDelta <= expect->countsDelta ) ) );
 
 	if ( report && reportSize > 0 )
 	{

@@ -52,7 +52,7 @@ enum
 typedef struct b3RefPredicate
 {
 	int kind; // b3RefPredicateKind
-	int op;   // B3_REF_OP_*
+	int op;	  // B3_REF_OP_*
 	double value;
 } b3RefPredicate;
 
@@ -67,6 +67,7 @@ typedef struct b3RefExpect
 	int horizon;		 // steps compared before chaos diverges
 	int countsExact;	 // 1 => counters compare exactly, else allowed delta
 	int countsDelta;	 // allowed integer delta when countsExact == 0
+	bool traceContacts;	 // require complete per-step contact point sets
 	bool hasExpect;		 // false until the expect line is parsed
 	int predicateCount;	 // > 0 => predicate mode (see b3RefPredicate)
 	b3RefPredicate predicates[B3_REF_MAX_PREDICATES];
@@ -100,7 +101,24 @@ typedef enum b3RefShapeKind
 	b3_refSphere = 1,
 	b3_refCapsule = 2,
 	b3_refHull = 3,
+	b3_refCompound = 4,
+	b3_refMesh = 5,
 } b3RefShapeKind;
+
+#define B3_REF_MAX_MESH_VERTICES 64
+#define B3_REF_MAX_MESH_TRIANGLES 128
+#define B3_REF_MAX_MATERIALS 16
+#define B3_REF_MAX_CHILDREN 128
+
+typedef struct b3RefChild
+{
+	b3RefShapeKind kind;
+	double position[3], rotation[4];
+	double halfExtents[3], radius, halfLength;
+	int hullCount;
+	double hullPoints[B3_REF_MAX_HULL_POINTS][3];
+	double density, friction, restitution;
+} b3RefChild;
 
 typedef struct b3RefShape
 {
@@ -118,6 +136,12 @@ typedef struct b3RefShape
 	double restitution;
 	double rollingResistance;
 	bool isSensor;
+	int childStart, childCount;
+	int vertexCount, triangleCount, materialCount;
+	double vertices[B3_REF_MAX_MESH_VERTICES][3];
+	int triangles[B3_REF_MAX_MESH_TRIANGLES][3];
+	int materialIndices[B3_REF_MAX_MESH_TRIANGLES];
+	double materials[B3_REF_MAX_MATERIALS][2]; // friction, restitution
 } b3RefShape;
 
 typedef enum b3RefJointKind
@@ -134,11 +158,11 @@ typedef struct b3RefJoint
 	int bodyA;
 	int bodyB;
 	double anchorA[3];
-	double anchorB[3]; // spherical uses anchorA only; revolute/weld use both
-	double axis[3];	   // revolute axis
-	double length;	   // distance rest length
+	double anchorB[3];	   // spherical uses anchorA only; revolute/weld use both
+	double axis[3];		   // revolute axis
+	double length;		   // distance rest length
 	bool collideConnected; // b3JointDef::collideConnected, default true
-	int atStep;			  // world step index (0-based) before which the joint is created
+	int atStep;			   // world step index (0-based) before which the joint is created
 } b3RefJoint;
 
 typedef enum b3RefQueryKind
@@ -192,8 +216,8 @@ typedef enum b3RefEventKind
 
 typedef struct b3RefEvent
 {
-	int step;	  // world step index (0-based) before which the action fires
-	int kind;	  // b3RefEventKind
+	int step; // world step index (0-based) before which the action fires
+	int kind; // b3RefEventKind
 	int bodyIndex;
 	double center[3];
 } b3RefEvent;
@@ -222,6 +246,10 @@ typedef struct b3RefScene
 {
 	b3RefExpect expect;
 	b3RefWorld world;
+	int childCount;
+	b3RefChild children[B3_REF_MAX_CHILDREN];
+	int snapshotSaveStep, snapshotRestoreStep; // before step, -1 when absent
+	bool traceContacts;
 	int bodyCount;
 	b3RefBody bodies[B3_REF_MAX_BODIES];
 	int shapeCount;
@@ -277,3 +305,14 @@ bool b3RefParseSceneFile( const char* path, b3RefScene* scene, char* error, int 
 // tolerance. Integer counters compare exactly unless the header says otherwise.
 // `report` may be NULL; `reportSize` is the capacity of `report`.
 bool b3RefCompareTraces( const char* traceA, const char* traceB, const b3RefExpect* expect, char* report, int reportSize );
+
+// Canonical contact rows, shared by both drivers and the comparer. Shape indices
+// are (body creation ordinal * (MAX_SHAPES + 1)) + body-local shape ordinal.
+#define B3_REF_MAX_CONTACTS 256
+#define B3_REF_MAX_CONTACT_POINTS 4
+typedef struct b3RefContactSample
+{
+	int shapeA, shapeB, pointCount;
+	double points[B3_REF_MAX_CONTACT_POINTS][4]; // world midpoint x/y/z, separation
+} b3RefContactSample;
+void b3RefSortContacts( b3RefContactSample* contacts, int count );
