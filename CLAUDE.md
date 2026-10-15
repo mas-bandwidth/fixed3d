@@ -2474,8 +2474,12 @@ new sample code — keep them clean.
   thin-box contact pins the prior one-step normalized energy rise of 1.16145
   to 1.57017 against the corrected rise of 1.10727 to 1.15106.
   Six upstream restitution-battery subtests already
-  fail on clean fixed3d BASE and are marked XFAIL individually, with XPASS a
-  failure; the original bounds remain intact. The follow-up card is
+  fail on clean fixed3d BASE. After the restored stage (and the current-frame
+  inertia fix) two of them -- DropTest and SingleBoxTest, both e=1 elastic
+  energy-conservation measurements -- now pass and are regular RUN_MEASUREMENT
+  subtests; the four that still fail because of the baseline contact/integration
+  energy floor (Resting, Overshoot, Energy, Impulse) stay XFAIL individually,
+  with XPASS a failure; the original bounds remain intact. The follow-up card is
   `fixed3d-energy-floor-matches-upstream`. A hard
   default-elastic-energy comparison against BASE remains in the suite so the
   configured default cannot silently regress while that floor is repaired.
