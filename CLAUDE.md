@@ -1791,14 +1791,19 @@ warns), and every build holds every variant its target can compile:
   build, which is why those two stages are now table entries compiled in the variant TU (see
   below): after the move `junkyard` is 1.00-1.06x of BASE and `integrate*` are at or above BASE.
   What remains: `collide` on `convex_pile` (-7%, the hull narrow phase compiled at baseline), and
-  `rain`/`ragdoll_pile` which run 13-16% FASTER than BASE in `solveImpulses`/`relaxImpulses`
+  `rain`/`ragdoll_pile`, which run 13-16% FASTER than BASE in `solveImpulses`/`relaxImpulses`
   although the kernel text is identical and the direct-call control shows the table costs
-  nothing: the same sources built with the flags global (`-DCMAKE_C_FLAGS=-mavx512f ...`, same
-  dispatch code) run ~8% SLOWER than BASE there, so it is a code-generation difference of the
-  kernel TU between the two flag layouts (the instruction mix of `b3SolveContacts_Convex` differs:
-  75 vs 78 `vpmullq`, different call-out set), not an effect of the table. Not isolated further
-  without hardware counters; a `perf stat`/`perf record` run with `perf_event_paranoid<=1` on a
-  bench host is the next step if anyone needs the micro-architectural reason.
+  nothing. Root cause, by elimination with the same two trees: BASE's LTO build runs its
+  `b3SolveContacts_Convex.isra.0` (LTO IPA-SRA rewrote the local kernel's signature) ~20% slower
+  than the same source without LTO. Built with `-DBOX3D_LTO=OFF` both trees, BASE
+  (`-DBOX3D_AVX512=ON`) against the dispatch build: `rain` 0.983 (spread 3.7%), `ragdoll_pile` 1.034
+  (spread 35%), `solveImpulses` 0.992 / 1.016: inside the spread, at the dispatch build's LTO
+  speed (1.51 ms vs BASE-LTO's 1.89 ms on `rain`). The dispatch kernels are external, address-taken
+  symbols, so LTO cannot clone or re-sign them. The same dispatch sources with the flags made
+  global (`-DCMAKE_C_FLAGS=-mavx512f ...`) land back near BASE (-8%), consistent with LTO
+  cloning those kernels once the whole library shares one target. The micro-architectural reason
+  inside BASE's cloned kernel is not isolated (no `perf stat`/`perf record`: counters are blocked
+  on every bench host); with `perf_event_paranoid<=1` on a bench host that is the next step.
 - **Why the integrate stages are in the table.** The old global flags gave the scalar integrate
   loops a free speed-up; keeping them in baseline code would have been a real regression on
   every non-solver-bound scene (`junkyard`, `joint_grid`, `convex_pile`). They are the same text
