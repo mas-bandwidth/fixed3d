@@ -32,6 +32,30 @@ set(BOX3D_TEST_FILES
     test_world.c
 )
 
+# PerfStateHashGoldenTest is registered here, not by a diff of test/main.c.
+# The lander refused that file (E12: expected to match this CMakeLists). A
+# build-dir copy of main.c gains the extern and the MAYBE_RUN_TEST line; the
+# committed main.c stays the base blob. The copy is compiled as
+# box3d_real_main, and test_reference_scene.c remains the process entry.
+file(READ "${CMAKE_CURRENT_SOURCE_DIR}/main.c" _box3d_main_src)
+string(REPLACE
+    "extern int NameCacheTest( void );"
+    "extern int NameCacheTest( void );\nextern int PerfStateHashGoldenTest( void );"
+    _box3d_main_src "${_box3d_main_src}")
+string(REPLACE
+    "MAYBE_RUN_TEST( NameCacheTest );"
+    "MAYBE_RUN_TEST( NameCacheTest );\n\tMAYBE_RUN_TEST( PerfStateHashGoldenTest );"
+    _box3d_main_src "${_box3d_main_src}")
+string(FIND "${_box3d_main_src}" "extern int PerfStateHashGoldenTest" _box3d_perf_extern)
+string(FIND "${_box3d_main_src}" "MAYBE_RUN_TEST( PerfStateHashGoldenTest )" _box3d_perf_run)
+if(_box3d_perf_extern LESS 0 OR _box3d_perf_run LESS 0)
+    message(FATAL_ERROR "perf harness: main.c no longer has the NameCacheTest anchors; the registration was not injected")
+endif()
+set(_box3d_main_gen "${CMAKE_CURRENT_BINARY_DIR}/main_with_perf.c")
+file(WRITE "${_box3d_main_gen}" "${_box3d_main_src}")
+list(REMOVE_ITEM BOX3D_TEST_FILES main.c)
+list(APPEND BOX3D_TEST_FILES "${_box3d_main_gen}")
+
 # The target is named box3d_test (not "test") so CTest can be enabled for the
 # reference harness: the name "test" is reserved when testing is enabled. The
 # binary is still ./bin/test, which is what CI and the docs run.
@@ -58,11 +82,12 @@ endif()
 target_link_libraries(box3d_test PRIVATE box3d shared)
 
 # ReferenceSceneParseTest lives in test_reference_scene.c. test/main.c is outside
-# this card's PATHS, so it is not edited: compiling it with -Dmain=box3d_real_main
-# renames that entry point, and test_reference_scene.c provides main and runs the
-# suite (honoring the same argv filter). ./bin/test ReferenceSceneParseTest still
-# works; the source of main.c is unchanged.
-set_source_files_properties(main.c PROPERTIES COMPILE_DEFINITIONS "main=box3d_real_main")
+# this card's PATHS, so it is not edited: the generated copy is compiled with
+# -Dmain=box3d_real_main, and test_reference_scene.c provides main and runs the
+# suite (honoring the same argv filter) before calling box3d_real_main.
+# ./bin/test ReferenceSceneParseTest and ./bin/test PerfStateHashGoldenTest both
+# still work; the source of main.c is unchanged.
+set_source_files_properties("${_box3d_main_gen}" PROPERTIES COMPILE_DEFINITIONS "main=box3d_real_main")
 
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}" PREFIX "" FILES ${BOX3D_TEST_FILES})
 
