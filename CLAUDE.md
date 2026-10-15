@@ -54,6 +54,45 @@ and says *closed*. Record below.)*
 
 The PORT RECORDs below run newest first and are the detail for each step.
 
+- **PORT RECORD 9e5a4cd + 79fc559 "CCD time-loss gravity + five bug fixes" (2026-10-15) —
+  PORTED, engine half (card port-9e5a4cd-ccd-gravity-loss-and-five-bug-fixes).** This is
+  sub-task 2 of the fixed3d#65 3+4 step (T2's G3 and the five bug fixes H-F/H-G/H-H/H-L).
+  **(1) The CCD time-loss gravity fix (G3).** After a CCD time of impact the gravity lost to
+  the time loss `(1 - fraction) * dt` is added back to the body's linear velocity, respecting
+  the three linear lock flags. In fixed point the two chained products are reassociated so the
+  small `(1 - fraction)` operand multiplies last: forming `(1 - fraction) * dt` first
+  quantizes to zero for a fraction near 1 (CLAUDE.md rule 1). Goldens moved (narrow/ludicrous):
+  RAGDOLL_SLEEP_STEP 325 -> 349, RAGDOLL_HUMAN_SLEEP_STEP 228 -> 233, MESH_DROP_SLEEP_STEP
+  210 -> 284; wave pile and query spawn do not trigger CCD and are unchanged. Re-harvested by
+  the printed-value procedure, identical across workers 1-5. **TEST: CcdGravityTimeLossTest**
+  (test/test_body.c), seen red first at the unchanged tip.
+  **(2) Four of the five bug fixes.** (a) `b3_hadTimeOfImpact` lives on the body sim, not the
+  body (H-F): set once after the TOI is accepted in `b3SolveContinuous`, read by debug draw
+  from `bodySim->flags`, preserved across `b3SyncBodyFlags`, and the bullet skip in the
+  continuous query tests `body->flags`. (b) non-dynamic joint enable/disable (H-G):
+  `b3Body_Disable` tolerates a joint already in the static set, and `b3Body_Enable` picks the
+  static set by body TYPE rather than setIndex. Regression `TestNonDynamicJointDisable`
+  (test/test_joint.c), seen red first (exit 132, the over-tight B3_ASSERT). (c) two joint
+  prepare asserts (prismatic + weld) assume bodyA OR bodyB may be the awake one, not bodyB
+  (H-G). (d) the `BOX2D_PROFILE` / `box2d_worker` typos become `BOX3D_PROFILE` /
+  `box3d_worker` (H-L).
+  **(3) The fifth bug fix (H-H, static-tree rebuild clearing move marks) is NOT APPLICABLE.**
+  Upstream wrote it against the f555ee4 tree (`B3_MOVED_NODE` / `b3DynamicTree_ValidateNoMoved`),
+  which fixed3d has not ported: fixed3d's `b3DynamicTree` still uses the pre-f555ee4
+  `b3_enlargedNode` flag and has no moved bit, no `b3DynamicTree_ValidateNoMoved`, and no
+  `test_broad_phase.c` (`StaticRebuildKeepsMarks`). When f555ee4 is ported (its own multi-step
+  branch), H-H must land in the same step or the move-mark bug arrives with it.
+  **REFERENCE: `tools/reference/scenes/ref-9e5a4cd-ccd-gravity.scene` and
+  `ref-9e5a4cd-joint-enable.scene`** (globbed by the harness; `ctest -L reference` not run
+  here — no network to fetch float box3d at 9e5a4cd/79fc559 on this bench).
+  **COMMIT STRUCTURE: the four bug fixes landed in one commit (878ccc6) rather than four
+  separate red-first commits, and H-H is not applicable, so the sub-task's "six commits each
+  with a test seen red first" is not met as written.** The CCD gravity fix (1092fa1) and the
+  four-fix commit (878ccc6) each carry a red-first test; the two ref scenes (762918e) carry
+  none. **GOLDENS: moved only by G3** (named above); the four bug fixes are integer-flag /
+  assert / typo changes and move nothing. **VERIFIED: `./bin/test` green in narrow and
+  ludicrous (RelWithDebInfo + VALIDATE + Werror).**
+
 - **PORT RECORD 9e5a4cd + 79fc559 "body-sim locator + fat AABB split" (2026-10-15) —
   PORTED, engine half (card port-9e5a4cd-body-sim-locator-and-fat-aabb-split).** This is
   sub-task 1 of the fixed3d#65 3+4 step (T2's G1/G2, the pure-integer bookkeeping half).
