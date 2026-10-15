@@ -1,0 +1,67 @@
+# ref-954cf87-stale-tree-rebuild
+# Upstream box3d issue #149: stale trees must be rebuilt when the move buffer empties.
+# A tiled floor of 25 static unit boxes is created and never moves; one dynamic sphere
+# drops onto the middle tile under gravity. The broadphase pair set between the dynamic
+# body and the static tiles is what the per-step contact counter observes (a contact
+# exists only when its broadphase pair was emitted), so identical contact counts mean
+# identical broadphase pair sets. Reference: vanilla float box3d at 954cf87; fixed:
+# fixed3d on this branch (the port of step 2, src/broad_phase.c).
+# Observable: the per-step contact counter (0 while the sphere falls, 1 once it lands)
+#   and the sphere's position, over the full 60 steps.
+# Tolerance: twice the measured maximum divergence on this bench against float box3d
+#   at 954cf87 (pos 1.26e-3, rot 0, vel 1.74e-3, angvel 0; contact count exact).
+#   Values below 8*B3_FIXED_EPSILON are floored to it.
+expect pos 0.003 rot 0.0002 vel 0.004 horizon 60 counts exact
+world gravity 0 -10 0 dt 1 60 substeps 4 steps 60
+body static position -2 -0.5 -2 rotation 0 0 0 1 linvel 0 0 0 angvel 0 0 0
+body static position -1 -0.5 -2 rotation 0 0 0 1 linvel 0 0 0 angvel 0 0 0
+body static position 0 -0.5 -2 rotation 0 0 0 1 linvel 0 0 0 angvel 0 0 0
+body static position 1 -0.5 -2 rotation 0 0 0 1 linvel 0 0 0 angvel 0 0 0
+body static position 2 -0.5 -2 rotation 0 0 0 1 linvel 0 0 0 angvel 0 0 0
+body static position -2 -0.5 -1 rotation 0 0 0 1 linvel 0 0 0 angvel 0 0 0
+body static position -1 -0.5 -1 rotation 0 0 0 1 linvel 0 0 0 angvel 0 0 0
+body static position 0 -0.5 -1 rotation 0 0 0 1 linvel 0 0 0 angvel 0 0 0
+body static position 1 -0.5 -1 rotation 0 0 0 1 linvel 0 0 0 angvel 0 0 0
+body static position 2 -0.5 -1 rotation 0 0 0 1 linvel 0 0 0 angvel 0 0 0
+body static position -2 -0.5 0 rotation 0 0 0 1 linvel 0 0 0 angvel 0 0 0
+body static position -1 -0.5 0 rotation 0 0 0 1 linvel 0 0 0 angvel 0 0 0
+body static position 0 -0.5 0 rotation 0 0 0 1 linvel 0 0 0 angvel 0 0 0
+body static position 1 -0.5 0 rotation 0 0 0 1 linvel 0 0 0 angvel 0 0 0
+body static position 2 -0.5 0 rotation 0 0 0 1 linvel 0 0 0 angvel 0 0 0
+body static position -2 -0.5 1 rotation 0 0 0 1 linvel 0 0 0 angvel 0 0 0
+body static position -1 -0.5 1 rotation 0 0 0 1 linvel 0 0 0 angvel 0 0 0
+body static position 0 -0.5 1 rotation 0 0 0 1 linvel 0 0 0 angvel 0 0 0
+body static position 1 -0.5 1 rotation 0 0 0 1 linvel 0 0 0 angvel 0 0 0
+body static position 2 -0.5 1 rotation 0 0 0 1 linvel 0 0 0 angvel 0 0 0
+body static position -2 -0.5 2 rotation 0 0 0 1 linvel 0 0 0 angvel 0 0 0
+body static position -1 -0.5 2 rotation 0 0 0 1 linvel 0 0 0 angvel 0 0 0
+body static position 0 -0.5 2 rotation 0 0 0 1 linvel 0 0 0 angvel 0 0 0
+body static position 1 -0.5 2 rotation 0 0 0 1 linvel 0 0 0 angvel 0 0 0
+body static position 2 -0.5 2 rotation 0 0 0 1 linvel 0 0 0 angvel 0 0 0
+body dynamic position 0 3 0 rotation 0 0 0 1 linvel 0 0 0 angvel 0 0 0
+shape 0 box 0.5 0.5 0.5 density 1 friction 0.5 restitution 0
+shape 1 box 0.5 0.5 0.5 density 1 friction 0.5 restitution 0
+shape 2 box 0.5 0.5 0.5 density 1 friction 0.5 restitution 0
+shape 3 box 0.5 0.5 0.5 density 1 friction 0.5 restitution 0
+shape 4 box 0.5 0.5 0.5 density 1 friction 0.5 restitution 0
+shape 5 box 0.5 0.5 0.5 density 1 friction 0.5 restitution 0
+shape 6 box 0.5 0.5 0.5 density 1 friction 0.5 restitution 0
+shape 7 box 0.5 0.5 0.5 density 1 friction 0.5 restitution 0
+shape 8 box 0.5 0.5 0.5 density 1 friction 0.5 restitution 0
+shape 9 box 0.5 0.5 0.5 density 1 friction 0.5 restitution 0
+shape 10 box 0.5 0.5 0.5 density 1 friction 0.5 restitution 0
+shape 11 box 0.5 0.5 0.5 density 1 friction 0.5 restitution 0
+shape 12 box 0.5 0.5 0.5 density 1 friction 0.5 restitution 0
+shape 13 box 0.5 0.5 0.5 density 1 friction 0.5 restitution 0
+shape 14 box 0.5 0.5 0.5 density 1 friction 0.5 restitution 0
+shape 15 box 0.5 0.5 0.5 density 1 friction 0.5 restitution 0
+shape 16 box 0.5 0.5 0.5 density 1 friction 0.5 restitution 0
+shape 17 box 0.5 0.5 0.5 density 1 friction 0.5 restitution 0
+shape 18 box 0.5 0.5 0.5 density 1 friction 0.5 restitution 0
+shape 19 box 0.5 0.5 0.5 density 1 friction 0.5 restitution 0
+shape 20 box 0.5 0.5 0.5 density 1 friction 0.5 restitution 0
+shape 21 box 0.5 0.5 0.5 density 1 friction 0.5 restitution 0
+shape 22 box 0.5 0.5 0.5 density 1 friction 0.5 restitution 0
+shape 23 box 0.5 0.5 0.5 density 1 friction 0.5 restitution 0
+shape 24 box 0.5 0.5 0.5 density 1 friction 0.5 restitution 0
+shape 25 sphere 0.4 density 1 friction 0.5 restitution 0

@@ -453,6 +453,7 @@ static bool parseBody( char* p, b3RefScene* scene )
 			memset( b, 0, sizeof( *b ) );
 			b->type = b3_refDynamic;
 			b->enableSleep = true;
+			b->safetyFactor = 0.5;
 			if ( !takeWord( &q, "position" ) || !takeDouble( &q, &b->position[0] ) ||
 				 !takeDouble( &q, &b->position[1] ) || !takeDouble( &q, &b->position[2] ) )
 			{
@@ -496,6 +497,7 @@ static bool parseBody( char* p, b3RefScene* scene )
 			memset( b, 0, sizeof( *b ) );
 			b->type = b3_refDynamic;
 			b->enableSleep = true;
+			b->safetyFactor = 0.5;
 			double half[3] = { 0, 0, 0 };
 			if ( !takeWord( &q, "half" ) || !takeDouble( &q, &half[0] ) || !takeDouble( &q, &half[1] ) ||
 				 !takeDouble( &q, &half[2] ) )
@@ -547,6 +549,7 @@ static bool parseBody( char* p, b3RefScene* scene )
 	b3RefBody* b = &scene->bodies[scene->bodyCount];
 	memset( b, 0, sizeof( *b ) );
 	b->enableSleep = true;
+	b->safetyFactor = 0.5;
 	if ( !parseBodyType( &p, &b->type ) )
 	{
 		return false;
@@ -593,6 +596,13 @@ static bool parseBody( char* p, b3RefScene* scene )
 		else if ( takeWord( &p, "sleep" ) )
 		{
 			b->enableSleep = true;
+		}
+		else if ( takeWord( &p, "safetyFactor" ) )
+		{
+			if ( !takeDouble( &p, &b->safetyFactor ) || b->safetyFactor < 0.0 )
+			{
+				return false;
+			}
 		}
 		else
 		{
@@ -764,6 +774,8 @@ static bool parseJoint( char* p, b3RefScene* scene )
 	}
 	b3RefJoint* j = &scene->joints[scene->jointCount];
 	memset( j, 0, sizeof( *j ) );
+	j->collideConnected = true;
+	j->atStep = 0;
 	if ( takeWord( &p, "revolute" ) )
 	{
 		j->kind = b3_refRevolute;
@@ -830,6 +842,28 @@ static bool parseJoint( char* p, b3RefScene* scene )
 		else
 		{
 			j->axis[2] = 1.0; // default +Z for revolute
+		}
+	}
+	if ( takeWord( &p, "collideConnected" ) )
+	{
+		if ( takeWord( &p, "false" ) )
+		{
+			j->collideConnected = false;
+		}
+		else if ( takeWord( &p, "true" ) )
+		{
+			j->collideConnected = true;
+		}
+		else
+		{
+			return false;
+		}
+	}
+	if ( takeWord( &p, "at_step" ) )
+	{
+		if ( !takeInt( &p, &j->atStep ) || j->atStep < 0 )
+		{
+			return false;
 		}
 	}
 	if ( !endOfLine( p ) )
@@ -995,6 +1029,76 @@ static bool parseQuery( char* p, b3RefScene* scene )
 // top-level parse
 // ---------------------------------------------------------------------------
 
+// `at_step <n> set_mass <body> center <x> <y> <z>` — the only mid-run event the
+// 954cf87 scenes need. Fires before the world step whose index is <n>.
+static bool parseEvent( char* p, b3RefScene* scene )
+{
+	if ( scene->eventCount >= B3_REF_MAX_EVENTS )
+	{
+		return false;
+	}
+	b3RefEvent* e = &scene->events[scene->eventCount];
+	memset( e, 0, sizeof( *e ) );
+	if ( !takeInt( &p, &e->step ) || e->step < 0 )
+	{
+		return false;
+	}
+	if ( takeWord( &p, "set_mass" ) )
+	{
+		e->kind = b3_refEventSetMass;
+		if ( !takeInt( &p, &e->bodyIndex ) || e->bodyIndex < 0 || e->bodyIndex >= scene->bodyCount )
+		{
+			return false;
+		}
+		if ( !takeWord( &p, "center" ) || !parseVec3( &p, e->center ) )
+		{
+			return false;
+		}
+	}
+	else
+	{
+		return false;
+	}
+	if ( !endOfLine( p ) )
+	{
+		return false;
+	}
+	scene->eventCount += 1;
+	return true;
+}
+
+// `compound <body> sphere <x> <y> <z> <r>` — appends a sphere child to the baked
+// compound shape built on <body>. The driver bakes one compound per body that has
+// children, after every shape is created. Spheres are all the 954cf87
+// compound-overlap scene needs.
+static bool parseCompound( char* p, b3RefScene* scene )
+{
+	int bodyIndex = 0;
+	if ( !takeInt( &p, &bodyIndex ) || bodyIndex < 0 || bodyIndex >= scene->bodyCount )
+	{
+		return false;
+	}
+	if ( !takeWord( &p, "sphere" ) )
+	{
+		return false;
+	}
+	if ( scene->compoundChildCount[bodyIndex] >= B3_REF_MAX_COMPOUND_CHILDREN )
+	{
+		return false;
+	}
+	b3RefCompoundChild* c = &scene->compoundChildren[bodyIndex][scene->compoundChildCount[bodyIndex]];
+	if ( !parseVec3( &p, c->center ) || !takeDouble( &p, &c->radius ) || c->radius <= 0.0 )
+	{
+		return false;
+	}
+	if ( !endOfLine( p ) )
+	{
+		return false;
+	}
+	scene->compoundChildCount[bodyIndex] += 1;
+	return true;
+}
+
 bool b3RefParseScene( const char* text, b3RefScene* scene, char* error, int errorSize )
 {
 	memset( scene, 0, sizeof( *scene ) );
@@ -1070,6 +1174,14 @@ bool b3RefParseScene( const char* text, b3RefScene* scene, char* error, int erro
 			else if ( takeWord( &p, "query" ) )
 			{
 				ok = parseQuery( p, scene );
+			}
+			else if ( takeWord( &p, "at_step" ) )
+			{
+				ok = parseEvent( p, scene );
+			}
+			else if ( takeWord( &p, "compound" ) )
+			{
+				ok = parseCompound( p, scene );
 			}
 			else
 			{
