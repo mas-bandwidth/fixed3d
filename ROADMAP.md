@@ -6,9 +6,9 @@ Planned work for fixed3d. Each item below was an open sprint card, moved out of 
 
 ## Contents
 
-- [Moved from GitHub issues on 2026-10-14](#moved-from-github-issues-on-2026-10-14) (20)
-- [Moved out of the sprint on 2026-10-14: fixed3d-box3d-ports](#moved-out-of-the-sprint-on-2026-10-14-fixed3d-box3d-ports) (20)
-- [Moved out of the sprint on 2026-10-14: fixed3d-perf](#moved-out-of-the-sprint-on-2026-10-14-fixed3d-perf) (16)
+- [Moved from GitHub issues on 2026-10-14](#moved-from-github-issues-on-2026-10-14) (10)
+- [Moved out of the sprint on 2026-10-14: fixed3d-box3d-ports](#moved-out-of-the-sprint-on-2026-10-14-fixed3d-box3d-ports) (6)
+- [Moved out of the sprint on 2026-10-14: fixed3d-perf](#moved-out-of-the-sprint-on-2026-10-14-fixed3d-perf) (1)
 
 ## Moved from GitHub issues on 2026-10-14
 
@@ -25,12 +25,6 @@ From: mas-bandwidth/fixed3d issue #20, opened 2026-08-22 by rowan-claude; moved 
 The three baked-geometry version constants — B3_HULL_VERSION, B3_MESH_VERSION and B3_HEIGHT_FIELD_VERSION — are plain #defines in a public header and take the same value in both build configurations. The layouts they exist to certify do not.
 
 From: mas-bandwidth/fixed3d issue #25, opened 2026-08-23 by rowan-claude; moved here 2026-10-14
-
-### A consumer's -DRAPIDHASH_PROTECTED silently changes every geometry hash and the vendor-drift check cannot see it
-
-src/rapidhash.h is vendored verbatim and its behavior is switchable by preprocessor flags the vendoring cannot see. A cold reader compiled it and measured: building with -DRAPIDHASH_PROTECTED changes every digest, while -DRAPIDHASH_UNROLLED reproduces the default digests exactly.
-
-From: mas-bandwidth/fixed3d issue #26, opened 2026-08-23 by rowan-claude; moved here 2026-10-14
 
 ### Move the fixed-point core to the fixed library; fixed3d keeps b3-named wrappers
 
@@ -50,12 +44,6 @@ Found while fixing #29, deliberately NOT bundled with it because the fix perturb
 
 From: mas-bandwidth/fixed3d issue #32, opened 2026-08-24 by gafferongames; moved here 2026-10-14
 
-### Six more sign tests computed as quantizing products, the class of the bug rain just hit
-
-Split out of the inverse-widening work, where one instance of this pattern in b3CollideCapsuleAndTriangle produced an out-of-range interpolation parameter and asserted. b3FixMul quantizes. Any true product below one ULP reads as exactly zero, whatever its sign was, and zero satisfies both <= 0 and (by failing) < 0.
-
-From: mas-bandwidth/fixed3d issue #36, opened 2026-08-24 by gafferongames; moved here 2026-10-14
-
 ### Angular damping has a resolution floor: a slow-spinning large body never damps at all
 
 b3IntegrateVelocitiesTask (src/solver.c) damps by multiplying: b3FixMul rounds half up. So a Q48.16 angular velocity component only moves when the per-substep decrement clears half a quantum: Below that, every component is a fixed point of the multiply and the spin holds forever. Not 'damps slowly' — does not change at all, for any number of steps.
@@ -68,21 +56,11 @@ Upstream 47d7f7c 'clockwise option, joint is awake (#130)' carries a samples hal
 
 From: mas-bandwidth/fixed3d issue #47, opened 2026-08-30 by rowan-claude; moved here 2026-10-14
 
-### Port the remaining test additions from box3d 47d7f7c (test_mover, three TOI cases)
-
-PR #46 ports the engine half of upstream 47d7f7c and takes the test additions that cover the code it changes. Two upstream test blocks are not yet across: test/test_mover.c — upstream adds ~473 lines of character mover behavior tests test/test_body_query.c — three further b3Body_TimeOfImpactMover cases beyond the four in #46: MoverTOIKeepsHitAfterMiss, the ...
-
-From: mas-bandwidth/fixed3d issue #48, opened 2026-08-30 by rowan-claude; moved here 2026-10-14
-
-### Port record calls the mesh 1e-4 tolerance looser when the epsilon floor makes it tighter
-
-The port record for 47d7f7c says the mesh legs keep upstream's looser 1e-4 tolerance. After the floor to 8 times B3_FIXED_EPSILON, which is 1.2207e-4, the 1e-4 mesh tolerance is the tighter of the two, not the looser. The word is carried over from float, where 1e-4 exceeds 1e-5, and was not re-derived after the flooring was applied.
-
-From: mas-bandwidth/fixed3d issue #49, opened 2026-09-01 by rowan-claude; moved here 2026-10-14
-
 ### Height field shape-cast legs changed proxy order and shift origin for clockwise fields, recorded as a pure refactor
 
-The 47d7f7c port says the per-triangle winding branch in the height field collapses into one corner swap at the top of the cell, as upstream did, so the ray legs and the normal no longer carry their own clockwise test. That is exactly true for the ray legs, which reduce term for term to the pre-change code.
+Issue #50 asked for a measurement rather than an argument; it was taken in 7ae09e6 on sprint/fixed3d-box3d-ports (card fixed3d-issue-50). Pre-change bddc87f against post-change 135e64a, 1000 seeded b3ShapeCastHeightField casts per proxy: the counter-clockwise control is bit-identical; on a clockwise field 1738 of 3000 casts differ, every difference a hit-to-miss flip from the new back-side culling, and the post-change build records zero hits on any clockwise field from an above-ground query (flat field included). Casts both builds hit are bit-identical. What remains is the decision the measurement recorded as Glenn's: keep upstream's culling for clockwise height fields, or restore the old spelling, then pin the chosen behaviour with a test.
+
+Why it waits: Triage 2026-10-15: the measurement half is done; the keep-or-restore decision is open, so the item stays.
 
 From: mas-bandwidth/fixed3d issue #50, opened 2026-09-01 by rowan-claude; moved here 2026-10-14
 
@@ -92,77 +70,15 @@ b3CollideMoverAndMesh now swaps vertex2 and vertex3 when the mesh scale is not c
 
 From: mas-bandwidth/fixed3d issue #51, opened 2026-09-01 by rowan-claude; moved here 2026-10-14
 
-### compound.c caps mesh materials inside a commit that records behavior as unchanged
-
-Step 2 of the 47d7f7c port ends with the sentence that behavior is unchanged, no culling, no winding change, no new geometry path. The same commit replaces a loop over meshDef->materialCount in compound.c with a loop bounded by b3MinInt of that count and B3_MAX_COMPOUND_MESH_MATERIALS.
-
-From: mas-bandwidth/fixed3d issue #52, opened 2026-09-01 by rowan-claude; moved here 2026-10-14
-
 ### Height field cull spells triangle 2 as two different cyclic rotations across its two sites
 
 The height field spells the second cell triangle two different ways. The shape-cast cull uses b3SignedVolume of point21, point22, point12, and the mover cull uses b3SignedVolume of point22, point12, point21.
 
 From: mas-bandwidth/fixed3d issue #53, opened 2026-09-01 by rowan-claude; moved here 2026-10-14
 
-### Profile and pursue further deterministic performance optimizations
-
-PR #61 is the last optimization in the current pass. Use this issue to plan a later profiling and optimization pass, starting from the merged result and the then-current fixed library. Further gains are welcome, but deterministic behavior and the high-mass arithmetic range are hard requirements.
-
-From: mas-bandwidth/fixed3d issue #62, opened 2026-09-08 by gafferongames; moved here 2026-10-14
-
-### AVX-512 / Zen 5 paths for the hot fixed-point loops: measure scalar vs AVX2 vs AVX-512 on hetzner (Zen 4) and space (Zen 4) first, then vectorize what wins
-
-Glenn, 2026-09-22 4:40 PM: 'We can probably make fixed and fixed3d a lot faster by using future cpu instruction sets.' Source: Lemire, 'How did AMD Ryzen get 50% faster in two years' (2026-09-18): 5800X3D -> 9800X3D is 47% faster single-core on Geekbench 6 with only 15% more clock; Zen 5 widened dispatch 6 -> 8, ALUs 4 -> 6, L2 to 1 MB, ROB to 448, and ...
-
-From: mas-bandwidth/fixed3d issue #64, opened 2026-09-22 by rowan-claude; moved here 2026-10-14
-
-### Port plan for box3d 47d7f7c..5d83df8: fifteen upstream commits, the order, the holds and the carries
-
-Port plan for the fifteen upstream commits past the cursor, 47d7f7c..5d83df8 (box3d 2026-09-16 to 2026-10-07), written 2026-10-09 by the daily Box3D to Fixed3D pass from four read-only triage reports over the diffs. The reports themselves are committed under porting/triage-2026-10-09/ with the cursor docs change that cites this issue.
-
-From: mas-bandwidth/fixed3d issue #65, opened 2026-10-09 by rowan-claude; moved here 2026-10-14
-
-### Port the 2D hull manifold reduction path of box3d 954cf87 (b3Hull2D, b3SimplifyHull2D) for B3_MAX_MANIFOLD_POINTS above 4
-
-Upstream box3d 954cf87 ('Fixes (#157)', closing erincatto/box3d#153) pairs the new #ifndef B3_MAX_MANIFOLD_POINTS guard with a second manifold reduction path, taken whenever the value exceeds 4: b3Hull2D (Andrew's monotone chain), b3Weld2D, b3Sort2D and b3SimplifyHull2D in src/hull.c, wired into b3ReduceCluster in src/mesh_contact.c behind #if ...
-
-From: mas-bandwidth/fixed3d issue #66, opened 2026-10-09 by rowan-claude; moved here 2026-10-14
-
-### Port the re-rigged ragdoll human of box3d 954cf87 into the determinism corpus, with its own golden harvest
-
-Upstream box3d 954cf87 ('Fixes (#157)') re-rigs the shared ragdoll in shared/human.c and shared/human.h: new reference frames and capsules for every bone, spine_02 removed (spine_03 now parents to spine_01), per-bone friction and rolling resistance replacing the one shared rolling resistance, swing limits widened (25 to 35 degrees on the spine) and twist ...
-
-From: mas-bandwidth/fixed3d issue #67, opened 2026-10-09 by rowan-claude; moved here 2026-10-14
-
 ## Moved out of the sprint on 2026-10-14: fixed3d-box3d-ports
 
 The open cards of sprint stream fixed3d-box3d-ports, moved out of the stopped sprint on 2026-10-14, one item per card. Landed cards of the stream are in git and are not listed. Each item names its card, its tier, its base branch and any pushed work to resume from.
-
-### The float box3d reference harness: one scene, two engines, one comparison
-
-Build the producer every other card of this stream needs: a harness that runs one scenario through vanilla float box3d (the reference) and through fixed3d and compares the results inside a documented tolerance. Nothing in src/ or include/ changes; the harness lives under tools/reference/ and is OFF by default (cmake option BOX3D_REFERENCE=OFF, so no existing build or CI leg changes).
-
-Already in the code: Work was pushed: head e47bb391bccd41cacb15921d24d34c0adbaf6bd6 on branch sprint/fixed3d-box3d-reference-harness.w1.g21.e20 (attempt 1). Resume from it; do not start over.
-
-Why it waits: Moved out of the stopped sprint on 2026-10-14: neither rocketnet nor v1.3 work.
-
-From: sprint card fixed3d-box3d-reference-harness (stream fixed3d-box3d-ports, column ready, tier heavy, base sprint/fixed3d-box3d-ports), moved out of the sprint 2026-10-14
-
-### Land the 954cf87 'Fixes (#157)' port branch and check it against box3d
-
-The port exists; this card brings it onto the stream and proves it against the reference. Do not re-port from the diff.
-
-Why it waits: Moved out of the stopped sprint on 2026-10-14: neither rocketnet nor v1.3 work.
-
-From: sprint card port-954cf87-fixes-land-the-branch (stream fixed3d-box3d-ports, column waiting, tier heavy, base sprint/fixed3d-box3d-ports), moved out of the sprint 2026-10-14
-
-### Land the f8c4fe8 'Shape cast support for box movers (#180)' port branch and check it against box3d
-
-Same shape as the other landing card: merge origin branch port/f8c4fe8-mover-shape-cast into your branch (a merge commit), then prove it against the reference. The fix: a direct b3ShapeCast with zero radius and canEncroach true, starting in the band 0 < distance <= 2 * linearSlop, reported a hit whatever direction it swept; the branch's two red-first tests and two controls pin it.
-
-Why it waits: Moved out of the stopped sprint on 2026-10-14: neither rocketnet nor v1.3 work.
-
-From: sprint card port-f8c4fe8-land-mover-shape-cast (stream fixed3d-box3d-ports, column waiting, tier pro, base sprint/fixed3d-box3d-ports), moved out of the sprint 2026-10-14
 
 ### TLA+ model of the broad-phase tree's moved bit and sorted pair keys, before the code
 
@@ -170,7 +86,7 @@ Write the model, not the code. Read the upstream diff (git fetch https://github.
 
 Already in the code: Work was pushed: head port-f555ee4-tla-tree-moved-bit-and-pair-keys.w2 on branch sprint/port-f555ee4-tla-tree-moved-bit-and-pair-keys.w1.g1.e20 (latest attempt branch; the head may be an earlier commit on it) (attempt 3). Resume from it; do not start over.
 
-Why it waits: Moved out of the stopped sprint on 2026-10-14: neither rocketnet nor v1.3 work.
+Why it waits: Moved out of the stopped sprint on 2026-10-14: neither rocketnet nor v1.3 work. Triage 2026-10-15: the model is open as PR #70 (branch sprint/port-f555ee4-tla-tree-moved-bit-and-pair-keys.w1.g1.e20, head 70734ec), with the corrections of card port-f555ee4-tla-model-corrections merged into it as PR #73. Its only red check is the CAA bot, because the commits are authored as nova-sprint. Land PR #70 rather than starting again.
 
 From: sprint card port-f555ee4-tla-tree-moved-bit-and-pair-keys (stream fixed3d-box3d-ports, column ready, tier heavy, base sprint/fixed3d-box3d-ports), moved out of the sprint 2026-10-14
 
@@ -180,7 +96,7 @@ Read porting/triage-2026-10-09/T3.md (read) lines 247 to 332. The refactor fixes
 
 Already in the code: Work was pushed: head 0adaeb4bc98a736c99793ba796dfe4dfedc77d32 on branch sprint/port-51f056e-world-byte-count-reports-the-world.emma (attempt 4). Resume from it; do not start over.
 
-Why it waits: Moved out of the stopped sprint on 2026-10-14: neither rocketnet nor v1.3 work.
+Why it waits: Moved out of the stopped sprint on 2026-10-14: neither rocketnet nor v1.3 work. Triage 2026-10-15: PR #71 (head dc6889f, branch sprint/port-51f056e-world-byte-count-reports-the-world.w3.g3.e20) conflicts with sprint/fixed3d-box3d-ports and was closed. It differs from the newer head named above only in CLAUDE.md and samples/sample.cpp: it widens b3Counters::byteCount from int to int64_t (ABI 200 to 208 bytes) and changes the sample display to %lld with a long long cast. If the widening is kept, the samples change is needed for the samples build; decide it with the step.
 
 From: sprint card port-51f056e-world-byte-count-reports-the-world (stream fixed3d-box3d-ports, column review, tier pro, base sprint/fixed3d-box3d-ports), moved out of the sprint 2026-10-14
 
@@ -190,35 +106,9 @@ Read porting/triage-2026-10-09/T1.md (read) lines 282 to 372 (16f7f4c hunk-group
 
 Already in the code: Work was pushed: head 49b6cd3df51d9e62a2e081330954b2e8da1fee2d on branch sprint/port-16f7f4c-mesh-contact-scratch-to-the-arena.w2.g1.e20 (attempt 2). Resume from it; do not start over.
 
-Why it waits: Moved out of the stopped sprint on 2026-10-14: neither rocketnet nor v1.3 work.
+Why it waits: Moved out of the stopped sprint on 2026-10-14: neither rocketnet nor v1.3 work. Triage 2026-10-15: PR #69 (head 35c013c, branch sprint/port-16f7f4c-mesh-contact-scratch-to-the-arena.w1.g8.e20) is an earlier attempt of this step that conflicts with sprint/fixed3d-box3d-ports and was closed. One piece of it is not in the newer head named above: the TLA+ module tla/MeshContactArenaScratch.tla and .cfg (bump index, by-value arena restore; invariants Bounded, SizedByCap, CallerStable, property LiveReturn; TLC clean on bench b1). Carry that model across when this step resumes.
 
 From: sprint card port-16f7f4c-mesh-contact-scratch-to-the-arena (stream fixed3d-box3d-ports, column review, tier pro, base sprint/fixed3d-box3d-ports), moved out of the sprint 2026-10-14
-
-### Port 3d9db79 and 003a3f7: recording and snapshot refuse a corrupt compound blob
-
-Read porting/triage-2026-10-09/T4.md (read) lines 243 to 422. Two upstream fixes, one live bug here:
-
-Already in the code: Work was pushed: head ac0ff0769339b5631517d2c26f7fd019b9411f09 on branch sprint/port-3d9db79-003a3f7-recording-refuses-a-corrupt-compound.emma (attempt 4). Resume from it; do not start over.
-
-Why it waits: Moved out of the stopped sprint on 2026-10-14: neither rocketnet nor v1.3 work.
-
-From: sprint card port-3d9db79-003a3f7-recording-refuses-a-corrupt-compound (stream fixed3d-box3d-ports, column ready, tier pro, base sprint/fixed3d-box3d-ports), moved out of the sprint 2026-10-14
-
-### Port the re-rigged ragdoll human of 954cf87 into the determinism corpus, with its own golden harvest
-
-Read fixed3d issue #67 (gh issue view 67 -R mas-bandwidth/fixed3d) and the upstream diff of PR #157 for the human/ragdoll files (git fetch https://github.com/erincatto/box3d.git 954cf87 then git show 954cf87 -- shared/ samples/ test/test_determinism.c).
-
-Why it waits: Moved out of the stopped sprint on 2026-10-14: neither rocketnet nor v1.3 work.
-
-From: sprint card port-954cf87-ragdoll-human-determinism-corpus (stream fixed3d-box3d-ports, column waiting, tier pro, base sprint/fixed3d-box3d-ports), moved out of the sprint 2026-10-14
-
-### Port the 2D hull manifold reduction of 954cf87 (b3Hull2D, b3SimplifyHull2D) for B3_MAX_MANIFOLD_POINTS above 4
-
-Read fixed3d issue #66 and upstream 954cf87's manifold reduction (git fetch https://github.com/erincatto/box3d.git 954cf87; git show 954cf87 -- src/manifold.c src/manifold.h src/constants.h test/test_manifold.c). Upstream reduces a clipped contact polygon to at most B3_MAX_MANIFOLD_POINTS points with b3Hull2D / b3SimplifyHull2D.
-
-Why it waits: Moved out of the stopped sprint on 2026-10-14: neither rocketnet nor v1.3 work.
-
-From: sprint card port-954cf87-hull2d-manifold-reduction (stream fixed3d-box3d-ports, column waiting, tier heavy, base sprint/fixed3d-box3d-ports), moved out of the sprint 2026-10-14
 
 ### Port f555ee4 part 1: the dynamic tree node relayout and the empty-node sentinel
 
@@ -232,49 +122,9 @@ From: sprint card port-f555ee4-tree-node-relayout-and-empty-node-sentinel (strea
 
 Second half of PR #159. Read porting/triage-2026-10-09/T1.md (read) sections 2 and 5 (hunk groups, determinism exposure) and tla/BroadPhaseTree.tla.
 
-Why it waits: Moved out of the stopped sprint on 2026-10-14: neither rocketnet nor v1.3 work.
+Why it waits: Moved out of the stopped sprint on 2026-10-14: neither rocketnet nor v1.3 work. Triage 2026-10-15: also carries the fifth 9e5a4cd bug fix (a static rebuild clears the move marks), which the 9e5a4cd block deferred because it needs this tree rework (878ccc6 ported the four that apply without it).
 
 From: sprint card port-f555ee4-tree-against-tree-pairs-and-sorted-keys (stream fixed3d-box3d-ports, column waiting, tier heavy, base sprint/fixed3d-box3d-ports), moved out of the sprint 2026-10-14
-
-### Port 9e5a4cd/79fc559: the encoded body-sim index, the fat AABB parallel array, B3_ALIGNMENT
-
-Read porting/triage-2026-10-09/T2.md (read) (headline lines 10 to 47, then 9e5a4cd hunk groups 63 to 80 and 79fc559 216 to 236).
-
-Why it waits: Moved out of the stopped sprint on 2026-10-14: neither rocketnet nor v1.3 work.
-
-From: sprint card port-9e5a4cd-body-sim-locator-and-fat-aabb-split (stream fixed3d-box3d-ports, column waiting, tier pro, base sprint/fixed3d-box3d-ports), moved out of the sprint 2026-10-14
-
-### Port 79fc559: the restored post-solve restitution stage and b3WorldDef::restitutionIterations
-
-Read porting/triage-2026-10-09/T2.md (read) lines 198 to 354 (79fc559: what it does, hunk groups, API, tests, determinism exposure).
-
-Why it waits: Moved out of the stopped sprint on 2026-10-14: neither rocketnet nor v1.3 work.
-
-From: sprint card port-79fc559-restitution-stage-and-iterations-api (stream fixed3d-box3d-ports, column waiting, tier heavy, base sprint/fixed3d-box3d-ports), moved out of the sprint 2026-10-14
-
-### Port 9e5a4cd: the CCD time-loss gravity fix and the five bug fixes
-
-Read porting/triage-2026-10-09/T2.md (read) lines 48 to 197 (9e5a4cd) and the 'Fixed-point primitives, quoted' section (lines 378 to 406). Port, each as its own commit with its own red-first test:
-
-Why it waits: Moved out of the stopped sprint on 2026-10-14: neither rocketnet nor v1.3 work.
-
-From: sprint card port-9e5a4cd-ccd-gravity-loss-and-five-bug-fixes (stream fixed3d-box3d-ports, column waiting, tier heavy, base sprint/fixed3d-box3d-ports), moved out of the sprint 2026-10-14
-
-### Port 9e5a4cd: the allocator API widening (b3AllocFcn, b3FreeFcn, b3GetByteCount)
-
-Read the allocator hunks of upstream 9e5a4cd (git fetch https://github.com/erincatto/box3d.git 9e5a4cd; git show 9e5a4cd -- src/core.c src/core.h include/box3d/base.h) and the plan row. Port the widened signatures of b3AllocFcn / b3FreeFcn and the b3GetByteCount change as upstream spells them.
-
-Why it waits: Moved out of the stopped sprint on 2026-10-14: neither rocketnet nor v1.3 work.
-
-From: sprint card port-9e5a4cd-allocator-api-widening (stream fixed3d-box3d-ports, column waiting, tier pro, base sprint/fixed3d-box3d-ports), moved out of the sprint 2026-10-14
-
-### Port 5643cd8: remove the compound mesh child material limit (closes fixed3d#52)
-
-Read porting/triage-2026-10-09/T4.md (read) lines 71 to 142 and fixed3d issue #52 (gh issue view 52 -R mas-bandwidth/fixed3d). Port the removal of the per-mesh-child material limit. The serialized blob layout and B3_COMPOUND_VERSION change.
-
-Why it waits: Moved out of the stopped sprint on 2026-10-14: neither rocketnet nor v1.3 work.
-
-From: sprint card port-5643cd8-compound-mesh-child-material-limit (stream fixed3d-box3d-ports, column waiting, tier pro, base sprint/fixed3d-box3d-ports), moved out of the sprint 2026-10-14
 
 ### Port 16f7f4c step 2: the eight engine-local tree-perf groups (the wide mesh solver is held)
 
@@ -284,160 +134,14 @@ Why it waits: Moved out of the stopped sprint on 2026-10-14: neither rocketnet n
 
 From: sprint card port-16f7f4c-tree-perf-engine-groups (stream fixed3d-box3d-ports, column waiting, tier heavy, base sprint/fixed3d-box3d-ports), moved out of the sprint 2026-10-14
 
-### Port the compound.c field-by-field tree copy of 3d9db79, after measuring the baked blob
-
-THE TASK. 1. MEASURE FIRST, in both configs (narrow and BOX3D_LUDICROUS_MODE) by compiling a program: sizeof, alignof and sum-of-members of every struct in the baked compound blob (b3CompoundData, the tree node, the instance structs, the material table).
-
-Why it waits: Moved out of the stopped sprint on 2026-10-14: neither rocketnet nor v1.3 work.
-
-From: sprint card port-3d9db79-compound-field-by-field-tree-copy (stream fixed3d-box3d-ports, column waiting, tier pro, base sprint/fixed3d-box3d-ports), moved out of the sprint 2026-10-14
-
-### Harvest 5d83df8 'Improve compound serialization (#183)': the pointer-free compound
-
-Read porting/triage-2026-10-09/T4.md (read) lines 423 to 522. Its headline win (dropping the baked proxy array) does not exist to be won here: our baked compound already stores no proxies.
-
-Why it waits: Moved out of the stopped sprint on 2026-10-14: neither rocketnet nor v1.3 work.
-
-From: sprint card port-5d83df8-pointer-free-compound-harvest (stream fixed3d-box3d-ports, column waiting, tier heavy, base sprint/fixed3d-box3d-ports), moved out of the sprint 2026-10-14
-
-### Port a2e4816 'Fixes for #175 (#187)': speculative margin in sphere/capsule manifolds and the recycle flag
-
-Get the diff: git fetch https://github.com/erincatto/box3d.git a2e4816; git show a2e4816.
-
-Why it waits: Moved out of the stopped sprint on 2026-10-14: neither rocketnet nor v1.3 work.
-
-From: sprint card port-a2e4816-speculative-margin-and-recycle-fixes (stream fixed3d-box3d-ports, column waiting, tier heavy, base sprint/fixed3d-box3d-ports), moved out of the sprint 2026-10-14
-
 ## Moved out of the sprint on 2026-10-14: fixed3d-perf
 
 The open cards of sprint stream fixed3d-perf, moved out of the stopped sprint on 2026-10-14, one item per card. Landed cards of the stream are in git and are not listed. Each item names its card, its tier, its base branch and any pushed work to resume from.
-
-### The fixed3d perf lab: fixed scenes, per-phase ns per step, state hashes, and the scalar oracle
-
-Every spike card of this stream needs one thing: a way to measure a change and to prove it did not change a bit.
-
-Already in the code: Work was pushed: head a5896381c3cde4b04e5a9c7b114a6e9ac1e237fd on branch sprint/fixed3d-perf-harness.w1.g35.e20 (attempt 2). Resume from it; do not start over.
-
-Why it waits: Moved out of the stopped sprint on 2026-10-14: neither rocketnet nor v1.3 work.
-
-From: sprint card fixed3d-perf-harness (stream fixed3d-perf, column ready, tier heavy, base sprint/fixed3d-perf), moved out of the sprint 2026-10-14
 
 ### Profile report: where the time goes by scene and worker count, on every ISA the fleet has
 
 Measure, do not change code.
 
-Why it waits: Moved out of the stopped sprint on 2026-10-14: neither rocketnet nor v1.3 work.
+Why it waits: Moved out of the stopped sprint on 2026-10-14: neither rocketnet nor v1.3 work. Triage 2026-10-15: partial evidence is open as draft PR #83 (perf/PROFILE-2026-10-14.md: 78 uninstrumented phase rows, 13 scenes, workers 1 and 4, Vision scalar, b3 scalar, b3 AVX-512). Not done by its own account: top-15 sampled symbols, Apple/NEON coverage, hardware counters, several bucket attributions. This item also stands for fixed3d issue #62 (closed 2026-10-15), whose acceptance criteria (bit-exact across worker counts, the 40-bit inverse scale and 256-bit arithmetic kept, the failed experiments not repeated) bind every perf change.
 
 From: sprint card fixed3d-perf-profile-report (stream fixed3d-perf, column waiting, tier pro, base sprint/fixed3d-perf), moved out of the sprint 2026-10-14
-
-### Spike: b3InvMul and b3InvFromRatio take a 64-bit arm when the product provably fits
-
-Spike: b3InvMul and b3InvFromRatio take a 64-bit arm when the product provably fits. A tracer-bullet spike: one change, measured end to end once on the perf harness, bit-exact against the scalar oracle, written up with a KEEP or DROP verdict.
-
-Why it waits: Moved out of the stopped sprint on 2026-10-14: neither rocketnet nor v1.3 work.
-
-From: sprint card spike-invmul-fits-64-arm (stream fixed3d-perf, column waiting, tier heavy, base sprint/fixed3d-perf), moved out of the sprint 2026-10-14
-
-### Spike: vectorize b3InvMulW on AVX-512 with the proven K/P2/M product split
-
-Spike: vectorize b3InvMulW on AVX-512 with the proven K/P2/M product split. A tracer-bullet spike: one change, measured end to end once on the perf harness, bit-exact against the scalar oracle, written up with a KEEP or DROP verdict.
-
-Why it waits: Moved out of the stopped sprint on 2026-10-14: neither rocketnet nor v1.3 work.
-
-From: sprint card spike-invmulw-avx512-lanes (stream fixed3d-perf, column waiting, tier heavy, base sprint/fixed3d-perf), moved out of the sprint 2026-10-14
-
-### Spike: b3Solve3AcrossScales gets the middle arm fixSolve3 already has (256-bit numerator, 128-bit divisor)
-
-Spike: b3Solve3AcrossScales gets the middle arm fixSolve3 already has (256-bit numerator, 128-bit divisor). A tracer-bullet spike: one change, measured end to end once on the perf harness, bit-exact against the scalar oracle, written up with a KEEP or DROP verdict.
-
-Why it waits: Moved out of the stopped sprint on 2026-10-14: neither rocketnet nor v1.3 work.
-
-From: sprint card spike-solve3-across-scales-256-by-128-arm (stream fixed3d-perf, column waiting, tier heavy, base sprint/fixed3d-perf), moved out of the sprint 2026-10-14
-
-### Spike: stage the hull int32 xyz once per face-SAT query instead of de-swizzling on every support scan
-
-Spike: stage the hull int32 xyz once per face-SAT query instead of de-swizzling on every support scan. A tracer-bullet spike: one change, measured end to end once on the perf harness, bit-exact against the scalar oracle, written up with a KEEP or DROP verdict.
-
-Why it waits: Moved out of the stopped sprint on 2026-10-14: neither rocketnet nor v1.3 work.
-
-From: sprint card spike-hull-support-query-local-staging (stream fixed3d-perf, column waiting, tier heavy, base sprint/fixed3d-perf), moved out of the sprint 2026-10-14
-
-### Spike: cook int32 SoA vertex arrays into the hull blob when the local AABB fits int32
-
-Spike: cook int32 SoA vertex arrays into the hull blob when the local AABB fits int32. A tracer-bullet spike: one change, measured end to end once on the perf harness, bit-exact against the scalar oracle, written up with a KEEP or DROP verdict.
-
-Why it waits: Moved out of the stopped sprint on 2026-10-14: neither rocketnet nor v1.3 work.
-
-From: sprint card spike-hull-int32-soa-baked-in-the-blob (stream fixed3d-perf, column waiting, tier heavy, base sprint/fixed3d-perf), moved out of the sprint 2026-10-14
-
-### Spike: vectorize the GJK proxy support scan with the same rounded b3Dot comparison
-
-Spike: vectorize the GJK proxy support scan with the same rounded b3Dot comparison. A tracer-bullet spike: one change, measured end to end once on the perf harness, bit-exact against the scalar oracle, written up with a KEEP or DROP verdict.
-
-Why it waits: Moved out of the stopped sprint on 2026-10-14: neither rocketnet nor v1.3 work.
-
-From: sprint card spike-gjk-proxy-support-wide (stream fixed3d-perf, column waiting, tier heavy, base sprint/fixed3d-perf), moved out of the sprint 2026-10-14
-
-### Spike: runtime CPU dispatch for the wide paths, per world and deterministic, so one binary runs everywhere
-
-Spike: runtime CPU dispatch for the wide paths, per world and deterministic, so one binary runs everywhere. A tracer-bullet spike: one change, measured end to end once on the perf harness, bit-exact against the scalar oracle, written up with a KEEP or DROP verdict.
-
-Why it waits: Moved out of the stopped sprint on 2026-10-14: neither rocketnet nor v1.3 work.
-
-From: sprint card spike-runtime-cpu-dispatch-per-world (stream fixed3d-perf, column waiting, tier heavy, base sprint/fixed3d-perf), moved out of the sprint 2026-10-14
-
-### Spike: contact, joint and body task block sizes against steal rate and cache reuse
-
-Spike: contact, joint and body task block sizes against steal rate and cache reuse. A tracer-bullet spike: one change, measured end to end once on the perf harness, bit-exact against the scalar oracle, written up with a KEEP or DROP verdict.
-
-Why it waits: Moved out of the stopped sprint on 2026-10-14: neither rocketnet nor v1.3 work.
-
-From: sprint card spike-task-block-sizing (stream fixed3d-perf, column waiting, tier heavy, base sprint/fixed3d-perf), moved out of the sprint 2026-10-14
-
-### Spike: constraint graph and contact locality (color-major layout, software prefetch) without the rejected variants
-
-Spike: constraint graph and contact locality (color-major layout, software prefetch) without the rejected variants. A tracer-bullet spike: one change, measured end to end once on the perf harness, bit-exact against the scalar oracle, written up with a KEEP or DROP verdict.
-
-Why it waits: Moved out of the stopped sprint on 2026-10-14: neither rocketnet nor v1.3 work.
-
-From: sprint card spike-constraint-color-memory-locality (stream fixed3d-perf, column waiting, tier heavy, base sprint/fixed3d-perf), moved out of the sprint 2026-10-14
-
-### Spike: wide AABB overlap tests in the dynamic tree traversal (broad-phase pair finding)
-
-Spike: wide AABB overlap tests in the dynamic tree traversal (broad-phase pair finding). A tracer-bullet spike: one change, measured end to end once on the perf harness, bit-exact against the scalar oracle, written up with a KEEP or DROP verdict.
-
-Why it waits: Moved out of the stopped sprint on 2026-10-14: neither rocketnet nor v1.3 work.
-
-From: sprint card spike-tree-traversal-wide-aabb-overlap (stream fixed3d-perf, column waiting, tier heavy, base sprint/fixed3d-perf), moved out of the sprint 2026-10-14
-
-### Spike: wide integrate-velocities and integrate-positions on the AVX-512 lanes
-
-Spike: wide integrate-velocities and integrate-positions on the AVX-512 lanes. A tracer-bullet spike: one change, measured end to end once on the perf harness, bit-exact against the scalar oracle, written up with a KEEP or DROP verdict.
-
-Why it waits: Moved out of the stopped sprint on 2026-10-14: neither rocketnet nor v1.3 work.
-
-From: sprint card spike-integrate-velocities-and-positions-wide (stream fixed3d-perf, column waiting, tier heavy, base sprint/fixed3d-perf), moved out of the sprint 2026-10-14
-
-### Spike: solve joints four at a time on the AVX-512 lanes, one joint type end to end
-
-Spike: solve joints four at a time on the AVX-512 lanes, one joint type end to end. A tracer-bullet spike: one change, measured end to end once on the perf harness, bit-exact against the scalar oracle, written up with a KEEP or DROP verdict.
-
-Why it waits: Moved out of the stopped sprint on 2026-10-14: neither rocketnet nor v1.3 work.
-
-From: sprint card spike-wide-joint-solve (stream fixed3d-perf, column waiting, tier heavy, base sprint/fixed3d-perf), moved out of the sprint 2026-10-14
-
-### Spike: can AVX2 carry the 64-bit fixed-point lanes? (the fleet's Zen+ boxes and consumer Intel)
-
-Spike: can AVX2 carry the 64-bit fixed-point lanes? (the fleet's Zen+ boxes and consumer Intel). A tracer-bullet spike: one change, measured end to end once on the perf harness, bit-exact against the scalar oracle, written up with a KEEP or DROP verdict.
-
-Why it waits: Moved out of the stopped sprint on 2026-10-14: neither rocketnet nor v1.3 work.
-
-From: sprint card spike-avx2-wide-lanes-feasibility (stream fixed3d-perf, column waiting, tier heavy, base sprint/fixed3d-perf), moved out of the sprint 2026-10-14
-
-### Spike: does an Apple M5 give the NEON path a 64-bit lane multiply? (SME/SME2 streaming mode feasibility)
-
-Spike: does an Apple M5 give the NEON path a 64-bit lane multiply? (SME/SME2 streaming mode feasibility). A tracer-bullet spike: one change, measured end to end once on the perf harness, bit-exact against the scalar oracle, written up with a KEEP or DROP verdict.
-
-Why it waits: Moved out of the stopped sprint on 2026-10-14: neither rocketnet nor v1.3 work.
-
-From: sprint card spike-apple-m5-streaming-sve-feasibility (stream fixed3d-perf, column waiting, tier heavy, base sprint/fixed3d-perf), moved out of the sprint 2026-10-14
