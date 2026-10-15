@@ -1,6 +1,33 @@
 # VERDICT: LEARNED
 
-## Attempt 3 (this run): blocked by the environment, no new measurement
+## Attempt 4 (this run): blocked by the environment, no new measurement
+
+Attempt 4 landed on a Linux host, but the wrong one: `vision`, an AMD Ryzen
+Threadripper 2990WX (Zen+, 2018). Its ISA flags are `avx avx2 sse*` only — no
+`avx512f`, `avx512dq` or `avx512vl` (`grep -o -w -E 'avx2|avx512f|avx512dq|avx512vl'
+/proc/cpuinfo` returns `avx2` and nothing else). The card's TOOLCHAIN line and
+ACCEPTANCE gate (1) MEASURED and (2) BIT-EXACT both require an AVX-512 bench, and
+the wide spherical joint solve is AVX-512 lane math: it cannot be compiled-and-run
+or verified bit-exact on an AVX2-only core. The bench the finding names (AMD Ryzen
+7 PRO 8700GE, Zen 4, avx2/avx512f/dq/vl/ifma) is not reachable from this host, and
+the sandbox denies reads of `~/.ssh/config` and `/etc/hosts`, so no other bench
+hostname is discoverable. No A/B or oracle run is possible.
+
+What this attempt did verify, cheaply and without the bench: the carried work of
+attempt 2 is intact at this HEAD (the finding, `experiment.patch`, and `raw.txt`
+are all present, and `git apply --check` confirms the patch still applies cleanly
+to the base), and the base tree is unchanged in `src/`/`test/` (the wide symbols
+and `WideSphericalJointEquivalenceTest` exist only inside `experiment.patch`, as
+the DELIVERY rule requires). Nothing in `src/`, `include/`, `shared/` or `test/`
+was edited. Compiler/cmake on this host: gcc 15.2.0, clang 21.1.8, cmake 4.2.3.
+
+The blocker is not the code and not the design: it is that this attempt ran on the
+wrong machine again (attempt 3 was macOS, attempt 4 is an AVX2-only Linux box). A
+future attempt that lands on the AVX-512 bench (AMD Ryzen 7 PRO 8700GE, Zen 4,
+avx2/avx512f/dq/vl/ifma, gcc 13.3.0) can pick up the "what to try next" below
+unchanged.
+
+## Attempt 3: blocked by the environment, no new measurement
 
 Attempt 3 was staged on a macOS host (darwin x86_64, Apple clang 17), not the
 AVX-512 Linux bench this card names. The card's TOOLCHAIN line requires an
