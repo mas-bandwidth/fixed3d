@@ -52,6 +52,10 @@ runs the whole 78-line matrix:
 A regenerate with `--scenes` merges those scenes into the oracle and keeps the
 rest, so several split invocations accumulate the full matrix.
 
+The frozen hashes are platform-independent: re-verified on an Intel Mac
+(x86_64, AppleClang 17) they match the AMD EPYC 9124 bench bit-for-bit, so the
+state hash does not depend on the ISA, the allocator, or the wall clock.
+
 ## A/B
 
 Interleaved `A B A B ...` (default 7 repeats). Refuses if `pgrep -af benchmark`
@@ -92,6 +96,11 @@ geomean step speedup for the A/A pass was 0.997 (baseline vs baseline). A
 five-pass floor is the full protocol; the pass above is one of the five.
 `many_pyramids` at full step count is ~17s/run at `-w=1`, so the `--steps`
 cap (default 120) is what makes even one pass fit a short wall.
+
+The oracle gate is proven live: neutering one rounding (fixMul's round-half-up
+-> truncate, in a throwaway copy, never committed) flips large_pyramid's hash
+`72331624b02f2508` -> `62b04f2aadc8e0b3` and `oracle_check.sh
+--scenes=large_pyramid` exits 1 (ORACLE MISMATCH).
 
 ## Adding a scene
 
