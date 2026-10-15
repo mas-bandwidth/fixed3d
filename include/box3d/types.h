@@ -2443,12 +2443,8 @@ typedef struct b3CompoundDef
 	int sphereCount;
 } b3CompoundDef;
 
-/// The baked compound version depends on the tree, mesh, and hull versions.
-#define B3_COMPOUND_VERSION ( 0x830778DB07086EB4ull ^ B3_DYNAMIC_TREE_VERSION ^ B3_MESH_VERSION ^ B3_HULL_VERSION )
-
-/// Meshes used in compounds have limited space for materials. If you have
-/// a mesh with many materials, you can use it outside of the compound.
-#define B3_MAX_COMPOUND_MESH_MATERIALS 4
+/// Fixed3D's pointer-free baked compound format depends on its mesh and hull formats.
+#define B3_COMPOUND_VERSION ( 0xC4B2A90E7D613F58ull ^ B3_MESH_VERSION ^ B3_HULL_VERSION )
 
 /// The data for a baked compound shape. This is a potentially large yet highly optimized
 /// data structure. It can contain thousands of child shapes, yet at runtime it populates
@@ -2464,12 +2460,21 @@ typedef struct b3CompoundData
 
 	/// The total number of bytes for this compound.
 	int byteCount;
+	/// Explicit alignment padding, always zero in serialized bytes.
+	int padding;
+
+	/// Bounds of the baked tree.
+	b3AABB bounds;
+
+	/// Height of the baked tree for diagnostics.
+	int treeHeight;
 
 	/// Offset of the tree node array in bytes from the struct address.
 	int nodeOffset;
 
-	/// Immutable dynamic tree. The tree node pointer must be fixed up using the node offset
-	b3DynamicTree tree;
+	/// Number of stored tree nodes, including unused capacity, and the root index.
+	int nodeCount;
+	int root;
 
 	/// Offset of the material array in bytes from the struct address.
 	int materialOffset;
@@ -2515,7 +2520,10 @@ typedef struct b3CompoundCapsule
 	b3Capsule capsule;
 
 	/// Index to a shared material.
-	int materialIndex;
+	uint16_t materialIndex;
+
+	/// Padding for determinism.
+	uint16_t padding;
 } b3CompoundCapsule;
 
 /// A hull that lives in a compound.
@@ -2528,7 +2536,10 @@ typedef struct b3CompoundHull
 	b3Transform transform;
 
 	/// Index to a shared material.
-	int materialIndex;
+	uint16_t materialIndex;
+
+	/// Padding for determinism.
+	uint16_t padding;
 } b3CompoundHull;
 
 /// A mesh with non-uniform scale that lives in a compound.
@@ -2544,10 +2555,12 @@ typedef struct b3CompoundMesh
 	b3Vec3 scale;
 
 	/// This is used to access the surface material from b3GetCompoundMaterials.
-	/// Requires an extra level of indirection. The triangle material index
-	/// is clamped to B3_MAX_COMPOUND_MESH_MATERIALS.
+	/// Requires an extra level of indirection.
 	/// materialIndex = materialIndices[triangle->materialIndex]
-	int materialIndices[B3_MAX_COMPOUND_MESH_MATERIALS];
+	const uint16_t* materialIndices;
+
+	/// The number of materials. 1 for convex shapes.
+	int materialCount;
 } b3CompoundMesh;
 
 /// A sphere that lives in a compound.
@@ -2557,7 +2570,10 @@ typedef struct b3CompoundSphere
 	b3Sphere sphere;
 
 	/// Index to a shared material.
-	int materialIndex;
+	uint16_t materialIndex;
+
+	/// Padding for determinism.
+	uint16_t padding;
 } b3CompoundSphere;
 
 /// Child shape of a compound
@@ -2576,8 +2592,11 @@ typedef struct b3ChildShape
 	b3Transform transform;
 
 	/// Material indices. Index 0 is used for convex shapes.
-	/// todo limit to 64K?
-	int materialIndices[B3_MAX_COMPOUND_MESH_MATERIALS];
+	const uint16_t* materialIndices;
+
+	/// The number of materials. This is one for convex shapes. For
+	/// meshes it is determined by the maximum triangle material index.
+	int materialCount;
 
 	/// The shape type (union tag).
 	b3ShapeType type;

@@ -60,6 +60,99 @@ and says *closed*. Record below.)*
 
 The PORT RECORDs below run newest first and are the detail for each step.
 
+- **PORT RECORD 5d83df8 "Improve compound serialization (#183)" (2026-10-15) —
+  fixed3d-local pointer-free harvest (card fixed3d-box3d-ports-compound-block,
+  sub-task 3).** The upstream proxy-array removal and `b3TreeView` traversal
+  rewrite remain HELD on `f555ee4`; this fork has no baked proxy array. The
+  baked `b3CompoundData` now stores `bounds`, `treeHeight`, `nodeCount`, and
+  `root` beside offsets instead of an embedded `b3DynamicTree` with a live
+  pointer. Traversal constructs a stack tree view over the node offset. The
+  validator reads const bytes and rejects short, misaligned, overlapping, or
+  out-of-range sections, node counts below two, invalid roots, bad nested
+  hull/mesh offsets and mesh material maps. Every count-times-size bound uses
+  64-bit arithmetic. `CompoundBlobInvariants` was RED against the permissive
+  validator (`condition false: b3ValidateCompound( bytes, byteCount ) == NULL`)
+  and is green after the checks; `CompoundSerializeRoundtrip` asserts validation
+  leaves the input bytes untouched. `b3InternGeometry` and `b3AppendGeometry`
+  now copy const input; replay borrows the validated registry compound bytes.
+  `b3Shape_GetCompound` closes the public accessor gap.
+  **MEASURED LAYOUT** (compiled on Linux in both configurations):
+  `sizeof(b3CompoundData)` narrow 128, ludicrous 176; an explicit zero `padding`
+  int makes sum-of-members equal `sizeof` in both. The corresponding single
+  sphere blobs were 2464 and 4248 bytes; each validates only in its own build.
+  The twelve geometry `sizeof` terms and hull/mesh/height-field/compound
+  version words now enter the snapshot layout hash. Direct cross-configuration
+  snapshot loads in both directions print `b3DeserializeIntoShell: layout hash mismatch` and refuse the image. **FORMAT COUNTERS:** effective compound
+  version `0xC42D52D5E8DBE365` -> `0xE95D159AECB9642F` (new fixed3d constant
+  `0xC4B2A90E7D613F58` XOR mesh and hull versions); snapshot 2 -> 3;
+  recording major 8 -> 9 (minor remains 6). Older recordings are refused at
+  the major check, and old snapshots at the version/hash check. GOLDENS: none
+  moved. Full `./bin/test` is green in narrow and ludicrous; a cross-config
+  reference scene is deferred because the current harness has no compound,
+  mesh, or snapshot/restore directives. The separate harness extension card
+  owns the float comparison and roundtrip scene.
+
+- **PORT RECORD 3d9db79 (field-by-field tree copy) "various recording fixes (#182)" (2026-10-15) —
+  PORTED (card fixed3d-box3d-ports-compound-block, sub-task 2; the compound.c half only).**
+  `b3CreateCompound` baked the runtime dynamic tree with a whole-struct
+  `memcpy( &compound->tree, &tree, sizeof( b3DynamicTree ) )` and then nulled out the pointer/rebuild
+  fields. `b3DynamicTree` carries 8 bytes of IMPLICIT padding (a 4-byte gap after `freeList` before the
+  8-aligned `leafIndices`, and a 4-byte tail after `rebuildCapacity`): those bytes come from the caller's
+  stack `tree`, they are copied into the baked blob, and the blob is content-hashed RAW
+  (`b3RecInternCompound` -> `b3Hash64NonZero( bytes, byteCount )`) and replayed byte-for-byte, so the
+  padding hole carried INDETERMINATE bytes today (a silent replay-determinism hazard, MSan-visible). The
+  copy is now field-by-field: `version`/`root`/`nodeCount`/`nodeCapacity`/`proxyCount` are copied
+  explicitly and every pointer, `freeList` and `rebuildCapacity` are left at the blob memset's zero, so no
+  byte of the serialized tree is ever read from caller stack padding. The `nodes` pointer is still fixed
+  up afterward (unchanged). MEASURED (`offsetof`, both configs — identical because `b3DynamicTree` has no
+  128-bit members): `b3DynamicTree` is 80 bytes with the two padding holes at offsets 36..39 and 76..79.
+  GOLDENS: NONE MOVED (the serialized tree fields are the same values; only previously-garbage padding is
+  now deterministically zero). TESTS: `CompoundBlobHasNoIndeterminateBytes` in test/test_compound.c builds
+  the same compound twice and asserts the raw blobs are memcmp-identical, and additionally asserts the two
+  `b3DynamicTree` padding holes (located via `offsetof`) are zero. RED-FIRST: the test is MSan-clean
+  against the field-by-field copy and flags an uninitialized read against the struct-assign variant (a
+  whole-struct `memcpy` of a struct with uninitialized padding); the MSan build is the red-first step per
+  the brief. `./bin/test` green in narrow and ludicrous. REFERENCE SCENE
+  `tools/reference/scenes/ref-3d9db79-compound-identical-builds.scene` NOT landed here for the same reason
+  as the other compound scenes (no compound directive in the harness vocabulary). The other parts of
+  3d9db79 (the recording refusal fix 003a3f7, the `recording_replay.*` -> `replay.*` rename) are out of
+  scope for this sub-task and carried by upstream cards.
+
+- **PORT RECORD 5643cd8 "Remove compound mesh child material limit (#172)" (2026-10-15) —
+  PORTED (card fixed3d-box3d-ports-compound-block, sub-task 1). Closes fixed3d#52.**
+  The 4-material-per-mesh-child clamp (`B3_MAX_COMPOUND_MESH_MATERIALS`) is gone: `b3CompoundMesh`
+  and `b3ChildShape` now carry `const uint16_t* materialIndices` + `int materialCount` (a pointer
+  into the compound's per-mesh material map, not a fixed 4-slot array), and mesh children bake an
+  arbitrary number of materials (material count capped only at `UINT16_MAX`, asserted at
+  `src/compound.c`). `b3CompoundCapsule`/`b3CompoundHull`/`b3CompoundSphere` shrink their
+  `int materialIndex` to `uint16_t materialIndex` + explicit `uint16_t padding` for determinism;
+  `b3MeshInstance` replaces the fixed `materialIndices[4]` with `materialOffset`/`materialCount`,
+  and the compound blob gains a packed 16-bit per-mesh material map section between the mesh
+  instance array and the shared mesh blobs. `b3ComputeMeshManifolds`' `materialMap` argument widens
+  `const int*` -> `const uint16_t*` (contact.h, mesh_contact.c, contact.c). The three ray/shape-cast
+  and mover call sites, and `b3GetShapeUserMaterialId` (`src/shape.c`), drop the `b3MinInt(...,3)`
+  clamp and instead assert `index < child.materialCount`.
+  **SERIALIZED LAYOUT: `B3_COMPOUND_VERSION` bumped to `0x7A2F41C9E6D0B358` (a fresh fixed3d value,
+  chosen over the upstream constant because these blob layouts are fixed3d's own, not upstream's).**
+  The upstream `_Static_assert`s for the material fields are FALSE here (they assume the float
+  layouts); measured instead, in BOTH configs (identical because `b3Vec3` is 24 bytes everywhere and
+  LUDICROUS_MODE widens `b3Pos`/`b3AABB`, not `b3Vec3`): `b3CompoundCapsule` 64 (== 56 b3Capsule + 2
+  materialIndex + 2 padding + 4 tail), `b3CompoundSphere` 40 (== 32 + 2 + 2 + 4 tail),
+  `b3CompoundHull` 72, `b3CompoundMesh` 104, `b3ChildShape` 128. Sum-of-members == sizeof holds for
+  the fields named (no UNNAMED padding): the 4 tail bytes of the capsule/sphere structs are
+  deterministic because the compound blob is `memset` before these instances are written
+  field-by-field, and the explicit `padding` field makes the int->uint16_t shrink explicit rather
+  than leaving an unnamed hole. GOLDENS: NONE MOVED — the corpus has no compound mesh child (counter:
+  `git grep -l 'meshCount' test/ | xargs grep -l 'materialCount = [2-9]'` → empty), so no determinism
+  golden is exposed. TESTS: `CompoundMeshChildSixMaterials` in test/test_compound.c (6-material mesh,
+  verifies `materialCount==6`, ray-casts the sixth triangle and asserts the resolved material is
+  #6 not the clamped #4), seen RED against the old `b3MinInt(...,3)` clamp in the ray-cast (neutered
+  build fails the subtest, verified). `./bin/test` green in narrow and ludicrous. REFERENCE SCENE:
+  `tools/reference/scenes/ref-5643cd8-compound-six-materials.scene` NOT landed here — the reference
+  harness vocabulary has no compound directive and no per-triangle-material query, so the scene needs
+  a `ref_scene.c`/`run_fixed.c`/`run_float.c` extension (a shared-file change this card's New-files-only
+  rule forbids); reported as not-done.
+
 - **PORT RECORD 3d9db79 + 003a3f7 recording refuses a corrupt compound (2026-10-15) —
   PORTED (card port-3d9db79-003a3f7-recording-refuses-a-corrupt-compound.w3).** Two
   upstream recording fixes in one step. **The rename to `replay.*` is HELD** (pure rename

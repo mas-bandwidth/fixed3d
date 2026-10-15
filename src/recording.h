@@ -89,7 +89,8 @@ typedef struct b3World b3World;
 // 64-bit field, so a v8 reader walking a v9 stream desynchronises at the first body
 // create and every op after it. Upstream box3d made the same widening its own major
 // bump (5 -> 6); ours is 9 because this fork's major counter is ahead.
-#define B3_REC_VERSION_MAJOR 9
+// Major version 10 stores pointer-free compound blobs; older recordings are refused.
+#define B3_REC_VERSION_MAJOR 10
 
 // Minor tracks op-stream additions that keep the 48 byte header shape.
 // Minor version 3 added name cache.
@@ -395,11 +396,11 @@ b3Fixed b3RecCastTrampoline( b3ShapeId id, b3Pos point, b3Vec3 normal, b3Fixed f
 bool b3RecPlaneTrampoline( b3ShapeId id, const b3PlaneResult* planes, int planeCount, void* ctx );
 
 // Geometry registry
-uint32_t b3InternGeometry( b3GeometryRegistry* reg, b3GeometryKind kind, uint64_t contentHash, uint8_t* bytes, int byteCount );
+uint32_t b3InternGeometry( b3GeometryRegistry* reg, b3GeometryKind kind, uint64_t contentHash, const uint8_t* bytes, int byteCount );
 // Append an entry unconditionally and return its id, which equals its array index. Unlike
 // b3InternGeometry it never deduplicates, so the keyframe seed can mirror slots 1:1 even when an
 // already-recorded file carries byte-identical duplicate slots (a hash collision wrote them apart).
-uint32_t b3AppendGeometry( b3GeometryRegistry* reg, b3GeometryKind kind, uint64_t contentHash, uint8_t* bytes, int byteCount );
+uint32_t b3AppendGeometry( b3GeometryRegistry* reg, b3GeometryKind kind, uint64_t contentHash, const uint8_t* bytes, int byteCount );
 void b3FreeRegistry( b3GeometryRegistry* reg );
 void b3RecWriteRegistry( b3Recording* rec );
 
@@ -411,7 +412,7 @@ uint64_t b3HashQueryTag( uint64_t id, const char* name );
 void b3RecInternTag( b3Recording* rec, uint64_t key, uint64_t id, const char* name );
 
 // Intern each large geometry kind and return a stable u32 id for use in create ops.
-// Caller does NOT free bytes; b3InternGeometry takes ownership (frees on duplicate).
+// Registry interning copies bytes; callers keep ownership of their inputs.
 uint32_t b3RecInternHull( b3Recording* rec, const b3HullData* hull );
 uint32_t b3RecInternMesh( b3Recording* rec, const b3MeshData* mesh );
 uint32_t b3RecInternHeightField( b3Recording* rec, const b3HeightFieldData* hf );

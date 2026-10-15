@@ -1595,6 +1595,14 @@ const b3HeightFieldData* b3Shape_GetHeightField( b3ShapeId shapeId )
 	return shape->heightField;
 }
 
+const b3CompoundData* b3Shape_GetCompound( b3ShapeId shapeId )
+{
+	b3World* world = b3GetWorld( shapeId.world0 );
+	b3Shape* shape = b3GetShape( world, shapeId );
+	B3_ASSERT( shape->type == b3_compoundShape );
+	return shape->compound;
+}
+
 void b3Shape_SetSphere( b3ShapeId shapeId, const b3Sphere* sphere )
 {
 	b3World* world = b3GetUnlockedWorld( shapeId.world0 );
@@ -2462,7 +2470,7 @@ uint64_t b3GetShapeUserMaterialId( const b3Shape* shape, int childIndex, int tri
 		{
 			const uint8_t* indices = b3GetMeshMaterialIndices( child.mesh.data );
 			int meshMaterialIndex = indices != NULL ? indices[triangleIndex] : 0;
-			meshMaterialIndex = b3ClampInt( meshMaterialIndex, 0, B3_MAX_COMPOUND_MESH_MATERIALS - 1 );
+			B3_ASSERT( 0 <= meshMaterialIndex && meshMaterialIndex < child.materialCount );
 			materialIndex = child.materialIndices[meshMaterialIndex];
 		}
 		else

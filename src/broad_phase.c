@@ -7,6 +7,7 @@
 #include "arena_allocator.h"
 #include "body.h"
 #include "contact.h"
+#include "compound.h"
 #include "core.h"
 #include "parallel_for.h"
 #include "physics_world.h"
@@ -184,7 +185,8 @@ static bool b3PairQueryCallback( int proxyId, uint64_t userData, void* context )
 			queryContext->compoundShapeIndex = shapeIndex;
 			queryContext->compoundProxyId = proxyId;
 
-			b3DynamicTree_Query( &shape->compound->tree, localAABB, B3_DEFAULT_MASK_BITS, false, b3PairQueryCallback, context );
+			b3DynamicTree compoundTree = b3MakeCompoundTree( shape->compound );
+			b3DynamicTree_Query( &compoundTree, localAABB, B3_DEFAULT_MASK_BITS, false, b3PairQueryCallback, context );
 			queryContext->compoundShapeIndex = B3_NULL_INDEX;
 			queryContext->compoundProxyId = B3_NULL_INDEX;
 			return true;

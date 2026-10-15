@@ -1013,6 +1013,22 @@ static int EmptyWorldRoundTrip( void )
 	ENSURE( hdr.snapshotSize > 0 );
 
 	ENSURE( b3ValidateReplay( data, size, 1 ) );
+	// Safety factor used recording major 9 and snapshot version 3. Pointer-free compounds
+	// require major 10 and snapshot version 4; both older layouts must be refused.
+	uint8_t* incompatible = (uint8_t*)b3Alloc( (size_t)size );
+	memcpy( incompatible, data, (size_t)size );
+	( (b3RecHeader*)incompatible )->versionMajor = 9;
+	ENSURE( b3CreatePlayer( incompatible, size, 1 ) == NULL );
+	( (b3RecHeader*)incompatible )->versionMajor = 8;
+	ENSURE( b3CreatePlayer( incompatible, size, 1 ) == NULL );
+	memcpy( incompatible, data, (size_t)size );
+	uint32_t oldSnapshotVersion = 3;
+	memcpy( incompatible + sizeof( b3RecHeader ) + 4, &oldSnapshotVersion, sizeof( oldSnapshotVersion ) );
+	ENSURE( b3CreatePlayer( incompatible, size, 1 ) == NULL );
+	memcpy( incompatible, data, (size_t)size );
+	incompatible[sizeof( b3RecHeader ) + 8] ^= 1; // snapshot layoutHash
+	ENSURE( b3CreatePlayer( incompatible, size, 1 ) == NULL );
+	b3Free( incompatible, (size_t)size );
 
 	// Restart restores in place, so the replay world id survives a rewind.
 	b3RecPlayer* player = b3CreatePlayer( data, size, 1 );
@@ -1753,8 +1769,8 @@ static int GeometryHashCollision( void )
 
 	b3GeometryRegistry reg = { 0 };
 
-	uint8_t* blobA = (uint8_t*)b3Alloc( (size_t)n );
-	uint8_t* blobB = (uint8_t*)b3Alloc( (size_t)n );
+	uint8_t blobA[16];
+	uint8_t blobB[16];
 	memset( blobA, 0xAA, (size_t)n );
 	memset( blobB, 0xBB, (size_t)n );
 
@@ -1767,12 +1783,12 @@ static int GeometryHashCollision( void )
 	// Re-interning either blob must find it through the hash chain and never grow the registry,
 	// including the one shadowed behind the bucket head. The old single-entry lookup missed the
 	// shadowed blob and appended a duplicate, which is exactly what tripped the keyframe assert.
-	uint8_t* blobA2 = (uint8_t*)b3Alloc( (size_t)n );
+	uint8_t blobA2[16];
 	memset( blobA2, 0xAA, (size_t)n );
 	ENSURE( b3InternGeometry( &reg, b3_geometryHull, sharedHash, blobA2, n ) == idA );
 	ENSURE( reg.entries.count == 2 );
 
-	uint8_t* blobB2 = (uint8_t*)b3Alloc( (size_t)n );
+	uint8_t blobB2[16];
 	memset( blobB2, 0xBB, (size_t)n );
 	ENSURE( b3InternGeometry( &reg, b3_geometryHull, sharedHash, blobB2, n ) == idB );
 	ENSURE( reg.entries.count == 2 );
@@ -1782,9 +1798,9 @@ static int GeometryHashCollision( void )
 	// Seed-then-capture: appending byte-identical duplicate slots keeps id == slot index, and a later
 	// exact intern still resolves to one of them without appending a new entry.
 	b3GeometryRegistry seeded = { 0 };
-	uint8_t* slot0 = (uint8_t*)b3Alloc( (size_t)n );
-	uint8_t* slot1 = (uint8_t*)b3Alloc( (size_t)n );
-	uint8_t* slot2 = (uint8_t*)b3Alloc( (size_t)n );
+	uint8_t slot0[16];
+	uint8_t slot1[16];
+	uint8_t slot2[16];
 	memset( slot0, 0xAA, (size_t)n );
 	memset( slot1, 0xBB, (size_t)n );
 	memset( slot2, 0xAA, (size_t)n ); // duplicate of slot0
@@ -1792,7 +1808,7 @@ static int GeometryHashCollision( void )
 	ENSURE( b3AppendGeometry( &seeded, b3_geometryHull, sharedHash, slot1, n ) == 1 );
 	ENSURE( b3AppendGeometry( &seeded, b3_geometryHull, sharedHash, slot2, n ) == 2 );
 
-	uint8_t* live = (uint8_t*)b3Alloc( (size_t)n );
+	uint8_t live[16];
 	memset( live, 0xAA, (size_t)n );
 	uint32_t resolved = b3InternGeometry( &seeded, b3_geometryHull, sharedHash, live, n );
 	ENSURE( seeded.entries.count == 3 );			  // no growth
@@ -2455,8 +2471,7 @@ static int CorruptCompound( void )
 	memcpy( buf, data, (size_t)size );
 	ENSURE( b3ValidateReplay( buf, size, 1 ) );
 
-	// (a) Flip a byte of the version word. b3ConvertBytesToCompound refuses and the compound op
-	// must fail the replay instead of creating a shape with a NULL tree pointer.
+	// (a) Flip a byte of the version word. The validator refuses the compound blob.
 	memcpy( buf, data, (size_t)size );
 	buf[versionOffset] ^= 0xFF;
 	ENSURE( b3ValidateReplay( buf, size, 1 ) == false );

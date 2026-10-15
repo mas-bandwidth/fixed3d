@@ -727,9 +727,7 @@ static void b3RecCheckJointId( b3RecReader* rdr, b3JointId got, b3JointId rec )
 
 static void* b3RecGetLiveMesh( b3RegistrySlot* slot )
 {
-	// Mesh is a self-contained blob used by reference, with no pointer fixup. Hand back the pristine
-	// bytes directly: they already outlive the world and are freed at teardown, so a copy would just
-	// double the memory. Compound can't do this, see b3RecGetLiveCompound.
+	// Self-contained geometry borrows the registry bytes for the lifetime of the world.
 	return slot->bytes;
 }
 
@@ -740,27 +738,10 @@ static void* b3RecGetLiveHeightField( b3RegistrySlot* slot )
 	return slot->bytes;
 }
 
-// Failure-returning: a stale, truncated or otherwise corrupt compound blob makes
-// b3ConvertBytesToCompound return NULL, and the slot's live pointer is freed and cleared so the
-// caller refuses the shape rather than handing a NULL tree pointer to the dynamic tree.
+// A compound blob is pointer-free. Validate and borrow the registry bytes directly.
 void* b3RecGetLiveCompound( b3RegistrySlot* slot )
 {
-	if ( slot->live != NULL )
-	{
-		return slot->live;
-	}
-	// The copy is unavoidable here: b3ConvertBytesToCompound rewrites its input in place, while the
-	// pristine bytes must survive for keyframe registry seeding (b3RecSeedKeyframeRegistry). So we
-	// keep both the serialized bytes and a separate converted live object.
-	slot->live = b3Alloc( (size_t)slot->byteCount );
-	memcpy( slot->live, slot->bytes, (size_t)slot->byteCount );
-	if ( b3ConvertBytesToCompound( (uint8_t*)slot->live, slot->byteCount ) == NULL )
-	{
-		b3Free( slot->live, (size_t)slot->byteCount );
-		slot->live = NULL;
-		return NULL;
-	}
-	return slot->live;
+	return (void*)b3ValidateCompound( slot->bytes, slot->byteCount );
 }
 
 // Resolve a registry slot by id, refusing an out-of-range id and a slot whose kind does not match
@@ -2506,9 +2487,7 @@ static bool b3RecLoadSlots( b3RecReader* rdr, const void* data, int size, uint64
 		uint8_t kind = rp[0];
 		uint32_t byteCount = (uint32_t)rp[1] | ( (uint32_t)rp[2] << 8 ) | ( (uint32_t)rp[3] << 16 ) | ( (uint32_t)rp[4] << 24 );
 		rp += 5;
-		// A compound slot smaller than the struct cannot be a valid blob; refuse it before any shape
-		// create reads past the bytes. The live conversion would return NULL, but b3CreatePlayer
-		// should fail at load rather than hand back a world that refuses mid-replay.
+		// Refuse a short compound before any shape create can read past the slot.
 		if ( kind == b3_geometryCompound && byteCount < (uint32_t)sizeof( b3CompoundData ) )
 		{
 			printf( "b3ReplayFile: registry entry %u compound too small\n", i );
@@ -2540,6 +2519,18 @@ static bool b3RecLoadSlots( b3RecReader* rdr, const void* data, int size, uint64
 		{
 			memcpy( bytes, rp, (size_t)byteCount );
 		}
+		if ( kind == b3_geometryCompound &&
+			 ( byteCount > INT32_MAX || b3ValidateCompound( bytes, (int)byteCount ) == NULL ) )
+		{
+			printf( "b3ReplayFile: registry entry %u invalid compound\n", i );
+			b3Free( bytes, byteCount > 0 ? (size_t)byteCount : 1u );
+			for ( uint32_t j = 0; j < i; ++j )
+			{
+				b3Free( slots[j].bytes, slots[j].byteCount > 0 ? (size_t)slots[j].byteCount : 1u );
+			}
+			b3Free( slots, (size_t)count * sizeof( b3RegistrySlot ) );
+			return false;
+		}
 		rp += byteCount;
 		slots[i].kind = (b3GeometryKind)kind;
 		slots[i].byteCount = (int)byteCount;
@@ -2563,18 +2554,6 @@ static void b3RecFreeSlots( b3RegistrySlot* slots, int slotCount )
 	for ( int i = 0; i < slotCount; ++i )
 	{
 		b3RegistrySlot* slot = slots + i;
-		if ( slot->live != NULL )
-		{
-			switch ( slot->kind )
-			{
-				// Mesh and height field have no separate live object; they borrow the bytes freed below.
-				case b3_geometryCompound:
-					b3Free( slot->live, (size_t)slot->byteCount );
-					break;
-				default:
-					break;
-			}
-		}
 		if ( slot->bytes != NULL )
 		{
 			b3Free( slot->bytes, slot->byteCount > 0 ? (size_t)slot->byteCount : 1u );
@@ -2660,21 +2639,8 @@ static void b3RecSeedKeyframeRegistry( b3RecPlayer* player )
 	for ( int i = 0; i < player->rdr.slotCount; ++i )
 	{
 		b3RegistrySlot* slot = player->rdr.slots + i;
-		// Copy so the registry can take ownership.
-		int n = slot->byteCount > 0 ? slot->byteCount : 1;
-		uint8_t* copy = (uint8_t*)b3Alloc( (size_t)n );
-		if ( slot->byteCount > 0 )
-		{
-			memcpy( copy, slot->bytes, (size_t)slot->byteCount );
-		}
-		// Hash the canonical (pointer-nulled) copy, not slot->bytes: if a serialized compound ever
-		// carries a live pointer the two hashes must still agree with b3RecInternCompound's copy.
-		if ( slot->kind == b3_geometryCompound )
-		{
-			b3ConvertCompoundToBytes( (b3CompoundData*)copy );
-		}
-		uint64_t h = b3Hash64NonZero( copy, slot->byteCount );
-		uint32_t id = b3AppendGeometry( reg, slot->kind, h, copy, slot->byteCount );
+		uint64_t h = b3Hash64NonZero( slot->bytes, slot->byteCount );
+		uint32_t id = b3AppendGeometry( reg, slot->kind, h, slot->bytes, slot->byteCount );
 		// Seeding in order without dedup keeps id == slot index.
 		B3_ASSERT( id == (uint32_t)i );
 		(void)id;
@@ -2976,7 +2942,7 @@ void b3DestroyPlayer( b3RecPlayer* player )
 		b3DestroyWorld( player->rdr.replayWorldId );
 	}
 
-	// Free live geometry after destroying the world (slot->live may be used by the world).
+	// Release registry bytes after the world that borrows them is destroyed.
 	b3RecFreeSlots( player->rdr.slots, player->rdr.slotCount );
 
 	// Free reader scratch.
