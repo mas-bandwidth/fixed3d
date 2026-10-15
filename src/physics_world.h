@@ -33,6 +33,7 @@ b3DeclareArray( b3SolverSet );
 b3DeclareArray( b3Joint );
 b3DeclareArray( b3Contact );
 b3DeclareArray( b3Island );
+b3DeclareArrayNative( b3AABB );
 b3DeclareArray( b3Shape );
 b3DeclareArray( b3Sensor );
 b3DeclareArray( b3SensorTaskContext );
@@ -176,6 +177,9 @@ typedef struct b3World
 
 	// These are sparse arrays that point into the pools above
 	b3Array( b3Shape ) shapes;
+
+	// This follows the shape array and is split out for the hot path in the narrow phase.
+	b3Array( b3AABB ) fatAABBs;
 
 	// Reference counted store of shared hull data keyed by content. Shapes hold a
 	// pointer to the hull stored in the db. Type erased to avoid leaking the verstable map

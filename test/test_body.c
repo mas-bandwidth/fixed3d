@@ -10,6 +10,7 @@
 // Reach into internals to observe body extents and the dirty mass flag.
 #include "body.h"
 #include "physics_world.h"
+#include "recording.h"
 
 #include <math.h>
 
@@ -793,6 +794,283 @@ static int AngularImpulseInverseScale( void )
 	return 0;
 }
 
+static b3WorldId LocatorWorld( int workerCount )
+{
+	b3WorldDef worldDef = b3DefaultWorldDef();
+	worldDef.workerCount = workerCount;
+	return b3CreateWorld( &worldDef );
+}
+
+static b3BodyId LocatorBody( b3WorldId worldId, b3BodyType type, b3Pos position, b3Fixed hx, b3Fixed hy, b3Fixed hz )
+{
+	b3BodyDef bodyDef = b3DefaultBodyDef();
+	bodyDef.type = type;
+	bodyDef.position = position;
+	b3BodyId bodyId = b3CreateBody( worldId, &bodyDef );
+
+	b3ShapeDef shapeDef = b3DefaultShapeDef();
+	b3BoxHull box = b3MakeBoxHull( hx, hy, hz );
+	b3CreateHullShape( bodyId, &shapeDef, &box.base );
+
+	return bodyId;
+}
+
+static void LocatorStep( b3WorldId worldId, int stepCount )
+{
+	for ( int i = 0; i < stepCount; ++i )
+	{
+		b3World_Step( worldId, b3FixDiv( B3_FIX( 1.0f ), B3_FIX( 60.0f ) ), 4 );
+	}
+}
+
+static int StepLocatorUntilAsleep( b3WorldId worldId, b3BodyId bodyId, int maxSteps )
+{
+	for ( int i = 0; i < maxSteps; ++i )
+	{
+		b3World_Step( worldId, b3FixDiv( B3_FIX( 1.0f ), B3_FIX( 60.0f ) ), 4 );
+		if ( b3Body_IsAwake( bodyId ) == false )
+		{
+			return i + 1;
+		}
+	}
+
+	return maxSteps;
+}
+
+static uint64_t LocatorSleepWakeScene( int workerCount, int* failed )
+{
+	b3WorldId worldId = LocatorWorld( workerCount );
+	LocatorBody( worldId, b3_staticBody, (b3Pos){ B3_FIX( 0.0f ), -B3_FIX( 1.0f ), B3_FIX( 0.0f ) }, B3_FIX( 5.0f ), B3_FIX( 1.0f ), B3_FIX( 5.0f ) );
+
+	b3BodyId stackId[3];
+	for ( int i = 0; i < 3; ++i )
+	{
+		stackId[i] = LocatorBody( worldId, b3_dynamicBody, (b3Pos){ B3_FIX( 0.0f ), B3_FIX( 0.5f ) + i, B3_FIX( 0.0f ) }, B3_FIX( 0.5f ), B3_FIX( 0.5f ), B3_FIX( 0.5f ) );
+	}
+
+	b3BodyId plateId = LocatorBody( worldId, b3_kinematicBody, (b3Pos){ B3_FIX( 1.04f ), B3_FIX( 2.5f ), B3_FIX( 0.0f ) }, B3_FIX( 0.5f ), B3_FIX( 0.5f ), B3_FIX( 0.5f ) );
+	b3Body_EnableSleep( plateId, false );
+
+	int steps = StepLocatorUntilAsleep( worldId, stackId[0], 300 );
+	if ( steps == 300 || b3Body_IsAwake( stackId[2] ) == true )
+	{
+		*failed = 1;
+	}
+
+	b3Body_SetAwake( stackId[0], true );
+	LocatorStep( worldId, 5 );
+
+	if ( b3Body_IsAwake( stackId[2] ) == false )
+	{
+		*failed = 1;
+	}
+
+	steps = StepLocatorUntilAsleep( worldId, stackId[0], 300 );
+	if ( steps == 300 )
+	{
+		*failed = 1;
+	}
+
+	LocatorBody( worldId, b3_dynamicBody, (b3Pos){ B3_FIX( 0.0f ), B3_FIX( 8.0f ), B3_FIX( 0.0f ) }, B3_FIX( 0.5f ), B3_FIX( 0.5f ), B3_FIX( 0.5f ) );
+
+	bool woke = false;
+	for ( int i = 0; i < 180; ++i )
+	{
+		b3World_Step( worldId, b3FixDiv( B3_FIX( 1.0f ), B3_FIX( 60.0f ) ), 4 );
+		woke = woke || b3Body_IsAwake( stackId[0] );
+	}
+
+	if ( woke == false )
+	{
+		*failed = 1;
+	}
+
+	uint64_t hash = b3HashWorldState( b3GetWorldFromId( worldId ) );
+	b3DestroyWorld( worldId );
+	return hash;
+}
+
+static uint64_t LocatorAwakeNeighborScene( int workerCount, int* failed )
+{
+	b3WorldId worldId = LocatorWorld( workerCount );
+	LocatorBody( worldId, b3_staticBody, (b3Pos){ B3_FIX( 0.0f ), -B3_FIX( 1.0f ), B3_FIX( 0.0f ) }, B3_FIX( 30.0f ), B3_FIX( 1.0f ), B3_FIX( 5.0f ) );
+
+	b3BodyId sleeperId[2];
+	for ( int i = 0; i < 2; ++i )
+	{
+		sleeperId[i] = LocatorBody( worldId, b3_dynamicBody, (b3Pos){ -B3_FIX( 10.0f ), B3_FIX( 0.5f ) + i, B3_FIX( 0.0f ) }, B3_FIX( 0.5f ), B3_FIX( 0.5f ), B3_FIX( 0.5f ) );
+	}
+
+	b3BodyId spareId = LocatorBody( worldId, b3_dynamicBody, (b3Pos){ B3_FIX( 20.0f ), B3_FIX( 0.5f ), B3_FIX( 0.0f ) }, B3_FIX( 0.5f ), B3_FIX( 0.5f ), B3_FIX( 0.5f ) );
+	b3Body_EnableSleep( spareId, false );
+
+	b3BodyId awakeId[3];
+	for ( int i = 0; i < 3; ++i )
+	{
+		awakeId[i] = LocatorBody( worldId, b3_dynamicBody, (b3Pos){ B3_FIX( 10.0f ), B3_FIX( 0.5f ) + i, B3_FIX( 0.0f ) }, B3_FIX( 0.5f ), B3_FIX( 0.5f ), B3_FIX( 0.5f ) );
+		b3Body_EnableSleep( awakeId[i], false );
+	}
+
+	int steps = StepLocatorUntilAsleep( worldId, sleeperId[0], 300 );
+	if ( steps == 300 || b3Body_IsAwake( awakeId[0] ) == false )
+	{
+		*failed = 1;
+	}
+
+	LocatorStep( worldId, 10 );
+
+	b3Body_Disable( spareId );
+	LocatorStep( worldId, 10 );
+
+	b3Body_Enable( spareId );
+	LocatorStep( worldId, 10 );
+
+	uint64_t hash = b3HashWorldState( b3GetWorldFromId( worldId ) );
+	b3DestroyWorld( worldId );
+	return hash;
+}
+
+static uint64_t LocatorDestroyScene( int workerCount, int* failed )
+{
+	b3WorldId worldId = LocatorWorld( workerCount );
+	LocatorBody( worldId, b3_staticBody, (b3Pos){ B3_FIX( 0.0f ), -B3_FIX( 1.0f ), B3_FIX( 0.0f ) }, B3_FIX( 5.0f ), B3_FIX( 1.0f ), B3_FIX( 5.0f ) );
+
+	b3BodyId stackId[4];
+	for ( int i = 0; i < 4; ++i )
+	{
+		stackId[i] = LocatorBody( worldId, b3_dynamicBody, (b3Pos){ B3_FIX( 0.0f ), B3_FIX( 0.5f ) + i, B3_FIX( 0.0f ) }, B3_FIX( 0.5f ), B3_FIX( 0.5f ), B3_FIX( 0.5f ) );
+	}
+
+	LocatorStep( worldId, 30 );
+
+	b3DestroyBody( stackId[0] );
+	LocatorStep( worldId, 30 );
+
+	b3BodyId staticId[3];
+	for ( int i = 0; i < 3; ++i )
+	{
+		b3Fixed x = B3_FIX( 10.0f ) + B3_FIX( 4.0f ) * i;
+		staticId[i] = LocatorBody( worldId, b3_staticBody, (b3Pos){ x, -B3_FIX( 1.0f ), B3_FIX( 0.0f ) }, B3_FIX( 1.0f ), B3_FIX( 1.0f ), B3_FIX( 1.0f ) );
+		LocatorBody( worldId, b3_dynamicBody, (b3Pos){ x, B3_FIX( 0.5f ), B3_FIX( 0.0f ) }, B3_FIX( 0.5f ), B3_FIX( 0.5f ), B3_FIX( 0.5f ) );
+	}
+
+	LocatorStep( worldId, 30 );
+
+	b3DestroyBody( staticId[0] );
+	LocatorStep( worldId, 30 );
+
+	B3_UNUSED( failed );
+
+	uint64_t hash = b3HashWorldState( b3GetWorldFromId( worldId ) );
+	b3DestroyWorld( worldId );
+	return hash;
+}
+
+static uint64_t LocatorKinematicScene( int workerCount, int* failed )
+{
+	b3WorldId worldId = LocatorWorld( workerCount );
+	LocatorBody( worldId, b3_staticBody, (b3Pos){ B3_FIX( 0.0f ), -B3_FIX( 1.0f ), B3_FIX( 0.0f ) }, B3_FIX( 5.0f ), B3_FIX( 1.0f ), B3_FIX( 5.0f ) );
+
+	b3BodyId boxId = LocatorBody( worldId, b3_dynamicBody, (b3Pos){ B3_FIX( 0.0f ), B3_FIX( 0.5f ), B3_FIX( 0.0f ) }, B3_FIX( 0.5f ), B3_FIX( 0.5f ), B3_FIX( 0.5f ) );
+
+	b3BodyId plateId = LocatorBody( worldId, b3_kinematicBody, (b3Pos){ B3_FIX( 0.0f ), B3_FIX( 1.52f ), B3_FIX( 0.0f ) }, B3_FIX( 1.0f ), B3_FIX( 0.5f ), B3_FIX( 1.0f ) );
+
+	int steps = StepLocatorUntilAsleep( worldId, boxId, 300 );
+	if ( steps == 300 )
+	{
+		*failed = 1;
+	}
+
+	b3Body_SetLinearVelocity( plateId, (b3Vec3){ B3_FIX( 0.0f ), -B3_FIX( 1.0f ), B3_FIX( 0.0f ) } );
+	LocatorStep( worldId, 60 );
+
+	if ( b3Body_IsAwake( boxId ) == false )
+	{
+		*failed = 1;
+	}
+
+	uint64_t hash = b3HashWorldState( b3GetWorldFromId( worldId ) );
+	b3DestroyWorld( worldId );
+	return hash;
+}
+
+static uint64_t LocatorTransferScene( int workerCount, int* failed )
+{
+	b3WorldId worldId = LocatorWorld( workerCount );
+	LocatorBody( worldId, b3_staticBody, (b3Pos){ B3_FIX( 0.0f ), -B3_FIX( 1.0f ), B3_FIX( 0.0f ) }, B3_FIX( 20.0f ), B3_FIX( 1.0f ), B3_FIX( 5.0f ) );
+
+	b3BodyId boxId = LocatorBody( worldId, b3_dynamicBody, (b3Pos){ B3_FIX( 0.0f ), B3_FIX( 0.5f ), B3_FIX( 0.0f ) }, B3_FIX( 0.5f ), B3_FIX( 0.5f ), B3_FIX( 0.5f ) );
+	LocatorStep( worldId, 30 );
+
+	b3Body_SetType( boxId, b3_staticBody );
+	LocatorStep( worldId, 5 );
+	b3Body_SetType( boxId, b3_dynamicBody );
+	LocatorStep( worldId, 5 );
+
+	b3Body_Disable( boxId );
+	LocatorStep( worldId, 5 );
+	b3Body_Enable( boxId );
+	LocatorStep( worldId, 30 );
+
+	b3BodyId sleeperId[2];
+	sleeperId[0] = LocatorBody( worldId, b3_dynamicBody, (b3Pos){ -B3_FIX( 12.0f ), B3_FIX( 0.5f ), B3_FIX( 0.0f ) }, B3_FIX( 0.5f ), B3_FIX( 0.5f ), B3_FIX( 0.5f ) );
+	sleeperId[1] = LocatorBody( worldId, b3_dynamicBody, (b3Pos){ B3_FIX( 12.0f ), B3_FIX( 0.5f ), B3_FIX( 0.0f ) }, B3_FIX( 0.5f ), B3_FIX( 0.5f ), B3_FIX( 0.5f ) );
+
+	int steps = StepLocatorUntilAsleep( worldId, sleeperId[0], 300 );
+	if ( steps == 300 || b3Body_IsAwake( sleeperId[1] ) == true )
+	{
+		*failed = 1;
+	}
+
+	b3SphericalJointDef jointDef = b3DefaultSphericalJointDef();
+	jointDef.base.bodyIdA = sleeperId[0];
+	jointDef.base.bodyIdB = sleeperId[1];
+	b3CreateSphericalJoint( worldId, &jointDef );
+
+	LocatorStep( worldId, 30 );
+
+	uint64_t hash = b3HashWorldState( b3GetWorldFromId( worldId ) );
+	b3DestroyWorld( worldId );
+	return hash;
+}
+
+static int LocatorFastFlagTest( void )
+{
+	b3WorldDef worldDef = b3DefaultWorldDef();
+	b3WorldId worldId = b3CreateWorld( &worldDef );
+
+	LocatorBody( worldId, b3_staticBody, (b3Pos){ B3_FIX( 0.0f ), -B3_FIX( 1.0f ), B3_FIX( 0.0f ) }, B3_FIX( 5.0f ), B3_FIX( 1.0f ), B3_FIX( 5.0f ) );
+
+	b3BodyDef bodyDef = b3DefaultBodyDef();
+	bodyDef.type = b3_dynamicBody;
+	bodyDef.position = (b3Pos){ -B3_FIX( 20.0f ), B3_FIX( 2.0f ), B3_FIX( 0.0f ) };
+	bodyDef.linearVelocity = (b3Vec3){ B3_FIX( 400.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
+	b3BodyId bulletId = b3CreateBody( worldId, &bodyDef );
+
+	b3ShapeDef shapeDef = b3DefaultShapeDef();
+	b3Sphere sphere = { { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, B3_FIX( 0.1f ) };
+	b3CreateSphereShape( bulletId, &shapeDef, &sphere );
+
+	b3World_Step( worldId, b3FixDiv( B3_FIX( 1.0f ), B3_FIX( 60.0f ) ), 4 );
+
+	b3World* world = b3GetWorldFromId( worldId );
+	b3Body* body = b3GetBodyFullId( world, bulletId );
+	b3BodySim* sim = b3GetBodySim( world, body );
+	ENSURE( ( sim->flags & b3_isFast ) != 0 );
+
+	b3MotionLocks locks = { 0 };
+	locks.angularX = true;
+	b3Body_SetMotionLocks( bulletId, locks );
+
+	sim = b3GetBodySim( world, b3GetBodyFullId( world, bulletId ) );
+	ENSURE( ( sim->flags & b3_isFast ) != 0 );
+
+	b3World_Step( worldId, b3FixDiv( B3_FIX( 1.0f ), B3_FIX( 60.0f ) ), 4 );
+
+	b3DestroyWorld( worldId );
+	return 0;
+}
+
 static int CcdGravityTimeLossTest( void )
 {
 	b3WorldDef worldDef = b3DefaultWorldDef();
@@ -833,6 +1111,29 @@ static int CcdGravityTimeLossTest( void )
 	return 0;
 }
 
+static int BodySimLocatorTest( void )
+{
+	typedef uint64_t ( *LocatorScene )( int workerCount, int* failed );
+	LocatorScene scenes[5] = {
+		LocatorSleepWakeScene,
+		LocatorAwakeNeighborScene,
+		LocatorDestroyScene,
+		LocatorKinematicScene,
+		LocatorTransferScene,
+	};
+
+	for ( int i = 0; i < 5; ++i )
+	{
+		int failed = 0;
+		uint64_t hash1 = scenes[i]( 1, &failed );
+		uint64_t hash4 = scenes[i]( 4, &failed );
+		ENSURE( failed == 0 );
+		ENSURE( hash1 == hash4 );
+	}
+
+	return LocatorFastFlagTest();
+}
+
 int BodyTest( void )
 {
 	RUN_SUBTEST( AngularImpulseInverseScale );
@@ -850,5 +1151,6 @@ int BodyTest( void )
 	RUN_SUBTEST( SetMassDataConsistentVelocity );
 	RUN_SUBTEST( ShapeExtents );
 	RUN_SUBTEST( CcdGravityTimeLossTest );
+	RUN_SUBTEST( BodySimLocatorTest );
 	return 0;
 }
