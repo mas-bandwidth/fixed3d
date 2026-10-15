@@ -148,6 +148,21 @@ The PORT RECORDs below run newest first and are the detail for each step.
   upstream issue, and every group in the diff appears below with a disposition. Port plan:
   **fixed3d#65**. The cursor does not move until this branch merges; see the clause above.
 
+  **LANDED 2026-10-15 on `sprint/fixed3d-box3d-ports` (card port-954cf87-fixes-land-the-branch).**
+  The branch merged as `9476d65` (merge of `origin/port/954cf87-fixes` onto the sprint tip).
+  **ONE GOLDEN RE-MEASURED AT MERGE, and why:** the wave-pile golden in the table below was
+  measured on `main@8f51d2d`, which does NOT carry the issue-36 `b3ClipSegment`
+  sign-comparison fix; the sprint stream does (`8d1bd9a`), so group A lands on a different
+  manifold geometry here — the sleep step returns to 275 and only the hash moves, to
+  `0xC8EA9BBB` narrow / `0xD4E8E9FB` ludicrous, verified bit-identical across workers 1-4
+  and two generation runs, both builds. Ragdoll, query-spawn and mesh-drop hold at this
+  record's values. The five reference scenes this card names (`ref-954cf87-collide-connected-false`,
+  `-center-of-mass-move`, `-safety-factor`, `-compound-overlap`, `-stale-tree-rebuild`) are
+  NOT added: four need harness vocabulary (mid-step joint creation, set-mass-data,
+  `b3BodyDef::safetyFactor`, compound shapes) that lives in `tools/reference/` files outside
+  this card's PATHS, and the vanilla-box3d fetch is blocked inside the wall — `ctest -L reference`
+  could not run. See the card's report for the proposed vocabulary diff.
+
   **THE SHAPE OF THE SPLIT: six engine steps, two test steps, one compile-only step, one
   record.** Each step built `build-port`, `build-ludicrous`, `build-debug`
   (Debug + VALIDATE + ASan + UBSan) and `build-samples`, and ran the three test binaries
