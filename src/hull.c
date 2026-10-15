@@ -2897,7 +2897,16 @@ b3HullData* b3CloneAndTransformHull( const b3HullData* original, b3Transform tra
 	int faceCount = hull->faceCount;
 	int vertexCount = hull->vertexCount;
 
-	if ( b3FixMul( b3FixMul( safeScale.x , safeScale.y ) , safeScale.z ) < B3_FIX( 0.0f ) )
+	// Reflected iff the exact scale determinant sx*sy*sz is negative: an odd number of negative
+	// components and no zero component. Never form the product -- b3FixMul of three legal scales
+	// quantizes to zero (rule 7) -- and a zero component makes the exact determinant zero, which
+	// is the not-reflected side exactly as product < 0 gives it (the shape of
+	// b3IsScaleCounterClockwise in mesh.c). Compare signs directly.
+	int negativeCount = ( safeScale.x < B3_FIX( 0.0f ) ) + ( safeScale.y < B3_FIX( 0.0f ) ) + ( safeScale.z < B3_FIX( 0.0f ) );
+	bool reflected = safeScale.x != B3_FIX( 0.0f ) && safeScale.y != B3_FIX( 0.0f ) && safeScale.z != B3_FIX( 0.0f ) &&
+					 ( negativeCount & 1 ) == 1;
+
+	if ( reflected )
 	{
 		// Reflected: reverse edge winding for each face.
 		for ( int i = 0; i < faceCount; ++i )
