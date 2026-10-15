@@ -1,141 +1,129 @@
-# Broad-phase tree: TLA+ model of the moved bit and sorted pair keys
+# Broad-phase moved bits, traversal and sorted pair keys
 
-Model for upstream box3d commit `f555ee4` "Optimize Broad-Phase" (PR #159),
-written before the C port per the plan row "A TLA+ module for the tree's
-moved-bit and pair-key invariants comes before the branch" and triage
-`porting/triage-2026-10-09/T1.md` sections 1-6 (esp. section 7: "This is
-the item that should be modelled in TLA+ before the code is written").
+This bounded model checks the tree traversal and update ordering for upstream
+box3d [`f555ee4`](https://github.com/erincatto/box3d/tree/f555ee42084e0b43cbffa863f40bff8117c08896).
+It precedes the fixed3d C port; it does not establish correctness of that port.
 
-The two later port cards (node relayout; pair traversal) cite
-`tla/BroadPhaseTree.tla` from their code.
+## Tree and traversal
 
-## Files
+Four proxy slots belong to two binary trees: static leaf 1 and an empty sentinel
+under root 5, and dynamic leaf 2/subtree 7 under root 6; subtree 7 holds leaves 3/4. Absent proxies have empty boxes. Node 0
+is the empty sentinel. `children` and `parent` are explicit relations;
+`nodeMoved` records the moved bit of each leaf and ancestor. Rebuild exchanges
+child order and reconstructs the parent relation without changing membership.
+`TreeConsistent` and `RootMarkConsistent` check those relations and marks.
 
-| File | Role |
-|---|---|
-| `BroadPhaseTree.tla` | The model: proxies, fat boxes (as cells), moved bits, pair set, per-step actions |
-| `BroadPhaseTree.cfg` | Sound instance: 4 proxies (2 static, 2 dynamic), 2 trees, `MaxSteps = 6`, narrow node (`NodeBytes = 72`) |
-| `BroadPhaseTreeMutant.cfg` | Deliberate mutant: `DropClear = TRUE` drops the moved-bit clear in `UpdatePairs` |
+`BeginUpdate` seeds a node-pair work sequence from each marked dynamic internal node's
+sibling subtrees and the dynamic/static root pair. This abstracts the moved
+internal-node self seeds and cross-root gather at `broad_phase.c:515`.
+`VisitPair` pops one item, prunes on node marks and box overlap, expands
+internal pairs into child work items, and appends leaf pairs to a candidate
+**sequence**. It follows the cross-subtree traversal at lines 367–461.
+The asymmetric trees exercise internal/internal, leaf/internal, internal/leaf
+and leaf/leaf traversal, including ancestor propagation through node 7. Other
+shapes and greater depths are not covered by these configurations.
 
-## What is modelled
+`CandidateDuplicateFree` checks raw multiplicity, before deduplication can hide
+a bug. `UpdatePairs` deduplicates and sorts candidate keys, corresponding to
+the upstream duplicate validation/skip at lines 752–762 (upstream sorts before
+skipping adjacent duplicates; this model uses a set then sorts). Pair completeness
+compares this traversal result with `ExpectedPairs`, a separate all-live-leaf
+oracle. No action calls the oracle. `SortedDuplicateFree` checks the final order;
+`EmittedPairsAreOverlaps` and `NoDestroyedProxyInPairs` check soundness/lifetime.
 
-Variables are the state the tree and broad phase own: the live proxy set
-and their fat boxes, the moved bits (leaf set plus the root mark the
-atomic fetch-or propagates to), the move buffer's abstract effect (the
-moved set `UpdatePairs` consumes), the emitted pair list and the live
-pair set, and the per-step action sequence (`CreateProxy`,
-`DestroyProxy`, `MoveProxy`, `EnlargeProxy`, `UpdatePairs`,
-`RebuildStale`, `StepBoundary`).
+## Phases and fresh move obligations
 
-Invariants (numbering follows the card):
+`collect -> update -> rebuild -> solver -> collect` is explicit. Mutations may
+occur during collection. Dynamic moves/enlargements may also occur during solver
+finalization, after rebuild joins; those marks carry into the next update.
+Creation/destruction occurs only in collection. Every create/move/enlarge removes
+that proxy from `considered`, including a move to the same cell. Consequently an
+old consideration cannot discharge a fresh obligation. Destruction cancels it.
+Weak fairness on each phase/traversal action establishes
+`MovedEventuallyConsidered` even after the mutation budget is exhausted.
 
-1. `PairCompleteness` — every overlapping fat-box pair of live proxies
-   with at least one moved proxy is found by `UpdatePairs`;
-   `EmittedPairsAreOverlaps` is the soundness half, and
-   `SortedDuplicateFree` gives exactly-once.
-2. `NoDestroyedProxyInPairs` — no emitted or live pair involves a
-   destroyed proxy.
-3. `SortedDuplicateFree` — pair keys are totally ordered (`Key`), and
-   the emitted list is strictly increasing, hence sorted and
-   duplicate-free (the upstream merge + `QSORT` + duplicate trap).
-4. `MovedClearedAfterUpdate` — the moved bit is cleared exactly at the
-   end of `UpdatePairs`; `RootMarkConsistent` pins the root mark to
-   "some leaf is marked", and every `MoveProxy`/`EnlargeProxy`/
-   `CreateProxy` sets the bit.
-5. `RebuildPreservesPairs` — a rebuild (stale-tree rebuild when the
-   move buffer empties) loses no proxy and changes no pair.
-6. `SentinelNeverOverlaps` — the resident empty node (upstream index 1,
-   `B3_EMPTY_NODE`, built from `INFINITY`/`-INFINITY`) never reports an
-   overlap and never appears in a pair. In Q48.16 there is no infinity,
-   so the C port must keep the sentinel out of every
-   Perimeter/Union/Overlap operand (triage section 7, CLAUDE.md trap
-   4); the model's `NodeOverlap` is that guard stated once.
+`NoBoundaryWithPendingMove` checks the transition **into solver finalization**:
+marks have been cleared and the update's input moves have been considered.
+It deliberately permits solver-produced marks at the end-of-step boundary.
+This matches `physics_world.c:1093` updating pairs before `b3Solve` at 1141,
+and `solver.c:1884–1894` joining rebuild and validating clear marks before
+finalization, which marks proxies at lines 598, 634 and 849.
 
-Liveness: `MovedEventuallyConsidered` — every proxy moved in a step is
-considered in that step's `UpdatePairs`, unless it is destroyed first
-(then its pairs are removed with it; there is nothing to consider).
+The static tree clears in `UpdatePairs` (`broad_phase.c:701`);
+the queued dynamic-tree `RebuildStale` clears dynamic marks when it joins
+(`dynamic_tree.c:1926–1960`). `MovedClearedAfterUpdate` is checked after that
+join, not immediately after the pair-emission action. `RebuildPreservesPairs`
+checks that rebuild preserves live proxies and the contact-candidate set.
 
-Two node layouts, one behaviour: `NodeBytes` is 72 in the narrow build
-and 128 in ludicrous mode (the current fixed3d node sizes; triage
-section 2 works out the post-relayout sizes). The constant stands for
-"some layout": no action reads `NodeBytes`. TLC was run at both
-values; the distinct-state counts are identical, which is the
-two-config claim at this abstraction level.
+`DropClear` is a deliberate **combined abstraction mutant**: it retains marks
+in both the static clear and the dynamic rebuild. It must violate
+`MovedClearedAfterUpdate`. Removing `b3DynamicTree_ClearMoved` alone is only
+the static-tree analogue: dynamic and kinematic marks clear in rebuild,
+queued at `broad_phase.c:707`. The mutant is not a claim that deleting that
+one C function leaves every tree marked, nor evidence of an upstream C bug.
 
-## TLC runs (Linux bench b1, never the working Mac)
+## Bounded checks and reproducibility
 
-Toolchain: OpenJDK 21, `tla2tools.jar` (TLC 2.19). Commands, run from
-this directory after copying the three files to the bench:
+`MaxSteps` bounds mutation actions, not traversal or phase progress. Main and
+ludicrous configurations use 4 mutations; the step configuration uses 3.
+This includes four creations before one traversal and repeated moves with
+intervening updates. The observed step counter saturates at `MaxSteps` so
+phase progress remains enabled and final solver moves can still be consumed.
+It is not a bound on the number of physical timesteps.
 
+Run on a serialized Linux bench, never the working Mac:
+
+```sh
+/usr/bin/time -f 'wall_seconds=%e maxrss_kb=%M exit=%x' timeout 600 nice -n 10 \
+  /home/nova/sdk/bin/java -Xmx4g -XX:+UseParallelGC -jar /opt/tla/tla2tools.jar \
+  -workers 4 -seed 1 -config BroadPhaseTree.cfg BroadPhaseTree
 ```
-java -XX:+UseParallelGC -jar tla2tools.jar -workers 4 -config BroadPhaseTree.cfg BroadPhaseTree
-java -XX:+UseParallelGC -jar tla2tools.jar -workers 4 -config BroadPhaseTreeMutant.cfg BroadPhaseTree
-# ludicrous equivalence: same cfg with NodeBytes = 128 (bench-local copy, not committed)
-java -XX:+UseParallelGC -jar tla2tools.jar -workers 4 -config BroadPhaseTreeLudicrous.cfg BroadPhaseTree
-```
 
-Results at head (see the PR body for the exact head SHA fence):
+Repeat for `BroadPhaseTreeLudicrous.cfg`, `BroadPhaseTreeStep.cfg`, and
+`BroadPhaseTreeMutant.cfg`. Measured results on Hetzner2, 2026-10-15 UTC:
 
-- `BroadPhaseTree.cfg` (narrow, 72): **No error found.**
-  2,111,116 states generated, 485,685 distinct states, depth 11.
-- Ludicrous copy (128): **No error found**, identical distinct-state
-  count (485,685) — the layout constant does not change behaviour.
-- `BroadPhaseTreeMutant.cfg`: **fails as designed** —
-  `Error: Invariant MovedClearedAfterUpdate is violated` within the
-  first ~60 states generated (the exact count varies with the TLC
-  seed; the invariant named does not). The trace is: create proxies,
-  `UpdatePairs` runs, and the state after it still has `moved # {}`
-  and `rootMoved = TRUE` because the clear was dropped.
+| Configuration | Exit | Outcome | Generated | Distinct | Depth | Wall seconds |
+|---|---:|---|---:|---:|---:|---:|
+| BroadPhaseTree.cfg | 0 | no error | 380083 | 192274 | 54 | 11.09 |
+| BroadPhaseTreeLudicrous.cfg | 0 | no error | 380083 | 192274 | 54 | 11.45 |
+| BroadPhaseTreeStep.cfg | 0 | no error | 48757 | 30228 | 41 | 2.30 |
+| BroadPhaseTreeMutant.cfg | 12 | MovedClearedAfterUpdate | 1852 | 454 | 6 | 0.82 |
 
-Red first: at the unchanged base (no `tla/` directory), the first
-command fails with `Error: ... ConfigFileException: ... File not
-found` for `BroadPhaseTree.cfg`. That failing line is pasted in the
-pull request.
+All four rows use TLC **2.19 (5a47802)**, Java **Temurin 21.0.12.1+1**,
+and jar SHA256
+`936a262061c914694dfd669a543be24573c45d5aa0ff20a8b96b23d01e050e88`.
+`RUNS.tsv` records this provenance on every row, including UTC run start.
+`tlacheck` was absent from the bench PATH; records were extracted directly
+from TLC and GNU time output. No cfg exceeded twelve seconds.
+The 72/128 counts are identical because `NodeBytes` is unused.
 
-## Counterexamples checked by hand against the code
+Red first on unchanged `bf95e634` plus the review's property/config:
+`Error: Action property NoBoundaryWithPendingMove is violated.` Exit 13;
+64 generated, 52 distinct, depth 4, wall 0.61 seconds. The failing trace is
+Init -> CreateProxy(2,0) -> StepBoundary, with moved={2}, considered={}.
+Four-worker discovery counts and proxy choice can vary.
 
-Two TLC findings were checked against the C code before being written
-down; both were model/spec corrections, not C bugs:
+The uncommitted throwaway traversal mutant drops the second child push from
+the `leafA` branch of `VisitPair`. It produced
+`Error: Invariant PairCompleteness is violated.` Exit 12; 1,179 generated,
+670 distinct, depth 9, wall 0.88 seconds. This demonstrates that the oracle
+detects missing traversal output; the broken line is not in this module.
 
-1. First liveness draft ("every moved proxy is eventually considered")
-   produced a trace: create proxies 3 and 4, destroy both, then
-   `UpdatePairs` — the destroyed proxies are never considered. That
-   behaviour is reachable and correct in the C design (a destroyed
-   proxy's pairs are removed on destroy; `b3UpdateBroadPhasePairs`
-   never sees it), so the property now exempts proxies destroyed
-   before the update. Model error, fixed in the model.
-2. The mutant trace (moved bits still set after `UpdatePairs`) was
-   verified reachable in the upstream code: deleting the body of
-   `b3DynamicTree_ClearMoved` (upstream `src/dynamic_tree.c`) leaves
-   `B3_MOVED_NODE` on the root, so `b3HasTreeMoved` stays true and
-   the next `b3UpdateBroadPhasePairs` re-gathers and re-collides the
-   same moved siblings. The model drops exactly that clear and TLC
-   names exactly `MovedClearedAfterUpdate`.
+## Explicit limits
 
-No other counterexamples were found; the sound configuration is clean.
-
-## What the model does NOT cover
-
-- Geometry: fat boxes are cells in {0,1}; overlap is cell equality.
-  AABB union/perimeter arithmetic, the SAH rotate choice, ray/box
-  casts, and all Q48.16 rounding (including the sentinel-perimeter
-  wrap itself — the model states the guard, it does not reproduce
-  the arithmetic that makes the guard necessary) are outside it.
-- Node layout mechanics: sibling pairing at even indices, the parent
-  array, free lists, DFS reordering, and node indices are abstracted
-  to one layout flag. Index-level properties (for example
-  `nodeEnd >= 2`, root at index 0) are for the C tests, not this model.
-- Concurrency: worker interleaving, the atomic fetch-or propagation
-  order, parallel seed gathering, and batching in
-  `b3FlushCandidatePairs` are abstracted away (OR commutes, and the
-  emitted set is what is checked). No thread schedule is explored.
-- Filtering: `b3ShouldCreatePair` (same-body, sensor, filter bits,
-  joint and custom filters), compound child expansion
-  (`b3EmitCompoundPairs`, including the held ludicrous demotion), and
-  the pair-set/contact lifecycle beyond "pair is live or destroyed
-  with its proxy" are not modelled.
-- Scale: 4 proxies, 2 trees, 6 bounded actions. Larger populations,
-  the kinematic tree, and rebuild quality (tree height, refit cost)
-  are unchecked.
-- Serialization: tree/proxy blob layout, snapshot/recording version
-  bumps, and golden hashes are outside this model.
+- Geometry is two cells and set intersection for node boxes. AABB union,
+  perimeter/SAH arithmetic, ray casts and Q48.16 rounding are outside the model.
+  Sentinel boxes are empty; this does not reproduce fixed-point overflow or
+  prove that the C implementation guards every sentinel arithmetic operand.
+- Only two fixed asymmetric binary trees of maximum depth two are explored. Empty slots stay in place;
+  insertion/removal allocation, rotations, varying shapes and deeper ancestors
+  are not modelled. Rebuild checks a child permutation, not the rebuild algorithm.
+- Node indices/links are modelled, but physical sibling alignment, free lists,
+  DFS memory layout and byte offsets are not. `NodeBytes` is unused: equal counts
+  at 72 and 128 show only that the abstract behaviour ignores node size.
+- Threading, atomic fetch-or interleavings, worker scheduling, seed batching,
+  and bounded C stack overflow are not explored. Traversal is serial.
+- Kinematic trees, filters, same-body/sensor/joint/custom exclusions, compound
+  expansion, and contact lifetime beyond destruction are not modelled.
+- Larger proxy populations, rebuild quality, serialization, snapshot versions
+  and golden hashes are unchecked. These finite checks are not a general proof.
