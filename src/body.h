@@ -8,6 +8,7 @@
 #include "box3d/types.h"
 
 #include "inverse.h"
+#include "physics_world.h"
 
 typedef struct b3World b3World;
 
@@ -31,7 +32,7 @@ enum b3BodyFlags
 	// This body has fixed rotation around the z-axis
 	b3_lockAngularZ = 0x00000020,
 
-	// This flag is used for debug draw
+	// This flag is used for debug draw and contact recycling. Only lives on b3BodySim.
 	b3_isFast = 0x00000040,
 
 	// This dynamic body does a final CCD pass against all body types, but not other bullets
@@ -40,14 +41,15 @@ enum b3BodyFlags
 	// This body was speed capped in the current time step
 	b3_isSpeedCapped = 0x00000100,
 
-	// This body had a time of impact event in the current time step
+	// This body had a time of impact event in the current time step (body sim only)
 	b3_hadTimeOfImpact = 0x00000200,
 
 	// This body has no limit on angular velocity
 	b3_allowFastRotation = 0x00000400,
 
-	// This body need's to have its AABB increased
-	b3_enlargeBounds = 0x00000800,
+	// This bullet body needs to have its AABB increased. Needed because bullets don't follow
+	// the standard broad-phase update.
+	b3_enlargeBulletBounds = 0x00000800,
 
 	// This body is dynamic so the solver should write to it.
 	// This prevents writing to kinematic bodies that causes a multithreaded sharing
@@ -70,7 +72,7 @@ enum b3BodyFlags
 	b3_fixedRotation = b3_lockAngularX | b3_lockAngularY | b3_lockAngularZ,
 
 	// These flags are transient per time step. These may be different across b3Body, b3BodySim, and b3BodyState.
-	b3_bodyTransientFlags = b3_isFast | b3_isSpeedCapped | b3_hadTimeOfImpact,
+	b3_bodyTransientFlags = b3_isSpeedCapped | b3_hadTimeOfImpact,
 };
 
 // Body organizational details that are not used in the solver.
@@ -256,6 +258,38 @@ bool b3WakeBodyWithLock( b3World* world, b3Body* body );
 
 void b3UpdateBodyMassData( b3World* world, b3Body* body );
 void b3SyncBodyFlags( b3World* world, b3Body* body );
+void b3RefreshBodyContactIndices( b3World* world, b3Body* body );
+
+// Encode the body sim index for storage in the contact.
+static inline int b3EncodeBodySimIndex( const b3Body* body )
+{
+	if ( body->setIndex == b3_awakeSet )
+	{
+		return body->localIndex;
+	}
+
+	if ( body->setIndex == b3_staticSet )
+	{
+		return -( body->localIndex + 2 );
+	}
+
+	return B3_NULL_INDEX;
+}
+
+static inline bool b3IsStaticSimIndex( int encodedBodySimIndex )
+{
+	return encodedBodySimIndex < B3_NULL_INDEX;
+}
+
+static inline int b3DecodeAwakeIndex( int encodedBodySimIndex )
+{
+	return encodedBodySimIndex >= 0 ? encodedBodySimIndex : B3_NULL_INDEX;
+}
+
+static inline int b3SleepBodySimIndex( int encodedBodySimIndex )
+{
+	return encodedBodySimIndex >= 0 ? B3_NULL_INDEX : encodedBodySimIndex;
+}
 
 // Make a sweep relative to a base position to keep TOI in b3Fixed precision far from the origin.
 static inline b3Sweep b3MakeRelativeSweep( const b3BodySim* bodySim, b3Pos base )

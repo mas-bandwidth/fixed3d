@@ -41,6 +41,8 @@
 // which the old condition already excluded, so both HELD. The ragdoll golden here is
 // the re-rig (fixed3d#67) AND group A together: the re-rig alone moved it to 325, and
 // group A lands on the re-rigged scene to move it again to 354.
+// The 9e5a4cd CCD capture (sleep 349, narrow 0xCCF7BCE5) was taken before group A.
+// It is not the value for this tree. A bench recapture on this merge is still owed.
 #define RAGDOLL_SLEEP_STEP 354
 #if defined( BOX3D_LUDICROUS_MODE )
 #define RAGDOLL_HASH 0xD13E51C0
@@ -56,21 +58,22 @@
 #define QUERY_SPAWN_SLEEP_STEP 243
 #define QUERY_SPAWN_HIT_COUNT 59
 #define QUERY_SPAWN_QUERY_HASH 0xE583B246
-#define MESH_DROP_SLEEP_STEP 210
+#define MESH_DROP_SLEEP_STEP 284
 #if defined( BOX3D_LUDICROUS_MODE )
 #define WAVE_PILE_HASH 0xD4E8E9FB
 #define QUERY_SPAWN_HASH 0x7C6B3268
-#define MESH_DROP_HASH 0xDB1DA8B9
+#define MESH_DROP_HASH 0xE44E6A0E
 #else
 #define WAVE_PILE_HASH 0xC8EA9BBB
 #define QUERY_SPAWN_HASH 0x49ECDEA8
-#define MESH_DROP_HASH 0x491E324B
+#define MESH_DROP_HASH 0x784AD80A
 #endif
 
 // Re-rigged single ragdoll (box3d 954cf87) dropped on a ground box. Harvested
 // on this bench: sleep 331 both builds, hash narrow 0xCD6AC1EB / ludicrous
 // 0xCD75B56B, identical for workers 1-5 and across two generation runs. The
 // re-rig alone moved it to 228; group A lands on the re-rigged scene to move it again.
+// The 9e5a4cd CCD capture (sleep 233) was taken before group A and is not this tree.
 #define RAGDOLL_HUMAN_SLEEP_STEP 331
 #if defined( BOX3D_LUDICROUS_MODE )
 #define RAGDOLL_HUMAN_HASH 0xCD75B56B
