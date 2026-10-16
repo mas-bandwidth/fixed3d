@@ -59,7 +59,7 @@ enum b3BodyFlags
 
 	b3_enableSleep = 0x00002000,
 
-	b3_bodyEnableContactRecycling = 0x00004000,
+	b3_enableContactRecycling = 0x00004000,
 
 	// The user deferred mass computation via the updateBodyMass shape option and mass
 	// data still hasn't been set.

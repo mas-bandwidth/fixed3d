@@ -289,7 +289,7 @@ b3BodyId b3CreateBody( b3WorldId worldId, const b3BodyDef* def )
 	bodySim->flags |= def->allowFastRotation ? b3_allowFastRotation : 0;
 	bodySim->flags |= def->type == b3_dynamicBody ? b3_dynamicFlag : 0;
 	bodySim->flags |= def->enableSleep ? b3_enableSleep : 0;
-	bodySim->flags |= def->enableContactRecycling ? b3_bodyEnableContactRecycling : 0;
+	bodySim->flags |= def->enableContactRecycling ? b3_enableContactRecycling : 0;
 
 	if ( setId == b3_awakeSet )
 	{
@@ -2597,15 +2597,15 @@ void b3Body_EnableContactRecycling( b3BodyId bodyId, bool flag )
 
 	B3_REC( world, BodyEnableContactRecycling, bodyId, flag );
 
-	uint32_t newFlag = flag ? b3_bodyEnableContactRecycling : 0;
+	uint32_t newFlag = flag ? b3_enableContactRecycling : 0;
 
 	b3Body* body = b3GetBodyFullId( world, bodyId );
-	if ( ( body->flags & b3_bodyEnableContactRecycling ) == newFlag )
+	if ( ( body->flags & b3_enableContactRecycling ) == newFlag )
 	{
 		return;
 	}
 
-	body->flags &= ~b3_bodyEnableContactRecycling;
+	body->flags &= ~b3_enableContactRecycling;
 	body->flags |= newFlag;
 
 	b3SyncBodyFlags( world, body );
@@ -2615,7 +2615,7 @@ bool b3Body_IsContactRecyclingEnabled( b3BodyId bodyId )
 {
 	b3World* world = b3GetWorld( bodyId.world0 );
 	b3Body* body = b3GetBodyFullId( world, bodyId );
-	return ( body->flags & b3_bodyEnableContactRecycling ) != 0;
+	return ( body->flags & b3_enableContactRecycling ) != 0;
 }
 
 void b3Body_EnableHitEvents( b3BodyId bodyId, bool flag )
