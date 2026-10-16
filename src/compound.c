@@ -1109,6 +1109,7 @@ static b3Fixed b3CompoundRayCastCallback( const b3RayCastInput* input, int proxy
 
 	b3ChildShape child = b3GetCompoundChild( compound, childIndex );
 
+	// Get the input in child local space.
 	b3RayCastInput localInput = *input;
 	localInput.origin = b3InvTransformPoint( child.transform, input->origin );
 	localInput.translation = b3InvRotateVector( child.transform.q, input->translation );
@@ -1183,6 +1184,8 @@ static b3Fixed b3CompoundShapeCastCallback( const b3BoxCastInput* input, int pro
 	b3ChildShape child = b3GetCompoundChild( compound, childIndex );
 
 	// Rebuild from the carried shape cast input, taking only the advancing fraction from the tree
+	// Kept inline: upstream's b3MakeLocalProxy rewrite was refused because b3MulMV and b3InvRotateVector
+	// round differently here (both on the not-fused list). See PORT RECORD 954cf87 in CLAUDE.md.
 	b3ShapeCastInput localInput = *shapeInput;
 	localInput.maxFraction = input->maxFraction;
 	b3Vec3 localPoints[B3_MAX_SHAPE_CAST_POINTS];

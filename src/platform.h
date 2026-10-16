@@ -11,13 +11,15 @@
 // Software prefetch hint. T0 brings the line into all cache levels.
 // On x86 MSVC exposes _mm_prefetch, ARM MSVC uses __prefetch instead.
 // clang/gcc provide __builtin_prefetch on every target.
-#if defined( _MSC_VER ) && ( defined( _M_ARM ) || defined( _M_ARM64 ) || defined( _M_ARM64EC ) )
+// clang-cl defines both _MSC_VER and __clang__, and its <intrin0.h> has no _mm_prefetch/_MM_HINT_T0,
+// so the MSVC arms exclude it the way src/ctz.h does and clang-cl keeps __builtin_prefetch.
+#if defined( _MSC_VER ) && !defined( __clang__ ) && ( defined( _M_ARM ) || defined( _M_ARM64 ) || defined( _M_ARM64EC ) )
 #include <intrin.h>
-#elif defined( _MSC_VER )
+#elif defined( _MSC_VER ) && !defined( __clang__ )
 #include <intrin0.h>
 #endif
 
-#if defined( _MSC_VER )
+#if defined( _MSC_VER ) && !defined( __clang__ )
 #if defined( _M_X64 ) || defined( __x86_64__ ) || defined( _M_IX86 ) || defined( __i386__ )
 #define b3Prefetch( addr ) _mm_prefetch( (const char*)( addr ), _MM_HINT_T0 )
 #else

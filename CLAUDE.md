@@ -459,59 +459,121 @@ The PORT RECORDs below run newest first and are the detail for each step.
   the harness resume above~~ — the harness landed and MEASURED the scene: `ctest -L reference` runs it green, resting-height delta 2.1e-5 against the stated 0.05, final
   contact count 1 in both engines.)*
 - **PORT RECORD f8c4fe8 "Shape cast support for box movers (#180)" (upstream
-  2026-10-02) — PORTED, engine half, 2026-10-09. CARRIED AHEAD OF THE CURSOR.**
+  2026-10-06) — PORTED, engine half, 2026-10-09. CARRIED AHEAD OF THE CURSOR.**
+
+  **COLD-READ REPAIRS CARRIED 2026-10-16 (`port/cold-read-repairs-2026-10-09`).**
+  Both independent cold reads of 2026-10-09 (Opus 5 and Fable 5.1) returned
+  MERGE-WITH-FIXES, and the fixes were written in a scratch clone that was never
+  committed, so the branch merged WITHOUT them. The code repair they both asked
+  for — the retained rest separation — is carried now with a subtest that sees
+  the old spelling fail, and the record corrections are folded into the text
+  below rather than appended. The upstream date above was 2026-10-02 and is one
+  of those corrections; this clone has no `upstream` remote, so it is carried on
+  the readers' authority rather than re-verified here.
 
   **THIS IS OUT OF ORDER ON PURPOSE AND THE CURSOR DOES NOT MOVE FOR IT.**
   `f8c4fe8` is the TWELFTH commit past the cursor at `47d7f7c` (verified, not
   assumed: `git log --oneline --reverse 47d7f7c..upstream/main` lists it at
   position 12 of 15). It was carried early because it is an independent bug fix
   in `b3ShapeCast` with no dependency on the eleven commits in front of it —
-  those are broadphase, SAT and recording work. The port plan is **fixed3d#65**;
+  those are `954cf87` "Fixes", broadphase, two optimization passes, a UI
+  update, SAT (optimizations, samples, benchmark), the compound mesh child
+  material limit, AVX2 with runtime feature detection, and tree perf. **The
+  recording work is BEHIND this commit, not ahead of it:** `003a3f7`, `3d9db79`
+  and `5d83df8` are positions 13, 14 and 15, so they are not among the eleven
+  owed before it — the earlier "broadphase, SAT and recording work" was wrong
+  on the recording third. The port plan is **fixed3d#65**;
   the eleven commits before this one are still owed and the PORT CURSOR line at
   the top of this file still reads `47d7f7c`, which is a fact. **Do not read
   this record as the cursor having advanced.** A later pass that carries
   `16f7f4c` and the rest will find this one already across and should skip the
   `b3ShapeCast` hunk rather than re-apply it.
 
-  **THE REAL BUG, named plainly.** On the pre-fix tree `b3ShapeCast`'s
+  **WHAT THIS IS: BOX-MOVER SUPPORT on a pre-image identical to upstream's, NOT
+  a live bug in this engine** (corrected 2026-10-09 by both cold reads; the
+  record said "THE REAL BUG, named plainly"). On the pre-fix tree `b3ShapeCast`'s
   iteration-0 handling had only two arms: encroach-and-retarget when
   `canEncroach && distance > 2 * linearSlop`, else the "Initial overlap" arm
-  reporting a hit at fraction 0. So a shape starting in the band
-  **`0 < distance <= 2 * linearSlop` reported a hit WHATEVER DIRECTION IT
-  SWEPT** — receding, purely tangential and grazing sweeps all came back as
-  hits at fraction 0. Reachable by box movers (`canEncroach`), which is what
-  upstream's commit title names; capsule movers and plain shape casts do not
-  set the flag. The new third arm advances by first order while retaining a rest
-  separation, so a sweep that cannot consume the free gap misses.
+  reporting a hit at fraction 0. So a caller landing in the new arm's **GATE** —
+  `0 < distance <= 2 * linearSlop`, which is the GATE and not the reachable
+  domain — got a hit **WHATEVER DIRECTION IT SWEPT**: receding, purely
+  tangential and grazing sweeps all came back as hits at fraction 0.
+  **The engine's own mover path does not produce it.** `src/physics_world.c`
+  (line 3322 on the sprint head 2026-10-16; the repair text said 3278) sets
+  `canEncroach` only for capsule movers with `radius > 0`, and the cast target
+  is core-to-core `target = max( linearSlop, totalRadius - linearSlop )`, so for
+  a capsule mover the gate would require the core within `2 * linearSlop` of the
+  surface — a penetration of very nearly the whole radius, which the mover path
+  does not hand to `b3ShapeCast`. It is reachable in practice only by a direct
+  public `b3ShapeCast` call with zero radius and `canEncroach` true, which is
+  exactly what the eight new subtests do.
+  **And the reachable domain is narrower than the gate, re-measured on this tree
+  2026-10-16** (probe linked against `build-port`: slop raw 328, tolerance raw
+  82, gate `2 * slop` raw 656). Iteration 0 is entered only under
+  `distance < target + tolerance`, which for a zero-radius cast is raw **410**
+  (1.25 slop) at default units, not raw 656; the full `2 * linearSlop` width of
+  the gate becomes reachable only once `totalRadius > 902` raw. The new third arm
+  advances by first order while retaining a rest separation, so a sweep that
+  cannot consume the free gap misses.
 
   **FIVE FIXED-POINT DECISIONS, and two inherited code comments were WRONG and
   are corrected in the same commit.** Every one was checked by quoting the
   primitive out of `extern/fixed`, and the two corrections were found by
-  measuring rather than by re-reading.
+  measuring rather than by re-reading. **Three of the five — (1), (3) and (5) —
+  were corrected AGAIN after the two cold reads, and (1) moved the CODE, not
+  just its comment;** each entry below says which part of the first account
+  survived.
 
-  **(1) THE RETAINED SEPARATION IS AN EXACT INTEGER HALVING, and the comment
-  that justified it stated a number that is not there.** Upstream is
-  `0.5f * linearSlop`; here it is `linearSlop / 2`, not
-  `b3FixMul( B3_FIX( 0.5f ), slop )`. The inherited comment said `b3FixMul`
-  would give raw 165 against the halving's 164 at the default slop. **MEASURED,
-  that is false:** the default slop is raw 328, which is EVEN, so the product is
-  exact and **both spellings give 164**. They diverge only on an ODD slop raw,
-  which `b3SetLengthUnitsPerMeter` can produce — at `B3_FIX( 0.1f )` units the
-  slop raw is 33 and the halving gives 16 where `b3FixMul` gives 17, because
-  `fixMul` is "Round half up, then shift out the fraction bits". The halving is
-  kept, but for EXACTNESS and not for the direction: it carries no rounding
-  policy, so it cannot move if the rounding rule ever does. The one raw unit of
-  difference leans the other way from the rest of this arm (marginally LATE, not
-  early) and the comment now says so at the site.
+  **(1) THE RETAINED SEPARATION IS `b3FixMul( B3_FIX( 0.5f ), linearSlop )`,
+  NOT an integer halving — CORRECTED 2026-10-09, carried 2026-10-16.** Upstream
+  is `0.5f * linearSlop`. This first landed as `linearSlop / 2` on an exactness
+  argument, and the exactness argument is wrong in the one direction that
+  matters: for an ODD slop raw the exact half is a half-integer, so BOTH fixed
+  spellings sit half a raw unit from it, in opposite directions. `b3FixMul`
+  rounds half UP (`fixMul`: "Round half up, then shift out the fraction bits"),
+  so it retains one raw unit MORE separation than the halving and **never less
+  than upstream** — the safe direction for a rest separation. The halving
+  retained **NOTHING AT ALL** at the bottom of the legal range: every
+  `b3SetLengthUnitsPerMeter` value from raw 100 to raw 299 gives slop raw 1,
+  where `linearSlop / 2` is 0 and `b3FixMul` is 1 (re-measured on this tree
+  2026-10-16, those exact bounds). `B3_FIX( 0.5f )` is also the house spelling
+  in this file — **seven other uses in `src/distance.c`, counted today at lines
+  762, 1205, 1833, 1848, 1865, 1980 and 2049** (the cold reads said eight, which
+  is the count including this new one). At the DEFAULT slop (raw 328, EVEN) both
+  spellings give **164**, so **no golden can move** either way — which is also
+  why the earlier record's claim that `b3FixMul` would give 165 at the default
+  slop was false, and that much of the original correction stands.
+  **THE DISCRIMINATING SUBTEST IS NEW AND IS THE REASON THIS IS NOT JUST AN
+  ARGUMENT:** `ShapeCastEncroachOddSlopRetainedTest` in `test/test_distance.c`
+  sets `b3SetLengthUnitsPerMeter( 512 )`, where slop is raw **3** (halving 1,
+  `b3FixMul` 2), and casts a raw 2 closing sweep across a raw 3 core gap: the
+  halving gives `needed` 2 against `approach` 2, so `approach <= needed` and the
+  sweep MISSES, while `b3FixMul` gives `needed` 1 and a HIT at fraction 0.5 —
+  and upstream's float retains 0.5 raw and hits at fraction 0.75, so the
+  `b3FixMul` spelling keeps upstream's hit where the halving turns it into a
+  miss. Committed RED (`condition false: closing.hit`, exit 1) and then green.
+  **The slop raw 1 bound the readers quoted is NOT itself testable at the public
+  API for a zero-radius cast:** tolerance quantizes to 0 and target is raw 1, so
+  iteration 0 is entered only at distance 0, which is the initial-overlap arm.
+  Raw 3 is the smallest odd slop the new arm can actually be driven at, and the
+  subtest restores `B3_FIX( 1.0f )` before it asserts so a failure cannot change
+  the length scale under the tests that follow.
 
   **(2) THE UNARY MINUS STAYS OUTSIDE `b3Dot`.** `b3Dot` is
   `fixFromDotRaw( fixDotRaw( ) )` — "Exact dot product accumulated at 128 bits
   ... No per-component rounding", then "a single round-half-up step (divide
   last)". Round-half-up is not odd-symmetric, so negating `delta2` before the
-  dot would be a reassociation and not a rewrite. **MEASURED:** `-b3Dot( a, n )`
-  differs from `b3Dot( -a, n )` in **6 of 200000** sampled raw triples, first at
-  -1824575 against -1824574. Same class as the `SubDot3W`/`RotDiagW` note in the
-  AVX-512 section; do not "simplify" it.
+  dot would be a reassociation and not a rewrite. **The claim is the PROPERTY,
+  not a sample count** (an earlier version of this record said "6 of 200000
+  sampled raw triples, first at -1824575 against -1824574", which nobody can
+  reproduce without the sampler that produced it): rounding half up is not
+  odd-symmetric, so `-b3Dot( a, n )` and `b3Dot( -a, n )` DO diverge — exactly
+  when the exact 128-bit dot lands on a half — and the divergence is bounded at
+  **one raw unit**. Same class as the `SubDot3W`/`RotDiagW` note in the
+  AVX-512 section; do not "simplify" it. **The code comment at the site still
+  carries the old sample count**: the cold reads asked for three comment
+  corrections and this was not one of them, so the 2026-10-16 carriage left the
+  scope where they put it and names the inconsistency here instead.
 
   **(3) THE `<=` IS LOAD BEARING, but not for the reason the comment gave.** The
   inherited comment said a strict `<` would let `approach == 0` through and
@@ -519,12 +581,22 @@ The PORT RECORDs below run newest first and are the detail for each step.
   zero divisor ("Division by zero saturates with the sign of the numerator;
   0/0 == 0"), but **that mechanism is unreachable**: `approach == 0` only falls
   through the gate when `needed <= 0`, and the `needed > 0` guard then returns
-  zero without dividing. **MEASURED: a strict `<` reaches `b3FixDiv` with
-  `approach == 0` in 0 of 801 `needed` values.** What the `<=` actually buys is
-  the exact boundary — a sweep whose approach exactly equals the free gap, and a
-  purely tangential `approach == 0` once the gap is spent, are MISSES, where a
-  strict `<` would report a hit at fraction 1.0 and at fraction 0 respectively.
-  The upstream spelling is kept; only the comment changed.
+  zero without dividing. **That is a TAUTOLOGY of the guard, not a
+  measurement** — an earlier version of this record reported it as "0 of 801
+  `needed` values", a denominator nobody can reproduce without the harness that
+  produced it; the honest denominator for the gate band at default units is
+  **656** raw values, and the count is 0 of 656 because the guard makes it 0 by
+  construction. **What the `<=` actually buys is the TANGENTIAL case** — a
+  purely tangential `approach == 0` once the gap is spent is a MISS, where a
+  strict `<` would fall through and report a hit at fraction 0. The other
+  boundary — an approach exactly equal to the free gap — is a **MISS EITHER
+  WAY** at the documented typical `maxFraction` of 1.0, so the earlier claim
+  that a strict `<` would "report a hit at fraction 1.0" there was false:
+  `b3FixDiv` of equal operands is exactly `B3_FIX( 1.0f )` (re-measured
+  2026-10-16: `b3FixDiv( 12345, 12345 )` is raw 65536), and the next guard
+  `fraction >= input->maxFraction` turns it into a miss. The two spellings
+  differ on that boundary only when `maxFraction > 1`. The upstream spelling is
+  kept; only the comment changed.
 
   **(4) `b3FixDiv` TRUNCATES TOWARD ZERO, which is the safe direction here.**
   The fraction rounds down, so the hit lands marginally EARLY and leaves
@@ -532,8 +604,11 @@ The PORT RECORDs below run newest first and are the detail for each step.
 
   **(5) THE FREE-GAP TEST IS A BARE COMPARE, NEVER A SQUARED TOLERANCE.**
   `needed > B3_FIX( 0.0f )`, per hard-won rule 7 — `b3FixMul( d, d )` is zero
-  for d below ~0.004, so a squared guard would collapse exactly in the band this
-  arm exists to handle.
+  for every d at or below **raw 181 (about 0.0028)**, the largest raw whose
+  square rounds to zero under round-half-up (re-measured on this tree
+  2026-10-16: `b3FixMul( 181, 181 )` is 0 and `b3FixMul( 182, 182 )` is 1; the
+  "~0.004" in rule 7 is the rough form), so a squared guard would collapse
+  exactly in the band this arm exists to handle.
 
   **GOLDENS: NONE MOVED, and that is MEASURED rather than argued.** A temporary
   atomic counter on the new arm (tested on every evaluation of the gate, fired
@@ -541,12 +616,36 @@ The PORT RECORDs below run newest first and are the detail for each step.
   same binary: **DistanceTest alone accounts for all of it (9 tested, 7 fired),
   while MoverTest and DeterminismTest each read 0 tested, 0 fired.** So no
   golden scene evaluates this arm even once — the null-golden claim rests on a
-  count and not on the goldens happening to hold — and the six new encroach
-  subtests plus the `canEncroach == false` control are exactly what fires it.
-  The counter was removed before the commit.
+  count and not on the goldens happening to hold — and `RecordingTest` is in
+  that zero too, by subtraction from the whole-suite 9. **The SIX ENCROACH
+  SUBTESTS are what fires it** (`MaxFraction` casts twice, so the six subtests
+  are 7 of the 9 gate evaluations and all 7 fires); **the two CONTROLS are the
+  other 2 evaluations and NEVER fire** — `ShapeCastStartTouchingDefault` has
+  `canEncroach` false, so an earlier version of this record naming it as part of
+  what fires the arm was wrong, and `ShapeCastEncroachOverlap` starts at
+  distance 0. The counter was removed before the commit. **The 2026-10-16
+  carriage adds a ninth subtest** (`ShapeCastEncroachOddSlopRetainedTest`, entry
+  (1) above) which also fires the arm, at a non-default length scale it restores
+  before it returns; the counter was not re-run for it, and the golden argument
+  does not need it to be — the subtest changes no default-scale value and the
+  full suite including `DeterminismTest` is green with every pin unchanged.
 
-  **TESTS: eight subtests in `test/test_distance.c`, committed RED first**
-  (`f464907`, red by design; the fix is `8d93714`). Six are evidence —
+  **GOLDENS, SECOND CHANNEL: recording REPLAY.** `src/recording_replay.c`
+  re-runs `b3World_CastMover` on replay and compares the returned fraction
+  (`b3RecDispatch_QueryCastMover`, `rdr->diverged` on a differing fraction), so a
+  recording captured on the pre-fix tree whose mover cast landed in this arm's
+  gate would replay as DIVERGED on this tree. Checked rather than assumed: there
+  are **no checked-in recordings** (`git ls-files | grep -icE '\.(b3rec|rec)$'`
+  is 0, re-run 2026-10-16) and `RecordingTest` evaluates the gate 0 times, so
+  nothing in this repo can diverge through that channel.
+
+  **TESTS: eight subtests in `test/test_distance.c`, committed RED first** (the
+  `RED:` commit is red by design and the `GREEN:` commit is the fix — read them
+  off the branch log rather than from a SHA here; the pair this record first
+  named, `f464907` / `8d93714`, does not resolve in a fresh clone of this repo
+  any more — the rebase onto `8f51d2d` replaced them with `973b9c5` "RED: shape
+  cast encroach band tests" / `d587d8b` "GREEN: shape cast encroach band fix",
+  checked 2026-10-16). Six are evidence —
   `ShapeCastEncroachRecede`, `Slide`, `Closing`, `Graded`, `MaxFraction`,
   `Graze` — and **two are CONTROLS and are NOT evidence of the fix**:
   `ShapeCastStartTouchingDefault` (canEncroach false keeps the old
@@ -554,12 +653,24 @@ The PORT RECORDs below run newest first and are the detail for each step.
   overlapped start still reports initial overlap, because the new arm is gated
   on a strictly positive distance). Both controls are green before and after.
   The red-then-green pair was re-run on this tree rather than inherited:
-  stashing `src/distance.c` gives exit 1 at `ShapeCastEncroachRecedeTest`,
-  restoring it gives exit 0. **The suite is `./build-port/bin/test`, NOT ctest**
-  — ctest registers nothing here and exits 0, which is a false green.
+  reverting the arm in `src/distance.c` gives exit 1 at
+  `ShapeCastEncroachRecedeTest`, restoring it gives exit 0.
+  **A NINTH SUBTEST since 2026-10-16**, `ShapeCastEncroachOddSlopRetainedTest`,
+  is the one that discriminates the two half-slop spellings; see entry (1).
+  **The suite is `./build-port/bin/test`, NOT ctest** — and the false green has
+  changed shape since the reference harness landed, measured on the sprint head
+  2026-10-16: `ctest --test-dir build-port` now runs exactly ONE registered test
+  (`RapidhashFlagGuardTest`) and prints "100% tests passed out of 1" at exit 0,
+  running none of the 352 subtests. It no longer says "No tests were found!!!",
+  which makes it a sharper false green than the record described.
 
-  **VERIFIED:** all four configs built (build-port, build-ludicrous, build-debug
-  = Debug+VALIDATE+ASan, build-samples) and all three suites run, exit 0 each;
+  **VERIFIED:** all four configs built and all three suites run, exit 0 each —
+  **build-port is `CMAKE_BUILD_TYPE=Release` + VALIDATE** (see
+  `build-port/CMakeCache.txt`; the `GREEN:` commit message calls it
+  "RelWithDebInfo + VALIDATE", which is wrong, and a commit message cannot be
+  edited after the fact — this line is the correction), build-ludicrous is
+  Release + VALIDATE + LUDICROUS_MODE, build-debug is Debug + VALIDATE + ASan,
+  build-samples is Release + VALIDATE with samples on and tests off;
   `conversion_audit.py` **clean** over all 103 TUs.
 
   **HELD, named rather than buried:**
@@ -594,7 +705,7 @@ The PORT RECORDs below run newest first and are the detail for each step.
   is float-side drift of the seed scene against the new pin, a recalibration
   follow-up.
 
-- **PORT RECORD 954cf87 "Fixes (#157)" (upstream 2026-09-16) — PORTED in ten steps on
+- **PORT RECORD 954cf87 "Fixes (#157)" (upstream 2026-09-16) — PORTED in eleven steps on
   `port/954cf87-fixes`, 2026-10-09.** 1,944 upstream insertions across 46 files. Upstream
   bundles five of its own issues (#148, #149, #153, #155, and `b3BodyDef::safetyFactor`
   for CCD tuning) into one commit, so this record is organized by HUNK GROUP rather than by
@@ -630,11 +741,32 @@ The PORT RECORDs below run newest first and are the detail for each step.
   `ref-954cf87-*` scenes all passing and the only red `ref-f8c4fe8-shape-cast-encroach-band`
   pre-existing (float 954cf87 predates the f8c4fe8 fix), named and left out of scope.
 
-  **THE SHAPE OF THE SPLIT: six engine steps, two test steps, one compile-only step, one
-  record.** Each step built `build-port`, `build-ludicrous`, `build-debug`
+  **COLD-READ REPAIRS CARRIED 2026-10-16 (`port/cold-read-repairs-2026-10-09`).** The two
+  independent cold reads of 2026-10-09 (Opus 5 and Fable 5.1) asked for repairs that were
+  written in two scratch clones and never committed, so the branch merged WITHOUT them. They
+  are carried now, and the record corrections they asked for are folded into the text below
+  rather than appended: the step count, the tripwire gap in group 1, the corrected mechanism
+  and the refused deletion in group 2, the comment at group 6's refused site, and group 8's
+  `isMeshContact` line numbers. Opus's BLOCK finding (the `platform.h` clang-cl prefetch
+  guard, group 9) is carried as a code change with a syntax-only red; see that group. One
+  cosmetic repair with no red and no record of its own: `ReplaySafetyFactor` in
+  `test/test_recording.c` moves down beside its one caller (`AllOps`), out from between
+  `EmptyWorldRoundTrip`'s explanatory comment and `EmptyWorldRoundTrip` itself. **And one
+  claim in the 2026-10-09 repair text did NOT survive this carriage:** it said the group 1
+  tripwire's assert message named `fixed3d#66`; the message is quoted from git below and
+  does not.
+
+  **THE SHAPE OF THE SPLIT: eleven commits — seven engine steps (1-6 and 8), two test steps
+  (7 and 10), one compile-only step (9), one record (11).** Each step built `build-port`,
+  `build-ludicrous`, `build-debug`
   (Debug + VALIDATE + ASan + UBSan) and `build-samples`, and ran the three test binaries
-  reading exit codes, before the next began. The suite is `<build>/bin/test`, never ctest —
-  ctest finds no tests here and exits 0, which is a false green.
+  reading exit codes, before the next began. The suite is `<build>/bin/test`, never ctest.
+  **THE CTEST FALSE GREEN HAS A NEW SHAPE SINCE THE REFERENCE HARNESS LANDED, measured on the
+  sprint head 2026-10-16:** `ctest --test-dir build-port` no longer prints "No tests were
+  found!!!" — it now runs exactly ONE registered test (`RapidhashFlagGuardTest`) and prints
+  "100% tests passed out of 1" with exit 0, while running none of the 352 subtests in
+  `bin/test`. A bare `ctest` inside the build dir does the same. That is a sharper false
+  green than the old one, not a weaker one.
 
   **PORTED, by group:**
 
@@ -648,9 +780,49 @@ The PORT RECORDs below run newest first and are the detail for each step.
      (group E below), so core.c carries `_Static_assert( B3_MAX_MANIFOLD_POINTS == 4 )`
      naming the hold: an override fails to compile rather than silently producing a
      four-point manifold anyway. A `#ifndef` that lies at runtime is worse than no `#ifndef`.
+     The assert message NAMED the hold in prose but NOT by issue number —
+     `"B3_MAX_MANIFOLD_POINTS > 4 needs the 2D hull reduction path, which fixed3d has not
+     ported"`, read out of `git show dd189e0 -- src/core.c` rather than recalled; the
+     2026-10-09 repair text said the message carried `fixed3d#66` "so a build that trips it
+     gets the issue number and not a search", and that is the one claim in the repair this
+     carriage had to correct rather than copy. **THE TRIPWIRE HAS A GAP, said
+     here rather than discovered later** (the 2026-10-09 cold read asked for it):
+     `cmake -DB3_MAX_MANIFOLD_POINTS=8` is an UNUSED CLI
+     variable — this CMakeLists does not forward it to the compile line, exactly as upstream's
+     does not — so that spelling silently builds at 4 and the assert never saw it. The assert
+     fired only for `-DCMAKE_C_FLAGS=-DB3_MAX_MANIFOLD_POINTS=8`. CMakeLists is deliberately
+     NOT changed: forwarding it would be a fork divergence in a file the next upstream pass
+     has to merge. **PAST TENSE ON PURPOSE, measured on the sprint head 2026-10-16: the
+     `== 4` tripwire IS GONE.** The hull2d card lifted fixed3d#66 and left
+     `_Static_assert( B3_MAX_MANIFOLD_POINTS >= 4 )` at `src/core.c:51`, which is correct now
+     that the `> 4` reduction path exists. The CMake half of the gap SURVIVES the lift and is
+     still true today (`grep -n MAX_MANIFOLD CMakeLists.txt src/CMakeLists.txt` is empty), so
+     a `cmake -DB3_MAX_MANIFOLD_POINTS=8` still builds at 4 and says nothing.
   2. **Stale trees are rebuilt when the move buffer empties** (`c9ff442`, upstream #149),
      `src/broad_phase.c` plus `b3ValidateNoEnlarged( &world->broadPhase )` after the user
-     tree task in `b3World_Step`.
+     tree task in `b3World_Step`. **THE GOLDENS HELD, AND THE MECHANISM `c9ff442`'s COMMIT
+     MESSAGE GAVE FOR IT IS WRONG; corrected here after the 2026-10-09 cold read.** That
+     message said a rebuild "changes query performance and nothing else; pair creation still
+     runs in `moveArray` order". It does not: within one moved proxy, contacts are created in
+     PAIR-LIST order, which is tree-traversal order, and QuerySpawn hashes overlap-callback
+     order, so a reordered tree IS observable in principle. The reason the goldens held, as
+     the reader measured it with an instrumented build on the port branch (attributed rather
+     than re-measured here), is that the new branch never runs in a state where it can reorder
+     anything: the empty-move branch is reached on every empty-move step but NEVER with an
+     enlarged node present (counters — ragdoll 61 empty-move steps / 0 enlarged, wave pile
+     85 / 0, query spawn 112 / 0, mesh drop 55 / 0, spherical 18 / 0; control WorldTest 1),
+     and with no enlarged root `b3DynamicTree_Rebuild` collects the root as its single leaf
+     and `b3BuildTree( tree, 1 )` returns it — a structural no-op.
+     **REFUSED DELETION, recorded so the next pass does not meet an unported hunk with no
+     reason:** upstream also DELETES the `b3ValidateNoEnlarged` call in `b3Solve`'s
+     no-awake-bodies early return; this branch KEEPS it. Upstream deletes because THEIRS ran
+     before the tree task was joined, so Debug success depended on which thread won. This tree
+     fixed that separately and the site already joins the task first — the comment there says
+     so — which makes ours a strictly earlier, strictly stronger validation-only check on a
+     tree that has been rebuilt. The new `b3World_Step` site is added BESIDE it, not instead
+     of it. Measured on the sprint head 2026-10-16: all three calls stand,
+     `src/physics_world.c:1156` (the new site) and `src/solver.c:1531` and `:2263` (the kept
+     ones; the record said "around line 1506" before the sprint branch moved them).
   3. **A joint born with `collideConnected` false clears existing contacts** (`d06d28f`,
      upstream #117), `src/joint.c`.
   4. **Moving a center of mass invalidates the cached contact manifolds** (`92fdd41`,
@@ -670,7 +842,10 @@ The PORT RECORDs below run newest first and are the detail for each step.
      `b3CompoundShapeCastCallback`. Both helpers are on this tree's deliberately-NOT-fused
      list, so they round differently in Q48.16 and the shape cast fraction can differ by a
      quantum. Value-identical in exact arithmetic, not value-identical here, so the site is
-     left alone. Test: `OverlapCompoundRotatedBody` in BodyQueryTest.
+     left alone — and since the 2026-10-16 carriage, after the cold read asked for it, the
+     site CARRIES A COMMENT saying so (`src/compound.c`, `b3CompoundShapeCastCallback`), so
+     the refusal is legible from the code and not only from here. Test:
+     `OverlapCompoundRotatedBody` in BodyQueryTest.
   7. **GROUP C — `test/test_determinism.c` grows a run-to-run reference** (`a850a93`).
      `DeterminismResult`, `EnsureRepeatable( reference, result )`, and `ENSURE_GOLDEN`
      (a plain `ENSURE` at `B3_MAX_MANIFOLD_POINTS == 4`, a no-op otherwise), with a
@@ -688,7 +863,8 @@ The PORT RECORDs below run newest first and are the detail for each step.
      `src/physics_world.c`). One hunk:
      `( isFast == false || isMeshContact == false )` becomes `isFast == false` in
      `b3CollideTask`, and the orphaned `isMeshContact` local goes with it (`git grep`
-     confirmed line 628 was its only reader in that function; the one near line 1026 feeding
+     confirmed its only reader in that function was old line 666, the recycling condition
+     itself; old line 628 was its DECLARATION, and the `isMeshContact` near line 1026 feeding
      `b3RemoveContactFromGraph` is a different function and stays). Meaning: a body on the
      continuous path never recycles a manifold cached before a sweep, mesh or not. FIXED-POINT
      DECISION: **none, and that is a statement rather than an omission** — the hunk is a
@@ -703,7 +879,33 @@ The PORT RECORDs below run newest first and are the detail for each step.
      repo's windows CI legs. Two things recorded rather than tidied: clang-cl now takes the
      MSVC arm (it defines both `__clang__` and `_MSC_VER`, and the new spelling tests
      `_MSC_VER` first), which is upstream's choice and the first suspect for a windows CI
-     failure; and `B3_CPU_X86_X64`, `B3_COMPILER_CLANG` and `B3_COMPILER_GCC` are now
+     failure — **AND IT WAS THE DEFECT; REPAIRED 2026-10-16, Opus 5's BLOCK finding of
+     2026-10-09 carried onto the sprint branch.** clang-cl is this repo's ONLY Windows
+     toolchain, so "upstream's choice" was not a defensible one here: it took the MSVC arm,
+     included `<intrin0.h>`, and then expanded `b3Prefetch` to
+     `_mm_prefetch( ..., _MM_HINT_T0 )`, which that header does not provide. All three MSVC
+     arms now read `#if defined( _MSC_VER ) && !defined( __clang__ )`, the spelling
+     `src/core.h`, `src/ctz.h`, `extern/fixed/include/fixed/fixed.h` and
+     `extern/fixed/include/fixed/fixed_int128.h` already used, and clang-cl keeps
+     `__builtin_prefetch`. **A RED DOES RUN ON THIS BENCH, which is the part the original
+     commit got wrong:** a syntax-only control at the clang-cl target discriminates —
+     `clang --target=x86_64-pc-windows-msvc -fsyntax-only -Iinclude -Iextern/fixed/include
+     -Isrc -isystem <dir with an empty assert.h>` over a TU that includes `platform.h` and
+     expands `b3Prefetch` gives `error: use of undeclared identifier '_MM_HINT_T0'` before
+     the fix and exits 0 after it. The empty `assert.h` stub is needed because the MSVC
+     target has no libc on a Mac; `<intrin0.h>` resolves to clang's own resource-dir copy,
+     so the red is the missing `_MM_HINT_T0` rather than the "file not found" a Windows box
+     gives. **AND A FOURTH DEFECT OF THE SAME FAMILY, found by CI and not by a reader
+     (landing PR #94, leg windows-relwithdebinfo, run 38866007030): `src/core.h`'s
+     `b3AtomicFetchAddI64` called `_InterlockedExchangeAdd64` under a bare
+     `#if defined( _MSC_VER )` with no `<intrin.h>` in that header.** It is not from this
+     upstream commit at all — it arrived on the sprint branch in `3b2344c` (the perf
+     harness, `b3AtomicI64`), which is why main is green on Windows — and it is repaired
+     in the same carriage with the same guard the neighboring `b3AtomicLoadI64` already
+     used, red-first off the same control
+     (`error: call to undeclared library function '_InterlockedExchangeAdd64'`). The lesson
+     for the next pass is the family, not the line: on this fork `_MSC_VER` alone is never
+     the right guard for an MSVC intrinsic. Also: `B3_CPU_X86_X64`, `B3_COMPILER_CLANG` and `B3_COMPILER_GCC` are now
      defined and never read (`B3_COMPILER_MSVC` survives in `src/core.c:4`). Upstream leaves
      all three standing in core.h and so does this port — they are the library's documented
      platform vocabulary and deleting them would be a fork divergence in a file the next
@@ -820,7 +1022,7 @@ The PORT RECORDs below run newest first and are the detail for each step.
     no simulation content, so it does not gate the cursor. No new issue is filed, by that
     practice.
 
-  **VERIFIED:** four configs green after every one of the ten commits, exit codes read from
+  **VERIFIED:** four configs green after every one of the eleven commits, exit codes read from
   the test binary and not from ctest. On the branch head: `build-port` build 0 / test 0,
   `build-ludicrous` build 0 / test 0 (278 subtests, seven more than before group D),
   `build-debug` build 0 / test 0 at ~75 s, `build-samples` build 0.

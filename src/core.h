@@ -122,7 +122,11 @@ typedef struct b3AtomicI64
 
 static inline int64_t b3AtomicFetchAddI64( b3AtomicI64* a, int64_t increment )
 {
-#if defined( _MSC_VER )
+	// clang-cl defines both _MSC_VER and __clang__ and has no declaration of
+	// _InterlockedExchangeAdd64 here (core.h includes no <intrin.h>), so the MSVC arm
+	// excludes it the way b3AtomicLoadI64 below already does and clang-cl takes
+	// __atomic_fetch_add.
+#if defined( _MSC_VER ) && !defined( __clang__ )
 	return (int64_t)_InterlockedExchangeAdd64( (__int64*)&a->value, (__int64)increment );
 #elif defined( __GNUC__ ) || defined( __clang__ )
 	return __atomic_fetch_add( &a->value, increment, __ATOMIC_SEQ_CST );
