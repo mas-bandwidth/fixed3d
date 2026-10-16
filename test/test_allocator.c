@@ -23,6 +23,28 @@ typedef struct
 
 static CountAllocator g_alloc = { 0, 0, 0, 0, 0, false };
 
+// The MSVC C runtime provides no aligned_alloc. Its pair is _aligned_malloc, whose
+// arguments are reversed from C11's, and that memory may only be released by
+// _aligned_free. This mirrors the spelling b3Alloc and b3Free use in src/core.c.
+static void* TestAlignedAlloc( size_t size, size_t alignment )
+{
+#ifdef B3_PLATFORM_WINDOWS
+	return _aligned_malloc( size, alignment );
+#else
+	// C11 requires the size to be a multiple of the alignment; the caller checks that
+	return aligned_alloc( alignment, size );
+#endif
+}
+
+static void TestAlignedFree( void* mem )
+{
+#ifdef B3_PLATFORM_WINDOWS
+	_aligned_free( mem );
+#else
+	free( mem );
+#endif
+}
+
 static void* CountingAlloc( size_t size, int32_t alignment )
 {
 	g_alloc.allocCount += 1;
@@ -43,7 +65,7 @@ static void* CountingAlloc( size_t size, int32_t alignment )
 		g_alloc.maxSize = (int)size;
 	}
 
-	return aligned_alloc( alignment, size );
+	return TestAlignedAlloc( size, (size_t)alignment );
 }
 
 static void CountingFree( void* mem, size_t size )
@@ -56,7 +78,7 @@ static void CountingFree( void* mem, size_t size )
 		g_alloc.badAlignment = true;
 	}
 
-	free( mem );
+	TestAlignedFree( mem );
 }
 
 // The allocator API widening (b3AllocFcn/b3FreeFcn/b3GetByteCount). Installs a
