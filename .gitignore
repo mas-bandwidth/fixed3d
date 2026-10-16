@@ -32,3 +32,10 @@ tending/
 # Upstream ignores its agent instructions file; ours is CLAUDE.md and is tracked on purpose
 # (it carries the port cursor), so only upstream's name is ignored here.
 AGENTS.md
+
+# The four-config script writes its build, test and ctest logs beside the clone, so they
+# appear as untracked files in the repo root. Bench output, never repo content -- seven of
+# them were committed by mistake on this branch and are ignored here with the reason.
+build-*.build.log
+build-*.test.log
+build-*.ctest.log
