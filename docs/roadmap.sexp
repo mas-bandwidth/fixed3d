@@ -114,6 +114,7 @@
   (item "port-f555ee4-tree-node-relayout-and-empty-node-sentinel" :group "export-fixed3d-box3d-ports" :area "fixed3d"
    :title "Port f555ee4 part 1: the dynamic tree node relayout and the empty-node sentinel"
    :text "First half of PR #159: the tree's data layout, with the pair traversal still the old one. Read triage T1.md (porting/triage-2026-10-09/T1.md (read) lines 31 to 280: hunk-group table, API changes, determinism exposure, dependencies) and tla/BroadPhaseTree.tla (the model this card cites from its code)."
+   :exists "The bottom-up layer list for the whole f555ee4 port, seven layers with their guarantees and checks, the golden plan, the tracer bullet and FIVE QUESTIONS FOR GLENN, is at porting/f555ee4-layers-2026-10-09.md (written 2026-10-09 by the daily pass, committed 2026-10-16). Per the standing practice the layers are corrected by Glenn before part 1 is built; the TLA+ model (#70) is merged on the integration branch."
    :why "Moved out of the stopped sprint on 2026-10-14: neither rocketnet nor v1.3 work."
    :date "2026-10-14"
    :origin "sprint card port-f555ee4-tree-node-relayout-and-empty-node-sentinel (stream fixed3d-box3d-ports, column waiting, tier heavy, base sprint/fixed3d-box3d-ports), moved out of the sprint 2026-10-14"
