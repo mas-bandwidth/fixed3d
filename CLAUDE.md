@@ -115,6 +115,21 @@ The PORT RECORDs below run newest first and are the detail for each step.
   GREEN: the 128-bit isotropy test, with the goldens below. (6) `f8a709e` drops the dead
   `compound.h` include from `src/contact.c`, upstream's one remaining engine hunk.
 
+  **SHAs IN COMMIT MESSAGES ARE PRE-REBASE AND ARE NOT REWRITTEN.** `f8a709e`'s message
+  cites `d87beb6` for the rename commit, which is that commit's SHA before this branch was
+  rebased onto the sprint tip; it is `56caab7` now. A message records what was true when it
+  was written, so it stands as written and this line is the mapping.
+
+  **CORRECTION ROUND, after two independent cold reads of `33704d3` (Opus 5 and Fable 5.1).**
+  Both readers reproduced RED exit 1 at `dc3e673`, GREEN exit 0 at `c378876`, the four
+  configs, and both golden counters with their own instruments; NEITHER FOUND A DEFECT IN THE
+  ENGINE CODE, and every finding was in this branch's own record text or in one test bound.
+  `6384beb` corrects `CompoundInertiaConsistency` (the bound from `8` to
+  `6 * B3_FIXED_EPSILON`, and upstream's public-accessor spelling restored beside the precise
+  one at `B3_FIX( 0.02f )`); `b327214` says both roundings, records the measured band and the
+  declined exact spelling, and fixes the headroom arithmetic; this record commit carries the
+  same corrections into the text above and into the per-file accounting.
+
   **THE FIXED-POINT DECISIONS.** (a) The tolerance is a `b3Fixed` throughout the public API,
   `B3_FIX( 0.2f )` by default in `src/types.c`, `b3FixClamp`ed to [0, 1] on world create and
   on every set, because fixed3d's public API is Q48.16 and not float. (b) THE ISOTROPY TEST
@@ -125,12 +140,32 @@ The PORT RECORDs below run newest first and are the detail for each step.
   429025 raw-squared units, so a 64-bit spelling would report every small body isotropic —
   the opposite of the fix. `b3DotRaw` gives the exact 128-bit sums; the doublings are exact
   adds; `mean` is an integer division of the raw trace by 3, an exact floor carrying no
-  rounding policy of its own. THE ONE ROUNDING IN THE WHOLE TEST is
-  `tm = b3FixMul( tolerance, mean )`, folded before squaring because the four Q48.16 factors
-  of `3 * tolerance^2 * mean^2` could reach 2^128 spelled apart. Headroom stated as a bound:
-  the largest inertia the engine is designed for (the shipping asteroid's 8.1e10 units, see
-  `src/inverse.h`) is raw ~2^52, its square 2^104, and the five-term doubled sum stays near
-  2^107. (c) The inertia field move retires `inertiaLocal` and `b3SetLocalInverseInertia`
+  rounding policy of its own. THERE ARE TWO ROUNDINGS, and the branch's first
+  comments claimed one. The dominant one is the TRUNCATION of the trace divided by three: a
+  C integer division toward zero, up to 2 raw units under the true mean, which the branch
+  had called "an exact floor that carries no rounding policy of its own" -- wrong twice,
+  since a floor is a rounding and truncation toward zero is not a floor. The second is the
+  half-up rounding of `tm = b3FixMul( tolerance, mean )`, folded before squaring because the
+  four Q48.16 factors of `3 * tolerance^2 * mean^2` could reach 2^128 spelled apart. WHAT
+  THE PAIR COSTS, measured by both cold readers against an exact-arithmetic reference of the
+  same predicate: the two spellings disagree ONLY within 1 to 2 raw units of tm around the
+  threshold -- 0.018 percent of the crossover at scale 0.5, up to about 3 percent for
+  tensors whose entries are only tens of raw units (a 1x1x2 box at mass 0.001). Every
+  disagreement found at scales 0.01 and 0.5 was the truncation and none was tm; the clean
+  case is a thin rod with diagonal (1, 1, 0) at tolerance 1, an exact tie where upstream's
+  `>` gives OFF while the truncated mean inflates the deviator and gives ON. Every flip goes
+  port ON where exact says OFF, the CONSERVATIVE side, and no exactly isotropic diagonal is
+  ever flipped, because such a trace is divisible by 3. AN EXACT SPELLING EXISTS AND IS
+  DECLINED FOR THIS STEP, recorded as declined and not as a defect: scaling the predicate by
+  three makes `3 * I_ii - trace` exact, leaves `tm' = b3FixMul( tolerance, trace )` as the
+  only rounding and buys about 3.2 more bits of headroom, but it can flip bodies inside the
+  band and so move goldens, which is a second step with its own red test and its own
+  attribution. Headroom stated as a bound: the largest inertia the engine is designed for
+  (the shipping asteroid's 8.1e10 units, see `src/inverse.h`) is raw ~2^52, its square 2^104,
+  and since `deviation` is SIX squared terms (three diagonal plus three off-diagonal counted
+  twice) its worst case is 9 * 2^104 and the doubled sum is about 2^108.6, about 2^18 under
+  the 2^127 limit -- not the "five-term sum near 2^107, some 2^20 below" the branch first
+  claimed. (c) The inertia field move retires `inertiaLocal` and `b3SetLocalInverseInertia`
   (above); `b3FloorInertia` stays where it was and now floors `bodySim->inertia` — a fixed3d
   guard with no upstream counterpart, coupled to `B3_INVERSE_FRACTION_BITS`, not a knob to
   turn here. (d) `CompoundInertiaConsistency` uses
@@ -139,8 +174,14 @@ The PORT RECORDs below run newest first and are the detail for each step.
   density of WATER, so the compound's world inverse diagonal is 63 / 445 / 322 RAW units and
   the public accessor's identity check comes out 783 raw units (1.2 percent) off — the
   accessor's error, not the engine's. With the precise spelling all nine entries are within
-  5 raw units, so (e) upstream's `1.0e-4` TOLERANCE FLOORS to this tree's
-  `8 * B3_FIXED_EPSILON` and the assert is TIGHTER than upstream's. Upstream's two precession
+  5 raw units. (e) Upstream's `1.0e-4` is 6.55 raw units here, so the bound is
+  `6 * B3_FIXED_EPSILON`, the FLOOR of upstream's and the tightest whole multiple of the
+  quantum at or under it. The branch's first spelling, `8 * B3_FIXED_EPSILON`, was LOOSER
+  than upstream's with a comment claiming it was tighter; corrected in `6384beb`. The PUBLIC
+  accessor keeps a consistency check of its own in the same test, upstream's spelling
+  (`b3Body_GetWorldInverseRotationalInertia` through `b3MulMM`) at `B3_FIX( 0.02f )`, a bound
+  derived from the truncation re-measured on 2026-10-16: 783 raw units off the identity at
+  the first rotation and 724 at the second, against 5 raw for the precise accessor. Upstream's two precession
   bounds in `IsotropicInertiaTolerance` are kept at their upstream values, with the margin
   measured at each site (the plank drifts 52893 raw against the 0.01 bound's 655; the
   tolerance-zero rock 346 against the 0.001 bound's 65). (f) RECORDING: new op
@@ -216,8 +257,9 @@ The PORT RECORDs below run newest first and are the detail for each step.
     nothing upstream uses it any more. Here `b3Skew` is the differential ORACLE for this
     tree's own `b3SkewSandwich` primitive: `SkewSandwichTest` (test/test_math.c) compares
     `b3MulMM( b3Skew( r ), b3MulMM( m, b3Skew( r ) ) )` against `b3SkewSandwich( m, r )` over
-    6144 random matrices across six scales, and the five joints call `b3SkewSandwich`, never
-    `b3Skew`. Taking the hunk would delete the reference implementation the test checks
+    6144 random matrices across six scales, and FOUR joints call `b3SkewSandwich` (motor, revolute,
+    spherical, weld), never `b3Skew`; `src/wheel_joint.c` carries the same comment and calls
+    neither. Taking the hunk would delete the reference implementation the test checks
     against.
   - `src/motor_joint.c`, `src/revolute_joint.c`, `src/spherical_joint.c`, `src/weld_joint.c`
     (-1 line each, two in motor) — **SKIPPED, same root.** Upstream's hunks delete the
@@ -249,7 +291,9 @@ The PORT RECORDs below run newest first and are the detail for each step.
     double goldens, this tree re-harvests the Q48.16 ones (table above).
   - `test/test_recording.c` (+15) — PORTED: the `AllOps` free-spinning rod in `dc3e673`, and
     `PreviousSnapshotVersionRefused` moved to 6u in `f6916e8`.
-  - `test/test_world.c` (+8) — PORTED, `dc3e673`: the def and clamp check in `B3_FIX` values.
+  - `test/test_world.c` (+8) — PORTED, `dc3e673`: the setter and getter exercised, then the
+    clamp at its UPPER end only (2.0 comes back 1.0), which is the same shape as upstream's
+    hunk; neither upstream's hunk nor this one touches `b3WorldDef`.
 
   **HOLDS:** the samples half only (`samples/sample_bodies.cpp`, fixed3d#20 / fixed3d#47
   class). Nothing else of this upstream commit is outstanding.
