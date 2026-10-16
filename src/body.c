@@ -933,15 +933,55 @@ b3BodyTOIResult b3Body_TimeOfImpactMover( b3BodyId bodyId, b3Pos origin, const b
 // stops a sphere-like body from precessing on nothing but rounding.
 // https://en.wikipedia.org/wiki/Cauchy_stress_tensor#Stress_deviator_tensor
 //
-// THE ISOTROPY TEST ARRIVES IN THE NEXT COMMIT. This one sets the flag unconditionally,
-// so every body still runs the gyroscopic block exactly as it did before and no golden
-// can move for the plumbing alone. The test that proves the gating is needed is committed
-// red against this state.
+// THE WHOLE TEST IS AT 128 BITS, AND THAT IS THE ONLY WAY IT CAN WORK HERE. Every term on
+// both sides is a SQUARE of a small number, and b3FixMul of two operands below about 0.004
+// is exactly zero (hard-won rule 1) -- which is precisely the range these values live in.
+// MEASURED on a 0.5 m b3CreateRock: the local diagonal is near 0.05 after density scaling
+// cancels out, the deviator entries are near 0.01, and b3FixMul of two of those is 7 raw
+// units against a true product of 429025 raw-squared units. A 64-bit spelling would
+// compare handfuls of raw units against each other, with the smaller bodies' terms
+// quantized to zero outright, and report every small body isotropic.
 static void b3UpdateIsotropicInertia( b3World* world, b3Body* body, b3BodySim* bodySim )
 {
-	B3_UNUSED( bodySim );
+	b3Matrix3 inertia = bodySim->inertia;
 
-	body->flags |= b3_enableGyroscopicTorque;
+	// The trace divided by three as an INTEGER division on the raw value: an exact floor
+	// that carries no rounding policy of its own, and the quotient is the mean in the same
+	// Q48.16 units as the diagonal it came from.
+	b3Fixed mean = ( inertia.cx.x + inertia.cy.y + inertia.cz.z ) / 3;
+
+	b3Vec3 deviator = { inertia.cx.x - mean, inertia.cy.y - mean, inertia.cz.z - mean };
+	b3Vec3 offDiagonal = { inertia.cy.x, inertia.cz.x, inertia.cz.y };
+
+	// deviation is the squared Frobenius matrix norm of the deviator: dx^2 + dy^2 + dz^2
+	// plus twice the three off-diagonal squares. b3DotRaw is the exact 128-bit sum of
+	// products with no per-component rounding, and the doubling is one more exact add.
+	// https://en.wikipedia.org/wiki/Matrix_norm
+	b3Int128 offSquared = b3DotRaw( offDiagonal, offDiagonal );
+	b3Int128 deviation = fixInt128Add( b3DotRaw( deviator, deviator ), fixInt128Add( offSquared, offSquared ) );
+
+	// Upstream's test is 2 * deviation > 3 * tolerance^2 * mean^2. Spelled with four Q48.16
+	// factors the right side could reach 2^128, so the pair is folded into one Q48.16 value
+	// first -- tm = tolerance * mean, the ONE rounding in the whole test -- and squared
+	// exactly. The tolerance is clamped to [0, 1], so tm never exceeds mean and the square
+	// stays in the same range as deviation's terms.
+	//
+	// HEADROOM, so the 128 bits are a bound and not a hope: the largest inertia this engine
+	// is designed for is the shipping asteroid's 8.1e10 units (see src/inverse.h), raw
+	// 5.3e15 or about 2^52, whose square is 2^104; the five-term doubled sum stays near
+	// 2^107, some 2^20 below the limit.
+	b3Fixed tm = b3FixMul( world->isotropicInertiaTolerance, mean );
+	b3Int128 tmSquared = fixInt128MulI64( tm, tm );
+	b3Int128 threshold = fixInt128Add( fixInt128Add( tmSquared, tmSquared ), tmSquared );
+
+	if ( fixInt128Gt( fixInt128Add( deviation, deviation ), threshold ) )
+	{
+		body->flags |= b3_enableGyroscopicTorque;
+	}
+	else
+	{
+		body->flags &= ~b3_enableGyroscopicTorque;
+	}
 
 	b3SyncBodyFlags( world, body );
 }

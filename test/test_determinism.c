@@ -45,35 +45,53 @@
 // moves the ragdoll again: 354 -> 408 (narrow 0xD8C71580 -> 0x69572D49, ludicrous
 // 0xD13E51C0 -> 0x7D29E209). Re-harvested on this bench by the printed-value procedure,
 // identical across workers 1-5 and across two generation runs.
-#define RAGDOLL_SLEEP_STEP 408
+// The efca0c1 isotropic inertia tolerance moves it again, 408 -> 445 (narrow 0x69572D49 ->
+// 0xEA6AB7F3, ludicrous 0x7D29E209 -> 0x78FA1BB3): the ragdoll bones that read as
+// near-isotropic stop receiving gyroscopic torque. MEASURED with a temporary counter on
+// the new gating branch: MultithreadingTest evaluates it 560 times and gates 80 of them
+// off, so this move rests on a count and not on the goldens happening to shift.
+#define RAGDOLL_SLEEP_STEP 445
 #if defined( BOX3D_LUDICROUS_MODE )
-#define RAGDOLL_HASH 0x7D29E209
+#define RAGDOLL_HASH 0x78FA1BB3
 #else
-#define RAGDOLL_HASH 0x69572D49
+#define RAGDOLL_HASH 0xEA6AB7F3
 #endif
 
 // Goldens for the wave pile, query spawn and mesh drop scenarios. Fixed-point goldens
 // hold across platforms and worker counts by construction. The sleep steps are shared
 // between builds; the hashes cover absolute transform bytes, so the ludicrous build
 // (128-bit positions, 80-byte b3WorldTransform) carries its own values.
+// The efca0c1 isotropic inertia tolerance moves wave pile 335 -> 408 (narrow 0x64609ED9 ->
+// 0x097799BA, ludicrous 0x22E6F859 -> 0x8505BDFA) and the query spawn HASH only, 0x250D3BFA
+// -> 0xABB0840D narrow and 0xC3538B7A -> 0x31565ACD ludicrous; its sleep step, hit count and
+// query hash all HOLD. MESH DROP HOLDS ENTIRELY, and that is a COUNT and not a hope: a
+// temporary counter on the new gating branch read MeshDropTest tested=800 fired=0 in BOTH
+// numeric modes -- every mesh-drop body is anisotropic enough to keep its gyroscopic torque,
+// so the gate changes nothing there. For comparison WavePileTest read 500/250 and
+// QuerySpawnTest 250/75. The counter was removed before the commit. RE-MEASURED 2026-10-16
+// with an independent instrument, both numeric modes identical: WavePileTest tested=500
+// fired=250, MeshDropTest tested=800 fired=0. TESTED counts isotropy evaluations, one per
+// mass-data update; FIRED counts the ones where the gate turned the gyroscopic solve OFF.
+// At the solver gate itself, which runs once per body per substep, the same two runs read
+// wave pile 696700 evaluations with 343580 solves and mesh drop 426416 with 426416.
 // The speculative sphere/capsule margin and contact-recycle flag change the
 // contact history in wave pile and query spawn. Harvested on Linux after the
 // a2e4816 port: workers 1-5 match each other in two independent runs of each
 // numeric mode. The 9e5a4cd CCD time-loss gravity fix (G3) moves mesh drop
 // 210 -> 284 (narrow 0x491E324B -> 0x784AD80A, ludicrous 0xDB1DA8B9 ->
 // 0xE44E6A0E); wave pile and query spawn do not trigger CCD and are unchanged.
-#define WAVE_PILE_SLEEP_STEP 335
+#define WAVE_PILE_SLEEP_STEP 408
 #define QUERY_SPAWN_SLEEP_STEP 243
 #define QUERY_SPAWN_HIT_COUNT 59
 #define QUERY_SPAWN_QUERY_HASH 0xE583B246
 #define MESH_DROP_SLEEP_STEP 284
 #if defined( BOX3D_LUDICROUS_MODE )
-#define WAVE_PILE_HASH 0x22E6F859
-#define QUERY_SPAWN_HASH 0xC3538B7A
+#define WAVE_PILE_HASH 0x8505BDFA
+#define QUERY_SPAWN_HASH 0x31565ACD
 #define MESH_DROP_HASH 0xE44E6A0E
 #else
-#define WAVE_PILE_HASH 0x64609ED9
-#define QUERY_SPAWN_HASH 0x250D3BFA
+#define WAVE_PILE_HASH 0x097799BA
+#define QUERY_SPAWN_HASH 0xABB0840D
 #define MESH_DROP_HASH 0x784AD80A
 #endif
 
@@ -85,11 +103,14 @@
 // moves it again: 331 -> 219 (narrow 0xCD6AC1EB -> 0xD945B8B3, ludicrous
 // 0xCD75B56B -> 0x407D12F3). Re-harvested on this bench, identical across workers 1-5
 // and across two generation runs.
-#define RAGDOLL_HUMAN_SLEEP_STEP 219
+// The efca0c1 isotropic inertia tolerance moves it again, 219 -> 211 (narrow 0xD945B8B3 ->
+// 0x63A05BAB, ludicrous 0x407D12F3 -> 0xBAF2FE2B). Counter on the new gating branch:
+// RagdollHumanTest tested=70 fired=10 in both numeric modes.
+#define RAGDOLL_HUMAN_SLEEP_STEP 211
 #if defined( BOX3D_LUDICROUS_MODE )
-#define RAGDOLL_HUMAN_HASH 0x407D12F3
+#define RAGDOLL_HUMAN_HASH 0xBAF2FE2B
 #else
-#define RAGDOLL_HUMAN_HASH 0xD945B8B3
+#define RAGDOLL_HUMAN_HASH 0x63A05BAB
 #endif
 
 // The goldens above pin exact values for the default four point manifold. A build that
@@ -552,10 +573,17 @@ static int SphericalGeometryTest( void )
 {
 	// Captured from the uncached solver. A stale but consistently wrong cache
 	// must fail too, even if its results happen to agree across worker counts.
+	// Re-harvested for the efca0c1 isotropic inertia tolerance: every body in this
+	// scenario is a sphere or a capsule and reads as isotropic, so the gate turns the
+	// gyroscopic solve off for ALL of them -- counter tested=2576 fired=2576 in both
+	// numeric modes -- and both scales move. Narrow 0xccf165f88a73ebb7 ->
+	// 0x6e1f34fc9823e94f and 0x2add50ab7852c3ce -> 0xe83e64c611aca938; ludicrous
+	// 0xee343d0d530f22f1 -> 0x0abd3ff5cb75f121 and 0x46256d278ff09af2 ->
+	// 0x112e3b045ca4bd5b.
 #if defined( BOX3D_LUDICROUS_MODE )
-	const uint64_t goldens[2] = { UINT64_C( 0xee343d0d530f22f1 ), UINT64_C( 0x46256d278ff09af2 ) };
+	const uint64_t goldens[2] = { UINT64_C( 0x0abd3ff5cb75f121 ), UINT64_C( 0x112e3b045ca4bd5b ) };
 #else
-	const uint64_t goldens[2] = { UINT64_C( 0xccf165f88a73ebb7 ), UINT64_C( 0x2add50ab7852c3ce ) };
+	const uint64_t goldens[2] = { UINT64_C( 0x6e1f34fc9823e94f ), UINT64_C( 0xe83e64c611aca938 ) };
 #endif
 	for ( int scale = 0; scale < 2; ++scale )
 	{

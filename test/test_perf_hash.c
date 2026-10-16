@@ -25,7 +25,14 @@
 
 // Captured on the scalar RelWithDebInfo+VALIDATE build, 2026-10-15. Workers 1 and 4
 // printed the same value before this constant was pinned (red line: hashOne == 0).
-#define PERF_STATE_HASH_GOLDEN UINT64_C( 0xc4f45e4c6b5534e6 )
+// Re-harvested for the efca0c1 isotropic inertia tolerance, 0xc4f45e4c6b5534e6 ->
+// 0xe6a944fb4ffb2707: the ten dynamic boxes here are cubes, so every one of them reads as
+// isotropic and the gate turns the gyroscopic solve off for all of them -- counter on the
+// new gating branch read tested=20 fired=20. Workers 1 and 4 print the same value, and it
+// is the same in the narrow, ludicrous and Debug+ASan builds (this scene has no mesh and
+// no large coordinate, so the hash is numeric-mode independent). The counter was removed
+// before the commit.
+#define PERF_STATE_HASH_GOLDEN UINT64_C( 0xe6a944fb4ffb2707 )
 
 static uint64_t PerfHashValue( uint64_t hash, int64_t value )
 {
