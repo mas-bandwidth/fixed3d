@@ -10,6 +10,7 @@ Planned work for fixed3d. Each item below was an open sprint card, moved out of 
 - [Moved out of the sprint on 2026-10-14: fixed3d-box3d-ports](#moved-out-of-the-sprint-on-2026-10-14-fixed3d-box3d-ports) (6)
 - [Moved out of the sprint on 2026-10-14: fixed3d-perf](#moved-out-of-the-sprint-on-2026-10-14-fixed3d-perf) (1)
 - [Moved out of the sprint on 2026-10-15: fixed3d-arch-opt](#moved-out-of-the-sprint-on-2026-10-15-fixed3d-arch-opt) (22)
+- [Upstream box3d past the 2026-10-09 plan: 5d83df8..efca0c1, triaged 2026-10-16](#upstream-box3d-past-the-2026-10-09-plan-5d83df8efca0c1-triaged-2026-10-16) (2)
 
 ## Moved from GitHub issues on 2026-10-14
 
@@ -114,6 +115,8 @@ From: sprint card port-16f7f4c-mesh-contact-scratch-to-the-arena (stream fixed3d
 ### Port f555ee4 part 1: the dynamic tree node relayout and the empty-node sentinel
 
 First half of PR #159: the tree's data layout, with the pair traversal still the old one. Read triage T1.md (porting/triage-2026-10-09/T1.md (read) lines 31 to 280: hunk-group table, API changes, determinism exposure, dependencies) and tla/BroadPhaseTree.tla (the model this card cites from its code).
+
+Already in the code: The bottom-up layer list for the whole f555ee4 port, seven layers with their guarantees and checks, the golden plan, the tracer bullet and FIVE QUESTIONS FOR GLENN, is at porting/f555ee4-layers-2026-10-09.md (written 2026-10-09 by the daily pass, committed 2026-10-16). Per the standing practice the layers are corrected by Glenn before part 1 is built; the TLA+ model (#70) is merged on the integration branch.
 
 Why it waits: Moved out of the stopped sprint on 2026-10-14: neither rocketnet nor v1.3 work.
 
@@ -326,3 +329,25 @@ SPIKE CONTRACT (KIND: spike; Glenn's tracer-bullet rule). Its end is stated befo
 Why it waits: Scoped out of the sprint by Glenn 2026-10-15 ("I want nothing in it except the tools/sprint work and rocketnet and schema. The rest should go out to the appropriate roadmap."): not tools/sprint, rocketnet or schema work.
 
 From: sprint card spike-f3d-sve2-non-streaming-m6 (stream fixed3d-arch-opt, column waiting, tier pro, base sprint/fixed3d-box3d-ports), moved out of the sprint 2026-10-15
+
+## Upstream box3d past the 2026-10-09 plan: 5d83df8..efca0c1, triaged 2026-10-16
+
+The four upstream commits after plan #65's range (box3d 2026-10-12 to 2026-10-15), triaged by the daily Box3D to Fixed3D pass on 2026-10-16 against the integration branch sprint/fixed3d-box3d-ports. Oldest first: a2e4816 'Fixes for #175 (#187)' is PORTED on that branch (card fixed3d-box3d-ports-manifold-block, PR #75: the speculative margin in the sphere and capsule routines, the recycle flag only when speculative points are on, a freed manifold invalidates the recycling cache; its docs/faq.md hunk is skipped as docs). 8128d74 'Discussion template (#185)' is SKIPPED: a .github discussion template, repository configuration for upstream's own discussions, no simulation content. 0cfc475 'Solver stuff (#189)' is HELD for a design-first port step, the first item below. efca0c1 'Gyro tolerance (#191)' is PORTED, engine half, carried ahead of the cursor, the second item below until its PR merges. The cursor clause in CLAUDE.md on the integration branch names the same four; nothing here moves the cursor, which advances with PR #94.
+
+### Port 0cfc475 'Solver stuff (#189)': the revolute and spherical axial solve merge, design first; the point-constraint helper is already satisfied
+
+Upstream 0cfc475 (2026-10-14) does three things. (1) A new b3SolvePointConstraint in src/joint.h expands skew(r) * invI * skew(r) term by term and solves the 3x3 system by cofactors with a 1000 * FLT_MIN determinant guard, replacing b3Skew + b3MulMM + b3Solve3 in the motor, weld, revolute and spherical joints. ALREADY SATISFIED here in structure: fixed3d's joints build K with b3SkewSandwich and solve with b3Solve3AcrossScales (src/motor_joint.c 380-387, weld 279-286, revolute 586-593, spherical 662-669), and the float determinant guard has no fixed-point analogue because b3Solve3AcrossScales carries its own refusal. Verify term by term, then claim it in the record. (2) The revolute and spherical joints merge their spring, motor and limit solves into one block that holds a running cdot, precomputes the inverse-inertia response of the axis once, and applies the accumulated impulse to wA and wB once at the end, instead of re-reading wB - wA after each sub-solve. In Q48.16 that is a reassociation, not a rewrite (CLAUDE.md hard-won rule: reassociations are not free; b3Lerp moved a ragdoll sleep step 287 to 453), so it moves goldens; upstream's own goldens moved for every scene in both precisions (ragdoll, wave pile, query spawn, mesh drop). Port it as its own step with every golden harvested in narrow and ludicrous modes across worker counts 1 to 5 and attributed, or refuse it with the measurement; decide after a design read, not before. (3) The contact_solver_wide.inl hunk has no analogue: fixed3d has its own wide solver gated to AVX-512. b3Skew is deleted upstream and has no users here either; delete it with the step.
+
+Why it waits: Triage 2026-10-16 by the daily pass: a solver reassociation that moves goldens needs a design step before code, per the port rules; held rather than skipped because the merged axial solve is the live upstream spelling the next joint commit will build on.
+
+From: upstream erincatto/box3d 0cfc475 'Solver stuff (#189)' (2026-10-14), triaged 2026-10-16 by the daily Box3D to Fixed3D pass
+
+### Port efca0c1 'Gyro tolerance (#191)': an isotropic inertia tolerance gates gyroscopic torque
+
+Upstream efca0c1 (2026-10-15) adds b3WorldDef::isotropicInertiaTolerance (default 0.2, clamped [0, 1]) with set and get, a recorded op and a snapshot field; computes the squared Frobenius norm of the inertia deviator and sets a new body flag b3_enableGyroscopicTorque only when 2 * deviation > 3 * tolerance^2 * mean^2; runs the gyroscopic Newton-Raphson only under the flag; moves the local inertia from b3Body to b3BodySim and reads it directly in the solve; renames b3_bodyEnableContactRecycling to b3_enableContactRecycling. Fixed-point decisions taken for the port: the tolerance is a b3Fixed; the isotropy test is computed in exact 128-bit raw products (a b3FixMul of two values below about 0.004 is zero, and the deviations of a half-meter body are in that range), with the mean as the raw trace divided by 3; the inertia field moves to b3BodySim and the gyro solve reads the true inertia, retiring the stored round-trip inertiaLocal (goldens move anyway for the gating); the field move and the gating are separate commits so each golden move is attributed; sizeof( b3Body ) and sizeof( b3BodySim ) measured in both configs; recording op 0x70 with minor version 8 to 9 and snapshot version 5 to 6. The samples hunk (sample_bodies.cpp) is held under the standing samples hold (#20, #47). Red first: upstream's two body tests ported to Q48.16 and seen failing before the gating exists.
+
+Already in the code: Work in progress 2026-10-16 on branch port/efca0c1-gyro-tolerance against sprint/fixed3d-box3d-ports; resume from it, do not start over.
+
+Why it waits: Triage 2026-10-16 by the daily pass: PORT, engine half, carried ahead of the cursor; an independent change with its own tests and no dependency on the open f555ee4 and 16f7f4c steps.
+
+From: upstream erincatto/box3d efca0c1 'Gyro tolerance (#191)' (2026-10-15), triaged 2026-10-16 by the daily Box3D to Fixed3D pass
