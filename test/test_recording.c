@@ -969,22 +969,6 @@ static int TaggedQuery( void )
 // Empty world: recording starts with no bodies and none are ever created. The empty world is still
 // seed-serialized like any other, so replay validates and Restart restores in place with a stable
 // world id rather than tearing down and rebuilding the world.
-// Safety factor of the named body in a replay world, or -1 if the body is not in the list
-static b3Fixed ReplaySafetyFactor( b3RecPlayer* player, const char* name )
-{
-	int count = b3RecPlayer_GetBodyCount( player );
-	for ( int i = 0; i < count; ++i )
-	{
-		b3BodyId bodyId = b3RecPlayer_GetBodyId( player, i );
-		if ( b3Body_IsValid( bodyId ) && strcmp( b3Body_GetName( bodyId ), name ) == 0 )
-		{
-			return b3Body_GetSafetyFactor( bodyId );
-		}
-	}
-
-	return -B3_FIX( 1.0f );
-}
-
 static int EmptyWorldRoundTrip( void )
 {
 	b3Recording* rec = b3CreateRecording( 0 );
@@ -1083,6 +1067,22 @@ static int PreviousSnapshotVersionRefused( void )
 	b3Free( old, (size_t)size );
 	b3DestroyRecording( rec );
 	return 0;
+}
+
+// Safety factor of the named body in a replay world, or -1 if the body is not in the list
+static b3Fixed ReplaySafetyFactor( b3RecPlayer* player, const char* name )
+{
+	int count = b3RecPlayer_GetBodyCount( player );
+	for ( int i = 0; i < count; ++i )
+	{
+		b3BodyId bodyId = b3RecPlayer_GetBodyId( player, i );
+		if ( b3Body_IsValid( bodyId ) && strcmp( b3Body_GetName( bodyId ), name ) == 0 )
+		{
+			return b3Body_GetSafetyFactor( bodyId );
+		}
+	}
+
+	return -B3_FIX( 1.0f );
 }
 
 // Exercise every recorded op in a single session, then validate replay at two worker
