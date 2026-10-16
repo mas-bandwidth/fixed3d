@@ -41,9 +41,11 @@ ALREADY SATISFIED here by `b3SkewSandwich` + `b3Solve3AcrossScales`, verify term
 claiming; the revolute and spherical merge of spring, motor and limit solves against one running
 `cdot` is a reassociation (hard-won rule below: reassociations are not free) that moved every
 upstream golden in both precisions; the `contact_solver_wide.inl` hunk has no analogue here.
-`efca0c1` Gyro tolerance (#191) — PORT, engine half, in progress on `port/efca0c1-gyro-tolerance`
-against this branch (roadmap item `port-efca0c1-gyro-tolerance`), CARRIED AHEAD OF THE CURSOR when
-it merges here; its samples hunk is held under the #20 / #47 class.
+`efca0c1` Gyro tolerance (#191) — PORTED, engine half, on `port/efca0c1-gyro-tolerance` against
+this branch (roadmap item `port-efca0c1-gyro-tolerance`), CARRIED AHEAD OF THE CURSOR: its record is
+the newest PORT RECORD below, and the cursor itself does not move for it (the cursor is `47d7f7c`
+and advances to `954cf87` with the merge of `port/954cf87-fixes`, not for this carry). Its samples
+hunk is held under the #20 / #47 class.
 
 *(~~THIS LINE ADVANCES WITH THE MERGE OF `port/47d7f7c-clockwise-mover`, NOT BEFORE~~ —
 **DISCHARGED 2026-09-03, verified rather than assumed: `port/47d7f7c-clockwise-mover`
@@ -85,6 +87,184 @@ so a cursor line written on a branch says *closes with*, and the run that merges
 and says *closed*. Record below.)*
 
 The PORT RECORDs below run newest first and are the detail for each step.
+
+- **PORT RECORD efca0c1 "Gyro tolerance (#191)" (2026-10-15) — PORTED, engine half, CARRIED
+  AHEAD OF THE CURSOR (branch `port/efca0c1-gyro-tolerance`, roadmap item
+  `port-efca0c1-gyro-tolerance`).** Upstream gives `b3WorldDef` an
+  `isotropicInertiaTolerance`, computes per body whether the local inertia tensor is close
+  enough to isotropic, and skips the gyroscopic Newton-Raphson solve for those bodies: a
+  near-spherical tensor was precessing on nothing but rounding. The same commit moves
+  `b3Body::inertia` to `b3BodySim` so the solve reads the tensor instead of inverting
+  `invInertiaLocal` once per body per substep, and renames
+  `b3_bodyEnableContactRecycling` to `b3_enableContactRecycling`.
+
+  **THE COMMITS OF THIS BRANCH, in order.** (1) `56caab7` the flag rename, alone, so the
+  gating commit carries only the gating. (2) `f6916e8` the inertia field move: the matrix
+  leaves `b3Body` for `b3BodySim`, which RETIRES this tree's duplicate `bodySim->inertiaLocal`
+  and its single writer `b3SetLocalInverseInertia` rather than adding a field — the duplicate
+  already held `body->inertia` verbatim, so the gyro block reads the same bytes and no golden
+  can move; measured green in all three test configurations. (3) `dc3e673` RED: the whole of
+  upstream's plumbing with the ISOTROPY TEST DELIBERATELY ABSENT, so
+  `IsotropicInertiaTolerance` is committed seen failing (`condition false:
+  HasGyroscopicTorque( rockId ) == false`), and the physics red measured separately with
+  softened ENSUREs: ten free-flight steps at zero gravity and zero torque leave the rock's
+  angular velocity at raw (65224, -131090, 196757) against the authored (65536, -131072,
+  196608) — THE ROCK PRECESSES, which is the bug. (4) `fbbdd61` untracks the seven
+  `build-*.{build,test}.log` files the first commit had committed by mistake and ignores
+  them with the reason (the four-config script writes them beside the clone). (5) `c378876`
+  GREEN: the 128-bit isotropy test, with the goldens below. (6) `f8a709e` drops the dead
+  `compound.h` include from `src/contact.c`, upstream's one remaining engine hunk.
+
+  **THE FIXED-POINT DECISIONS.** (a) The tolerance is a `b3Fixed` throughout the public API,
+  `B3_FIX( 0.2f )` by default in `src/types.c`, `b3FixClamp`ed to [0, 1] on world create and
+  on every set, because fixed3d's public API is Q48.16 and not float. (b) THE ISOTROPY TEST
+  IS EVALUATED AT 128 BITS, and that is the only way it can work here: every term on both
+  sides is the SQUARE OF A SMALL NUMBER, and `b3FixMul` of two operands below about 0.004 is
+  exactly zero (hard-won rule 1). Measured on a 0.5 m `b3CreateRock`, the deviator entries
+  are near 0.01 and `b3FixMul` of two of those is 7 raw units against a true product of
+  429025 raw-squared units, so a 64-bit spelling would report every small body isotropic —
+  the opposite of the fix. `b3DotRaw` gives the exact 128-bit sums; the doublings are exact
+  adds; `mean` is an integer division of the raw trace by 3, an exact floor carrying no
+  rounding policy of its own. THE ONE ROUNDING IN THE WHOLE TEST is
+  `tm = b3FixMul( tolerance, mean )`, folded before squaring because the four Q48.16 factors
+  of `3 * tolerance^2 * mean^2` could reach 2^128 spelled apart. Headroom stated as a bound:
+  the largest inertia the engine is designed for (the shipping asteroid's 8.1e10 units, see
+  `src/inverse.h`) is raw ~2^52, its square 2^104, and the five-term doubled sum stays near
+  2^107. (c) The inertia field move retires `inertiaLocal` and `b3SetLocalInverseInertia`
+  (above); `b3FloorInertia` stays where it was and now floors `bodySim->inertia` — a fixed3d
+  guard with no upstream counterpart, coupled to `B3_INVERSE_FRACTION_BITS`, not a knob to
+  turn here. (d) `CompoundInertiaConsistency` uses
+  `b3Body_GetWorldInverseRotationalInertiaPrecise` (Q24.40) through `b3InvMulMV`, one column
+  at a time, instead of upstream's public Q48.16 accessor: `b3DefaultShapeDef` here is the
+  density of WATER, so the compound's world inverse diagonal is 63 / 445 / 322 RAW units and
+  the public accessor's identity check comes out 783 raw units (1.2 percent) off — the
+  accessor's error, not the engine's. With the precise spelling all nine entries are within
+  5 raw units, so (e) upstream's `1.0e-4` TOLERANCE FLOORS to this tree's
+  `8 * B3_FIXED_EPSILON` and the assert is TIGHTER than upstream's. Upstream's two precession
+  bounds in `IsotropicInertiaTolerance` are kept at their upstream values, with the margin
+  measured at each site (the plank drifts 52893 raw against the 0.01 bound's 655; the
+  tolerance-zero rock 346 against the 0.001 bound's 65). (f) RECORDING: new op
+  `0x70 WorldSetIsotropicInertiaTolerance` with `ARG( F32, tolerance )`, this tree's tag for
+  a `b3Fixed` scalar, the opcode-range comment extended, `B3_REC_VERSION_MINOR` 8 -> 9, and
+  the dispatcher in `src/recording_replay.c` (this tree's name for upstream's `replay.c`).
+  (g) SNAPSHOT: `B3_SNAP_VERSION` 5u -> 6u for the body-sim layout change, the tolerance
+  written and read as `sizeof( b3Fixed )` right after `maxLinearSpeed`, and
+  `PreviousSnapshotVersionRefused` sweeping versions 3 through 5.
+
+  **GOLDENS.** Sleep steps are shared between the numeric modes; hashes are per mode because
+  they cover absolute transform bytes.
+
+  | golden | narrow before -> after | ludicrous before -> after |
+  |---|---|---|
+  | `RAGDOLL_SLEEP_STEP` | 408 -> 445 | 408 -> 445 |
+  | `RAGDOLL_HASH` | 0x69572D49 -> 0xEA6AB7F3 | 0x7D29E209 -> 0x78FA1BB3 |
+  | `WAVE_PILE_SLEEP_STEP` | 335 -> 408 | 335 -> 408 |
+  | `WAVE_PILE_HASH` | 0x64609ED9 -> 0x097799BA | 0x22E6F859 -> 0x8505BDFA |
+  | `QUERY_SPAWN_HASH` | 0x250D3BFA -> 0xABB0840D | 0xC3538B7A -> 0x31565ACD |
+  | `RAGDOLL_HUMAN_SLEEP_STEP` | 219 -> 211 | 219 -> 211 |
+  | `RAGDOLL_HUMAN_HASH` | 0xD945B8B3 -> 0x63A05BAB | 0x407D12F3 -> 0xBAF2FE2B |
+  | `SphericalGeometry[0]` | 0xccf165f88a73ebb7 -> 0x6e1f34fc9823e94f | 0xee343d0d530f22f1 -> 0x0abd3ff5cb75f121 |
+  | `SphericalGeometry[1]` | 0x2add50ab7852c3ce -> 0xe83e64c611aca938 | 0x46256d278ff09af2 -> 0x112e3b045ca4bd5b |
+  | `PERF_STATE_HASH_GOLDEN` | 0xc4f45e4c6b5534e6 -> 0xe6a944fb4ffb2707 | same value, mode independent |
+
+  HELD: `QUERY_SPAWN_SLEEP_STEP` 243, `QUERY_SPAWN_HIT_COUNT` 59, `QUERY_SPAWN_QUERY_HASH`
+  0xE583B246, `MESH_DROP_SLEEP_STEP` 284 and `MESH_DROP_HASH` (0x784AD80A narrow, 0xE44E6A0E
+  ludicrous) — five of the fifteen pinned values in each numeric mode. All sixteen
+  `ENSURE_GOLDEN` sites in `test/` are green in all three test configurations, so nothing
+  moved silently.
+
+  **ATTRIBUTION BY COUNT, re-measured 2026-10-16 with a fresh instrument** (two counters at
+  the isotropy evaluation, two more at the solver gate, all removed before the commit):
+  `INSTRUMENT WavePileTest isoTested=500 isoGatedOff=250 isoKept=250 gyroEvaluated=696700
+  gyroRan=343580` and `INSTRUMENT MeshDropTest isoTested=800 isoGatedOff=0 isoKept=800
+  gyroEvaluated=426416 gyroRan=426416`, identical in narrow and ludicrous. This reproduces
+  the two counts the golden comments carry and settles their one ambiguity: TESTED is an
+  isotropy evaluation, one per mass-data update, and FIRED is an evaluation where the gate
+  turned the gyroscopic solve OFF. So mesh drop's `fired=0` means every mesh-drop body KEEPS
+  its torque, which is why that scenario holds; the solver gate itself runs once per body per
+  substep, two orders of magnitude more often, and both sites are now recorded so a later
+  reader need not guess which one a number came from. The other moves rest on the same kind
+  of count: MultithreadingTest 560/80, RagdollHumanTest 70/10, QuerySpawnTest 250/75,
+  SphericalGeometryTest 2576/2576 (every body is a sphere or a capsule), the perf-hash scene
+  20/20 (ten cubes).
+
+  **STRUCT SIZES, measured at the final tree with a throwaway probe compiled in both
+  configurations and deleted:** `b3Body` 192 -> 120 and `b3BodySim` 496 (narrow) / 576
+  (ludicrous) unchanged, which CONFIRMS the table in `f6916e8`'s message. `b3Body` loses the
+  72-byte matrix outright; `b3BodySim` is unchanged because the matrix it gains is the one it
+  loses. No `_Static_assert` in `src/` or `test/test_fixed_abi.c` pins either struct. (The
+  probe printed the two `sizeof` values per configuration; a member-by-member sum was not
+  taken.)
+
+  **EVERY FILE UPSTREAM `efca0c1` TOUCHED, accounted for (23).**
+  - `include/box3d/box3d.h` (+7) — PORTED, `dc3e673`: the setter and getter, taking and
+    returning `b3Fixed`.
+  - `include/box3d/types.h` (+4) — PORTED, `dc3e673`: `b3WorldDef::isotropicInertiaTolerance`.
+  - `samples/sample_bodies.cpp` (+101) — HELD under the standing samples hold (fixed3d#20 /
+    fixed3d#47): sample-app content, no simulation content, does not gate the cursor.
+  - `src/body.c` (+69/-) — PORTED across `f6916e8` (the field move and the three accessors
+    `b3Body_GetLocalRotationalInertia`, `b3Body_GetMassData`, `b3Body_SetMassData` reading
+    `bodySim->inertia`), `dc3e673` (`b3UpdateIsotropicInertia` and its two call sites, after
+    the fixed-rotation block in both `b3UpdateBodyMassData` and `b3Body_SetMassData`) and
+    `c378876` (the test itself).
+  - `src/body.h` (-10/+) — PORTED: the rename in `56caab7`, `b3_enableGyroscopicTorque =
+    0x00010000` in `dc3e673` (the enum ran to `0x00008000` and `git grep` found no other
+    claimant of that bit), the matrix move in `f6916e8`.
+  - `src/contact.c` (3) — PORTED in two pieces: the flag rename in `56caab7`, the dead
+    `compound.h` include in `f8a709e`.
+  - `src/math_internal.h` (-10) — **SKIPPED, on purpose.** Upstream deletes `b3Skew` because
+    nothing upstream uses it any more. Here `b3Skew` is the differential ORACLE for this
+    tree's own `b3SkewSandwich` primitive: `SkewSandwichTest` (test/test_math.c) compares
+    `b3MulMM( b3Skew( r ), b3MulMM( m, b3Skew( r ) ) )` against `b3SkewSandwich( m, r )` over
+    6144 random matrices across six scales, and the five joints call `b3SkewSandwich`, never
+    `b3Skew`. Taking the hunk would delete the reference implementation the test checks
+    against.
+  - `src/motor_joint.c`, `src/revolute_joint.c`, `src/spherical_joint.c`, `src/weld_joint.c`
+    (-1 line each, two in motor) — **SKIPPED, same root.** Upstream's hunks delete the
+    `//// K = [(1/m1 + 1/m2) * eye(2) - skew(r1) * invI1 * skew(r1) - ...]` comment, a
+    consequence of `b3Skew` going away there. In fixed3d that comment sits directly above
+    `b3SkewSandwich( base->invIA, rA )`, which computes exactly that product, so the comment
+    still names the live code. (The same comment also stands in `src/wheel_joint.c`, which
+    upstream did not touch.)
+  - `src/physics_world.c` (+22) — PORTED, `dc3e673`: setter and getter with `b3FixClamp`, and
+    the field initialized on world create.
+  - `src/physics_world.h` (+1) — PORTED, `dc3e673`: the `b3Fixed` field beside
+    `maxLinearSpeed`.
+  - `src/recording.h` (1) — PORTED, `dc3e673`: `B3_REC_VERSION_MINOR` 8 -> 9 with its comment.
+  - `src/recording_ops.inl` (+1) — PORTED, `dc3e673`: op `0x70`, plus the opcode-range
+    comment line at the top of the file.
+  - `src/replay.c` (+6) — PORTED, `dc3e673`, into `src/recording_replay.c`, this tree's name
+    for that file.
+  - `src/revolute_joint.c` — see the joint group above.
+  - `src/solver.c` (16) — PORTED: reading `sim->inertia` instead of inverting
+    `invInertiaLocal` in `f6916e8`, the `b3_enableGyroscopicTorque` gate in `dc3e673`.
+  - `src/spherical_joint.c` — see the joint group above.
+  - `src/types.c` (+2) — PORTED, `dc3e673`: the default `B3_FIX( 0.2f )`.
+  - `src/weld_joint.c` — see the joint group above.
+  - `src/world_snapshot.c` (4) — PORTED: `B3_SNAP_VERSION` 5u -> 6u in `f6916e8`, the
+    tolerance in the world-config image in `dc3e673`.
+  - `test/test_body.c` (+170) — PORTED, `dc3e673`, as +214 lines:
+    `CompoundInertiaConsistency` and `IsotropicInertiaTolerance`, the latter seen red first.
+  - `test/test_determinism.c` (26) — PORTED, `c378876`: upstream re-harvests its float and
+    double goldens, this tree re-harvests the Q48.16 ones (table above).
+  - `test/test_recording.c` (+15) — PORTED: the `AllOps` free-spinning rod in `dc3e673`, and
+    `PreviousSnapshotVersionRefused` moved to 6u in `f6916e8`.
+  - `test/test_world.c` (+8) — PORTED, `dc3e673`: the def and clamp check in `B3_FIX` values.
+
+  **HOLDS:** the samples half only (`samples/sample_bodies.cpp`, fixed3d#20 / fixed3d#47
+  class). Nothing else of this upstream commit is outstanding.
+
+  **FOUR CONFIGS at the final head (`f8a709e, the code head; the one commit after it is this record, which touches CLAUDE.md alone`, rebased onto the sprint tip
+  `4c32ef0`):**
+  ```
+  build exit 0  (build-port)
+  build exit 0  (build-ludicrous)
+  build exit 0  (build-debug, Debug+VALIDATE+ASan)
+  build exit 0  (build-samples)
+  TEST EXIT 0   (build-port/bin/test)
+  TEST EXIT 0   (build-ludicrous/bin/test)
+  TEST EXIT 0   (build-debug/bin/test)
+  ```
 
 - **PORT RECORD reference harness compound/mesh/snapshot/contact vocabulary (2026-10-15).**
   `ref-harness-compound-mesh-vocabulary`, `ref-harness-snapshot-restore`,
