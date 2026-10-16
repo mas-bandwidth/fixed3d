@@ -941,13 +941,23 @@ b3BodyTOIResult b3Body_TimeOfImpactMover( b3BodyId bodyId, b3Pos origin, const b
 // units against a true product of 429025 raw-squared units. A 64-bit spelling would
 // compare handfuls of raw units against each other, with the smaller bodies' terms
 // quantized to zero outright, and report every small body isotropic.
+//
+// THE TEST CARRIES TWO ROUNDINGS, not one, and both are named at their sites below: the
+// TRUNCATION of the trace divided by three, which is the dominant one, and the half-up
+// rounding inside b3FixMul when the tolerance meets the mean. The band in which the pair
+// can disagree with exact arithmetic is measured at the second site, together with the
+// exact spelling that removes one of them and why it is declined for this step.
 static void b3UpdateIsotropicInertia( b3World* world, b3Body* body, b3BodySim* bodySim )
 {
 	b3Matrix3 inertia = bodySim->inertia;
 
-	// The trace divided by three as an INTEGER division on the raw value: an exact floor
-	// that carries no rounding policy of its own, and the quotient is the mean in the same
-	// Q48.16 units as the diagonal it came from.
+	// TWO ROUNDINGS, NOT ONE, AND THIS IS THE DOMINANT ONE. The trace divided by three is
+	// an integer division on the raw value, so it TRUNCATES toward zero: the quotient is
+	// the mean in the same Q48.16 units as the diagonal it came from, but up to 2 raw units
+	// below the true mean. An earlier comment on this branch called it "an exact floor that
+	// carries no rounding policy of its own", which is wrong twice -- a floor IS a rounding,
+	// and C integer division truncates toward zero rather than flooring. The second rounding
+	// is at `tm` below. See the band measured there for what the pair actually costs.
 	b3Fixed mean = ( inertia.cx.x + inertia.cy.y + inertia.cz.z ) / 3;
 
 	b3Vec3 deviator = { inertia.cx.x - mean, inertia.cy.y - mean, inertia.cz.z - mean };
@@ -962,14 +972,37 @@ static void b3UpdateIsotropicInertia( b3World* world, b3Body* body, b3BodySim* b
 
 	// Upstream's test is 2 * deviation > 3 * tolerance^2 * mean^2. Spelled with four Q48.16
 	// factors the right side could reach 2^128, so the pair is folded into one Q48.16 value
-	// first -- tm = tolerance * mean, the ONE rounding in the whole test -- and squared
-	// exactly. The tolerance is clamped to [0, 1], so tm never exceeds mean and the square
-	// stays in the same range as deviation's terms.
+	// first -- tm = tolerance * mean, THE SECOND OF THE TWO ROUNDINGS, half-up inside
+	// b3FixMul -- and squared exactly. The tolerance is clamped to [0, 1], so tm never
+	// exceeds mean and the square stays in the same range as deviation's terms.
+	//
+	// WHAT THE TWO ROUNDINGS COST, MEASURED by two independent cold readers on 2026-10-16
+	// against an exact-arithmetic reference of the same predicate: the two spellings
+	// disagree ONLY within 1 to 2 raw units of tm around the threshold, which is 0.018
+	// percent of the crossover at scale 0.5 and up to about 3 percent for tensors whose
+	// entries are only tens of raw units (a 1x1x2 box at mass 0.001). Every disagreement
+	// found at scales 0.01 and 0.5 was the TRUNCATION of the mean and none was tm. The
+	// clean case is a thin rod with diagonal (1, 1, 0) at tolerance 1: exactly a tie, where
+	// upstream's `>` gives OFF, while the truncated mean inflates the deviator and gives ON.
+	// Every flip goes the same way -- port ON where the exact predicate says OFF -- so the
+	// error is on the CONSERVATIVE side, running the gyroscopic solve for a body that could
+	// have skipped it. No exactly isotropic diagonal is ever flipped, because such a trace
+	// is divisible by 3 and the truncation does nothing.
+	//
+	// AN EXACT SPELLING EXISTS AND IS DECLINED FOR THIS STEP, named rather than left
+	// implicit: scale the whole predicate by three, so that 3 * I_ii - trace is exact and
+	// tm' = b3FixMul( tolerance, trace ) is the only rounding left, buying about 3.2 more
+	// bits of headroom as well. It is declined here because it can flip the bodies inside
+	// the band above and so move determinism goldens; that is a second step with its own
+	// red test and its own golden attribution, not a free correction to fold into this one.
 	//
 	// HEADROOM, so the 128 bits are a bound and not a hope: the largest inertia this engine
 	// is designed for is the shipping asteroid's 8.1e10 units (see src/inverse.h), raw
-	// 5.3e15 or about 2^52, whose square is 2^104; the five-term doubled sum stays near
-	// 2^107, some 2^20 below the limit.
+	// 5.3e15 or about 2^52, whose square is 2^104. deviation is SIX squared terms, the three
+	// diagonal ones plus the three off-diagonal ones counted twice, so its worst case is
+	// 9 * 2^104 and the doubled sum is about 2^108.6 -- some 2^18 under the 2^127 limit, not
+	// the "five-term sum near 2^107, some 2^20 below" an earlier comment on this branch
+	// claimed.
 	b3Fixed tm = b3FixMul( world->isotropicInertiaTolerance, mean );
 	b3Int128 tmSquared = fixInt128MulI64( tm, tm );
 	b3Int128 threshold = fixInt128Add( fixInt128Add( tmSquared, tmSquared ), tmSquared );
