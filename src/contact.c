@@ -5,7 +5,6 @@
 
 #include "algorithm.h"
 #include "body.h"
-#include "compound.h"
 #include "island.h"
 #include "manifold.h"
 #include "physics_world.h"
