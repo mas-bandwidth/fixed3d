@@ -1122,25 +1122,25 @@ b3CastOutput b3ShapeCast( const b3ShapeCastPairInput* input )
 					// retaining a rest separation. Sweeps that cannot consume the free
 					// gap (receding, tangential, grazing) miss.
 
-					// Upstream is 0.5f * linearSlop. An exact integer halving of the raw
-					// b3Fixed, NOT b3FixMul( B3_FIX( 0.5f ), slop ). Integer scaling of a
-					// b3Fixed is idiomatic and exact, and exactness is the whole reason: the
-					// halving carries no rounding policy, so it cannot move if the rounding
-					// rule ever does.
+					// Upstream is 0.5f * linearSlop. Here that is
+					// b3FixMul( B3_FIX( 0.5f ), linearSlop ) -- the house spelling for a
+					// half in this file (seven other uses of B3_FIX( 0.5f ) here, counted)
+					// and NOT an integer halving of the raw.
 					//
-					// MEASURED, raw values, because the obvious claim here is wrong. At the
-					// DEFAULT slop (raw 328) the two spellings AGREE at 164 -- the raw is
-					// even, so the product is exact and nothing rounds. They diverge only on
-					// an ODD slop raw, which b3SetLengthUnitsPerMeter can produce:
-					// b3SetLengthUnitsPerMeter( B3_FIX( 0.1f ) ) gives slop raw 33, and
-					// there the halving gives 16 where b3FixMul gives 17, because b3FixMul
-					// rounds half UP (fixed.h fixMul: "Round half up, then shift out the
-					// fraction bits"). On that one raw unit of difference (1.5e-5 at default
-					// units) the halving retains marginally LESS rest separation than
-					// upstream's float would, so the hit lands marginally LATE rather than
-					// early; it is one raw unit at non-default length units only, and it is
-					// named here rather than hidden.
-					b3Fixed retained = linearSlop / 2;
+					// MEASURED, raw values. For an ODD slop raw the exact half is a
+					// half-integer, so BOTH fixed spellings sit half a raw unit away from it,
+					// in opposite directions: b3FixMul rounds half UP (fixed.h fixMul: "Round
+					// half up, then shift out the fraction bits"), so it retains one raw unit
+					// MORE separation than linearSlop / 2 does and never LESS than upstream.
+					// More retained separation is the safe direction for a rest separation.
+					// The integer halving fails outright at the bottom of the range: every
+					// b3SetLengthUnitsPerMeter value from raw 100 to raw 299 -- all legal --
+					// gives slop raw 1, where linearSlop / 2 is 0 and retains NOTHING at all
+					// while b3FixMul gives 1.
+					//
+					// At the DEFAULT slop (raw 328, even) the two spellings AGREE at 164, so
+					// no golden can move either way.
+					b3Fixed retained = b3FixMul( B3_FIX( 0.5f ), linearSlop );
 					b3Fixed needed = distanceOutput.distance - retained;
 
 					// The unary minus stays OUTSIDE the dot. b3Dot is a fused raw-128
@@ -1161,11 +1161,14 @@ b3CastOutput b3ShapeCast( const b3ShapeCastPairInput* input )
 					// only fall through this gate when needed <= 0, and then the guard
 					// returns zero without dividing.
 					//
-					// What the <= actually buys is the exact boundary. A sweep whose
-					// approach exactly equals the free gap, and a purely tangential
-					// approach == 0 once the gap is already spent, are MISSES here; under a
-					// strict < they would fall through and report a hit at fraction 1.0 and
-					// at fraction 0 respectively.
+					// What the <= buys is the TANGENTIAL case: a purely tangential
+					// approach == 0 once the gap is already spent ( needed <= 0 ) is a MISS
+					// here, where a strict < would fall through and report a hit at
+					// fraction 0. The other boundary -- an approach exactly equal to the free
+					// gap -- is a MISS EITHER WAY at the documented typical maxFraction of
+					// 1.0: b3FixDiv of equal operands is exactly B3_FIX( 1.0f ), so the
+					// fraction >= input->maxFraction guard below turns it into a miss. The
+					// two spellings differ there only when maxFraction > 1.
 					if ( approach <= b3FixMax( needed, B3_FIX( 0.0f ) ) )
 					{
 						// Moving away, no hit.
@@ -1173,9 +1176,11 @@ b3CastOutput b3ShapeCast( const b3ShapeCastPairInput* input )
 					}
 
 					// A bare compare, never a squared tolerance: b3FixMul( d, d ) is zero
-					// for d below ~0.004 (rule 7). b3FixDiv truncates toward zero, so the
-					// hit lands marginally EARLY, which is the safe direction - it leaves
-					// slightly more separation than asked for, never less.
+					// for every d at or below raw 181 (about 0.0028), which is the largest
+					// raw whose square rounds to zero under round-half-up (rule 7).
+					// b3FixDiv truncates toward zero, so the hit lands marginally EARLY,
+					// which is the safe direction - it leaves slightly more separation than
+					// asked for, never less.
 					b3Fixed fraction = needed > B3_FIX( 0.0f ) ? b3FixDiv( needed, approach ) : B3_FIX( 0.0f );
 					if ( fraction >= input->maxFraction )
 					{
