@@ -301,6 +301,8 @@ b3DeserializeIntoShell: bad magic/version
 b3CreatePlayer: snapshot deserialization failed
 b3DeserializeIntoShell: bad magic/version
 b3CreatePlayer: snapshot deserialization failed
+b3DeserializeIntoShell: bad magic/version
+b3CreatePlayer: snapshot deserialization failed
   subtest passed: PreviousSnapshotVersionRefused
   subtest passed: HullDedup
   subtest passed: MidStreamNoContacts
@@ -486,7 +488,7 @@ test passed: RestitutionTest
     1e+07     9.141e-03     1.884e-02    
   subtest passed: RayCastFarOriginTest
 test passed: ShapeTest
-set: count = 50086, b3ContainsKey = 0.24525 ms, ave = 0.00488 us
+set: count = 50086, b3ContainsKey = 0.25229 ms, ave = 0.00504 us
 test passed: TableTest
   subtest passed: TestEnlargedProxyDestroyed
   subtest passed: TestMassDataInvalidatesContactCache
@@ -520,4 +522,4 @@ test passed: TableTest
 test passed: WorldTest
 ======================================
 All Fixed3D tests passed!
-Test duration = 2.32 s
+Test duration = 2.21 s
