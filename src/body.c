@@ -928,12 +928,31 @@ b3BodyTOIResult b3Body_TimeOfImpactMover( b3BodyId bodyId, b3Pos origin, const b
 	return result;
 }
 
+// Decide whether this body's local inertia is far enough from isotropic that the
+// gyroscopic solve is worth running. A body within the tolerance skips it, which is what
+// stops a sphere-like body from precessing on nothing but rounding.
+// https://en.wikipedia.org/wiki/Cauchy_stress_tensor#Stress_deviator_tensor
+//
+// THE ISOTROPY TEST ARRIVES IN THE NEXT COMMIT. This one sets the flag unconditionally,
+// so every body still runs the gyroscopic block exactly as it did before and no golden
+// can move for the plumbing alone. The test that proves the gating is needed is committed
+// red against this state.
+static void b3UpdateIsotropicInertia( b3World* world, b3Body* body, b3BodySim* bodySim )
+{
+	B3_UNUSED( bodySim );
+
+	body->flags |= b3_enableGyroscopicTorque;
+
+	b3SyncBodyFlags( world, body );
+}
+
 void b3UpdateBodyMassData( b3World* world, b3Body* body )
 {
 	b3BodySim* bodySim = b3GetBodySim( world, body );
 
 	// Mass is no longer dirty
 	body->flags &= ~b3_dirtyMass;
+	body->flags &= ~b3_enableGyroscopicTorque;
 	b3SyncBodyFlags( world, body );
 
 	// Compute mass data from shapes. Each shape has its own density.
@@ -1099,6 +1118,8 @@ void b3UpdateBodyMassData( b3World* world, b3Body* body )
 		bodySim->invInertiaLocal = b3Mat3_zero;
 		bodySim->invInertiaWorld = b3Mat3_zero;
 	}
+
+	b3UpdateIsotropicInertia( world, body, bodySim );
 }
 
 b3Pos b3Body_GetPosition( b3BodyId bodyId )
@@ -1992,6 +2013,8 @@ void b3Body_SetMassData( b3BodyId bodyId, b3MassData massData )
 		bodySim->invInertiaLocal = b3Mat3_zero;
 		bodySim->invInertiaWorld = b3Mat3_zero;
 	}
+
+	b3UpdateIsotropicInertia( world, body, bodySim );
 
 	// Update extents using supplied mass center.
 	bodySim->minExtent = B3_HUGE;

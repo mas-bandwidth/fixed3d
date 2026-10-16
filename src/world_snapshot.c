@@ -33,7 +33,7 @@
 
 // Snapshot image magic 'BNS3' and version
 #define B3_SNAP_MAGIC 0x33534E42u
-#define B3_SNAP_VERSION 6u // local inertia moved from b3Body to b3BodySim
+#define B3_SNAP_VERSION 6u // local inertia on b3BodySim and the isotropic inertia tolerance
 
 #define B3_SNAP_FLAG_VALIDATION 0x1u
 
@@ -457,6 +457,7 @@ static void b3SerWorldConfig( b3RecBuffer* buf, const b3World* world )
 	b3SnapW_Bytes( buf, &world->restitutionThreshold, sizeof( b3Fixed ) );
 	b3SnapW_I32( buf, world->restitutionIterations );
 	b3SnapW_Bytes( buf, &world->maxLinearSpeed, sizeof( b3Fixed ) );
+	b3SnapW_Bytes( buf, &world->isotropicInertiaTolerance, sizeof( b3Fixed ) );
 	b3SnapW_Bytes( buf, &world->contactSpeed, sizeof( b3Fixed ) );
 	b3SnapW_Bytes( buf, &world->contactHertz, sizeof( b3Fixed ) );
 	b3SnapW_Bytes( buf, &world->contactDampingRatio, sizeof( b3Fixed ) );
@@ -483,6 +484,7 @@ static void b3DesWorldConfig( b3SnapReader* r, b3World* world )
 	b3SnapR_Bytes( r, &world->restitutionThreshold, sizeof( b3Fixed ) );
 	world->restitutionIterations = b3SnapR_I32( r );
 	b3SnapR_Bytes( r, &world->maxLinearSpeed, sizeof( b3Fixed ) );
+	b3SnapR_Bytes( r, &world->isotropicInertiaTolerance, sizeof( b3Fixed ) );
 	b3SnapR_Bytes( r, &world->contactSpeed, sizeof( b3Fixed ) );
 	b3SnapR_Bytes( r, &world->contactHertz, sizeof( b3Fixed ) );
 	b3SnapR_Bytes( r, &world->contactDampingRatio, sizeof( b3Fixed ) );

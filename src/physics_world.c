@@ -337,6 +337,7 @@ b3WorldId b3CreateWorld( const b3WorldDef* def )
 	world->restitutionIterations = b3ClampInt( def->restitutionIterations, 0, B3_MAX_RESTITUTION_ITERATIONS );
 	world->enableRestitutionPropagation = def->enableRestitutionPropagation;
 	world->maxLinearSpeed = def->maximumLinearSpeed;
+	world->isotropicInertiaTolerance = b3FixClamp( def->isotropicInertiaTolerance, B3_FIX( 0.0f ), B3_FIX( 1.0f ) );
 	world->contactSpeed = def->contactSpeed;
 	world->contactHertz = def->contactHertz;
 	world->contactDampingRatio = def->contactDampingRatio;
@@ -2207,6 +2208,27 @@ b3Fixed b3World_GetMaximumLinearSpeed( b3WorldId worldId )
 {
 	b3World* world = b3GetWorldFromId( worldId );
 	return world->maxLinearSpeed;
+}
+
+void b3World_SetIsotropicInertiaTolerance( b3WorldId worldId, b3Fixed tolerance )
+{
+	B3_ASSERT( b3IsValidFixed( tolerance ) );
+
+	b3World* world = b3GetUnlockedWorldFromId( worldId );
+	if ( world == NULL )
+	{
+		return;
+	}
+
+	B3_REC( world, WorldSetIsotropicInertiaTolerance, worldId, tolerance );
+
+	world->isotropicInertiaTolerance = b3FixClamp( tolerance, B3_FIX( 0.0f ), B3_FIX( 1.0f ) );
+}
+
+b3Fixed b3World_GetIsotropicInertiaTolerance( b3WorldId worldId )
+{
+	b3World* world = b3GetWorldFromId( worldId );
+	return world->isotropicInertiaTolerance;
 }
 
 b3Profile b3World_GetProfile( b3WorldId worldId )

@@ -65,6 +65,10 @@ enum b3BodyFlags
 	// data still hasn't been set.
 	b3_dirtyMass = 0x00008000,
 
+	// This body's local inertia is far enough from isotropic that the gyroscopic solve
+	// is worth running. Set by b3UpdateIsotropicInertia from the world tolerance.
+	b3_enableGyroscopicTorque = 0x00010000,
+
 	// All lock flags
 	b3_allLocks = b3_lockLinearX | b3_lockLinearY | b3_lockLinearZ | b3_lockAngularX | b3_lockAngularY | b3_lockAngularZ,
 

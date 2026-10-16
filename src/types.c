@@ -25,6 +25,8 @@ b3WorldDef b3DefaultWorldDef( void )
 	// 400 meters per second, faster than the speed of sound
 	def.maximumLinearSpeed = b3FixMul( B3_FIX( 400.0f ) , lengthUnits );
 
+	def.isotropicInertiaTolerance = B3_FIX( 0.2f );
+
 	def.enableSleep = true;
 	def.enableContinuous = true;
 	def.internalValue = B3_SECRET_COOKIE;

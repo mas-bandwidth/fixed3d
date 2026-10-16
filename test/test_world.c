@@ -313,6 +313,14 @@ int TestWorldCoverage( void )
 	value = b3World_GetMaximumLinearSpeed( worldId );
 	ENSURE( value == B3_FIX( 10.0f ) );
 
+	b3World_SetIsotropicInertiaTolerance( worldId, B3_FIX( 0.5f ) );
+	value = b3World_GetIsotropicInertiaTolerance( worldId );
+	ENSURE( value == B3_FIX( 0.5f ) );
+
+	b3World_SetIsotropicInertiaTolerance( worldId, B3_FIX( 2.0f ) );
+	value = b3World_GetIsotropicInertiaTolerance( worldId );
+	ENSURE( value == B3_FIX( 1.0f ) );
+
 	b3World_EnableWarmStarting( worldId, true );
 	flag = b3World_IsWarmStartingEnabled( worldId );
 	ENSURE( flag == true );

@@ -99,7 +99,8 @@ typedef struct b3World b3World;
 // Minor version 6 added BodyAllowFastRotation.
 // Minor version 7 is reserved for the broad-phase card.
 // Minor version 8 added WorldSetRestitutionIterations and WorldEnableRestitutionPropagation.
-#define B3_REC_VERSION_MINOR 8
+// Minor version 9 added WorldSetIsotropicInertiaTolerance.
+#define B3_REC_VERSION_MINOR 9
 
 // File header, fixed 48 bytes, little-endian. Contains the registry locator so the player
 // can load geometry before replaying any ops.

@@ -9,6 +9,8 @@
 
 // Reach into internals to observe body extents and the dirty mass flag.
 #include "body.h"
+#include "hull.h"
+#include "inverse.h"
 #include "physics_world.h"
 #include "recording.h"
 
@@ -1134,6 +1136,216 @@ static int BodySimLocatorTest( void )
 	return LocatorFastFlagTest();
 }
 
+
+// Upstream box3d efca0c1. A compound body's local tensor has real off-diagonal terms, and
+// the stored world inverse must still invert the rotated tensor: invWorld * (R I R^T) is
+// the identity up to rounding.
+//
+// THE PRODUCT IS FORMED AT THE INVERSE SCALE, and the public Q48.16 accessor cannot carry
+// it. This tree stores inverse quantities with B3_INVERSE_FRACTION_BITS = 40 fraction bits
+// (src/inverse.h) precisely because a heavy body's inverse inertia does not fit Q48.16,
+// and b3DefaultShapeDef here is the density of WATER, 1000, where upstream's is 1.
+// MEASURED on this body: the local diagonal is 465.2 / 704.3 / 1045.6 and the Q48.16 view
+// of the world inverse diagonal is 63 / 445 / 322 RAW units, so
+// b3Body_GetWorldInverseRotationalInertia truncates the smallest entry to 1 part in 63 and
+// the identity check lands 783 raw units (0.0119) off -- a 1.2 percent error that belongs
+// to the ACCESSOR and not to the engine. So the product uses
+// b3Body_GetWorldInverseRotationalInertiaPrecise through b3InvMulMV, one column at a time,
+// which is the exact quantity the solver multiplies by. MEASURED with that: every entry is
+// within 5 raw units of the identity, so upstream's tolerance floors to the tree's
+// 8 * B3_FIXED_EPSILON with no exception needed.
+static int CompoundInertiaConsistency( void )
+{
+	b3WorldDef worldDef = b3DefaultWorldDef();
+	b3WorldId worldId = b3CreateWorld( &worldDef );
+
+	b3BodyDef bodyDef = b3DefaultBodyDef();
+	bodyDef.type = b3_dynamicBody;
+	bodyDef.rotation =
+		b3MakeQuatFromAxisAngle( b3Normalize( (b3Vec3){ B3_FIX( 0.3f ), -B3_FIX( 0.8f ), B3_FIX( 0.5f ) } ), B3_FIX( 1.3f ) );
+	b3BodyId bodyId = b3CreateBody( worldId, &bodyDef );
+
+	b3ShapeDef shapeDef = b3DefaultShapeDef();
+	b3BoxHull boxA = b3MakeOffsetBoxHull( B3_FIX( 0.5f ), B3_FIX( 0.25f ), B3_FIX( 0.5f ),
+										  (b3Vec3){ B3_FIX( 1.0f ), B3_FIX( 1.0f ), B3_FIX( 0.0f ) } );
+	b3BoxHull boxB = b3MakeOffsetBoxHull( B3_FIX( 0.3f ), B3_FIX( 0.6f ), B3_FIX( 0.2f ),
+										  (b3Vec3){ -B3_FIX( 0.8f ), -B3_FIX( 0.4f ), B3_FIX( 0.3f ) } );
+	b3CreateHullShape( bodyId, &shapeDef, &boxA.base );
+	b3CreateHullShape( bodyId, &shapeDef, &boxB.base );
+	b3Body_ApplyMassFromShapes( bodyId );
+
+	b3Matrix3 local = b3Body_GetLocalRotationalInertia( bodyId );
+	ENSURE( b3FixAbs( local.cy.x ) > B3_FIX( 0.1f ) );
+
+	b3Matrix3 r = b3MakeMatrixFromQuat( bodyDef.rotation );
+	b3Matrix3 world = b3MulMM( b3MulMM( r, local ), b3Transpose( r ) );
+	b3Matrix3 invWorld = b3Body_GetWorldInverseRotationalInertiaPrecise( bodyId );
+	b3Matrix3 product = { b3InvMulMV( invWorld, world.cx ), b3InvMulMV( invWorld, world.cy ),
+						   b3InvMulMV( invWorld, world.cz ) };
+
+	ENSURE_SMALL( product.cx.x - B3_FIX( 1.0f ), 8 * B3_FIXED_EPSILON );
+	ENSURE_SMALL( product.cy.y - B3_FIX( 1.0f ), 8 * B3_FIXED_EPSILON );
+	ENSURE_SMALL( product.cz.z - B3_FIX( 1.0f ), 8 * B3_FIXED_EPSILON );
+	ENSURE_SMALL( product.cx.y, 8 * B3_FIXED_EPSILON );
+	ENSURE_SMALL( product.cx.z, 8 * B3_FIXED_EPSILON );
+	ENSURE_SMALL( product.cy.x, 8 * B3_FIXED_EPSILON );
+	ENSURE_SMALL( product.cy.z, 8 * B3_FIXED_EPSILON );
+	ENSURE_SMALL( product.cz.x, 8 * B3_FIXED_EPSILON );
+	ENSURE_SMALL( product.cz.y, 8 * B3_FIXED_EPSILON );
+
+	b3Quat q2 =
+		b3MakeQuatFromAxisAngle( b3Normalize( (b3Vec3){ -B3_FIX( 1.0f ), B3_FIX( 0.2f ), B3_FIX( 0.4f ) } ), -B3_FIX( 2.1f ) );
+	b3Body_SetTransform( bodyId, b3Body_GetPosition( bodyId ), q2 );
+	r = b3MakeMatrixFromQuat( q2 );
+	world = b3MulMM( b3MulMM( r, local ), b3Transpose( r ) );
+	invWorld = b3Body_GetWorldInverseRotationalInertiaPrecise( bodyId );
+	product = ( b3Matrix3 ){ b3InvMulMV( invWorld, world.cx ), b3InvMulMV( invWorld, world.cy ),
+							 b3InvMulMV( invWorld, world.cz ) };
+	ENSURE_SMALL( product.cx.x - B3_FIX( 1.0f ), 8 * B3_FIXED_EPSILON );
+	ENSURE_SMALL( product.cy.y - B3_FIX( 1.0f ), 8 * B3_FIXED_EPSILON );
+	ENSURE_SMALL( product.cz.z - B3_FIX( 1.0f ), 8 * B3_FIXED_EPSILON );
+	ENSURE_SMALL( product.cy.x, 8 * B3_FIXED_EPSILON );
+	ENSURE_SMALL( product.cz.y, 8 * B3_FIXED_EPSILON );
+
+	b3DestroyWorld( worldId );
+	return 0;
+}
+
+static b3BodyId CreateSpinningHullBody( b3WorldId worldId, b3Fixed x, const b3HullData* hull )
+{
+	b3BodyDef bodyDef = b3DefaultBodyDef();
+	bodyDef.type = b3_dynamicBody;
+	bodyDef.position.x = x;
+	bodyDef.rotation =
+		b3MakeQuatFromAxisAngle( b3Normalize( (b3Vec3){ B3_FIX( 0.3f ), -B3_FIX( 0.8f ), B3_FIX( 0.5f ) } ), B3_FIX( 1.3f ) );
+	bodyDef.angularVelocity = (b3Vec3){ B3_FIX( 1.0f ), -B3_FIX( 2.0f ), B3_FIX( 3.0f ) };
+	b3BodyId bodyId = b3CreateBody( worldId, &bodyDef );
+
+	b3ShapeDef shapeDef = b3DefaultShapeDef();
+	b3CreateHullShape( bodyId, &shapeDef, hull );
+	return bodyId;
+}
+
+static bool HasGyroscopicTorque( b3BodyId bodyId )
+{
+	b3World* world = b3GetWorld( bodyId.world0 );
+	b3Body* body = b3GetBodyFullId( world, bodyId );
+	return ( body->flags & b3_enableGyroscopicTorque ) != 0;
+}
+
+// Bodies within the isotropic tolerance skip the gyroscopic solve, so in free flight the world
+// angular velocity is untouched. Anisotropic bodies precess.
+//
+// THE EQUALITY IS EXACT HERE, which is checked rather than inherited. With zero gravity, zero
+// torque and the default zero angular damping, b3IntegrateVelocitiesTask forms
+// angularDamping = b3FixDiv( 1, 1 + b3FixMul( h, 0 ) ) = B3_FIX( 1.0f ) and
+// w = b3MulAdd( 0, B3_FIX( 1.0f ), w ), whose b3FixMul by exactly one raw 65536 is the identity;
+// b3IntegratePositionsTask then writes w back unchanged because no lock is set and |w|^2 = 14 is
+// far under the (B3_MAX_ROTATION * inv_dt)^2 speed cap. So the only thing that can move w is the
+// gyroscopic block, which is exactly what this subtest gates.
+static int IsotropicInertiaTolerance( void )
+{
+	b3Vec3 w0 = { B3_FIX( 1.0f ), -B3_FIX( 2.0f ), B3_FIX( 3.0f ) };
+
+	b3HullData* rock = b3CreateRock( B3_FIX( 0.5f ) );
+	b3HullData* complexHull = b3CreateComplexHull( B3_FIX( 0.5f ) );
+	b3BoxHull cube = b3MakeCubeHull( B3_FIX( 0.5f ) );
+	b3Transform cubeTransform = {
+		b3Vec3_zero,
+		b3MakeQuatFromAxisAngle( b3Normalize( (b3Vec3){ B3_FIX( 1.0f ), B3_FIX( 2.0f ), B3_FIX( 3.0f ) } ), B3_FIX( 0.7f ) ),
+	};
+	b3BoxHull rotatedCube = b3MakeTransformedBoxHull( B3_FIX( 0.5f ), B3_FIX( 0.5f ), B3_FIX( 0.5f ), cubeTransform );
+	b3BoxHull plank = b3MakeBoxHull( B3_FIX( 0.5f ), B3_FIX( 1.0f ), B3_FIX( 0.25f ) );
+
+	{
+		b3WorldDef worldDef = b3DefaultWorldDef();
+		worldDef.gravity = b3Vec3_zero;
+		b3WorldId worldId = b3CreateWorld( &worldDef );
+
+		b3BodyId rockId = CreateSpinningHullBody( worldId, B3_FIX( 0.0f ), rock );
+		b3BodyId complexId = CreateSpinningHullBody( worldId, B3_FIX( 5.0f ), complexHull );
+		b3BodyId cubeId = CreateSpinningHullBody( worldId, B3_FIX( 10.0f ), &cube.base );
+		b3BodyId rotatedCubeId = CreateSpinningHullBody( worldId, B3_FIX( 15.0f ), &rotatedCube.base );
+		b3BodyId plankId = CreateSpinningHullBody( worldId, B3_FIX( 20.0f ), &plank.base );
+
+		ENSURE( HasGyroscopicTorque( rockId ) == false );
+		ENSURE( HasGyroscopicTorque( complexId ) == false );
+		ENSURE( HasGyroscopicTorque( cubeId ) == false );
+		ENSURE( HasGyroscopicTorque( rotatedCubeId ) == false );
+		ENSURE( HasGyroscopicTorque( plankId ) );
+
+		b3Fixed timeStep = b3FixDiv( B3_FIX( 1.0f ) , B3_FIX( 60.0f ) );
+		for ( int i = 0; i < 10; ++i )
+		{
+			b3World_Step( worldId, timeStep, 4 );
+		}
+
+		b3Vec3 w = b3Body_GetAngularVelocity( rockId );
+		ENSURE( w.x == w0.x && w.y == w0.y && w.z == w0.z );
+		w = b3Body_GetAngularVelocity( complexId );
+		ENSURE( w.x == w0.x && w.y == w0.y && w.z == w0.z );
+		w = b3Body_GetAngularVelocity( rotatedCubeId );
+		ENSURE( w.x == w0.x && w.y == w0.y && w.z == w0.z );
+		w = b3Body_GetAngularVelocity( plankId );
+		// MEASURED on this bench: the plank's free-flight precession over ten steps is 52893
+		// raw units, 0.807 rad/s, so upstream's bound holds with 80x of room.
+		ENSURE( b3Length( b3Sub( w, w0 ) ) > B3_FIX( 0.01f ) );
+
+		b3Body_SetMotionLocks( plankId, (b3MotionLocks){ .angularX = true, .angularY = true, .angularZ = true } );
+		ENSURE( HasGyroscopicTorque( plankId ) == false );
+
+		// Gyroscopic torque stays off until a mass update proves the body anisotropic
+		b3BodyDef bodyDef = b3DefaultBodyDef();
+		bodyDef.type = b3_dynamicBody;
+		bodyDef.position.x = B3_FIX( 25.0f );
+		bodyDef.angularVelocity = w0;
+		b3BodyId emptyId = b3CreateBody( worldId, &bodyDef );
+		ENSURE( HasGyroscopicTorque( emptyId ) == false );
+
+		bodyDef.position.x = B3_FIX( 30.0f );
+		b3BodyId deferredId = b3CreateBody( worldId, &bodyDef );
+		b3ShapeDef shapeDef = b3DefaultShapeDef();
+		shapeDef.updateBodyMass = false;
+		b3CreateHullShape( deferredId, &shapeDef, &plank.base );
+		ENSURE( HasGyroscopicTorque( deferredId ) == false );
+
+		b3Body_ApplyMassFromShapes( deferredId );
+		ENSURE( HasGyroscopicTorque( deferredId ) );
+
+		b3DestroyWorld( worldId );
+	}
+
+	{
+		b3WorldDef worldDef = b3DefaultWorldDef();
+		worldDef.gravity = b3Vec3_zero;
+		worldDef.isotropicInertiaTolerance = B3_FIX( 0.0f );
+		b3WorldId worldId = b3CreateWorld( &worldDef );
+
+		b3BodyId rockId = CreateSpinningHullBody( worldId, B3_FIX( 0.0f ), rock );
+		b3BodyId cubeId = CreateSpinningHullBody( worldId, B3_FIX( 10.0f ), &cube.base );
+
+		ENSURE( HasGyroscopicTorque( rockId ) );
+		ENSURE( HasGyroscopicTorque( cubeId ) == false );
+
+		b3Fixed timeStep = b3FixDiv( B3_FIX( 1.0f ) , B3_FIX( 60.0f ) );
+		for ( int i = 0; i < 10; ++i )
+		{
+			b3World_Step( worldId, timeStep, 4 );
+		}
+
+		b3Vec3 w = b3Body_GetAngularVelocity( rockId );
+		// MEASURED on this bench: 346 raw units, 0.00528 rad/s, so upstream's 0.001 bound (65
+		// raw) holds with 5x of room and no fixed-point floor is needed.
+		ENSURE( b3Length( b3Sub( w, w0 ) ) > B3_FIX( 0.001f ) );
+
+		b3DestroyWorld( worldId );
+	}
+
+	b3DestroyHull( rock );
+	b3DestroyHull( complexHull );
+	return 0;
+}
+
 int BodyTest( void )
 {
 	RUN_SUBTEST( AngularImpulseInverseScale );
@@ -1152,5 +1364,7 @@ int BodyTest( void )
 	RUN_SUBTEST( ShapeExtents );
 	RUN_SUBTEST( CcdGravityTimeLossTest );
 	RUN_SUBTEST( BodySimLocatorTest );
+	RUN_SUBTEST( CompoundInertiaConsistency );
+	RUN_SUBTEST( IsotropicInertiaTolerance );
 	return 0;
 }

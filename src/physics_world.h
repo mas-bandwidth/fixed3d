@@ -235,6 +235,7 @@ typedef struct b3World
 	int restitutionIterations;
 	bool enableRestitutionPropagation;
 	b3Fixed maxLinearSpeed;
+	b3Fixed isotropicInertiaTolerance;
 	b3Fixed contactSpeed;
 	b3Fixed contactHertz;
 	b3Fixed contactDampingRatio;
