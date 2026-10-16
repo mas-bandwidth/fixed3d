@@ -1141,19 +1141,28 @@ static int BodySimLocatorTest( void )
 // the stored world inverse must still invert the rotated tensor: invWorld * (R I R^T) is
 // the identity up to rounding.
 //
-// THE PRODUCT IS FORMED AT THE INVERSE SCALE, and the public Q48.16 accessor cannot carry
-// it. This tree stores inverse quantities with B3_INVERSE_FRACTION_BITS = 40 fraction bits
-// (src/inverse.h) precisely because a heavy body's inverse inertia does not fit Q48.16,
-// and b3DefaultShapeDef here is the density of WATER, 1000, where upstream's is 1.
-// MEASURED on this body: the local diagonal is 465.2 / 704.3 / 1045.6 and the Q48.16 view
-// of the world inverse diagonal is 63 / 445 / 322 RAW units, so
-// b3Body_GetWorldInverseRotationalInertia truncates the smallest entry to 1 part in 63 and
-// the identity check lands 783 raw units (0.0119) off -- a 1.2 percent error that belongs
-// to the ACCESSOR and not to the engine. So the product uses
-// b3Body_GetWorldInverseRotationalInertiaPrecise through b3InvMulMV, one column at a time,
-// which is the exact quantity the solver multiplies by. MEASURED with that: every entry is
-// within 5 raw units of the identity, so upstream's tolerance floors to the tree's
-// 8 * B3_FIXED_EPSILON with no exception needed.
+// THIS TREE HAS TWO ACCESSORS FOR THAT INVERSE, AND BOTH ARE CHECKED HERE, each at a bound
+// derived from what it can carry. Inverse quantities are stored with
+// B3_INVERSE_FRACTION_BITS = 40 fraction bits (src/inverse.h) precisely because a heavy
+// body's inverse inertia does not fit Q48.16, and b3DefaultShapeDef here is the density of
+// WATER, 1000, where upstream's is 1. MEASURED on this body: the local diagonal is
+// 465.2 / 704.3 / 1045.6, so the Q48.16 view of the world inverse diagonal is only
+// 63 / 445 / 322 RAW units and its smallest entry is truncated to 1 part in 63.
+//
+//   - b3Body_GetWorldInverseRotationalInertiaPrecise (Q24.40) through b3InvMulMV, one
+//     column at a time, is the exact quantity the solver multiplies by. MEASURED
+//     2026-10-16: the worst entry over both rotations is 5 RAW UNITS from the identity, so
+//     the bound is 6 * B3_FIXED_EPSILON -- the FLOOR of upstream's 1.0e-4, which is 6.55
+//     raw units here. That is the tightest whole multiple of the quantum at or under
+//     upstream's bound; it is NOT tighter than upstream's, and an earlier comment on this
+//     branch that said 8 * B3_FIXED_EPSILON was tighter had it backwards, since 8 raw units
+//     is LOOSER than 6.55.
+//   - b3Body_GetWorldInverseRotationalInertia (Q48.16) through b3MulMM is upstream's own
+//     spelling and is kept, so the public accessor keeps a consistency test. It cannot meet
+//     upstream's bound here: MEASURED 2026-10-16, the identity comes out 783 raw units
+//     (0.0119) off at the first rotation and 724 at the second, a 1.2 percent error that
+//     belongs to the ACCESSOR's truncation and not to the engine. The bound is
+//     B3_FIX( 0.02f ) (1310 raw), derived from that 783 with about 1.7x of margin.
 static int CompoundInertiaConsistency( void )
 {
 	b3WorldDef worldDef = b3DefaultWorldDef();
@@ -1183,15 +1192,27 @@ static int CompoundInertiaConsistency( void )
 	b3Matrix3 product = { b3InvMulMV( invWorld, world.cx ), b3InvMulMV( invWorld, world.cy ),
 						   b3InvMulMV( invWorld, world.cz ) };
 
-	ENSURE_SMALL( product.cx.x - B3_FIX( 1.0f ), 8 * B3_FIXED_EPSILON );
-	ENSURE_SMALL( product.cy.y - B3_FIX( 1.0f ), 8 * B3_FIXED_EPSILON );
-	ENSURE_SMALL( product.cz.z - B3_FIX( 1.0f ), 8 * B3_FIXED_EPSILON );
-	ENSURE_SMALL( product.cx.y, 8 * B3_FIXED_EPSILON );
-	ENSURE_SMALL( product.cx.z, 8 * B3_FIXED_EPSILON );
-	ENSURE_SMALL( product.cy.x, 8 * B3_FIXED_EPSILON );
-	ENSURE_SMALL( product.cy.z, 8 * B3_FIXED_EPSILON );
-	ENSURE_SMALL( product.cz.x, 8 * B3_FIXED_EPSILON );
-	ENSURE_SMALL( product.cz.y, 8 * B3_FIXED_EPSILON );
+	ENSURE_SMALL( product.cx.x - B3_FIX( 1.0f ), 6 * B3_FIXED_EPSILON );
+	ENSURE_SMALL( product.cy.y - B3_FIX( 1.0f ), 6 * B3_FIXED_EPSILON );
+	ENSURE_SMALL( product.cz.z - B3_FIX( 1.0f ), 6 * B3_FIXED_EPSILON );
+	ENSURE_SMALL( product.cx.y, 6 * B3_FIXED_EPSILON );
+	ENSURE_SMALL( product.cx.z, 6 * B3_FIXED_EPSILON );
+	ENSURE_SMALL( product.cy.x, 6 * B3_FIXED_EPSILON );
+	ENSURE_SMALL( product.cy.z, 6 * B3_FIXED_EPSILON );
+	ENSURE_SMALL( product.cz.x, 6 * B3_FIXED_EPSILON );
+	ENSURE_SMALL( product.cz.y, 6 * B3_FIXED_EPSILON );
+
+	// Upstream's own spelling, kept at the accessor's own bound (see the comment above).
+	b3Matrix3 publicProduct = b3MulMM( b3Body_GetWorldInverseRotationalInertia( bodyId ), world );
+	ENSURE_SMALL( publicProduct.cx.x - B3_FIX( 1.0f ), B3_FIX( 0.02f ) );
+	ENSURE_SMALL( publicProduct.cy.y - B3_FIX( 1.0f ), B3_FIX( 0.02f ) );
+	ENSURE_SMALL( publicProduct.cz.z - B3_FIX( 1.0f ), B3_FIX( 0.02f ) );
+	ENSURE_SMALL( publicProduct.cx.y, B3_FIX( 0.02f ) );
+	ENSURE_SMALL( publicProduct.cx.z, B3_FIX( 0.02f ) );
+	ENSURE_SMALL( publicProduct.cy.x, B3_FIX( 0.02f ) );
+	ENSURE_SMALL( publicProduct.cy.z, B3_FIX( 0.02f ) );
+	ENSURE_SMALL( publicProduct.cz.x, B3_FIX( 0.02f ) );
+	ENSURE_SMALL( publicProduct.cz.y, B3_FIX( 0.02f ) );
 
 	b3Quat q2 =
 		b3MakeQuatFromAxisAngle( b3Normalize( (b3Vec3){ -B3_FIX( 1.0f ), B3_FIX( 0.2f ), B3_FIX( 0.4f ) } ), -B3_FIX( 2.1f ) );
@@ -1201,11 +1222,18 @@ static int CompoundInertiaConsistency( void )
 	invWorld = b3Body_GetWorldInverseRotationalInertiaPrecise( bodyId );
 	product = ( b3Matrix3 ){ b3InvMulMV( invWorld, world.cx ), b3InvMulMV( invWorld, world.cy ),
 							 b3InvMulMV( invWorld, world.cz ) };
-	ENSURE_SMALL( product.cx.x - B3_FIX( 1.0f ), 8 * B3_FIXED_EPSILON );
-	ENSURE_SMALL( product.cy.y - B3_FIX( 1.0f ), 8 * B3_FIXED_EPSILON );
-	ENSURE_SMALL( product.cz.z - B3_FIX( 1.0f ), 8 * B3_FIXED_EPSILON );
-	ENSURE_SMALL( product.cy.x, 8 * B3_FIXED_EPSILON );
-	ENSURE_SMALL( product.cz.y, 8 * B3_FIXED_EPSILON );
+	ENSURE_SMALL( product.cx.x - B3_FIX( 1.0f ), 6 * B3_FIXED_EPSILON );
+	ENSURE_SMALL( product.cy.y - B3_FIX( 1.0f ), 6 * B3_FIXED_EPSILON );
+	ENSURE_SMALL( product.cz.z - B3_FIX( 1.0f ), 6 * B3_FIXED_EPSILON );
+	ENSURE_SMALL( product.cy.x, 6 * B3_FIXED_EPSILON );
+	ENSURE_SMALL( product.cz.y, 6 * B3_FIXED_EPSILON );
+
+	publicProduct = b3MulMM( b3Body_GetWorldInverseRotationalInertia( bodyId ), world );
+	ENSURE_SMALL( publicProduct.cx.x - B3_FIX( 1.0f ), B3_FIX( 0.02f ) );
+	ENSURE_SMALL( publicProduct.cy.y - B3_FIX( 1.0f ), B3_FIX( 0.02f ) );
+	ENSURE_SMALL( publicProduct.cz.z - B3_FIX( 1.0f ), B3_FIX( 0.02f ) );
+	ENSURE_SMALL( publicProduct.cy.x, B3_FIX( 0.02f ) );
+	ENSURE_SMALL( publicProduct.cz.y, B3_FIX( 0.02f ) );
 
 	b3DestroyWorld( worldId );
 	return 0;
