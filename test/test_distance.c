@@ -226,6 +226,72 @@ static int ShapeCastEncroachOverlapTest( void )
 	return 0;
 }
 
+// The retained rest separation must be b3FixMul( B3_FIX( 0.5f ), linearSlop ) and
+// NOT an integer halving of the raw. At the DEFAULT slop (raw 328, even) the two
+// spellings agree at 164, so nothing in the suite above can tell them apart. They
+// differ on an ODD slop raw, which b3SetLengthUnitsPerMeter can produce.
+//
+// MEASURED on this tree, raw values, with a probe linked against the library:
+//   - lengthUnits raw 100..299 give linearSlop raw 1 (halving 0, b3FixMul 1)
+//   - lengthUnits raw 500..699 give linearSlop raw 3 (halving 1, b3FixMul 2)
+// Raw 1 is unreachable for a zero-radius cast: tolerance quantizes to 0 and
+// target is 1, so iteration 0 is entered only at distance 0, which is the
+// initial-overlap arm. Raw 3 IS reachable: tolerance is raw 1, target is raw 3,
+// so iteration 0 takes any distance up to raw 3 and the gate ( 0, 2 * slop = 6 ]
+// admits it.
+//
+// At lengthUnits raw 512 (linearSlop raw 3) a closing sweep of raw 2 against a
+// core gap of raw 3 discriminates:
+//   halving:  retained 1, needed 2, approach 2 -> approach <= needed -> MISS
+//   b3FixMul: retained 2, needed 1, approach 2 -> fraction = 1/2 -> HIT at 0.5
+// Upstream's float retains 0.5 raw and hits at fraction 0.75, so the b3FixMul
+// spelling keeps upstream's HIT where the halving turns it into a miss.
+static int ShapeCastEncroachOddSlopRetainedTest( void )
+{
+	static const b3Vec3 vas[] = { { -B3_FIX( 1.0f ), -B3_FIX( 1.0f ), B3_FIX( 0.0f ) },
+								  { B3_FIX( 1.0f ), -B3_FIX( 1.0f ), B3_FIX( 0.0f ) },
+								  { B3_FIX( 1.0f ), B3_FIX( 1.0f ), B3_FIX( 0.0f ) },
+								  { -B3_FIX( 1.0f ), B3_FIX( 1.0f ), B3_FIX( 0.0f ) } };
+
+	// Three raw units of core separation, so the gap is odd-slop sized rather than
+	// authored in meters: B3_FIX( 1.0f ) + 3 is raw 65539.
+	static const b3Vec3 vbs[] = {
+		{ B3_FIX( 1.0f ) + 3, -B3_FIX( 1.0f ), B3_FIX( 0.0f ) },
+		{ B3_FIX( 1.0f ) + 3, B3_FIX( 1.0f ), B3_FIX( 0.0f ) },
+	};
+
+	b3SetLengthUnitsPerMeter( 512 );
+
+	b3Fixed slop = B3_LINEAR_SLOP;
+
+	b3ShapeCastPairInput input;
+	input.proxyA = (b3ShapeProxy){ vas, ARRAY_COUNT( vas ), B3_FIX( 0.0f ) };
+	input.proxyB = (b3ShapeProxy){ vbs, ARRAY_COUNT( vbs ), B3_FIX( 0.0f ) };
+	input.transform = b3Transform_identity;
+	input.translationB = (b3Vec3){ -2, B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
+	input.maxFraction = B3_FIX( 1.0f );
+	input.canEncroach = true;
+
+	b3CastOutput closing = b3ShapeCast( &input );
+
+	// A raw 3 approach against the same gap: the fraction itself discriminates.
+	// halving needed 2 / approach 3 = raw 43690; b3FixMul needed 1 / 3 = raw 21845.
+	input.translationB = (b3Vec3){ -3, B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
+	b3CastOutput graded = b3ShapeCast( &input );
+
+	// Restore the default before asserting, so a failure here cannot change the
+	// length scale under every test that runs after this one.
+	b3SetLengthUnitsPerMeter( B3_FIX( 1.0f ) );
+
+	ENSURE( slop == 3 );
+	ENSURE( closing.hit );
+	ENSURE( closing.fraction == B3_FIX( 0.5f ) );
+	ENSURE( graded.hit );
+	ENSURE( graded.fraction == 21845 );
+
+	return 0;
+}
+
 static int TimeOfImpactTest( void )
 {
 	b3Vec3 vas[] = { { -B3_FIX( 1.0f ), -B3_FIX( 1.0f ) }, { B3_FIX( 1.0f ), -B3_FIX( 1.0f ) }, { B3_FIX( 1.0f ), B3_FIX( 1.0f ) }, { -B3_FIX( 1.0f ), B3_FIX( 1.0f ) } };
@@ -293,6 +359,7 @@ int DistanceTest( void )
 	RUN_SUBTEST( ShapeCastEncroachGrazeTest );
 	RUN_SUBTEST( ShapeCastStartTouchingDefaultTest );
 	RUN_SUBTEST( ShapeCastEncroachOverlapTest );
+	RUN_SUBTEST( ShapeCastEncroachOddSlopRetainedTest );
 	RUN_SUBTEST( TimeOfImpactTest );
 
 	return 0;
