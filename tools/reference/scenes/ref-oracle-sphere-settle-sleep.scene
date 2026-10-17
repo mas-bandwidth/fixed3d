@@ -1,0 +1,9 @@
+# A sphere and a box drop, settle and fall asleep. Reference oracle: fixed3d vs float Box3D.
+expect pos 0.000737 rot 0.000406 vel 0.0621 horizon 240 counts 4
+world gravity 0 -10 0 dt 1 60 substeps 4 steps 240
+body static position 0 -0.5 0 rotation 0 0 0 1 linvel 0 0 0 angvel 0 0 0
+body dynamic position 0 1 0 rotation 0 0 0 1 linvel 0 0 0 angvel 0 0 0 flags sleep
+body dynamic position 1 1 0 rotation 0 0 0 1 linvel 0 0 0 angvel 0 0 0 flags sleep
+shape 0 box 5 0.5 5 density 1 friction 0.6 restitution 0
+shape 1 sphere 0.25 density 1 friction 0.6 restitution 0 rolling 0.05
+shape 2 box 0.25 0.25 0.25 density 1 friction 0.6 restitution 0
