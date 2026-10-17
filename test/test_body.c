@@ -1406,7 +1406,9 @@ static int TimeOfImpactSphereBoxOracleTest( void )
 
 	// Harvested from build-gcc. The TOI path is b3Vec3 based, so narrow and
 	// ludicrous share the value unless the fixed3d output moves.
-	ENSURE( hash == 0xcdf0a52beb0ce2baULL );
+	// 2026-10-17 f3d2-gjk-progress-unshifted-distance-sq: GJK progress on the unshifted squared distance,
+	// 0xcdf0a52beb0ce2ba -> 0x4dc971821b379a21 (gcc, clang, ludicrous).
+	ENSURE( hash == 0x4dc971821b379a21ULL );
 
 	return 0;
 }
