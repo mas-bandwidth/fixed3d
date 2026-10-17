@@ -1133,11 +1133,6 @@ int b3SerializeWorld( b3World* world, b3RecBuffer* buf, b3Recording* rec )
 	{
 		b3SerTree( buf, &bp->trees[t] );
 	}
-	for ( int t = 0; t < b3_bodyTypeCount; ++t )
-	{
-		b3SerBitSet( buf, &bp->movedProxies[t] );
-	}
-	b3SerPodArray( buf, bp->moveArray );
 	b3SerHashSet( buf, &bp->pairSet );
 
 	// Constraint graph
@@ -1351,17 +1346,8 @@ bool b3DeserializeIntoShell( const uint8_t* data, int size, b3World* world, b3Re
 		{
 			b3DesTree( r, &bp->trees[t] );
 		}
-		for ( int t = 0; t < b3_bodyTypeCount; ++t )
-		{
-			b3DesBitSet( r, &bp->movedProxies[t] );
-		}
-
-		b3Array_Destroy( bp->moveArray );
-		b3Array_Create( bp->moveArray );
-		b3DesPodArray( r, bp->moveArray );
-
 		b3DesHashSet( r, &bp->pairSet );
-		// Transient moveResults/movePairs stay at shell's NULL/0
+		// The gathered moved siblings are per step scratch and stay at the shell's NULL
 	}
 
 	// 11. Constraint graph

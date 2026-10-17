@@ -8,6 +8,7 @@ set(BOX3D_TEST_FILES
 	test_body_query.c
 	test_collision.c
 	test_compound.c
+	test_broad_phase.c
 	test_container.c
     test_determinism.c
     test_fixed_abi.c

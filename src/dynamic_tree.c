@@ -1964,7 +1964,14 @@ int b3DynamicTree_Rebuild( b3DynamicTree* tree, bool fullBuild )
 	else
 	{
 		b3TreeNode node = *root;
-		node.flagIndex &= ~B3_MOVED_NODE;
+
+		// A full build keeps the move marks: the static tree is rebuilt in full by
+		// b3World_RebuildStaticTree and its marks are pending pairs until b3UpdateBroadPhasePairs
+		// consumes them (box3d 79fc559, the static rebuild fix carried with f555ee4).
+		if ( fullBuild == false )
+		{
+			node.flagIndex &= ~B3_MOVED_NODE;
+		}
 		leafIndices[0] = 0;
 		leaves[0] = node;
 #if B3_TREE_HEURISTIC == 0
@@ -1989,7 +1996,10 @@ int b3DynamicTree_Rebuild( b3DynamicTree* tree, bool fullBuild )
 				continue;
 			}
 
-			node.flagIndex &= ~B3_MOVED_NODE;
+			if ( fullBuild == false )
+			{
+				node.flagIndex &= ~B3_MOVED_NODE;
+			}
 			leafIndices[leafCount] = leafCount;
 			leaves[leafCount] = node;
 #if B3_TREE_HEURISTIC == 0
@@ -2012,7 +2022,10 @@ int b3DynamicTree_Rebuild( b3DynamicTree* tree, bool fullBuild )
 	tree->dfsOrdered = true;
 
 	b3DynamicTree_Validate( tree );
-	b3DynamicTree_ValidateNoMoved( tree );
+	if ( fullBuild == false )
+	{
+		b3DynamicTree_ValidateNoMoved( tree );
+	}
 
 	return leafCount;
 }
