@@ -8,6 +8,7 @@
 #include "box3d/collision.h"
 #include "box3d/math_functions.h"
 
+#include <math.h>
 #include <string.h>
 
 // Two quads meeting at a concave crease along the shared edge 1-4. The crease exercises
@@ -673,6 +674,244 @@ static int MeshTriangleSmallReflectedScaleTest( void )
 	return 0;
 }
 
+// This oracle lives in test_mesh.c only so that each card of the stream owns one file;
+// the subject is b3ShapeDistance on two-point (capsule) proxies, not meshes.
+#define GCC_HASH_OFFSET 0xcbf29ce484222325ULL
+#define GCC_HASH_PRIME 0x100000001b3ULL
+#define GCC_SEED 0x5EED0003ULL
+#define GCC_CASE_COUNT 256
+
+// Identical in narrow gcc/clang and in BOX3D_LUDICROUS_MODE: the outputs are b3Fixed/b3Vec3,
+// which the wide build does not widen, so no per-configuration pin is needed.
+#define GCC_HASH_GOLDEN 0xda0032296d699dc5ULL
+
+static uint64_t GccRngState;
+
+static uint64_t GccNext( void )
+{
+	uint64_t x = GccRngState;
+	x ^= x << 13;
+	x ^= x >> 7;
+	x ^= x << 17;
+	GccRngState = x;
+	return x;
+}
+
+// Raw Q48.16 integer in [lo, hi].
+static int64_t GccRawInRange( int64_t lo, int64_t hi )
+{
+	uint64_t span = (uint64_t)( hi - lo + 1 );
+	return lo + (int64_t)( GccNext() % span );
+}
+
+static uint64_t GccHashInt64( uint64_t h, int64_t v )
+{
+	uint64_t u = (uint64_t)v;
+	for ( int i = 0; i < 8; ++i )
+	{
+		h ^= (uint8_t)( u >> ( 8 * i ) );
+		h *= GCC_HASH_PRIME;
+	}
+	return h;
+}
+
+static double GccDot3( const double a[3], const double b[3] )
+{
+	return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+}
+
+static double GccClamp01( double x )
+{
+	return x < 0.0 ? 0.0 : ( x > 1.0 ? 1.0 : x );
+}
+
+// Ericson, Real-Time Collision Detection 5.1.9, written out.
+static void GccClosestSegments( const double p1[3], const double q1[3], const double p2[3], const double q2[3], double c1[3], double c2[3] )
+{
+	double d1[3] = { q1[0] - p1[0], q1[1] - p1[1], q1[2] - p1[2] };
+	double d2[3] = { q2[0] - p2[0], q2[1] - p2[1], q2[2] - p2[2] };
+	double r[3] = { p1[0] - p2[0], p1[1] - p2[1], p1[2] - p2[2] };
+
+	double a = GccDot3( d1, d1 );
+	double e = GccDot3( d2, d2 );
+	double f = GccDot3( d2, r );
+
+	const double eps = 1e-14;
+	double s, t;
+
+	if ( a <= eps && e <= eps )
+	{
+		s = 0.0;
+		t = 0.0;
+	}
+	else if ( a <= eps )
+	{
+		s = 0.0;
+		t = GccClamp01( f / e );
+	}
+	else
+	{
+		double c = GccDot3( d1, r );
+		if ( e <= eps )
+		{
+			t = 0.0;
+			s = GccClamp01( -c / a );
+		}
+		else
+		{
+			double b = GccDot3( d1, d2 );
+			double denom = a * e - b * b;
+			s = denom != 0.0 ? GccClamp01( ( b * f - c * e ) / denom ) : 0.0;
+			t = ( b * s + f ) / e;
+			if ( t < 0.0 )
+			{
+				t = 0.0;
+				s = GccClamp01( -c / a );
+			}
+			else if ( t > 1.0 )
+			{
+				t = 1.0;
+				s = GccClamp01( ( b - c ) / a );
+			}
+		}
+	}
+
+	for ( int i = 0; i < 3; ++i )
+	{
+		c1[i] = p1[i] + d1[i] * s;
+		c2[i] = p2[i] + d2[i] * t;
+	}
+}
+
+static int GjkCapsuleCapsuleOracleTest( void )
+{
+	GccRngState = GCC_SEED;
+
+	uint64_t hash = GCC_HASH_OFFSET;
+	int accepted = 0;
+	int pointCases = 0;
+	double maxDistanceError = 0.0;
+	double maxPointError = 0.0;
+
+	const double distanceTolerance = 2e-4;
+	const double pointTolerance = 5e-4;
+
+	while ( accepted < GCC_CASE_COUNT )
+	{
+		int64_t rawA1[3], rawA2[3], rawB1[3], rawB2[3];
+		for ( int i = 0; i < 3; ++i )
+		{
+			rawA1[i] = GccRawInRange( -131072, 131072 );
+			rawA2[i] = GccRawInRange( -131072, 131072 );
+			rawB1[i] = GccRawInRange( -131072, 131072 );
+			rawB2[i] = GccRawInRange( -131072, 131072 );
+		}
+		int64_t rawRA = GccRawInRange( 3277, 19660 );
+		int64_t rawRB = GccRawInRange( 3277, 19660 );
+
+		b3Vec3 a1 = { rawA1[0], rawA1[1], rawA1[2] };
+		b3Vec3 a2 = { rawA2[0], rawA2[1], rawA2[2] };
+		b3Vec3 b1 = { rawB1[0], rawB1[1], rawB1[2] };
+		b3Vec3 b2 = { rawB2[0], rawB2[1], rawB2[2] };
+
+		// The oracle reads the same raw values back, so only the algorithm differs.
+		double p1[3], q1[3], p2[3], q2[3];
+		p1[0] = b3FixToDouble( a1.x ); p1[1] = b3FixToDouble( a1.y ); p1[2] = b3FixToDouble( a1.z );
+		q1[0] = b3FixToDouble( a2.x ); q1[1] = b3FixToDouble( a2.y ); q1[2] = b3FixToDouble( a2.z );
+		p2[0] = b3FixToDouble( b1.x ); p2[1] = b3FixToDouble( b1.y ); p2[2] = b3FixToDouble( b1.z );
+		q2[0] = b3FixToDouble( b2.x ); q2[1] = b3FixToDouble( b2.y ); q2[2] = b3FixToDouble( b2.z );
+		double rA = b3FixToDouble( (b3Fixed)rawRA );
+		double rB = b3FixToDouble( (b3Fixed)rawRB );
+
+		double dA[3] = { q1[0] - p1[0], q1[1] - p1[1], q1[2] - p1[2] };
+		double dB[3] = { q2[0] - p2[0], q2[1] - p2[1], q2[2] - p2[2] };
+		double lengthA = sqrt( GccDot3( dA, dA ) );
+		double lengthB = sqrt( GccDot3( dB, dB ) );
+
+		if ( lengthA < 0.05 || lengthB < 0.05 )
+		{
+			continue;
+		}
+
+		double c1[3], c2[3];
+		GccClosestSegments( p1, q1, p2, q2, c1, c2 );
+
+		double delta[3] = { c2[0] - c1[0], c2[1] - c1[1], c2[2] - c1[2] };
+		double core = sqrt( GccDot3( delta, delta ) );
+		double oracleDistance = core - rA - rB;
+		if ( oracleDistance < 0.01 )
+		{
+			continue;
+		}
+
+		double n[3] = { delta[0] / core, delta[1] / core, delta[2] / core };
+		double oraclePointA[3] = { c1[0] + rA * n[0], c1[1] + rA * n[1], c1[2] + rA * n[2] };
+		double oraclePointB[3] = { c2[0] - rB * n[0], c2[1] - rB * n[1], c2[2] - rB * n[2] };
+
+		b3Vec3 pa[2] = { a1, a2 };
+		b3Vec3 pb[2] = { b1, b2 };
+
+		b3DistanceInput input = { 0 };
+		input.proxyA = (b3ShapeProxy){ pa, 2, (b3Fixed)rawRA };
+		input.proxyB = (b3ShapeProxy){ pb, 2, (b3Fixed)rawRB };
+		input.transform = b3Transform_identity;
+		input.useRadii = true;
+
+		b3SimplexCache cache = { 0 };
+		b3DistanceOutput output = b3ShapeDistance( &input, &cache, NULL, 0 );
+
+		double fixedDistance = b3FixToDouble( output.distance );
+		double distanceError = fabs( fixedDistance - oracleDistance );
+		if ( distanceError > maxDistanceError )
+		{
+			maxDistanceError = distanceError;
+		}
+		ENSURE( distanceError <= distanceTolerance );
+
+		// Near-parallel segments have non-unique closest points, so only the distance is checked.
+		double cross[3] = { dA[1] * dB[2] - dA[2] * dB[1], dA[2] * dB[0] - dA[0] * dB[2], dA[0] * dB[1] - dA[1] * dB[0] };
+		double sine = sqrt( GccDot3( cross, cross ) ) / ( lengthA * lengthB );
+		if ( sine > 0.1 )
+		{
+			double fixedPointA[3] = { b3FixToDouble( output.pointA.x ), b3FixToDouble( output.pointA.y ), b3FixToDouble( output.pointA.z ) };
+			double fixedPointB[3] = { b3FixToDouble( output.pointB.x ), b3FixToDouble( output.pointB.y ), b3FixToDouble( output.pointB.z ) };
+			for ( int i = 0; i < 3; ++i )
+			{
+				double errorA = fabs( fixedPointA[i] - oraclePointA[i] );
+				double errorB = fabs( fixedPointB[i] - oraclePointB[i] );
+				if ( errorA > maxPointError )
+				{
+					maxPointError = errorA;
+				}
+				if ( errorB > maxPointError )
+				{
+					maxPointError = errorB;
+				}
+				ENSURE( errorA <= pointTolerance );
+				ENSURE( errorB <= pointTolerance );
+			}
+			pointCases += 1;
+		}
+
+		hash = GccHashInt64( hash, output.distance );
+		hash = GccHashInt64( hash, output.pointA.x );
+		hash = GccHashInt64( hash, output.pointA.y );
+		hash = GccHashInt64( hash, output.pointA.z );
+		hash = GccHashInt64( hash, output.pointB.x );
+		hash = GccHashInt64( hash, output.pointB.y );
+		hash = GccHashInt64( hash, output.pointB.z );
+		hash = GccHashInt64( hash, (int64_t)output.iterations );
+
+		accepted += 1;
+	}
+
+	printf( "  GjkCapsuleCapsuleOracleTest cases=%d pointCases=%d maxDistanceError=%.9g maxPointError=%.9g\n", accepted, pointCases, maxDistanceError, maxPointError );
+	printf( "  GjkCapsuleCapsuleOracleTest hash=0x%016llx\n", (unsigned long long)hash );
+	ENSURE( hash == GCC_HASH_GOLDEN );
+
+	return 0;
+}
+
 int MeshTest( void )
 {
 	RUN_SUBTEST( MeshDenseStride );
@@ -688,6 +927,7 @@ int MeshTest( void )
 	RUN_SUBTEST( MeshBackSideCull );
 	RUN_SUBTEST( MeshTriangleSmallReflectedScaleTest );
 	RUN_SUBTEST( MeshCreators );
+	RUN_SUBTEST( GjkCapsuleCapsuleOracleTest );
 
 	return 0;
 }
