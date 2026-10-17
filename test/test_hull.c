@@ -706,6 +706,238 @@ static int CloneHullSmallReflectedScaleTest( void )
 	return 0;
 }
 
+// ---- b3CollideHulls face oracle: a small box resting flat on a larger box ----
+// Box3D's contract (upstream src/convex_manifold.c, face contact): the incident face is clipped to
+// the reference face; each kept point has separation = plane distance and point = clip point
+// - 0.5 * separation * n. For a small box B resting flat on a larger box A, either face can be the
+// reference; the four bottom corners survive the clip, so the manifold reports four points whose
+// separations are the gap and whose points sit halfway across it, with the normal pointing from A
+// to B. The oracle reconstructs the four corners in double from the fixed transform.
+
+static const b3Vec3 BBFkAxisY = { B3_FIX( 0.0f ), B3_FIX( 1.0f ), B3_FIX( 0.0f ) };
+
+static b3Quat BBFExactQuat( b3Vec3 axis, b3Fixed radians )
+{
+	double half = 0.5 * b3FixToDouble( radians );
+	b3Fixed s = b3FixFromDouble( sin( half ) );
+	b3Fixed c = b3FixFromDouble( cos( half ) );
+	return (b3Quat){ { b3FixMul( s, axis.x ), b3FixMul( s, axis.y ), b3FixMul( s, axis.z ) }, c };
+}
+
+typedef struct BBF_Rng
+{
+	uint64_t s;
+} BBF_Rng;
+
+static uint64_t BBFNext( BBF_Rng* rng )
+{
+	rng->s ^= rng->s << 13;
+	rng->s ^= rng->s >> 7;
+	rng->s ^= rng->s << 17;
+	return rng->s;
+}
+
+static int64_t BBFNextRange( BBF_Rng* rng, int64_t lo, int64_t hi )
+{
+	uint64_t span = (uint64_t)( hi - lo + 1 );
+	return lo + (int64_t)( BBFNext( rng ) % span );
+}
+
+static uint64_t BBFHashBytes( uint64_t h, const unsigned char* data, size_t n )
+{
+	for ( size_t i = 0; i < n; ++i )
+	{
+		h ^= data[i];
+		h *= 0x100000001b3ULL;
+	}
+	return h;
+}
+
+static void BBFHashI64( uint64_t* h, int64_t v )
+{
+	*h = BBFHashBytes( *h, (const unsigned char*)&v, sizeof( v ) );
+}
+
+static void BBFHashInt( uint64_t* h, int v )
+{
+	*h = BBFHashBytes( *h, (const unsigned char*)&v, sizeof( v ) );
+}
+
+// Rotation matrix of unit quaternion q, components read back as doubles.
+static void BBFRotateByQuat( double R[3][3], const b3Quat* q )
+{
+	double qx = b3FixToDouble( q->v.x );
+	double qy = b3FixToDouble( q->v.y );
+	double qz = b3FixToDouble( q->v.z );
+	double qw = b3FixToDouble( q->s );
+	R[0][0] = 1.0 - 2.0 * ( qy * qy + qz * qz );
+	R[0][1] = 2.0 * ( qx * qy - qz * qw );
+	R[0][2] = 2.0 * ( qx * qz + qy * qw );
+	R[1][0] = 2.0 * ( qx * qy + qz * qw );
+	R[1][1] = 1.0 - 2.0 * ( qx * qx + qz * qz );
+	R[1][2] = 2.0 * ( qy * qz - qx * qw );
+	R[2][0] = 2.0 * ( qx * qz - qy * qw );
+	R[2][1] = 2.0 * ( qy * qz + qx * qw );
+	R[2][2] = 1.0 - 2.0 * ( qx * qx + qy * qy );
+}
+
+static int BoxOnBoxFaceManifoldOracleTest( void )
+{
+	BBF_Rng rng = { 0x5EED000Bull };
+
+	// Raw Q48.16 ranges (65536 == 1.0).
+	const int64_t hA_min = 65536;      // 1.0
+	const int64_t hA_max = 3 * 65536;  // 3.0
+	const int64_t hB_min = 6554;       // ~0.1
+	const int64_t hB_max = 32768;      // 0.5
+	const int64_t yaw_min = -(int64_t)B3_PI;
+	const int64_t yaw_max = (int64_t)B3_PI;
+	const int64_t cmin = -65536;
+	const int64_t cmax = 65536;
+	const int64_t g_min = -131;        // -0.002
+	const int64_t g_max = 983;         // 0.015
+
+	uint64_t hash = 0xcbf29ce484222325ULL;
+
+	double maxSepErr = 0.0, maxPointErr = 0.0;
+
+	int accepted = 0;
+	int attempts = 0;
+
+	while ( accepted < 256 && attempts < 100000 )
+	{
+		++attempts;
+
+		b3Vec3 hA = {
+			(b3Fixed)BBFNextRange( &rng, hA_min, hA_max ),
+			(b3Fixed)BBFNextRange( &rng, hA_min, hA_max ),
+			(b3Fixed)BBFNextRange( &rng, hA_min, hA_max ),
+		};
+		b3Vec3 hB = {
+			(b3Fixed)BBFNextRange( &rng, hB_min, hB_max ),
+			(b3Fixed)BBFNextRange( &rng, hB_min, hB_max ),
+			(b3Fixed)BBFNextRange( &rng, hB_min, hB_max ),
+		};
+		b3Fixed yaw = (b3Fixed)BBFNextRange( &rng, yaw_min, yaw_max );
+		b3Fixed cx = (b3Fixed)BBFNextRange( &rng, cmin, cmax );
+		b3Fixed cz = (b3Fixed)BBFNextRange( &rng, cmin, cmax );
+		b3Fixed g = (b3Fixed)BBFNextRange( &rng, g_min, g_max );
+
+		double hAx = b3FixToDouble( hA.x ), hAy = b3FixToDouble( hA.y ), hAz = b3FixToDouble( hA.z );
+		double hBx = b3FixToDouble( hB.x ), hBy = b3FixToDouble( hB.y ), hBz = b3FixToDouble( hB.z );
+		double dx = b3FixToDouble( cx ), dz = b3FixToDouble( cz );
+		double dg = b3FixToDouble( g );
+
+		b3Quat q = BBFExactQuat( BBFkAxisY, yaw );
+		double R[3][3];
+		BBFRotateByQuat( R, &q );
+		double cosT = R[0][0];
+		double sinT = R[0][2];
+		double extX = fabs( hBx * cosT ) + fabs( hBz * sinT );
+		double extZ = fabs( hBx * sinT ) + fabs( hBz * cosT );
+		if ( fabs( dx ) + extX > hAx - 0.02 || fabs( dz ) + extZ > hAz - 0.02 )
+		{
+			continue;
+		}
+
+		b3Fixed cy = hA.y + hB.y + g;
+		double cyD = b3FixToDouble( cy );
+
+		// Oracle: B's four bottom corners in A's frame.
+		double k[4][3];
+		const int signs[4][2] = { { 1, 1 }, { 1, -1 }, { -1, 1 }, { -1, -1 } };
+		for ( int i = 0; i < 4; ++i )
+		{
+			double lx = signs[i][0] * hBx;
+			double lz = signs[i][1] * hBz;
+			k[i][0] = dx + R[0][0] * lx + R[0][2] * lz;
+			k[i][1] = cyD - hBy;
+			k[i][2] = dz + R[2][0] * lx + R[2][2] * lz;
+		}
+
+		b3BoxHull hullA = b3MakeBoxHull( hA.x, hA.y, hA.z );
+		b3BoxHull hullB = b3MakeTransformedBoxHull( hB.x, hB.y, hB.z, ( b3Transform ){ b3Vec3_zero, q } );
+		b3Transform xf = { { cx, cy, cz }, b3Quat_identity };
+
+		b3LocalManifoldPoint points[8];
+		b3LocalManifold manifold = { 0 };
+		manifold.points = points;
+		b3SATCache cache = { 0 };
+		b3CollideHulls( &manifold, 8, &hullA.base, &hullB.base, xf, &cache );
+
+		// Point-count rule (mirrors ENSURE_FACE_POINTS in test_manifold.c).
+		ENSURE( 4 <= manifold.pointCount && manifold.pointCount <= B3_MAX_MANIFOLD_POINTS );
+		ENSURE( manifold.pointCount == 4 );
+
+		// Normal from A to B.
+		double nx = b3FixToDouble( manifold.normal.x );
+		double ny = b3FixToDouble( manifold.normal.y );
+		double nz = b3FixToDouble( manifold.normal.z );
+		ENSURE( fabs( nx ) <= 1e-3 && fabs( ny - 1.0 ) <= 1e-3 && fabs( nz ) <= 1e-3 );
+
+		BBFHashInt( &hash, manifold.pointCount );
+		BBFHashI64( &hash, manifold.normal.x );
+		BBFHashI64( &hash, manifold.normal.y );
+		BBFHashI64( &hash, manifold.normal.z );
+
+		for ( int p = 0; p < manifold.pointCount; ++p )
+		{
+			BBFHashI64( &hash, manifold.points[p].point.x );
+			BBFHashI64( &hash, manifold.points[p].point.y );
+			BBFHashI64( &hash, manifold.points[p].point.z );
+			BBFHashI64( &hash, manifold.points[p].separation );
+		}
+
+		double sepErr = 0.0, pointErr = 0.0;
+		for ( int i = 0; i < 4; ++i )
+		{
+			double osep = k[i][1] - hAy;
+			double opx = k[i][0], opy = k[i][1] - 0.5 * osep, opz = k[i][2];
+
+			int best = -1;
+			double bestDist = 1e30;
+			for ( int p = 0; p < manifold.pointCount; ++p )
+			{
+				double px = b3FixToDouble( manifold.points[p].point.x );
+				double py = b3FixToDouble( manifold.points[p].point.y );
+				double pz = b3FixToDouble( manifold.points[p].point.z );
+				double d = ( px - opx ) * ( px - opx ) + ( py - opy ) * ( py - opy ) + ( pz - opz ) * ( pz - opz );
+				if ( d < bestDist )
+				{
+					bestDist = d;
+					best = p;
+				}
+			}
+			ENSURE( best >= 0 );
+
+			double msep = b3FixToDouble( manifold.points[best].separation );
+			double mpx = b3FixToDouble( manifold.points[best].point.x );
+			double mpy = b3FixToDouble( manifold.points[best].point.y );
+			double mpz = b3FixToDouble( manifold.points[best].point.z );
+			double se = fabs( msep - osep );
+			double pe = fabs( mpx - opx );
+			if ( pe < fabs( mpy - opy ) ) pe = fabs( mpy - opy );
+			if ( pe < fabs( mpz - opz ) ) pe = fabs( mpz - opz );
+			ENSURE( se <= 2e-4 );
+			ENSURE( pe <= 2e-4 );
+			if ( se > sepErr ) sepErr = se;
+			if ( pe > pointErr ) pointErr = pe;
+		}
+
+		if ( sepErr > maxSepErr ) maxSepErr = sepErr;
+		if ( pointErr > maxPointErr ) maxPointErr = pointErr;
+
+		++accepted;
+	}
+
+	ENSURE( accepted == 256 );
+
+	printf( "  BoxOnBoxFaceManifoldOracleTest hash=0x%016llx\n", (unsigned long long)hash );
+	printf( "  BoxOnBoxFaceManifoldOracleTest max separation error=%.9g max point error=%.9g\n", maxSepErr, maxPointErr );
+
+	return 0;
+}
+
 int HullTest( void )
 {
 	RUN_SUBTEST( CreateHullCubeTest );
@@ -724,6 +956,7 @@ int HullTest( void )
 	RUN_SUBTEST( CreateComplexHullTest );
 	RUN_SUBTEST( CreateComplexHullTerminatesTest );
 	RUN_SUBTEST( CloneHullSmallReflectedScaleTest );
+	RUN_SUBTEST( BoxOnBoxFaceManifoldOracleTest );
 
 	return 0;
 }
