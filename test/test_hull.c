@@ -827,6 +827,7 @@ static int BoxOnBoxFaceManifoldOracleTest( void )
 		double hBx = b3FixToDouble( hB.x ), hBy = b3FixToDouble( hB.y ), hBz = b3FixToDouble( hB.z );
 		double dx = b3FixToDouble( cx ), dz = b3FixToDouble( cz );
 		double dg = b3FixToDouble( g );
+		(void)dg;
 
 		b3Quat q = BBFExactQuat( BBFkAxisY, yaw );
 		double R[3][3];
