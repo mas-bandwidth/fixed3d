@@ -1033,9 +1033,10 @@ static int EmptyWorldRoundTrip( void )
 	return 0;
 }
 
-// Snapshot v3 has the safety-factor layout, v4 adds pointer-free compound geometry and
-// v5 adds the restitution settings. None of the three has the local inertia on the body
-// sim. Exact-version refusal prevents any older layout from being read as v6.
+// Snapshot v3 has the safety-factor layout, v4 adds pointer-free compound geometry,
+// v5 adds the restitution settings and v6 the local inertia on the body sim. None has the
+// paired broad-phase tree (box3d f555ee4). Exact-version refusal prevents any older layout
+// from being read as v7.
 static int PreviousSnapshotVersionRefused( void )
 {
 	b3Recording* rec = b3CreateRecording( 0 );
@@ -1051,7 +1052,7 @@ static int PreviousSnapshotVersionRefused( void )
 	ENSURE( size >= (int)sizeof( b3RecHeader ) + 8 );
 	uint32_t version = 0;
 	memcpy( &version, data + sizeof( b3RecHeader ) + 4, sizeof( version ) );
-	ENSURE( version == 6u );
+	ENSURE( version == 7u );
 
 	b3RecPlayer* current = b3CreatePlayer( data, size, 1 );
 	ENSURE( current != NULL );
@@ -1059,7 +1060,7 @@ static int PreviousSnapshotVersionRefused( void )
 
 	uint8_t* old = (uint8_t*)b3Alloc( (size_t)size );
 	memcpy( old, data, (size_t)size );
-	for ( version = 3u; version <= 5u; ++version )
+	for ( version = 3u; version <= 6u; ++version )
 	{
 		memcpy( old + sizeof( b3RecHeader ) + 4, &version, sizeof( version ) );
 		ENSURE( b3CreatePlayer( old, size, 1 ) == NULL );

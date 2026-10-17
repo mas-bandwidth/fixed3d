@@ -1669,58 +1669,53 @@ typedef struct b3TOIOutput
  * @{
  */
 
-/// Flags for tree nodes. For internal usage.
-typedef enum b3TreeNodeFlags
-{
-	b3_allocatedNode = 0x0001,
-	b3_enlargedNode = 0x0002,
-	b3_leafNode = 0x0004,
-} b3TreeNodeFlags;
-
-/// Tree node child indices. For internal usage.
-typedef struct b3TreeNodeChildren
-{
-	int child1; ///< child node index 1
-	int child2; ///< child node index 2
-} b3TreeNodeChildren;
-
-/// A node in the dynamic tree. This is private data placed here for performance reasons.
-/// todo test padding to 64 bytes to avoid straddling cache lines
+/// A node in the dynamic tree. Siblings sit together at an even index. The root is at index zero
+/// and index one always empty. Upstream fits two nodes in a 64 byte cache line; here the fixed
+/// point AABB is 48 bytes (96 in ludicrous mode), so a node is 56 bytes (112 in ludicrous mode).
 typedef struct b3TreeNode
 {
 	/// The node bounding box
-	b3AABB aabb; // 24
+	b3AABB aabb; // 48, 96 in ludicrous mode
 
-	/// Category bits for collision filtering
-	uint64_t categoryBits; // 8
-
-	union
-	{
-		/// Children (internal node)
-		b3TreeNodeChildren children;
-
-		/// User data (leaf node)
-		uint64_t userData;
-	}; // 8
+	/// bit 31 : 1 for leaf node
+	/// bit 30 : 1 for moved flag
+	/// bits 0-29 : index of the sibling pair node or the proxy id for a leaf
+	uint32_t flagIndex; // 4
 
 	union
 	{
-		/// The node parent index (allocated node)
-		int parent;
+		/// The height of an internal node. A leaf has zero height.
+		int32_t height;
 
-		/// The node freelist next index (free node)
-		int next;
+		/// The shape index for a leaf. Truncated from proxy user data.
+		int32_t shapeIndex;
 	}; // 4
 
-	/// Height of the node. Leaves have a height of 0.
-	uint16_t height; // 2
-
-	/// @see b3TreeNodeFlags
-	uint16_t flags; // 2
+#if defined( BOX3D_LUDICROUS_MODE )
+	/// The 128-bit AABB aligns the node to 16 bytes. Named so no byte of a serialized node is
+	/// indeterminate. Always zero.
+	uint32_t padding[2];
+#endif
 } b3TreeNode;
 
+/// Separate storage for tree leaves.
+typedef struct b3TreeProxy
+{
+	/// User data is an index instead of void* because it is used internally as a shape index.
+	uint64_t userData;
+
+	/// Category bits for collision filtering.
+	uint64_t categoryBits;
+
+	/// The leaf node. B3_NULL_INDEX for a free proxy.
+	int32_t node;
+
+	/// Next free proxy.
+	int32_t next;
+} b3TreeProxy;
+
 /// Dynamic tree version for compatibility testing.
-#define B3_DYNAMIC_TREE_VERSION 0x93EDAF889FD30B4Aull
+#define B3_DYNAMIC_TREE_VERSION 0x1D6F4C2A73B80E91ull
 
 /// The dynamic tree structure. This should be considered private data.
 /// It is placed here for performance reasons.
@@ -1730,26 +1725,42 @@ typedef struct b3DynamicTree
 	/// if the tree is serialized.
 	uint64_t version;
 
-	/// The tree nodes
+	/// Array of nodes. The root is at index zero and index 1 is empty.
+	/// Otherwise siblings are paired at even indices. Has holes for free node pairs.
 	b3TreeNode* nodes;
 
-	/// The root index
-	int root;
+	/// Parent index per node. The free list is interweaved.
+	int32_t* parents;
 
-	/// The number of nodes
-	int nodeCount;
+	/// Proxy data split from node array as cold data.
+	b3TreeProxy* proxies;
+
+	/// Every allocated node has a lower index than this.
+	int32_t nodeEnd;
 
 	/// The allocated node space
-	int nodeCapacity;
+	int32_t nodeCapacity;
+
+	/// Free pairs below nodeEnd
+	int32_t pairFreeList;
 
 	/// Number of proxies created
-	int proxyCount;
+	int32_t proxyCount;
 
-	/// Node free list
-	int freeList;
+	/// The allocated proxy space
+	int32_t proxyCapacity;
+
+	/// Proxy free list
+	int32_t proxyFreeList;
+
+	/// Array of nodes for rebuild.
+	b3TreeNode* swapNodes;
 
 	/// Leaf indices for rebuild
-	int* leafIndices;
+	int32_t* leafIndices;
+
+	/// Leaves for the rebuild. May represent a proxy or a retained subtree.
+	b3TreeNode* leafNodes;
 
 	/// Leaf bounding boxes for rebuild
 	b3AABB* leafBoxes;
@@ -1758,10 +1769,14 @@ typedef struct b3DynamicTree
 	b3Vec3* leafCenters;
 
 	/// Bins for sorting during rebuild
-	int* binIndices;
+	int32_t* binIndices;
 
 	/// Allocated space for rebuilding
-	int rebuildCapacity;
+	int32_t rebuildCapacity;
+
+	/// Rebuild orders the nodes so the children follow parents. Cache friendly for queries
+	/// and refitting. The order can be disrupted by proxy creation.
+	bool dfsOrdered;
 } b3DynamicTree;
 
 /// These are performance results returned by dynamic tree queries.
@@ -2451,7 +2466,7 @@ typedef struct b3CompoundDef
 } b3CompoundDef;
 
 /// Fixed3D's pointer-free baked compound format depends on its mesh and hull formats.
-#define B3_COMPOUND_VERSION ( 0xC4B2A90E7D613F58ull ^ B3_MESH_VERSION ^ B3_HULL_VERSION )
+#define B3_COMPOUND_VERSION ( 0x5E1D3B97A2C4F60Bull ^ B3_MESH_VERSION ^ B3_HULL_VERSION )
 
 /// The data for a baked compound shape. This is a potentially large yet highly optimized
 /// data structure. It can contain thousands of child shapes, yet at runtime it populates
@@ -2479,9 +2494,13 @@ typedef struct b3CompoundData
 	/// Offset of the tree node array in bytes from the struct address.
 	int nodeOffset;
 
-	/// Number of stored tree nodes, including unused capacity, and the root index.
+	/// Number of stored tree nodes. The baked tree is dense and rooted at node zero, so this is
+	/// the tree's node end.
 	int nodeCount;
-	int root;
+
+	/// Offset of the tree proxy array in bytes from the struct address. There is one proxy per
+	/// child shape, so the proxy count is the child count.
+	int proxyOffset;
 
 	/// Offset of the material array in bytes from the struct address.
 	int materialOffset;
