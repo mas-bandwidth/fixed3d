@@ -6,6 +6,12 @@
 #include "box3d/box3d.h"
 #include "box3d/math_functions.h"
 
+#include "inverse.h"
+#include "math_internal.h"
+
+#include <math.h>
+#include <stdint.h>
+
 // One sub-test per joint type. Each creates the joint, exercises the shared
 // b3Joint_* API plus every type-specific accessor, then steps to make sure the
 // joint solves without tripping a validation assert.
@@ -779,6 +785,331 @@ static int TestNonDynamicJointDisable( void )
 	return 0;
 }
 
+static double RandUnit( uint64_t* state )
+{
+	*state = *state * 6364136223846793005ull + 1442695040888963407ull;
+	return (double)( *state >> 11 ) * ( 1.0 / 9007199254740992.0 );
+}
+
+static double RandRange( uint64_t* state, double lo, double hi )
+{
+	return lo + ( hi - lo ) * RandUnit( state );
+}
+
+static double Norm3( const double v[3] )
+{
+	return sqrt( v[0] * v[0] + v[1] * v[1] + v[2] * v[2] );
+}
+
+static void QuatToRot( const double q[4], double R[3][3] )
+{
+	double x = q[0], y = q[1], z = q[2], w = q[3];
+	R[0][0] = 1.0 - 2.0 * y * y - 2.0 * z * z;
+	R[0][1] = 2.0 * x * y - 2.0 * z * w;
+	R[0][2] = 2.0 * x * z + 2.0 * y * w;
+	R[1][0] = 2.0 * x * y + 2.0 * z * w;
+	R[1][1] = 1.0 - 2.0 * x * x - 2.0 * z * z;
+	R[1][2] = 2.0 * y * z - 2.0 * x * w;
+	R[2][0] = 2.0 * x * z - 2.0 * y * w;
+	R[2][1] = 2.0 * y * z + 2.0 * x * w;
+	R[2][2] = 1.0 - 2.0 * x * x - 2.0 * y * y;
+}
+
+static void SymPSD( uint64_t* state, double A[3][3] )
+{
+	double q[4];
+	double n = 0.0;
+	for ( int k = 0; k < 4; ++k )
+	{
+		q[k] = RandRange( state, -1.0, 1.0 );
+		n += q[k] * q[k];
+	}
+	double inv = 1.0 / sqrt( n );
+	for ( int k = 0; k < 4; ++k )
+	{
+		q[k] *= inv;
+	}
+
+	double R[3][3];
+	QuatToRot( q, R );
+
+	double d[3] = { RandRange( state, 0.0, 10.0 ), RandRange( state, 0.0, 10.0 ), RandRange( state, 0.0, 10.0 ) };
+
+	for ( int i = 0; i < 3; ++i )
+	{
+		for ( int j = 0; j < 3; ++j )
+		{
+			double s = 0.0;
+			for ( int k = 0; k < 3; ++k )
+			{
+				s += R[i][k] * d[k] * R[j][k];
+			}
+			A[i][j] = s;
+		}
+	}
+}
+
+static int Inv3( const double M[3][3], double Minv[3][3] )
+{
+	double det = M[0][0] * ( M[1][1] * M[2][2] - M[1][2] * M[2][1] )
+	           - M[0][1] * ( M[1][0] * M[2][2] - M[1][2] * M[2][0] )
+	           + M[0][2] * ( M[1][0] * M[2][1] - M[1][1] * M[2][0] );
+	if ( fabs( det ) < 1e-15 )
+	{
+		return 0;
+	}
+	double id = 1.0 / det;
+	Minv[0][0] = ( M[1][1] * M[2][2] - M[1][2] * M[2][1] ) * id;
+	Minv[0][1] = ( M[0][2] * M[2][1] - M[0][1] * M[2][2] ) * id;
+	Minv[0][2] = ( M[0][1] * M[1][2] - M[0][2] * M[1][1] ) * id;
+	Minv[1][0] = ( M[1][2] * M[2][0] - M[1][0] * M[2][2] ) * id;
+	Minv[1][1] = ( M[0][0] * M[2][2] - M[0][2] * M[2][0] ) * id;
+	Minv[1][2] = ( M[0][2] * M[1][0] - M[0][0] * M[1][2] ) * id;
+	Minv[2][0] = ( M[1][0] * M[2][1] - M[1][1] * M[2][0] ) * id;
+	Minv[2][1] = ( M[0][1] * M[2][0] - M[0][0] * M[2][1] ) * id;
+	Minv[2][2] = ( M[0][0] * M[1][1] - M[0][1] * M[1][0] ) * id;
+	return 1;
+}
+
+static double CondInf( const double M[3][3] )
+{
+	double Minv[3][3];
+	if ( !Inv3( M, Minv ) )
+	{
+		return 1e30;
+	}
+	double n1 = 0.0, n2 = 0.0;
+	for ( int i = 0; i < 3; ++i )
+	{
+		double rs = fabs( M[i][0] ) + fabs( M[i][1] ) + fabs( M[i][2] );
+		double ri = fabs( Minv[i][0] ) + fabs( Minv[i][1] ) + fabs( Minv[i][2] );
+		if ( rs > n1 )
+		{
+			n1 = rs;
+		}
+		if ( ri > n2 )
+		{
+			n2 = ri;
+		}
+	}
+	return n1 * n2;
+}
+
+static int TestPointConstraintMatchesUpstreamExpansion( void )
+{
+	const double kEps = 1.0 / 65536.0;
+	const int caseCount = 1000;
+	const uint64_t seed = 0x9E3779B97F4A7C15ull;
+
+	int skippedTotal = 0;
+	double maxKError = 0.0;
+	double maxSolveRelError = 0.0;
+	double globalKMag = 0.0;
+	uint64_t state;
+
+	for ( int pass = 0; pass < 2; ++pass )
+	{
+		state = seed;
+		int skipped = 0;
+		for ( int i = 0; i < caseCount; ++i )
+		{
+			int staticA = ( i % 11 ) == 0;
+			double mA = staticA ? 0.0 : RandRange( &state, 0.0, 10.0 );
+			double mB = RandRange( &state, 0.0, 10.0 );
+			double iA[3][3], iB[3][3];
+			SymPSD( &state, iA );
+			SymPSD( &state, iB );
+			double rA[3] = { RandRange( &state, -5.0, 5.0 ), RandRange( &state, -5.0, 5.0 ), RandRange( &state, -5.0, 5.0 ) };
+			double rB[3] = { RandRange( &state, -5.0, 5.0 ), RandRange( &state, -5.0, 5.0 ), RandRange( &state, -5.0, 5.0 ) };
+			double rhs[3] = { RandRange( &state, -10.0, 10.0 ), RandRange( &state, -10.0, 10.0 ), RandRange( &state, -10.0, 10.0 ) };
+
+			b3Fixed mA_f = b3FixFromDouble( mA );
+			b3Fixed mB_f = b3FixFromDouble( mB );
+			b3Vec3 rA_f = { b3FixFromDouble( rA[0] ), b3FixFromDouble( rA[1] ), b3FixFromDouble( rA[2] ) };
+			b3Vec3 rB_f = { b3FixFromDouble( rB[0] ), b3FixFromDouble( rB[1] ), b3FixFromDouble( rB[2] ) };
+			b3Vec3 rhs_f = { b3FixFromDouble( rhs[0] ), b3FixFromDouble( rhs[1] ), b3FixFromDouble( rhs[2] ) };
+
+			b3Matrix3 iA_f, iB_f;
+			iA_f.cx = (b3Vec3){ b3FixFromDouble( iA[0][0] ), b3FixFromDouble( iA[1][0] ), b3FixFromDouble( iA[2][0] ) };
+			iA_f.cy = (b3Vec3){ b3FixFromDouble( iA[0][1] ), b3FixFromDouble( iA[1][1] ), b3FixFromDouble( iA[2][1] ) };
+			iA_f.cz = (b3Vec3){ b3FixFromDouble( iA[0][2] ), b3FixFromDouble( iA[1][2] ), b3FixFromDouble( iA[2][2] ) };
+			iB_f.cx = (b3Vec3){ b3FixFromDouble( iB[0][0] ), b3FixFromDouble( iB[1][0] ), b3FixFromDouble( iB[2][0] ) };
+			iB_f.cy = (b3Vec3){ b3FixFromDouble( iB[0][1] ), b3FixFromDouble( iB[1][1] ), b3FixFromDouble( iB[2][1] ) };
+			iB_f.cz = (b3Vec3){ b3FixFromDouble( iB[0][2] ), b3FixFromDouble( iB[1][2] ), b3FixFromDouble( iB[2][2] ) };
+
+			b3Matrix3 kA = b3SkewSandwich( iA_f, rA_f );
+			b3Matrix3 kB = b3SkewSandwich( iB_f, rB_f );
+			b3Matrix3 k = b3NegateMat3( b3AddMM( kA, kB ) );
+			k.cx.x += mA_f + mB_f;
+			k.cy.y += mA_f + mB_f;
+			k.cz.z += mA_f + mB_f;
+			b3Vec3 x_f = b3Solve3AcrossScales( k, rhs_f );
+
+			double mA_u = b3FixToDouble( mA_f );
+			double mB_u = b3FixToDouble( mB_f );
+			double iAcx[3] = { b3FixToDouble( iA_f.cx.x ), b3FixToDouble( iA_f.cx.y ), b3FixToDouble( iA_f.cx.z ) };
+			double iAcy[3] = { b3FixToDouble( iA_f.cy.x ), b3FixToDouble( iA_f.cy.y ), b3FixToDouble( iA_f.cy.z ) };
+			double iAcz[3] = { b3FixToDouble( iA_f.cz.x ), b3FixToDouble( iA_f.cz.y ), b3FixToDouble( iA_f.cz.z ) };
+			double iBcx[3] = { b3FixToDouble( iB_f.cx.x ), b3FixToDouble( iB_f.cx.y ), b3FixToDouble( iB_f.cx.z ) };
+			double iBcy[3] = { b3FixToDouble( iB_f.cy.x ), b3FixToDouble( iB_f.cy.y ), b3FixToDouble( iB_f.cy.z ) };
+			double iBcz[3] = { b3FixToDouble( iB_f.cz.x ), b3FixToDouble( iB_f.cz.y ), b3FixToDouble( iB_f.cz.z ) };
+			double rAu[3] = { b3FixToDouble( rA_f.x ), b3FixToDouble( rA_f.y ), b3FixToDouble( rA_f.z ) };
+			double rBu[3] = { b3FixToDouble( rB_f.x ), b3FixToDouble( rB_f.y ), b3FixToDouble( rB_f.z ) };
+			double rhsu[3] = { b3FixToDouble( rhs_f.x ), b3FixToDouble( rhs_f.y ), b3FixToDouble( rhs_f.z ) };
+
+			double axy = rAu[2] * iAcy[1] - rAu[1] * iAcz[1];
+			double axz = rAu[2] * iAcy[2] - rAu[1] * iAcz[2];
+			double ayx = rAu[0] * iAcz[0] - rAu[2] * iAcx[0];
+			double ayy = rAu[0] * iAcz[1] - rAu[2] * iAcx[1];
+			double ayz = rAu[0] * iAcz[2] - rAu[2] * iAcx[2];
+			double azx = rAu[1] * iAcx[0] - rAu[0] * iAcy[0];
+			double azy = rAu[1] * iAcx[1] - rAu[0] * iAcy[1];
+			double azz = rAu[1] * iAcx[2] - rAu[0] * iAcy[2];
+
+			double bxy = rBu[2] * iBcy[1] - rBu[1] * iBcz[1];
+			double bxz = rBu[2] * iBcy[2] - rBu[1] * iBcz[2];
+			double byx = rBu[0] * iBcz[0] - rBu[2] * iBcx[0];
+			double byy = rBu[0] * iBcz[1] - rBu[2] * iBcx[1];
+			double byz = rBu[0] * iBcz[2] - rBu[2] * iBcx[2];
+			double bzx = rBu[1] * iBcx[0] - rBu[0] * iBcy[0];
+			double bzy = rBu[1] * iBcx[1] - rBu[0] * iBcy[1];
+			double bzz = rBu[1] * iBcx[2] - rBu[0] * iBcy[2];
+
+			double m = mA_u + mB_u;
+			double kupxx = ( axy * rAu[2] - axz * rAu[1] ) + ( bxy * rBu[2] - bxz * rBu[1] ) + m;
+			double kupyy = ( ayz * rAu[0] - ayx * rAu[2] ) + ( byz * rBu[0] - byx * rBu[2] ) + m;
+			double kupzz = ( azx * rAu[1] - azy * rAu[0] ) + ( bzx * rBu[1] - bzy * rBu[0] ) + m;
+			double kupxy = ( ayy * rAu[2] - ayz * rAu[1] ) + ( byy * rBu[2] - byz * rBu[1] );
+			double kupxz = ( azy * rAu[2] - azz * rAu[1] ) + ( bzy * rBu[2] - bzz * rBu[1] );
+			double kupyz = ( azz * rAu[0] - azx * rAu[2] ) + ( bzz * rBu[0] - bzx * rBu[2] );
+
+			double Ku[3][3] = {
+				{ kupxx, kupxy, kupxz },
+				{ kupxy, kupyy, kupyz },
+				{ kupxz, kupyz, kupzz }
+			};
+			double Kf[3][3] = {
+				{ b3FixToDouble( k.cx.x ), b3FixToDouble( k.cy.x ), b3FixToDouble( k.cz.x ) },
+				{ b3FixToDouble( k.cx.y ), b3FixToDouble( k.cy.y ), b3FixToDouble( k.cz.y ) },
+				{ b3FixToDouble( k.cx.z ), b3FixToDouble( k.cy.z ), b3FixToDouble( k.cz.z ) }
+			};
+
+			double mag = 0.0;
+			for ( int r = 0; r < 3; ++r )
+			{
+				for ( int c = 0; c < 3; ++c )
+				{
+					double a = fabs( Kf[r][c] ), b = fabs( Ku[r][c] );
+					if ( a > mag )
+					{
+						mag = a;
+					}
+					if ( b > mag )
+					{
+						mag = b;
+					}
+				}
+			}
+			if ( mag > globalKMag )
+			{
+				globalKMag = mag;
+			}
+
+			if ( pass == 0 )
+			{
+				for ( int r = 0; r < 3; ++r )
+				{
+					for ( int c = 0; c < 3; ++c )
+					{
+						double e = fabs( Kf[r][c] - Ku[r][c] );
+						if ( e > maxKError )
+						{
+							maxKError = e;
+						}
+					}
+				}
+			}
+			else
+			{
+				double kTol = 8.0 * kEps > 1e-6 * globalKMag ? 8.0 * kEps : 1e-6 * globalKMag;
+				for ( int r = 0; r < 3; ++r )
+				{
+					for ( int c = 0; c < 3; ++c )
+					{
+						double e = fabs( Kf[r][c] - Ku[r][c] );
+						if ( e > kTol )
+						{
+							printf( "condition false: K[%d][%d] err %g > tol %g\n", r, c, e, kTol );
+							return 1;
+						}
+					}
+				}
+			}
+
+			double ccxx = kupyy * kupzz - kupyz * kupyz;
+			double cyy = kupxx * kupzz - kupxz * kupxz;
+			double czz = kupxx * kupyy - kupxy * kupxy;
+			double cxy = kupxz * kupyz - kupxy * kupzz;
+			double cxz = kupxy * kupyz - kupyy * kupxz;
+			double cyz = kupxy * kupxz - kupxx * kupyz;
+			double det = kupxx * ccxx + kupxy * cxy + kupxz * cxz;
+
+			if ( fabs( det ) < 1e-9 )
+			{
+				skipped++;
+			}
+			else
+			{
+				double xU[3] = {
+					( ccxx * rhsu[0] + cxy * rhsu[1] + cxz * rhsu[2] ) / det,
+					( cxy * rhsu[0] + cyy * rhsu[1] + cyz * rhsu[2] ) / det,
+					( cxz * rhsu[0] + cyz * rhsu[1] + czz * rhsu[2] ) / det
+				};
+				if ( CondInf( Ku ) < 1e6 )
+				{
+					double xFM[3] = { b3FixToDouble( x_f.x ), b3FixToDouble( x_f.y ), b3FixToDouble( x_f.z ) };
+					double nU = Norm3( xU );
+					double rel;
+					if ( nU < 1e-12 )
+					{
+						rel = 0.0;
+					}
+					else
+					{
+						double d[3] = { xFM[0] - xU[0], xFM[1] - xU[1], xFM[2] - xU[2] };
+						rel = Norm3( d ) / nU;
+					}
+
+					if ( pass == 0 )
+					{
+						if ( rel > maxSolveRelError )
+						{
+							maxSolveRelError = rel;
+						}
+					}
+					else
+					{
+						double solveBound = maxSolveRelError * 2.0 > 8.0 * kEps ? maxSolveRelError * 2.0 : 8.0 * kEps;
+						if ( rel > solveBound )
+						{
+							printf( "condition false: solve rel err %g > bound %g\n", rel, solveBound );
+							return 1;
+						}
+					}
+				}
+			}
+		}
+
+		if ( pass == 0 )
+		{
+			skippedTotal = skipped;
+		}
+	}
+
+	printf( "PointConstraint cases=%d skipped=%d maxKError=%g maxSolveRelError=%g\n", caseCount, skippedTotal, maxKError, maxSolveRelError );
+	return 0;
+}
+
 int JointTest( void )
 {
 	RUN_SUBTEST( TestCreateJointClearsContacts );
@@ -794,6 +1125,7 @@ int JointTest( void )
 	RUN_SUBTEST( TestWeldJoint );
 	RUN_SUBTEST( TestWheelJoint );
 	RUN_SUBTEST( TestNonDynamicJointDisable );
+	RUN_SUBTEST( TestPointConstraintMatchesUpstreamExpansion );
 
 	return 0;
 }
