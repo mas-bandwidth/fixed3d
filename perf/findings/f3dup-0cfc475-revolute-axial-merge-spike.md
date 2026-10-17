@@ -1,5 +1,12 @@
 # VERDICT: LEARNED (bit-identical across compilers and builds; joints green; but the golden table is incomplete and the ragdoll-human scene no longer settles)
 
+Re-verified on attempt 2 (w2): `experiment.patch` is byte-identical to the engine diff
+(`git diff 820dbc7f3fd0..9c61d00 -- src/revolute_joint.c`), and `patch -p1 --dry-run`
+applies it cleanly to BASE's `src/revolute_joint.c`, so the recorded patch is reproducible
+on the unchaged base. `PerfStateHashGolden` is also bit-identical: hash
+`c4f45e4c6b5534e6` in all four builds (gcc/clang x narrow/ludicrous) and for workers 1
+and 4, so the state-hash golden does not move.
+
 This spike ports only upstream 0cfc475's merged axial solve in `b3SolveRevoluteJoint`
 (src/revolute_joint.c): the spring, motor and limit solves are merged into one block guarded
 by `fixedRotation == false && (enableSpring || enableMotor || enableLimit)` that precomputes the
