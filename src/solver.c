@@ -116,22 +116,21 @@ static void b3IntegrateVelocitiesTask( b3SolverBlock block, b3StepContext* conte
 			b3Quat q0 = sim->transform.q;
 			b3Quat q = b3MulQuat( state->deltaRotation, q0 );
 
-			// Cached when the mass data was set, because it cannot change between
-			// substeps: this was b3InvertMatrix( sim->invInertiaLocal ) here, nine
-			// 128-bit divisions per body per substep to recompute a constant.
-			b3Matrix3 inertiaLocal = sim->inertiaLocal;
-
 			// Compute local angular velocity
 			b3Vec3 omega1 = b3InvRotateVector( q, w );
 			b3Vec3 omega2 = omega1;
 
-			// Symmetric inertia tensor: 6 unique entries (column-major)
-			const b3Fixed i00 = inertiaLocal.cx.x;
-			const b3Fixed i01 = inertiaLocal.cy.x;
-			const b3Fixed i02 = inertiaLocal.cz.x;
-			const b3Fixed i11 = inertiaLocal.cy.y;
-			const b3Fixed i12 = inertiaLocal.cz.y;
-			const b3Fixed i22 = inertiaLocal.cz.z;
+			// Symmetric inertia tensor: 6 unique entries (column-major). The TRUE local
+			// inertia, read straight off the sim: this used to be
+			// b3InvertMatrix( sim->invInertiaLocal ) here, nine 128-bit divisions per
+			// body per substep to recover a value that cannot change between substeps,
+			// and the round trip lost a rounding in each direction.
+			const b3Fixed i00 = sim->inertia.cx.x;
+			const b3Fixed i01 = sim->inertia.cy.x;
+			const b3Fixed i02 = sim->inertia.cz.x;
+			const b3Fixed i11 = sim->inertia.cy.y;
+			const b3Fixed i12 = sim->inertia.cz.y;
+			const b3Fixed i22 = sim->inertia.cz.z;
 
 			for ( int gyroIteration = 0; gyroIteration < B3_GYROSCOPIC_ITERATIONS; ++gyroIteration )
 			{

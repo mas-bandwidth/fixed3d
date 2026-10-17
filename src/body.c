@@ -58,29 +58,6 @@ b3BodySim* b3GetBodySim( b3World* world, b3Body* body )
 	return bodySim;
 }
 
-// Write the local inverse inertia and the local inertia together.
-//
-// The gyroscopic solve needs the inertia, not its inverse, and it used to recover it by
-// inverting the inverse inside the substep loop -- nine 128-bit divisions per body per
-// substep, recomputing a value that is constant for the whole step. Caching it here is
-// the same value by construction: this is the identical b3InvertMatrix call, simply made
-// once when the input changes instead of four times per step for every awake body.
-//
-// The single writer is the point. Two fields holding two views of one quantity drift the
-// moment one of them is assigned somewhere the other is not, and this is the only
-// function that assigns either.
-static void b3SetLocalInverseInertia( b3BodySim* bodySim, b3Matrix3 invInertiaLocal, b3Matrix3 inertiaLocal )
-{
-	bodySim->invInertiaLocal = invInertiaLocal;
-
-	// The gyroscopic solve wants the inertia, and now that the inverse is stored at a
-	// wider scale the two are no longer a shift apart -- so it is handed the tensor the
-	// caller already has rather than recovered by inverting the inverse. That is both
-	// cheaper and more accurate: the round trip used to lose a rounding in each
-	// direction, and for a large body it lost the value entirely.
-	bodySim->inertiaLocal = inertiaLocal;
-}
-
 b3BodyState* b3GetBodyState( b3World* world, b3Body* body )
 {
 	if ( body->setIndex == b3_awakeSet )
@@ -277,7 +254,8 @@ b3BodyId b3CreateBody( b3WorldId worldId, const b3BodyDef* def )
 	bodySim->force = b3Vec3_zero;
 	bodySim->torque = b3Vec3_zero;
 	bodySim->invMass = B3_FIX( 0.0f );
-	b3SetLocalInverseInertia( bodySim, b3Mat3_zero, b3Mat3_zero );
+	bodySim->inertia = b3Mat3_zero;
+	bodySim->invInertiaLocal = b3Mat3_zero;
 	bodySim->minExtent = B3_HUGE;
 	bodySim->maxExtent = b3Vec3_zero;
 	bodySim->linearDamping = def->linearDamping;
@@ -332,7 +310,6 @@ b3BodyId b3CreateBody( b3WorldId worldId, const b3BodyDef* def )
 	body->sleepVelocity = B3_FIX( 0.0f );
 	body->safetyFactor = def->safetyFactor;
 	body->mass = B3_FIX( 0.0f );
-	body->inertia = b3Mat3_zero;
 	body->nameId = b3AddName( &world->names, def->name );
 	body->type = def->type;
 	body->flags = bodySim->flags;
@@ -961,10 +938,9 @@ void b3UpdateBodyMassData( b3World* world, b3Body* body )
 
 	// Compute mass data from shapes. Each shape has its own density.
 	body->mass = B3_FIX( 0.0f );
-	body->inertia = b3Mat3_zero;
-
+	bodySim->inertia = b3Mat3_zero;
 	bodySim->invMass = B3_FIX( 0.0f );
-	b3SetLocalInverseInertia( bodySim, b3Mat3_zero, b3Mat3_zero );
+	bodySim->invInertiaLocal = b3Mat3_zero;
 	bodySim->invInertiaWorld = b3Mat3_zero;
 	bodySim->localCenter = b3Vec3_zero;
 	bodySim->minExtent = B3_HUGE;
@@ -1046,17 +1022,17 @@ void b3UpdateBodyMassData( b3World* world, b3Body* body )
 		// Shift to center of mass. This is safe because it can only increase.
 		b3Vec3 offset = b3Sub( localCenter, massData.center );
 		b3Matrix3 inertia = b3AddMM( massData.inertia, b3Steiner( massData.mass, offset ) );
-		body->inertia = b3AddMM( body->inertia, inertia );
+		bodySim->inertia = b3AddMM( bodySim->inertia, inertia );
 	}
 
 	b3StackFree( &world->stack, masses );
 	masses = NULL;
 
-	b3FloorInertia( &body->inertia, body->mass );
+	b3FloorInertia( &bodySim->inertia, body->mass );
 
 	// Inverted at the inverse scale, which is the whole reason a large body has a usable
 	// inverse inertia at all. Returns a zero matrix for a singular tensor.
-	b3SetLocalInverseInertia( bodySim, b3InvertAcrossScales( body->inertia ), body->inertia );
+	bodySim->invInertiaLocal = b3InvertAcrossScales( bodySim->inertia );
 	if ( bodySim->invInertiaLocal.cx.x > 0 || bodySim->invInertiaLocal.cy.y > 0 || bodySim->invInertiaLocal.cz.z > 0 )
 	{
 		b3Matrix3 rotationMatrix = b3MakeMatrixFromQuat( bodySim->transform.q );
@@ -1071,7 +1047,8 @@ void b3UpdateBodyMassData( b3World* world, b3Body* body )
 		// the refusal lasted exactly until the next step and then undid itself. Zeroing
 		// both is what makes the decision stick. b3Body_SetMassData already did this;
 		// this path was the asymmetric one.
-		b3SetLocalInverseInertia( bodySim, b3Mat3_zero, b3Mat3_zero );
+		bodySim->inertia = b3Mat3_zero;
+		bodySim->invInertiaLocal = b3Mat3_zero;
 		bodySim->invInertiaWorld = b3Mat3_zero;
 	}
 
@@ -1118,8 +1095,8 @@ void b3UpdateBodyMassData( b3World* world, b3Body* body )
 	// Apply fixed rotation
 	if ( ( bodySim->flags & b3_fixedRotation ) == b3_fixedRotation )
 	{
-		body->inertia = b3Mat3_zero;
-		b3SetLocalInverseInertia( bodySim, b3Mat3_zero, b3Mat3_zero );
+		bodySim->inertia = b3Mat3_zero;
+		bodySim->invInertiaLocal = b3Mat3_zero;
 		bodySim->invInertiaWorld = b3Mat3_zero;
 	}
 }
@@ -1895,7 +1872,8 @@ b3Matrix3 b3Body_GetLocalRotationalInertia( b3BodyId bodyId )
 {
 	b3World* world = b3GetWorld( bodyId.world0 );
 	b3Body* body = b3GetBodyFullId( world, bodyId );
-	return body->inertia;
+	b3BodySim* bodySim = b3GetBodySim( world, body );
+	return bodySim->inertia;
 }
 
 b3Fixed b3Body_GetInverseMass( b3BodyId bodyId )
@@ -1973,7 +1951,7 @@ void b3Body_SetMassData( b3BodyId bodyId, b3MassData massData )
 	b3SyncBodyFlags( world, body );
 
 	body->mass = massData.mass;
-	body->inertia = massData.inertia;
+	bodySim->inertia = massData.inertia;
 	bodySim->localCenter = massData.center;
 
 	b3Pos oldCenter = bodySim->center;
@@ -1990,11 +1968,11 @@ void b3Body_SetMassData( b3BodyId bodyId, b3MassData massData )
 		state->linearVelocity = b3Add( state->linearVelocity, deltaLinear );
 	}
 
-	b3FloorInertia( &body->inertia, body->mass );
+	b3FloorInertia( &bodySim->inertia, body->mass );
 
 	// Inverted at the inverse scale, which is the whole reason a large body has a usable
 	// inverse inertia at all. Returns a zero matrix for a singular tensor.
-	b3SetLocalInverseInertia( bodySim, b3InvertAcrossScales( body->inertia ), body->inertia );
+	bodySim->invInertiaLocal = b3InvertAcrossScales( bodySim->inertia );
 	if ( bodySim->invInertiaLocal.cx.x > 0 || bodySim->invInertiaLocal.cy.y > 0 || bodySim->invInertiaLocal.cz.z > 0 )
 	{
 		b3Matrix3 rotationMatrix = b3MakeMatrixFromQuat( bodySim->transform.q );
@@ -2002,15 +1980,16 @@ void b3Body_SetMassData( b3BodyId bodyId, b3MassData massData )
 	}
 	else
 	{
-		b3SetLocalInverseInertia( bodySim, b3Mat3_zero, b3Mat3_zero );
+		bodySim->inertia = b3Mat3_zero;
+		bodySim->invInertiaLocal = b3Mat3_zero;
 		bodySim->invInertiaWorld = b3Mat3_zero;
 	}
 
 	// Apply fixed rotation
 	if ( ( bodySim->flags & b3_fixedRotation ) == b3_fixedRotation )
 	{
-		body->inertia = b3Mat3_zero;
-		b3SetLocalInverseInertia( bodySim, b3Mat3_zero, b3Mat3_zero );
+		bodySim->inertia = b3Mat3_zero;
+		bodySim->invInertiaLocal = b3Mat3_zero;
 		bodySim->invInertiaWorld = b3Mat3_zero;
 	}
 
@@ -2046,7 +2025,7 @@ b3MassData b3Body_GetMassData( b3BodyId bodyId )
 	b3World* world = b3GetWorld( bodyId.world0 );
 	b3Body* body = b3GetBodyFullId( world, bodyId );
 	b3BodySim* bodySim = b3GetBodySim( world, body );
-	b3MassData massData = { body->mass, bodySim->localCenter, body->inertia };
+	b3MassData massData = { body->mass, bodySim->localCenter, bodySim->inertia };
 	return massData;
 }
 
