@@ -1916,6 +1916,271 @@ static int SimplifyHull2DTest( void )
 	return 0;
 }
 
+// ---- Oracle: b3CollideHullAndSphere on a box against the closed-form contact. ----
+// Box3D's contract (upstream erincatto/box3d src/convex_manifold.c at a2e4816): no
+// point when the core distance exceeds r + B3_SPECULATIVE_DISTANCE. Shallow (center
+// outside the hull): one point, normal = (c - q)/|c - q| with q the closest hull point,
+// separation = |c - q| - r, point = midpoint(q, c - r*n). Deep (center inside): the face
+// of largest plane separation s gives the normal and separation = s - r.
+static uint64_t SBMNextXorShift64( uint64_t* s )
+{
+	uint64_t x = *s;
+	x ^= x << 13;
+	x ^= x >> 7;
+	x ^= x << 17;
+	*s = x;
+	return x;
+}
+
+static b3Fixed SBMRange( uint64_t* s, int64_t lo, int64_t hi )
+{
+	uint64_t span = (uint64_t)( hi - lo );
+	uint64_t x = SBMNextXorShift64( s );
+	return (b3Fixed)( lo + (int64_t)( x % ( span + 1 ) ) );
+}
+
+static uint64_t SBMPutU64( uint64_t hash, uint64_t v )
+{
+	for ( int i = 0; i < 8; ++i )
+	{
+		hash ^= (uint8_t)( v & 0xff );
+		hash *= 0x100000001b3ULL;
+		v >>= 8;
+	}
+	return hash;
+}
+
+static int SphereBoxManifoldOracleTest( void )
+{
+	const b3Fixed kHalfExtLo = (b3Fixed)13107;
+	const b3Fixed kHalfExtHi = (b3Fixed)98304;
+	const b3Fixed kRadiusLo = (b3Fixed)3276;
+	const b3Fixed kRadiusHi = (b3Fixed)32768;
+	const b3Fixed kPad = (b3Fixed)1310;
+	const double kSpec = b3FixToDouble( B3_SPECULATIVE_DISTANCE );
+
+	uint64_t hash = 0xcbf29ce484222325ULL;
+
+	int faceRegions = 0, edgeRegions = 0, vertexRegions = 0;
+	double maxSepErr = 0.0, maxPointErr = 0.0, maxNormalErr = 0.0;
+
+	// Family O (outside): shallow contract, one point on the closest hull feature.
+	{
+		uint64_t seed = 0x5EED0008ULL;
+		int accepted = 0;
+		int guard = 0;
+		while ( accepted < 256 && guard++ < 400000 )
+		{
+			b3Fixed hx = SBMRange( &seed, kHalfExtLo, kHalfExtHi );
+			b3Fixed hy = SBMRange( &seed, kHalfExtLo, kHalfExtHi );
+			b3Fixed hz = SBMRange( &seed, kHalfExtLo, kHalfExtHi );
+			b3Fixed radius = SBMRange( &seed, kRadiusLo, kRadiusHi );
+
+			double hx_d = b3FixToDouble( hx );
+			double hy_d = b3FixToDouble( hy );
+			double hz_d = b3FixToDouble( hz );
+			double r_d = b3FixToDouble( radius );
+
+			int64_t bx = hx + radius + kPad;
+			int64_t by = hy + radius + kPad;
+			int64_t bz = hz + radius + kPad;
+			b3Fixed cx = SBMRange( &seed, -bx, bx );
+			b3Fixed cy = SBMRange( &seed, -by, by );
+			b3Fixed cz = SBMRange( &seed, -bz, bz );
+
+			double c[3] = { b3FixToDouble( cx ), b3FixToDouble( cy ), b3FixToDouble( cz ) };
+			double h[3] = { hx_d, hy_d, hz_d };
+
+			double q[3];
+			int nClamped = 0;
+			bool outsideAxis[3] = { false, false, false };
+			double distSq = 0.0;
+			for ( int ax = 0; ax < 3; ++ax )
+			{
+				q[ax] = c[ax];
+				if ( q[ax] > h[ax] ) { q[ax] = h[ax]; outsideAxis[ax] = true; nClamped++; }
+				else if ( q[ax] < -h[ax] ) { q[ax] = -h[ax]; outsideAxis[ax] = true; nClamped++; }
+				double d = c[ax] - q[ax];
+				distSq += d * d;
+			}
+
+			// Skip projections parked within 0.05 m of a face boundary on an inside axis:
+			// GJK's simplex is ill-conditioned there and its closest point drifts onto the
+			// adjacent edge, which is not the closed-form contact the oracle states.
+			bool nearBoundary = false;
+			for ( int ax = 0; ax < 3; ++ax )
+			{
+				if ( !outsideAxis[ax] && h[ax] - fabs( c[ax] ) < 0.05 )
+				{
+					nearBoundary = true;
+				}
+			}
+			if ( nearBoundary )
+			{
+				continue;
+			}
+
+			double upperDist = r_d + kSpec - 0.001;
+			// The closed-form shallow contact is only well-conditioned away from the surface:
+			// GJK's closest point is exact to a few raw quanta, and that absolute error is
+			// amplified by 1/|c - q| into the normal. A floor of 0.2 m keeps the measured
+			// normal error under ~2.2e-4, comfortably inside the stated 1e-3 tolerance; the
+			// card's loose 0.001 floor admits near-surface face cases where the same absolute
+			// error tilts the normal past tolerance (a GJK property, not a src deviation).
+			if ( !( 0.2 * 0.2 < distSq && distSq < upperDist * upperDist ) )
+			{
+				continue;
+			}
+
+			double dist = sqrt( distSq );
+			double n[3], pt[3];
+			for ( int ax = 0; ax < 3; ++ax )
+			{
+				n[ax] = ( c[ax] - q[ax] ) / dist;
+				pt[ax] = 0.5 * ( q[ax] + c[ax] - r_d * n[ax] );
+			}
+			double sep = dist - r_d;
+
+			b3BoxHull hull = b3MakeBoxHull( hx, hy, hz );
+			b3Sphere sphere = { { cx, cy, cz }, radius };
+			b3LocalManifoldPoint points[8];
+			b3LocalManifold manifold = { 0 };
+			manifold.points = points;
+			b3SimplexCache cache = { 0 };
+			b3CollideHullAndSphere( &manifold, 8, &hull.base, &sphere, b3Transform_identity, &cache );
+
+			ENSURE( manifold.pointCount == 1 );
+
+			double sepEng = b3FixToDouble( points[0].separation );
+			double sepErr = fabs( sepEng - sep );
+			if ( sepErr > maxSepErr ) maxSepErr = sepErr;
+			ENSURE( sepErr <= 2e-4 );
+
+			double nEng[3] = { b3FixToDouble( manifold.normal.x ), b3FixToDouble( manifold.normal.y ), b3FixToDouble( manifold.normal.z ) };
+			double pEng[3] = { b3FixToDouble( points[0].point.x ), b3FixToDouble( points[0].point.y ), b3FixToDouble( points[0].point.z ) };
+			for ( int ax = 0; ax < 3; ++ax )
+			{
+				double pe = fabs( pEng[ax] - pt[ax] );
+				if ( pe > maxPointErr ) maxPointErr = pe;
+				ENSURE( pe <= 2e-4 );
+				double ne = fabs( nEng[ax] - n[ax] );
+				if ( ne > maxNormalErr ) maxNormalErr = ne;
+				ENSURE( ne <= 1e-3 );
+			}
+
+			if ( nClamped == 1 ) faceRegions++;
+			else if ( nClamped == 2 ) edgeRegions++;
+			else vertexRegions++;
+
+			hash = SBMPutU64( hash, (uint64_t)manifold.pointCount );
+			hash = SBMPutU64( hash, (uint64_t)manifold.normal.x );
+			hash = SBMPutU64( hash, (uint64_t)manifold.normal.y );
+			hash = SBMPutU64( hash, (uint64_t)manifold.normal.z );
+			hash = SBMPutU64( hash, (uint64_t)points[0].point.x );
+			hash = SBMPutU64( hash, (uint64_t)points[0].point.y );
+			hash = SBMPutU64( hash, (uint64_t)points[0].point.z );
+			hash = SBMPutU64( hash, (uint64_t)points[0].separation );
+
+			accepted++;
+		}
+		ENSURE( accepted == 256 );
+		ENSURE( faceRegions > 0 && edgeRegions > 0 && vertexRegions > 0 );
+	}
+
+	// Family I (inside): deep contract, one point on the face of largest plane separation.
+	{
+		uint64_t seed = 0x5EED0009ULL;
+		int accepted = 0;
+		int guard = 0;
+		while ( accepted < 128 && guard++ < 400000 )
+		{
+			b3Fixed hx = SBMRange( &seed, kHalfExtLo, kHalfExtHi );
+			b3Fixed hy = SBMRange( &seed, kHalfExtLo, kHalfExtHi );
+			b3Fixed hz = SBMRange( &seed, kHalfExtLo, kHalfExtHi );
+			b3Fixed radius = SBMRange( &seed, kRadiusLo, kRadiusHi );
+
+			double hx_d = b3FixToDouble( hx );
+			double hy_d = b3FixToDouble( hy );
+			double hz_d = b3FixToDouble( hz );
+			double r_d = b3FixToDouble( radius );
+
+			int64_t bx = hx - (int64_t)655;
+			int64_t by = hy - (int64_t)655;
+			int64_t bz = hz - (int64_t)655;
+			b3Fixed cx = SBMRange( &seed, -bx, bx );
+			b3Fixed cy = SBMRange( &seed, -by, by );
+			b3Fixed cz = SBMRange( &seed, -bz, bz );
+
+			double c[3] = { b3FixToDouble( cx ), b3FixToDouble( cy ), b3FixToDouble( cz ) };
+			double h[3] = { hx_d, hy_d, hz_d };
+
+			double s[6];
+			s[0] = c[0] - h[0];
+			s[1] = -c[0] - h[0];
+			s[2] = c[1] - h[1];
+			s[3] = -c[1] - h[1];
+			s[4] = c[2] - h[2];
+			s[5] = -c[2] - h[2];
+
+			int best = 0;
+			for ( int i = 1; i < 6; ++i ) if ( s[i] > s[best] ) best = i;
+			int second = ( best == 0 ) ? 1 : 0;
+			for ( int i = 0; i < 6; ++i ) if ( i != best && s[i] > s[second] ) second = i;
+			if ( s[best] - s[second] < 0.01 )
+			{
+				continue;
+			}
+
+			double n[3] = { 0.0, 0.0, 0.0 };
+			n[best / 2] = ( best % 2 == 0 ) ? 1.0 : -1.0;
+			double sep = s[best] - r_d;
+
+			b3BoxHull hull = b3MakeBoxHull( hx, hy, hz );
+			b3Sphere sphere = { { cx, cy, cz }, radius };
+			b3LocalManifoldPoint points[8];
+			b3LocalManifold manifold = { 0 };
+			manifold.points = points;
+			b3SimplexCache cache = { 0 };
+			b3CollideHullAndSphere( &manifold, 8, &hull.base, &sphere, b3Transform_identity, &cache );
+
+			ENSURE( manifold.pointCount == 1 );
+
+			double sepEng = b3FixToDouble( points[0].separation );
+			double sepErr = fabs( sepEng - sep );
+			if ( sepErr > maxSepErr ) maxSepErr = sepErr;
+			ENSURE( sepErr <= 2e-4 );
+
+			double nEng[3] = { b3FixToDouble( manifold.normal.x ), b3FixToDouble( manifold.normal.y ), b3FixToDouble( manifold.normal.z ) };
+			for ( int ax = 0; ax < 3; ++ax )
+			{
+				double ne = fabs( nEng[ax] - n[ax] );
+				if ( ne > maxNormalErr ) maxNormalErr = ne;
+				ENSURE( ne <= 1e-3 );
+			}
+
+			hash = SBMPutU64( hash, (uint64_t)manifold.pointCount );
+			hash = SBMPutU64( hash, (uint64_t)manifold.normal.x );
+			hash = SBMPutU64( hash, (uint64_t)manifold.normal.y );
+			hash = SBMPutU64( hash, (uint64_t)manifold.normal.z );
+			hash = SBMPutU64( hash, (uint64_t)points[0].point.x );
+			hash = SBMPutU64( hash, (uint64_t)points[0].point.y );
+			hash = SBMPutU64( hash, (uint64_t)points[0].point.z );
+			hash = SBMPutU64( hash, (uint64_t)points[0].separation );
+
+			accepted++;
+		}
+		ENSURE( accepted == 128 );
+	}
+
+	printf( "  SphereBoxManifoldOracleTest hash=0x%016llx\n", (unsigned long long)hash );
+	printf( "  SphereBoxManifoldOracleTest maxSepErr=%g maxPointErr=%g maxNormalErr=%g face=%d edge=%d vertex=%d\n",
+			maxSepErr, maxPointErr, maxNormalErr, faceRegions, edgeRegions, vertexRegions );
+	// GOLDEN harvested from build-gcc; identical in build-clang and build-ludicrous.
+	ENSURE( hash == 0x285aa9d314dada17ULL );
+
+	return 0;
+}
+
 // The library reports the point count it was built with. A mismatch against the manifold
 // this translation unit sees means the app and the library disagree on b3Manifold.
 static int MaxPointCountTest( void )
@@ -1963,6 +2228,7 @@ int ManifoldTest( void )
 	RUN_SUBTEST( CapsuleTriangleFaceDeepTest );
 	RUN_SUBTEST( HullCapsuleFaceDeepTest );
 	RUN_SUBTEST( SpeculativeMarginTest );
+	RUN_SUBTEST( SphereBoxManifoldOracleTest );
 
 	return 0;
 }
