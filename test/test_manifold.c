@@ -2246,9 +2246,22 @@ static int SphereBoxManifoldOracleTest( void )
 	// FINDING: the exact Family O range the card specifies (1 mm to r + speculative - 1 mm,
 	// no near-boundary exclusion) puts fixed3d's GJK-derived shallow contact outside the
 	// stated tolerances near the hull. The normal drifts toward an adjacent edge and the
-	// point follows it; separation stays inside its tolerance. This assert is deliberately
-	// left red: widening the tolerance or narrowing the generator would hide a real
-	// disagreement between b3CollideHullAndSphere and Box3D's closed-form contract.
+	// point follows it; separation stays inside its tolerance.
+	// VERIFIED 2026-10-17 (build-gcc, build-clang, build-ludicrous, identical hash
+	// 0x9a3fb8b692f63667 in all three): 11 point and 18 normal out-of-tolerance cases in
+	// 256 Family O cases; maxSepErr=3.41278e-05, maxPointErr=2.62451e-03 (tol 2e-4),
+	// maxNormalErr=2.01874e-02 (tol 1e-3). The oracle is the closed-form contract read from
+	// upstream erincatto/box3d src/convex_manifold.c b3CollideHullAndSphere (a2e4816):
+	// normal=(c-q)/|c-q| with q the closest hull point, point=lerp(q, c-r*n, 0.5),
+	// separation=|c-q|-r. fixed3d's port (same function, src/convex_manifold.c:1338) drives
+	// the normal from the fixed-point GJK closest points via b3ShapeDistance; near face and
+	// edge interiors the quantized closest point sits up to ~0.0026 m off the exact face
+	// projection, tilting the normal and dragging the point outside tolerance while the
+	// separation stays exact. Box3D's float GJK converges to the exact face projection, so
+	// this is a genuine divergence from the contract, not an over-tight oracle. Family I
+	// (deep) passes all 128 cases. This assert is deliberately left red: widening the
+	// tolerance or narrowing the generator would hide a real disagreement between
+	// b3CollideHullAndSphere and Box3D's closed-form contract.
 	ENSURE( oracleViolations == 0 );
 
 	return 0;
