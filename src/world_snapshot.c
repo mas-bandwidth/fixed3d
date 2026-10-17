@@ -33,7 +33,7 @@
 
 // Snapshot image magic 'BNS3' and version
 #define B3_SNAP_MAGIC 0x33534E42u
-#define B3_SNAP_VERSION 5u // safetyFactor, pointer-free compound geometry, and restitution settings
+#define B3_SNAP_VERSION 6u // local inertia moved from b3Body to b3BodySim
 
 #define B3_SNAP_FLAG_VALIDATION 0x1u
 

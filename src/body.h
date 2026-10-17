@@ -59,7 +59,7 @@ enum b3BodyFlags
 
 	b3_enableSleep = 0x00002000,
 
-	b3_bodyEnableContactRecycling = 0x00004000,
+	b3_enableContactRecycling = 0x00004000,
 
 	// The user deferred mass computation via the updateBodyMass shape option and mass
 	// data still hasn't been set.
@@ -114,9 +114,6 @@ typedef struct b3Body
 	b3Fixed sleepVelocity;
 	b3Fixed safetyFactor;
 	b3Fixed mass;
-
-	// local space inertia
-	b3Matrix3 inertia;
 
 	// this is used to adjust the fellAsleep flag in the body move array
 	int bodyMoveIndex;
@@ -208,21 +205,17 @@ typedef struct b3BodySim
 
 	b3Fixed invMass;
 
+	// Local space inertia. The solver's gyroscopic Newton-Raphson block needs the tensor
+	// itself rather than its inverse, and it lives here rather than on b3Body because
+	// the solver only ever has the sim in hand: recovering it with b3InvertMatrix of the
+	// field below would mean nine 128-bit divisions per body per substep for a value
+	// that cannot change between substeps.
+	b3Matrix3 inertia;
+
 	// Rotational inertia about the center of mass. The world space inverse inertia tensor
 	// must be updated whenever the body rotation is modified.
 	b3Matrix3 invInertiaLocal;
 	b3Matrix3 invInertiaWorld;
-
-	// The local inertia the gyroscopic solve needs, which is b3InvertMatrix of the field
-	// above. It is stored rather than derived because deriving it means inverting the
-	// inverse ONCE PER BODY PER SUBSTEP -- nine 128-bit divisions for a value that cannot
-	// change between substeps. Both fields are written together, by
-	// b3SetLocalInverseInertia alone, so they cannot drift apart.
-	//
-	// Deliberately the ROUND TRIP and not body->inertia, which is the same quantity by
-	// mathematics and a different one by rounding. Storing the round trip is what keeps
-	// this bit-identical to inverting on demand.
-	b3Matrix3 inertiaLocal;
 
 	b3Fixed minExtent;
 	b3Vec3 maxExtent;
