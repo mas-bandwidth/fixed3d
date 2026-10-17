@@ -37,7 +37,7 @@ at 128 bits) is the correct primitive; with it the ragdoll-human scene is unchan
 | scenario | field | old narrow | new narrow | old ludicrous | new ludicrous | gcc == clang | run 1 == run 2 |
 |---|---|---|---|---|---|---|---|
 | ragdoll (MultithreadingTest, CrossPlatformTest) | sleepStep | 408 | **354** | 408 | **354** | yes | yes |
-| ragdoll | hash | 0x7D29E209 | **0xD9216BE4** | 0x69572D49 | **0x27D948A4** | yes | yes |
+| ragdoll | hash | 0x69572D49 | **0xD9216BE4** | 0x7D29E209 | **0x27D948A4** | yes | yes |
 | ragdoll-human | sleepStep / hash | 219 / 0xD945B8B3 | unchanged | 219 / 0x407D12F3 | unchanged | yes | yes |
 | wave pile | sleepStep / hash | 335 / 0x64609ED9 | unchanged | 335 / 0x22E6F859 | unchanged | yes | yes |
 | query spawn | sleepStep / hash / hits / queryHash | 243 / 0x250D3BFA / 59 / 0xE583B246 | unchanged | 243 / 0xC3538B7A | unchanged | yes | yes |
@@ -55,7 +55,7 @@ exactly one row of this table: `condition false: data.sleepStep == 408` in Multi
 ## What the design step must decide
 
 1. Adopt the merge and re-pin RAGDOLL_SLEEP_STEP 408 -> 354 and RAGDOLL_HASH (narrow
-   0x7D29E209 -> 0xD9216BE4, ludicrous 0x69572D49 -> 0x27D948A4). The falling ragdolls
+   0x69572D49 -> 0xD9216BE4, ludicrous 0x7D29E209 -> 0x27D948A4). The falling ragdolls
    (shared/human.c revolute joints: limit and motor enabled, spring when hertz > 0) are the
    only scenario in this corpus whose goldens move, so the blast radius is that one golden; it
    settles sooner (354 vs 408), not later.
