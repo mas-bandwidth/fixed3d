@@ -1963,12 +1963,40 @@ static int SphereBoxManifoldOracleTest( void )
 
 	int faceRegions = 0, edgeRegions = 0, vertexRegions = 0;
 	double maxSepErr = 0.0, maxPointErr = 0.0, maxNormalErr = 0.0;
+	int oracleViolations = 0;
 
 	// Family O (outside): shallow contract, one point on the closest hull feature.
 	{
 		uint64_t seed = 0x5EED0008ULL;
 		int accepted = 0;
 		int guard = 0;
+		int pointCountViolations = 0;
+		int sepViolations = 0;
+		int pointViolations = 0;
+		int normalViolations = 0;
+
+		struct SBMWorstCase
+		{
+			int64_t raw[7];
+			int enginePointCount;
+			double engineNormal[3];
+			double enginePoint[3];
+			double engineSep;
+			double oracleNormal[3];
+			double oraclePoint[3];
+			double oracleSep;
+			double sepErr;
+			double pointErr;
+			double normalErr;
+			double rank;
+		};
+
+		struct SBMWorstCase worst[3];
+		for ( int i = 0; i < 3; ++i )
+		{
+			worst[i].rank = -1.0;
+		}
+
 		while ( accepted < 256 && guard++ < 400000 )
 		{
 			b3Fixed hx = SBMRange( &seed, kHalfExtLo, kHalfExtHi );
@@ -1993,41 +2021,20 @@ static int SphereBoxManifoldOracleTest( void )
 
 			double q[3];
 			int nClamped = 0;
-			bool outsideAxis[3] = { false, false, false };
 			double distSq = 0.0;
 			for ( int ax = 0; ax < 3; ++ax )
 			{
 				q[ax] = c[ax];
-				if ( q[ax] > h[ax] ) { q[ax] = h[ax]; outsideAxis[ax] = true; nClamped++; }
-				else if ( q[ax] < -h[ax] ) { q[ax] = -h[ax]; outsideAxis[ax] = true; nClamped++; }
+				if ( q[ax] > h[ax] ) { q[ax] = h[ax]; nClamped++; }
+				else if ( q[ax] < -h[ax] ) { q[ax] = -h[ax]; nClamped++; }
 				double d = c[ax] - q[ax];
 				distSq += d * d;
 			}
 
-			// Skip projections parked within 0.05 m of a face boundary on an inside axis:
-			// GJK's simplex is ill-conditioned there and its closest point drifts onto the
-			// adjacent edge, which is not the closed-form contact the oracle states.
-			bool nearBoundary = false;
-			for ( int ax = 0; ax < 3; ++ax )
-			{
-				if ( !outsideAxis[ax] && h[ax] - fabs( c[ax] ) < 0.05 )
-				{
-					nearBoundary = true;
-				}
-			}
-			if ( nearBoundary )
-			{
-				continue;
-			}
-
+			// The card's Family O acceptance range, verbatim: exactly one shallow point
+			// is expected from 1 mm off the hull up to the speculative margin.
 			double upperDist = r_d + kSpec - 0.001;
-			// The closed-form shallow contact is only well-conditioned away from the surface:
-			// GJK's closest point is exact to a few raw quanta, and that absolute error is
-			// amplified by 1/|c - q| into the normal. A floor of 0.2 m keeps the measured
-			// normal error under ~2.2e-4, comfortably inside the stated 1e-3 tolerance; the
-			// card's loose 0.001 floor admits near-surface face cases where the same absolute
-			// error tilts the normal past tolerance (a GJK property, not a src deviation).
-			if ( !( 0.2 * 0.2 < distSq && distSq < upperDist * upperDist ) )
+			if ( !( 0.001 * 0.001 < distSq && distSq < upperDist * upperDist ) )
 			{
 				continue;
 			}
@@ -2043,29 +2050,70 @@ static int SphereBoxManifoldOracleTest( void )
 
 			b3BoxHull hull = b3MakeBoxHull( hx, hy, hz );
 			b3Sphere sphere = { { cx, cy, cz }, radius };
-			b3LocalManifoldPoint points[8];
+			b3LocalManifoldPoint points[8] = { 0 };
 			b3LocalManifold manifold = { 0 };
 			manifold.points = points;
 			b3SimplexCache cache = { 0 };
 			b3CollideHullAndSphere( &manifold, 8, &hull.base, &sphere, b3Transform_identity, &cache );
 
-			ENSURE( manifold.pointCount == 1 );
-
 			double sepEng = b3FixToDouble( points[0].separation );
-			double sepErr = fabs( sepEng - sep );
-			if ( sepErr > maxSepErr ) maxSepErr = sepErr;
-			ENSURE( sepErr <= 2e-4 );
-
 			double nEng[3] = { b3FixToDouble( manifold.normal.x ), b3FixToDouble( manifold.normal.y ), b3FixToDouble( manifold.normal.z ) };
 			double pEng[3] = { b3FixToDouble( points[0].point.x ), b3FixToDouble( points[0].point.y ), b3FixToDouble( points[0].point.z ) };
+
+			double sepErr = fabs( sepEng - sep );
+			double pointErr = 0.0;
+			double normalErr = 0.0;
 			for ( int ax = 0; ax < 3; ++ax )
 			{
 				double pe = fabs( pEng[ax] - pt[ax] );
-				if ( pe > maxPointErr ) maxPointErr = pe;
-				ENSURE( pe <= 2e-4 );
+				if ( pe > pointErr ) pointErr = pe;
 				double ne = fabs( nEng[ax] - n[ax] );
-				if ( ne > maxNormalErr ) maxNormalErr = ne;
-				ENSURE( ne <= 1e-3 );
+				if ( ne > normalErr ) normalErr = ne;
+			}
+			if ( sepErr > maxSepErr ) maxSepErr = sepErr;
+			if ( pointErr > maxPointErr ) maxPointErr = pointErr;
+			if ( normalErr > maxNormalErr ) maxNormalErr = normalErr;
+
+			if ( manifold.pointCount != 1 ) pointCountViolations++;
+			if ( sepErr > 2e-4 ) sepViolations++;
+			if ( pointErr > 2e-4 ) pointViolations++;
+			if ( normalErr > 1e-3 ) normalViolations++;
+
+			struct SBMWorstCase rec;
+			rec.raw[0] = hx;
+			rec.raw[1] = hy;
+			rec.raw[2] = hz;
+			rec.raw[3] = radius;
+			rec.raw[4] = cx;
+			rec.raw[5] = cy;
+			rec.raw[6] = cz;
+			rec.enginePointCount = manifold.pointCount;
+			rec.engineSep = sepEng;
+			rec.oracleSep = sep;
+			rec.sepErr = sepErr;
+			rec.pointErr = pointErr;
+			rec.normalErr = normalErr;
+			rec.rank = sepErr;
+			if ( pointErr > rec.rank ) rec.rank = pointErr;
+			if ( normalErr > rec.rank ) rec.rank = normalErr;
+			for ( int ax = 0; ax < 3; ++ax )
+			{
+				rec.engineNormal[ax] = nEng[ax];
+				rec.enginePoint[ax] = pEng[ax];
+				rec.oracleNormal[ax] = n[ax];
+				rec.oraclePoint[ax] = pt[ax];
+			}
+			for ( int i = 0; i < 3; ++i )
+			{
+				if ( rec.rank > worst[i].rank )
+				{
+					for ( int j = 2; j > i; --j )
+					{
+						worst[j] = worst[j - 1];
+					}
+					worst[i] = rec;
+					break;
+				}
 			}
 
 			if ( nClamped == 1 ) faceRegions++;
@@ -2083,8 +2131,25 @@ static int SphereBoxManifoldOracleTest( void )
 
 			accepted++;
 		}
+		printf( "  SphereBoxManifoldOracleTest familyO pointCount=%d sep=%d point=%d normal=%d\n",
+				pointCountViolations, sepViolations, pointViolations, normalViolations );
+		for ( int i = 0; i < 3; ++i )
+		{
+			if ( worst[i].rank < 0.0 ) continue;
+			printf( "  SphereBoxManifoldOracleTest worst%d raw=(%lld,%lld,%lld,%lld,%lld,%lld,%lld) count=%d engineN=(%g,%g,%g) oracleN=(%g,%g,%g) engineP=(%g,%g,%g) oracleP=(%g,%g,%g) engineSep=%g oracleSep=%g sepErr=%g pointErr=%g normalErr=%g\n",
+					i, (long long)worst[i].raw[0], (long long)worst[i].raw[1], (long long)worst[i].raw[2], (long long)worst[i].raw[3],
+					(long long)worst[i].raw[4], (long long)worst[i].raw[5], (long long)worst[i].raw[6], worst[i].enginePointCount,
+					worst[i].engineNormal[0], worst[i].engineNormal[1], worst[i].engineNormal[2],
+					worst[i].oracleNormal[0], worst[i].oracleNormal[1], worst[i].oracleNormal[2],
+					worst[i].enginePoint[0], worst[i].enginePoint[1], worst[i].enginePoint[2],
+					worst[i].oraclePoint[0], worst[i].oraclePoint[1], worst[i].oraclePoint[2],
+					worst[i].engineSep, worst[i].oracleSep, worst[i].sepErr, worst[i].pointErr, worst[i].normalErr );
+		}
 		ENSURE( accepted == 256 );
 		ENSURE( faceRegions > 0 && edgeRegions > 0 && vertexRegions > 0 );
+		// The disagreements are the finding: they are reported above and fail the subtest
+		// after the hash and the measured maxima have been printed, never hidden by a filter.
+		oracleViolations += pointCountViolations + sepViolations + pointViolations + normalViolations;
 	}
 
 	// Family I (inside): deep contract, one point on the face of largest plane separation.
@@ -2137,7 +2202,7 @@ static int SphereBoxManifoldOracleTest( void )
 
 			b3BoxHull hull = b3MakeBoxHull( hx, hy, hz );
 			b3Sphere sphere = { { cx, cy, cz }, radius };
-			b3LocalManifoldPoint points[8];
+			b3LocalManifoldPoint points[8] = { 0 };
 			b3LocalManifold manifold = { 0 };
 			manifold.points = points;
 			b3SimplexCache cache = { 0 };
@@ -2176,7 +2241,15 @@ static int SphereBoxManifoldOracleTest( void )
 	printf( "  SphereBoxManifoldOracleTest maxSepErr=%g maxPointErr=%g maxNormalErr=%g face=%d edge=%d vertex=%d\n",
 			maxSepErr, maxPointErr, maxNormalErr, faceRegions, edgeRegions, vertexRegions );
 	// GOLDEN harvested from build-gcc; identical in build-clang and build-ludicrous.
-	ENSURE( hash == 0x285aa9d314dada17ULL );
+	ENSURE( hash == 0x9a3fb8b692f63667ULL );
+
+	// FINDING: the exact Family O range the card specifies (1 mm to r + speculative - 1 mm,
+	// no near-boundary exclusion) puts fixed3d's GJK-derived shallow contact outside the
+	// stated tolerances near the hull. The normal drifts toward an adjacent edge and the
+	// point follows it; separation stays inside its tolerance. This assert is deliberately
+	// left red: widening the tolerance or narrowing the generator would hide a real
+	// disagreement between b3CollideHullAndSphere and Box3D's closed-form contract.
+	ENSURE( oracleViolations == 0 );
 
 	return 0;
 }
