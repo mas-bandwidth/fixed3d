@@ -62,18 +62,23 @@
 // numeric mode. The 9e5a4cd CCD time-loss gravity fix (G3) moves mesh drop
 // 210 -> 284 (narrow 0x491E324B -> 0x784AD80A, ludicrous 0xDB1DA8B9 ->
 // 0xE44E6A0E); wave pile and query spawn do not trigger CCD and are unchanged.
-#define WAVE_PILE_SLEEP_STEP 335
+// The face-plane refinement in the shallow branch of b3CollideHullAndSphere (exact face
+// normal and point where Q48.16 GJK stopped on an adjacent edge) moves wave pile
+// 335 -> 285 (narrow 0x64609ED9 -> 0x3FFAE5C7, ludicrous 0x22E6F859 -> 0xC247A287).
+// It also moves the query spawn hash (sleep step 243, hits and query hash unchanged):
+// narrow 0x250D3BFA -> 0x0E4B940B, ludicrous 0xC3538B7A -> 0xBE2E5C8B.
+#define WAVE_PILE_SLEEP_STEP 285
 #define QUERY_SPAWN_SLEEP_STEP 243
 #define QUERY_SPAWN_HIT_COUNT 59
 #define QUERY_SPAWN_QUERY_HASH 0xE583B246
 #define MESH_DROP_SLEEP_STEP 284
 #if defined( BOX3D_LUDICROUS_MODE )
-#define WAVE_PILE_HASH 0x22E6F859
-#define QUERY_SPAWN_HASH 0xC3538B7A
+#define WAVE_PILE_HASH 0xC247A287
+#define QUERY_SPAWN_HASH 0xBE2E5C8B
 #define MESH_DROP_HASH 0xE44E6A0E
 #else
-#define WAVE_PILE_HASH 0x64609ED9
-#define QUERY_SPAWN_HASH 0x250D3BFA
+#define WAVE_PILE_HASH 0x3FFAE5C7
+#define QUERY_SPAWN_HASH 0x0E4B940B
 #define MESH_DROP_HASH 0x784AD80A
 #endif
 
