@@ -1,0 +1,397 @@
+Spike f3dup-0cfc475-spherical-axial-merge-spike raw test output
+Date: 2026-10-17, Linux bench, gcc 15.2.0 / clang 21.1.8, RelWithDebInfo + VALIDATE + Werror
+Method: DeterminismTest first run with ENSURE_GOLDEN neutralized and the spherical
+  hash ENSURE neutralized (measurement-only worktree edit, reverted) so every moved
+  golden prints; the runner aborts at the first failing subtest otherwise. Then the
+  pristine patch state rerun (real goldens asserted) for the red evidence.
+======================================================================
+DETERMINISM TEST - MAPPED GOLDENS (ENSURE_GOLDEN neutralized, run 1)
+----------------------------------------------------------------------
+[gcc NARROW]
+Starting Fixed3D unit tests
+Filter: DeterminismTest
+======================================
+test skipped: AllocatorTest
+test skipped: BitTest
+test skipped: BodyTest
+test skipped: BodyQueryTest
+test skipped: CollisionTest
+test skipped: CompoundTest
+test skipped: ContainerTest
+  ragdoll-human workers=1 sleepStep=206 hash=0x9B4E0A07
+  ragdoll-human workers=2 sleepStep=206 hash=0x9B4E0A07
+  ragdoll-human workers=3 sleepStep=206 hash=0x9B4E0A07
+  ragdoll-human workers=4 sleepStep=206 hash=0x9B4E0A07
+  ragdoll-human workers=5 sleepStep=206 hash=0x9B4E0A07
+  subtest passed: RagdollHumanTest
+  workers=1 sleepStep=327 hash=0x5BA7361D
+  workers=2 sleepStep=327 hash=0x5BA7361D
+  workers=3 sleepStep=327 hash=0x5BA7361D
+  workers=4 sleepStep=327 hash=0x5BA7361D
+  workers=5 sleepStep=327 hash=0x5BA7361D
+  subtest passed: MultithreadingTest
+  cross-platform sleepStep=327 hash=0x5BA7361D
+  subtest passed: CrossPlatformTest
+  subtest passed: WavePileTest
+  subtest passed: QuerySpawnTest
+  subtest passed: MeshDropTest
+  spherical scale=0 hash=f63b8ecb25a0abcb
+condition false: hash == goldens[scale]
+  subtest failed: SphericalGeometryTest
+test failed: DeterminismTest
+[gcc LUDICROUS]
+Starting Fixed3D unit tests
+Filter: DeterminismTest
+======================================
+test skipped: AllocatorTest
+test skipped: BitTest
+test skipped: BodyTest
+test skipped: BodyQueryTest
+test skipped: CollisionTest
+test skipped: CompoundTest
+test skipped: ContainerTest
+  ragdoll-human workers=1 sleepStep=206 hash=0x6BEB1B87
+  ragdoll-human workers=2 sleepStep=206 hash=0x6BEB1B87
+  ragdoll-human workers=3 sleepStep=206 hash=0x6BEB1B87
+  ragdoll-human workers=4 sleepStep=206 hash=0x6BEB1B87
+  ragdoll-human workers=5 sleepStep=206 hash=0x6BEB1B87
+  subtest passed: RagdollHumanTest
+  workers=1 sleepStep=327 hash=0x5BB90A5D
+  workers=2 sleepStep=327 hash=0x5BB90A5D
+  workers=3 sleepStep=327 hash=0x5BB90A5D
+  workers=4 sleepStep=327 hash=0x5BB90A5D
+  workers=5 sleepStep=327 hash=0x5BB90A5D
+  subtest passed: MultithreadingTest
+  cross-platform sleepStep=327 hash=0x5BB90A5D
+  subtest passed: CrossPlatformTest
+  subtest passed: WavePileTest
+  subtest passed: QuerySpawnTest
+  subtest passed: MeshDropTest
+  spherical scale=0 hash=fd8a13e3b05f3544
+condition false: hash == goldens[scale]
+  subtest failed: SphericalGeometryTest
+test failed: DeterminismTest
+[clang NARROW]
+Starting Fixed3D unit tests
+Filter: DeterminismTest
+======================================
+test skipped: AllocatorTest
+test skipped: BitTest
+test skipped: BodyTest
+test skipped: BodyQueryTest
+test skipped: CollisionTest
+test skipped: CompoundTest
+test skipped: ContainerTest
+  ragdoll-human workers=1 sleepStep=206 hash=0x9B4E0A07
+  ragdoll-human workers=2 sleepStep=206 hash=0x9B4E0A07
+  ragdoll-human workers=3 sleepStep=206 hash=0x9B4E0A07
+  ragdoll-human workers=4 sleepStep=206 hash=0x9B4E0A07
+  ragdoll-human workers=5 sleepStep=206 hash=0x9B4E0A07
+  subtest passed: RagdollHumanTest
+  workers=1 sleepStep=327 hash=0x5BA7361D
+  workers=2 sleepStep=327 hash=0x5BA7361D
+  workers=3 sleepStep=327 hash=0x5BA7361D
+  workers=4 sleepStep=327 hash=0x5BA7361D
+  workers=5 sleepStep=327 hash=0x5BA7361D
+  subtest passed: MultithreadingTest
+  cross-platform sleepStep=327 hash=0x5BA7361D
+  subtest passed: CrossPlatformTest
+  subtest passed: WavePileTest
+  subtest passed: QuerySpawnTest
+  subtest passed: MeshDropTest
+  spherical scale=0 hash=f63b8ecb25a0abcb
+condition false: hash == goldens[scale]
+  subtest failed: SphericalGeometryTest
+test failed: DeterminismTest
+[clang LUDICROUS]
+Starting Fixed3D unit tests
+Filter: DeterminismTest
+======================================
+test skipped: AllocatorTest
+test skipped: BitTest
+test skipped: BodyTest
+test skipped: BodyQueryTest
+test skipped: CollisionTest
+test skipped: CompoundTest
+test skipped: ContainerTest
+  ragdoll-human workers=1 sleepStep=206 hash=0x6BEB1B87
+  ragdoll-human workers=2 sleepStep=206 hash=0x6BEB1B87
+  ragdoll-human workers=3 sleepStep=206 hash=0x6BEB1B87
+  ragdoll-human workers=4 sleepStep=206 hash=0x6BEB1B87
+  ragdoll-human workers=5 sleepStep=206 hash=0x6BEB1B87
+  subtest passed: RagdollHumanTest
+  workers=1 sleepStep=327 hash=0x5BB90A5D
+  workers=2 sleepStep=327 hash=0x5BB90A5D
+  workers=3 sleepStep=327 hash=0x5BB90A5D
+  workers=4 sleepStep=327 hash=0x5BB90A5D
+  workers=5 sleepStep=327 hash=0x5BB90A5D
+  subtest passed: MultithreadingTest
+  cross-platform sleepStep=327 hash=0x5BB90A5D
+  subtest passed: CrossPlatformTest
+  subtest passed: WavePileTest
+  subtest passed: QuerySpawnTest
+  subtest passed: MeshDropTest
+  spherical scale=0 hash=fd8a13e3b05f3544
+condition false: hash == goldens[scale]
+  subtest failed: SphericalGeometryTest
+test failed: DeterminismTest
+----------------------------------------------------------------------
+SPHERICAL GEOMETRY hashes (scales 0 and 1), all four builds
+  (run with both spherical asserts neutralized; gcc and clang results)
+[gcc NARROW]
+  spherical scale=0 hash=f63b8ecb25a0abcb
+  spherical scale=1 hash=c1a50ebf3c370975
+[gcc LUDICROUS]
+  spherical scale=0 hash=fd8a13e3b05f3544
+  spherical scale=1 hash=d2cfdbaa8c733c66
+[clang NARROW]
+  spherical scale=0 hash=f63b8ecb25a0abcb
+  spherical scale=1 hash=c1a50ebf3c370975
+[clang LUDICROUS]
+  spherical scale=0 hash=fd8a13e3b05f3544
+  spherical scale=1 hash=d2cfdbaa8c733c66
+======================================================================
+DETERMINISM TEST - PRISTINE PATCH STATE (goldens asserted => red)
+----------------------------------------------------------------------
+[gcc NARROW] exit code: 1
+Starting Fixed3D unit tests
+Filter: DeterminismTest
+======================================
+test skipped: AllocatorTest
+test skipped: BitTest
+test skipped: BodyTest
+test skipped: BodyQueryTest
+test skipped: CollisionTest
+test skipped: CompoundTest
+test skipped: ContainerTest
+  ragdoll-human workers=1 sleepStep=206 hash=0x9B4E0A07
+condition false: data.sleepStep == 219
+condition false: result == 0
+  subtest failed: RagdollHumanTest
+test failed: DeterminismTest
+[gcc LUDICROUS] exit code: 1
+Starting Fixed3D unit tests
+Filter: DeterminismTest
+======================================
+test skipped: AllocatorTest
+test skipped: BitTest
+test skipped: BodyTest
+test skipped: BodyQueryTest
+test skipped: CollisionTest
+test skipped: CompoundTest
+test skipped: ContainerTest
+  ragdoll-human workers=1 sleepStep=206 hash=0x6BEB1B87
+condition false: data.sleepStep == 219
+condition false: result == 0
+  subtest failed: RagdollHumanTest
+test failed: DeterminismTest
+[clang NARROW] exit code: 1
+Starting Fixed3D unit tests
+Filter: DeterminismTest
+======================================
+test skipped: AllocatorTest
+test skipped: BitTest
+test skipped: BodyTest
+test skipped: BodyQueryTest
+test skipped: CollisionTest
+test skipped: CompoundTest
+test skipped: ContainerTest
+  ragdoll-human workers=1 sleepStep=206 hash=0x9B4E0A07
+condition false: data.sleepStep == 219
+condition false: result == 0
+  subtest failed: RagdollHumanTest
+test failed: DeterminismTest
+[clang LUDICROUS] exit code: 1
+Starting Fixed3D unit tests
+Filter: DeterminismTest
+======================================
+test skipped: AllocatorTest
+test skipped: BitTest
+test skipped: BodyTest
+test skipped: BodyQueryTest
+test skipped: CollisionTest
+test skipped: CompoundTest
+test skipped: ContainerTest
+  ragdoll-human workers=1 sleepStep=206 hash=0x6BEB1B87
+condition false: data.sleepStep == 219
+condition false: result == 0
+  subtest failed: RagdollHumanTest
+test failed: DeterminismTest
+======================================================================
+PERF STATE HASH GOLDEN TEST - pristine patch state (all pass, hash unchanged)
+----------------------------------------------------------------------
+[gcc NARROW] exit code: 0
+Starting Fixed3D unit tests
+Filter: PerfStateHashGoldenTest
+======================================
+test skipped: AllocatorTest
+test skipped: BitTest
+test skipped: BodyTest
+test skipped: BodyQueryTest
+test skipped: CollisionTest
+test skipped: CompoundTest
+test skipped: ContainerTest
+test skipped: DeterminismTest
+test skipped: DistanceTest
+test skipped: HashTest
+test skipped: HeightFieldTest
+test skipped: HullTest
+test skipped: IdTest
+test skipped: JointTest
+test skipped: LargeWorldTest
+test skipped: ManifoldTest
+test skipped: MeshTest
+test skipped: MathTest
+test skipped: MoverTest
+test skipped: NameCacheTest
+  perf state hash (1 worker) = c4f45e4c6b5534e6
+  perf state hash (4 worker) = c4f45e4c6b5534e6
+  subtest passed: PerfStateHashGolden
+test passed: PerfStateHashGoldenTest
+test skipped: RecordingTest
+test skipped: RestitutionTest
+test skipped: ShapeTest
+test skipped: TableTest
+test skipped: WorldTest
+======================================
+All Fixed3D tests passed!
+Test duration = 0.00 s
+[gcc LUDICROUS] exit code: 0
+Starting Fixed3D unit tests
+Filter: PerfStateHashGoldenTest
+======================================
+test skipped: AllocatorTest
+test skipped: BitTest
+test skipped: BodyTest
+test skipped: BodyQueryTest
+test skipped: CollisionTest
+test skipped: CompoundTest
+test skipped: ContainerTest
+test skipped: DeterminismTest
+test skipped: DistanceTest
+test skipped: HashTest
+test skipped: HeightFieldTest
+test skipped: HullTest
+test skipped: IdTest
+test skipped: JointTest
+test skipped: LargeWorldTest
+test skipped: ManifoldTest
+test skipped: MeshTest
+test skipped: MathTest
+test skipped: MoverTest
+test skipped: NameCacheTest
+  perf state hash (1 worker) = c4f45e4c6b5534e6
+  perf state hash (4 worker) = c4f45e4c6b5534e6
+  subtest passed: PerfStateHashGolden
+test passed: PerfStateHashGoldenTest
+test skipped: RecordingTest
+test skipped: RestitutionTest
+test skipped: ShapeTest
+test skipped: TableTest
+test skipped: WorldTest
+======================================
+All Fixed3D tests passed!
+Test duration = 0.00 s
+[clang NARROW] exit code: 0
+Starting Fixed3D unit tests
+Filter: PerfStateHashGoldenTest
+======================================
+test skipped: AllocatorTest
+test skipped: BitTest
+test skipped: BodyTest
+test skipped: BodyQueryTest
+test skipped: CollisionTest
+test skipped: CompoundTest
+test skipped: ContainerTest
+test skipped: DeterminismTest
+test skipped: DistanceTest
+test skipped: HashTest
+test skipped: HeightFieldTest
+test skipped: HullTest
+test skipped: IdTest
+test skipped: JointTest
+test skipped: LargeWorldTest
+test skipped: ManifoldTest
+test skipped: MeshTest
+test skipped: MathTest
+test skipped: MoverTest
+test skipped: NameCacheTest
+  perf state hash (1 worker) = c4f45e4c6b5534e6
+  perf state hash (4 worker) = c4f45e4c6b5534e6
+  subtest passed: PerfStateHashGolden
+test passed: PerfStateHashGoldenTest
+test skipped: RecordingTest
+test skipped: RestitutionTest
+test skipped: ShapeTest
+test skipped: TableTest
+test skipped: WorldTest
+======================================
+All Fixed3D tests passed!
+Test duration = 0.00 s
+[clang LUDICROUS] exit code: 0
+Starting Fixed3D unit tests
+Filter: PerfStateHashGoldenTest
+======================================
+test skipped: AllocatorTest
+test skipped: BitTest
+test skipped: BodyTest
+test skipped: BodyQueryTest
+test skipped: CollisionTest
+test skipped: CompoundTest
+test skipped: ContainerTest
+test skipped: DeterminismTest
+test skipped: DistanceTest
+test skipped: HashTest
+test skipped: HeightFieldTest
+test skipped: HullTest
+test skipped: IdTest
+test skipped: JointTest
+test skipped: LargeWorldTest
+test skipped: ManifoldTest
+test skipped: MeshTest
+test skipped: MathTest
+test skipped: MoverTest
+test skipped: NameCacheTest
+  perf state hash (1 worker) = c4f45e4c6b5534e6
+  perf state hash (4 worker) = c4f45e4c6b5534e6
+  subtest passed: PerfStateHashGolden
+test passed: PerfStateHashGoldenTest
+test skipped: RecordingTest
+test skipped: RestitutionTest
+test skipped: ShapeTest
+test skipped: TableTest
+test skipped: WorldTest
+======================================
+All Fixed3D tests passed!
+Test duration = 0.00 s
+======================================================================
+JOINT TEST - pristine patch state (all pass)
+----------------------------------------------------------------------
+[gcc NARROW] exit code: 0
+test skipped: ShapeTest
+test skipped: TableTest
+test skipped: WorldTest
+======================================
+All Fixed3D tests passed!
+Test duration = 0.00 s
+[gcc LUDICROUS] exit code: 0
+test skipped: ShapeTest
+test skipped: TableTest
+test skipped: WorldTest
+======================================
+All Fixed3D tests passed!
+Test duration = 0.00 s
+[clang NARROW] exit code: 0
+test skipped: ShapeTest
+test skipped: TableTest
+test skipped: WorldTest
+======================================
+All Fixed3D tests passed!
+Test duration = 0.00 s
+[clang LUDICROUS] exit code: 0
+test skipped: ShapeTest
+test skipped: TableTest
+test skipped: WorldTest
+======================================
+All Fixed3D tests passed!
+Test duration = 0.00 s
