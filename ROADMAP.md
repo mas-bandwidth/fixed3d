@@ -14,6 +14,19 @@ Planned work for fixed3d. Each item below was an open sprint card, moved out of 
 
 ## Moved from GitHub issues on 2026-10-14
 
+| feature | done | release | cards | in code |
+|---|:---:|---|---:|---|
+| Port the box3d follow-cam / world-text sample viewer (upstream 3fc20f5), held for a bench with a display | ❌ | — | — | — |
+| Baked-geometry version constants do not distinguish LUDICROUS_MODE, so a cross-config blob passes the guard and is read 48 bytes short | ❌ | — | — | — |
+| Move the fixed-point core to the fixed library; fixed3d keeps b3-named wrappers | ❌ | — | — | — |
+| Precision-envelope audit: find every magnitude-dependent failure, make the arithmetic loud | ❌ | — | — | — |
+| Centre of mass multiplies by the truncated reciprocal, so it collapses to the body origin for heavy bodies | ❌ | — | — | — |
+| Angular damping has a resolution floor: a slow-spinning large body never damps at all | ❌ | — | — | — |
+| Port the samples half of box3d 47d7f7c (character mover, issues, joint) | ❌ | — | — | — |
+| Height field shape-cast legs changed proxy order and shift origin for clockwise fields, recorded as a pure refactor | ❌ | — | — | — |
+| Mover mesh collide feeds the winding-swapped vertex order to GJK, not just to the cull | ❌ | — | — | — |
+| Height field cull spells triangle 2 as two different cyclic rotations across its two sites | ❌ | — | — | — |
+
 Open GitHub issues of mas-bandwidth/fixed3d, recorded here on 2026-10-14 when roadmaps became the standard for future work (Glenn, 2026-10-14). Each item names its issue; the issue is closed with a pointer here.
 
 ### Port the box3d follow-cam / world-text sample viewer (upstream 3fc20f5), held for a bench with a display
@@ -80,6 +93,15 @@ From: mas-bandwidth/fixed3d issue #53, opened 2026-09-01 by rowan-claude; moved 
 
 ## Moved out of the sprint on 2026-10-14: fixed3d-box3d-ports
 
+| feature | done | release | cards | in code |
+|---|:---:|---|---:|---|
+| TLA+ model of the broad-phase tree's moved bit and sorted pair keys, before the code | ❌ | — | — | partial |
+| Port 51f056e's one held piece: b3GetWorldByteCount( world, log ) reports the world, not the process allocator | ❌ | — | — | partial |
+| Port 16f7f4c step 1: the mesh contact scratch arrays move from the C stack to the arena | ❌ | — | — | partial |
+| Port f555ee4 part 1: the dynamic tree node relayout and the empty-node sentinel | ❌ | — | — | partial |
+| Port f555ee4 part 2: tree-against-tree pair traversal, sorted pair keys, test_broad_phase | ❌ | — | — | — |
+| Port 16f7f4c step 2: the eight engine-local tree-perf groups (the wide mesh solver is held) | ❌ | — | — | — |
+
 The open cards of sprint stream fixed3d-box3d-ports, moved out of the stopped sprint on 2026-10-14, one item per card. Landed cards of the stream are in git and are not listed. Each item names its card, its tier, its base branch and any pushed work to resume from.
 
 ### TLA+ model of the broad-phase tree's moved bit and sorted pair keys, before the code
@@ -140,6 +162,10 @@ From: sprint card port-16f7f4c-tree-perf-engine-groups (stream fixed3d-box3d-por
 
 ## Moved out of the sprint on 2026-10-14: fixed3d-perf
 
+| feature | done | release | cards | in code |
+|---|:---:|---|---:|---|
+| Profile report: where the time goes by scene and worker count, on every ISA the fleet has | ❌ | — | — | — |
+
 The open cards of sprint stream fixed3d-perf, moved out of the stopped sprint on 2026-10-14, one item per card. Landed cards of the stream are in git and are not listed. Each item names its card, its tier, its base branch and any pushed work to resume from.
 
 ### Profile report: where the time goes by scene and worker count, on every ISA the fleet has
@@ -151,6 +177,31 @@ Why it waits: Moved out of the stopped sprint on 2026-10-14: neither rocketnet n
 From: sprint card fixed3d-perf-profile-report (stream fixed3d-perf, column waiting, tier pro, base sprint/fixed3d-perf), moved out of the sprint 2026-10-14
 
 ## Moved out of the sprint on 2026-10-15: fixed3d-arch-opt
+
+| feature | done | release | cards | in code |
+|---|:---:|---|---:|---|
+| Runtime ISA dispatch for fixed3d, the interface: the variant table, the registration point and the scalar equivalence test | ❌ | — | — | — |
+| Runtime ISA dispatch for fixed3d, part 2: NEON as a variant and CI on every host kind | ❌ | — | — | — |
+| Runtime ISA dispatch for fixed3d: one build, every variant, detected and forced | ❌ | — | — | — |
+| An avx2 variant of the wide contact solver: the portable x86 floor, measured end to end | ❌ | — | — | — |
+| The AVX-512 variant on Skylake-W: bit-identical, and is it faster after the frequency cost? | ❌ | — | — | — |
+| Does the AVX-512 variant beat scalar on Zen 4, scene by scene and kernel by kernel? | ❌ | — | — | — |
+| Eight lanes in zmm: a width-8 avx512 variant on Zen 4 | ❌ | — | — | — |
+| Body-state gather and scatter by in-register transposes (vpermt2q, VBMI2) instead of scalar loads | ❌ | — | — | — |
+| AVX-512 IFMA (vpmadd52luq/huq) for the exact lane products on Zen 4 | ❌ | — | — | — |
+| The b3InvMul fits-64 arm on arm64, where the 128-bit multiply is two instructions | ❌ | — | — | — |
+| b3InvMulW in lanes: a uniform fits-64 gate so the impulse side stops scalarising | ❌ | — | — | — |
+| The neon narrow-phase variant on the M5: still bit-identical, still faster? | ❌ | — | — | — |
+| SME2 streaming SVE for the wide contact solver on the M5: SMULH lanes, mode cost, shared unit | ❌ | — | — | — |
+| Port: the avx2 variant of the wide solver | ❌ | — | — | — |
+| Port: width-8 avx512 contact solve | ❌ | — | — | — |
+| Port: transposed body gather and scatter | ❌ | — | — | — |
+| Port: the avx512ifma variant | ❌ | — | — | — |
+| Port: the b3InvMul fits-64 arm on aarch64 | ❌ | — | — | — |
+| Port: b3InvMulW in lanes behind the fits-64 gate | ❌ | — | — | — |
+| Port: the sme2 variant of the contact solve | ❌ | — | — | — |
+| Port: the sve2 variant on the M6 | ❌ | — | — | — |
+| If the M6 has non-streaming SVE2: the lane multiply without a mode switch | ❌ | — | — | — |
 
 The open cards of sprint stream fixed3d-arch-opt, moved out of the sprint on 2026-10-15 when Glenn scoped the sprint down to tools/sprint, rocketnet and schema (2026-10-15), one item per card. Landed cards of the stream are in git and are not listed. Each item names its card, its tier, its base branch and any pushed work to resume from.
 
@@ -331,6 +382,11 @@ Why it waits: Scoped out of the sprint by Glenn 2026-10-15 ("I want nothing in i
 From: sprint card spike-f3d-sve2-non-streaming-m6 (stream fixed3d-arch-opt, column waiting, tier pro, base sprint/fixed3d-box3d-ports), moved out of the sprint 2026-10-15
 
 ## Upstream box3d past the 2026-10-09 plan: 5d83df8..efca0c1, triaged 2026-10-16
+
+| feature | done | release | cards | in code |
+|---|:---:|---|---:|---|
+| Port 0cfc475 'Solver stuff (#189)': the revolute and spherical axial solve merge, design first; the point-constraint helper is already satisfied | ❌ | — | — | — |
+| Port efca0c1 'Gyro tolerance (#191)': an isotropic inertia tolerance gates gyroscopic torque | ❌ | — | — | partial |
 
 The four upstream commits after plan #65's range (box3d 2026-10-12 to 2026-10-15), triaged by the daily Box3D to Fixed3D pass on 2026-10-16 against the integration branch sprint/fixed3d-box3d-ports. Oldest first: a2e4816 'Fixes for #175 (#187)' is PORTED on that branch (card fixed3d-box3d-ports-manifold-block, PR #75: the speculative margin in the sphere and capsule routines, the recycle flag only when speculative points are on, a freed manifold invalidates the recycling cache; its docs/faq.md hunk is skipped as docs). 8128d74 'Discussion template (#185)' is SKIPPED: a .github discussion template, repository configuration for upstream's own discussions, no simulation content. 0cfc475 'Solver stuff (#189)' is HELD for a design-first port step, the first item below. efca0c1 'Gyro tolerance (#191)' is PORTED, engine half, carried ahead of the cursor, the second item below until its PR merges. The cursor clause in CLAUDE.md on the integration branch names the same four; nothing here moves the cursor, which advances with PR #94.
 
