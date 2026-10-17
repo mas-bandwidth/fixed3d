@@ -7,6 +7,8 @@
 #include "box3d/collision.h"
 #include "box3d/math_functions.h"
 
+#include <math.h>
+
 
 static int SegmentDistanceTest( void )
 {
@@ -345,6 +347,171 @@ static int LongEdgeDistanceTest( void )
 	return 0;
 }
 
+// xorshift64 state / next for the seeded generator
+static uint64_t GSBState;
+static uint64_t GSBNext( void )
+{
+	uint64_t x = GSBState;
+	x ^= x << 13;
+	x ^= x >> 7;
+	x ^= x << 17;
+	GSBState = x;
+	return x;
+}
+
+// uniform raw Q48.16 integer in [lo, hi]
+static b3Fixed GSBUniform( b3Fixed lo, b3Fixed hi )
+{
+	uint64_t span = (uint64_t)( hi - lo + 1 );
+	return lo + (b3Fixed)( GSBNext() % span );
+}
+
+// FNV-1a 64 over raw bytes
+static uint64_t GSBHashBytes( uint64_t hash, const void* data, size_t size )
+{
+	const unsigned char* bytes = (const unsigned char*)data;
+	for ( size_t i = 0; i < size; ++i )
+	{
+		hash ^= bytes[i];
+		hash *= 0x100000001b3ull;
+	}
+	return hash;
+}
+
+// Oracle: b3ShapeDistance, sphere (proxyB) against an axis-aligned box (proxyA),
+// versus the closed-form distance. Box3D's contract with useRadii: closest points
+// moved onto the surfaces, normal from A to B. The box proxyA is the 8 corners at
+// +-hx, +-hy, +-hz with radius 0; the sphere proxyB is one point at the origin with
+// radius r, placed by input.transform.p in A's frame.
+static int GjkSphereBoxOracleTest( void )
+{
+	GSBState = 0x5EED0002ull;
+
+	double maxErrDistance = 0.0;
+	double maxErrPointA = 0.0;
+	double maxErrPointB = 0.0;
+	double maxErrNormal = 0.0;
+
+	uint64_t hash = 0xcbf29ce484222325ull;
+
+	int accepted = 0;
+	while ( accepted < 256 )
+	{
+		b3Fixed hx = GSBUniform( 6553, 131072 ); // [0.1, 2.0]
+		b3Fixed hy = GSBUniform( 6553, 131072 );
+		b3Fixed hz = GSBUniform( 6553, 131072 );
+		b3Fixed r = GSBUniform( 3276, 32768 );  // [0.05, 0.5]
+		b3Fixed px = GSBUniform( -262144, 262144 ); // [-4.0, 4.0]
+		b3Fixed py = GSBUniform( -262144, 262144 );
+		b3Fixed pz = GSBUniform( -262144, 262144 );
+
+		b3Vec3 vas[8];
+		for ( int i = 0; i < 8; ++i )
+		{
+			int sx = ( i & 1 ) ? 1 : -1;
+			int sy = ( i & 2 ) ? 1 : -1;
+			int sz = ( i & 4 ) ? 1 : -1;
+			vas[i] = (b3Vec3){ sx * hx, sy * hy, sz * hz };
+		}
+
+		b3Vec3 bpt = { 0, 0, 0 };
+
+		b3DistanceInput input;
+		input.proxyA = (b3ShapeProxy){ vas, 8, 0 };
+		input.proxyB = (b3ShapeProxy){ &bpt, 1, r };
+		input.transform.p = (b3Vec3){ px, py, pz };
+		input.transform.q = b3Quat_identity;
+		input.useRadii = true;
+
+		b3SimplexCache cache = { 0 };
+		b3DistanceOutput output = b3ShapeDistance( &input, &cache, NULL, 0 );
+
+		double hx_d = b3FixToDouble( hx );
+		double hy_d = b3FixToDouble( hy );
+		double hz_d = b3FixToDouble( hz );
+		double r_d = b3FixToDouble( r );
+		double p_x = b3FixToDouble( px );
+		double p_y = b3FixToDouble( py );
+		double p_z = b3FixToDouble( pz );
+
+		double qx = p_x < -hx_d ? -hx_d : ( p_x > hx_d ? hx_d : p_x );
+		double qy = p_y < -hy_d ? -hy_d : ( p_y > hy_d ? hy_d : p_y );
+		double qz = p_z < -hz_d ? -hz_d : ( p_z > hz_d ? hz_d : p_z );
+
+		double dx = p_x - qx;
+		double dy = p_y - qy;
+		double dz = p_z - qz;
+		double c = sqrt( dx * dx + dy * dy + dz * dz );
+		double dist = c - r_d;
+
+		if ( dist < 0.01 )
+		{
+			continue;
+		}
+
+		double nx = dx / c;
+		double ny = dy / c;
+		double nz = dz / c;
+
+		double oracleDistance = dist;
+		double oraclePointA[3] = { qx, qy, qz };
+		double oraclePointB[3] = { p_x - r_d * nx, p_y - r_d * ny, p_z - r_d * nz };
+		double oracleNormal[3] = { nx, ny, nz };
+
+		double gotDistance = b3FixToDouble( output.distance );
+		double gotPointA[3] = { b3FixToDouble( output.pointA.x ), b3FixToDouble( output.pointA.y ), b3FixToDouble( output.pointA.z ) };
+		double gotPointB[3] = { b3FixToDouble( output.pointB.x ), b3FixToDouble( output.pointB.y ), b3FixToDouble( output.pointB.z ) };
+		double gotNormal[3] = { b3FixToDouble( output.normal.x ), b3FixToDouble( output.normal.y ), b3FixToDouble( output.normal.z ) };
+
+		double errDistance = fabs( gotDistance - oracleDistance );
+		if ( errDistance > maxErrDistance )
+		{
+			maxErrDistance = errDistance;
+		}
+		ENSURE( errDistance <= 2e-4 );
+
+		for ( int i = 0; i < 3; ++i )
+		{
+			double errA = fabs( gotPointA[i] - oraclePointA[i] );
+			double errB = fabs( gotPointB[i] - oraclePointB[i] );
+			double errN = fabs( gotNormal[i] - oracleNormal[i] );
+			if ( errA > maxErrPointA )
+			{
+				maxErrPointA = errA;
+			}
+			if ( errB > maxErrPointB )
+			{
+				maxErrPointB = errB;
+			}
+			if ( errN > maxErrNormal )
+			{
+				maxErrNormal = errN;
+			}
+			ENSURE( errA <= 2e-4 );
+			ENSURE( errB <= 2e-4 );
+			ENSURE( errN <= 1e-3 );
+		}
+
+		hash = GSBHashBytes( hash, &output.distance, sizeof( output.distance ) );
+		hash = GSBHashBytes( hash, &output.pointA, sizeof( output.pointA ) );
+		hash = GSBHashBytes( hash, &output.pointB, sizeof( output.pointB ) );
+		hash = GSBHashBytes( hash, &output.normal, sizeof( output.normal ) );
+		hash = GSBHashBytes( hash, &output.iterations, sizeof( output.iterations ) );
+
+		++accepted;
+	}
+
+	printf( "  GjkSphereBoxOracleTest hash=0x%016llx\n", (unsigned long long)hash );
+	printf( "  GjkSphereBoxOracleTest maxErr distance=%.3g pointA=%.3g pointB=%.3g normal=%.3g\n",
+			maxErrDistance, maxErrPointA, maxErrPointB, maxErrNormal );
+
+	// Golden harvested from build-gcc; build-clang and build-ludicrous give the
+	// same value, so a single golden holds across all three builds.
+	ENSURE( hash == 0xfcae1d0ac36fc733ull );
+
+	return 0;
+}
+
 int DistanceTest( void )
 {
 	RUN_SUBTEST( LongEdgeDistanceTest );
@@ -361,6 +528,7 @@ int DistanceTest( void )
 	RUN_SUBTEST( ShapeCastEncroachOverlapTest );
 	RUN_SUBTEST( ShapeCastEncroachOddSlopRetainedTest );
 	RUN_SUBTEST( TimeOfImpactTest );
+	RUN_SUBTEST( GjkSphereBoxOracleTest );
 
 	return 0;
 }
