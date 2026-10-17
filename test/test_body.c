@@ -1134,6 +1134,283 @@ static int BodySimLocatorTest( void )
 	return LocatorFastFlagTest();
 }
 
+// Oracle for b3TimeOfImpact of a translating sphere against a static box.
+//
+// Box3D upstream src/distance.c (a2e4816) sets
+//   slop = B3_LINEAR_SLOP, target = max( slop, rA + rB - slop ), tolerance = 0.25 * slop
+// and reports b3_toiStateHit when the core distance is inside target +- tolerance.
+// A sweep that is still more than target + tolerance away at maxFraction reports
+// b3_toiStateSeparated with fraction = maxFraction. Both fixed3d and this oracle
+// read the same raw inputs; the oracle computes the distances in double.
+//
+// Family H (hit) aims the sphere at the box's top face and checks the stopping band.
+// Family S (separated) stops short and checks the separated result and fraction.
+// Inputs are raw Q48.16 integers from a seeded xorshift64: 65536 is 1.0.
+
+static uint64_t TOINext( uint64_t* state )
+{
+	uint64_t x = *state;
+	x ^= x << 13;
+	x ^= x >> 7;
+	x ^= x << 17;
+	*state = x;
+	return x;
+}
+
+static int64_t TOIRange( uint64_t* state, int64_t lower, int64_t upper )
+{
+	uint64_t span = (uint64_t)( upper - lower + 1 );
+	return lower + (int64_t)( TOINext( state ) % span );
+}
+
+static void TOIHashI64( uint64_t* hash, int64_t value )
+{
+	// Little-endian raw int64 bytes, in order.
+	uint64_t u = (uint64_t)value;
+	for ( int i = 0; i < 8; ++i )
+	{
+		*hash ^= ( u >> ( 8 * i ) ) & 0xffu;
+		*hash *= 0x100000001b3ULL;
+	}
+}
+
+static void TOIHashOutput( uint64_t* hash, const b3TOIOutput* output )
+{
+	TOIHashI64( hash, (int64_t)output->state );
+	TOIHashI64( hash, (int64_t)output->fraction );
+	TOIHashI64( hash, (int64_t)output->distance );
+	TOIHashI64( hash, (int64_t)output->point.x );
+	TOIHashI64( hash, (int64_t)output->point.y );
+	TOIHashI64( hash, (int64_t)output->point.z );
+	TOIHashI64( hash, (int64_t)output->normal.x );
+	TOIHashI64( hash, (int64_t)output->normal.y );
+	TOIHashI64( hash, (int64_t)output->normal.z );
+}
+
+static double TOIDistanceToBox( double x, double y, double z, double hx, double hy, double hz )
+{
+	double dx = fabs( x ) - hx;
+	double dy = fabs( y ) - hy;
+	double dz = fabs( z ) - hz;
+	dx = dx > 0.0 ? dx : 0.0;
+	dy = dy > 0.0 ? dy : 0.0;
+	dz = dz > 0.0 ? dz : 0.0;
+	return sqrt( dx * dx + dy * dy + dz * dz );
+}
+
+static int TimeOfImpactSphereBoxOracleTest( void )
+{
+	// Raw Q48.16 bounds. 0.2, 0.05, 0.3, 0.5, 0.8, 1.1, 1.5 and 2.0.
+	const int64_t halfMin = 13107;
+	const int64_t halfMax = 131072;
+	const int64_t radiusMin = 3277;
+	const int64_t radiusMax = 32768;
+	const int64_t heightMin = 13107;
+	const int64_t heightMax = 131072;
+	const int64_t sHitMin = 72090;
+	const int64_t sHitMax = 98304;
+	const int64_t sMissMin = 19661;
+	const int64_t sMissMax = 39322;
+
+	double slop = b3FixToDouble( B3_LINEAR_SLOP );
+	double tolerance = 0.25 * slop;
+	double maxFraction = b3FixToDouble( B3_FIX( 1.0f ) );
+
+	uint64_t hash = 0xcbf29ce484222325ULL;
+	double maxHitBandError = 0.0;
+	double maxHitFractionError = 0.0;
+	double maxSeparatedFractionError = 0.0;
+
+	// Family H: the sweep reaches the top face and must stop in the band.
+	uint64_t rng = 0x5EED0006ULL;
+	int hitCount = 0;
+	while ( hitCount < 128 )
+	{
+		int64_t hxr = TOIRange( &rng, halfMin, halfMax );
+		int64_t hyr = TOIRange( &rng, halfMin, halfMax );
+		int64_t hzr = TOIRange( &rng, halfMin, halfMax );
+		int64_t rBr = TOIRange( &rng, radiusMin, radiusMax );
+		int64_t aimxr = TOIRange( &rng, -( ( 4 * hxr ) / 5 ), ( 4 * hxr ) / 5 );
+		int64_t aimzr = TOIRange( &rng, -( ( 4 * hzr ) / 5 ), ( 4 * hzr ) / 5 );
+		int64_t Hr = TOIRange( &rng, heightMin, heightMax );
+		int64_t oxr = TOIRange( &rng, -( ( 3 * Hr ) / 10 ), ( 3 * Hr ) / 10 );
+		int64_t ozr = TOIRange( &rng, -( ( 3 * Hr ) / 10 ), ( 3 * Hr ) / 10 );
+		int64_t sr = TOIRange( &rng, sHitMin, sHitMax );
+
+		b3Vec3 aim = { (b3Fixed)aimxr, (b3Fixed)hyr, (b3Fixed)aimzr };
+		b3Vec3 c0 = { (b3Fixed)( aimxr + oxr ), (b3Fixed)( hyr + Hr ), (b3Fixed)( aimzr + ozr ) };
+		b3Vec3 d = b3MulSV( (b3Fixed)sr, b3Sub( aim, c0 ) );
+		b3Vec3 c2 = b3Add( c0, d );
+
+		double rB = b3FixToDouble( (b3Fixed)rBr );
+		double target = slop > ( rB - slop ) ? slop : ( rB - slop );
+		double hx = b3FixToDouble( (b3Fixed)hxr );
+		double hy = b3FixToDouble( (b3Fixed)hyr );
+		double hz = b3FixToDouble( (b3Fixed)hzr );
+		double c0x = b3FixToDouble( c0.x );
+		double c0y = b3FixToDouble( c0.y );
+		double c0z = b3FixToDouble( c0.z );
+		double dx = b3FixToDouble( d.x );
+		double dy = b3FixToDouble( d.y );
+		double dz = b3FixToDouble( d.z );
+
+		double t = ( c0y - hy - target ) / ( -dy );
+		if ( t < 0.0 || t > 1.0 )
+		{
+			continue;
+		}
+
+		double cx = c0x + t * dx;
+		double cz = c0z + t * dz;
+		if ( fabs( cx ) > hx || fabs( cz ) > hz )
+		{
+			continue;
+		}
+
+		b3Vec3 corners[8];
+		int k = 0;
+		for ( int sx = -1; sx <= 1; sx += 2 )
+		{
+			for ( int sy = -1; sy <= 1; sy += 2 )
+			{
+				for ( int sz = -1; sz <= 1; sz += 2 )
+				{
+					corners[k].x = sx < 0 ? -(b3Fixed)hxr : (b3Fixed)hxr;
+					corners[k].y = sy < 0 ? -(b3Fixed)hyr : (b3Fixed)hyr;
+					corners[k].z = sz < 0 ? -(b3Fixed)hzr : (b3Fixed)hzr;
+					k += 1;
+				}
+			}
+		}
+
+		b3Vec3 pointB = b3Vec3_zero;
+		b3TOIInput input;
+		input.proxyA = (b3ShapeProxy){ corners, 8, B3_FIX( 0.0f ) };
+		input.proxyB = (b3ShapeProxy){ &pointB, 1, (b3Fixed)rBr };
+		input.sweepA = (b3Sweep){ b3Vec3_zero, b3Vec3_zero, b3Vec3_zero, b3Quat_identity, b3Quat_identity };
+		input.sweepB = (b3Sweep){ b3Vec3_zero, c0, c2, b3Quat_identity, b3Quat_identity };
+		input.maxFraction = B3_FIX( 1.0f );
+
+		b3TOIOutput output = b3TimeOfImpact( &input );
+		TOIHashOutput( &hash, &output );
+
+		if ( output.state != b3_toiStateHit )
+		{
+			printf( "  TimeOfImpactSphereBoxOracleTest hit family state=%d\n", (int)output.state );
+			return 1;
+		}
+
+		double f = b3FixToDouble( output.fraction );
+		double distance = TOIDistanceToBox( c0x + f * dx, c0y + f * dy, c0z + f * dz, hx, hy, hz );
+		double bandError = fabs( distance - target );
+		double fractionError = fabs( f - t );
+		if ( bandError > maxHitBandError )
+		{
+			maxHitBandError = bandError;
+		}
+		if ( fractionError > maxHitFractionError )
+		{
+			maxHitFractionError = fractionError;
+		}
+		if ( bandError > tolerance + 2e-4 )
+		{
+			printf( "  TimeOfImpactSphereBoxOracleTest hit family band error %g > %g\n", bandError, tolerance + 2e-4 );
+			return 1;
+		}
+
+		hitCount += 1;
+	}
+
+	// Family S: the sweep stops short and must report separated at maxFraction.
+	rng = 0x5EED0007ULL;
+	int missCount = 0;
+	while ( missCount < 64 )
+	{
+		int64_t hxr = TOIRange( &rng, halfMin, halfMax );
+		int64_t hyr = TOIRange( &rng, halfMin, halfMax );
+		int64_t hzr = TOIRange( &rng, halfMin, halfMax );
+		int64_t rBr = TOIRange( &rng, radiusMin, radiusMax );
+		int64_t aimxr = TOIRange( &rng, -( ( 4 * hxr ) / 5 ), ( 4 * hxr ) / 5 );
+		int64_t aimzr = TOIRange( &rng, -( ( 4 * hzr ) / 5 ), ( 4 * hzr ) / 5 );
+		int64_t Hr = TOIRange( &rng, heightMin, heightMax );
+		int64_t oxr = TOIRange( &rng, -( ( 3 * Hr ) / 10 ), ( 3 * Hr ) / 10 );
+		int64_t ozr = TOIRange( &rng, -( ( 3 * Hr ) / 10 ), ( 3 * Hr ) / 10 );
+		int64_t sr = TOIRange( &rng, sMissMin, sMissMax );
+
+		b3Vec3 aim = { (b3Fixed)aimxr, (b3Fixed)hyr, (b3Fixed)aimzr };
+		b3Vec3 c0 = { (b3Fixed)( aimxr + oxr ), (b3Fixed)( hyr + Hr ), (b3Fixed)( aimzr + ozr ) };
+		b3Vec3 d = b3MulSV( (b3Fixed)sr, b3Sub( aim, c0 ) );
+		b3Vec3 c2 = b3Add( c0, d );
+
+		double rB = b3FixToDouble( (b3Fixed)rBr );
+		double target = slop > ( rB - slop ) ? slop : ( rB - slop );
+		double hx = b3FixToDouble( (b3Fixed)hxr );
+		double hy = b3FixToDouble( (b3Fixed)hyr );
+		double hz = b3FixToDouble( (b3Fixed)hzr );
+		double endDistance = TOIDistanceToBox( b3FixToDouble( c2.x ), b3FixToDouble( c2.y ), b3FixToDouble( c2.z ), hx, hy, hz );
+		if ( endDistance < target + 0.05 )
+		{
+			continue;
+		}
+
+		b3Vec3 corners[8];
+		int k = 0;
+		for ( int sx = -1; sx <= 1; sx += 2 )
+		{
+			for ( int sy = -1; sy <= 1; sy += 2 )
+			{
+				for ( int sz = -1; sz <= 1; sz += 2 )
+				{
+					corners[k].x = sx < 0 ? -(b3Fixed)hxr : (b3Fixed)hxr;
+					corners[k].y = sy < 0 ? -(b3Fixed)hyr : (b3Fixed)hyr;
+					corners[k].z = sz < 0 ? -(b3Fixed)hzr : (b3Fixed)hzr;
+					k += 1;
+				}
+			}
+		}
+
+		b3Vec3 pointB = b3Vec3_zero;
+		b3TOIInput input;
+		input.proxyA = (b3ShapeProxy){ corners, 8, B3_FIX( 0.0f ) };
+		input.proxyB = (b3ShapeProxy){ &pointB, 1, (b3Fixed)rBr };
+		input.sweepA = (b3Sweep){ b3Vec3_zero, b3Vec3_zero, b3Vec3_zero, b3Quat_identity, b3Quat_identity };
+		input.sweepB = (b3Sweep){ b3Vec3_zero, c0, c2, b3Quat_identity, b3Quat_identity };
+		input.maxFraction = B3_FIX( 1.0f );
+
+		b3TOIOutput output = b3TimeOfImpact( &input );
+		TOIHashOutput( &hash, &output );
+
+		if ( output.state != b3_toiStateSeparated )
+		{
+			printf( "  TimeOfImpactSphereBoxOracleTest miss family state=%d\n", (int)output.state );
+			return 1;
+		}
+
+		double fractionError = fabs( b3FixToDouble( output.fraction ) - maxFraction );
+		if ( fractionError > maxSeparatedFractionError )
+		{
+			maxSeparatedFractionError = fractionError;
+		}
+		if ( output.fraction != input.maxFraction )
+		{
+			printf( "  TimeOfImpactSphereBoxOracleTest separated fraction is not maxFraction\n" );
+			return 1;
+		}
+
+		missCount += 1;
+	}
+
+	printf( "  TimeOfImpactSphereBoxOracleTest maxHitBandError=%g maxHitFractionError=%g maxSeparatedFractionError=%g\n",
+			maxHitBandError, maxHitFractionError, maxSeparatedFractionError );
+	printf( "  TimeOfImpactSphereBoxOracleTest hash=0x%016llx\n", (unsigned long long)hash );
+
+	// Harvested from build-gcc. The TOI path is b3Vec3 based, so narrow and
+	// ludicrous share the value unless the fixed3d output moves.
+	ENSURE( hash == 0xcdf0a52beb0ce2baULL );
+
+	return 0;
+}
+
 int BodyTest( void )
 {
 	RUN_SUBTEST( AngularImpulseInverseScale );
@@ -1152,5 +1429,6 @@ int BodyTest( void )
 	RUN_SUBTEST( ShapeExtents );
 	RUN_SUBTEST( CcdGravityTimeLossTest );
 	RUN_SUBTEST( BodySimLocatorTest );
+	RUN_SUBTEST( TimeOfImpactSphereBoxOracleTest );
 	return 0;
 }
