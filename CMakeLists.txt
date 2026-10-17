@@ -179,21 +179,6 @@ add_subdirectory(src)
 # This hides samples, test, and doxygen from apps that use box3d via FetchContent
 if(PROJECT_IS_TOP_LEVEL)
 	option(BOX3D_SAMPLES "Build the Fixed3D samples" ON)
-
-	# The samples' Replay file dialog needs GTK3 on Linux. A headless tree gate
-	# configures with defaults, so skip the samples there instead of failing the
-	# whole configure on a missing development package.
-	if(BOX3D_SAMPLES AND UNIX AND NOT APPLE AND NOT EMSCRIPTEN)
-		find_package(PkgConfig QUIET)
-		if(PkgConfig_FOUND)
-			pkg_check_modules(BOX3D_GTK3 QUIET gtk+-3.0)
-		endif()
-		if(NOT BOX3D_GTK3_FOUND)
-			message(STATUS "GTK3 not found: skipping Fixed3D samples (the Replay file dialog needs it)")
-			set(BOX3D_SAMPLES OFF)
-		endif()
-	endif()
-
 	option(BOX3D_BENCHMARKS "Build the Fixed3D benchmarks" OFF)
 	option(BOX3D_DOCS "Build the Fixed3D documentation" OFF)
 	option(BOX3D_UNIT_TESTS "Build the Fixed3D unit tests" ON)
