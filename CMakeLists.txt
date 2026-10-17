@@ -2,14 +2,14 @@
 include(CMakeDependentOption)
 
 project(box3d
-if(MSVC)
-	add_compile_definitions(_CRT_SECURE_NO_WARNINGS)
-endif()
 	VERSION 1.4.0
 	DESCRIPTION "Fixed3D: Box3D in Q48.16 fixed point"
 	HOMEPAGE_URL "https://github.com/mas-bandwidth/fixed3d"
 	LANGUAGES C CXX
 )
+if(MSVC)
+	add_compile_definitions(_CRT_SECURE_NO_WARNINGS)
+endif()
 
 # stuff to help debug cmake
 # message(STATUS "cmake tool chain: ${CMAKE_TOOLCHAIN_FILE}")
