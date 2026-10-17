@@ -18,6 +18,11 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "isa.h"
+
+// The support scans below re-compile per ISA variant: src/isa_<variant>.c
+// defines B3_ISA_VARIANT_TU and re-includes this file (src/isa.h).
+#if !defined( B3_ISA_VARIANT_TU )
 #define B3_AXIS_X 0
 #define B3_AXIS_Y 1
 #define B3_AXIS_Z 2
@@ -1692,6 +1697,8 @@ static b3HullHalfEdge* b3GetHullEdgesWrite( b3HullData* hull )
 	return (b3HullHalfEdge*)( (intptr_t)hull + hull->edgeOffset );
 }
 
+#endif // !B3_ISA_VARIANT_TU
+
 #if defined( B3_SIMD_AVX512 ) || defined( B3_SIMD_NEON )
 
 // Wide support scans. The scalar loops compare exact raw 128-bit dots; the
@@ -2109,7 +2116,7 @@ static int b3FindSupportFaceWide( const b3Plane* planes, int count, b3Vec3 direc
 
 #endif // B3_SIMD_NEON
 
-int b3FindHullSupportVertex( const b3HullData* hull, b3Vec3 direction )
+int B3_ISA_FN( b3FindHullSupportVertex )( const b3HullData* hull, b3Vec3 direction )
 {
 	int vertexCount = hull->vertexCount;
 	const b3Vec3* points = b3GetHullPoints( hull );
@@ -2155,7 +2162,7 @@ int b3FindHullSupportVertex( const b3HullData* hull, b3Vec3 direction )
 	return bestIndex;
 }
 
-int b3FindHullSupportFace( const b3HullData* hull, b3Vec3 direction )
+int B3_ISA_FN( b3FindHullSupportFace )( const b3HullData* hull, b3Vec3 direction )
 {
 	int faceCount = hull->faceCount;
 	const b3Plane* planes = b3GetHullPlanes( hull );
@@ -2187,6 +2194,20 @@ int b3FindHullSupportFace( const b3HullData* hull, b3Vec3 direction )
 	B3_ASSERT( bestIndex >= 0 );
 
 	return bestIndex;
+}
+
+#if !defined( B3_ISA_VARIANT_TU )
+
+// Support scans dispatch once per scan through the process table, which equals
+// every live world's table (src/isa.h)
+int b3FindHullSupportVertex( const b3HullData* hull, b3Vec3 direction )
+{
+	return b3IsaActive()->findHullSupportVertex( hull, direction );
+}
+
+int b3FindHullSupportFace( const b3HullData* hull, b3Vec3 direction )
+{
+	return b3IsaActive()->findHullSupportFace( hull, direction );
 }
 
 #if B3_ENABLE_VALIDATION
@@ -3421,3 +3442,5 @@ b3BoxHull b3MakeScaledBoxHull( b3Vec3 halfWidths, b3Transform transform, b3Vec3 
 	b3ScaleBox( &h, &xf, postScale, b3FixMul( B3_FIX( 4.0f ) , B3_LINEAR_SLOP ) );
 	return b3MakeTransformedBoxHull( h.x, h.y, h.z, xf );
 }
+
+#endif // !B3_ISA_VARIANT_TU

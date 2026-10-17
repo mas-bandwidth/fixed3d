@@ -34,6 +34,8 @@ set(BOX3D_SOURCE_FILES
 	height_field.c
 	hull.c
 	hull.h
+	isa.c
+	isa.h
 	id_pool.c
 	id_pool.h
 	island.c
@@ -210,16 +212,41 @@ if (BOX3D_LUDICROUS_MODE)
 	target_compile_definitions(box3d PUBLIC BOX3D_LUDICROUS_MODE)
 endif()
 
-if (BOX3D_AVX512)
-	message(STATUS "Fixed3D AVX-512 fixed-point SIMD ON")
-	# PRIVATE: the wide solver types are internal to the library; results are
-	# bit-identical to the scalar path so there is no ABI or behavior leak
-	target_compile_definitions(box3d PRIVATE BOX3D_AVX512)
+# Runtime ISA dispatch (src/isa.h): one build compiles every variant the target
+# can hold. The AVX-512 variant lives in src/isa_avx512.c, the ONLY file given
+# the AVX-512 flags, so no AVX-512 instruction can reach the baseline code that
+# runs before detection. Never raise a global -m flag here. BOX3D_FIXED_SATURATE
+# builds hold only the scalar variant (src/core.h leaves B3_ISA_HAVE_AVX512
+# unset and isa_avx512.c compiles empty): the wide kernels implement the wrapping
+# b3FixMul only.
+set(BOX3D_ISA_X86_64 OFF)
+if (CMAKE_SIZEOF_VOID_P EQUAL 8 AND NOT EMSCRIPTEN
+		AND CMAKE_SYSTEM_PROCESSOR MATCHES "^(x86_64|AMD64|amd64|x64|X64)$"
+		AND NOT CMAKE_GENERATOR_PLATFORM MATCHES "[Aa][Rr][Mm]64"
+		AND NOT CMAKE_OSX_ARCHITECTURES MATCHES "arm64")
+	set(BOX3D_ISA_X86_64 ON)
+endif()
+
+if (BOX3D_ISA_X86_64)
+	message(STATUS "Fixed3D ISA variants: scalar avx512 (runtime dispatch)")
+	target_sources(box3d PRIVATE isa_avx512.c)
+	# src/core.h derives B3_ISA_HAVE_AVX512 from the same target test, so the
+	# library and the tests agree on the variant set and on B3_ALIGNMENT
 	if (MSVC)
-		target_compile_options(box3d PRIVATE /arch:AVX512)
+		set_source_files_properties(isa_avx512.c PROPERTIES COMPILE_OPTIONS "/arch:AVX512")
 	else()
-		target_compile_options(box3d PRIVATE -mavx512f -mavx512dq -mavx512vl)
+		set_source_files_properties(isa_avx512.c PROPERTIES COMPILE_OPTIONS "-mavx512f;-mavx512dq;-mavx512vl")
 	endif()
+	# The variant TU re-includes contact_solver.c, convex_manifold.c, hull.c and solver.c;
+	# rebuild it when they change
+	set_source_files_properties(isa_avx512.c PROPERTIES OBJECT_DEPENDS
+		"${CMAKE_CURRENT_SOURCE_DIR}/contact_solver.c;${CMAKE_CURRENT_SOURCE_DIR}/convex_manifold.c;${CMAKE_CURRENT_SOURCE_DIR}/hull.c;${CMAKE_CURRENT_SOURCE_DIR}/solver.c")
+else()
+	message(STATUS "Fixed3D ISA variants: scalar (runtime dispatch)")
+endif()
+
+if (BOX3D_AVX512)
+	message(WARNING "BOX3D_AVX512 is a deprecated no-op: every x86-64 build compiles the AVX-512 variant and picks it at runtime. Force a variant with FIXED3D_ISA=scalar|avx512 or b3ForceIsa.")
 endif()
 
 if (BOX3D_DOUBLE_PRECISION)

@@ -13,6 +13,11 @@
 #include <stdbool.h>
 #include <stddef.h>
 
+#include "isa.h"
+
+// The SAT edge scan below re-compiles per ISA variant: src/isa_<variant>.c
+// defines B3_ISA_VARIANT_TU and re-includes this file (src/isa.h).
+#if !defined( B3_ISA_VARIANT_TU )
 static int b3ClipSegment( b3ClipVertex segment[2], b3Plane plane )
 {
 	int vertexCount = 0;
@@ -249,6 +254,8 @@ static b3SeparatingAxis b3QueryEdgeDirectionHullAndCapsule( const b3HullData* hu
 	};
 }
 
+#endif // !B3_ISA_VARIANT_TU
+
 // Test one candidate edge pair. Shared by the scalar scan and the wide reject
 // path's survivors so the admission criteria and separation update cannot
 // diverge between them.
@@ -406,7 +413,7 @@ typedef int32_t b3EdgeLane;
 
 #endif
 
-static b3SeparatingAxis b3QueryEdgeDirections( const b3HullData* hullA, const b3HullData* hullB, b3Transform transformBtoA )
+b3SeparatingAxis B3_ISA_FN( b3QueryEdgeDirections )( const b3HullData* hullA, const b3HullData* hullB, b3Transform transformBtoA )
 {
 	// Find axis of minimum penetration
 	b3SeparatingAxis best = {
@@ -749,6 +756,8 @@ static b3SeparatingAxis b3QueryEdgeDirections( const b3HullData* hullA, const b3
 
 	return best;
 }
+
+#if !defined( B3_ISA_VARIANT_TU )
 
 _Static_assert( B3_MAX_MANIFOLD_POINTS >= 4, "must be 4 or more" );
 
@@ -2271,7 +2280,7 @@ void b3CollideHulls( b3LocalManifold* manifold, int capacity, const b3HullData* 
 			// This case is for testing
 		case b3_manualEdgePairAxis:
 		{
-			b3SeparatingAxis edgeQuery = b3QueryEdgeDirections( hullA, hullB, transformBtoA );
+			b3SeparatingAxis edgeQuery = b3IsaActive()->queryEdgeDirections( hullA, hullB, transformBtoA );
 			if ( edgeQuery.indexA != B3_NULL_INDEX )
 			{
 				b3BuildEdgeContact( manifold, hullA, hullB, transformBtoA, edgeQuery, cache );
@@ -2328,7 +2337,7 @@ void b3CollideHulls( b3LocalManifold* manifold, int capacity, const b3HullData* 
 		return;
 	}
 
-	b3SeparatingAxis edgeQuery = b3QueryEdgeDirections( hullA, hullB, transformBtoA );
+	b3SeparatingAxis edgeQuery = b3IsaActive()->queryEdgeDirections( hullA, hullB, transformBtoA );
 	if ( edgeQuery.separation > speculativeDistance )
 	{
 		// We found a separating axis
@@ -2394,3 +2403,5 @@ void b3CollideHulls( b3LocalManifold* manifold, int capacity, const b3HullData* 
 		}
 	}
 }
+
+#endif // !B3_ISA_VARIANT_TU

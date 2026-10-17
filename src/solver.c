@@ -9,6 +9,7 @@
 #include "compound.h"
 #include "contact.h"
 #include "contact_solver.h"
+#include "isa.h"
 #include "core.h"
 #include "ctz.h"
 #include "island.h"
@@ -23,6 +24,15 @@
 #include <limits.h>
 #include <stddef.h>
 #include <stdio.h>
+
+// Highway foreach_target pattern (src/isa.h): src/isa_<variant>.c defines
+// B3_ISA_VARIANT_TU and re-includes this file, so only the two integrate stages
+// below compile again under that variant's target flags (suffixed by B3_ISA_FN);
+// everything else compiles once, here. The integrate loops are scalar fixed-point
+// code that the compiler lowers better under the variant's flags (measured, see
+// CLAUDE.md "Runtime ISA dispatch"), the same gain the old global -mavx512 build
+// gave them, without any wide instruction reaching the baseline code.
+#if !defined( B3_ISA_VARIANT_TU )
 
 _Static_assert( B3_RESTITUTION_ITERATIONS >= 1, "must be 1 or more" );
 
@@ -63,8 +73,10 @@ typedef struct b3WorkerContext
 	void* userTask;
 } b3WorkerContext;
 
+#endif // !B3_ISA_VARIANT_TU
+
 // Integrate velocities, apply damping, and gyroscopic torque
-static void b3IntegrateVelocitiesTask( b3SolverBlock block, b3StepContext* context )
+void B3_ISA_FN( b3IntegrateVelocities )( b3SolverBlock block, b3StepContext* context )
 {
 	b3TracyCZoneNC( integrate_velocity, "IntVel", b3_colorDeepPink, true );
 
@@ -177,7 +189,7 @@ static void b3IntegrateVelocitiesTask( b3SolverBlock block, b3StepContext* conte
 	b3TracyCZoneEnd( integrate_velocity );
 }
 
-static void b3IntegratePositionsTask( b3SolverBlock block, b3StepContext* context )
+void B3_ISA_FN( b3IntegratePositions )( b3SolverBlock block, b3StepContext* context )
 {
 	b3TracyCZoneNC( integrate_positions, "IntPos", b3_colorDarkSeaGreen, true );
 
@@ -229,6 +241,8 @@ static void b3IntegratePositionsTask( b3SolverBlock block, b3StepContext* contex
 
 	b3TracyCZoneEnd( integrate_positions );
 }
+
+#if !defined( B3_ISA_VARIANT_TU )
 
 static void b3PrepareJointsTask( b3SolverBlock block, b3StepContext* context )
 {
@@ -998,6 +1012,10 @@ static void b3ExecuteBlock( b3SolverStage* stage, b3StepContext* context, b3Solv
 	b3SolverStageType stageType = stage->type;
 	b3SolverBlockType blockType = (b3SolverBlockType)block.blockType;
 
+	// The world's kernel table, fixed at b3CreateWorld: one indirect call per
+	// block, never per lane operation (src/isa.h)
+	const b3IsaKernels* isa = context->world->isa;
+
 	switch ( stageType )
 	{
 		case b3_stagePrepareJoints:
@@ -1005,13 +1023,13 @@ static void b3ExecuteBlock( b3SolverStage* stage, b3StepContext* context, b3Solv
 			break;
 
 		case b3_stagePrepareWideContacts:
-			b3PrepareContacts_Convex( block, context );
+			isa->prepareContactsConvex( block, context );
 			break;
 
 		case b3_stagePrepareContacts:
-			if ( B3_MESH_WIDE )
+			if ( isa->meshWide )
 			{
-				b3PrepareContacts_MeshWide( block, context );
+				isa->prepareContactsMeshWide( block, context );
 			}
 			else
 			{
@@ -1020,7 +1038,7 @@ static void b3ExecuteBlock( b3SolverStage* stage, b3StepContext* context, b3Solv
 			break;
 
 		case b3_stageIntegrateVelocities:
-			b3IntegrateVelocitiesTask( block, context );
+			isa->integrateVelocities( block, context );
 			break;
 
 		case b3_stageWarmStart:
@@ -1030,11 +1048,11 @@ static void b3ExecuteBlock( b3SolverStage* stage, b3StepContext* context, b3Solv
 			}
 			else if ( blockType == b3_graphWideContactBlock )
 			{
-				b3WarmStartContacts_Convex( block, context );
+				isa->warmStartContactsConvex( block, context );
 			}
-			else if ( B3_MESH_WIDE )
+			else if ( isa->meshWide )
 			{
-				b3WarmStartContacts_MeshWide( block, context );
+				isa->warmStartContactsMeshWide( block, context );
 			}
 			else
 			{
@@ -1051,12 +1069,12 @@ static void b3ExecuteBlock( b3SolverStage* stage, b3StepContext* context, b3Solv
 			else if ( blockType == b3_graphWideContactBlock )
 			{
 				bool useBias = true;
-				b3SolveContacts_Convex( block, context, useBias );
+				isa->solveContactsConvex( block, context, useBias );
 			}
-			else if ( B3_MESH_WIDE )
+			else if ( isa->meshWide )
 			{
 				bool useBias = true;
-				b3SolveContacts_MeshWide( block, context, useBias );
+				isa->solveContactsMeshWide( block, context, useBias );
 			}
 			else
 			{
@@ -1066,7 +1084,7 @@ static void b3ExecuteBlock( b3SolverStage* stage, b3StepContext* context, b3Solv
 			break;
 
 		case b3_stageIntegratePositions:
-			b3IntegratePositionsTask( block, context );
+			isa->integratePositions( block, context );
 			break;
 
 		case b3_stageRelax:
@@ -1078,12 +1096,12 @@ static void b3ExecuteBlock( b3SolverStage* stage, b3StepContext* context, b3Solv
 			else if ( blockType == b3_graphWideContactBlock )
 			{
 				bool useBias = false;
-				b3SolveContacts_Convex( block, context, useBias );
+				isa->solveContactsConvex( block, context, useBias );
 			}
-			else if ( B3_MESH_WIDE )
+			else if ( isa->meshWide )
 			{
 				bool useBias = false;
-				b3SolveContacts_MeshWide( block, context, useBias );
+				isa->solveContactsMeshWide( block, context, useBias );
 			}
 			else
 			{
@@ -1095,13 +1113,13 @@ static void b3ExecuteBlock( b3SolverStage* stage, b3StepContext* context, b3Solv
 		case b3_stageRestitution:
 			if ( blockType == b3_graphWideContactBlock )
 			{
-				b3ApplyRestitution_Convex( block, context );
+				isa->applyRestitutionConvex( block, context );
 			}
 			else if ( blockType == b3_graphContactBlock )
 			{
-				if ( B3_MESH_WIDE )
+				if ( isa->meshWide )
 				{
-					b3ApplyRestitution_MeshWide( block, context );
+					isa->applyRestitutionMeshWide( block, context );
 				}
 				else
 				{
@@ -1111,13 +1129,13 @@ static void b3ExecuteBlock( b3SolverStage* stage, b3StepContext* context, b3Solv
 			break;
 
 		case b3_stageStoreWideImpulses:
-			b3StoreImpulses_Convex( block, context, workerIndex );
+			isa->storeImpulsesConvex( block, context, workerIndex );
 			break;
 
 		case b3_stageStoreImpulses:
-			if ( B3_MESH_WIDE )
+			if ( isa->meshWide )
 			{
-				b3StoreImpulses_MeshWide( block, context, workerIndex );
+				isa->storeImpulsesMeshWide( block, context, workerIndex );
 			}
 			else
 			{
@@ -1643,7 +1661,7 @@ void b3Solve( b3World* world, b3StepContext* stepContext )
 
 			// Solver block dimensions. Mesh contact blocks span wide slots on
 			// the wide path and contacts on the scalar path.
-			colorMeshBlockItemCounts[c] = B3_MESH_WIDE ? colorMeshWideCount : colorContactCount;
+			colorMeshBlockItemCounts[c] = world->isa->meshWide ? colorMeshWideCount : colorContactCount;
 			graphWideContactDims[c] = b3ComputeBlockCount( colorWideConstraintCount, minContactsPerBlock, maxBlockCount );
 			graphContactDims[c] = b3ComputeBlockCount( colorMeshBlockItemCounts[c], minContactsPerBlock, maxBlockCount );
 			graphJointDims[c] = b3ComputeBlockCount( colorJointCount, minJointsPerBlock, maxBlockCount );
@@ -1658,17 +1676,17 @@ void b3Solve( b3World* world, b3StepContext* stepContext )
 		// a small span array, so blocks do not need to honor color boundaries here.
 		// Only one family of colored mesh constraints is used per build; the
 		// other allocates zero bytes.
-		int usedContactCount = B3_MESH_WIDE ? 0 : contactCount;
-		int usedManifoldCount = B3_MESH_WIDE ? 0 : manifoldCount;
-		int usedMeshWideCount = B3_MESH_WIDE ? meshWideCount : 0;
-		int usedMeshWideManifoldCount = B3_MESH_WIDE ? meshWideManifoldCount : 0;
-		int meshPrepareItemCount = B3_MESH_WIDE ? meshWideCount : contactCount;
+		int usedContactCount = world->isa->meshWide ? 0 : contactCount;
+		int usedManifoldCount = world->isa->meshWide ? 0 : manifoldCount;
+		int usedMeshWideCount = world->isa->meshWide ? meshWideCount : 0;
+		int usedMeshWideManifoldCount = world->isa->meshWide ? meshWideManifoldCount : 0;
+		int meshPrepareItemCount = world->isa->meshWide ? meshWideCount : contactCount;
 
 		b3BlockDim convexPrepareDim = b3ComputeBlockCount( wideContactCount, minContactsPerBlock, maxBlockCount );
 		b3BlockDim meshPrepareDim = b3ComputeBlockCount( meshPrepareItemCount, minContactsPerBlock, maxBlockCount );
 		b3BlockDim jointPrepareDim = b3ComputeBlockCount( jointCount, minJointsPerBlock, maxBlockCount );
 
-		int wideContactByteCount = b3GetWideContactConstraintByteCount();
+		int wideContactByteCount = world->isa->wideContactConstraintByteCount();
 		b3ContactConstraintWide* wideConstraints =
 			(b3ContactConstraintWide*)b3StackAlloc( &world->stack, wideContactCount * wideContactByteCount, "wide contacts" );
 
@@ -1682,8 +1700,8 @@ void b3Solve( b3World* world, b3StepContext* stepContext )
 		// header per four contacts plus a flat slot array sized by the
 		// per-group widest manifold count. The starts table maps each flat
 		// wide slot to its first manifold slot.
-		int meshWideByteCount = b3GetMeshWideContactConstraintByteCount();
-		int meshWideManifoldByteCount = b3GetMeshWideManifoldConstraintByteCount();
+		int meshWideByteCount = world->isa->meshWideContactConstraintByteCount();
+		int meshWideManifoldByteCount = world->isa->meshWideManifoldConstraintByteCount();
 		b3ContactConstraintMeshWide* meshWideConstraints = (b3ContactConstraintMeshWide*)b3StackAlloc(
 			&world->stack, usedMeshWideCount * meshWideByteCount, "mesh wide contacts" );
 		b3ManifoldConstraintMeshWide* meshWideManifolds = (b3ManifoldConstraintMeshWide*)b3StackAlloc(
@@ -1772,7 +1790,7 @@ void b3Solve( b3World* world, b3StepContext* stepContext )
 
 				if ( colorContactCount > 0 )
 				{
-					if ( B3_MESH_WIDE )
+					if ( world->isa->meshWide )
 					{
 						int colorMeshWideCount = ( ( colorContactCount - 1 ) >> B3_SIMD_SHIFT ) + 1;
 						color->meshWideConstraints =
@@ -1825,8 +1843,8 @@ void b3Solve( b3World* world, b3StepContext* stepContext )
 			meshWidePrepareSpans[activeColorCount].start = meshWideCount;
 			meshWidePrepareSpans[activeColorCount].count = 0;
 			meshWidePrepareSpans[activeColorCount].contacts = NULL;
-			B3_ASSERT( meshWideBase == ( B3_MESH_WIDE ? meshWideCount : 0 ) );
-			B3_ASSERT( meshManifoldBase == ( B3_MESH_WIDE ? meshWideManifoldCount : 0 ) );
+			B3_ASSERT( meshWideBase == ( world->isa->meshWide ? meshWideCount : 0 ) );
+			B3_ASSERT( meshManifoldBase == ( world->isa->meshWide ? meshWideManifoldCount : 0 ) );
 
 			jointPrepareSpans[activeColorCount].start = jointCount;
 			jointPrepareSpans[activeColorCount].count = 0;
@@ -2506,3 +2524,5 @@ void b3Solve( b3World* world, b3StepContext* stepContext )
 		b3TracyCZoneEnd( sleep_islands );
 	}
 }
+
+#endif // !B3_ISA_VARIANT_TU
