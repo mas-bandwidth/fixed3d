@@ -11,6 +11,18 @@
 #endif
 
 #include "core.h"
+
+#if !( defined( _WIN32 ) || defined( __LITTLE_ENDIAN__ ) \
+	|| ( defined( __BYTE_ORDER__ ) && __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__ ) \
+	|| defined( __BIG_ENDIAN__ ) \
+	|| ( defined( __BYTE_ORDER__ ) && __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__ ) )
+#error "rapidhash byte order cannot be established; refusing the little-endian fallback: the geometry hash is load-bearing on determinism and recordings"
+#endif
+
+#if defined( RAPIDHASH_PROTECTED ) || defined( RAPIDHASH_UNROLLED ) || defined( RAPIDHASH_LITTLE_ENDIAN ) \
+	|| defined( RAPIDHASH_BIG_ENDIAN ) || defined( RAPIDHASH_FAST ) || defined( RAPIDHASH_COMPACT )
+#error "refusing a RAPIDHASH_* compile flag: the geometry hash is load-bearing on determinism and recordings"
+#endif
 #include "rapidhash.h"
 
 #include "box3d/constants.h"
@@ -19,7 +31,7 @@
 #include <stdarg.h>
 #include <string.h>
 
-#ifdef BOX2D_PROFILE
+#ifdef BOX3D_PROFILE
 
 #include <tracy/TracyC.h>
 #define b3TracyCAlloc( ptr, size ) TracyCAlloc( ptr, size )
@@ -35,6 +47,8 @@
 #include "platform.h"
 
 #include <stdio.h>
+
+_Static_assert( B3_MAX_MANIFOLD_POINTS >= 4, "B3_MAX_MANIFOLD_POINTS must be at least 4" );
 
 // This allows the user to change the length units at runtime
 static b3Fixed b3_lengthUnitsPerMeter = B3_FIX( 1.0f );
@@ -133,10 +147,15 @@ b3Version b3GetVersion( void )
 	return (b3Version){ 1, 4, 0 };
 }
 
+int b3GetMaxManifoldPoints( void )
+{
+	return B3_MAX_MANIFOLD_POINTS;
+}
+
 static b3AllocFcn* b3_allocFcn = NULL;
 static b3FreeFcn* b3_freeFcn = NULL;
 
-b3AtomicInt b3_byteCount;
+static b3AtomicI64 b3_byteCount;
 
 void b3SetAllocator( b3AllocFcn* allocFcn, b3FreeFcn* freeFcn )
 {
@@ -151,13 +170,11 @@ void* b3Alloc( size_t size )
 		return NULL;
 	}
 
-	// This could cause some sharing issues, however Fixed3D rarely calls b3Alloc.
-	// todo this is not true, Fixed3D allocates a lot.
-	b3AtomicFetchAddInt( &b3_byteCount, (int)size );
+	b3AtomicFetchAddI64( &b3_byteCount, (int64_t)size );
 
 	// Allocation must be a multiple of B3_ALIGNMENT (required by spec).
 	// https://en.cppreference.com/w/c/memory/aligned_alloc
-	int alignedSize = ( ( (int)size - 1 ) | ( B3_ALIGNMENT - 1 ) ) + 1;
+	size_t alignedSize = ( ( size - 1 ) | ( B3_ALIGNMENT - 1 ) ) + 1;
 
 	if ( b3_allocFcn != NULL )
 	{
@@ -202,7 +219,8 @@ void b3Free( void* mem, size_t size )
 
 	if ( b3_freeFcn != NULL )
 	{
-		b3_freeFcn( mem );
+		size_t alignedSize = ( ( size - 1 ) | ( B3_ALIGNMENT - 1 ) ) + 1;
+		b3_freeFcn( mem, alignedSize );
 	}
 	else
 	{
@@ -213,7 +231,7 @@ void b3Free( void* mem, size_t size )
 #endif
 	}
 
-	b3AtomicFetchAddInt( &b3_byteCount, -(int)size );
+	b3AtomicFetchAddI64( &b3_byteCount, -(int64_t)size );
 }
 
 void* b3GrowAlloc( void* oldMem, int oldSize, int newSize )
@@ -228,9 +246,9 @@ void* b3GrowAlloc( void* oldMem, int oldSize, int newSize )
 	return newMem;
 }
 
-int b3GetByteCount( void )
+int64_t b3GetByteCount( void )
 {
-	return b3AtomicLoadInt( &b3_byteCount );
+	return b3AtomicLoadI64( &b3_byteCount );
 }
 
 void* b3AllocZeroed( size_t size )

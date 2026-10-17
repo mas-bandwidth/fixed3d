@@ -1,0 +1,384 @@
+diff --git a/src/inverse.h b/src/inverse.h
+index 6186e93..b0056ce 100644
+--- a/src/inverse.h
++++ b/src/inverse.h
+@@ -270,6 +270,190 @@ B3_INLINE b3Vec3 b3InvMulMV( b3Matrix3 m, b3Vec3 v )
+ }
+ 
+ 
++/// Dedicated 256-by-128 unsigned division for the middle arm of b3Solve3AcrossScales.
++///
++/// The general fixUInt256DivMod is a four-limb Knuth Algorithm D; an ordinary joint's
++/// per-mass determinant is near 2^120 and fits in 128 bits, so its divisor is at most two
++/// limbs and the four-limb machinery (limb scan, full normalization, general loop) is
++/// wasted work. This is the 256-bit analogue of fixInt128Div's x86 128/64 divq fast tier:
++/// the divisor is known up front to fit in 128 bits, so the Knuth loop is specialized to a
++/// one- or two-limb divisor and the inner step is the hardware 128/64 divide.
++///
++/// EXACT by construction: integer division is unique, so the quotient and remainder equal
++/// fixUInt256DivMod's for every input whose divisor fits in 128 bits. The structure mirrors
++/// fixUInt256DivMod's short-division (n == 1) and two-limb (n == 2) bodies, including the
++/// rare add-back arm, so the two cannot drift apart.
++///
++/// The divisor is asserted non-zero by the caller (the determinant zero test above), and
++/// this path is only entered when the determinant's high limb is zero.
++B3_INLINE void b3UInt256DivMod128( fixUInt256 dividend, fixUInt128 divisor, fixUInt256* quotientOut, fixUInt256* remainderOut )
++{
++	uint64_t u[4];
++	fixUInt256ToLimbs( dividend, u );
++
++	uint64_t v[2] = { fixUInt128Lo( divisor ), fixUInt128Hi( divisor ) };
++	uint64_t q[4] = { 0, 0, 0, 0 };
++
++	int n = ( v[1] == 0 ) ? 1 : 2;
++	if ( n == 1 && v[0] == 0 )
++	{
++		fixUInt256 zero = { FIX_UINT128_ZERO, FIX_UINT128_ZERO };
++		*quotientOut = zero;
++		*remainderOut = zero;
++		return;
++	}
++
++	int m = 4;
++	while ( m > 0 && u[m - 1] == 0 ) { m--; }
++
++	if ( m < n )
++	{
++		fixUInt256 zero = { FIX_UINT128_ZERO, FIX_UINT128_ZERO };
++		*quotientOut = zero;
++		*remainderOut = dividend;
++		return;
++	}
++
++	if ( n == 1 )
++	{
++		uint64_t rest = 0;
++		for ( int i = m - 1; i >= 0; i-- )
++		{
++			q[i] = fixUInt128DivRemBy64( fixUInt128Make( rest, u[i] ), v[0], &rest );
++		}
++		*quotientOut = fixUInt256FromLimbs( q );
++		*remainderOut = fixUInt256FromU64( rest );
++		return;
++	}
++
++	int s = fixCountLeadingZeros64( v[1] );
++	uint64_t vn[2];
++	vn[1] = fixShiftInLimb( v[1], v[0], s );
++	vn[0] = v[0] << s;
++
++	uint64_t un[5];
++	un[m] = s == 0 ? 0 : ( u[m - 1] >> ( 64 - s ) );
++	for ( int i = m - 1; i > 0; i-- ) { un[i] = fixShiftInLimb( u[i], u[i - 1], s ); }
++	un[0] = u[0] << s;
++
++	for ( int j = m - n; j >= 0; j-- )
++	{
++		uint64_t qhat;
++		uint64_t rhat;
++		bool rhatFits;
++
++		if ( un[j + n] >= vn[n - 1] )
++		{
++			qhat = UINT64_MAX;
++			fixUInt128 numerator = fixUInt128Make( un[j + n], un[j + n - 1] );
++			fixUInt128 product = fixUInt128MulU64( qhat, vn[n - 1] );
++			fixUInt128 rest = fixUInt128Sub( numerator, product );
++			rhatFits = fixUInt128Hi( rest ) == 0;
++			rhat = fixUInt128Lo( rest );
++		}
++		else
++		{
++			qhat = fixUInt128DivRemBy64( fixUInt128Make( un[j + n], un[j + n - 1] ), vn[n - 1], &rhat );
++			rhatFits = true;
++		}
++
++		while ( rhatFits && qhat != 0 &&
++				fixUInt128Gt( fixUInt128MulU64( qhat, vn[n - 2] ), fixUInt128Make( rhat, un[j + n - 2] ) ) )
++		{
++			qhat--;
++			fixUInt128 widened = fixUInt128Add( fixUInt128FromU64( rhat ), fixUInt128FromU64( vn[n - 1] ) );
++			rhatFits = fixUInt128Hi( widened ) == 0;
++			rhat = fixUInt128Lo( widened );
++		}
++
++		uint64_t borrow = 0;
++		uint64_t carry = 0;
++		for ( int i = 0; i < n; i++ )
++		{
++			fixUInt128 product = fixUInt128Add( fixUInt128MulU64( qhat, vn[i] ), fixUInt128FromU64( carry ) );
++			carry = fixUInt128Hi( product );
++
++			fixUInt128 left = fixUInt128FromU64( un[i + j] );
++			fixUInt128 right = fixUInt128Add( fixUInt128FromU64( fixUInt128Lo( product ) ), fixUInt128FromU64( borrow ) );
++			if ( fixUInt128Ge( left, right ) )
++			{
++				un[i + j] = fixUInt128Lo( fixUInt128Sub( left, right ) );
++				borrow = 0;
++			}
++			else
++			{
++				un[i + j] = fixUInt128Lo( fixUInt128Sub( fixUInt128Add( left, fixUInt128Shl( fixUInt128FromU64( 1 ), 64 ) ), right ) );
++				borrow = 1;
++			}
++		}
++
++		bool negative;
++		{
++			fixUInt128 left = fixUInt128FromU64( un[j + n] );
++			fixUInt128 right = fixUInt128Add( fixUInt128FromU64( carry ), fixUInt128FromU64( borrow ) );
++			if ( fixUInt128Ge( left, right ) )
++			{
++				un[j + n] = fixUInt128Lo( fixUInt128Sub( left, right ) );
++				negative = false;
++			}
++			else
++			{
++				un[j + n] = fixUInt128Lo( fixUInt128Sub( fixUInt128Add( left, fixUInt128Shl( fixUInt128FromU64( 1 ), 64 ) ), right ) );
++				negative = true;
++			}
++		}
++
++		q[j] = qhat;
++
++		if ( negative )
++		{
++			q[j] = qhat - 1;
++			uint64_t addCarry = 0;
++			for ( int i = 0; i < n; i++ )
++			{
++				fixUInt128 sum = fixUInt128Add( fixUInt128Add( fixUInt128FromU64( un[i + j] ), fixUInt128FromU64( vn[i] ) ),
++												fixUInt128FromU64( addCarry ) );
++				un[i + j] = fixUInt128Lo( sum );
++				addCarry = fixUInt128Hi( sum );
++			}
++			un[j + n] += addCarry;
++		}
++	}
++
++	uint64_t r[4] = { 0, 0, 0, 0 };
++	for ( int i = 0; i < n - 1; i++ ) { r[i] = ( un[i] >> s ) | ( s == 0 ? 0 : ( un[i + 1] << ( 64 - s ) ) ); }
++	r[n - 1] = un[n - 1] >> s;
++
++	*quotientOut = fixUInt256FromLimbs( q );
++	*remainderOut = fixUInt256FromLimbs( r );
++}
++
++/// The shifted 256/128 ratio that mirrors fixDivShifted256 for the middle arm: the exact
++/// ( cofactor << shift ) / determinant, truncated to Q48.16 and saturating outside range,
++/// when the determinant's high limb is zero (fits in 128 bits). Same rounding and
++/// saturation as the wide path, so the two agree exactly wherever both are defined.
++B3_INLINE b3Fixed b3DivShifted256By128( fixUInt256 numerator, int shift, fixUInt128 absDet, bool determinantNegative )
++{
++	bool numeratorNegative = fixInt256IsNegative( numerator );
++	fixUInt256 scaled = fixUInt256Shl( fixInt256Abs( numerator ), shift );
++
++	fixUInt256 quotient;
++	fixUInt256 remainder;
++	b3UInt256DivMod128( scaled, absDet, &quotient, &remainder );
++
++	bool negative = numeratorNegative != determinantNegative;
++
++	bool representable = fixUInt128Eq( quotient.hi, FIX_UINT128_ZERO ) &&
++						 fixUInt128Le( quotient.lo, fixUInt128FromU64( (uint64_t)B3_FIXED_MAX ) );
++	if ( representable == false )
++	{
++		return negative ? -B3_FIXED_MAX : B3_FIXED_MAX;
++	}
++
++	int64_t magnitude = (int64_t)fixUInt128Lo( quotient.lo );
++	return negative ? -magnitude : magnitude;
++}
++
+ /// Solve an inverse-scaled system for an ORDINARY result: the joints' impulse solves,
+ /// where k is a per-mass matrix and the right-hand side is a velocity.
+ ///
+@@ -318,6 +502,20 @@ B3_INLINE b3Vec3 b3Solve3AcrossScales( b3Matrix3 m, b3Vec3 a )
+ 	fixUInt256 nz = fixUInt256Add( fixUInt256Add( fixInt256MulI128ByI64( c20, a.x ), fixInt256MulI128ByI64( c21, a.y ) ),
+ 								   fixInt256MulI128ByI64( c22, a.z ) );
+ 
++	// Middle arm: an ordinary inverse determinant is near 2^120, so its high limb is zero
++	// and the divisor fits in 128 bits. Divide with the dedicated 256/128 routine then;
++	// only the tiny-body (cofactor ~2^107) and asteroid cases carry a full 256-bit divisor
++	// and keep the four-limb Knuth path. Both arms are exact, so the answer is unchanged.
++	if ( fixUInt128Eq( absDet.hi, FIX_UINT128_ZERO ) )
++	{
++		b3Vec3 out = {
++			b3DivShifted256By128( nx, B3_INVERSE_FRACTION_BITS, absDet.lo, negative ),
++			b3DivShifted256By128( ny, B3_INVERSE_FRACTION_BITS, absDet.lo, negative ),
++			b3DivShifted256By128( nz, B3_INVERSE_FRACTION_BITS, absDet.lo, negative ),
++		};
++		return out;
++	}
++
+ 	b3Vec3 out = {
+ 		fixDivShifted256( nx, B3_INVERSE_FRACTION_BITS, absDet, negative ),
+ 		fixDivShifted256( ny, B3_INVERSE_FRACTION_BITS, absDet, negative ),
+diff --git a/test/test_joint.c b/test/test_joint.c
+index f9f11d2..e67b827 100644
+--- a/test/test_joint.c
++++ b/test/test_joint.c
+@@ -5,6 +5,7 @@
+ 
+ #include "box3d/box3d.h"
+ #include "box3d/math_functions.h"
++#include "inverse.h"
+ 
+ // One sub-test per joint type. Each creates the joint, exercises the shared
+ // b3Joint_* API plus every type-specific accessor, then steps to make sure the
+@@ -723,8 +724,155 @@ static int TestCreateJointClearsContacts( void )
+ 	return 0;
+ }
+ 
++// Differential proof for the 256/128 middle arm of b3Solve3AcrossScales. Integer division
++// is unique, so the middle arm must agree with the full 256-bit Knuth path for every input;
++// this test compares the two directly rather than trusting either.
++static uint64_t MiddleArmRngNext( uint64_t* s )
++{
++	uint64_t x = *s;
++	x ^= x << 13;
++	x ^= x >> 7;
++	x ^= x << 17;
++	*s = x;
++	return x;
++}
++
++// The pre-middle-arm solve: every component divides through the four-limb fixUInt256DivMod.
++// Kept verbatim so the differential is against the historical wide path, not a paraphrase.
++static b3Vec3 Solve3AcrossScalesFullPath( b3Matrix3 m, b3Vec3 a )
++{
++	if ( a.x == 0 && a.y == 0 && a.z == 0 )
++	{
++		return b3Vec3_zero;
++	}
++
++	fixInt128 c00 = fixCofactor128( m.cy.y, m.cz.z, m.cy.z, m.cz.y );
++	fixInt128 c01 = fixCofactor128( m.cy.z, m.cz.x, m.cy.x, m.cz.z );
++	fixInt128 c02 = fixCofactor128( m.cy.x, m.cz.y, m.cy.y, m.cz.x );
++	fixInt128 c10 = fixCofactor128( m.cz.y, m.cx.z, m.cz.z, m.cx.y );
++	fixInt128 c11 = fixCofactor128( m.cz.z, m.cx.x, m.cz.x, m.cx.z );
++	fixInt128 c12 = fixCofactor128( m.cz.x, m.cx.y, m.cz.y, m.cx.x );
++	fixInt128 c20 = fixCofactor128( m.cx.y, m.cy.z, m.cx.z, m.cy.y );
++	fixInt128 c21 = fixCofactor128( m.cx.z, m.cy.x, m.cx.x, m.cy.z );
++	fixInt128 c22 = fixCofactor128( m.cx.x, m.cy.y, m.cx.y, m.cy.x );
++
++	fixUInt256 det = fixUInt256Add( fixUInt256Add( fixInt256MulI128ByI64( c00, m.cx.x ), fixInt256MulI128ByI64( c10, m.cy.x ) ),
++									fixInt256MulI128ByI64( c20, m.cz.x ) );
++	if ( fixUInt256IsZero( det ) )
++	{
++		return b3Vec3_zero;
++	}
++
++	bool negative = fixInt256IsNegative( det );
++	fixUInt256 absDet = fixInt256Abs( det );
++
++	fixUInt256 nx = fixUInt256Add( fixUInt256Add( fixInt256MulI128ByI64( c00, a.x ), fixInt256MulI128ByI64( c01, a.y ) ),
++								   fixInt256MulI128ByI64( c02, a.z ) );
++	fixUInt256 ny = fixUInt256Add( fixUInt256Add( fixInt256MulI128ByI64( c10, a.x ), fixInt256MulI128ByI64( c11, a.y ) ),
++								   fixInt256MulI128ByI64( c12, a.z ) );
++	fixUInt256 nz = fixUInt256Add( fixUInt256Add( fixInt256MulI128ByI64( c20, a.x ), fixInt256MulI128ByI64( c21, a.y ) ),
++								   fixInt256MulI128ByI64( c22, a.z ) );
++
++	b3Vec3 out = {
++		fixDivShifted256( nx, B3_INVERSE_FRACTION_BITS, absDet, negative ),
++		fixDivShifted256( ny, B3_INVERSE_FRACTION_BITS, absDet, negative ),
++		fixDivShifted256( nz, B3_INVERSE_FRACTION_BITS, absDet, negative ),
++	};
++	return out;
++}
++
++// A seeded entry whose magnitude spans roughly 2^lo .. 2^hi: the raw word is masked to
++// `hi` bits and signed, so the sweep covers every scale in the arm's range.
++static b3Fixed MiddleArmEntry( uint64_t* s, int lo, int hi )
++{
++	uint64_t r = MiddleArmRngNext( s );
++	int shift = lo + (int)( MiddleArmRngNext( s ) % (uint64_t)( hi - lo + 1 ) );
++	int64_t v = (int64_t)( r >> shift );
++	return ( MiddleArmRngNext( s ) & 1 ) ? -v : v;
++}
++
++static int Solve3AcrossScalesMiddleArmTest( void )
++{
++	uint64_t state = 0x9E3779B97F4A7C15ULL;
++
++	// 10 million seeded matrices across scales 2^-10 .. 2^40 (entry magnitude), comparing
++	// the middle-arm solve against the full 256-bit path.
++	for ( int i = 0; i < 10000000; ++i )
++	{
++		b3Matrix3 m = {
++			{ MiddleArmEntry( &state, -10, 40 ), MiddleArmEntry( &state, -10, 40 ), MiddleArmEntry( &state, -10, 40 ) },
++			{ MiddleArmEntry( &state, -10, 40 ), MiddleArmEntry( &state, -10, 40 ), MiddleArmEntry( &state, -10, 40 ) },
++			{ MiddleArmEntry( &state, -10, 40 ), MiddleArmEntry( &state, -10, 40 ), MiddleArmEntry( &state, -10, 40 ) },
++		};
++		b3Vec3 a = { MiddleArmEntry( &state, -10, 24 ), MiddleArmEntry( &state, -10, 24 ), MiddleArmEntry( &state, -10, 24 ) };
++
++		b3Vec3 actual = b3Solve3AcrossScales( m, a );
++		b3Vec3 expected = Solve3AcrossScalesFullPath( m, a );
++		if ( actual.x != expected.x || actual.y != expected.y || actual.z != expected.z )
++		{
++			printf( "  middle-arm divergence at i=%d: actual=(%g,%g,%g) expected=(%g,%g,%g)\n", i,
++					b3FixToDouble( actual.x ), b3FixToDouble( actual.y ), b3FixToDouble( actual.z ),
++					b3FixToDouble( expected.x ), b3FixToDouble( expected.y ), b3FixToDouble( expected.z ) );
++			return 1;
++		}
++	}
++
++	// Determinant exactly at the arm gate: 2^64 - 1 (single-limb divisor), 2^64 (two-limb,
++	// normalization shift 63), and 2^127 (two-limb, no normalization). Compare the helper
++	// against the wide path directly on random numerators.
++	{
++		const uint64_t detLo[3] = { UINT64_MAX, 0, 0 };
++		const uint64_t detHi[3] = { 0, 1, 1ULL << 63 };
++		for ( int g = 0; g < 3; ++g )
++		{
++			fixUInt128 absDet = fixUInt128Make( detHi[g], detLo[g] );
++			for ( int i = 0; i < 100000; ++i )
++			{
++				uint64_t l0 = MiddleArmRngNext( &state ), l1 = MiddleArmRngNext( &state );
++				uint64_t h0 = MiddleArmRngNext( &state ), h1 = MiddleArmRngNext( &state );
++				fixUInt256 numerator = { fixUInt128Make( h1, h0 ), fixUInt128Make( l1, l0 ) };
++
++				b3Fixed actual = b3DivShifted256By128( numerator, B3_INVERSE_FRACTION_BITS, absDet, false );
++				b3Fixed expected = fixDivShifted256( numerator, B3_INVERSE_FRACTION_BITS, fixUInt256FromU128( absDet ), false );
++				if ( actual != expected )
++				{
++					printf( "  arm-gate divergence at gate=%d i=%d\n", g, i );
++					return 1;
++				}
++			}
++		}
++	}
++
++	// Asteroid regression: inverse values retain their low quanta through the middle arm.
++	b3Matrix3 small = { { 6, 0, 0 }, { 0, 70369, 0 }, { 0, 0, 6 } };
++	b3Vec3 x = b3Solve3AcrossScales( small, (b3Vec3){ 1, -1, 2 } );
++	if ( x.x != ( (int64_t)1 << 40 ) / 6 || x.y != -( ( (int64_t)1 << 40 ) / 70369 ) || x.z != ( (int64_t)2 << 40 ) / 6 )
++	{
++		return 1;
++	}
++
++	// Tiny-body regression: cofactors at 2^107 keep the full 256-bit path; the gate must
++	// route them wide and the solve must match the wide answer exactly.
++	for ( int e = 41; e <= 60; ++e )
++	{
++		b3Fixed s = (b3Fixed)1 << e;
++		b3Matrix3 diag = { { s, 0, 0 }, { 0, s, 0 }, { 0, 0, s } };
++		b3Vec3 a = { (b3Fixed)1 << 20, -( (b3Fixed)1 << 20 ), (b3Fixed)1 << 19 };
++		b3Vec3 actual = b3Solve3AcrossScales( diag, a );
++		b3Vec3 expected = Solve3AcrossScalesFullPath( diag, a );
++		if ( actual.x != expected.x || actual.y != expected.y || actual.z != expected.z )
++		{
++			printf( "  tiny-body divergence at e=%d\n", e );
++			return 1;
++		}
++	}
++
++	return 0;
++}
++
+ int JointTest( void )
+ {
++	RUN_SUBTEST( Solve3AcrossScalesMiddleArmTest );
+ 	RUN_SUBTEST( TestCreateJointClearsContacts );
+ 	RUN_SUBTEST( TestJointInverseScaleCorrection );
+ 	RUN_SUBTEST( TestParallelJoint );

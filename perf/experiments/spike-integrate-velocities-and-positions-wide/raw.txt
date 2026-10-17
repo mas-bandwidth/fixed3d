@@ -1,0 +1,354 @@
+# raw measurement output — spike-integrate-velocities-and-positions-wide (attempt 5, bench space)
+
+## cpu_info.sh
+== CPU model ==
+model name	: AMD EPYC 9124 16-Core Processor
+== ISA flags ==
+avx2
+avx512dq
+avx512f
+avx512ifma
+avx512vl
+== cores ==
+32
+== CPU pinning ==
+pid 611589's current affinity list: 0-31
+== Load average ==
+2.25 2.66 2.07 1/1307 611597
+== Compiler ==
+cc (Ubuntu 15.2.0-16ubuntu1) 15.2.0
+c++ (Ubuntu 15.2.0-16ubuntu1) 15.2.0
+== cmake ==
+cmake version 4.2.3
+== cmake flags ==
+configured by the build dir; paste the cmake -B ... line used
+
+## ab.log (taskset, load, red-first)
+/home/ubuntu/rowan-jobs/integrate-wide-w5/base-red/test/test_body.c:1233:17: error: implicit declaration of function ‘b3IntegrateVelocitiesRange’ [-Wimplicit-function-declaration]
+/home/ubuntu/rowan-jobs/integrate-wide-w5/base-red/test/test_body.c:1235:17: error: implicit declaration of function ‘b3IntegratePositionsRange’ [-Wimplicit-function-declaration]
+RED-DONE
+taskset: pid 610945's current affinity list: 0-31
+pgrep benchmark:
+== uptime before:  12:07:03 up 28 days, 12:31,  8 users,  load average: 2.25, 2.66, 2.07
+ab exit=0
+== uptime after:  12:11:37 up 28 days, 12:35,  8 users,  load average: 3.99, 2.61, 2.16
+AB-DONE
+
+## ab.sh base/build-avx (BASE 6183d14, BOX3D_AVX512=ON) vs cand/build-avx (BASE + experiment.patch, BOX3D_AVX512=ON), -w=1 -r=7 --steps=120
+scene workers phase A_min A_med A_spread B_min B_med B_spread speedup
+bodies_20k 1 applyRestitution 2558 2928 1490 2674 2828 359 1.035361
+bodies_20k 1 bullets 0 0 0 0 0 0 0.000000
+bodies_20k 1 collide 2189905 2201618 51235 2142844 2168105 82214 1.015457
+bodies_20k 1 constraints 21934527 22094925 245886 19124210 19174920 273617 1.152283
+bodies_20k 1 integratePositions 3791534 3802895 26548 3315661 3325925 21671 1.143410
+bodies_20k 1 integrateVelocities 11371045 11382378 41060 9000645 9013745 47003 1.262780
+bodies_20k 1 pairs 4247598 4325619 159718 4238701 4338818 167004 0.996958
+bodies_20k 1 prepareConstraints 1436397 1456331 45687 1442096 1456462 66400 0.999910
+bodies_20k 1 refit 1333915 1356838 71096 1332954 1384054 83280 0.980336
+bodies_20k 1 relaxImpulses 2162623 2209032 116622 2126232 2196757 188310 1.005588
+bodies_20k 1 sleepIslands 20617 20769 209 20672 20800 286 0.998510
+bodies_20k 1 solve 28822843 28957135 233941 25967689 26038160 313563 1.112104
+bodies_20k 1 solveImpulses 1029071 1077219 76334 1013797 1042496 68727 1.033308
+bodies_20k 1 solverSetup 2835 2891 1289 2798 2979 707 0.970460
+bodies_20k 1 step 35291970 35512455 367953 32443605 32543856 372128 1.091218
+bodies_20k 1 storeImpulses 102649 104835 4602 102266 105097 4306 0.997507
+bodies_20k 1 transforms 5426304 5460625 110857 5421201 5443103 88768 1.003219
+bodies_20k 1 warmStart 1996223 2018314 33760 2030567 2042364 29718 0.988224
+rain 1 applyRestitution 413 457 82 436 451 91 1.013304
+rain 1 bullets 0 0 0 0 0 0 0.000000
+rain 1 collide 282883 283767 2058 282705 284198 2386 0.998483
+rain 1 constraints 6415076 6421899 30545 6293428 6312033 22738 1.017406
+rain 1 integratePositions 183053 183559 1570 159870 160673 2773 1.142438
+rain 1 integrateVelocities 539857 541422 4411 421247 422555 5433 1.281305
+rain 1 pairs 353821 357064 6332 351384 353644 7162 1.009671
+rain 1 prepareConstraints 496908 498509 4577 497847 498315 7384 1.000389
+rain 1 refit 44156 45705 2508 44358 45003 1220 1.015599
+rain 1 relaxImpulses 2490360 2494940 11221 2498931 2509930 16604 0.994028
+rain 1 sleepIslands 134 147 45 127 171 50 0.859649
+rain 1 solve 6881223 6892174 38857 6760833 6778349 23841 1.016792
+rain 1 solveImpulses 2370947 2376090 10436 2378556 2385049 9826 0.996244
+rain 1 solverSetup 1357 1413 196 1310 1357 155 1.041268
+rain 1 step 7518230 7532068 47258 7399163 7414343 28948 1.015878
+rain 1 storeImpulses 2037 2062 92 2012 2080 256 0.991346
+rain 1 transforms 418646 420612 6804 418226 419021 4747 1.003797
+rain 1 warmStart 327302 329294 2265 326912 327730 1653 1.004772
+many_pyramids 1 applyRestitution 43328 43979 2229 43404 44900 4914 0.979488
+many_pyramids 1 bullets 0 0 0 0 0 0 0.000000
+many_pyramids 1 collide 13128777 13357315 633284 13247069 13937954 2026223 0.958341
+many_pyramids 1 constraints 133025807 133671892 5637264 129256033 130381995 15482984 1.025233
+many_pyramids 1 integratePositions 2050143 2061320 63426 1787343 1796835 137746 1.147195
+many_pyramids 1 integrateVelocities 6054741 6071793 241267 4788596 4809462 573303 1.262468
+many_pyramids 1 pairs 835 965 254 855 970 172 0.994845
+many_pyramids 1 prepareConstraints 19516231 19717837 1043303 19543268 19940268 2554906 0.988845
+many_pyramids 1 refit 606 652 66 563 636 127 1.025157
+many_pyramids 1 relaxImpulses 45665666 45943226 2131255 43345531 43936935 5315208 1.045663
+many_pyramids 1 sleepIslands 526 641 157 570 656 163 0.977134
+many_pyramids 1 solve 135670039 136377216 5696872 131905238 133057680 15653273 1.024948
+many_pyramids 1 solveImpulses 25826684 25972731 1082928 24941047 25187066 2768694 1.031193
+many_pyramids 1 solverSetup 4587 4645 339 4495 4656 571 0.997637
+many_pyramids 1 step 148946762 149736560 6184353 145154122 146954068 17679808 1.018934
+many_pyramids 1 storeImpulses 2478241 2492068 95177 2446728 2490595 315564 1.000591
+many_pyramids 1 transforms 2636745 2662081 61252 2641795 2668219 169618 0.997700
+many_pyramids 1 warmStart 31221679 31410128 1432677 32176882 32378777 3991479 0.970084
+geomean_speedup 1.04144
+interleaved A/B done
+
+## gate.log (cand AVX-512 ./bin/test and 78-row hash matrix vs tools/perf/scalar-oracle.txt)
+== uptime before:  11:54:06 up 28 days, 12:18,  8 users,  load average: 2.45, 1.65, 0.97
+test build-avx exit=1 test failed: AllocatorTest
+  subtest failed: AllocatorWidenedSignatureTest
+test failed: AllocatorTest
+test build-avx-lud exit=1 test failed: AllocatorTest
+  subtest failed: AllocatorWidenedSignatureTest
+test failed: AllocatorTest
+rows cand=78 oracle=78 diff-lines=36
+1,6c1,6
+< HASH bodies_20k workers=1 ludicrous ed59e6aff81bcd26
+< HASH bodies_20k workers=1 narrow ed59e6aff81bcd26
+< HASH bodies_20k workers=2 ludicrous ed59e6aff81bcd26
+< HASH bodies_20k workers=2 narrow ed59e6aff81bcd26
+< HASH bodies_20k workers=4 ludicrous ed59e6aff81bcd26
+< HASH bodies_20k workers=4 narrow ed59e6aff81bcd26
+---
+> HASH bodies_20k workers=1 ludicrous 3e7cbde301a4f6c2
+> HASH bodies_20k workers=1 narrow 3e7cbde301a4f6c2
+> HASH bodies_20k workers=2 ludicrous 3e7cbde301a4f6c2
+> HASH bodies_20k workers=2 narrow 3e7cbde301a4f6c2
+> HASH bodies_20k workers=4 ludicrous 3e7cbde301a4f6c2
+> HASH bodies_20k workers=4 narrow 3e7cbde301a4f6c2
+43,54c43,54
+< HASH ragdoll_pile workers=1 ludicrous 42fa9c6438e3527f
+< HASH ragdoll_pile workers=1 narrow 42fa9c6438e3527f
+< HASH ragdoll_pile workers=2 ludicrous 42fa9c6438e3527f
+< HASH ragdoll_pile workers=2 narrow 42fa9c6438e3527f
+< HASH ragdoll_pile workers=4 ludicrous 42fa9c6438e3527f
+== uptime after:  11:57:09 up 28 days, 12:21,  8 users,  load average: 3.23, 2.35, 1.36
+GATE-DONE
+
+## gate2.log (base AVX-512 tests and hashes, cand scalar oracle_check.sh)
+== uptime before:  11:57:54 up 28 days, 12:22,  8 users,  load average: 2.36, 2.25, 1.37
+base-avx ./bin/test exit=1
+  subtest failed: AllocatorWidenedSignatureTest
+test failed: AllocatorTest
+base lud build exit=0
+cand-avx vs base-avx: rows=78 diff-lines=0
+base-avx vs scalar oracle: diff-lines=36 scenes: bodies_20k ragdoll_pile rain
+CMake Error: The current CMakeCache.txt directory /home/ubuntu/rowan-jobs/integrate-wide-w5/base-red/build-avx/CMakeCache.txt is different than the directory /home/ubuntu/rowan-jobs/integrate-wide-w5/base/build-avx where CMakeCache.txt was created. This may result in binaries being created in the wrong place. If you are not sure, reedit the CMakeCache.txt
+CMake Error: The source "/home/ubuntu/rowan-jobs/integrate-wide-w5/base-red/CMakeLists.txt" does not match the source "/home/ubuntu/rowan-jobs/integrate-wide-w5/base/CMakeLists.txt" used to generate cache.  Re-run cmake with a different source directory.
+== cand scalar oracle_check (BOX3D_AVX512=OFF)
+oracle_check exit=1
++HASH rain workers=1 narrow f96c9e008d59a375
++HASH rain workers=2 ludicrous f96c9e008d59a375
++HASH rain workers=2 narrow f96c9e008d59a375
++HASH rain workers=4 ludicrous f96c9e008d59a375
++HASH rain workers=4 narrow f96c9e008d59a375
+ HASH trees100 workers=1 ludicrous 637a0532ce5d1583
+ HASH trees100 workers=1 narrow 637a0532ce5d1583
+ HASH trees100 workers=2 ludicrous 637a0532ce5d1583
+cand scalar ./bin/test exit=0 b3CreatePlayer: snapshot deserialization failed b3CreatePlayer: snapshot deserialization failed
+== uptime after:  12:06:05 up 28 days, 12:30,  8 users,  load average: 2.51, 2.71, 2.04
+GATE2-DONE
+
+## BASE scalar (unpatched, BOX3D_AVX512=OFF) on the three oracle-mismatch scenes, w=1, steps=120
+bodies_20k ed59e6aff81bcd26
+ragdoll_pile 42fa9c6438e3527f
+rain f96c9e008d59a375
+
+## cand AVX-512 hashes (narrow + ludicrous, workers 1/2/4), sorted
+HASH bodies_20k workers=1 ludicrous ed59e6aff81bcd26
+HASH bodies_20k workers=1 narrow ed59e6aff81bcd26
+HASH bodies_20k workers=2 ludicrous ed59e6aff81bcd26
+HASH bodies_20k workers=2 narrow ed59e6aff81bcd26
+HASH bodies_20k workers=4 ludicrous ed59e6aff81bcd26
+HASH bodies_20k workers=4 narrow ed59e6aff81bcd26
+HASH convex_pile workers=1 ludicrous bd565a23dc405289
+HASH convex_pile workers=1 narrow bd565a23dc405289
+HASH convex_pile workers=2 ludicrous bd565a23dc405289
+HASH convex_pile workers=2 narrow bd565a23dc405289
+HASH convex_pile workers=4 ludicrous bd565a23dc405289
+HASH convex_pile workers=4 narrow bd565a23dc405289
+HASH joint_grid workers=1 ludicrous 321bf6a01ccc5cdd
+HASH joint_grid workers=1 narrow 321bf6a01ccc5cdd
+HASH joint_grid workers=2 ludicrous 321bf6a01ccc5cdd
+HASH joint_grid workers=2 narrow 321bf6a01ccc5cdd
+HASH joint_grid workers=4 ludicrous 321bf6a01ccc5cdd
+HASH joint_grid workers=4 narrow 321bf6a01ccc5cdd
+HASH junkyard workers=1 ludicrous 9d648b065fa43a76
+HASH junkyard workers=1 narrow 9d648b065fa43a76
+HASH junkyard workers=2 ludicrous 9d648b065fa43a76
+HASH junkyard workers=2 narrow 9d648b065fa43a76
+HASH junkyard workers=4 ludicrous 9d648b065fa43a76
+HASH junkyard workers=4 narrow 9d648b065fa43a76
+HASH large_pyramid workers=1 ludicrous 72331624b02f2508
+HASH large_pyramid workers=1 narrow 72331624b02f2508
+HASH large_pyramid workers=2 ludicrous 72331624b02f2508
+HASH large_pyramid workers=2 narrow 72331624b02f2508
+HASH large_pyramid workers=4 ludicrous 72331624b02f2508
+HASH large_pyramid workers=4 narrow 72331624b02f2508
+HASH large_world workers=1 ludicrous f870777f07e0fc8d
+HASH large_world workers=1 narrow f870777f07e0fc8d
+HASH large_world workers=2 ludicrous f870777f07e0fc8d
+HASH large_world workers=2 narrow f870777f07e0fc8d
+HASH large_world workers=4 ludicrous f870777f07e0fc8d
+HASH large_world workers=4 narrow f870777f07e0fc8d
+HASH many_pyramids workers=1 ludicrous a44faad65bd17db3
+HASH many_pyramids workers=1 narrow a44faad65bd17db3
+HASH many_pyramids workers=2 ludicrous a44faad65bd17db3
+HASH many_pyramids workers=2 narrow a44faad65bd17db3
+HASH many_pyramids workers=4 ludicrous a44faad65bd17db3
+HASH many_pyramids workers=4 narrow a44faad65bd17db3
+HASH ragdoll_pile workers=1 ludicrous 42fa9c6438e3527f
+HASH ragdoll_pile workers=1 narrow 42fa9c6438e3527f
+HASH ragdoll_pile workers=2 ludicrous 42fa9c6438e3527f
+HASH ragdoll_pile workers=2 narrow 42fa9c6438e3527f
+HASH ragdoll_pile workers=4 ludicrous 42fa9c6438e3527f
+HASH ragdoll_pile workers=4 narrow 42fa9c6438e3527f
+HASH rain workers=1 ludicrous f96c9e008d59a375
+HASH rain workers=1 narrow f96c9e008d59a375
+HASH rain workers=2 ludicrous f96c9e008d59a375
+HASH rain workers=2 narrow f96c9e008d59a375
+HASH rain workers=4 ludicrous f96c9e008d59a375
+HASH rain workers=4 narrow f96c9e008d59a375
+HASH trees100 workers=1 ludicrous 637a0532ce5d1583
+HASH trees100 workers=1 narrow 637a0532ce5d1583
+HASH trees100 workers=2 ludicrous 637a0532ce5d1583
+HASH trees100 workers=2 narrow 637a0532ce5d1583
+HASH trees100 workers=4 ludicrous 637a0532ce5d1583
+HASH trees100 workers=4 narrow 637a0532ce5d1583
+HASH trees25 workers=1 ludicrous aab50c7a021e993d
+HASH trees25 workers=1 narrow aab50c7a021e993d
+HASH trees25 workers=2 ludicrous aab50c7a021e993d
+HASH trees25 workers=2 narrow aab50c7a021e993d
+HASH trees25 workers=4 ludicrous aab50c7a021e993d
+HASH trees25 workers=4 narrow aab50c7a021e993d
+HASH trees50 workers=1 ludicrous 0784ab5eef8835ae
+HASH trees50 workers=1 narrow 0784ab5eef8835ae
+HASH trees50 workers=2 ludicrous 0784ab5eef8835ae
+HASH trees50 workers=2 narrow 0784ab5eef8835ae
+HASH trees50 workers=4 ludicrous 0784ab5eef8835ae
+HASH trees50 workers=4 narrow 0784ab5eef8835ae
+HASH washer workers=1 ludicrous aa2172b77d7d304a
+HASH washer workers=1 narrow aa2172b77d7d304a
+HASH washer workers=2 ludicrous aa2172b77d7d304a
+HASH washer workers=2 narrow aa2172b77d7d304a
+HASH washer workers=4 ludicrous aa2172b77d7d304a
+HASH washer workers=4 narrow aa2172b77d7d304a
+
+## BASE AVX-512 hashes, sorted (identical to the above: diff-lines=0)
+HASH bodies_20k workers=1 ludicrous ed59e6aff81bcd26
+HASH bodies_20k workers=1 narrow ed59e6aff81bcd26
+HASH bodies_20k workers=2 ludicrous ed59e6aff81bcd26
+HASH bodies_20k workers=2 narrow ed59e6aff81bcd26
+HASH bodies_20k workers=4 ludicrous ed59e6aff81bcd26
+HASH bodies_20k workers=4 narrow ed59e6aff81bcd26
+HASH convex_pile workers=1 ludicrous bd565a23dc405289
+HASH convex_pile workers=1 narrow bd565a23dc405289
+HASH convex_pile workers=2 ludicrous bd565a23dc405289
+HASH convex_pile workers=2 narrow bd565a23dc405289
+HASH convex_pile workers=4 ludicrous bd565a23dc405289
+HASH convex_pile workers=4 narrow bd565a23dc405289
+HASH joint_grid workers=1 ludicrous 321bf6a01ccc5cdd
+HASH joint_grid workers=1 narrow 321bf6a01ccc5cdd
+HASH joint_grid workers=2 ludicrous 321bf6a01ccc5cdd
+HASH joint_grid workers=2 narrow 321bf6a01ccc5cdd
+HASH joint_grid workers=4 ludicrous 321bf6a01ccc5cdd
+HASH joint_grid workers=4 narrow 321bf6a01ccc5cdd
+HASH junkyard workers=1 ludicrous 9d648b065fa43a76
+HASH junkyard workers=1 narrow 9d648b065fa43a76
+HASH junkyard workers=2 ludicrous 9d648b065fa43a76
+HASH junkyard workers=2 narrow 9d648b065fa43a76
+HASH junkyard workers=4 ludicrous 9d648b065fa43a76
+HASH junkyard workers=4 narrow 9d648b065fa43a76
+HASH large_pyramid workers=1 ludicrous 72331624b02f2508
+HASH large_pyramid workers=1 narrow 72331624b02f2508
+HASH large_pyramid workers=2 ludicrous 72331624b02f2508
+HASH large_pyramid workers=2 narrow 72331624b02f2508
+HASH large_pyramid workers=4 ludicrous 72331624b02f2508
+HASH large_pyramid workers=4 narrow 72331624b02f2508
+HASH large_world workers=1 ludicrous f870777f07e0fc8d
+HASH large_world workers=1 narrow f870777f07e0fc8d
+HASH large_world workers=2 ludicrous f870777f07e0fc8d
+HASH large_world workers=2 narrow f870777f07e0fc8d
+HASH large_world workers=4 ludicrous f870777f07e0fc8d
+HASH large_world workers=4 narrow f870777f07e0fc8d
+HASH many_pyramids workers=1 ludicrous a44faad65bd17db3
+HASH many_pyramids workers=1 narrow a44faad65bd17db3
+HASH many_pyramids workers=2 ludicrous a44faad65bd17db3
+HASH many_pyramids workers=2 narrow a44faad65bd17db3
+HASH many_pyramids workers=4 ludicrous a44faad65bd17db3
+HASH many_pyramids workers=4 narrow a44faad65bd17db3
+HASH ragdoll_pile workers=1 ludicrous 42fa9c6438e3527f
+HASH ragdoll_pile workers=1 narrow 42fa9c6438e3527f
+HASH ragdoll_pile workers=2 ludicrous 42fa9c6438e3527f
+HASH ragdoll_pile workers=2 narrow 42fa9c6438e3527f
+HASH ragdoll_pile workers=4 ludicrous 42fa9c6438e3527f
+HASH ragdoll_pile workers=4 narrow 42fa9c6438e3527f
+HASH rain workers=1 ludicrous f96c9e008d59a375
+HASH rain workers=1 narrow f96c9e008d59a375
+HASH rain workers=2 ludicrous f96c9e008d59a375
+HASH rain workers=2 narrow f96c9e008d59a375
+HASH rain workers=4 ludicrous f96c9e008d59a375
+HASH rain workers=4 narrow f96c9e008d59a375
+HASH trees100 workers=1 ludicrous 637a0532ce5d1583
+HASH trees100 workers=1 narrow 637a0532ce5d1583
+HASH trees100 workers=2 ludicrous 637a0532ce5d1583
+HASH trees100 workers=2 narrow 637a0532ce5d1583
+HASH trees100 workers=4 ludicrous 637a0532ce5d1583
+HASH trees100 workers=4 narrow 637a0532ce5d1583
+HASH trees25 workers=1 ludicrous aab50c7a021e993d
+HASH trees25 workers=1 narrow aab50c7a021e993d
+HASH trees25 workers=2 ludicrous aab50c7a021e993d
+HASH trees25 workers=2 narrow aab50c7a021e993d
+HASH trees25 workers=4 ludicrous aab50c7a021e993d
+HASH trees25 workers=4 narrow aab50c7a021e993d
+HASH trees50 workers=1 ludicrous 0784ab5eef8835ae
+HASH trees50 workers=1 narrow 0784ab5eef8835ae
+HASH trees50 workers=2 ludicrous 0784ab5eef8835ae
+HASH trees50 workers=2 narrow 0784ab5eef8835ae
+HASH trees50 workers=4 ludicrous 0784ab5eef8835ae
+HASH trees50 workers=4 narrow 0784ab5eef8835ae
+HASH washer workers=1 ludicrous aa2172b77d7d304a
+HASH washer workers=1 narrow aa2172b77d7d304a
+HASH washer workers=2 ludicrous aa2172b77d7d304a
+HASH washer workers=2 narrow aa2172b77d7d304a
+HASH washer workers=4 ludicrous aa2172b77d7d304a
+HASH washer workers=4 narrow aa2172b77d7d304a
+
+## oracle_check.sh on cand (scalar, BOX3D_AVX512=OFF): diff lines
+ORACLE MISMATCH
+-HASH bodies_20k workers=1 ludicrous 3e7cbde301a4f6c2
+-HASH bodies_20k workers=1 narrow 3e7cbde301a4f6c2
+-HASH bodies_20k workers=2 ludicrous 3e7cbde301a4f6c2
+-HASH bodies_20k workers=2 narrow 3e7cbde301a4f6c2
+-HASH bodies_20k workers=4 ludicrous 3e7cbde301a4f6c2
+-HASH bodies_20k workers=4 narrow 3e7cbde301a4f6c2
++HASH bodies_20k workers=1 ludicrous ed59e6aff81bcd26
++HASH bodies_20k workers=1 narrow ed59e6aff81bcd26
++HASH bodies_20k workers=2 ludicrous ed59e6aff81bcd26
++HASH bodies_20k workers=2 narrow ed59e6aff81bcd26
++HASH bodies_20k workers=4 ludicrous ed59e6aff81bcd26
++HASH bodies_20k workers=4 narrow ed59e6aff81bcd26
+-HASH ragdoll_pile workers=1 ludicrous 4ac74cd9f1805daf
+-HASH ragdoll_pile workers=1 narrow 4ac74cd9f1805daf
+-HASH ragdoll_pile workers=2 ludicrous 4ac74cd9f1805daf
+-HASH ragdoll_pile workers=2 narrow 4ac74cd9f1805daf
+-HASH ragdoll_pile workers=4 ludicrous 4ac74cd9f1805daf
+-HASH ragdoll_pile workers=4 narrow 4ac74cd9f1805daf
+-HASH rain workers=1 ludicrous d3e59885dbca43e1
+-HASH rain workers=1 narrow d3e59885dbca43e1
+-HASH rain workers=2 ludicrous d3e59885dbca43e1
+-HASH rain workers=2 narrow d3e59885dbca43e1
+-HASH rain workers=4 ludicrous d3e59885dbca43e1
+-HASH rain workers=4 narrow d3e59885dbca43e1
++HASH ragdoll_pile workers=1 ludicrous 42fa9c6438e3527f
++HASH ragdoll_pile workers=1 narrow 42fa9c6438e3527f
++HASH ragdoll_pile workers=2 ludicrous 42fa9c6438e3527f
++HASH ragdoll_pile workers=2 narrow 42fa9c6438e3527f
++HASH ragdoll_pile workers=4 ludicrous 42fa9c6438e3527f
++HASH ragdoll_pile workers=4 narrow 42fa9c6438e3527f
++HASH rain workers=1 ludicrous f96c9e008d59a375
++HASH rain workers=1 narrow f96c9e008d59a375
++HASH rain workers=2 ludicrous f96c9e008d59a375
++HASH rain workers=2 narrow f96c9e008d59a375
++HASH rain workers=4 ludicrous f96c9e008d59a375
++HASH rain workers=4 narrow f96c9e008d59a375

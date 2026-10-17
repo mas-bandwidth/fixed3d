@@ -36,12 +36,19 @@ assume, because that property is a fact about `recording.c` and not a law.
 ## Determinism properties, checked rather than assumed
 
 - **No floating point.** `grep -n 'float\|double' src/rapidhash.h` returns nothing.
-- **Byte order is normalized.** Big-endian builds byte-swap every read
-  (`rapid_read64`/`rapid_read32`), so the digest is platform independent.
-- **The compile-time variants that change the value are not reachable.**
-  `RAPIDHASH_PROTECTED` would alter the mixer and is never defined; the default is
-  `RAPIDHASH_FAST`. `RAPIDHASH_COMPACT` (the default) and `RAPIDHASH_UNROLLED` are
-  value-identical — the unrolled loop is two compact iterations.
+- **Byte order of a given byte sequence is normalized.** Big-endian builds byte-swap every read
+  (`rapid_read64`/`rapid_read32`). The bytes hashed are native-endian struct images, so a
+  big-endian host would still differ. That is contained in practice: `b3CreatePlayer` rejects
+  big-endian recordings.
+- **Compile-time variants are refused, not merely unused.** `src/core.c` `#error`s before the
+  include if the consumer predefines `RAPIDHASH_PROTECTED`, `RAPIDHASH_UNROLLED`,
+  `RAPIDHASH_LITTLE_ENDIAN`, `RAPIDHASH_BIG_ENDIAN`, `RAPIDHASH_FAST` or `RAPIDHASH_COMPACT`
+  (the header defines the defaults itself; a predefined `RAPIDHASH_LITTLE_ENDIAN` skips its
+  own byte-order detection). It also `#error`s when byte order cannot be established by the
+  same tests the header uses, so the `#warning` little-endian fallback is unreachable from
+  this tree. Vendor-drift hashes the file's bytes and cannot see a consumer `-D`.
+  `RAPIDHASH_COMPACT` is the header's default and `RAPIDHASH_UNROLLED` is value-identical to
+  it; both are still refused, because a consumer `-D` is invisible to the byte tripwire.
 - **The 128-bit multiply paths agree.** `__uint128_t`, `_umul128`/`__umulh` and the
   32x32 fallback all compute the same full product.
 

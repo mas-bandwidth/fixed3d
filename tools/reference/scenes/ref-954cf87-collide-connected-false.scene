@@ -1,0 +1,20 @@
+# ref-954cf87-collide-connected-false
+# Upstream box3d issue #117: a joint created with collideConnected false must clear
+# the contacts that already exist between the two bodies. Two dynamic unit boxes
+# overlap at rest (gravity zero); one step forms a touching contact, then a revolute
+# joint with collideConnected false is created before step 1. The contact count drops
+# to 0 at step 1 and stays 0. Reference: vanilla float box3d at 954cf87; fixed:
+# fixed3d on this branch (the port of step 3, src/joint.c).
+# Observable: the per-step contact counter. It must be 1 at step 0 and 0 at steps 1+
+#   in both engines; the two bodies' transform traces agree within tolerance for the
+#   whole run (they are pushed apart by the first step, then held by the joint).
+# Tolerance: twice the measured maximum divergence on this bench against float box3d
+#   at 954cf87 (pos 2.98e-5, rot 7.04e-5, vel 7.12e-5, angvel 2.29e-4; contact count
+#   exact). Values below 8*B3_FIXED_EPSILON are floored to it.
+expect pos 0.0002 rot 0.0002 vel 0.0005 horizon 3 counts exact
+world gravity 0 0 0 dt 1 60 substeps 4 steps 3
+body dynamic position 0 0 0 rotation 0 0 0 1 linvel 0 0 0 angvel 0 0 0
+body dynamic position 0.5 0 0 rotation 0 0 0 1 linvel 0 0 0 angvel 0 0 0
+shape 0 box 0.5 0.5 0.5 density 1 friction 0.5 restitution 0
+shape 1 box 0.5 0.5 0.5 density 1 friction 0.5 restitution 0
+joint revolute 0 1 anchor 0 0 0 axis 0 0 1 collideConnected false at_step 1

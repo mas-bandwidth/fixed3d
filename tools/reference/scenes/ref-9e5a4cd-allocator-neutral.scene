@@ -1,0 +1,31 @@
+# ref-9e5a4cd-allocator-neutral
+# A 5-box stack on a flat ground box, 60 steps at fixed dt=1/60, 4 substeps, no wall
+# clock.
+# The allocator API widening (b3AllocFcn size_t, b3FreeFcn + size, b3GetByteCount
+# int64_t) is not a simulation observable; this scene pins that simulation results are
+# unchanged: the stack's resting configuration after 60 steps must agree with vanilla
+# float box3d at upstream commit 9e5a4cd within tolerance.
+# Reference: vanilla float box3d at upstream commit 9e5a4cd.
+# Fixed: fixed3d on this branch (allocator widening ported). The engine is Q48.16 fixed
+#   point with the exact-SAT structure and no float SIMD hull core, so traces are not
+#   bit-identical to float; the stack must settle to the same configuration within
+#   tolerance.
+# Observable: per-body positions, rotations, velocities over the horizon (v1 trace
+#   comparison).
+# Tolerance: twice the measured maximum divergence on this bench against float box3d
+#   at 9e5a4cd (pos 0.002793, rot 0.000532, vel 0.030491, angvel 0.021532; awake delta 5).
+#   Twice gives the values below; measured via the reference harness.
+expect pos 0.005587 rot 0.001065 vel 0.060983 horizon 60 counts 10
+world gravity 0 -10 0 dt 1 60 substeps 4 steps 60
+body static position 0 -0.5 0 rotation 0 0 0 1 linvel 0 0 0 angvel 0 0 0
+body dynamic position 0 0.5 0 rotation 0 0 0 1 linvel 0 0 0 angvel 0 0 0
+body dynamic position 0 1.5 0 rotation 0 0 0 1 linvel 0 0 0 angvel 0 0 0
+body dynamic position 0 2.5 0 rotation 0 0 0 1 linvel 0 0 0 angvel 0 0 0
+body dynamic position 0 3.5 0 rotation 0 0 0 1 linvel 0 0 0 angvel 0 0 0
+body dynamic position 0 4.5 0 rotation 0 0 0 1 linvel 0 0 0 angvel 0 0 0
+shape 0 box 5 0.5 5 density 1 friction 0.5 restitution 0
+shape 1 box 0.5 0.5 0.5 density 1 friction 0.5 restitution 0
+shape 2 box 0.5 0.5 0.5 density 1 friction 0.5 restitution 0
+shape 3 box 0.5 0.5 0.5 density 1 friction 0.5 restitution 0
+shape 4 box 0.5 0.5 0.5 density 1 friction 0.5 restitution 0
+shape 5 box 0.5 0.5 0.5 density 1 friction 0.5 restitution 0

@@ -204,7 +204,6 @@ typedef struct b3StepContext
 	b3Softness contactSoftness;
 	b3Softness staticSoftness;
 
-	b3Fixed restitutionThreshold;
 	b3Fixed maxLinearVelocity;
 
 	struct b3World* world;
@@ -223,6 +222,8 @@ typedef struct b3StepContext
 	// Array of bullet bodies that need continuous collision handling
 	int* bulletBodies;
 	b3AtomicInt bulletBodyCount;
+
+	b3AtomicInt anyRestitution;
 
 	// Contact ids for simplified parallel-for access. Used in narrow-phase.
 	// These contacts may or may not be touching. They are associated with awake bodies.

@@ -110,6 +110,26 @@ approximately solve the differential equations. Fixed3D also does not have exact
 moving shapes may have small overlap for a few time steps. In extreme stacking scenarios, shapes may have sustained
 overlap.
 
+## Shapes
+
+### Why doesn't Fixed3D have an analytic cylinder shape?
+
+A cylinder combines flat caps, a curved side, and a sharp circular rim. The
+collision routines for spheres and capsules use a point or segment with a
+radius; hull collisions use a finite set of faces and edges. A smooth cylinder
+fits neither method. In particular, a single support-point contact does not
+provide enough points to keep a cylinder stable while resting on its cap.
+
+### What should I use instead?
+
+For a rolling barrel or log, a capsule has a smooth side and supports rolling
+resistance. For a wheel, a sphere or a ground ray cast or shape cast is often
+more stable and cheaper. For a pillar or coin that mostly rests on its cap,
+`b3CreateCylinder(height, radius, yOffset, sides)` builds a tessellated convex
+hull with 3 to 32 sides. Create its shape with `b3CreateHullShape` and release
+the temporary hull with `b3DestroyHull`. Use the fewest sides that give an
+acceptable collision silhouette.
+
 ## Making Games
 
 ### Tile / Voxel Based Environments

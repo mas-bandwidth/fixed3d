@@ -256,3 +256,12 @@ b3PlaneResult b3RecR_PLANERESULT( b3RecReader* rdr );
 // Grow the reader's hit scratch to at least n entries, preserving contents. n is bounded by the
 // file size since every recorded hit consumes at least one byte.
 void b3RecEnsureHits( b3RecReader* rdr, int n );
+
+// Reconstruct the live compound object for a slot on first use. Returns NULL when the stored bytes
+// are not a valid compound (stale version, truncated, bad node offset); the caller must refuse the
+// shape rather than use a compound whose tree pointer was never fixed up.
+void* b3RecGetLiveCompound( b3RegistrySlot* slot );
+
+// Resolve a registry slot by id, refusing an out-of-range id and a slot whose kind does not match
+// the kind the op expects. Returns NULL and sets rdr->ok = false on refusal.
+b3RegistrySlot* b3RecGetSlot( b3RecReader* rdr, uint32_t id, b3GeometryKind kind );

@@ -1,0 +1,26 @@
+# ref-a2e4816-speculative-sphere-sphere
+# Slow spheres close on static spheres from gaps 0, 0.25, and 0.75 of the
+# 0.02 m speculative distance, with no gravity. The step is too short to make them fast, so each pair is
+# eligible for contact recycling. A sphere-sphere routine without a speculative
+# margin left the pair empty and recycling then let the sphere sink without a
+# contact (discussion #175). The speculative margin (box3d a2e4816) reports the
+# pair inside the speculative distance, so the sphere stops at the surface.
+# Reference: vanilla float box3d at upstream commit a2e4816.
+# Observable: the approaching sphere's final height (it must not sink past the
+#   surface) and the contact count.
+# Measured maxima: position 0.000045776, rotation 0, velocity 0.000106812. Limits are
+# twice the measured maximum, floored at 8 fixed-point ULPs where smaller.
+expect pos 0.000125 rot 0.000125 vel 0.00022 horizon 20 counts exact
+world gravity 0 0 0 dt 1 60 substeps 4 steps 20
+body static position 0 0 0 rotation 0 0 0 1 linvel 0 0 0 angvel 0 0 0
+shape 0 sphere 0.5 density 1 friction 0.5 restitution 0
+body dynamic position 0 0.755 0 rotation 0 0 0 1 linvel 0 -0.6 0 angvel 0 0 0
+shape 1 sphere 0.25 density 1 friction 0.5 restitution 0
+body static position 3 0 0 rotation 0 0 0 1 linvel 0 0 0 angvel 0 0 0
+shape 2 sphere 0.5 density 1 friction 0.5 restitution 0
+body dynamic position 3 0.75 0 rotation 0 0 0 1 linvel 0 -0.6 0 angvel 0 0 0
+shape 3 sphere 0.25 density 1 friction 0.5 restitution 0
+body static position 6 0 0 rotation 0 0 0 1 linvel 0 0 0 angvel 0 0 0
+shape 4 sphere 0.5 density 1 friction 0.5 restitution 0
+body dynamic position 6 0.765 0 rotation 0 0 0 1 linvel 0 -0.6 0 angvel 0 0 0
+shape 5 sphere 0.25 density 1 friction 0.5 restitution 0

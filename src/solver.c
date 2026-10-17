@@ -116,22 +116,21 @@ static void b3IntegrateVelocitiesTask( b3SolverBlock block, b3StepContext* conte
 			b3Quat q0 = sim->transform.q;
 			b3Quat q = b3MulQuat( state->deltaRotation, q0 );
 
-			// Cached when the mass data was set, because it cannot change between
-			// substeps: this was b3InvertMatrix( sim->invInertiaLocal ) here, nine
-			// 128-bit divisions per body per substep to recompute a constant.
-			b3Matrix3 inertiaLocal = sim->inertiaLocal;
-
 			// Compute local angular velocity
 			b3Vec3 omega1 = b3InvRotateVector( q, w );
 			b3Vec3 omega2 = omega1;
 
-			// Symmetric inertia tensor: 6 unique entries (column-major)
-			const b3Fixed i00 = inertiaLocal.cx.x;
-			const b3Fixed i01 = inertiaLocal.cy.x;
-			const b3Fixed i02 = inertiaLocal.cz.x;
-			const b3Fixed i11 = inertiaLocal.cy.y;
-			const b3Fixed i12 = inertiaLocal.cz.y;
-			const b3Fixed i22 = inertiaLocal.cz.z;
+			// Symmetric inertia tensor: 6 unique entries (column-major). The TRUE local
+			// inertia, read straight off the sim: this used to be
+			// b3InvertMatrix( sim->invInertiaLocal ) here, nine 128-bit divisions per
+			// body per substep to recover a value that cannot change between substeps,
+			// and the round trip lost a rounding in each direction.
+			const b3Fixed i00 = sim->inertia.cx.x;
+			const b3Fixed i01 = sim->inertia.cy.x;
+			const b3Fixed i02 = sim->inertia.cz.x;
+			const b3Fixed i11 = sim->inertia.cy.y;
+			const b3Fixed i12 = sim->inertia.cz.y;
+			const b3Fixed i22 = sim->inertia.cz.z;
 
 			for ( int gyroIteration = 0; gyroIteration < B3_GYROSCOPIC_ITERATIONS; ++gyroIteration )
 			{
@@ -390,7 +389,7 @@ static bool b3ContinuousQueryCallback( int proxyId, uint64_t userData, void* con
 	B3_ASSERT( body->type == b3_staticBody || ( fastBodySim->flags & b3_isBullet ) );
 
 	// Skip bullets
-	if ( bodySim->flags & b3_isBullet )
+	if ( body->flags & b3_isBullet )
 	{
 		return true;
 	}
@@ -458,7 +457,6 @@ static bool b3ContinuousQueryCallback( int proxyId, uint64_t userData, void* con
 
 		if ( didHit )
 		{
-			fastBodySim->flags |= b3_hadTimeOfImpact;
 			continuousContext->fraction = output.fraction;
 			continuousContext->distanceIterations = b3MaxInt( continuousContext->distanceIterations, output.distanceIterations );
 			continuousContext->pushBackIterations = b3MaxInt( continuousContext->pushBackIterations, output.pushBackIterations );
@@ -482,7 +480,7 @@ static bool b3ContinuousQueryCallback( int proxyId, uint64_t userData, void* con
 }
 
 // Continuous collision of dynamic versus static
-static void b3SolveContinuous( b3World* world, int bodySimIndex, b3TaskContext* taskContext )
+static void b3SolveContinuous( b3World* world, int bodySimIndex, b3TaskContext* taskContext, b3Fixed dt )
 {
 	b3TracyCZoneNC( ccd, "CCD", b3_colorDarkGoldenRod, true );
 
@@ -575,6 +573,23 @@ static void b3SolveContinuous( b3World* world, int bodySimIndex, b3TaskContext* 
 		fastBodySim->center = center;
 		fastBodySim->rotation0 = q;
 		fastBodySim->center0 = center;
+		fastBodySim->flags |= b3_hadTimeOfImpact;
+
+		// Timeloss means there is a lost gravity contribution. Other forces and torques are
+		// ignored for now. In fixed point the two chained products must not be formed as
+		// (1 - fraction) * dt first: that quantizes to zero for a fraction near 1. Multiply the
+		// large operands (gravityScale, gravity, dt) first and the small (1 - fraction) last.
+		b3BodyState* fastBodyState = b3Array_Get( awakeSet->bodyStates, bodySimIndex );
+		b3Vec3 v = fastBodyState->linearVelocity;
+		b3Fixed oneMinusFraction = B3_FIX( 1.0f ) - context.fraction;
+		b3Fixed scaleDt = b3FixMul( fastBodySim->gravityScale, dt );
+		b3Vec3 dv = { -b3FixMul( oneMinusFraction, b3FixMul( scaleDt, world->gravity.x ) ),
+					  -b3FixMul( oneMinusFraction, b3FixMul( scaleDt, world->gravity.y ) ),
+					  -b3FixMul( oneMinusFraction, b3FixMul( scaleDt, world->gravity.z ) ) };
+		dv.x = ( fastBodyState->flags & b3_lockLinearX ) ? 0 : dv.x;
+		dv.y = ( fastBodyState->flags & b3_lockLinearY ) ? 0 : dv.y;
+		dv.z = ( fastBodyState->flags & b3_lockLinearZ ) ? 0 : dv.z;
+		fastBodyState->linearVelocity = b3Add( v, dv );
 
 		// The move event was written before CCD, so correct it with the impact pose
 		b3BodyMoveEvent* event = b3Array_Get( world->bodyMoveEvents, bodySimIndex );
@@ -592,14 +607,15 @@ static void b3SolveContinuous( b3World* world, int bodySimIndex, b3TaskContext* 
 			b3AABB aabb = b3ComputeFatShapeAABB( shape, transform, speculativeScalar );
 			shape->aabb = aabb;
 
-			if ( b3AABB_Contains( shape->fatAABB, aabb ) == false )
+			b3AABB* shapeFatAABB = world->fatAABBs.data + shapeId;
+			if ( b3AABB_Contains( *shapeFatAABB, aabb ) == false )
 			{
 				b3Fixed marginScalar = shape->aabbMargin;
 				b3Vec3 aabbMargin = { marginScalar, marginScalar, marginScalar };
-				shape->fatAABB = (b3AABB){ b3Vec3ToBound( b3Sub( b3BoundToVec3( aabb.lowerBound ), aabbMargin ) ), b3Vec3ToBound( b3Add( b3BoundToVec3( aabb.upperBound ), aabbMargin ) ) };
+				*shapeFatAABB = (b3AABB){ b3Vec3ToBound( b3Sub( b3BoundToVec3( aabb.lowerBound ), aabbMargin ) ), b3Vec3ToBound( b3Add( b3BoundToVec3( aabb.upperBound ), aabbMargin ) ) };
 
 				shape->flags |= b3_enlargedAABB;
-				fastBodySim->flags |= b3_enlargeBounds;
+				fastBodySim->flags |= b3_enlargeBulletBounds;
 			}
 
 			shapeId = shape->nextShapeId;
@@ -621,17 +637,18 @@ static void b3SolveContinuous( b3World* world, int bodySimIndex, b3TaskContext* 
 
 			// shape->aabb is still valid from above
 
-			if ( b3AABB_Contains( shape->fatAABB, shape->aabb ) == false )
+			b3AABB* shapeFatAABB = world->fatAABBs.data + shapeId;
+			if ( b3AABB_Contains( *shapeFatAABB, shape->aabb ) == false )
 			{
 				b3Fixed marginScalar = shape->aabbMargin;
 				b3Vec3 aabbMargin = { marginScalar, marginScalar, marginScalar };
-				shape->fatAABB = (b3AABB){
+				*shapeFatAABB = (b3AABB){
 					.lowerBound = b3Vec3ToBound( b3Sub( b3BoundToVec3( shape->aabb.lowerBound ), aabbMargin ) ),
 					.upperBound = b3Vec3ToBound( b3Add( b3BoundToVec3( shape->aabb.upperBound ), aabbMargin ) ),
 				};
 
 				shape->flags |= b3_enlargedAABB;
-				fastBodySim->flags |= b3_enlargeBounds;
+				fastBodySim->flags |= b3_enlargeBulletBounds;
 			}
 
 			shapeId = shape->nextShapeId;
@@ -757,9 +774,10 @@ static void b3FinalizeBodiesTask( int startIndex, int endIndex, int workerIndex,
 		B3_ASSERT( ( body->flags & b3_dirtyMass ) == 0 );
 
 		body->flags &= ~b3_bodyTransientFlags;
-		body->flags |= ( sim->flags & ( b3_isSpeedCapped | b3_hadTimeOfImpact ) );
-		body->flags |= ( state->flags & ( b3_isSpeedCapped | b3_hadTimeOfImpact ) );
-		sim->flags &= ~b3_bodyTransientFlags;
+		sim->flags &= ~( b3_isFast | b3_bodyTransientFlags );
+
+		// The body state flag knows about speed capping (used for debug draw).
+		body->flags |= ( state->flags & b3_isSpeedCapped );
 		state->flags &= ~b3_bodyTransientFlags;
 
 		if ( enableSleep == false || ( body->flags & b3_enableSleep ) == 0 || sleepVelocity > body->sleepThreshold )
@@ -767,11 +785,11 @@ static void b3FinalizeBodiesTask( int startIndex, int endIndex, int workerIndex,
 			// Body is not sleepy
 			body->sleepTime = B3_FIX( 0.0f );
 
-			const b3Fixed safetyFactor = B3_FIX( 0.5f );
+			b3Fixed safetyFactor = body->safetyFactor;
 			b3Fixed maxMotion = b3FixMax( maxDeltaPosition, b3FixMul( maxVelocity , timeStep ) );
 			if ( body->type == b3_dynamicBody && enableContinuous && maxMotion > b3FixMul( safetyFactor , sim->minExtent ) )
 			{
-				// This flag is only retained for debug draw
+				// This flag is used for debug draw and contact recycling.
 				sim->flags |= b3_isFast;
 
 				// Store in fast array for the continuous collision stage
@@ -783,7 +801,7 @@ static void b3FinalizeBodiesTask( int startIndex, int endIndex, int workerIndex,
 				}
 				else
 				{
-					b3SolveContinuous( world, simIndex, taskContext );
+					b3SolveContinuous( world, simIndex, taskContext, timeStep );
 				}
 			}
 			else
@@ -851,11 +869,12 @@ static void b3FinalizeBodiesTask( int startIndex, int endIndex, int workerIndex,
 
 				B3_ASSERT( ( shape->flags & b3_enlargedAABB ) == 0 );
 
-				if ( b3AABB_Contains( shape->fatAABB, aabb ) == false )
+				b3AABB* shapeFatAABB = world->fatAABBs.data + shapeId;
+				if ( b3AABB_Contains( *shapeFatAABB, aabb ) == false )
 				{
 					b3Fixed marginScalar = shape->aabbMargin;
 					b3Vec3 aabbMargin = { marginScalar, marginScalar, marginScalar };
-					shape->fatAABB = (b3AABB){ b3Vec3ToBound( b3Sub( b3BoundToVec3( aabb.lowerBound ), aabbMargin ) ), b3Vec3ToBound( b3Add( b3BoundToVec3( aabb.upperBound ), aabbMargin ) ) };
+					*shapeFatAABB = (b3AABB){ b3Vec3ToBound( b3Sub( b3BoundToVec3( aabb.lowerBound ), aabbMargin ) ), b3Vec3ToBound( b3Add( b3BoundToVec3( aabb.upperBound ), aabbMargin ) ) };
 					shape->flags |= b3_enlargedAABB;
 
 					// Bit-set to keep the move array sorted
@@ -1365,23 +1384,28 @@ static void b3SolverTask( void* taskContext )
 		stageIndex += 1 + activeColorCount + ITERATIONS * activeColorCount + 1 + RELAX_ITERATIONS * activeColorCount;
 
 		// Restitution
-		for ( int iteration = 0; iteration < B3_RESTITUTION_ITERATIONS; ++iteration )
+		int restitutionIterations = context->world->restitutionIterations;
+		if ( restitutionIterations > 0 && b3AtomicLoadInt( &context->anyRestitution ) != 0 )
 		{
-			b3ApplyRestitution_Overflow( context );
-
-			int iterStageIndex = stageIndex;
-			for ( int colorIndex = 0; colorIndex < activeColorCount; ++colorIndex )
+			for ( int iteration = 0; iteration < restitutionIterations; ++iteration )
 			{
-				syncBits = ( graphSyncIndex << 16 ) | iterStageIndex;
-				B3_ASSERT( stages[iterStageIndex].type == b3_stageRestitution );
-				b3ExecuteMainStage( stages + iterStageIndex, context, syncBits );
-				iterStageIndex += 1;
+				b3ApplyRestitution_Overflow( context );
+
+				int iterStageIndex = stageIndex;
+				for ( int colorIndex = 0; colorIndex < activeColorCount; ++colorIndex )
+				{
+					syncBits = ( graphSyncIndex << 16 ) | iterStageIndex;
+					B3_ASSERT( stages[iterStageIndex].type == b3_stageRestitution );
+					b3ExecuteMainStage( stages + iterStageIndex, context, syncBits );
+					iterStageIndex += 1;
+				}
+				graphSyncIndex += 1;
 			}
-			graphSyncIndex += 1;
-			stageIndex += activeColorCount;
+
+			profile->applyRestitution += b3GetMillisecondsAndReset( &ticks );
 		}
 
-		profile->applyRestitution += b3GetMillisecondsAndReset( &ticks );
+		stageIndex += activeColorCount;
 
 		// Store impulses
 		b3StoreImpulses_Overflow( context );
@@ -1472,7 +1496,7 @@ static void b3BulletBodyTask( int startIndex, int endIndex, int workerIndex, voi
 	for ( int i = startIndex; i < endIndex; ++i )
 	{
 		int simIndex = stepContext->bulletBodies[i];
-		b3SolveContinuous( stepContext->world, simIndex, taskContext );
+		b3SolveContinuous( stepContext->world, simIndex, taskContext, stepContext->dt );
 	}
 
 	b3TracyCZoneEnd( bullet_body_task );
@@ -1837,7 +1861,7 @@ void b3Solve( b3World* world, b3StepContext* stepContext )
 		// b3_stageRelax
 		stageCount += RELAX_ITERATIONS * activeColorCount;
 		// b3_stageRestitution
-		stageCount += B3_RESTITUTION_ITERATIONS * activeColorCount;
+		stageCount += activeColorCount;
 		// b3_stageStoreWideImpulses
 		stageCount += 1;
 		// b3_stageStoreImpulses
@@ -1922,7 +1946,7 @@ void b3Solve( b3World* world, b3StepContext* stepContext )
 		stage = b3InitColorStages( stage, b3_stageRelax, RELAX_ITERATIONS, activeColorCount, graphColorBlocks, graphBlockCounts,
 								   activeColorIndices );
 		// Note: joint blocks mixed in, could have joint limit restitution
-		stage = b3InitColorStages( stage, b3_stageRestitution, B3_RESTITUTION_ITERATIONS, activeColorCount, graphColorBlocks,
+		stage = b3InitColorStages( stage, b3_stageRestitution, 1, activeColorCount, graphColorBlocks,
 								   graphBlockCounts, activeColorIndices );
 		stage = b3InitStage( stage, b3_stageStoreWideImpulses, convexBlocks, convexPrepareDim.count, UINT8_MAX );
 		stage = b3InitStage( stage, b3_stageStoreImpulses, meshBlocks, meshPrepareDim.count, UINT8_MAX );
@@ -2297,7 +2321,7 @@ void b3Solve( b3World* world, b3StepContext* stepContext )
 							// A fast body may have been flagged as enlarged despite having no shapes enlarged.
 							if ( shape->flags & b3_enlargedAABB )
 							{
-								b3BroadPhase_EnlargeProxy( broadPhase, shape->proxyKey, shape->fatAABB );
+								b3BroadPhase_EnlargeProxy( broadPhase, shape->proxyKey, world->fatAABBs.data[shapeId] );
 								shape->flags &= ~b3_enlargedAABB;
 							}
 
@@ -2344,13 +2368,13 @@ void b3Solve( b3World* world, b3StepContext* stepContext )
 		for ( int i = 0; i < bulletBodyCount; ++i )
 		{
 			b3BodySim* bulletBodySim = bodySimArray + bulletBodySimIndices[i];
-			if ( ( bulletBodySim->flags & b3_enlargeBounds ) == 0 )
+			if ( ( bulletBodySim->flags & b3_enlargeBulletBounds ) == 0 )
 			{
 				continue;
 			}
 
 			// Clear flag
-			bulletBodySim->flags &= ~b3_enlargeBounds;
+			bulletBodySim->flags &= ~b3_enlargeBulletBounds;
 
 			int bodyId = bulletBodySim->bodyId;
 			B3_ASSERT( 0 <= bodyId && bodyId < world->bodies.count );
@@ -2376,7 +2400,7 @@ void b3Solve( b3World* world, b3StepContext* stepContext )
 				// all fast bullet shapes should already be in the move buffer
 				B3_ASSERT( b3GetBit( &broadPhase->movedProxies[b3_dynamicBody], proxyId ) );
 
-				b3DynamicTree_EnlargeProxy( dynamicTree, proxyId, shape->fatAABB );
+				b3DynamicTree_EnlargeProxy( dynamicTree, proxyId, world->fatAABBs.data[shapeId] );
 
 				shapeId = shape->nextShapeId;
 			}

@@ -11,14 +11,21 @@
 // Software prefetch hint. T0 brings the line into all cache levels.
 // On x86 MSVC exposes _mm_prefetch, ARM MSVC uses __prefetch instead.
 // clang/gcc provide __builtin_prefetch on every target.
-#if defined( B3_COMPILER_MSVC )
+// clang-cl defines both _MSC_VER and __clang__, and its <intrin0.h> has no _mm_prefetch/_MM_HINT_T0,
+// so the MSVC arms exclude it the way src/ctz.h does and clang-cl keeps __builtin_prefetch.
+#if defined( _MSC_VER ) && !defined( __clang__ ) && ( defined( _M_ARM ) || defined( _M_ARM64 ) || defined( _M_ARM64EC ) )
 #include <intrin.h>
-#if defined( B3_CPU_X86_X64 )
+#elif defined( _MSC_VER ) && !defined( __clang__ )
+#include <intrin0.h>
+#endif
+
+#if defined( _MSC_VER ) && !defined( __clang__ )
+#if defined( _M_X64 ) || defined( __x86_64__ ) || defined( _M_IX86 ) || defined( __i386__ )
 #define b3Prefetch( addr ) _mm_prefetch( (const char*)( addr ), _MM_HINT_T0 )
 #else
 #define b3Prefetch( addr ) __prefetch( (const void*)( addr ) )
 #endif
-#elif defined( B3_COMPILER_CLANG ) || defined( B3_COMPILER_GCC )
+#elif defined( __GNUC__ ) || defined( __clang__ )
 #define b3Prefetch( addr ) __builtin_prefetch( (const void*)( addr ), 0, 3 )
 #else
 #define b3Prefetch( addr ) ( (void)( addr ) )

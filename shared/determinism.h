@@ -86,6 +86,21 @@ QuerySpawnData CreateQuerySpawn( b3WorldId worldId );
 bool UpdateQuerySpawn( b3WorldId worldId, QuerySpawnData* data );
 void DestroyQuerySpawn( QuerySpawnData* data );
 
+// One re-rigged ragdoll (box3d 954cf87) dropped on a ground box. Layout is local
+// and offset onto GetSceneOrigin once. Integer placement so the same scene is
+// exact in float and Q48.16.
+typedef struct RagdollHumanData
+{
+	Human human;
+	int stepCount;
+	int sleepStep;
+	uint32_t hash;
+} RagdollHumanData;
+
+RagdollHumanData CreateRagdollHuman( b3WorldId worldId );
+bool UpdateRagdollHuman( b3WorldId worldId, RagdollHumanData* data );
+void DestroyRagdollHuman( RagdollHumanData* data );
+
 #ifdef __cplusplus
 }
 #endif

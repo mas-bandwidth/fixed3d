@@ -58,29 +58,6 @@ b3BodySim* b3GetBodySim( b3World* world, b3Body* body )
 	return bodySim;
 }
 
-// Write the local inverse inertia and the local inertia together.
-//
-// The gyroscopic solve needs the inertia, not its inverse, and it used to recover it by
-// inverting the inverse inside the substep loop -- nine 128-bit divisions per body per
-// substep, recomputing a value that is constant for the whole step. Caching it here is
-// the same value by construction: this is the identical b3InvertMatrix call, simply made
-// once when the input changes instead of four times per step for every awake body.
-//
-// The single writer is the point. Two fields holding two views of one quantity drift the
-// moment one of them is assigned somewhere the other is not, and this is the only
-// function that assigns either.
-static void b3SetLocalInverseInertia( b3BodySim* bodySim, b3Matrix3 invInertiaLocal, b3Matrix3 inertiaLocal )
-{
-	bodySim->invInertiaLocal = invInertiaLocal;
-
-	// The gyroscopic solve wants the inertia, and now that the inverse is stored at a
-	// wider scale the two are no longer a shift apart -- so it is handed the tensor the
-	// caller already has rather than recovered by inverting the inverse. That is both
-	// cheaper and more accurate: the round trip used to lose a rounding in each
-	// direction, and for a large body it lost the value entirely.
-	bodySim->inertiaLocal = inertiaLocal;
-}
-
 b3BodyState* b3GetBodyState( b3World* world, b3Body* body )
 {
 	if ( body->setIndex == b3_awakeSet )
@@ -92,18 +69,41 @@ b3BodyState* b3GetBodyState( b3World* world, b3Body* body )
 	return NULL;
 }
 
+void b3RefreshBodyContactIndices( b3World* world, b3Body* body )
+{
+	int encodedBodySimIndex = b3EncodeBodySimIndex( body );
+
+	int contactKey = body->headContactKey;
+	while ( contactKey != B3_NULL_INDEX )
+	{
+		int edgeIndex = contactKey & 1;
+		int contactId = contactKey >> 1;
+
+		b3Contact* contact = b3Array_Get( world->contacts, contactId );
+		contactKey = contact->edges[edgeIndex].nextKey;
+
+		if ( edgeIndex == 0 )
+		{
+			contact->encodedBodySimA = encodedBodySimIndex;
+		}
+		else
+		{
+			contact->encodedBodySimB = encodedBodySimIndex;
+		}
+	}
+}
+
 void b3SyncBodyFlags( b3World* world, b3Body* body )
 {
-	// Never sync transient flags
-	uint32_t flags = body->flags & ~b3_bodyTransientFlags;
-
 	b3BodySim* bodySim = b3GetBodySim( world, body );
-	bodySim->flags = flags;
+
+	// Preserve the sim only flags: fast for contact recycling, time of impact for debug draw.
+	bodySim->flags = ( bodySim->flags & ( b3_isFast | b3_hadTimeOfImpact ) ) | ( body->flags & ~b3_bodyTransientFlags );
 
 	b3BodyState* bodyState = b3GetBodyState( world, body );
 	if ( bodyState != NULL )
 	{
-		bodyState->flags = flags;
+		bodyState->flags = body->flags & ~b3_bodyTransientFlags;
 	}
 }
 
@@ -184,6 +184,7 @@ b3BodyId b3CreateBody( b3WorldId worldId, const b3BodyDef* def )
 	B3_ASSERT( b3IsValidFixed( def->linearDamping ) && def->linearDamping >= B3_FIX( 0.0f ) );
 	B3_ASSERT( b3IsValidFixed( def->angularDamping ) && def->angularDamping >= B3_FIX( 0.0f ) );
 	B3_ASSERT( b3IsValidFixed( def->sleepThreshold ) && def->sleepThreshold >= B3_FIX( 0.0f ) );
+	B3_ASSERT( b3IsValidFixed( def->safetyFactor ) && def->safetyFactor >= B3_FIX( 0.0f ) );
 	B3_ASSERT( b3IsValidFixed( def->gravityScale ) );
 
 	b3World* world = b3GetUnlockedWorldFromId( worldId );
@@ -253,7 +254,8 @@ b3BodyId b3CreateBody( b3WorldId worldId, const b3BodyDef* def )
 	bodySim->force = b3Vec3_zero;
 	bodySim->torque = b3Vec3_zero;
 	bodySim->invMass = B3_FIX( 0.0f );
-	b3SetLocalInverseInertia( bodySim, b3Mat3_zero, b3Mat3_zero );
+	bodySim->inertia = b3Mat3_zero;
+	bodySim->invInertiaLocal = b3Mat3_zero;
 	bodySim->minExtent = B3_HUGE;
 	bodySim->maxExtent = b3Vec3_zero;
 	bodySim->linearDamping = def->linearDamping;
@@ -265,7 +267,7 @@ b3BodyId b3CreateBody( b3WorldId worldId, const b3BodyDef* def )
 	bodySim->flags |= def->allowFastRotation ? b3_allowFastRotation : 0;
 	bodySim->flags |= def->type == b3_dynamicBody ? b3_dynamicFlag : 0;
 	bodySim->flags |= def->enableSleep ? b3_enableSleep : 0;
-	bodySim->flags |= def->enableContactRecycling ? b3_bodyEnableContactRecycling : 0;
+	bodySim->flags |= def->enableContactRecycling ? b3_enableContactRecycling : 0;
 
 	if ( setId == b3_awakeSet )
 	{
@@ -306,8 +308,8 @@ b3BodyId b3CreateBody( b3WorldId worldId, const b3BodyDef* def )
 	body->sleepThreshold = def->sleepThreshold;
 	body->sleepTime = B3_FIX( 0.0f );
 	body->sleepVelocity = B3_FIX( 0.0f );
+	body->safetyFactor = def->safetyFactor;
 	body->mass = B3_FIX( 0.0f );
-	body->inertia = b3Mat3_zero;
 	body->nameId = b3AddName( &world->names, def->name );
 	body->type = def->type;
 	body->flags = bodySim->flags;
@@ -425,6 +427,7 @@ void b3DestroyBody( b3BodyId bodyId )
 		b3Body* movedBody = b3Array_Get( world->bodies, movedId );
 		B3_ASSERT( movedBody->localIndex == movedIndex );
 		movedBody->localIndex = body->localIndex;
+		b3RefreshBodyContactIndices( world, movedBody );
 	}
 
 	// Remove body state from awake set
@@ -935,10 +938,9 @@ void b3UpdateBodyMassData( b3World* world, b3Body* body )
 
 	// Compute mass data from shapes. Each shape has its own density.
 	body->mass = B3_FIX( 0.0f );
-	body->inertia = b3Mat3_zero;
-
+	bodySim->inertia = b3Mat3_zero;
 	bodySim->invMass = B3_FIX( 0.0f );
-	b3SetLocalInverseInertia( bodySim, b3Mat3_zero, b3Mat3_zero );
+	bodySim->invInertiaLocal = b3Mat3_zero;
 	bodySim->invInertiaWorld = b3Mat3_zero;
 	bodySim->localCenter = b3Vec3_zero;
 	bodySim->minExtent = B3_HUGE;
@@ -1020,17 +1022,17 @@ void b3UpdateBodyMassData( b3World* world, b3Body* body )
 		// Shift to center of mass. This is safe because it can only increase.
 		b3Vec3 offset = b3Sub( localCenter, massData.center );
 		b3Matrix3 inertia = b3AddMM( massData.inertia, b3Steiner( massData.mass, offset ) );
-		body->inertia = b3AddMM( body->inertia, inertia );
+		bodySim->inertia = b3AddMM( bodySim->inertia, inertia );
 	}
 
 	b3StackFree( &world->stack, masses );
 	masses = NULL;
 
-	b3FloorInertia( &body->inertia, body->mass );
+	b3FloorInertia( &bodySim->inertia, body->mass );
 
 	// Inverted at the inverse scale, which is the whole reason a large body has a usable
 	// inverse inertia at all. Returns a zero matrix for a singular tensor.
-	b3SetLocalInverseInertia( bodySim, b3InvertAcrossScales( body->inertia ), body->inertia );
+	bodySim->invInertiaLocal = b3InvertAcrossScales( bodySim->inertia );
 	if ( bodySim->invInertiaLocal.cx.x > 0 || bodySim->invInertiaLocal.cy.y > 0 || bodySim->invInertiaLocal.cz.z > 0 )
 	{
 		b3Matrix3 rotationMatrix = b3MakeMatrixFromQuat( bodySim->transform.q );
@@ -1045,7 +1047,8 @@ void b3UpdateBodyMassData( b3World* world, b3Body* body )
 		// the refusal lasted exactly until the next step and then undid itself. Zeroing
 		// both is what makes the decision stick. b3Body_SetMassData already did this;
 		// this path was the asymmetric one.
-		b3SetLocalInverseInertia( bodySim, b3Mat3_zero, b3Mat3_zero );
+		bodySim->inertia = b3Mat3_zero;
+		bodySim->invInertiaLocal = b3Mat3_zero;
 		bodySim->invInertiaWorld = b3Mat3_zero;
 	}
 
@@ -1076,11 +1079,24 @@ void b3UpdateBodyMassData( b3World* world, b3Body* body )
 		shapeId = s->nextShapeId;
 	}
 
+	// When the center of mass changes, any cached contact manifold becomes invalid.
+	int edgeKey = body->headContactKey;
+	while ( edgeKey != B3_NULL_INDEX )
+	{
+		int contactId = edgeKey >> 1;
+		int edgeIndex = edgeKey & 1;
+
+		b3Contact* contact = b3Array_Get( world->contacts, contactId );
+		contact->flags &= ~b3_relativeTransformValid;
+
+		edgeKey = contact->edges[edgeIndex].nextKey;
+	}
+
 	// Apply fixed rotation
 	if ( ( bodySim->flags & b3_fixedRotation ) == b3_fixedRotation )
 	{
-		body->inertia = b3Mat3_zero;
-		b3SetLocalInverseInertia( bodySim, b3Mat3_zero, b3Mat3_zero );
+		bodySim->inertia = b3Mat3_zero;
+		bodySim->invInertiaLocal = b3Mat3_zero;
 		bodySim->invInertiaWorld = b3Mat3_zero;
 	}
 }
@@ -1175,7 +1191,8 @@ void b3Body_SetTransform( b3BodyId bodyId, b3Pos position, b3Quat rotation )
 		b3AABB aabb = b3ComputeFatShapeAABB( shape, transform, speculativeDistance );
 		shape->aabb = aabb;
 
-		if ( b3AABB_Contains( shape->fatAABB, aabb ) == false )
+		b3AABB* shapeFatAABB = world->fatAABBs.data + shapeId;
+		if ( b3AABB_Contains( *shapeFatAABB, aabb ) == false )
 		{
 			b3Fixed margin = shape->aabbMargin;
 			b3AABB fatAABB;
@@ -1185,7 +1202,7 @@ void b3Body_SetTransform( b3BodyId bodyId, b3Pos position, b3Quat rotation )
 			fatAABB.upperBound.x = aabb.upperBound.x + margin;
 			fatAABB.upperBound.y = aabb.upperBound.y + margin;
 			fatAABB.upperBound.z = aabb.upperBound.z + margin;
-			shape->fatAABB = fatAABB;
+			*shapeFatAABB = fatAABB;
 
 			// The body could be disabled
 			if ( shape->proxyKey != B3_NULL_INDEX )
@@ -1772,7 +1789,7 @@ void b3Body_SetType( b3BodyId bodyId, b3BodyType type )
 		shapeId = shape->nextShapeId;
 		b3DestroyShapeProxy( shape, &world->broadPhase );
 		bool forcePairCreation = true;
-		b3CreateShapeProxy( shape, &world->broadPhase, type, transform, forcePairCreation );
+		b3CreateShapeProxy( world, shape, type, transform, forcePairCreation );
 	}
 
 	// Relink all joints
@@ -1855,7 +1872,8 @@ b3Matrix3 b3Body_GetLocalRotationalInertia( b3BodyId bodyId )
 {
 	b3World* world = b3GetWorld( bodyId.world0 );
 	b3Body* body = b3GetBodyFullId( world, bodyId );
-	return body->inertia;
+	b3BodySim* bodySim = b3GetBodySim( world, body );
+	return bodySim->inertia;
 }
 
 b3Fixed b3Body_GetInverseMass( b3BodyId bodyId )
@@ -1933,7 +1951,7 @@ void b3Body_SetMassData( b3BodyId bodyId, b3MassData massData )
 	b3SyncBodyFlags( world, body );
 
 	body->mass = massData.mass;
-	body->inertia = massData.inertia;
+	bodySim->inertia = massData.inertia;
 	bodySim->localCenter = massData.center;
 
 	b3Pos oldCenter = bodySim->center;
@@ -1950,11 +1968,11 @@ void b3Body_SetMassData( b3BodyId bodyId, b3MassData massData )
 		state->linearVelocity = b3Add( state->linearVelocity, deltaLinear );
 	}
 
-	b3FloorInertia( &body->inertia, body->mass );
+	b3FloorInertia( &bodySim->inertia, body->mass );
 
 	// Inverted at the inverse scale, which is the whole reason a large body has a usable
 	// inverse inertia at all. Returns a zero matrix for a singular tensor.
-	b3SetLocalInverseInertia( bodySim, b3InvertAcrossScales( body->inertia ), body->inertia );
+	bodySim->invInertiaLocal = b3InvertAcrossScales( bodySim->inertia );
 	if ( bodySim->invInertiaLocal.cx.x > 0 || bodySim->invInertiaLocal.cy.y > 0 || bodySim->invInertiaLocal.cz.z > 0 )
 	{
 		b3Matrix3 rotationMatrix = b3MakeMatrixFromQuat( bodySim->transform.q );
@@ -1962,15 +1980,16 @@ void b3Body_SetMassData( b3BodyId bodyId, b3MassData massData )
 	}
 	else
 	{
-		b3SetLocalInverseInertia( bodySim, b3Mat3_zero, b3Mat3_zero );
+		bodySim->inertia = b3Mat3_zero;
+		bodySim->invInertiaLocal = b3Mat3_zero;
 		bodySim->invInertiaWorld = b3Mat3_zero;
 	}
 
 	// Apply fixed rotation
 	if ( ( bodySim->flags & b3_fixedRotation ) == b3_fixedRotation )
 	{
-		body->inertia = b3Mat3_zero;
-		b3SetLocalInverseInertia( bodySim, b3Mat3_zero, b3Mat3_zero );
+		bodySim->inertia = b3Mat3_zero;
+		bodySim->invInertiaLocal = b3Mat3_zero;
 		bodySim->invInertiaWorld = b3Mat3_zero;
 	}
 
@@ -1986,6 +2005,19 @@ void b3Body_SetMassData( b3BodyId bodyId, b3MassData massData )
 		bodySim->maxExtent = b3Max( bodySim->maxExtent, extent.maxExtent );
 		shapeId = s->nextShapeId;
 	}
+
+	// When the center of mass changes, any cached contact manifold becomes invalid.
+	int edgeKey = body->headContactKey;
+	while ( edgeKey != B3_NULL_INDEX )
+	{
+		int contactId = edgeKey >> 1;
+		int edgeIndex = edgeKey & 1;
+
+		b3Contact* contact = b3Array_Get( world->contacts, contactId );
+		contact->flags &= ~b3_relativeTransformValid;
+
+		edgeKey = contact->edges[edgeIndex].nextKey;
+	}
 }
 
 b3MassData b3Body_GetMassData( b3BodyId bodyId )
@@ -1993,7 +2025,7 @@ b3MassData b3Body_GetMassData( b3BodyId bodyId )
 	b3World* world = b3GetWorld( bodyId.world0 );
 	b3Body* body = b3GetBodyFullId( world, bodyId );
 	b3BodySim* bodySim = b3GetBodySim( world, body );
-	b3MassData massData = { body->mass, bodySim->localCenter, body->inertia };
+	b3MassData massData = { body->mass, bodySim->localCenter, bodySim->inertia };
 	return massData;
 }
 
@@ -2159,6 +2191,29 @@ b3Fixed b3Body_GetSleepThreshold( b3BodyId bodyId )
 	return body->sleepThreshold;
 }
 
+void b3Body_SetSafetyFactor( b3BodyId bodyId, b3Fixed safetyFactor )
+{
+	B3_ASSERT( b3IsValidFixed( safetyFactor ) && safetyFactor >= B3_FIX( 0.0f ) );
+
+	b3World* world = b3GetUnlockedWorld( bodyId.world0 );
+	if ( world == NULL )
+	{
+		return;
+	}
+
+	B3_REC( world, BodySetSafetyFactor, bodyId, safetyFactor );
+
+	b3Body* body = b3GetBodyFullId( world, bodyId );
+	body->safetyFactor = safetyFactor;
+}
+
+b3Fixed b3Body_GetSafetyFactor( b3BodyId bodyId )
+{
+	b3World* world = b3GetWorld( bodyId.world0 );
+	b3Body* body = b3GetBodyFullId( world, bodyId );
+	return body->safetyFactor;
+}
+
 void b3Body_EnableSleep( b3BodyId bodyId, bool enableSleep )
 {
 	b3World* world = b3GetUnlockedWorld( bodyId.world0 );
@@ -2238,7 +2293,7 @@ void b3Body_Disable( b3BodyId bodyId )
 			continue;
 		}
 
-		B3_ASSERT( joint->setIndex == set->setIndex || set->setIndex == b3_staticSet );
+		B3_ASSERT( joint->setIndex == set->setIndex || set->setIndex == b3_staticSet || joint->setIndex == b3_staticSet );
 
 		// Remove joint from island
 		b3UnlinkJoint( world, joint );
@@ -2302,7 +2357,7 @@ void b3Body_Enable( b3BodyId bodyId )
 		b3Shape* shape = b3Array_Get( world->shapes, shapeId );
 		shapeId = shape->nextShapeId;
 
-		b3CreateShapeProxy( shape, &world->broadPhase, proxyType, transform, forcePairCreation );
+		b3CreateShapeProxy( world, shape, proxyType, transform, forcePairCreation );
 	}
 
 	if ( setId != b3_staticSet )
@@ -2335,7 +2390,7 @@ void b3Body_Enable( b3BodyId bodyId )
 
 		// Transfer joint first
 		int jointSetId;
-		if ( bodyA->setIndex == b3_staticSet && bodyB->setIndex == b3_staticSet )
+		if ( bodyA->type != b3_dynamicBody && bodyB->type != b3_dynamicBody )
 		{
 			jointSetId = b3_staticSet;
 		}
@@ -2521,15 +2576,15 @@ void b3Body_EnableContactRecycling( b3BodyId bodyId, bool flag )
 
 	B3_REC( world, BodyEnableContactRecycling, bodyId, flag );
 
-	uint32_t newFlag = flag ? b3_bodyEnableContactRecycling : 0;
+	uint32_t newFlag = flag ? b3_enableContactRecycling : 0;
 
 	b3Body* body = b3GetBodyFullId( world, bodyId );
-	if ( ( body->flags & b3_bodyEnableContactRecycling ) == newFlag )
+	if ( ( body->flags & b3_enableContactRecycling ) == newFlag )
 	{
 		return;
 	}
 
-	body->flags &= ~b3_bodyEnableContactRecycling;
+	body->flags &= ~b3_enableContactRecycling;
 	body->flags |= newFlag;
 
 	b3SyncBodyFlags( world, body );
@@ -2539,7 +2594,7 @@ bool b3Body_IsContactRecyclingEnabled( b3BodyId bodyId )
 {
 	b3World* world = b3GetWorld( bodyId.world0 );
 	b3Body* body = b3GetBodyFullId( world, bodyId );
-	return ( body->flags & b3_bodyEnableContactRecycling ) != 0;
+	return ( body->flags & b3_enableContactRecycling ) != 0;
 }
 
 void b3Body_EnableHitEvents( b3BodyId bodyId, bool flag )

@@ -1,0 +1,731 @@
+===== BASE AND BUILD =====
+base=59eff1c450f7c6d308f73d8a88c633f42e160ecb
+branch=sprint/spike-constraint-color-memory-locality.w1.g1.e21
+host=hetzner1
+cmake -B build -DCMAKE_BUILD_TYPE=RelWithDebInfo -DBOX3D_SAMPLES=OFF -DBOX3D_VALIDATE=ON -DCMAKE_COMPILE_WARNING_AS_ERROR=ON -DBOX3D_BENCHMARKS=ON
+cmake --build build --parallel 2
+Both A and B configured identically; compile log shows -O2 -g -DNDEBUG -flto=auto -ffp-contract=off -Werror. Candidate only differs by experiment.patch.
+B narrow full test exit=0; B ludicrous full test exit=0; B oracle builds with BOX3D_AVX512=OFF BOX3D_NEON=OFF.
+
+===== RED BASELINE CAPTURE, EXPECTED-ZERO FIXTURE =====
+Starting Fixed3D unit tests
+Filter: DeterminismTest
+======================================
+test skipped: AllocatorTest
+test skipped: BitTest
+test skipped: BodyTest
+test skipped: BodyQueryTest
+test skipped: CollisionTest
+test skipped: CompoundTest
+test skipped: ContainerTest
+  color=0 order=5c42b6777239f719
+  color=1 order=e10e4244728aca29
+  color=2 order=6b3570a0a3a4e957
+  color=3 order=958bbadaafccfb7e
+  color=4 order=a4fd8dee060fbd57
+  color=5 order=8f8e33f77b295006
+  color=6 order=d519f191fa180102
+  color=7 order=be73e5836a513513
+  color=8 order=5c42b6777239f719
+  color=9 order=5c42b6777239f719
+  color=10 order=5c42b6777239f719
+  color=11 order=5c42b6777239f719
+  color=12 order=5c42b6777239f719
+  color=13 order=5c42b6777239f719
+  color=14 order=5c42b6777239f719
+  color=15 order=5c42b6777239f719
+  color=16 order=5c42b6777239f719
+  color=17 order=5c42b6777239f719
+  color=18 order=5c42b6777239f719
+  color=19 order=5c42b6777239f719
+  color=20 order=5c42b6777239f719
+  color=21 order=02c78a60760093e9
+  color=22 order=2b0eb9c8873d78b8
+  color=23 order=5c42b6777239f719
+condition false: order[colorIndex] == expected[colorIndex]
+  subtest failed: ConstraintLayoutBitIdenticalTest
+test failed: DeterminismTest
+
+===== FROZEN BASE CHARACTERIZATION =====
+  color=0 order=5c42b6777239f719
+  color=1 order=e10e4244728aca29
+  color=2 order=6b3570a0a3a4e957
+  color=3 order=958bbadaafccfb7e
+  color=4 order=a4fd8dee060fbd57
+  color=5 order=8f8e33f77b295006
+  color=6 order=d519f191fa180102
+  color=7 order=be73e5836a513513
+  color=8 order=5c42b6777239f719
+  color=9 order=5c42b6777239f719
+  color=10 order=5c42b6777239f719
+  color=11 order=5c42b6777239f719
+  color=12 order=5c42b6777239f719
+  color=13 order=5c42b6777239f719
+  color=14 order=5c42b6777239f719
+  color=15 order=5c42b6777239f719
+  color=16 order=5c42b6777239f719
+  color=17 order=5c42b6777239f719
+  color=18 order=5c42b6777239f719
+  color=19 order=5c42b6777239f719
+  color=20 order=5c42b6777239f719
+  color=21 order=02c78a60760093e9
+  color=22 order=2b0eb9c8873d78b8
+  color=23 order=5c42b6777239f719
+  subtest passed: ConstraintLayoutBitIdenticalTest
+  subtest passed: RagdollHumanTest
+All Fixed3D tests passed!
+exit=0
+
+===== PMU REFUSAL =====
+Error:
+Access to performance monitoring and observability operations is limited.
+Consider adjusting /proc/sys/kernel/perf_event_paranoid setting to open
+access to performance monitoring and observability operations for processes
+without CAP_PERFMON, CAP_SYS_PTRACE or CAP_SYS_ADMIN Linux capability.
+More information can be found at 'Perf events and tool security' document:
+https://www.kernel.org/doc/html/latest/admin-guide/perf-security.html
+perf_event_paranoid setting is 4:
+  -1: Allow use of (almost) all events by all users
+      Ignore mlock limit after perf_event_mlock_kb without CAP_IPC_LOCK
+>= 0: Disallow raw and ftrace function tracepoint access
+>= 1: Disallow CPU event access
+>= 2: Disallow kernel profiling
+To make the adjusted perf_event_paranoid setting permanent preserve it
+in /etc/sysctl.conf (e.g. kernel.perf_event_paranoid = <setting>)
+
+===== BASELINE PHASE PROFILE AND CPU INFO =====
+== CPU model ==
+model name	: AMD Ryzen 7 PRO 8700GE w/ Radeon 780M Graphics
+== ISA flags ==
+avx2
+avx512dq
+avx512f
+avx512ifma
+avx512vl
+== cores ==
+16
+== CPU pinning ==
+pid 2593943's current affinity list: 0-15
+== Load average ==
+1.92 1.59 1.52 1/496 2593950
+== Compiler ==
+cc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0
+c++ (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0
+== cmake ==
+cmake version 3.28.3
+== cmake flags ==
+configured by the build dir; paste the cmake -B ... line used
+2593942 bash -c cd /home/nova/stella-locality-e21/base && tools/perf/cpu_info.sh; pgrep -af benchmark || true; cat /proc/loadavg; nice -n 10 ./build/bin/benchmark -b=rain -w=1 -r=7 --steps=120 --hash --phases-json=/home/nova/stella-locality-e21/rain-baseline.json; nice -n 10 ./build/bin/benchmark -b=large_pyramid -w=1 -r=7 --steps=120 --hash --phases-json=/home/nova/stella-locality-e21/large-pyramid-baseline.json; cat /proc/loadavg
+1.84 1.58 1.52 1/495 2593959
+Starting benchmarks
+======================================
+benchmark: rain, steps = 120
+thread count: 1
+run 0 : 597.813 (ms)
+run 1 : 596.563 (ms)
+run 2 : 596.856 (ms)
+run 3 : 596.435 (ms)
+run 4 : 596.587 (ms)
+run 5 : 595.983 (ms)
+run 6 : 596.301 (ms)
+HASH rain workers=1 f96c9e008d59a375
+body 1540 / shape 1880 / contact 1739 / joint 1680 / stack 873600
+
+======================================
+All benchmarks complete!
+Starting benchmarks
+======================================
+benchmark: large_pyramid, steps = 120
+thread count: 1
+run 0 : 6412.49 (ms)
+run 1 : 6327.19 (ms)
+run 2 : 6373.38 (ms)
+run 3 : 6354.37 (ms)
+run 4 : 6423.05 (ms)
+run 5 : 6309.47 (ms)
+run 6 : 6414.08 (ms)
+HASH large_pyramid workers=1 72331624b02f2508
+body 5051 / shape 5051 / contact 14950 / joint 0 / stack 16631808
+
+======================================
+All benchmarks complete!
+1.44 1.51 1.50 1/488 2594555
+
+===== BASELINE PHASE JSON rain =====
+[
+{"scene":"rain","workers":1,"repeats":7,"timed_steps":119,"phase":"pairs","min_ns":271515,"median_ns":272904,"max_ns":275005},
+{"scene":"rain","workers":1,"repeats":7,"timed_steps":119,"phase":"collide","min_ns":213540,"median_ns":214708,"max_ns":215453},
+{"scene":"rain","workers":1,"repeats":7,"timed_steps":119,"phase":"solve","min_ns":4493667,"median_ns":4498938,"max_ns":4500613},
+{"scene":"rain","workers":1,"repeats":7,"timed_steps":119,"phase":"solverSetup","min_ns":985,"median_ns":1019,"max_ns":1046},
+{"scene":"rain","workers":1,"repeats":7,"timed_steps":119,"phase":"constraints","min_ns":4166894,"median_ns":4171731,"max_ns":4173439},
+{"scene":"rain","workers":1,"repeats":7,"timed_steps":119,"phase":"prepareConstraints","min_ns":303752,"median_ns":304413,"max_ns":305322},
+{"scene":"rain","workers":1,"repeats":7,"timed_steps":119,"phase":"integrateVelocities","min_ns":409715,"median_ns":410160,"max_ns":410723},
+{"scene":"rain","workers":1,"repeats":7,"timed_steps":119,"phase":"warmStart","min_ns":210766,"median_ns":211234,"max_ns":212572},
+{"scene":"rain","workers":1,"repeats":7,"timed_steps":119,"phase":"solveImpulses","min_ns":1501051,"median_ns":1503159,"max_ns":1504972},
+{"scene":"rain","workers":1,"repeats":7,"timed_steps":119,"phase":"integratePositions","min_ns":144224,"median_ns":144683,"max_ns":145288},
+{"scene":"rain","workers":1,"repeats":7,"timed_steps":119,"phase":"relaxImpulses","min_ns":1593685,"median_ns":1595899,"max_ns":1596299},
+{"scene":"rain","workers":1,"repeats":7,"timed_steps":119,"phase":"applyRestitution","min_ns":310,"median_ns":312,"max_ns":323},
+{"scene":"rain","workers":1,"repeats":7,"timed_steps":119,"phase":"storeImpulses","min_ns":920,"median_ns":970,"max_ns":1063},
+{"scene":"rain","workers":1,"repeats":7,"timed_steps":119,"phase":"transforms","min_ns":295134,"median_ns":295529,"max_ns":295898},
+{"scene":"rain","workers":1,"repeats":7,"timed_steps":119,"phase":"refit","min_ns":29486,"median_ns":30667,"max_ns":30844},
+{"scene":"rain","workers":1,"repeats":7,"timed_steps":119,"phase":"bullets","min_ns":0,"median_ns":0,"max_ns":0},
+{"scene":"rain","workers":1,"repeats":7,"timed_steps":119,"phase":"sleepIslands","min_ns":78,"median_ns":82,"max_ns":86},
+{"scene":"rain","workers":1,"repeats":7,"timed_steps":119,"phase":"step","min_ns":4980716,"median_ns":4986499,"max_ns":4990948}
+]
+
+===== BASELINE PHASE JSON large-pyramid =====
+[
+{"scene":"large_pyramid","workers":1,"repeats":7,"timed_steps":119,"phase":"pairs","min_ns":368558,"median_ns":374091,"max_ns":375842},
+{"scene":"large_pyramid","workers":1,"repeats":7,"timed_steps":119,"phase":"collide","min_ns":3605739,"median_ns":3801673,"max_ns":3958919},
+{"scene":"large_pyramid","workers":1,"repeats":7,"timed_steps":119,"phase":"solve","min_ns":48968615,"median_ns":49315311,"max_ns":49714862},
+{"scene":"large_pyramid","workers":1,"repeats":7,"timed_steps":119,"phase":"solverSetup","min_ns":3009,"median_ns":3206,"max_ns":3442},
+{"scene":"large_pyramid","workers":1,"repeats":7,"timed_steps":119,"phase":"constraints","min_ns":48027641,"median_ns":48373303,"max_ns":48772628},
+{"scene":"large_pyramid","workers":1,"repeats":7,"timed_steps":119,"phase":"prepareConstraints","min_ns":7421819,"median_ns":7599193,"max_ns":7690044},
+{"scene":"large_pyramid","workers":1,"repeats":7,"timed_steps":119,"phase":"integrateVelocities","min_ns":2145328,"median_ns":2149643,"max_ns":2152420},
+{"scene":"large_pyramid","workers":1,"repeats":7,"timed_steps":119,"phase":"warmStart","min_ns":10907857,"median_ns":10964773,"max_ns":11140202},
+{"scene":"large_pyramid","workers":1,"repeats":7,"timed_steps":119,"phase":"solveImpulses","min_ns":8969439,"median_ns":9095753,"max_ns":9203347},
+{"scene":"large_pyramid","workers":1,"repeats":7,"timed_steps":119,"phase":"integratePositions","min_ns":754776,"median_ns":756597,"max_ns":757337},
+{"scene":"large_pyramid","workers":1,"repeats":7,"timed_steps":119,"phase":"relaxImpulses","min_ns":16792762,"median_ns":16982316,"max_ns":17077773},
+{"scene":"large_pyramid","workers":1,"repeats":7,"timed_steps":119,"phase":"applyRestitution","min_ns":18535,"median_ns":19096,"max_ns":19551},
+{"scene":"large_pyramid","workers":1,"repeats":7,"timed_steps":119,"phase":"storeImpulses","min_ns":873046,"median_ns":888818,"max_ns":896323},
+{"scene":"large_pyramid","workers":1,"repeats":7,"timed_steps":119,"phase":"transforms","min_ns":845947,"median_ns":846643,"max_ns":850281},
+{"scene":"large_pyramid","workers":1,"repeats":7,"timed_steps":119,"phase":"refit","min_ns":86899,"median_ns":89394,"max_ns":93992},
+{"scene":"large_pyramid","workers":1,"repeats":7,"timed_steps":119,"phase":"bullets","min_ns":0,"median_ns":0,"max_ns":0},
+{"scene":"large_pyramid","workers":1,"repeats":7,"timed_steps":119,"phase":"sleepIslands","min_ns":0,"median_ns":0,"max_ns":0},
+{"scene":"large_pyramid","workers":1,"repeats":7,"timed_steps":119,"phase":"step","min_ns":53019860,"median_ns":53556904,"max_ns":53974333}
+]
+
+===== INTERLEAVED SEVEN-REPEAT A/B, ALL SCENES, WORKERS 1 2 4 =====
+== CPU model ==
+model name	: AMD Ryzen 7 PRO 8700GE w/ Radeon 780M Graphics
+== ISA flags ==
+avx2
+avx512dq
+avx512f
+avx512ifma
+avx512vl
+== cores ==
+16
+== CPU pinning ==
+pid 2617582's current affinity list: 0-15
+== Load average ==
+5.31 5.43 3.37 1/491 2617589
+== Compiler ==
+cc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0
+c++ (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0
+== cmake ==
+cmake version 3.28.3
+== cmake flags ==
+configured by the build dir; paste the cmake -B ... line used
+2617581 bash -c cd /home/nova/stella-locality-e21/base && tools/perf/cpu_info.sh && pgrep -af benchmark || true; cat /proc/loadavg; nice -n 10 tools/perf/ab.sh /home/nova/stella-locality-e21/base/build /home/nova/stella-locality-e21/candidate/build -b=rain -b=many_pyramids -b=large_pyramid -b=washer -b=bodies_20k -w=1,2,4 -r=7 --steps=120; cat /proc/loadavg
+5.31 5.43 3.37 1/490 2617598
+scene workers phase A_min A_med A_spread B_min B_med B_spread speedup
+rain 1 applyRestitution 312 321 21 299 321 34 1.000000
+rain 1 bullets 0 0 0 0 0 0 0.000000
+rain 1 collide 205273 205897 3107 205463 206744 3098 0.995903
+rain 1 constraints 4162739 4168111 20061 4160035 4166702 29386 1.000338
+rain 1 integratePositions 144367 144798 1680 144317 144808 1500 0.999931
+rain 1 integrateVelocities 409784 412863 4451 408985 412461 10102 1.000975
+rain 1 pairs 270295 272401 5693 272155 273231 3599 0.996962
+rain 1 prepareConstraints 301729 302378 5169 302029 303691 3562 0.995677
+rain 1 refit 28811 29246 904 28684 29723 1910 0.983952
+rain 1 relaxImpulses 1591605 1593631 5683 1589041 1591587 7815 1.001284
+rain 1 sleepIslands 74 80 16 81 85 11 0.941176
+rain 1 solve 4487728 4493099 23219 4485031 4493984 35366 0.999803
+rain 1 solveImpulses 1499460 1502373 9118 1501019 1503322 9259 0.999369
+rain 1 solverSetup 901 976 122 950 991 66 0.984864
+rain 1 step 4964952 4970940 30551 4963473 4975070 37892 0.999170
+rain 1 storeImpulses 809 824 77 805 860 133 0.958140
+rain 1 transforms 294435 295396 2656 294742 295824 4219 0.998553
+rain 1 warmStart 209916 210618 1846 209497 210930 2061 0.998521
+rain 2 applyRestitution 739 789 89 794 817 106 0.965728
+rain 2 bullets 0 0 0 0 0 0 0.000000
+rain 2 collide 138083 139549 2755 137963 139385 3875 1.001177
+rain 2 constraints 2212195 2228345 42316 2209549 2228900 40651 0.999751
+rain 2 integratePositions 89738 90314 1821 89516 90693 2149 0.995821
+rain 2 integrateVelocities 212387 213312 3442 211686 213319 3906 0.999967
+rain 2 pairs 140285 141332 2328 139046 142084 6931 0.994707
+rain 2 prepareConstraints 172455 174358 14795 172198 174319 4093 1.000224
+rain 2 refit 28672 29523 1241 28657 29389 1891 1.004560
+rain 2 relaxImpulses 835502 841732 11914 834054 839074 13796 1.003168
+rain 2 sleepIslands 80 90 17 85 87 8 1.034483
+rain 2 solve 2406946 2423599 45104 2404334 2425564 45029 0.999190
+rain 2 solveImpulses 779660 784984 12643 780114 785661 14999 0.999138
+rain 2 solverSetup 1368 1386 100 1362 1420 137 0.976056
+rain 2 step 2685484 2705337 49396 2682764 2709256 53514 0.998553
+rain 2 storeImpulses 771 785 42 759 787 73 0.997459
+rain 2 transforms 164154 164644 1766 163713 165223 3448 0.996496
+rain 2 warmStart 118241 119543 2741 117968 119074 2468 1.003939
+rain 4 applyRestitution 1728 1825 107 1699 1793 196 1.017847
+rain 4 bullets 0 0 0 0 0 0 0.000000
+rain 4 collide 80657 81572 2011 80782 81462 1687 1.001350
+rain 4 constraints 1257962 1263845 28107 1251531 1272970 33122 0.992832
+rain 4 integratePositions 54915 55571 1572 54722 55382 1326 1.003413
+rain 4 integrateVelocities 113471 114473 3428 113375 115384 3136 0.992105
+rain 4 pairs 86127 89432 4087 87850 89012 1781 1.004718
+rain 4 prepareConstraints 101615 101981 2450 101791 102537 1722 0.994578
+rain 4 refit 29605 30090 1166 29678 30015 1328 1.002499
+rain 4 relaxImpulses 469277 471761 10444 467131 474541 11861 0.994142
+rain 4 sleepIslands 95 109 23 91 98 22 1.112245
+rain 4 solve 1380945 1387647 30068 1374836 1397649 35914 0.992844
+rain 4 solveImpulses 433779 435732 11489 431617 440520 12558 0.989131
+rain 4 solverSetup 1824 1894 309 1847 1887 135 1.003710
+rain 4 step 1549706 1558704 34167 1544060 1568656 37452 0.993656
+rain 4 storeImpulses 692 718 45 692 707 43 1.015559
+rain 4 transforms 90654 91308 2146 91081 92025 1429 0.992209
+rain 4 warmStart 76941 77346 2120 76808 77823 2612 0.993871
+many_pyramids 1 applyRestitution 43697 44952 1999 43819 44836 2599 1.002587
+many_pyramids 1 bullets 0 0 0 0 0 0 0.000000
+many_pyramids 1 collide 9194878 9260367 129197 9314194 9440301 446827 0.980940
+many_pyramids 1 constraints 114985162 116088747 1370942 111286322 111590864 1507461 1.040307
+many_pyramids 1 integratePositions 1610456 1612292 3104 1608553 1613056 9303 0.999526
+many_pyramids 1 integrateVelocities 4577506 4586275 31036 4582939 4605477 30987 0.995831
+many_pyramids 1 pairs 571 664 152 645 680 93 0.976471
+many_pyramids 1 prepareConstraints 18196902 18301451 581562 17861719 18072484 644933 1.012669
+many_pyramids 1 refit 438 483 111 437 466 154 1.036481
+many_pyramids 1 relaxImpulses 38621201 39202924 808794 37163079 37369515 670901 1.049062
+many_pyramids 1 sleepIslands 325 336 69 331 362 40 0.928177
+many_pyramids 1 solve 116793917 117896016 1375469 113092464 113401915 1517256 1.039630
+many_pyramids 1 solveImpulses 21220696 21284030 190364 20193339 20281776 297672 1.049416
+many_pyramids 1 solverSetup 3475 3569 227 3472 3565 170 1.001122
+many_pyramids 1 step 126055536 127213894 1439201 122460424 122895484 1526292 1.035139
+many_pyramids 1 storeImpulses 2213495 2226624 32390 2225550 2233358 29038 0.996985
+many_pyramids 1 transforms 1802262 1804654 6224 1800905 1805968 12080 0.999272
+many_pyramids 1 warmStart 28348204 28452488 402080 27175591 27330499 743397 1.041053
+many_pyramids 2 applyRestitution 26547 26899 656 26632 26960 592 0.997737
+many_pyramids 2 bullets 0 0 0 0 0 0 0.000000
+many_pyramids 2 collide 4727828 4780829 154360 4743331 4826163 153555 0.990607
+many_pyramids 2 constraints 59317993 59437724 461885 56988632 57234321 978735 1.038498
+many_pyramids 2 integratePositions 826736 827505 2174 825948 826615 2640 1.001077
+many_pyramids 2 integrateVelocities 2329545 2334876 9575 2330273 2334087 12054 1.000338
+many_pyramids 2 pairs 1561 1614 240 1500 1613 181 1.000620
+many_pyramids 2 prepareConstraints 9139618 9201241 172799 8965208 9018480 237926 1.020265
+many_pyramids 2 refit 648 735 175 663 704 186 1.044034
+many_pyramids 2 relaxImpulses 19853810 19954939 200843 18871868 19008190 562853 1.049807
+many_pyramids 2 sleepIslands 361 381 65 367 391 60 0.974425
+many_pyramids 2 solve 60281732 60403931 467334 57952879 58197561 986745 1.037912
+many_pyramids 2 solveImpulses 10891815 10917931 118428 10371099 10397014 158236 1.050103
+many_pyramids 2 solverSetup 3345 3436 238 3261 3490 305 0.984527
+many_pyramids 2 step 65027362 65251243 502631 62781635 62951339 1008747 1.036535
+many_pyramids 2 storeImpulses 1261829 1268676 13411 1268160 1271347 10311 0.997899
+many_pyramids 2 transforms 956027 961513 11681 954360 959997 12362 1.001579
+many_pyramids 2 warmStart 14817624 14955666 249176 14205867 14299022 175249 1.045922
+many_pyramids 4 applyRestitution 18470 18582 238 18356 18530 609 1.002806
+many_pyramids 4 bullets 0 0 0 0 0 0 0.000000
+many_pyramids 4 collide 2577578 2595086 29429 2609447 2620418 54495 0.990333
+many_pyramids 4 constraints 30860323 30971085 256133 29817723 29877679 675247 1.036596
+many_pyramids 4 integratePositions 424589 425388 2060 424720 425549 5271 0.999622
+many_pyramids 4 integrateVelocities 1191304 1195331 7429 1193432 1199073 19179 0.996879
+many_pyramids 4 pairs 1441 1528 145 1438 1460 230 1.046575
+many_pyramids 4 prepareConstraints 4878684 4902805 47753 4746445 4774993 137983 1.026767
+many_pyramids 4 refit 1147 1197 100 1120 1190 116 1.005882
+many_pyramids 4 relaxImpulses 10076734 10204810 178264 9689699 9701094 277260 1.051924
+many_pyramids 4 sleepIslands 319 390 95 348 355 42 1.098592
+many_pyramids 4 solve 31394339 31504639 255585 30346880 30407010 682271 1.036098
+many_pyramids 4 solveImpulses 5659708 5677973 52148 5406098 5429933 111379 1.045680
+many_pyramids 4 solverSetup 3556 3697 413 3688 3790 189 0.975462
+many_pyramids 4 step 33976546 34097395 270755 32967039 33029730 721877 1.032324
+many_pyramids 4 storeImpulses 780314 782053 5559 778813 785067 14823 0.996161
+many_pyramids 4 transforms 523297 527207 4618 521357 523014 10506 1.008017
+many_pyramids 4 warmStart 7745150 7781400 97612 7517746 7569512 161583 1.027992
+large_pyramid 1 applyRestitution 18769 18985 935 18300 19255 1387 0.985978
+large_pyramid 1 bullets 0 0 0 0 0 0 0.000000
+large_pyramid 1 collide 3681695 3988560 360649 3633156 3899107 458622 1.022942
+large_pyramid 1 constraints 49555350 50391237 1539158 48231654 49034176 1968078 1.027676
+large_pyramid 1 integratePositions 754116 756518 3346 755808 756872 3902 0.999532
+large_pyramid 1 integrateVelocities 2144909 2159817 19591 2148391 2160909 22356 0.999495
+large_pyramid 1 pairs 369595 374081 8380 367549 375326 12564 0.996683
+large_pyramid 1 prepareConstraints 7377778 7519470 205279 7203701 7375088 235213 1.019577
+large_pyramid 1 refit 84162 90265 9227 84021 91295 10317 0.988718
+large_pyramid 1 relaxImpulses 17254345 17497044 412427 16688944 16921257 666227 1.034027
+large_pyramid 1 sleepIslands 0 0 0 0 0 0 0.000000
+large_pyramid 1 solve 50491594 51333582 1550489 49168975 49985320 1980891 1.026973
+large_pyramid 1 solveImpulses 9331827 9601101 400948 9020646 9238835 457694 1.039211
+large_pyramid 1 solverSetup 3179 3430 350 3130 3407 497 1.006751
+large_pyramid 1 step 54630183 55706107 1775633 53265478 54446404 2122855 1.023137
+large_pyramid 1 storeImpulses 885801 891696 23911 880248 894461 27218 0.996909
+large_pyramid 1 transforms 846577 848084 4248 847587 849387 7131 0.998466
+large_pyramid 1 warmStart 11566134 11930730 697274 11479157 11594764 655135 1.028976
+large_pyramid 2 applyRestitution 11469 11722 602 11524 11803 624 0.993137
+large_pyramid 2 bullets 0 0 0 0 0 0 0.000000
+large_pyramid 2 collide 1814992 1871581 110537 1842926 1886534 76234 0.992074
+large_pyramid 2 constraints 25225426 25365665 790733 24526561 24737748 701604 1.025383
+large_pyramid 2 integratePositions 410745 414863 7137 413581 416996 5344 0.994885
+large_pyramid 2 integrateVelocities 1100001 1102835 6763 1098497 1101330 4364 1.001367
+large_pyramid 2 pairs 188450 190224 3283 190221 190716 2744 0.997420
+large_pyramid 2 prepareConstraints 3697652 3794917 166687 3707993 3752069 92256 1.011420
+large_pyramid 2 refit 83990 85303 2976 84638 85961 2153 0.992345
+large_pyramid 2 relaxImpulses 8597175 8718149 346411 8371206 8475131 268248 1.028674
+large_pyramid 2 sleepIslands 0 0 0 0 0 0 0.000000
+large_pyramid 2 solve 25787825 25929584 792833 25089607 25302725 702484 1.024774
+large_pyramid 2 solveImpulses 4708433 4756435 192194 4533351 4587844 142914 1.036747
+large_pyramid 2 solverSetup 3815 3918 232 3900 3981 337 0.984175
+large_pyramid 2 step 27851849 28037245 844383 27167711 27339262 708154 1.025530
+large_pyramid 2 storeImpulses 523958 529559 13264 523270 526096 9538 1.006582
+large_pyramid 2 transforms 471336 472948 6058 471165 472370 3011 1.001224
+large_pyramid 2 warmStart 6057708 6109366 177243 5819060 5905299 236654 1.034557
+large_pyramid 4 applyRestitution 9172 9281 409 9105 9213 401 1.007381
+large_pyramid 4 bullets 0 0 0 0 0 0 0.000000
+large_pyramid 4 collide 1019505 1040098 39155 1037663 1054082 25611 0.986733
+large_pyramid 4 constraints 12694683 12733884 264970 12221402 12312759 202483 1.034202
+large_pyramid 4 integratePositions 228785 229434 2134 228827 230001 1787 0.997535
+large_pyramid 4 integrateVelocities 568337 569163 6871 567757 569568 8227 0.999289
+large_pyramid 4 pairs 125134 127058 3323 124729 125792 3276 1.010064
+large_pyramid 4 prepareConstraints 1974375 1981139 50836 1954925 1979382 39484 1.000888
+large_pyramid 4 refit 87587 89185 2010 87644 88492 2111 1.007831
+large_pyramid 4 relaxImpulses 4242516 4262299 85022 4052687 4097134 80071 1.040312
+large_pyramid 4 sleepIslands 0 0 0 0 0 0 0.000000
+large_pyramid 4 solve 13063867 13099665 263803 12588487 12681183 200681 1.033000
+large_pyramid 4 solveImpulses 2327416 2340676 51609 2197902 2214037 37169 1.057198
+large_pyramid 4 solverSetup 4809 5049 281 4759 4910 193 1.028310
+large_pyramid 4 step 14237886 14270244 275217 13751864 13864106 217062 1.029294
+large_pyramid 4 storeImpulses 323974 325344 10079 322311 326360 7777 0.996887
+large_pyramid 4 transforms 269830 272122 4242 271491 273678 4543 0.994314
+large_pyramid 4 warmStart 2996483 3017470 73269 2869212 2875592 50995 1.049339
+washer 1 applyRestitution 3133 3350 330 3116 3269 291 1.024778
+washer 1 bullets 0 0 0 0 0 0 0.000000
+washer 1 collide 6436166 6456531 1471258 6439921 6467891 99655 0.998244
+washer 1 constraints 14396889 14478306 248678 14196624 14243389 230913 1.016493
+washer 1 integratePositions 1195672 1198615 17508 1196298 1197819 6152 1.000665
+washer 1 integrateVelocities 3379775 3402379 68581 3385128 3405879 33604 0.998972
+washer 1 pairs 2296402 2334914 82664 2302000 2341564 52073 0.997160
+washer 1 prepareConstraints 1849099 1871166 70092 1829274 1847782 44509 1.012655
+washer 1 refit 260825 269303 52518 261541 267781 20478 1.005684
+washer 1 relaxImpulses 3542813 3575580 70628 3432880 3465466 91240 1.031775
+washer 1 sleepIslands 3688 3705 158 3681 3714 59 0.997577
+washer 1 solve 16628496 16717864 337345 16439981 16487611 250326 1.013965
+washer 1 solveImpulses 1872151 1896666 43594 1777000 1791222 50536 1.058867
+washer 1 solverSetup 4473 4554 328 4441 4529 235 1.005520
+washer 1 step 25361398 25537149 1891368 25205923 25282741 365622 1.010063
+washer 1 storeImpulses 175390 178709 9069 175303 178502 5060 1.001160
+washer 1 transforms 1961881 1964297 35809 1960879 1967665 36847 0.998288
+washer 1 warmStart 2324758 2348945 65011 2351131 2364152 75123 0.993568
+washer 2 applyRestitution 2502 2555 194 2446 2502 215 1.021183
+washer 2 bullets 0 0 0 0 0 0 0.000000
+washer 2 collide 3410149 3414172 36895 3408601 3418616 31196 0.998700
+washer 2 constraints 7550924 7565468 158980 7455795 7494769 197266 1.009433
+washer 2 integratePositions 628312 629671 2828 627791 630258 7416 0.999069
+washer 2 integrateVelocities 1799471 1804499 12792 1797969 1801578 17521 1.001621
+washer 2 pairs 1118999 1124875 17085 1120512 1127665 22882 0.997526
+washer 2 prepareConstraints 999285 1011565 29757 995506 1000223 42962 1.011339
+washer 2 refit 261478 266979 11881 260380 269683 20096 0.989973
+washer 2 relaxImpulses 1806709 1816478 56986 1761039 1779076 56917 1.021023
+washer 2 sleepIslands 3731 3776 366 3749 3770 90 1.001592
+washer 2 solve 8853393 8865722 168970 8756048 8793236 214587 1.008243
+washer 2 solveImpulses 968894 973233 29721 925577 932531 34375 1.043647
+washer 2 solverSetup 4659 4739 241 4489 4689 413 1.010663
+washer 2 step 13383184 13405060 222646 13295776 13336328 244558 1.005154
+washer 2 storeImpulses 101713 104793 4800 103300 104715 3983 1.000745
+washer 2 transforms 1023957 1026555 6894 1025125 1029824 9338 0.996826
+washer 2 warmStart 1228153 1236762 48117 1227925 1237342 58579 0.999531
+washer 4 applyRestitution 2640 2658 38 2544 2606 182 1.019954
+washer 4 bullets 0 0 0 0 0 0 0.000000
+washer 4 collide 1821154 1825864 11418 1814682 1840521 59941 0.992036
+washer 4 constraints 3995038 4017443 90976 3932079 3967131 63489 1.012682
+washer 4 integratePositions 343152 344352 5407 345023 345526 5095 0.996602
+washer 4 integrateVelocities 928455 931722 19033 932274 939253 16066 0.991982
+washer 4 pairs 657140 659017 10700 656390 663456 9512 0.993309
+washer 4 prepareConstraints 553901 557842 10906 545261 550013 11426 1.014234
+washer 4 refit 259420 264168 19493 260207 262598 15530 1.005979
+washer 4 relaxImpulses 934158 940686 30448 908530 915293 22450 1.027743
+washer 4 sleepIslands 3873 3895 90 3872 3915 105 0.994891
+washer 4 solve 4819044 4838921 97446 4753095 4795642 66632 1.009025
+washer 4 solveImpulses 507604 508594 18699 481700 487050 12233 1.044234
+washer 4 solverSetup 4889 5032 337 4867 4951 131 1.016360
+washer 4 step 7299184 7327426 104892 7231791 7295732 104704 1.004344
+washer 4 storeImpulses 60231 60651 1390 60066 60661 2144 0.999835
+washer 4 transforms 550807 552165 10410 550631 552151 8066 1.000025
+washer 4 warmStart 655378 660673 24339 645830 651146 19126 1.014631
+bodies_20k 1 applyRestitution 1954 2343 586 1827 1907 323 1.228631
+bodies_20k 1 bullets 0 0 0 0 0 0 0.000000
+bodies_20k 1 collide 1641897 1657975 25847 1631389 1640141 38107 1.010873
+bodies_20k 1 constraints 17084631 17108740 217364 16996169 17074969 340134 1.001978
+bodies_20k 1 integratePositions 2982739 2988530 33489 2987852 2992179 8858 0.998780
+bodies_20k 1 integrateVelocities 8565326 8587937 82060 8571022 8640719 98070 0.993891
+bodies_20k 1 pairs 3288172 3361485 134108 3372755 3388387 57036 0.992061
+bodies_20k 1 prepareConstraints 993798 1008190 24192 997920 1003193 14023 1.004981
+bodies_20k 1 refit 1105221 1114991 22798 1110782 1115311 12747 0.999713
+bodies_20k 1 relaxImpulses 2013449 2036392 57508 1976258 2005635 96901 1.015335
+bodies_20k 1 sleepIslands 10150 10193 183 10159 10210 133 0.998335
+bodies_20k 1 solve 21968157 21999251 256661 21887972 21948934 326009 1.002292
+bodies_20k 1 solveImpulses 830115 845318 40936 771301 785796 28928 1.075747
+bodies_20k 1 solverSetup 2243 2270 152 2214 2251 111 1.008441
+bodies_20k 1 step 26973154 27027853 292664 26901490 26968445 370989 1.002203
+bodies_20k 1 storeImpulses 85022 85297 4577 85381 86784 3967 0.982866
+bodies_20k 1 transforms 3743330 3766270 76028 3741261 3752211 26341 1.003747
+bodies_20k 1 warmStart 1543114 1568677 83858 1549117 1555756 168693 1.008305
+bodies_20k 2 applyRestitution 1636 1764 191 1592 1651 155 1.068443
+bodies_20k 2 bullets 0 0 0 0 0 0 0.000000
+bodies_20k 2 collide 1108232 1111701 14863 1107003 1111901 14063 0.999820
+bodies_20k 2 constraints 9013734 9092405 163045 8974492 8993069 134367 1.011046
+bodies_20k 2 integratePositions 1548416 1553964 42952 1546770 1549480 37033 1.002894
+bodies_20k 2 integrateVelocities 4494967 4511519 49610 4497138 4506963 26754 1.001011
+bodies_20k 2 pairs 1512118 1555363 54900 1548336 1561464 39784 0.996093
+bodies_20k 2 prepareConstraints 577169 581228 11535 579801 584572 8345 0.994280
+bodies_20k 2 refit 1112759 1179808 73056 1168772 1187126 21616 0.993836
+bodies_20k 2 relaxImpulses 1051483 1062680 24960 1033725 1039630 27737 1.022171
+bodies_20k 2 sleepIslands 10482 10565 170 10526 10597 433 0.996980
+bodies_20k 2 solve 12082073 12235214 249943 12114365 12139437 144640 1.007890
+bodies_20k 2 solveImpulses 456534 462604 10421 430111 436671 8333 1.059388
+bodies_20k 2 solverSetup 2277 2399 298 2425 2493 116 0.962294
+bodies_20k 2 step 14706402 14914417 298510 14779591 14817228 183172 1.006559
+bodies_20k 2 storeImpulses 51318 51890 1010 51671 52125 2105 0.995492
+bodies_20k 2 transforms 1941752 1948836 15501 1937400 1943577 12401 1.002706
+bodies_20k 2 warmStart 812980 842211 45545 812163 814690 42830 1.033781
+bodies_20k 4 applyRestitution 1653 1675 61 1665 1673 143 1.001195
+bodies_20k 4 bullets 0 0 0 0 0 0 0.000000
+bodies_20k 4 collide 645791 651629 9318 640713 643717 11191 1.012291
+bodies_20k 4 constraints 4836204 4865251 60427 4783616 4825260 66044 1.008288
+bodies_20k 4 integratePositions 870392 894300 35108 869021 896557 29201 0.997483
+bodies_20k 4 integrateVelocities 2331560 2338182 28198 2324604 2333443 41226 1.002031
+bodies_20k 4 pairs 882048 911905 34780 880358 919573 52297 0.991661
+bodies_20k 4 prepareConstraints 336960 340051 5943 333971 339449 12080 1.001773
+bodies_20k 4 refit 1102419 1156152 69700 1099705 1162631 94868 0.994427
+bodies_20k 4 relaxImpulses 556656 560289 6871 545357 546831 3927 1.024611
+bodies_20k 4 sleepIslands 11086 11126 191 11015 11141 179 0.998654
+bodies_20k 4 solve 7017349 7066175 89116 6964492 7047745 118607 1.002615
+bodies_20k 4 solveImpulses 247012 247704 2125 232565 233648 2474 1.060159
+bodies_20k 4 solverSetup 2629 2748 290 2660 2708 135 1.014771
+bodies_20k 4 step 8550386 8623385 114994 8488496 8610975 168723 1.001441
+bodies_20k 4 storeImpulses 32717 33157 1071 32804 33043 859 1.003450
+bodies_20k 4 transforms 1031130 1035163 7480 1030840 1032515 3389 1.002565
+bodies_20k 4 warmStart 438348 445337 14483 430257 437271 8932 1.018446
+geomean_speedup 1.01344
+interleaved A/B done
+2.01 2.31 2.58 1/485 2631865
+
+===== WORKER COUNT PROOF =====
+thread count: 4
+HASH rain workers=4 915d36aa711691b0
+2631970 bash -c cd /home/nova/stella-locality-e21/candidate && nice -n 10 ./build/bin/benchmark -b=rain -w=4 -r=1 --steps=2 --hash | grep -E "^(thread count:|HASH )"; pgrep -af /bin/benchmark || true; cat /proc/loadavg
+1.33 2.12 2.51 1/487 2631978
+
+===== ORACLE zen4-oracle-1 =====
+  [narrow] rain workers=1
+  [narrow] rain workers=2
+  [narrow] rain workers=4
+  [narrow] large_pyramid workers=1
+  [narrow] large_pyramid workers=2
+  [narrow] large_pyramid workers=4
+  [narrow] many_pyramids workers=1
+  [narrow] many_pyramids workers=2
+  [narrow] many_pyramids workers=4
+  [ludicrous] rain workers=1
+  [ludicrous] rain workers=2
+  [ludicrous] rain workers=4
+  [ludicrous] large_pyramid workers=1
+  [ludicrous] large_pyramid workers=2
+  [ludicrous] large_pyramid workers=4
+  [ludicrous] many_pyramids workers=1
+  [ludicrous] many_pyramids workers=2
+  [ludicrous] many_pyramids workers=4
+ORACLE MISMATCH
+--- /dev/fd/63	2026-10-15 09:53:39.263711023 +0200
++++ /dev/fd/62	2026-10-15 09:53:39.263711023 +0200
+@@ -10,9 +10,9 @@
+ HASH many_pyramids workers=2 narrow a44faad65bd17db3
+ HASH many_pyramids workers=4 ludicrous a44faad65bd17db3
+ HASH many_pyramids workers=4 narrow a44faad65bd17db3
+-HASH rain workers=1 ludicrous d3e59885dbca43e1
+-HASH rain workers=1 narrow d3e59885dbca43e1
+-HASH rain workers=2 ludicrous d3e59885dbca43e1
+-HASH rain workers=2 narrow d3e59885dbca43e1
+-HASH rain workers=4 ludicrous d3e59885dbca43e1
+-HASH rain workers=4 narrow d3e59885dbca43e1
++HASH rain workers=1 ludicrous f96c9e008d59a375
++HASH rain workers=1 narrow f96c9e008d59a375
++HASH rain workers=2 ludicrous f96c9e008d59a375
++HASH rain workers=2 narrow f96c9e008d59a375
++HASH rain workers=4 ludicrous f96c9e008d59a375
++HASH rain workers=4 narrow f96c9e008d59a375
+
+===== ORACLE zen4-oracle-2 =====
+  [narrow] convex_pile workers=1
+  [narrow] convex_pile workers=2
+  [narrow] convex_pile workers=4
+  [narrow] joint_grid workers=1
+  [narrow] joint_grid workers=2
+  [narrow] joint_grid workers=4
+  [narrow] junkyard workers=1
+  [narrow] junkyard workers=2
+  [narrow] junkyard workers=4
+  [ludicrous] convex_pile workers=1
+  [ludicrous] convex_pile workers=2
+  [ludicrous] convex_pile workers=4
+  [ludicrous] joint_grid workers=1
+  [ludicrous] joint_grid workers=2
+  [ludicrous] joint_grid workers=4
+  [ludicrous] junkyard workers=1
+  [ludicrous] junkyard workers=2
+  [ludicrous] junkyard workers=4
+oracle check passed (narrow + ludicrous, workers 1/2/4)
+
+===== ORACLE zen4-oracle-3 =====
+  [narrow] large_world workers=1
+  [narrow] large_world workers=2
+  [narrow] large_world workers=4
+  [narrow] trees100 workers=1
+  [narrow] trees100 workers=2
+  [narrow] trees100 workers=4
+  [narrow] trees50 workers=1
+  [narrow] trees50 workers=2
+  [narrow] trees50 workers=4
+  [ludicrous] large_world workers=1
+  [ludicrous] large_world workers=2
+  [ludicrous] large_world workers=4
+  [ludicrous] trees100 workers=1
+  [ludicrous] trees100 workers=2
+  [ludicrous] trees100 workers=4
+  [ludicrous] trees50 workers=1
+  [ludicrous] trees50 workers=2
+  [ludicrous] trees50 workers=4
+oracle check passed (narrow + ludicrous, workers 1/2/4)
+
+===== ORACLE zen4-oracle-4 =====
+  [narrow] trees25 workers=1
+  [narrow] trees25 workers=2
+  [narrow] trees25 workers=4
+  [narrow] washer workers=1
+  [narrow] washer workers=2
+  [narrow] washer workers=4
+  [narrow] ragdoll_pile workers=1
+  [narrow] ragdoll_pile workers=2
+  [narrow] ragdoll_pile workers=4
+  [ludicrous] trees25 workers=1
+  [ludicrous] trees25 workers=2
+  [ludicrous] trees25 workers=4
+  [ludicrous] washer workers=1
+  [ludicrous] washer workers=2
+  [ludicrous] washer workers=4
+  [ludicrous] ragdoll_pile workers=1
+  [ludicrous] ragdoll_pile workers=2
+  [ludicrous] ragdoll_pile workers=4
+ORACLE MISMATCH
+--- /dev/fd/63	2026-10-15 09:56:10.339404321 +0200
++++ /dev/fd/62	2026-10-15 09:56:10.339404321 +0200
+@@ -1,9 +1,9 @@
+-HASH ragdoll_pile workers=1 ludicrous 4ac74cd9f1805daf
+-HASH ragdoll_pile workers=1 narrow 4ac74cd9f1805daf
+-HASH ragdoll_pile workers=2 ludicrous 4ac74cd9f1805daf
+-HASH ragdoll_pile workers=2 narrow 4ac74cd9f1805daf
+-HASH ragdoll_pile workers=4 ludicrous 4ac74cd9f1805daf
+-HASH ragdoll_pile workers=4 narrow 4ac74cd9f1805daf
++HASH ragdoll_pile workers=1 ludicrous 42fa9c6438e3527f
++HASH ragdoll_pile workers=1 narrow 42fa9c6438e3527f
++HASH ragdoll_pile workers=2 ludicrous 42fa9c6438e3527f
++HASH ragdoll_pile workers=2 narrow 42fa9c6438e3527f
++HASH ragdoll_pile workers=4 ludicrous 42fa9c6438e3527f
++HASH ragdoll_pile workers=4 narrow 42fa9c6438e3527f
+ HASH trees25 workers=1 ludicrous aab50c7a021e993d
+ HASH trees25 workers=1 narrow aab50c7a021e993d
+ HASH trees25 workers=2 ludicrous aab50c7a021e993d
+
+===== ORACLE zen4-oracle-5 =====
+  [narrow] bodies_20k workers=1
+  [narrow] bodies_20k workers=2
+  [narrow] bodies_20k workers=4
+  [ludicrous] bodies_20k workers=1
+  [ludicrous] bodies_20k workers=2
+  [ludicrous] bodies_20k workers=4
+ORACLE MISMATCH
+--- /dev/fd/63	2026-10-15 09:57:00.102286448 +0200
++++ /dev/fd/62	2026-10-15 09:57:00.102286448 +0200
+@@ -1,6 +1,6 @@
+-HASH bodies_20k workers=1 ludicrous 3e7cbde301a4f6c2
+-HASH bodies_20k workers=1 narrow 3e7cbde301a4f6c2
+-HASH bodies_20k workers=2 ludicrous 3e7cbde301a4f6c2
+-HASH bodies_20k workers=2 narrow 3e7cbde301a4f6c2
+-HASH bodies_20k workers=4 ludicrous 3e7cbde301a4f6c2
+-HASH bodies_20k workers=4 narrow 3e7cbde301a4f6c2
++HASH bodies_20k workers=1 ludicrous ed59e6aff81bcd26
++HASH bodies_20k workers=1 narrow ed59e6aff81bcd26
++HASH bodies_20k workers=2 ludicrous ed59e6aff81bcd26
++HASH bodies_20k workers=2 narrow ed59e6aff81bcd26
++HASH bodies_20k workers=4 ludicrous ed59e6aff81bcd26
++HASH bodies_20k workers=4 narrow ed59e6aff81bcd26
+
+===== ORACLE zen4-base-oracle-rain =====
+  [narrow] rain workers=1
+  [narrow] rain workers=2
+  [narrow] rain workers=4
+  [ludicrous] rain workers=1
+  [ludicrous] rain workers=2
+  [ludicrous] rain workers=4
+ORACLE MISMATCH
+--- /dev/fd/63	2026-10-15 09:54:03.793152517 +0200
++++ /dev/fd/62	2026-10-15 09:54:03.793152517 +0200
+@@ -1,6 +1,6 @@
+-HASH rain workers=1 ludicrous d3e59885dbca43e1
+-HASH rain workers=1 narrow d3e59885dbca43e1
+-HASH rain workers=2 ludicrous d3e59885dbca43e1
+-HASH rain workers=2 narrow d3e59885dbca43e1
+-HASH rain workers=4 ludicrous d3e59885dbca43e1
+-HASH rain workers=4 narrow d3e59885dbca43e1
++HASH rain workers=1 ludicrous f96c9e008d59a375
++HASH rain workers=1 narrow f96c9e008d59a375
++HASH rain workers=2 ludicrous f96c9e008d59a375
++HASH rain workers=2 narrow f96c9e008d59a375
++HASH rain workers=4 ludicrous f96c9e008d59a375
++HASH rain workers=4 narrow f96c9e008d59a375
+
+===== ORACLE zen4-base-oracle-ragdoll =====
+  [narrow] ragdoll_pile workers=1
+  [narrow] ragdoll_pile workers=2
+  [narrow] ragdoll_pile workers=4
+  [ludicrous] ragdoll_pile workers=1
+  [ludicrous] ragdoll_pile workers=2
+  [ludicrous] ragdoll_pile workers=4
+ORACLE MISMATCH
+--- /dev/fd/63	2026-10-15 09:56:35.411848642 +0200
++++ /dev/fd/62	2026-10-15 09:56:35.411848642 +0200
+@@ -1,6 +1,6 @@
+-HASH ragdoll_pile workers=1 ludicrous 4ac74cd9f1805daf
+-HASH ragdoll_pile workers=1 narrow 4ac74cd9f1805daf
+-HASH ragdoll_pile workers=2 ludicrous 4ac74cd9f1805daf
+-HASH ragdoll_pile workers=2 narrow 4ac74cd9f1805daf
+-HASH ragdoll_pile workers=4 ludicrous 4ac74cd9f1805daf
+-HASH ragdoll_pile workers=4 narrow 4ac74cd9f1805daf
++HASH ragdoll_pile workers=1 ludicrous 42fa9c6438e3527f
++HASH ragdoll_pile workers=1 narrow 42fa9c6438e3527f
++HASH ragdoll_pile workers=2 ludicrous 42fa9c6438e3527f
++HASH ragdoll_pile workers=2 narrow 42fa9c6438e3527f
++HASH ragdoll_pile workers=4 ludicrous 42fa9c6438e3527f
++HASH ragdoll_pile workers=4 narrow 42fa9c6438e3527f
+
+===== ORACLE zen4-base-oracle-bodies20k =====
+  [narrow] bodies_20k workers=1
+  [narrow] bodies_20k workers=2
+  [narrow] bodies_20k workers=4
+  [ludicrous] bodies_20k workers=1
+  [ludicrous] bodies_20k workers=2
+  [ludicrous] bodies_20k workers=4
+ORACLE MISMATCH
+--- /dev/fd/63	2026-10-15 09:57:25.956745149 +0200
++++ /dev/fd/62	2026-10-15 09:57:25.956745149 +0200
+@@ -1,6 +1,6 @@
+-HASH bodies_20k workers=1 ludicrous 3e7cbde301a4f6c2
+-HASH bodies_20k workers=1 narrow 3e7cbde301a4f6c2
+-HASH bodies_20k workers=2 ludicrous 3e7cbde301a4f6c2
+-HASH bodies_20k workers=2 narrow 3e7cbde301a4f6c2
+-HASH bodies_20k workers=4 ludicrous 3e7cbde301a4f6c2
+-HASH bodies_20k workers=4 narrow 3e7cbde301a4f6c2
++HASH bodies_20k workers=1 ludicrous ed59e6aff81bcd26
++HASH bodies_20k workers=1 narrow ed59e6aff81bcd26
++HASH bodies_20k workers=2 ludicrous ed59e6aff81bcd26
++HASH bodies_20k workers=2 narrow ed59e6aff81bcd26
++HASH bodies_20k workers=4 ludicrous ed59e6aff81bcd26
++HASH bodies_20k workers=4 narrow ed59e6aff81bcd26
+
+===== TEST zen4-candidate-test =====
+  subtest passed: ConstraintLayoutBitIdenticalTest
+test passed: DeterminismTest
+All Fixed3D tests passed!
+Test duration = 2.66 s
+exit=0
+
+===== TEST zen4-candidate-ludicrous-test =====
+  subtest passed: ConstraintLayoutBitIdenticalTest
+test passed: DeterminismTest
+All Fixed3D tests passed!
+Test duration = 5.73 s
+exit=0

@@ -1069,6 +1069,333 @@ static int ShapeMaterialStagingTest( void )
 	return 0;
 }
 
+// Oracle for b3ShapeCast against Box3D's stopping band. Two families:
+//   S: sphere (proxy A, radius rA) vs sphere (proxy B, radius rB), both proxied
+//      by a single point at the origin; the cast resolves the first fraction where
+//      the CORE distance |c0 + t*d| equals target = max(slop, totalRadius - slop).
+//   B: box (proxy A, 8 corners, radius 0) vs a point (proxy B, radius rB); the
+//      point drops onto the top face and resolves t = (c0.y - hy - target)/(-d.y).
+// Inputs are raw Q48.16 integers from a seeded xorshift64. The oracle runs in
+// double (libm) so fixed3d and the oracle see identical numbers, only the
+// algorithm differs. Hash is FNV-1a 64 over the raw int64 bytes of hit, fraction,
+// normal.xyz, point.xyz, iterations, in that order, per accepted case.
+// 2026-10-17 f3d2-gjk-progress-unshifted-distance-sq: GJK progress on the unshifted squared distance,
+// 0x5d08b7b17392bd08 -> 0x9d9b9e1c2c2f9d12 (gcc, clang, ludicrous).
+#define SCS_FNV_OFFSET UINT64_C( 14695981039346656037 )
+#define SCS_FNV_PRIME UINT64_C( 1099511628211 )
+#define SCS_SHAPE_CAST_HASH_GOLDEN UINT64_C( 0x9d9b9e1c2c2f9d12 )
+
+static uint64_t SCS_Next( uint64_t* state )
+{
+	uint64_t x = *state;
+	x ^= x << 13;
+	x ^= x >> 7;
+	x ^= x << 17;
+	*state = x;
+	return x;
+}
+
+static int64_t SCS_RawRange( uint64_t* state, int64_t lo, int64_t hi )
+{
+	uint64_t span = (uint64_t)( hi - lo ) + 1;
+	return lo + (int64_t)( SCS_Next( state ) % span );
+}
+
+static uint64_t SCS_FNVStep( uint64_t hash, uint64_t byte )
+{
+	return ( hash ^ byte ) * SCS_FNV_PRIME;
+}
+
+static uint64_t SCS_FNVValue( uint64_t hash, int64_t value )
+{
+	uint64_t bits = (uint64_t)value;
+	for ( int i = 0; i < 8; ++i )
+	{
+		hash = SCS_FNVStep( hash, bits & 255 );
+		bits >>= 8;
+	}
+	return hash;
+}
+
+static int64_t SCS_BoolAsInt64( bool b )
+{
+	return b ? 1 : 0;
+}
+
+static void SCS_HashOutput( uint64_t* hash, const b3CastOutput* out )
+{
+	*hash = SCS_FNVValue( *hash, SCS_BoolAsInt64( out->hit ) );
+	*hash = SCS_FNVValue( *hash, out->fraction );
+	*hash = SCS_FNVValue( *hash, out->normal.x );
+	*hash = SCS_FNVValue( *hash, out->normal.y );
+	*hash = SCS_FNVValue( *hash, out->normal.z );
+	*hash = SCS_FNVValue( *hash, out->point.x );
+	*hash = SCS_FNVValue( *hash, out->point.y );
+	*hash = SCS_FNVValue( *hash, out->point.z );
+	*hash = SCS_FNVValue( *hash, out->iterations );
+}
+
+static double SCS_AABBPointDist( double px, double py, double pz, double hx, double hy, double hz )
+{
+	double qx = fmax( fabs( px ) - hx, 0.0 );
+	double qy = fmax( fabs( py ) - hy, 0.0 );
+	double qz = fmax( fabs( pz ) - hz, 0.0 );
+	return sqrt( qx * qx + qy * qy + qz * qz );
+}
+
+static int ShapeCastSphereOracleTest( void )
+{
+	const double slop = b3FixToDouble( B3_LINEAR_SLOP );
+	const double tolerance = 0.25 * slop;
+	const double distBand = tolerance + 2.0e-4;
+	const double normalTol = 2.0e-3;
+
+	uint64_t hash = SCS_FNV_OFFSET;
+	double maxDistErr = 0.0;
+	double maxNormalErr = 0.0;
+
+	// Family S: sphere vs sphere.
+	{
+		uint64_t state = UINT64_C( 0x5EED0004 );
+		b3Vec3 origin = { 0, 0, 0 };
+		int accepted = 0;
+		while ( accepted < 128 )
+		{
+			b3Fixed rA = SCS_RawRange( &state, 3277, 32768 );
+			b3Fixed rB = SCS_RawRange( &state, 3277, 32768 );
+			b3Vec3 c0;
+			c0.x = SCS_RawRange( &state, -196608, 196608 );
+			c0.y = SCS_RawRange( &state, -196608, 196608 );
+			c0.z = SCS_RawRange( &state, -196608, 196608 );
+
+			double c0x = b3FixToDouble( c0.x );
+			double c0y = b3FixToDouble( c0.y );
+			double c0z = b3FixToDouble( c0.z );
+			double dc0 = sqrt( c0x * c0x + c0y * c0y + c0z * c0z );
+			double rAd = b3FixToDouble( rA );
+			double rBd = b3FixToDouble( rB );
+			if ( dc0 <= rAd + rBd + 0.1 )
+			{
+				continue;
+			}
+
+			int64_t sum = (int64_t)rA + (int64_t)rB;
+			int64_t lim = sum * 3 / 10;
+			b3Vec3 aim;
+			aim.x = SCS_RawRange( &state, -lim, lim );
+			aim.y = SCS_RawRange( &state, -lim, lim );
+			aim.z = SCS_RawRange( &state, -lim, lim );
+			b3Fixed s = SCS_RawRange( &state, 78643, 131072 );
+
+			b3Vec3 d;
+			d.x = b3FixMul( (b3Fixed)( (int64_t)aim.x - (int64_t)c0.x ), s );
+			d.y = b3FixMul( (b3Fixed)( (int64_t)aim.y - (int64_t)c0.y ), s );
+			d.z = b3FixMul( (b3Fixed)( (int64_t)aim.z - (int64_t)c0.z ), s );
+
+			double totalRadius = rAd + rBd;
+			double target = fmax( slop, totalRadius - slop );
+
+			double dx = b3FixToDouble( d.x );
+			double dy = b3FixToDouble( d.y );
+			double dz = b3FixToDouble( d.z );
+			double A = dx * dx + dy * dy + dz * dz;
+			if ( A <= 0.0 )
+			{
+				continue;
+			}
+			double B = 2.0 * ( c0x * dx + c0y * dy + c0z * dz );
+			double C = c0x * c0x + c0y * c0y + c0z * c0z - target * target;
+			double disc = B * B - 4.0 * A * C;
+			if ( disc < 0.0 )
+			{
+				continue;
+			}
+			double sd = sqrt( disc );
+			double t1 = ( -B - sd ) / ( 2.0 * A );
+			double t2 = ( -B + sd ) / ( 2.0 * A );
+			double tbest = 2.0;
+			if ( t1 >= 0.0 && t1 <= 1.0 && t1 < tbest )
+			{
+				tbest = t1;
+			}
+			if ( t2 >= 0.0 && t2 <= 1.0 && t2 < tbest )
+			{
+				tbest = t2;
+			}
+			if ( tbest > 1.0 )
+			{
+				continue;
+			}
+			double t = tbest;
+
+			double px = c0x + t * dx;
+			double py = c0y + t * dy;
+			double pz = c0z + t * dz;
+			double pl = sqrt( px * px + py * py + pz * pz );
+			if ( pl <= 1.0e-12 )
+			{
+				continue;
+			}
+			double nx = px / pl;
+			double ny = py / pl;
+			double nz = pz / pl;
+
+			b3ShapeCastPairInput input;
+			input.proxyA = (b3ShapeProxy){ &origin, 1, rA };
+			input.proxyB = (b3ShapeProxy){ &origin, 1, rB };
+			input.transform = b3Transform_identity;
+			input.transform.p = c0;
+			input.translationB = d;
+			input.maxFraction = B3_FIX( 1.0f );
+			input.canEncroach = false;
+
+			b3CastOutput out = b3ShapeCast( &input );
+
+			ENSURE( out.hit );
+
+			double f = b3FixToDouble( out.fraction );
+			double Px = c0x + f * dx;
+			double Py = c0y + f * dy;
+			double Pz = c0z + f * dz;
+			double D = sqrt( Px * Px + Py * Py + Pz * Pz );
+			double distErr = fabs( D - target );
+			if ( distErr > maxDistErr )
+			{
+				maxDistErr = distErr;
+			}
+			ENSURE( distErr <= distBand );
+
+			double onx = b3FixToDouble( out.normal.x );
+			double ony = b3FixToDouble( out.normal.y );
+			double onz = b3FixToDouble( out.normal.z );
+			double normalErr = fmax( fabs( onx - nx ), fmax( fabs( ony - ny ), fabs( onz - nz ) ) );
+			if ( normalErr > maxNormalErr )
+			{
+				maxNormalErr = normalErr;
+			}
+			ENSURE( normalErr <= normalTol );
+
+			SCS_HashOutput( &hash, &out );
+			++accepted;
+		}
+	}
+
+	// Family B: box vs point onto the top face.
+	{
+		uint64_t state = UINT64_C( 0x5EED0005 );
+		b3Vec3 bp = { 0, 0, 0 };
+		int accepted = 0;
+		while ( accepted < 128 )
+		{
+			b3Fixed hx = SCS_RawRange( &state, 13107, 131072 );
+			b3Fixed hy = SCS_RawRange( &state, 13107, 131072 );
+			b3Fixed hz = SCS_RawRange( &state, 13107, 131072 );
+			b3Fixed rB = SCS_RawRange( &state, 3277, 32768 );
+
+			int64_t qx = (int64_t)hx * 4 / 5;
+			int64_t qz = (int64_t)hz * 4 / 5;
+			b3Fixed aimx = SCS_RawRange( &state, -qx, qx );
+			b3Fixed aimz = SCS_RawRange( &state, -qz, qz );
+			b3Fixed aimy = hy;
+
+			b3Fixed H = SCS_RawRange( &state, 13107, 131072 );
+			int64_t olim = (int64_t)H * 3 / 10;
+			b3Fixed ox = SCS_RawRange( &state, -olim, olim );
+			b3Fixed oz = SCS_RawRange( &state, -olim, olim );
+
+			b3Vec3 c0;
+			c0.x = (b3Fixed)( (int64_t)aimx + (int64_t)ox );
+			c0.y = (b3Fixed)( (int64_t)aimy + (int64_t)H );
+			c0.z = (b3Fixed)( (int64_t)aimz + (int64_t)oz );
+
+			b3Fixed s = SCS_RawRange( &state, 72090, 98304 );
+			b3Vec3 d;
+			d.x = b3FixMul( (b3Fixed)( (int64_t)aimx - (int64_t)c0.x ), s );
+			d.y = b3FixMul( (b3Fixed)( (int64_t)aimy - (int64_t)c0.y ), s );
+			d.z = b3FixMul( (b3Fixed)( (int64_t)aimz - (int64_t)c0.z ), s );
+
+			double hxd = b3FixToDouble( hx );
+			double hyd = b3FixToDouble( hy );
+			double hzd = b3FixToDouble( hz );
+			double rBd = b3FixToDouble( rB );
+			double target = fmax( slop, rBd - slop );
+
+			double c0y = b3FixToDouble( c0.y );
+			double dy = b3FixToDouble( d.y );
+			if ( dy >= 0.0 )
+			{
+				continue;
+			}
+			double t = ( c0y - hyd - target ) / ( -dy );
+			if ( t < 0.0 || t > 1.0 )
+			{
+				continue;
+			}
+			double px = b3FixToDouble( c0.x ) + t * b3FixToDouble( d.x );
+			double pz = b3FixToDouble( c0.z ) + t * b3FixToDouble( d.z );
+			if ( fabs( px ) > hxd || fabs( pz ) > hzd )
+			{
+				continue;
+			}
+
+			b3Vec3 corners[8];
+			corners[0] = (b3Vec3){ hx, hy, hz };
+			corners[1] = (b3Vec3){ hx, hy, -hz };
+			corners[2] = (b3Vec3){ hx, -hy, hz };
+			corners[3] = (b3Vec3){ hx, -hy, -hz };
+			corners[4] = (b3Vec3){ -hx, hy, hz };
+			corners[5] = (b3Vec3){ -hx, hy, -hz };
+			corners[6] = (b3Vec3){ -hx, -hy, hz };
+			corners[7] = (b3Vec3){ -hx, -hy, -hz };
+
+			b3ShapeCastPairInput input;
+			input.proxyA = (b3ShapeProxy){ corners, 8, 0 };
+			input.proxyB = (b3ShapeProxy){ &bp, 1, rB };
+			input.transform = b3Transform_identity;
+			input.transform.p = c0;
+			input.translationB = d;
+			input.maxFraction = B3_FIX( 1.0f );
+			input.canEncroach = false;
+
+			b3CastOutput out = b3ShapeCast( &input );
+
+			ENSURE( out.hit );
+
+			double f = b3FixToDouble( out.fraction );
+			double Px = b3FixToDouble( c0.x ) + f * b3FixToDouble( d.x );
+			double Py = b3FixToDouble( c0.y ) + f * b3FixToDouble( d.y );
+			double Pz = b3FixToDouble( c0.z ) + f * b3FixToDouble( d.z );
+			double D = SCS_AABBPointDist( Px, Py, Pz, hxd, hyd, hzd );
+			double distErr = fabs( D - target );
+			if ( distErr > maxDistErr )
+			{
+				maxDistErr = distErr;
+			}
+			ENSURE( distErr <= distBand );
+
+			double onx = b3FixToDouble( out.normal.x );
+			double ony = b3FixToDouble( out.normal.y );
+			double onz = b3FixToDouble( out.normal.z );
+			double normalErr = fmax( fabs( onx ), fmax( fabs( ony - 1.0 ), fabs( onz ) ) );
+			if ( normalErr > maxNormalErr )
+			{
+				maxNormalErr = normalErr;
+			}
+			ENSURE( normalErr <= normalTol );
+
+			SCS_HashOutput( &hash, &out );
+			++accepted;
+		}
+	}
+
+	printf( "  ShapeCastSphereOracleTest hash=0x%016llx\n", (unsigned long long)hash );
+	printf( "  ShapeCastSphereOracleTest max distance error = %g, max normal error = %g\n", maxDistErr, maxNormalErr );
+
+	ENSURE( hash == SCS_SHAPE_CAST_HASH_GOLDEN );
+
+	return 0;
+}
+
 int ShapeTest( void )
 {
 	box = b3MakeBoxHull( B3_FIX( 1.0f ), B3_FIX( 1.0f ), B3_FIX( 1.0f ) );
@@ -1098,6 +1425,7 @@ int ShapeTest( void )
 
 	RUN_SUBTEST( RayCastOverlapConventionTest );
 	RUN_SUBTEST( RayCastFarOriginTest );
+	RUN_SUBTEST( ShapeCastSphereOracleTest );
 
 	return 0;
 }
