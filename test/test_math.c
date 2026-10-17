@@ -5,8 +5,10 @@
 #include "utils.h"
 #include "test_macros.h"
 
+#include <float.h>
 #include <math.h>
 #include <stdio.h>
+#include <string.h>
 
 // The minimax polynomial is accurate to 0.0023 degrees (4e-5 radians); add the
 // Q48.16 output resolution (1.5e-5) on top.
@@ -320,6 +322,152 @@ static int RandomQuatTest( void )
 	b3Quat b = b3MakeRandomQuat( RandomFixedSource, &stateB );
 	ENSURE( a.v.x == b.v.x && a.v.y == b.v.y && a.v.z == b.v.z && a.s == b.s );
 
+	return 0;
+}
+
+// ProxySupportOracleTest: oracle for b3GetProxySupport against a double argmax.
+// All names here use PSO prefix to avoid collisions with sibling cards.
+static b3Fixed PSORandomFixed( void* context )
+{
+	uint64_t* state = (uint64_t*)context;
+	uint64_t x = *state;
+	x ^= x << 13;
+	x ^= x >> 7;
+	x ^= x << 17;
+	*state = x;
+	return (b3Fixed)( (int64_t)( x % ( 2 * 65536 + 1 ) ) - 65536 );
+}
+
+static void PSOFillPoints( b3Vec3* points, int count, uint64_t* state )
+{
+	for ( int i = 0; i < count; ++i )
+	{
+		points[i].x = PSORandomFixed( state );
+		points[i].y = PSORandomFixed( state );
+		points[i].z = PSORandomFixed( state );
+	}
+}
+
+// FNV-1a 64-bit hash
+static uint64_t PSOFNV1a( const uint8_t* data, size_t len )
+{
+	uint64_t hash = 0xcbf29ce484222325ULL;
+	for ( size_t i = 0; i < len; ++i )
+	{
+		hash ^= data[i];
+		hash *= 0x100000001b3ULL;
+	}
+	return hash;
+}
+
+static int ProxySupportOracleTest( void )
+{
+	uint64_t state = 0x5EED0001ULL;
+	int64_t strictCount = 0;
+	int64_t closeCount = 0;
+	uint8_t hashData[8];
+	uint64_t finalHash = 0xcbf29ce484222325ULL;
+	const double tolerance = 4.0 / 65536.0;  // 4 * B3_FIXED_EPSILON in double
+	
+	for ( int trial = 0; trial < 1000; ++trial )
+	{
+		// count in [1, 32]
+		int count = 1 + (int)( state % 32 );
+		
+		// Points with each component raw in [-4.0, 4.0] = [-262144, 262144]
+		b3Fixed pointsRaw[32][3];
+		for ( int i = 0; i < count; ++i )
+		{
+			state ^= state << 13;
+			state ^= state >> 7;
+			state ^= state << 17;
+			b3Fixed r = (b3Fixed)( (int64_t)( state % 524289 ) - 262144 );
+			pointsRaw[i][0] = r;
+			state ^= state << 13;
+			state ^= state >> 7;
+			state ^= state << 17;
+			r = (b3Fixed)( (int64_t)( state % 524289 ) - 262144 );
+			pointsRaw[i][1] = r;
+			state ^= state << 13;
+			state ^= state >> 7;
+			state ^= state << 17;
+			r = (b3Fixed)( (int64_t)( state % 524289 ) - 262144 );
+			pointsRaw[i][2] = r;
+		}
+		
+		// axis components raw in [-1.0, 1.0] = [-65536, 65536]
+		state ^= state << 13;
+		state ^= state >> 7;
+		state ^= state << 17;
+		b3Fixed ax = (b3Fixed)( (int64_t)( state % 131073 ) - 65536 );
+		state ^= state << 13;
+		state ^= state >> 7;
+		state ^= state << 17;
+		b3Fixed ay = (b3Fixed)( (int64_t)( state % 131073 ) - 65536 );
+		state ^= state << 13;
+		state ^= state >> 7;
+		state ^= state << 17;
+		b3Fixed az = (b3Fixed)( (int64_t)( state % 131073 ) - 65536 );
+		
+		// skip when all three are 0 raw
+		if ( ax == 0 && ay == 0 && az == 0 )
+			continue;
+		
+		// Fixed implementation
+		int fixedIdx = b3GetPointSupport( (const b3Vec3*)pointsRaw, count, (b3Vec3){ ax, ay, az } );
+		
+		// Oracle: compute dots in double
+		double bestDot = -1e300;
+		int oracleIdx = 0;
+		for ( int i = 0; i < count; ++i )
+		{
+			double dot = b3FixToDouble( pointsRaw[i][0] ) * b3FixToDouble( ax ) +
+					 b3FixToDouble( pointsRaw[i][1] ) * b3FixToDouble( ay ) +
+					 b3FixToDouble( pointsRaw[i][2] ) * b3FixToDouble( az );
+			if ( dot > bestDot )
+			{
+				bestDot = dot;
+				oracleIdx = i;
+			}
+		}
+		
+		// Compute runner-up dot
+		double runnerUpDot = -1e300;
+		for ( int i = 0; i < count; ++i )
+		{
+			if ( i == oracleIdx ) continue;
+			double dot = b3FixToDouble( pointsRaw[i][0] ) * b3FixToDouble( ax ) +
+					 b3FixToDouble( pointsRaw[i][1] ) * b3FixToDouble( ay ) +
+					 b3FixToDouble( pointsRaw[i][2] ) * b3FixToDouble( az );
+			if ( dot > runnerUpDot )
+				runnerUpDot = dot;
+		}
+		
+		double fixedDot = b3FixToDouble( pointsRaw[fixedIdx][0] ) * b3FixToDouble( ax ) +
+				   b3FixToDouble( pointsRaw[fixedIdx][1] ) * b3FixToDouble( ay ) +
+				   b3FixToDouble( pointsRaw[fixedIdx][2] ) * b3FixToDouble( az );
+		
+		// Check conditions
+		if ( bestDot - runnerUpDot > tolerance )
+		{
+			if ( fixedIdx == oracleIdx )
+				strictCount++;
+		}
+		else
+		{
+			if ( fabs( fixedDot - bestDot ) <= tolerance )
+				closeCount++;
+		}
+		
+		// Hash field: returned index as int64
+		int64_t idx64 = (int64_t)fixedIdx;
+		memcpy( hashData, &idx64, 8 );
+		finalHash = PSOFNV1a( hashData, 8 );
+	}
+	
+	printf( "  ProxySupportOracleTest hash=0x%016llx\n", (unsigned long long)finalHash );
+	printf( "  strict=%lld close=%lld\n", (long long)strictCount, (long long)closeCount );
+	
 	return 0;
 }
 
@@ -829,6 +977,7 @@ int MathTest( void )
 	RUN_SUBTEST( Quat30Test );
 	RUN_SUBTEST( SmoothingTest );
 	RUN_SUBTEST( RandomQuatTest );
+	RUN_SUBTEST( ProxySupportOracleTest );
 
 	return 0;
 }
