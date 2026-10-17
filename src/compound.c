@@ -302,13 +302,13 @@ b3CompoundData* b3CreateCompound( const b3CompoundDef* def )
 
 	// Instances
 	int capsuleCount = def->capsuleCount;
-	b3CompoundCapsule* capsuleInstances = b3AllocZeroed( capsuleCount * sizeof( b3CompoundCapsule ) );
+	b3CompoundCapsule* capsuleInstances = b3AllocZero( capsuleCount * sizeof( b3CompoundCapsule ) );
 	int hullCount = def->hullCount;
-	b3HullInstance* hullInstances = b3AllocZeroed( hullCount * sizeof( b3HullInstance ) );
+	b3HullInstance* hullInstances = b3AllocZero( hullCount * sizeof( b3HullInstance ) );
 	int meshCount = def->meshCount;
-	b3MeshInstance* meshInstances = b3AllocZeroed( meshCount * sizeof( b3MeshInstance ) );
+	b3MeshInstance* meshInstances = b3AllocZero( meshCount * sizeof( b3MeshInstance ) );
 	int sphereCount = def->sphereCount;
-	b3CompoundSphere* sphereInstances = b3AllocZeroed( sphereCount * sizeof( b3CompoundSphere ) );
+	b3CompoundSphere* sphereInstances = b3AllocZero( sphereCount * sizeof( b3CompoundSphere ) );
 
 	// Determine material capacity
 	int materialCapacity = convexCount;
@@ -322,11 +322,11 @@ b3CompoundData* b3CreateCompound( const b3CompoundDef* def )
 	b3MaterialMap materialMap;
 	b3MaterialMap_init( &materialMap );
 	b3MaterialMap_reserve( &materialMap, materialCapacity );
-	b3SurfaceMaterial* materials = b3AllocZeroed( materialCapacity * sizeof( b3SurfaceMaterial ) );
+	b3SurfaceMaterial* materials = b3AllocZero( materialCapacity * sizeof( b3SurfaceMaterial ) );
 	int materialCount = 0;
 
 	int meshMaterialTotal = materialCapacity - convexCount;
-	uint16_t* meshMaterialStaging = b3AllocZeroed( meshMaterialTotal * sizeof( uint16_t ) );
+	uint16_t* meshMaterialStaging = b3AllocZero( meshMaterialTotal * sizeof( uint16_t ) );
 	int meshMaterialCursor = 0;
 
 	for ( int i = 0; i < def->capsuleCount; ++i )
@@ -356,7 +356,7 @@ b3CompoundData* b3CreateCompound( const b3CompoundDef* def )
 	}
 
 	// Hulls
-	b3SharedHull* sharedHulls = b3AllocZeroed( hullCount * sizeof( b3SharedHull ) );
+	b3SharedHull* sharedHulls = b3AllocZero( hullCount * sizeof( b3SharedHull ) );
 	int sharedHullCount = 0;
 
 	if ( hullCount > 0 )
@@ -413,7 +413,7 @@ b3CompoundData* b3CreateCompound( const b3CompoundDef* def )
 	}
 
 	// Meshes
-	b3SharedMesh* sharedMeshes = b3AllocZeroed( meshCount * sizeof( b3SharedMesh ) );
+	b3SharedMesh* sharedMeshes = b3AllocZero( meshCount * sizeof( b3SharedMesh ) );
 	int sharedMeshCount = 0;
 
 	if ( meshCount > 0 )

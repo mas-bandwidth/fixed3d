@@ -181,6 +181,10 @@ typedef struct b3World
 	// This follows the shape array and is split out for the hot path in the narrow phase.
 	b3Array( b3AABB ) fatAABBs;
 
+	// Compound shapes are static only, so only the broad-phase static pass can meet one. This
+	// lets a world without compounds skip the shape type read in the pair batch.
+	int compoundShapeCount;
+
 	// Reference counted store of shared hull data keyed by content. Shapes hold a
 	// pointer to the hull stored in the db. Type erased to avoid leaking the verstable map
 	// type into this header.
