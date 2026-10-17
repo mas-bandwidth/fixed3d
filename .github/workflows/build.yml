@@ -46,7 +46,7 @@ jobs:
             msvc: true
             config: RelWithDebInfo
             args: -T ClangCL
-            test: ./bin/RelWithDebInfo/test
+            test: './bin/RelWithDebInfo/test CoreMathTest; echo "coremath exit=$LASTEXITCODE"; ./bin/RelWithDebInfo/test; echo "all exit=$LASTEXITCODE"; exit $LASTEXITCODE'
           - name: macos-relwithdebinfo
             os: macos-latest
             config: RelWithDebInfo
