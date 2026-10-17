@@ -46,6 +46,22 @@ None. A patch goes in `patches/` (see the README there), is applied by the scrip
 recorded here with its reason and the proof that it equals unpatched CORE-MATH over the
 dense sets.
 
+## Build flags (not patches)
+
+The vendored files are unpatched. One compiler flag is added for one configuration:
+
+- **ClangCL on x86 / x64: `-msse4.1` for these files only** (test/CMakeLists.txt). `sin.c`
+  calls `__builtin_roundeven`; below SSE4.1 clang lowers it to a call to the C23 function
+  `roundeven`, which the Windows CRT does not provide, so `box3d_test` failed to link
+  (`lld-link : error : undefined symbol: roundeven`, referenced by `sin.c:917`, run
+  39071830800). With SSE4.1 it inlines as `roundsd` with mode 8, which is the same exact
+  round-half-to-even. Proof, on hulk 2026-10-17, gcc and clang, `-O2 -std=gnu17
+  -ffp-contract=off`, with and without `-msse4.1`: an FNV-1a hash of the bits of cr_sin,
+  cr_cos, cr_exp2 (every raw in [-2^24, 2^24] / 65536), cr_log2 (the positive ones), cr_atan2
+  (2^24 fixed-seed xorshift64 pairs of raws in +-2^47), then 2^24 random finite doubles
+  through all five, is identical in all four builds
+  (`6c7d32d48aa94c67`, `be20d0153987dee7`, `b03679d34a3f93a5`).
+
 ## How the files are fetched
 
 One by one from `https://gitlab.inria.fr/core-math/core-math/-/raw/<pin>/<path>`, then
