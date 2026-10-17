@@ -45,11 +45,14 @@
 // moves the ragdoll again: 354 -> 408 (narrow 0xD8C71580 -> 0x69572D49, ludicrous
 // 0xD13E51C0 -> 0x7D29E209). Re-harvested on this bench by the printed-value procedure,
 // identical across workers 1-5 and across two generation runs.
+// 2026-10-17 f3d2-gjk-progress-unshifted-distance-sq: GJK progress on the unshifted squared distance moves the
+// ragdoll hash, sleep step unchanged at 408 (narrow 0x69572D49 -> 0x19EBA929 in gcc and
+// clang, ludicrous 0x7D29E209 -> 0x830FA1E9).
 #define RAGDOLL_SLEEP_STEP 408
 #if defined( BOX3D_LUDICROUS_MODE )
-#define RAGDOLL_HASH 0x7D29E209
+#define RAGDOLL_HASH 0x830FA1E9
 #else
-#define RAGDOLL_HASH 0x69572D49
+#define RAGDOLL_HASH 0x19EBA929
 #endif
 
 // Goldens for the wave pile, query spawn and mesh drop scenarios. Fixed-point goldens
@@ -67,19 +70,23 @@
 // 335 -> 285 (narrow 0x64609ED9 -> 0x3FFAE5C7, ludicrous 0x22E6F859 -> 0xC247A287).
 // It also moves the query spawn hash (sleep step 243, hits and query hash unchanged):
 // narrow 0x250D3BFA -> 0x0E4B940B, ludicrous 0xC3538B7A -> 0xBE2E5C8B.
-#define WAVE_PILE_SLEEP_STEP 285
+// 2026-10-17 f3d2-gjk-progress-unshifted-distance-sq: GJK progress on the unshifted
+// squared distance moves wave pile 285 -> 254 (narrow 0x3FFAE5C7 -> 0x73C1E14F,
+// ludicrous 0xC247A287 -> 0x4826048F) and mesh drop 284 -> 243 (narrow 0x784AD80A ->
+// 0x1B648591, ludicrous 0xE44E6A0E -> 0x671B4A99).
+#define WAVE_PILE_SLEEP_STEP 254
 #define QUERY_SPAWN_SLEEP_STEP 243
 #define QUERY_SPAWN_HIT_COUNT 59
 #define QUERY_SPAWN_QUERY_HASH 0xE583B246
-#define MESH_DROP_SLEEP_STEP 284
+#define MESH_DROP_SLEEP_STEP 243
 #if defined( BOX3D_LUDICROUS_MODE )
-#define WAVE_PILE_HASH 0xC247A287
+#define WAVE_PILE_HASH 0x4826048F
 #define QUERY_SPAWN_HASH 0xBE2E5C8B
-#define MESH_DROP_HASH 0xE44E6A0E
+#define MESH_DROP_HASH 0x671B4A99
 #else
-#define WAVE_PILE_HASH 0x3FFAE5C7
+#define WAVE_PILE_HASH 0x73C1E14F
 #define QUERY_SPAWN_HASH 0x0E4B940B
-#define MESH_DROP_HASH 0x784AD80A
+#define MESH_DROP_HASH 0x1B648591
 #endif
 
 // Re-rigged single ragdoll (box3d 954cf87) dropped on a ground box. Harvested
