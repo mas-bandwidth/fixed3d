@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 #include "benchmarks.h"
+#include "dynamic_tree.h"
 #include "overflow_color.h"
 #include "body.h"
 #include "contact.h"
@@ -1623,7 +1624,7 @@ static int SleepingWorldTreeJoinTest( void )
 	ENSURE( task.callback == NULL && task.finished == 1 );
 	b3World* world = b3GetWorldFromId( worldId );
 	b3DynamicTree* tree = world->broadPhase.trees + b3_dynamicBody;
-	ENSURE( ( tree->nodes[tree->root].flags & b3_enlargedNode ) != 0 );
+	ENSURE( b3HasTreeMoved( tree ) );
 	for ( int i = 0; i < 2; ++i )
 	{
 		b3Body_SetAwake( bodies[i], false );
@@ -1631,7 +1632,7 @@ static int SleepingWorldTreeJoinTest( void )
 	b3World_Step( worldId, dt, 1 );
 	ENSURE( task.callback == NULL && task.finished == 2 );
 	ENSURE( world->userTreeTask == NULL && world->activeTaskCount == 0 );
-	ENSURE( ( tree->nodes[tree->root].flags & b3_enlargedNode ) == 0 );
+	ENSURE( b3HasTreeMoved( tree ) == false );
 	ENSURE( b3Body_IsAwake( bodies[0] ) == false && b3Body_IsAwake( bodies[1] ) == false );
 	b3DestroyWorld( worldId );
 	return 0;
@@ -1715,13 +1716,13 @@ static int TestMassDataInvalidatesContactCache( void )
 	return 0;
 }
 
-static int CountEnlargedNodes( const b3DynamicTree* tree )
+static int CountMovedNodes( const b3DynamicTree* tree )
 {
 	int count = 0;
-	for ( int i = 0; i < tree->nodeCapacity; ++i )
+	for ( int i = 0; i < tree->nodeEnd; ++i )
 	{
 		const b3TreeNode* node = tree->nodes + i;
-		if ( ( node->flags & b3_allocatedNode ) != 0 && ( node->flags & b3_enlargedNode ) != 0 )
+		if ( b3IsEmptyNode( node ) == false && b3IsNodeMoved( node ) )
 		{
 			count += 1;
 		}
@@ -1765,17 +1766,20 @@ static int TestEnlargedProxyDestroyed( void )
 	b3Fixed timeStep = b3FixDiv( B3_FIXED_ONE, b3FixFromInt( 60 ) );
 	b3World_Step( worldId, timeStep, 4 );
 
-	ENSURE( CountEnlargedNodes( tree ) > 0 );
+	ENSURE( CountMovedNodes( tree ) > 0 );
 
 	b3DestroyBody( moverId );
 
-	// The mover was the only proxy in the move buffer
-	ENSURE( world->broadPhase.moveArray.count == 0 );
-	ENSURE( CountEnlargedNodes( tree ) > 0 );
+	// Removing the leaf re-derives the marks along its path, so the tree is already consistent
+	// here and nothing is left marked to drive a rebuild. What the destroy can still leave
+	// stale is the DFS order the sweep refit needs, so the step has to rebuild regardless.
+	b3DynamicTree_Validate( tree );
+	ENSURE( CountMovedNodes( tree ) == 0 );
 
 	b3World_Step( worldId, timeStep, 4 );
 
-	ENSURE( CountEnlargedNodes( tree ) == 0 );
+	ENSURE( CountMovedNodes( tree ) == 0 );
+	ENSURE( tree->dfsOrdered );
 
 	b3DestroyWorld( worldId );
 	return 0;

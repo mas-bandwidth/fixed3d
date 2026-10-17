@@ -1527,7 +1527,7 @@ void b3Solve( b3World* world, b3StepContext* stepContext )
 			world->userTreeTask = NULL;
 			world->activeTaskCount -= 1;
 		}
-		b3ValidateNoEnlarged( &world->broadPhase );
+		b3ValidateNoMoved( &world->broadPhase );
 		return;
 	}
 
@@ -2259,7 +2259,7 @@ void b3Solve( b3World* world, b3StepContext* stepContext )
 			world->activeTaskCount -= 1;
 		}
 
-		b3ValidateNoEnlarged( &world->broadPhase );
+		b3ValidateNoMoved( &world->broadPhase );
 
 		// Gather bits for all sim bodies that have enlarged AABBs
 		b3BitSet* enlargedBodyBitSet = &world->taskContexts.data[0].enlargedSimBitSet;

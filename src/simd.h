@@ -5,6 +5,9 @@
 
 #include "core.h"
 
+#include "box3d/math_functions.h"
+#include "box3d/types.h"
+
 #include <stdbool.h>
 
 
@@ -199,3 +202,53 @@ static inline bool b3TestBoundsRayOverlap( b3V32 nodeMin, b3V32 nodeMax, b3V32 r
 
 bool b3TestBoundsTriangleOverlap( b3V32 nodeCenter, b3V32 nodeExtent, b3V32 vertex1, b3V32 vertex2, b3V32 vertex3 );
 b3Fixed b3IntersectRayTriangle( b3V32 rayStart, b3V32 rayDelta, b3V32 vertex1, b3V32 vertex2, b3V32 vertex3 );
+
+// Broad-phase box helpers (box3d f555ee4). Upstream has Neon and SSE2 kernels over float lanes
+// and a scalar fallback; fixed3d has only the scalar form, on integers, through the b3AABB
+// helpers so the 128-bit ludicrous bounds compare portably. Integer compares and min/max are
+// exact, so the scalar form is the deterministic one on every compiler and architecture.
+typedef b3AABB b3AABBV;
+
+B3_FORCE_INLINE b3AABBV b3LoadAABBV( const b3AABB* aabb )
+{
+	return *aabb;
+}
+
+B3_FORCE_INLINE bool b3OverlapAABBV( b3AABBV a, b3AABBV b )
+{
+	return b3AABB_Overlaps( a, b );
+}
+
+B3_FORCE_INLINE bool b3OverlapNode( b3AABBV av, const b3TreeNode* node )
+{
+	return b3OverlapAABBV( av, node->aabb );
+}
+
+B3_FORCE_INLINE bool b3OverlapV( const b3AABB* a, const b3AABB* b )
+{
+	return b3OverlapAABBV( *a, *b );
+}
+
+B3_FORCE_INLINE b3AABBV b3UnionAABBV( b3AABBV a, b3AABBV b )
+{
+	return b3AABB_Union( a, b );
+}
+
+B3_FORCE_INLINE b3AABBV b3UnionPairV( const b3TreeNode* pair )
+{
+	return b3AABB_Union( pair[0].aabb, pair[1].aabb );
+}
+
+// Conditionally store an AABB.
+B3_FORCE_INLINE void b3StoreAABBV( b3AABB* aabb, b3AABBV value, bool condition )
+{
+	if ( condition )
+	{
+		*aabb = value;
+	}
+}
+
+B3_FORCE_INLINE b3AABB b3UnionV( b3AABB a, b3AABB b )
+{
+	return b3AABB_Union( a, b );
+}

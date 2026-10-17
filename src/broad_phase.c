@@ -531,13 +531,13 @@ void b3ValidateBroadPhase( const b3BroadPhase* bp )
 	// todo validate every shape AABB is contained in tree AABB
 }
 
-void b3ValidateNoEnlarged( const b3BroadPhase* bp )
+void b3ValidateNoMoved( const b3BroadPhase* bp )
 {
 #if B3_ENABLE_VALIDATION == 1
 	for ( int j = 0; j < b3_bodyTypeCount; ++j )
 	{
 		const b3DynamicTree* tree = bp->trees + j;
-		b3DynamicTree_ValidateNoEnlarged( tree );
+		b3DynamicTree_ValidateNoMoved( tree );
 	}
 #else
 	B3_UNUSED( bp );
