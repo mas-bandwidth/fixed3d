@@ -185,6 +185,21 @@ hull by construction (the shared generator point list is quantized to Q48.16 at
 the `b3FixFromDouble` boundary), which is why its observable is the resting
 height and contact count, not the transform trace.
 
+### Known divergence
+
+A scene may carry one comment line of the exact form
+`# known-divergence: <upstream-sha> <one-line reason>`. The harness reads it and,
+when present, labels that scene's test `known-divergence` instead of `reference`
+and sets `WILL_FAIL TRUE`: `ctest -L reference` no longer runs it, and `ctest -L
+known-divergence` passes only while the scene still fails. The three scenes below
+carry the line for upstream `f555ee4` (Optimize Broad-Phase, #159): fixed3d has
+not ported it yet, and against float box3d `a2e4816` the measured errors exceed the
+stated tolerances (box_stack vel 0.0305 vs tol 0.03; pendulum_chain rot 0.0143 vs
+tol 0.0123 and angvel 0.597 vs tol 0.421; ref-954cf87-collide-connected-false rot
+0.00643 vs tol 0.0002 and angvel 0.625 vs tol 0.0005), while all three pass against
+float box3d `954cf87`. When `f555ee4` is ported the scenes pass, the
+known-divergence tests go red, and the porter deletes the line; nothing is hidden.
+
 ## Compound, mesh, snapshot, and point-set directives
 
 These directives use the same public APIs in both drivers. A baked compound and a
