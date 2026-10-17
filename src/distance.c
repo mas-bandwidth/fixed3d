@@ -806,8 +806,9 @@ b3DistanceOutput b3ShapeDistance( const b3DistanceInput* input, b3SimplexCache* 
 
 	b3DistanceOutput distanceOutput = { 0 };
 
-	// Keep track of squared distance
-	b3Fixed distanceSq = B3_FIXED_MAX;
+	// Keep track of squared distance, unshifted (Q32.32 in 128 bits) so a gain under one
+	// Q48.16 ulp still counts as progress
+	b3Int128 distanceSqRaw = (b3Int128)B3_FIXED_MAX << B3_FIXED_FRACTION_BITS;
 
 	b3Vec3 normal = b3Vec3_zero;
 
@@ -880,7 +881,7 @@ b3DistanceOutput b3ShapeDistance( const b3DistanceInput* input, b3SimplexCache* 
 		}
 
 		// Assure distance progression
-		b3Fixed oldDistanceSq = distanceSq;
+		b3Int128 oldDistanceSqRaw = distanceSqRaw;
 
 		// Compute closest point
 		b3Vec3 closestPoint = { 0 };
@@ -909,9 +910,9 @@ b3DistanceOutput b3ShapeDistance( const b3DistanceInput* input, b3SimplexCache* 
 				break;
 		}
 
-		distanceSq = b3Dot( closestPoint, closestPoint );
+		distanceSqRaw = b3DotRaw( closestPoint, closestPoint );
 
-		if ( distanceSq >= oldDistanceSq )
+		if ( distanceSqRaw >= oldDistanceSqRaw )
 		{
 			// No progress - reconstruct last simplex
 			B3_ASSERT( backup.count != 0 );
