@@ -11,6 +11,7 @@
 # Tolerance: twice the measured maximum divergence on this bench against float box3d
 #   at 954cf87 (pos 2.98e-5, rot 7.04e-5, vel 7.12e-5, angvel 2.29e-4; contact count
 #   exact). Values below 8*B3_FIXED_EPSILON are floored to it.
+# known-divergence: f555ee4 sorted pair keys swap shape A and B; passes vs float 954cf87
 expect pos 0.0002 rot 0.0002 vel 0.0005 horizon 3 counts exact
 world gravity 0 0 0 dt 1 60 substeps 4 steps 3
 body dynamic position 0 0 0 rotation 0 0 0 1 linvel 0 0 0 angvel 0 0 0

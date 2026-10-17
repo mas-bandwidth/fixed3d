@@ -1,4 +1,5 @@
 # Five boxes stacked vertically, settling into a stable pile.
+# known-divergence: f555ee4 sorted pair keys swap shape A and B; passes vs float 954cf87
 expect pos 0.007 rot 0.001 vel 0.03 horizon 120 counts 10
 world gravity 0 -10 0 dt 1 60 substeps 4 steps 120
 body static position 0 -0.5 0 rotation 0 0 0 1 linvel 0 0 0 angvel 0 0 0

@@ -98,5 +98,17 @@ endfunction()
 file(GLOB BOX3D_REFERENCE_SCENES ${CMAKE_CURRENT_SOURCE_DIR}/scenes/*.scene)
 foreach(scene_file ${BOX3D_REFERENCE_SCENES})
 	get_filename_component(scene_name ${scene_file} NAME_WE)
-	ref_add_scene(${scene_name} ${BOX3D_REFERENCE_REV})
+	file(STRINGS ${scene_file} known_divergence_lines REGEX "^# known-divergence: ")
+	if(NOT "${known_divergence_lines}" STREQUAL "")
+		add_test(NAME reference_${scene_name}
+			COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/run_reference.sh
+				${BOX3D_REFERENCE_REV}
+				${scene_file})
+		set_tests_properties(reference_${scene_name} PROPERTIES
+			LABELS known-divergence
+			WILL_FAIL TRUE
+			ENVIRONMENT "REFERENCE_BIN_DIR=$<TARGET_FILE_DIR:ref_compare>")
+	else()
+		ref_add_scene(${scene_name} ${BOX3D_REFERENCE_REV})
+	endif()
 endforeach()
