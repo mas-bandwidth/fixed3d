@@ -137,6 +137,20 @@ if(MSVC)
     endif()
 else()
     target_compile_options(box3d_core_math PRIVATE -w -ffp-contract=off)
+    # MinGW gcc on x86/x64 also lowers __builtin_roundeven (sin.c, exp2.c) to a call to the C23
+    # roundeven, which the Windows UCRT does not have (ld: undefined reference). -msse4.1 inlines
+    # it as roundsd mode 8, the ClangCL fix above; gcc with and without it is bit-equal over the
+    # dense sets (extern/core-math/NOTES.md, Build flags).
+    if(MINGW AND CMAKE_SYSTEM_PROCESSOR MATCHES "AMD64|x86_64|X86|x86")
+        target_compile_options(box3d_core_math PRIVATE -msse4.1)
+    endif()
+    # Emscripten's wasm fenv.h has no floating-point exception flags, so atan2.c's FE_OVERFLOW,
+    # FE_UNDERFLOW and FE_INEXACT are undeclared. Defined as 0 they ask for no flag, which is what
+    # wasm gives anyway; the flags only drive errno, never a returned value. Emscripten is
+    # build-only in extended.yml.
+    if(EMSCRIPTEN)
+        target_compile_definitions(box3d_core_math PRIVATE FE_INEXACT=0 FE_UNDERFLOW=0 FE_OVERFLOW=0)
+    endif()
 endif()
 target_link_libraries(box3d_test PRIVATE box3d_core_math)
 

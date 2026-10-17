@@ -48,7 +48,7 @@ dense sets.
 
 ## Build flags (not patches)
 
-The vendored files are unpatched. One compiler flag is added for one configuration:
+The vendored files are unpatched. Compiler flags are added for three configurations:
 
 - **ClangCL on x86 / x64: `-msse4.1` for these files only** (test/CMakeLists.txt). `sin.c`
   calls `__builtin_roundeven`; below SSE4.1 clang lowers it to a call to the C23 function
@@ -61,6 +61,16 @@ The vendored files are unpatched. One compiler flag is added for one configurati
   (2^24 fixed-seed xorshift64 pairs of raws in +-2^47), then 2^24 random finite doubles
   through all five, is identical in all four builds
   (`6c7d32d48aa94c67`, `be20d0153987dee7`, `b03679d34a3f93a5`).
+- **MinGW gcc on x86 / x64: `-msse4.1` for these files only**, for the same reason. gcc
+  lowers `__builtin_roundeven` in `sin.c` and `exp2.c` to a call to `roundeven`, which the
+  UCRT does not provide (`undefined reference to roundeven`, extended checks run
+  39078986458). The gcc builds with and without the flag are the two gcc builds of the proof
+  above.
+- **Emscripten: `FE_INEXACT=0 FE_UNDERFLOW=0 FE_OVERFLOW=0` for these files only.** The wasm
+  `fenv.h` has no floating-point exception flags, so `atan2.c` did not compile (`use of
+  undeclared identifier 'FE_OVERFLOW'`, run 39078986458). With 0 the `fetestexcept` and
+  `feclearexcept` calls ask for no flag, which matches wasm; in `atan2.c` the flags only
+  decide errno, never a returned value. extended.yml builds Emscripten but never runs it.
 
 ## How the files are fetched
 
