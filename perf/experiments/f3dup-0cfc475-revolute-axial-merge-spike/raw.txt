@@ -1,0 +1,435 @@
+f3dup-0cfc475-revolute-axial-merge-spike raw test output
+Branch: sprint/f3dup-0cfc475-revolute-axial-merge-spike.w1.g1.e21
+Base: 820dbc7f3fd00c331c42b4aaf55d5cfddbccb806
+Patch: merged revolute axial solve (spring+motor+limit) in b3SolveRevoluteJoint
+
+Build matrix: build-gcc / build-lud-gcc / build-clang / build-lud-clang (RelWithDebInfo + VALIDATE + Werror, BOX3D_LUDICROUS_MODE for -lud-)
+
+################################################################
+## DeterminismTest -- build-gcc
+################################################################
+Starting Fixed3D unit tests
+Filter: DeterminismTest
+======================================
+test skipped: AllocatorTest
+test skipped: BitTest
+test skipped: BodyTest
+test skipped: BodyQueryTest
+test skipped: CollisionTest
+test skipped: CompoundTest
+test skipped: ContainerTest
+  ragdoll-human workers=1 sleepStep=0 hash=0x00000000
+condition false: data.sleepStep == 219
+condition false: result == 0
+  subtest failed: RagdollHumanTest
+test failed: DeterminismTest
+
+################################################################
+## PerfStateHashGoldenTest -- build-gcc (exit 0)
+################################################################
+Starting Fixed3D unit tests
+Filter: PerfStateHashGoldenTest
+======================================
+test skipped: AllocatorTest
+test skipped: BitTest
+test skipped: BodyTest
+test skipped: BodyQueryTest
+test skipped: CollisionTest
+test skipped: CompoundTest
+test skipped: ContainerTest
+test skipped: DeterminismTest
+test skipped: DistanceTest
+test skipped: HashTest
+test skipped: HeightFieldTest
+test skipped: HullTest
+test skipped: IdTest
+test skipped: JointTest
+test skipped: LargeWorldTest
+test skipped: ManifoldTest
+test skipped: MeshTest
+test skipped: MathTest
+test skipped: MoverTest
+test skipped: NameCacheTest
+  perf state hash (1 worker) = c4f45e4c6b5534e6
+  perf state hash (4 worker) = c4f45e4c6b5534e6
+  subtest passed: PerfStateHashGolden
+test passed: PerfStateHashGoldenTest
+test skipped: RecordingTest
+test skipped: RestitutionTest
+test skipped: ShapeTest
+test skipped: TableTest
+test skipped: WorldTest
+======================================
+All Fixed3D tests passed!
+Test duration = 0.00 s
+
+################################################################
+## JointTest -- build-gcc (exit 0)
+################################################################
+Starting Fixed3D unit tests
+Filter: JointTest
+======================================
+test skipped: AllocatorTest
+test skipped: BitTest
+test skipped: BodyTest
+test skipped: BodyQueryTest
+test skipped: CollisionTest
+test skipped: CompoundTest
+test skipped: ContainerTest
+test skipped: DeterminismTest
+test skipped: DistanceTest
+test skipped: HashTest
+test skipped: HeightFieldTest
+test skipped: HullTest
+test skipped: IdTest
+  subtest passed: TestCreateJointClearsContacts
+  subtest passed: TestJointInverseScaleCorrection
+  subtest passed: TestParallelJoint
+  subtest passed: TestParallelJointSentinelTorqueCap
+  subtest passed: TestDistanceJoint
+  subtest passed: TestFilterJoint
+  subtest passed: TestMotorJoint
+  subtest passed: TestPrismaticJoint
+  subtest passed: TestRevoluteJoint
+  subtest passed: TestSphericalJoint
+  subtest passed: TestWeldJoint
+  subtest passed: TestWheelJoint
+  subtest passed: TestNonDynamicJointDisable
+test passed: JointTest
+test skipped: LargeWorldTest
+test skipped: ManifoldTest
+test skipped: MeshTest
+test skipped: MathTest
+test skipped: MoverTest
+test skipped: NameCacheTest
+test skipped: PerfStateHashGoldenTest
+test skipped: RecordingTest
+test skipped: RestitutionTest
+test skipped: ShapeTest
+test skipped: TableTest
+test skipped: WorldTest
+======================================
+All Fixed3D tests passed!
+Test duration = 0.00 s
+
+################################################################
+## DeterminismTest -- build-lud-gcc
+################################################################
+Starting Fixed3D unit tests
+Filter: DeterminismTest
+======================================
+test skipped: AllocatorTest
+test skipped: BitTest
+test skipped: BodyTest
+test skipped: BodyQueryTest
+test skipped: CollisionTest
+test skipped: CompoundTest
+test skipped: ContainerTest
+  ragdoll-human workers=1 sleepStep=0 hash=0x00000000
+condition false: data.sleepStep == 219
+condition false: result == 0
+  subtest failed: RagdollHumanTest
+test failed: DeterminismTest
+
+################################################################
+## PerfStateHashGoldenTest -- build-lud-gcc (exit 0)
+################################################################
+Starting Fixed3D unit tests
+Filter: PerfStateHashGoldenTest
+======================================
+test skipped: AllocatorTest
+test skipped: BitTest
+test skipped: BodyTest
+test skipped: BodyQueryTest
+test skipped: CollisionTest
+test skipped: CompoundTest
+test skipped: ContainerTest
+test skipped: DeterminismTest
+test skipped: DistanceTest
+test skipped: HashTest
+test skipped: HeightFieldTest
+test skipped: HullTest
+test skipped: IdTest
+test skipped: JointTest
+test skipped: LargeWorldTest
+test skipped: ManifoldTest
+test skipped: MeshTest
+test skipped: MathTest
+test skipped: MoverTest
+test skipped: NameCacheTest
+  perf state hash (1 worker) = c4f45e4c6b5534e6
+  perf state hash (4 worker) = c4f45e4c6b5534e6
+  subtest passed: PerfStateHashGolden
+test passed: PerfStateHashGoldenTest
+test skipped: RecordingTest
+test skipped: RestitutionTest
+test skipped: ShapeTest
+test skipped: TableTest
+test skipped: WorldTest
+======================================
+All Fixed3D tests passed!
+Test duration = 0.00 s
+
+################################################################
+## JointTest -- build-lud-gcc (exit 0)
+################################################################
+Starting Fixed3D unit tests
+Filter: JointTest
+======================================
+test skipped: AllocatorTest
+test skipped: BitTest
+test skipped: BodyTest
+test skipped: BodyQueryTest
+test skipped: CollisionTest
+test skipped: CompoundTest
+test skipped: ContainerTest
+test skipped: DeterminismTest
+test skipped: DistanceTest
+test skipped: HashTest
+test skipped: HeightFieldTest
+test skipped: HullTest
+test skipped: IdTest
+  subtest passed: TestCreateJointClearsContacts
+  subtest passed: TestJointInverseScaleCorrection
+  subtest passed: TestParallelJoint
+  subtest passed: TestParallelJointSentinelTorqueCap
+  subtest passed: TestDistanceJoint
+  subtest passed: TestFilterJoint
+  subtest passed: TestMotorJoint
+  subtest passed: TestPrismaticJoint
+  subtest passed: TestRevoluteJoint
+  subtest passed: TestSphericalJoint
+  subtest passed: TestWeldJoint
+  subtest passed: TestWheelJoint
+  subtest passed: TestNonDynamicJointDisable
+test passed: JointTest
+test skipped: LargeWorldTest
+test skipped: ManifoldTest
+test skipped: MeshTest
+test skipped: MathTest
+test skipped: MoverTest
+test skipped: NameCacheTest
+test skipped: PerfStateHashGoldenTest
+test skipped: RecordingTest
+test skipped: RestitutionTest
+test skipped: ShapeTest
+test skipped: TableTest
+test skipped: WorldTest
+======================================
+All Fixed3D tests passed!
+Test duration = 0.00 s
+
+################################################################
+## DeterminismTest -- build-clang
+################################################################
+Starting Fixed3D unit tests
+Filter: DeterminismTest
+======================================
+test skipped: AllocatorTest
+test skipped: BitTest
+test skipped: BodyTest
+test skipped: BodyQueryTest
+test skipped: CollisionTest
+test skipped: CompoundTest
+test skipped: ContainerTest
+  ragdoll-human workers=1 sleepStep=0 hash=0x00000000
+condition false: data.sleepStep == 219
+condition false: result == 0
+  subtest failed: RagdollHumanTest
+test failed: DeterminismTest
+
+################################################################
+## PerfStateHashGoldenTest -- build-clang (exit 0)
+################################################################
+Starting Fixed3D unit tests
+Filter: PerfStateHashGoldenTest
+======================================
+test skipped: AllocatorTest
+test skipped: BitTest
+test skipped: BodyTest
+test skipped: BodyQueryTest
+test skipped: CollisionTest
+test skipped: CompoundTest
+test skipped: ContainerTest
+test skipped: DeterminismTest
+test skipped: DistanceTest
+test skipped: HashTest
+test skipped: HeightFieldTest
+test skipped: HullTest
+test skipped: IdTest
+test skipped: JointTest
+test skipped: LargeWorldTest
+test skipped: ManifoldTest
+test skipped: MeshTest
+test skipped: MathTest
+test skipped: MoverTest
+test skipped: NameCacheTest
+  perf state hash (1 worker) = c4f45e4c6b5534e6
+  perf state hash (4 worker) = c4f45e4c6b5534e6
+  subtest passed: PerfStateHashGolden
+test passed: PerfStateHashGoldenTest
+test skipped: RecordingTest
+test skipped: RestitutionTest
+test skipped: ShapeTest
+test skipped: TableTest
+test skipped: WorldTest
+======================================
+All Fixed3D tests passed!
+Test duration = 0.00 s
+
+################################################################
+## JointTest -- build-clang (exit 0)
+################################################################
+Starting Fixed3D unit tests
+Filter: JointTest
+======================================
+test skipped: AllocatorTest
+test skipped: BitTest
+test skipped: BodyTest
+test skipped: BodyQueryTest
+test skipped: CollisionTest
+test skipped: CompoundTest
+test skipped: ContainerTest
+test skipped: DeterminismTest
+test skipped: DistanceTest
+test skipped: HashTest
+test skipped: HeightFieldTest
+test skipped: HullTest
+test skipped: IdTest
+  subtest passed: TestCreateJointClearsContacts
+  subtest passed: TestJointInverseScaleCorrection
+  subtest passed: TestParallelJoint
+  subtest passed: TestParallelJointSentinelTorqueCap
+  subtest passed: TestDistanceJoint
+  subtest passed: TestFilterJoint
+  subtest passed: TestMotorJoint
+  subtest passed: TestPrismaticJoint
+  subtest passed: TestRevoluteJoint
+  subtest passed: TestSphericalJoint
+  subtest passed: TestWeldJoint
+  subtest passed: TestWheelJoint
+  subtest passed: TestNonDynamicJointDisable
+test passed: JointTest
+test skipped: LargeWorldTest
+test skipped: ManifoldTest
+test skipped: MeshTest
+test skipped: MathTest
+test skipped: MoverTest
+test skipped: NameCacheTest
+test skipped: PerfStateHashGoldenTest
+test skipped: RecordingTest
+test skipped: RestitutionTest
+test skipped: ShapeTest
+test skipped: TableTest
+test skipped: WorldTest
+======================================
+All Fixed3D tests passed!
+Test duration = 0.00 s
+
+################################################################
+## DeterminismTest -- build-lud-clang
+################################################################
+Starting Fixed3D unit tests
+Filter: DeterminismTest
+======================================
+test skipped: AllocatorTest
+test skipped: BitTest
+test skipped: BodyTest
+test skipped: BodyQueryTest
+test skipped: CollisionTest
+test skipped: CompoundTest
+test skipped: ContainerTest
+  ragdoll-human workers=1 sleepStep=0 hash=0x00000000
+condition false: data.sleepStep == 219
+condition false: result == 0
+  subtest failed: RagdollHumanTest
+test failed: DeterminismTest
+
+################################################################
+## PerfStateHashGoldenTest -- build-lud-clang (exit 0)
+################################################################
+Starting Fixed3D unit tests
+Filter: PerfStateHashGoldenTest
+======================================
+test skipped: AllocatorTest
+test skipped: BitTest
+test skipped: BodyTest
+test skipped: BodyQueryTest
+test skipped: CollisionTest
+test skipped: CompoundTest
+test skipped: ContainerTest
+test skipped: DeterminismTest
+test skipped: DistanceTest
+test skipped: HashTest
+test skipped: HeightFieldTest
+test skipped: HullTest
+test skipped: IdTest
+test skipped: JointTest
+test skipped: LargeWorldTest
+test skipped: ManifoldTest
+test skipped: MeshTest
+test skipped: MathTest
+test skipped: MoverTest
+test skipped: NameCacheTest
+  perf state hash (1 worker) = c4f45e4c6b5534e6
+  perf state hash (4 worker) = c4f45e4c6b5534e6
+  subtest passed: PerfStateHashGolden
+test passed: PerfStateHashGoldenTest
+test skipped: RecordingTest
+test skipped: RestitutionTest
+test skipped: ShapeTest
+test skipped: TableTest
+test skipped: WorldTest
+======================================
+All Fixed3D tests passed!
+Test duration = 0.00 s
+
+################################################################
+## JointTest -- build-lud-clang (exit 0)
+################################################################
+Starting Fixed3D unit tests
+Filter: JointTest
+======================================
+test skipped: AllocatorTest
+test skipped: BitTest
+test skipped: BodyTest
+test skipped: BodyQueryTest
+test skipped: CollisionTest
+test skipped: CompoundTest
+test skipped: ContainerTest
+test skipped: DeterminismTest
+test skipped: DistanceTest
+test skipped: HashTest
+test skipped: HeightFieldTest
+test skipped: HullTest
+test skipped: IdTest
+  subtest passed: TestCreateJointClearsContacts
+  subtest passed: TestJointInverseScaleCorrection
+  subtest passed: TestParallelJoint
+  subtest passed: TestParallelJointSentinelTorqueCap
+  subtest passed: TestDistanceJoint
+  subtest passed: TestFilterJoint
+  subtest passed: TestMotorJoint
+  subtest passed: TestPrismaticJoint
+  subtest passed: TestRevoluteJoint
+  subtest passed: TestSphericalJoint
+  subtest passed: TestWeldJoint
+  subtest passed: TestWheelJoint
+  subtest passed: TestNonDynamicJointDisable
+test passed: JointTest
+test skipped: LargeWorldTest
+test skipped: ManifoldTest
+test skipped: MeshTest
+test skipped: MathTest
+test skipped: MoverTest
+test skipped: NameCacheTest
+test skipped: PerfStateHashGoldenTest
+test skipped: RecordingTest
+test skipped: RestitutionTest
+test skipped: ShapeTest
+test skipped: TableTest
+test skipped: WorldTest
+======================================
+All Fixed3D tests passed!
+Test duration = 0.00 s
+
