@@ -105,7 +105,10 @@ result times 65536, rounded by llrint in round-to-nearest-even); errors in Q48.1
 
 CORE-MATH is GNU C (`__int128` / `_BitInt(128)`, GNU inline asm under `__x86_64__` and
 `__aarch64__`, `#pragma STDC FENV_ACCESS`). It is built unpatched on every CI
-configuration in `.github/workflows/build.yml` and `extended.yml`. If a compiler ever cannot
+configuration in `.github/workflows/build.yml` and `extended.yml`. ClangCL on x64 adds
+`-msse4.1` for the CORE-MATH files only, so `__builtin_roundeven` inlines instead of calling
+the C23 `roundeven` the Windows CRT lacks; the flag is proven bit-equal over the dense sets
+(`extern/core-math/NOTES.md`, Build flags). If a compiler ever cannot
 build a file, the order of preference is the smallest patch under
 `extern/core-math/patches/`, applied by the revendor script and proven equal to unpatched
 CORE-MATH over the dense sets; only failing that are the rows compiled out under that

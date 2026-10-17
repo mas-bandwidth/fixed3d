@@ -127,6 +127,13 @@ if(MSVC)
     target_compile_options(box3d_core_math PRIVATE /w)
     if(CMAKE_C_COMPILER_ID MATCHES "Clang")
         target_compile_options(box3d_core_math PRIVATE /clang:-ffp-contract=off)
+        # sin.c calls __builtin_roundeven. Below SSE4.1 clang lowers it to a call to the C23
+        # roundeven, which the Windows CRT does not have (lld-link: undefined symbol). SSE4.1
+        # inlines it as roundsd mode 8, the same exact ties-to-even result. Proven bit-equal to
+        # the baseline build over the dense sets (extern/core-math/NOTES.md, Build flags).
+        if(CMAKE_SYSTEM_PROCESSOR MATCHES "AMD64|x86_64|X86|x86")
+            target_compile_options(box3d_core_math PRIVATE /clang:-msse4.1)
+        endif()
     endif()
 else()
     target_compile_options(box3d_core_math PRIVATE -w -ffp-contract=off)
