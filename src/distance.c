@@ -964,7 +964,8 @@ b3DistanceOutput b3ShapeDistance( const b3DistanceInput* input, b3SimplexCache* 
 				break;
 		}
 
-		if ( b3LengthSquared( searchDirection ) < 0 )
+		// The 64-bit length squared wraps for directions above about 2^39 raw; the test means exact zero.
+		if ( searchDirection.x == 0 && searchDirection.y == 0 && searchDirection.z == 0 )
 		{
 			// The origin is probably contained by a line segment or triangle.
 			// Thus the shapes are overlapped.

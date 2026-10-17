@@ -708,6 +708,9 @@ The PORT RECORDs below run newest first and are the detail for each step.
   whole trajectory, so origin moves change only the hash, never the sleep step.
   Any solver-affecting change invalidates these, see the test conventions
   section for how to regenerate.
+  fixed3d-gjk-search-direction-overflow held all goldens in both builds: the
+  fix changes only an exact-zero test in b3ShapeDistance's GJK search direction,
+  and the determinism corpus never hits the large-coordinate wrap.
 - **Scene origin invariant (2026-07-14, from Glenn: "we should always work
   there"; moved to 120,000 km the same day to match vanilla-double's maximum
   world — a ±120,000 km cube with ~1 m float-broadphase padding, per Erin —

@@ -131,8 +131,32 @@ static int LongEdgeDistanceTest( void )
 	return 0;
 }
 
+static int LargeCoordinateDistanceTest( void )
+{
+	// GJK never reports overlap for separated proxies at large local coordinates.
+	for ( int li = 6; li <= 12; ++li )
+	{
+		for ( int di = 4; di <= 12; ++di )
+		{
+			int l = 1 << li;
+			int d = 1 << di;
+			b3Vec3 seg[2] = { { 0, 0, 0 }, { b3FixFromInt( l ), 0, 0 } };
+			b3Vec3 point = { b3FixFromInt( l / 2 ) + 12345, b3FixFromInt( d ) + 777, b3FixFromInt( 3 ) };
+			b3DistanceInput input = { 0 };
+			input.proxyA = (b3ShapeProxy){ seg, 2, 0 };
+			input.proxyB = (b3ShapeProxy){ &point, 1, 0 };
+			input.transform = b3Transform_identity;
+			b3SimplexCache cache = { 0 };
+			b3DistanceOutput output = b3ShapeDistance( &input, &cache, NULL, 0 );
+			ENSURE( output.distance >= b3FixFromInt( d ) );
+		}
+	}
+	return 0;
+}
+
 int DistanceTest( void )
 {
+	RUN_SUBTEST( LargeCoordinateDistanceTest );
 	RUN_SUBTEST( LongEdgeDistanceTest );
 	RUN_SUBTEST( SegmentDistanceTest );
 	RUN_SUBTEST( ShapeDistanceTest );
