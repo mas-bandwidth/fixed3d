@@ -250,7 +250,7 @@ void b3CreateContact( b3World* world, b3Shape* shapeA, b3Shape* shapeB, int chil
 	}
 
 	// Disabling speculative collision also disables recycling.
-	if ( ( bodyA->flags & b3_bodyEnableContactRecycling ) != 0 && ( bodyB->flags & b3_bodyEnableContactRecycling ) != 0 &&
+	if ( ( bodyA->flags & b3_enableContactRecycling ) != 0 && ( bodyB->flags & b3_enableContactRecycling ) != 0 &&
 		 ( contact->flags & b3_enableSpeculativePoints ) != 0 )
 	{
 		contact->flags |= b3_contactRecycleFlag;
