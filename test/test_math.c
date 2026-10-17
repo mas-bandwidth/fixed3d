@@ -535,6 +535,7 @@ typedef struct PSOFailure
 {
 	b3Vec3 points[32];
 	b3Vec3 axis;
+	int caseIndex;
 	int count;
 	int fixedIndex;
 	int oracleIndex;
@@ -592,7 +593,7 @@ static int ProxySupportOracleTest( void )
 			continue;
 
 		b3Vec3 axis = { ax, ay, az };
-		b3ShapeProxy proxy = { points, count, B3_FIX( 0.0f ) };
+		b3ShapeProxy proxy = { points, count, 0 };
 		int fixedIdx = b3GetProxySupport( &proxy, axis );
 
 		// Oracle: every dot in double, first maximum wins a tie.
@@ -660,6 +661,7 @@ static int ProxySupportOracleTest( void )
 			for ( int i = 0; i < count; ++i )
 				failure.points[i] = points[i];
 			failure.axis = axis;
+			failure.caseIndex = trial;
 			failure.count = count;
 			failure.fixedIndex = fixedIdx;
 			failure.oracleIndex = oracleIdx;
@@ -695,8 +697,8 @@ static int ProxySupportOracleTest( void )
 		for ( int i = 0; i < worstCount; ++i )
 		{
 			const PSOFailure* f = &worst[i];
-			printf( "    case %d: count=%d axis=(%lld,%lld,%lld) fixed=%d oracle=%d error=%.9g\n", i,
-					f->count, (long long)f->axis.x, (long long)f->axis.y, (long long)f->axis.z,
+			printf( "    case %d (trial %d): count=%d axis=(%lld,%lld,%lld) fixed=%d oracle=%d error=%.9g\n", i,
+					f->caseIndex, f->count, (long long)f->axis.x, (long long)f->axis.y, (long long)f->axis.z,
 					f->fixedIndex, f->oracleIndex, f->error );
 			printf( "      points:" );
 			for ( int j = 0; j < f->count; ++j )
