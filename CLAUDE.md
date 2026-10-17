@@ -14,7 +14,8 @@ Steps are landed one branch at a time; a cursor clause of the form *advances wit
 struck by the run that merges it, per the `fixed3d#21` / `fixed3d#46` discipline below.
 **`fixed3d#65` was CLOSED by Glenn on 2026-10-15 ("Plan executed in part"):** steps 1, 3+4, 7, 12,
 13+14 and the harvest of 15 are on this branch, each with its PORT RECORD below; the still-open
-steps (`f555ee4` in two parts after its TLA+ model, merged here as `5bfa76c` on 2026-10-16;
+steps (`f555ee4` in two parts after its TLA+ model, merged here as `5bfa76c` on 2026-10-16,
+now ported on `port/f555ee4-broadphase`, see its PORT RECORD below;
 `51f056e`'s world byte count; `16f7f4c` in two steps) are items of `docs/roadmap.sexp` on `main`,
 where planned work lives since 2026-10-14. Read the roadmap, not the closed issue, for what is owed.
 
@@ -86,6 +87,47 @@ and says *closed*. Record below.)*
 
 The PORT RECORDs below run newest first and are the detail for each step.
 
+- **PORT RECORD f555ee4 "Optimize Broad-Phase (#159)" (2026-10-17) — PORTED, engine half, on
+  `port/f555ee4-broadphase` against this branch; CARRIED AHEAD OF THE CURSOR when it merges here.**
+  The plan, the fixed-point replacements and the commit order are in
+  `porting/f555ee4-broadphase.md`; the model is `tla/BroadPhaseTree.tla` (#70). **(1) Tree:**
+  paired nodes `{ aabb, flagIndex, height|shapeIndex }` (leaf bit 31, moved bit 30), root 0,
+  empty sentinel 1, parents and `b3TreeProxy` split out, pair and proxy free lists, DFS rebuild
+  into a spare, sweep refit, atomic `MarkProxyMoved`. No float: costs are `b3Fixed`, the box
+  helpers are the scalar integer form on `b3AABB_Overlaps` / `b3AABB_Union` (the Neon and SSE2
+  float kernels are not taken), the empty node is the inverted extreme of the bound type (128-bit
+  in ludicrous mode) and is only compared and unioned, the `B3_HUGE` size checks compare half
+  extents, and a node is 56 bytes narrow / 112 ludicrous with an explicit zero `padding[2]`.
+  **(2) Broad-phase:** the move buffer is gone; pairs come from the moved sibling pairs of the
+  dynamic tree and breadth-first cross seeds against the static and kinematic trees, each
+  candidate ordered `shapeIdA = min( ids )`, culled and filtered in batches of 32, collected per
+  worker and SORTED before contacts are created. **This is the A/B swap** the reference survey
+  found: shape A of a new contact is now the lower shape index. **(3) Solver:** finalize and
+  continuous mark only grown fat boxes (into `world->fatAABBs`, the fork's split array), the tree
+  task joins before finalize, kinematic and dynamic trees refit, bullets enlarge after.
+  **(4) Compound blob:** dense baked tree (`nodeCount == 2 * childCount`) and a proxy array at
+  `proxyOffset`, which replaces `root`; the validator checks the pair layout (empty node 1 only,
+  no move marks, proxy back pointers, child pairs above the parent so no cycle, heights);
+  `B3_COMPOUND_VERSION` changes. The blob stays pointer free, so the 003a3f7 crash recorded below
+  is still unreachable. **(5) Snapshot** 6 -> 7 (tree format, `b3TreeProxy` in the layout hash,
+  compound census, move buffer dropped); recording counters unchanged (no op changed).
+  **(6) H-H from 79fc559 LANDS WITH IT, as the 9e5a4cd record below requires:** a full rebuild
+  keeps move marks, so `b3World_RebuildStaticTree` keeps pending static pairs;
+  `test_broad_phase.c` brings `StaticRebuildKeepsMarks` and the brute-force pair set stress test
+  (one seed, 120 steps, three configurations; `BROAD_PHASE_STRESS_FULL` runs upstream's sweep).
+  **SKIPPED:** benchmark csv/main, `shared/benchmarks.*`, `sample_benchmark.cpp`, samples
+  CMake (no simulation content); `sample_tree.cpp` IS ported (it must build). **GOLDENS** (own
+  commit, gcc and clang, Debug and RelWithDebInfo, narrow and ludicrous, workers 1-5 identical):
+  ragdoll 408 -> 507 (MultithreadingTest step limit 500 -> 600), wave pile 335 -> 367, ragdoll
+  human 219 -> 189, query spawn query hash only, PerfStateHashGolden; mesh drop unchanged.
+  `RestingTest` XPASSed (peak 0.061 -> 0.025 m/s, bound 0.05) and is a plain measurement now;
+  the deadband card stays open (upstream reads 0.00002). **REFERENCE:** `ctest -L reference`
+  34/34 at `BOX3D_REFERENCE_REV=a2e4816` (base: 31/34, box_stack, pendulum_chain and
+  ref-954cf87-collide-connected-false failing); at `f555ee4` the three pass and the four scenes
+  that measure later upstream features (79fc559, 9e5a4cd, a2e4816, f8c4fe8) fail exactly as base
+  fails them at `954cf87`. The float driver needs its `restitutionIterations` line removed to
+  build against revisions before 79fc559 (measurement copy only, not committed).
+
 - **PORT RECORD reference harness compound/mesh/snapshot/contact vocabulary (2026-10-15).**
   `ref-harness-compound-mesh-vocabulary`, `ref-harness-snapshot-restore`,
   `ref-5d83df8-compound-roundtrip`, and `ref-954cf87-manifold-points-exact` exercise
@@ -127,7 +169,8 @@ The PORT RECORDs below run newest first and are the detail for each step.
   fixed3d's `b3DynamicTree` still uses the pre-f555ee4 `b3_enlargedNode` flag and has no moved
   bit, no `b3DynamicTree_ValidateNoMoved`, and no `test_broad_phase.c`
   (`StaticRebuildKeepsMarks`). When f555ee4 is ported (card fixed3d-box3d-ports-f555ee4-block),
-  H-H must land in the same step or the move-mark bug arrives with it.
+  H-H must land in the same step or the move-mark bug arrives with it. **It does: it is part of
+  the f555ee4 port (see that PORT RECORD), with `StaticRebuildKeepsMarks`.**
   **REFERENCE: `tools/reference/scenes/ref-9e5a4cd-ccd-gravity.scene` and
   `ref-9e5a4cd-joint-enable.scene`** (globbed by the harness). `ctest -L reference` run at
   `BOX3D_REFERENCE_REV=79fc559` (the descendant that reverts G4, matching fixed3d's no-G4
