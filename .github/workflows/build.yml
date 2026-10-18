@@ -72,6 +72,16 @@ jobs:
         working-directory: build
         run: ${{ matrix.test }}
 
+  roadmap:
+    name: ROADMAP.md matches docs/roadmap.sexp
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
+        with:
+          go-version: 'stable'
+      - run: make roadmap-check
+
   result:
     name: build_test result
     runs-on: ubuntu-latest
