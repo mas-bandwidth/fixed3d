@@ -64,8 +64,9 @@ The vendored files are unpatched. Compiler flags are added for three configurati
 - **MinGW gcc on x86 / x64: `-msse4.1` for these files only**, for the same reason. gcc
   lowers `__builtin_roundeven` in `sin.c` and `exp2.c` to a call to `roundeven`, which the
   UCRT does not provide (`undefined reference to roundeven`, extended checks run
-  39078986458). The gcc builds with and without the flag are the two gcc builds of the proof
-  above.
+  39078986458). Measured value-neutral for gcc on Linux (the two gcc builds of the proof
+  above); for MinGW gcc it is inferred, not measured: without the flag MinGW does not link,
+  and roundsd mode 8 is exact ties-to-even.
 - **Emscripten: `FE_INEXACT=0 FE_UNDERFLOW=0 FE_OVERFLOW=0` for these files only.** The wasm
   `fenv.h` has no floating-point exception flags, so `atan2.c` did not compile (`use of
   undeclared identifier 'FE_OVERFLOW'`, run 39078986458). With 0 the `fetestexcept` and

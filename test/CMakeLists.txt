@@ -139,8 +139,8 @@ else()
     target_compile_options(box3d_core_math PRIVATE -w -ffp-contract=off)
     # MinGW gcc on x86/x64 also lowers __builtin_roundeven (sin.c, exp2.c) to a call to the C23
     # roundeven, which the Windows UCRT does not have (ld: undefined reference). -msse4.1 inlines
-    # it as roundsd mode 8, the ClangCL fix above; gcc with and without it is bit-equal over the
-    # dense sets (extern/core-math/NOTES.md, Build flags).
+    # it as roundsd mode 8, the ClangCL fix above; gcc on Linux with and without it is bit-equal over
+    # the dense sets (extern/core-math/NOTES.md, Build flags); for MinGW that is inferred.
     if(MINGW AND CMAKE_SYSTEM_PROCESSOR MATCHES "AMD64|x86_64|X86|x86")
         target_compile_options(box3d_core_math PRIVATE -msse4.1)
     endif()
