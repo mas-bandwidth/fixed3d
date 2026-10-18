@@ -55,12 +55,18 @@ The vendored files are unpatched. One compiler flag is added for one configurati
   `roundeven`, which the Windows CRT does not provide, so `box3d_test` failed to link
   (`lld-link : error : undefined symbol: roundeven`, referenced by `sin.c:917`, run
   39071830800). With SSE4.1 it inlines as `roundsd` with mode 8, which is the same exact
-  round-half-to-even. Proof, on hulk 2026-10-17, gcc and clang, `-O2 -std=gnu17
-  -ffp-contract=off`, with and without `-msse4.1`: an FNV-1a hash of the bits of cr_sin,
-  cr_cos, cr_exp2 (every raw in [-2^24, 2^24] / 65536), cr_log2 (the positive ones), cr_atan2
-  (2^24 fixed-seed xorshift64 pairs of raws in +-2^47), then 2^24 random finite doubles
-  through all five, is identical in all four builds
-  (`6c7d32d48aa94c67`, `be20d0153987dee7`, `b03679d34a3f93a5`).
+  round-half-to-even. Proof, on amd-3 2026-10-18 (gcc 15.2, clang 21.1), `-O2 -std=gnu17
+  -ffp-contract=off -w`, each compiler with and without `-msse4.1` (four builds; in each
+  compiler's build `objdump -d` shows 3 calls to `roundeven` without the flag, 0 with it).
+  Each hash is FNV-1a 64 over the 8 little-endian bytes of every result, in order:
+  - A: cr_sin, cr_cos and cr_exp2 of raw / 65536 for every raw in [-2^24, 2^24], and
+    cr_log2 of the positive ones: `4e2fa5984a763ae1`.
+  - B: cr_atan2(y, x) on 2^24 pairs from xorshift64 (13, 7, 17; seed 0x9E3779B97F4A7C15),
+    each raw = (int64)(next >> 16) - 2^47, divided by 65536: `2d9d5a63bd7c1545`.
+  - C: 2^24 further xorshift64 outputs read as doubles, non-finite skipped, through
+    cr_sin, cr_cos, cr_exp2, cr_log2 and cr_atan2(d, 1): `c3dd651be62c593c`.
+
+  All three hashes are identical in all four builds.
 
 ## How the files are fetched
 

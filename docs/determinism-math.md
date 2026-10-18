@@ -104,8 +104,12 @@ result times 65536, rounded by llrint in round-to-nearest-even); errors in Q48.1
 ## Platforms
 
 CORE-MATH is GNU C (`__int128` / `_BitInt(128)`, GNU inline asm under `__x86_64__` and
-`__aarch64__`, `#pragma STDC FENV_ACCESS`). It is built unpatched on every CI
-configuration in `.github/workflows/build.yml` and `extended.yml`. ClangCL on x64 adds
+`__aarch64__`, `#pragma STDC FENV_ACCESS`). It is built unpatched. Evidence, on proof-only branches that
+carry fixes for reds at BASE (never landed): every `build.yml` configuration built and ran
+CoreMathTest green (run 39072279057, Windows ClangCL x64 included); every `extended.yml`
+job built `box3d_test` with CORE-MATH linked (run 39081051941), but its Windows jobs
+(windows-relwithdebinfo, windows-clang-cl, windows-arm64, windows-mingw) stop on reds at BASE before CoreMathTest runs, so CoreMathTest
+has not yet run on those four. ClangCL on x64 adds
 `-msse4.1` for the CORE-MATH files only, so `__builtin_roundeven` inlines instead of calling
 the C23 `roundeven` the Windows CRT lacks; the flag is proven bit-equal over the dense sets
 (`extern/core-math/NOTES.md`, Build flags). If a compiler ever cannot
