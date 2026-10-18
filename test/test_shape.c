@@ -1079,9 +1079,11 @@ static int ShapeMaterialStagingTest( void )
 // double (libm) so fixed3d and the oracle see identical numbers, only the
 // algorithm differs. Hash is FNV-1a 64 over the raw int64 bytes of hit, fraction,
 // normal.xyz, point.xyz, iterations, in that order, per accepted case.
+// 2026-10-17 f3d2-gjk-progress-unshifted-distance-sq: GJK progress on the unshifted squared distance,
+// 0x5d08b7b17392bd08 -> 0x9d9b9e1c2c2f9d12 (gcc, clang, ludicrous).
 #define SCS_FNV_OFFSET UINT64_C( 14695981039346656037 )
 #define SCS_FNV_PRIME UINT64_C( 1099511628211 )
-#define SCS_SHAPE_CAST_HASH_GOLDEN UINT64_C( 0x5d08b7b17392bd08 )
+#define SCS_SHAPE_CAST_HASH_GOLDEN UINT64_C( 0x9d9b9e1c2c2f9d12 )
 
 static uint64_t SCS_Next( uint64_t* state )
 {
