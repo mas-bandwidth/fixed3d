@@ -1,0 +1,63 @@
+# ref-f8c4fe8-shape-cast-encroach-band
+# Shape casts starting inside the encroach band of b3ShapeCast's iteration-0
+# handling (0 < distance <= 2 * linearSlop), swept toward, away from, and across
+# a wall. Reference: vanilla float box3d at upstream commit f8c4fe8 (the fix,
+# "Shape cast support for box movers (#180)"). Fixed: fixed3d on this branch
+# (the third iteration-0 arm of b3ShapeCast ported).
+# The bug: on the pre-fix tree a shape starting in the band reported a hit
+#   whatever direction it swept. The new arm (canEncroach && distance > 0)
+#   advances by first order while retaining a rest separation of linearSlop / 2,
+#   so a sweep that cannot consume the free gap misses.
+# Band geometry, exact quanta at default length units: linearSlop is raw 328
+#   (fixed 0.00500488 vs float 0.005f), 2 * linearSlop is raw 656, and the start
+#   gap is raw 492 = 1.5 * 328 = 0.00750732421875, strictly inside (0, 656].
+#   Decimals below are exact dyadic rationals, so b3FixFromDouble and float32
+#   parse the SAME value: sweep magnitudes are 0.25 = raw 16384, and the box
+#   proxy's half-extent is 0.0625 = raw 4096, so the box start gap is raw 492
+#   in BOTH engines (a 0.05 half quantizes to raw 3277 against float32's
+#   0.04999999963, a 3e-6 gap divergence that measured 6.4e-5 on the toward
+#   control — outside tolerance; with the dyadic half the maximum delta is
+#   1.95e-5).
+# DRIVERS, named because the vocabulary is frozen (this card may not edit
+#   tools/reference/): the v1 `query shape_cast` drives b3World_CastShape, which
+#   sets canEncroach = false in BOTH engines, so the three box-proxy lines pin
+#   the CONTROL path — the ported arm is gated on canEncroach, so a band start
+#   under the default world cast must behave identically across engines (the
+#   cross-engine form of the unit control ShapeCastStartTouchingDefault): toward
+#   hits through the general conservative loop, away and across miss at 1.
+#   `query mover` drives b3World_CastMover, which sets canEncroach = radius > 0
+#   in BOTH engines (upstream f8c4fe8 src/physics_world.c:3360, fixed3d
+#   src/physics_world.c:3278) — the only canEncroach = true driver the v1
+#   vocabulary has. Its capsule core (useRadii = false) starts at raw 492 from
+#   the wall, so the three mover lines exercise the NEW ARM itself: toward hits
+#   at fraction (492 - 164) / 16384, away and across MISS at 1. Pre-fix fixed3d
+#   reported fraction 0 for all three, float f8c4fe8 reports the arm's values —
+#   these three lines are what distinguishes the ported engine from the pre-fix
+#   engine against the reference. A BOX proxy under canEncroach = true is not
+#   drivable by the v1 vocabulary (that needs a shape_cast vocabulary extension;
+#   proposed in the pull request, not committed: tools/reference/ is outside
+#   this card's paths); upstream #180 itself added no box-mover world API —
+#   its three files are src/distance.c, test/test_distance.c and the held
+#   sample — and the unit tests in test/test_distance.c drive the box proxy
+#   form directly through b3ShapeCast.
+# Divergence by design (Q48.16, CLAUDE.md port record f8c4fe8): the fixed slop
+#   is raw 328 = 0.00500488 where float 0.005f is 0.00499999989, so the retained
+#   separation (exact halving, raw 164) differs from float's by 2.4e-6, which
+#   the fraction divide magnifies by 1 / approach. MEASURED (both engines, this
+#   bench, reference pinned at f8c4fe8): maximum query delta 1.95317e-05, on
+#   the box toward control — the slop quantum 4.9e-6 magnified by 1 / 0.25;
+#   the mover toward delta is 9.8e-6, every miss is exact (1 in both).
+# Tolerance: 4 * B3_FIXED_EPSILON = 4 / 65536 = 6.103515625e-05 on every query
+#   value — the tolerance the landing card's contract states, and above twice
+#   the measured maximum. Never loosened: it is the contract value and the
+#   measured error sits inside it.
+expect pos 6.103515625e-05 rot 0 vel 0 horizon 1 counts exact
+world gravity 0 0 0 dt 1 60 substeps 1 steps 1
+body static position -1 0 0 rotation 0 0 0 1 linvel 0 0 0 angvel 0 0 0
+shape 0 box 1 10 10 density 1.0 friction 0.5 restitution 0
+query shape_cast origin 0.07000732421875 0 0 translation -0.25 0 0 box 0.0625 0.0625 0.0625
+query shape_cast origin 0.07000732421875 0 0 translation 0.25 0 0 box 0.0625 0.0625 0.0625
+query shape_cast origin 0.07000732421875 0 0 translation 0 0 0.25 box 0.0625 0.0625 0.0625
+query mover origin 0.00750732421875 0 0 0.25 0.25 translation -0.25 0 0
+query mover origin 0.00750732421875 0 0 0.25 0.25 translation 0.25 0 0
+query mover origin 0.00750732421875 0 0 0.25 0.25 translation 0 0 0.25

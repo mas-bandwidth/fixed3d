@@ -1,0 +1,9 @@
+# A tetrahedron hull and a cube-as-points hull dropped onto the ground.
+expect pos 0.002 rot 0.002 vel 0.06 horizon 120 counts 2
+world gravity 0 -10 0 dt 1 60 substeps 4 steps 120
+body static position 0 -0.5 0 rotation 0 0 0 1 linvel 0 0 0 angvel 0 0 0
+body dynamic position -2 1.5 0 rotation 0 0 0 1 linvel 0 0 0 angvel 0 0 0
+body dynamic position 2 1.5 0 rotation 0 0 0 1 linvel 0 0 0 angvel 0 0 0
+shape 0 box 10 0.5 10 density 1 friction 0.5 restitution 0
+shape 1 hull points 4 0 0.5 0 -0.5 -0.5 0.5 0.5 -0.5 0.5 0 0 -0.5 density 1 friction 0.5 restitution 0
+shape 2 hull points 8 -0.5 -0.5 -0.5 0.5 -0.5 -0.5 0.5 -0.5 0.5 -0.5 -0.5 0.5 -0.5 0.5 -0.5 0.5 0.5 -0.5 0.5 0.5 0.5 -0.5 0.5 0.5 density 1 friction 0.5 restitution 0

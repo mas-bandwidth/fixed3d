@@ -1,0 +1,22 @@
+# A revolute pendulum and a two-link spherical chain swinging under gravity.
+#
+# Re-measured 2026-10-15 after the 954cf87 "Fixes (#157)" merge landed: the
+# merged engine changes (stale-tree rebuild #149 and the contact/manifold
+# management hunks) moved fixed3d's deterministic trajectory of this chaotic
+# chain relative to float box3d 954cf87, exactly as upstream's own goldens
+# moved in that commit. Tolerances are twice the re-measured maximum over the
+# 60-step horizon (pos 4.69e-3, rot 6.14e-3, angvel 2.10e-1 -- the last sets
+# the shared vel figure). Counters hold as before (awake delta 1 <= 2).
+expect pos 0.009372 rot 0.01229 vel 0.420841 horizon 60 counts 2
+world gravity 0 -10 0 dt 1 60 substeps 4 steps 120
+body static position 0 2 0 rotation 0 0 0 1 linvel 0 0 0 angvel 0 0 0
+body dynamic position 0 1 0 rotation 0 0 0 1 linvel 0 0 0 angvel 0 0 0
+body static position 3 2 0 rotation 0 0 0 1 linvel 0 0 0 angvel 0 0 0
+body dynamic position 3 1 0 rotation 0 0 0 1 linvel 0 0 0 angvel 0 0 0
+body dynamic position 3 0 0 rotation 0 0 0 1 linvel 0 0 0 angvel 0 0 0
+shape 1 box 0.2 0.5 0.2 density 1 friction 0.3 restitution 0
+shape 3 box 0.2 0.5 0.2 density 1 friction 0.3 restitution 0
+shape 4 box 0.2 0.5 0.2 density 1 friction 0.3 restitution 0
+joint revolute 0 1 anchor 0 1 0 axis 0 0 1
+joint spherical 2 3 anchor 3 1 0
+joint spherical 3 4 anchor 3 0 0

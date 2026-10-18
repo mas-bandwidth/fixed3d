@@ -1,0 +1,641 @@
+Spike f3dup-0cfc475-revolute-axial-merge-spike (attempt 3) raw test output
+Date: 2026-10-17T15:01Z, bench amd-3 (b3), gcc (Ubuntu 15.2.0-16ubuntu1) 15.2.0 / Ubuntu clang version 21.1.8 (6ubuntu1)
+BASE: adbe7ecffb057fc51a3a400b6e7af0a2627ef192 (sprint/fixed3d-box3d-ports)
+Config: RelWithDebInfo, BOX3D_SAMPLES=OFF, BOX3D_VALIDATE=ON, CMAKE_COMPILE_WARNING_AS_ERROR=ON; ludicrous adds BOX3D_LUDICROUS_MODE=ON
+Tree: BASE + experiment.patch (src/revolute_joint.c only).
+Section A: the pristine patch state, real goldens asserted (red evidence).
+Section B/C: measurement-only edit of test/test_determinism.c (ENSURE_GOLDEN -> (void)0, the spherical hash ENSURE -> (void)0, the ragdoll/wave/mesh/ragdoll-human/spherical printf guards -> if (1)), two independent runs; reverted afterwards (git checkout).
+======================================================================
+A. PRISTINE PATCH STATE (goldens asserted)
+----- [build-gcc] ./bin/test DeterminismTest
+Starting Fixed3D unit tests
+Filter: DeterminismTest
+======================================
+  subtest passed: RagdollHumanTest
+  workers=1 sleepStep=354 hash=0xD9216BE4
+condition false: data.sleepStep == 408
+condition false: result == 0
+  subtest failed: MultithreadingTest
+test failed: DeterminismTest
+exit=1
+----- [build-gcc] ./bin/test PerfStateHashGoldenTest
+Starting Fixed3D unit tests
+Filter: PerfStateHashGoldenTest
+======================================
+  perf state hash (1 worker) = c4f45e4c6b5534e6
+  perf state hash (4 worker) = c4f45e4c6b5534e6
+  subtest passed: PerfStateHashGolden
+test passed: PerfStateHashGoldenTest
+======================================
+All Fixed3D tests passed!
+Test duration = 0.00 s
+exit=0
+----- [build-gcc] ./bin/test JointTest
+Starting Fixed3D unit tests
+Filter: JointTest
+======================================
+  subtest passed: TestCreateJointClearsContacts
+  subtest passed: TestJointInverseScaleCorrection
+  subtest passed: TestParallelJoint
+  subtest passed: TestParallelJointSentinelTorqueCap
+  subtest passed: TestDistanceJoint
+  subtest passed: TestFilterJoint
+  subtest passed: TestMotorJoint
+  subtest passed: TestPrismaticJoint
+  subtest passed: TestRevoluteJoint
+  subtest passed: TestSphericalJoint
+  subtest passed: TestWeldJoint
+  subtest passed: TestWheelJoint
+  subtest passed: TestNonDynamicJointDisable
+PointConstraint cases=1000 skipped=0 maxKError=0.000185164 maxSolveRelError=1.67774e+07
+  subtest passed: TestPointConstraintMatchesUpstreamExpansion
+test passed: JointTest
+======================================
+All Fixed3D tests passed!
+Test duration = 0.00 s
+exit=0
+----- [build-gcc-ludicrous] ./bin/test DeterminismTest
+Starting Fixed3D unit tests
+Filter: DeterminismTest
+======================================
+  subtest passed: RagdollHumanTest
+  workers=1 sleepStep=354 hash=0x27D948A4
+condition false: data.sleepStep == 408
+condition false: result == 0
+  subtest failed: MultithreadingTest
+test failed: DeterminismTest
+exit=1
+----- [build-gcc-ludicrous] ./bin/test PerfStateHashGoldenTest
+Starting Fixed3D unit tests
+Filter: PerfStateHashGoldenTest
+======================================
+  perf state hash (1 worker) = c4f45e4c6b5534e6
+  perf state hash (4 worker) = c4f45e4c6b5534e6
+  subtest passed: PerfStateHashGolden
+test passed: PerfStateHashGoldenTest
+======================================
+All Fixed3D tests passed!
+Test duration = 0.01 s
+exit=0
+----- [build-gcc-ludicrous] ./bin/test JointTest
+Starting Fixed3D unit tests
+Filter: JointTest
+======================================
+  subtest passed: TestCreateJointClearsContacts
+  subtest passed: TestJointInverseScaleCorrection
+  subtest passed: TestParallelJoint
+  subtest passed: TestParallelJointSentinelTorqueCap
+  subtest passed: TestDistanceJoint
+  subtest passed: TestFilterJoint
+  subtest passed: TestMotorJoint
+  subtest passed: TestPrismaticJoint
+  subtest passed: TestRevoluteJoint
+  subtest passed: TestSphericalJoint
+  subtest passed: TestWeldJoint
+  subtest passed: TestWheelJoint
+  subtest passed: TestNonDynamicJointDisable
+PointConstraint cases=1000 skipped=0 maxKError=0.000185164 maxSolveRelError=1.67774e+07
+  subtest passed: TestPointConstraintMatchesUpstreamExpansion
+test passed: JointTest
+======================================
+All Fixed3D tests passed!
+Test duration = 0.00 s
+exit=0
+----- [build-clang] ./bin/test DeterminismTest
+Starting Fixed3D unit tests
+Filter: DeterminismTest
+======================================
+  subtest passed: RagdollHumanTest
+  workers=1 sleepStep=354 hash=0xD9216BE4
+condition false: data.sleepStep == 408
+condition false: result == 0
+  subtest failed: MultithreadingTest
+test failed: DeterminismTest
+exit=1
+----- [build-clang] ./bin/test PerfStateHashGoldenTest
+Starting Fixed3D unit tests
+Filter: PerfStateHashGoldenTest
+======================================
+  perf state hash (1 worker) = c4f45e4c6b5534e6
+  perf state hash (4 worker) = c4f45e4c6b5534e6
+  subtest passed: PerfStateHashGolden
+test passed: PerfStateHashGoldenTest
+======================================
+All Fixed3D tests passed!
+Test duration = 0.01 s
+exit=0
+----- [build-clang] ./bin/test JointTest
+Starting Fixed3D unit tests
+Filter: JointTest
+======================================
+  subtest passed: TestCreateJointClearsContacts
+  subtest passed: TestJointInverseScaleCorrection
+  subtest passed: TestParallelJoint
+  subtest passed: TestParallelJointSentinelTorqueCap
+  subtest passed: TestDistanceJoint
+  subtest passed: TestFilterJoint
+  subtest passed: TestMotorJoint
+  subtest passed: TestPrismaticJoint
+  subtest passed: TestRevoluteJoint
+  subtest passed: TestSphericalJoint
+  subtest passed: TestWeldJoint
+  subtest passed: TestWheelJoint
+  subtest passed: TestNonDynamicJointDisable
+PointConstraint cases=1000 skipped=0 maxKError=0.000185164 maxSolveRelError=1.67774e+07
+  subtest passed: TestPointConstraintMatchesUpstreamExpansion
+test passed: JointTest
+======================================
+All Fixed3D tests passed!
+Test duration = 0.00 s
+exit=0
+----- [build-clang-ludicrous] ./bin/test DeterminismTest
+Starting Fixed3D unit tests
+Filter: DeterminismTest
+======================================
+  subtest passed: RagdollHumanTest
+  workers=1 sleepStep=354 hash=0x27D948A4
+condition false: data.sleepStep == 408
+condition false: result == 0
+  subtest failed: MultithreadingTest
+test failed: DeterminismTest
+exit=1
+----- [build-clang-ludicrous] ./bin/test PerfStateHashGoldenTest
+Starting Fixed3D unit tests
+Filter: PerfStateHashGoldenTest
+======================================
+  perf state hash (1 worker) = c4f45e4c6b5534e6
+  perf state hash (4 worker) = c4f45e4c6b5534e6
+  subtest passed: PerfStateHashGolden
+test passed: PerfStateHashGoldenTest
+======================================
+All Fixed3D tests passed!
+Test duration = 0.01 s
+exit=0
+----- [build-clang-ludicrous] ./bin/test JointTest
+Starting Fixed3D unit tests
+Filter: JointTest
+======================================
+  subtest passed: TestCreateJointClearsContacts
+  subtest passed: TestJointInverseScaleCorrection
+  subtest passed: TestParallelJoint
+  subtest passed: TestParallelJointSentinelTorqueCap
+  subtest passed: TestDistanceJoint
+  subtest passed: TestFilterJoint
+  subtest passed: TestMotorJoint
+  subtest passed: TestPrismaticJoint
+  subtest passed: TestRevoluteJoint
+  subtest passed: TestSphericalJoint
+  subtest passed: TestWeldJoint
+  subtest passed: TestWheelJoint
+  subtest passed: TestNonDynamicJointDisable
+PointConstraint cases=1000 skipped=0 maxKError=0.000185164 maxSolveRelError=1.67774e+07
+  subtest passed: TestPointConstraintMatchesUpstreamExpansion
+test passed: JointTest
+======================================
+All Fixed3D tests passed!
+Test duration = 0.00 s
+exit=0
+======================================================================
+B. MEASUREMENT RUN 1 (goldens neutralized, every value printed)
+----- [build-gcc] ./bin/test DeterminismTest
+Starting Fixed3D unit tests
+Filter: DeterminismTest
+======================================
+  ragdoll-human workers=1 sleepStep=219 hash=0xD945B8B3
+  ragdoll-human workers=2 sleepStep=219 hash=0xD945B8B3
+  ragdoll-human workers=3 sleepStep=219 hash=0xD945B8B3
+  ragdoll-human workers=4 sleepStep=219 hash=0xD945B8B3
+  ragdoll-human workers=5 sleepStep=219 hash=0xD945B8B3
+  subtest passed: RagdollHumanTest
+  workers=1 sleepStep=354 hash=0xD9216BE4
+  workers=2 sleepStep=354 hash=0xD9216BE4
+  workers=3 sleepStep=354 hash=0xD9216BE4
+  workers=4 sleepStep=354 hash=0xD9216BE4
+  workers=5 sleepStep=354 hash=0xD9216BE4
+  subtest passed: MultithreadingTest
+  cross-platform sleepStep=354 hash=0xD9216BE4
+  subtest passed: CrossPlatformTest
+  wave pile workers=1 sleepStep=335 hash=0x64609ED9
+  wave pile workers=2 sleepStep=335 hash=0x64609ED9
+  wave pile workers=3 sleepStep=335 hash=0x64609ED9
+  wave pile workers=4 sleepStep=335 hash=0x64609ED9
+  wave pile workers=5 sleepStep=335 hash=0x64609ED9
+  subtest passed: WavePileTest
+  subtest passed: QuerySpawnTest
+  mesh drop workers=1 sleepStep=284 hash=0x784AD80A
+  mesh drop workers=4 sleepStep=284 hash=0x784AD80A
+  subtest passed: MeshDropTest
+  spherical scale=0 hash=ccf165f88a73ebb7
+  spherical scale=1 hash=2add50ab7852c3ce
+  subtest passed: SphericalGeometryTest
+test passed: DeterminismTest
+======================================
+All Fixed3D tests passed!
+Test duration = 3.60 s
+exit=0
+----- [build-gcc] ./bin/test PerfStateHashGoldenTest
+Starting Fixed3D unit tests
+Filter: PerfStateHashGoldenTest
+======================================
+  perf state hash (1 worker) = c4f45e4c6b5534e6
+  perf state hash (4 worker) = c4f45e4c6b5534e6
+  subtest passed: PerfStateHashGolden
+test passed: PerfStateHashGoldenTest
+======================================
+All Fixed3D tests passed!
+Test duration = 0.00 s
+exit=0
+----- [build-gcc] ./bin/test JointTest
+Starting Fixed3D unit tests
+Filter: JointTest
+======================================
+  subtest passed: TestCreateJointClearsContacts
+  subtest passed: TestJointInverseScaleCorrection
+  subtest passed: TestParallelJoint
+  subtest passed: TestParallelJointSentinelTorqueCap
+  subtest passed: TestDistanceJoint
+  subtest passed: TestFilterJoint
+  subtest passed: TestMotorJoint
+  subtest passed: TestPrismaticJoint
+  subtest passed: TestRevoluteJoint
+  subtest passed: TestSphericalJoint
+  subtest passed: TestWeldJoint
+  subtest passed: TestWheelJoint
+  subtest passed: TestNonDynamicJointDisable
+PointConstraint cases=1000 skipped=0 maxKError=0.000185164 maxSolveRelError=1.67774e+07
+  subtest passed: TestPointConstraintMatchesUpstreamExpansion
+test passed: JointTest
+======================================
+All Fixed3D tests passed!
+Test duration = 0.00 s
+exit=0
+----- [build-gcc-ludicrous] ./bin/test DeterminismTest
+Starting Fixed3D unit tests
+Filter: DeterminismTest
+======================================
+  ragdoll-human workers=1 sleepStep=219 hash=0x407D12F3
+  ragdoll-human workers=2 sleepStep=219 hash=0x407D12F3
+  ragdoll-human workers=3 sleepStep=219 hash=0x407D12F3
+  ragdoll-human workers=4 sleepStep=219 hash=0x407D12F3
+  ragdoll-human workers=5 sleepStep=219 hash=0x407D12F3
+  subtest passed: RagdollHumanTest
+  workers=1 sleepStep=354 hash=0x27D948A4
+  workers=2 sleepStep=354 hash=0x27D948A4
+  workers=3 sleepStep=354 hash=0x27D948A4
+  workers=4 sleepStep=354 hash=0x27D948A4
+  workers=5 sleepStep=354 hash=0x27D948A4
+  subtest passed: MultithreadingTest
+  cross-platform sleepStep=354 hash=0x27D948A4
+  subtest passed: CrossPlatformTest
+  wave pile workers=1 sleepStep=335 hash=0x22E6F859
+  wave pile workers=2 sleepStep=335 hash=0x22E6F859
+  wave pile workers=3 sleepStep=335 hash=0x22E6F859
+  wave pile workers=4 sleepStep=335 hash=0x22E6F859
+  wave pile workers=5 sleepStep=335 hash=0x22E6F859
+  subtest passed: WavePileTest
+  subtest passed: QuerySpawnTest
+  mesh drop workers=1 sleepStep=284 hash=0xE44E6A0E
+  mesh drop workers=4 sleepStep=284 hash=0xE44E6A0E
+  subtest passed: MeshDropTest
+  spherical scale=0 hash=ee343d0d530f22f1
+  spherical scale=1 hash=46256d278ff09af2
+  subtest passed: SphericalGeometryTest
+test passed: DeterminismTest
+======================================
+All Fixed3D tests passed!
+Test duration = 3.45 s
+exit=0
+----- [build-gcc-ludicrous] ./bin/test PerfStateHashGoldenTest
+Starting Fixed3D unit tests
+Filter: PerfStateHashGoldenTest
+======================================
+  perf state hash (1 worker) = c4f45e4c6b5534e6
+  perf state hash (4 worker) = c4f45e4c6b5534e6
+  subtest passed: PerfStateHashGolden
+test passed: PerfStateHashGoldenTest
+======================================
+All Fixed3D tests passed!
+Test duration = 0.00 s
+exit=0
+----- [build-gcc-ludicrous] ./bin/test JointTest
+Starting Fixed3D unit tests
+Filter: JointTest
+======================================
+  subtest passed: TestCreateJointClearsContacts
+  subtest passed: TestJointInverseScaleCorrection
+  subtest passed: TestParallelJoint
+  subtest passed: TestParallelJointSentinelTorqueCap
+  subtest passed: TestDistanceJoint
+  subtest passed: TestFilterJoint
+  subtest passed: TestMotorJoint
+  subtest passed: TestPrismaticJoint
+  subtest passed: TestRevoluteJoint
+  subtest passed: TestSphericalJoint
+  subtest passed: TestWeldJoint
+  subtest passed: TestWheelJoint
+  subtest passed: TestNonDynamicJointDisable
+PointConstraint cases=1000 skipped=0 maxKError=0.000185164 maxSolveRelError=1.67774e+07
+  subtest passed: TestPointConstraintMatchesUpstreamExpansion
+test passed: JointTest
+======================================
+All Fixed3D tests passed!
+Test duration = 0.00 s
+exit=0
+----- [build-clang] ./bin/test DeterminismTest
+Starting Fixed3D unit tests
+Filter: DeterminismTest
+======================================
+  ragdoll-human workers=1 sleepStep=219 hash=0xD945B8B3
+  ragdoll-human workers=2 sleepStep=219 hash=0xD945B8B3
+  ragdoll-human workers=3 sleepStep=219 hash=0xD945B8B3
+  ragdoll-human workers=4 sleepStep=219 hash=0xD945B8B3
+  ragdoll-human workers=5 sleepStep=219 hash=0xD945B8B3
+  subtest passed: RagdollHumanTest
+  workers=1 sleepStep=354 hash=0xD9216BE4
+  workers=2 sleepStep=354 hash=0xD9216BE4
+  workers=3 sleepStep=354 hash=0xD9216BE4
+  workers=4 sleepStep=354 hash=0xD9216BE4
+  workers=5 sleepStep=354 hash=0xD9216BE4
+  subtest passed: MultithreadingTest
+  cross-platform sleepStep=354 hash=0xD9216BE4
+  subtest passed: CrossPlatformTest
+  wave pile workers=1 sleepStep=335 hash=0x64609ED9
+  wave pile workers=2 sleepStep=335 hash=0x64609ED9
+  wave pile workers=3 sleepStep=335 hash=0x64609ED9
+  wave pile workers=4 sleepStep=335 hash=0x64609ED9
+  wave pile workers=5 sleepStep=335 hash=0x64609ED9
+  subtest passed: WavePileTest
+  subtest passed: QuerySpawnTest
+  mesh drop workers=1 sleepStep=284 hash=0x784AD80A
+  mesh drop workers=4 sleepStep=284 hash=0x784AD80A
+  subtest passed: MeshDropTest
+  spherical scale=0 hash=ccf165f88a73ebb7
+  spherical scale=1 hash=2add50ab7852c3ce
+  subtest passed: SphericalGeometryTest
+test passed: DeterminismTest
+======================================
+All Fixed3D tests passed!
+Test duration = 3.40 s
+exit=0
+----- [build-clang] ./bin/test PerfStateHashGoldenTest
+Starting Fixed3D unit tests
+Filter: PerfStateHashGoldenTest
+======================================
+  perf state hash (1 worker) = c4f45e4c6b5534e6
+  perf state hash (4 worker) = c4f45e4c6b5534e6
+  subtest passed: PerfStateHashGolden
+test passed: PerfStateHashGoldenTest
+======================================
+All Fixed3D tests passed!
+Test duration = 0.00 s
+exit=0
+----- [build-clang] ./bin/test JointTest
+Starting Fixed3D unit tests
+Filter: JointTest
+======================================
+  subtest passed: TestCreateJointClearsContacts
+  subtest passed: TestJointInverseScaleCorrection
+  subtest passed: TestParallelJoint
+  subtest passed: TestParallelJointSentinelTorqueCap
+  subtest passed: TestDistanceJoint
+  subtest passed: TestFilterJoint
+  subtest passed: TestMotorJoint
+  subtest passed: TestPrismaticJoint
+  subtest passed: TestRevoluteJoint
+  subtest passed: TestSphericalJoint
+  subtest passed: TestWeldJoint
+  subtest passed: TestWheelJoint
+  subtest passed: TestNonDynamicJointDisable
+PointConstraint cases=1000 skipped=0 maxKError=0.000185164 maxSolveRelError=1.67774e+07
+  subtest passed: TestPointConstraintMatchesUpstreamExpansion
+test passed: JointTest
+======================================
+All Fixed3D tests passed!
+Test duration = 0.00 s
+exit=0
+----- [build-clang-ludicrous] ./bin/test DeterminismTest
+Starting Fixed3D unit tests
+Filter: DeterminismTest
+======================================
+  ragdoll-human workers=1 sleepStep=219 hash=0x407D12F3
+  ragdoll-human workers=2 sleepStep=219 hash=0x407D12F3
+  ragdoll-human workers=3 sleepStep=219 hash=0x407D12F3
+  ragdoll-human workers=4 sleepStep=219 hash=0x407D12F3
+  ragdoll-human workers=5 sleepStep=219 hash=0x407D12F3
+  subtest passed: RagdollHumanTest
+  workers=1 sleepStep=354 hash=0x27D948A4
+  workers=2 sleepStep=354 hash=0x27D948A4
+  workers=3 sleepStep=354 hash=0x27D948A4
+  workers=4 sleepStep=354 hash=0x27D948A4
+  workers=5 sleepStep=354 hash=0x27D948A4
+  subtest passed: MultithreadingTest
+  cross-platform sleepStep=354 hash=0x27D948A4
+  subtest passed: CrossPlatformTest
+  wave pile workers=1 sleepStep=335 hash=0x22E6F859
+  wave pile workers=2 sleepStep=335 hash=0x22E6F859
+  wave pile workers=3 sleepStep=335 hash=0x22E6F859
+  wave pile workers=4 sleepStep=335 hash=0x22E6F859
+  wave pile workers=5 sleepStep=335 hash=0x22E6F859
+  subtest passed: WavePileTest
+  subtest passed: QuerySpawnTest
+  mesh drop workers=1 sleepStep=284 hash=0xE44E6A0E
+  mesh drop workers=4 sleepStep=284 hash=0xE44E6A0E
+  subtest passed: MeshDropTest
+  spherical scale=0 hash=ee343d0d530f22f1
+  spherical scale=1 hash=46256d278ff09af2
+  subtest passed: SphericalGeometryTest
+test passed: DeterminismTest
+======================================
+All Fixed3D tests passed!
+Test duration = 3.42 s
+exit=0
+----- [build-clang-ludicrous] ./bin/test PerfStateHashGoldenTest
+Starting Fixed3D unit tests
+Filter: PerfStateHashGoldenTest
+======================================
+  perf state hash (1 worker) = c4f45e4c6b5534e6
+  perf state hash (4 worker) = c4f45e4c6b5534e6
+  subtest passed: PerfStateHashGolden
+test passed: PerfStateHashGoldenTest
+======================================
+All Fixed3D tests passed!
+Test duration = 0.00 s
+exit=0
+----- [build-clang-ludicrous] ./bin/test JointTest
+Starting Fixed3D unit tests
+Filter: JointTest
+======================================
+  subtest passed: TestCreateJointClearsContacts
+  subtest passed: TestJointInverseScaleCorrection
+  subtest passed: TestParallelJoint
+  subtest passed: TestParallelJointSentinelTorqueCap
+  subtest passed: TestDistanceJoint
+  subtest passed: TestFilterJoint
+  subtest passed: TestMotorJoint
+  subtest passed: TestPrismaticJoint
+  subtest passed: TestRevoluteJoint
+  subtest passed: TestSphericalJoint
+  subtest passed: TestWeldJoint
+  subtest passed: TestWheelJoint
+  subtest passed: TestNonDynamicJointDisable
+PointConstraint cases=1000 skipped=0 maxKError=0.000185164 maxSolveRelError=1.67774e+07
+  subtest passed: TestPointConstraintMatchesUpstreamExpansion
+test passed: JointTest
+======================================
+All Fixed3D tests passed!
+Test duration = 0.00 s
+exit=0
+======================================================================
+C. MEASUREMENT RUN 2 (independent rerun)
+----- [build-gcc] ./bin/test DeterminismTest
+Starting Fixed3D unit tests
+Filter: DeterminismTest
+======================================
+  ragdoll-human workers=1 sleepStep=219 hash=0xD945B8B3
+  ragdoll-human workers=2 sleepStep=219 hash=0xD945B8B3
+  ragdoll-human workers=3 sleepStep=219 hash=0xD945B8B3
+  ragdoll-human workers=4 sleepStep=219 hash=0xD945B8B3
+  ragdoll-human workers=5 sleepStep=219 hash=0xD945B8B3
+  subtest passed: RagdollHumanTest
+  workers=1 sleepStep=354 hash=0xD9216BE4
+  workers=2 sleepStep=354 hash=0xD9216BE4
+  workers=3 sleepStep=354 hash=0xD9216BE4
+  workers=4 sleepStep=354 hash=0xD9216BE4
+  workers=5 sleepStep=354 hash=0xD9216BE4
+  subtest passed: MultithreadingTest
+  cross-platform sleepStep=354 hash=0xD9216BE4
+  subtest passed: CrossPlatformTest
+  wave pile workers=1 sleepStep=335 hash=0x64609ED9
+  wave pile workers=2 sleepStep=335 hash=0x64609ED9
+  wave pile workers=3 sleepStep=335 hash=0x64609ED9
+  wave pile workers=4 sleepStep=335 hash=0x64609ED9
+  wave pile workers=5 sleepStep=335 hash=0x64609ED9
+  subtest passed: WavePileTest
+  subtest passed: QuerySpawnTest
+  mesh drop workers=1 sleepStep=284 hash=0x784AD80A
+  mesh drop workers=4 sleepStep=284 hash=0x784AD80A
+  subtest passed: MeshDropTest
+  spherical scale=0 hash=ccf165f88a73ebb7
+  spherical scale=1 hash=2add50ab7852c3ce
+  subtest passed: SphericalGeometryTest
+test passed: DeterminismTest
+======================================
+All Fixed3D tests passed!
+Test duration = 3.43 s
+exit=0
+----- [build-gcc-ludicrous] ./bin/test DeterminismTest
+Starting Fixed3D unit tests
+Filter: DeterminismTest
+======================================
+  ragdoll-human workers=1 sleepStep=219 hash=0x407D12F3
+  ragdoll-human workers=2 sleepStep=219 hash=0x407D12F3
+  ragdoll-human workers=3 sleepStep=219 hash=0x407D12F3
+  ragdoll-human workers=4 sleepStep=219 hash=0x407D12F3
+  ragdoll-human workers=5 sleepStep=219 hash=0x407D12F3
+  subtest passed: RagdollHumanTest
+  workers=1 sleepStep=354 hash=0x27D948A4
+  workers=2 sleepStep=354 hash=0x27D948A4
+  workers=3 sleepStep=354 hash=0x27D948A4
+  workers=4 sleepStep=354 hash=0x27D948A4
+  workers=5 sleepStep=354 hash=0x27D948A4
+  subtest passed: MultithreadingTest
+  cross-platform sleepStep=354 hash=0x27D948A4
+  subtest passed: CrossPlatformTest
+  wave pile workers=1 sleepStep=335 hash=0x22E6F859
+  wave pile workers=2 sleepStep=335 hash=0x22E6F859
+  wave pile workers=3 sleepStep=335 hash=0x22E6F859
+  wave pile workers=4 sleepStep=335 hash=0x22E6F859
+  wave pile workers=5 sleepStep=335 hash=0x22E6F859
+  subtest passed: WavePileTest
+  subtest passed: QuerySpawnTest
+  mesh drop workers=1 sleepStep=284 hash=0xE44E6A0E
+  mesh drop workers=4 sleepStep=284 hash=0xE44E6A0E
+  subtest passed: MeshDropTest
+  spherical scale=0 hash=ee343d0d530f22f1
+  spherical scale=1 hash=46256d278ff09af2
+  subtest passed: SphericalGeometryTest
+test passed: DeterminismTest
+======================================
+All Fixed3D tests passed!
+Test duration = 3.44 s
+exit=0
+----- [build-clang] ./bin/test DeterminismTest
+Starting Fixed3D unit tests
+Filter: DeterminismTest
+======================================
+  ragdoll-human workers=1 sleepStep=219 hash=0xD945B8B3
+  ragdoll-human workers=2 sleepStep=219 hash=0xD945B8B3
+  ragdoll-human workers=3 sleepStep=219 hash=0xD945B8B3
+  ragdoll-human workers=4 sleepStep=219 hash=0xD945B8B3
+  ragdoll-human workers=5 sleepStep=219 hash=0xD945B8B3
+  subtest passed: RagdollHumanTest
+  workers=1 sleepStep=354 hash=0xD9216BE4
+  workers=2 sleepStep=354 hash=0xD9216BE4
+  workers=3 sleepStep=354 hash=0xD9216BE4
+  workers=4 sleepStep=354 hash=0xD9216BE4
+  workers=5 sleepStep=354 hash=0xD9216BE4
+  subtest passed: MultithreadingTest
+  cross-platform sleepStep=354 hash=0xD9216BE4
+  subtest passed: CrossPlatformTest
+  wave pile workers=1 sleepStep=335 hash=0x64609ED9
+  wave pile workers=2 sleepStep=335 hash=0x64609ED9
+  wave pile workers=3 sleepStep=335 hash=0x64609ED9
+  wave pile workers=4 sleepStep=335 hash=0x64609ED9
+  wave pile workers=5 sleepStep=335 hash=0x64609ED9
+  subtest passed: WavePileTest
+  subtest passed: QuerySpawnTest
+  mesh drop workers=1 sleepStep=284 hash=0x784AD80A
+  mesh drop workers=4 sleepStep=284 hash=0x784AD80A
+  subtest passed: MeshDropTest
+  spherical scale=0 hash=ccf165f88a73ebb7
+  spherical scale=1 hash=2add50ab7852c3ce
+  subtest passed: SphericalGeometryTest
+test passed: DeterminismTest
+======================================
+All Fixed3D tests passed!
+Test duration = 3.25 s
+exit=0
+----- [build-clang-ludicrous] ./bin/test DeterminismTest
+Starting Fixed3D unit tests
+Filter: DeterminismTest
+======================================
+  ragdoll-human workers=1 sleepStep=219 hash=0x407D12F3
+  ragdoll-human workers=2 sleepStep=219 hash=0x407D12F3
+  ragdoll-human workers=3 sleepStep=219 hash=0x407D12F3
+  ragdoll-human workers=4 sleepStep=219 hash=0x407D12F3
+  ragdoll-human workers=5 sleepStep=219 hash=0x407D12F3
+  subtest passed: RagdollHumanTest
+  workers=1 sleepStep=354 hash=0x27D948A4
+  workers=2 sleepStep=354 hash=0x27D948A4
+  workers=3 sleepStep=354 hash=0x27D948A4
+  workers=4 sleepStep=354 hash=0x27D948A4
+  workers=5 sleepStep=354 hash=0x27D948A4
+  subtest passed: MultithreadingTest
+  cross-platform sleepStep=354 hash=0x27D948A4
+  subtest passed: CrossPlatformTest
+  wave pile workers=1 sleepStep=335 hash=0x22E6F859
+  wave pile workers=2 sleepStep=335 hash=0x22E6F859
+  wave pile workers=3 sleepStep=335 hash=0x22E6F859
+  wave pile workers=4 sleepStep=335 hash=0x22E6F859
+  wave pile workers=5 sleepStep=335 hash=0x22E6F859
+  subtest passed: WavePileTest
+  subtest passed: QuerySpawnTest
+  mesh drop workers=1 sleepStep=284 hash=0xE44E6A0E
+  mesh drop workers=4 sleepStep=284 hash=0xE44E6A0E
+  subtest passed: MeshDropTest
+  spherical scale=0 hash=ee343d0d530f22f1
+  spherical scale=1 hash=46256d278ff09af2
+  subtest passed: SphericalGeometryTest
+test passed: DeterminismTest
+======================================
+All Fixed3D tests passed!
+Test duration = 3.32 s
+exit=0
+======================================================================
+D. COMPARISONS (diff ignoring the duration line)
+build-gcc: run1 == run2
+build-gcc-ludicrous: run1 == run2
+build-clang: run1 == run2
+build-clang-ludicrous: run1 == run2
+narrow: gcc == clang
+ludicrous: gcc == clang

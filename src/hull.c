@@ -2150,7 +2150,7 @@ int b3FindHullSupportVertex( const b3HullData* hull, b3Vec3 direction )
 			bestDot = dot;
 		}
 	}
-	B3_ASSERT( bestIndex >= 0 );
+	B3_ASSERT( 0 <= bestIndex && bestIndex < vertexCount );
 
 	return bestIndex;
 }
@@ -2408,6 +2408,74 @@ b3HullData* b3CreateRock( b3Fixed radius )
 	}
 
 	return b3CreateHull( points, pointCount, pointCount );
+}
+
+// PEEL's BasicRandom. This is just for testing.
+static uint32_t b3NextComplexHullRandom( uint32_t* state )
+{
+	*state = *state * 2147001325u + 715136305u;
+	return *state;
+}
+
+// Maps the low 16 bits of the LCG to a coordinate in [-0.5, 0.5) in Q48.16.
+// Upstream: (float)( next & 0xffff ) / 65535.0f - 0.5f. The fixed-point form is
+// native integer scaling on the raw value (CLAUDE.md rule 8): divide the raw
+// integer by 65535, never b3FixDiv against the int macro 65535 (which would be
+// ~1.0 fixed and collapse every coordinate). raw in [0, 65535] maps to
+// raw * 65536 / 65535 - 32768 raw units, so raw == 0 -> -0.5, raw == 65535 ->
+// +0.5, and raw == 32768 -> 0.0 exactly.
+static b3Fixed b3ComplexHullRandomFixed( uint32_t* state )
+{
+	uint32_t raw = b3NextComplexHullRandom( state ) & 0xffffu;
+	return (b3Fixed)( (int64_t)raw * 65536 / 65535 - 32768 );
+}
+
+static b3Vec3 b3ComplexHullRandomDirection( uint32_t* state )
+{
+	// Rejection sampling inside the unit sphere. Termination in Q48.16: the LCG has
+	// full period mod 2^32 (multiplier 2147001325 == 1 mod 4, increment 715136305
+	// odd), so its low 16 bits are a fixed permutation of [0, 65535] — the same
+	// cycle for every seed, up to a rotation. The loop draws three consecutive
+	// low-16 values per iteration, and since gcd(3, 65536) == 1 it scans every
+	// consecutive triple of the cycle. The acceptance region (lengthSquared <= 0.25,
+	// the unit sphere inscribed in the [-0.5, 0.5)^3 cube) holds 34313 of the 65536
+	// triples (~ pi / 6), and the longest run of rejected triples over the full
+	// period is 29, so the loop exits in at most 30 iterations for every seed.
+	b3Vec3 point;
+	b3Fixed lengthSquared;
+	do
+	{
+		point.x = b3ComplexHullRandomFixed( state );
+		point.y = b3ComplexHullRandomFixed( state );
+		point.z = b3ComplexHullRandomFixed( state );
+		lengthSquared = b3Dot( point, point );
+	}
+	while ( lengthSquared > B3_FIX( 0.25f ) );
+
+	return b3Normalize( point );
+}
+
+b3HullData* b3CreateComplexHullSeeded( b3Fixed radius, uint32_t seed )
+{
+	enum
+	{
+		pointCount = 32
+	};
+
+	b3Vec3 points[pointCount];
+	uint32_t state = seed;
+	for ( int i = 0; i < pointCount; ++i )
+	{
+		points[i] = b3MulSV( radius, b3ComplexHullRandomDirection( &state ) );
+	}
+
+	return b3CreateHull( points, pointCount, pointCount );
+}
+
+b3HullData* b3CreateComplexHull( b3Fixed radius )
+{
+	// Upstream's fixed seed (box3d 9f998c8).
+	return b3CreateComplexHullSeeded( radius, 42 );
 }
 
 static void b3UpdateHullBounds( b3HullData* hull )
@@ -2829,7 +2897,16 @@ b3HullData* b3CloneAndTransformHull( const b3HullData* original, b3Transform tra
 	int faceCount = hull->faceCount;
 	int vertexCount = hull->vertexCount;
 
-	if ( b3FixMul( b3FixMul( safeScale.x , safeScale.y ) , safeScale.z ) < B3_FIX( 0.0f ) )
+	// Reflected iff the exact scale determinant sx*sy*sz is negative: an odd number of negative
+	// components and no zero component. Never form the product -- b3FixMul of three legal scales
+	// quantizes to zero (rule 7) -- and a zero component makes the exact determinant zero, which
+	// is the not-reflected side exactly as product < 0 gives it (the shape of
+	// b3IsScaleCounterClockwise in mesh.c). Compare signs directly.
+	int negativeCount = ( safeScale.x < B3_FIX( 0.0f ) ) + ( safeScale.y < B3_FIX( 0.0f ) ) + ( safeScale.z < B3_FIX( 0.0f ) );
+	bool reflected = safeScale.x != B3_FIX( 0.0f ) && safeScale.y != B3_FIX( 0.0f ) && safeScale.z != B3_FIX( 0.0f ) &&
+					 ( negativeCount & 1 ) == 1;
+
+	if ( reflected )
 	{
 		// Reflected: reverse edge winding for each face.
 		for ( int i = 0; i < faceCount; ++i )
