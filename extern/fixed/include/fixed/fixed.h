@@ -247,6 +247,34 @@ FIX_ALWAYS_INLINE fixed_t fixDiv( fixed_t a, fixed_t b )
 	return (fixed_t)fixInt128ToI64( q );
 }
 
+/// a * b / c with the product held exactly at 128 bits and one truncation toward zero, as
+/// fixDiv truncates. Use it where fixDiv( fixMul( a, b ), c ) would round twice or lose the
+/// fraction bits of a small product (a unit vector component times a length, over a length).
+/// c == 0 saturates with the sign of a * b (0 when a * b == 0); a quotient past the range
+/// saturates with its true sign.
+FIX_ALWAYS_INLINE fixed_t fixMulDiv( fixed_t a, fixed_t b, fixed_t c )
+{
+	fixInt128 product = fixInt128MulI64( a, b );
+	if ( c == 0 )
+	{
+		if ( fixInt128Eq( product, fixInt128FromI64( 0 ) ) )
+		{
+			return 0;
+		}
+		return fixInt128IsNegative( product ) ? FIX_MIN : FIX_MAX;
+	}
+	fixInt128 q = fixInt128Div( product, fixInt128FromI64( c ) );
+	if ( fixInt128Gt( q, fixInt128FromI64( INT64_MAX ) ) )
+	{
+		return FIX_MAX;
+	}
+	if ( fixInt128Lt( q, fixInt128FromI64( -INT64_MAX ) ) )
+	{
+		return FIX_MIN;
+	}
+	return (fixed_t)fixInt128ToI64( q );
+}
+
 // The seed for the exact integer square root below. gcc and clang compile
 // __builtin_sqrt to the hardware instruction; plain MSVC has no such builtin and uses
 // <math.h>'s sqrt. Either spelling is only a STARTING POINT -- the repair loops that
@@ -348,6 +376,36 @@ FIX_ALWAYS_INLINE fixed_t fixSqrt( fixed_t a )
 	return (fixed_t)fixISqrt128High( hi, lo );
 }
 
+/// a + b, saturated to [FIX_MIN, FIX_MAX] instead of overflowing. The test runs before the
+/// add, so no input is undefined; a sum inside the range is the plain sum.
+FIX_ALWAYS_INLINE fixed_t fixAddSaturate( fixed_t a, fixed_t b )
+{
+	if ( b > 0 && a > FIX_MAX - b )
+	{
+		return FIX_MAX;
+	}
+	if ( b < 0 && a < FIX_MIN - b )
+	{
+		return FIX_MIN;
+	}
+	return a + b;
+}
+
+/// a - b, saturated to [FIX_MIN, FIX_MAX] instead of overflowing. The test runs before the
+/// subtract, so no input is undefined; a difference inside the range is the plain one.
+FIX_ALWAYS_INLINE fixed_t fixSubSaturate( fixed_t a, fixed_t b )
+{
+	if ( b < 0 && a > FIX_MAX + b )
+	{
+		return FIX_MAX;
+	}
+	if ( b > 0 && a < FIX_MIN + b )
+	{
+		return FIX_MIN;
+	}
+	return a - b;
+}
+
 /// Absolute value
 FIX_ALWAYS_INLINE fixed_t fixAbs( fixed_t a )
 {
@@ -408,6 +466,14 @@ FIX_ALWAYS_INLINE fixed_t fixFloor( fixed_t a )
 /// Smallest integral fixed-point value not less than a (like ceilf)
 FIX_ALWAYS_INLINE fixed_t fixCeil( fixed_t a )
 {
+#if defined( FIX_SATURATE )
+	// Above the largest whole value the ceiling is 2^47, past the range: hold it at the
+	// edge instead of wrapping to the bottom of the range.
+	if ( a > ( FIX_MAX & ~( FIX_ONE - 1 ) ) )
+	{
+		return FIX_MAX;
+	}
+#endif
 	// Unsigned add: defined wrap at the extreme edge (see fixRoundToInt)
 	return (fixed_t)( (uint64_t)a + FIX_ONE - 1 ) & ~( FIX_ONE - 1 );
 }

@@ -55,6 +55,68 @@ static inline fixed_t fixQ32ToFix( int64_t a )
 #define FIX_Q32_PI 13493037705LL	   // round(pi * 2^32)
 #define FIX_Q32_HALF_PI 6746518852LL // round(pi/2 * 2^32)
 
+#define FIX_Q62_HALF_PI 7244019458077122842LL // round(pi/2 * 2^62)
+
+fixCosSin fixComputeCosSinPrecise( fixed_t radians )
+{
+	// The angle in Q2.62 at 128 bits is exact: radians * 2^46. The reduction below is not quite:
+	// FIX_Q62_HALF_PI is pi/2 rounded to 62 fraction bits, so r is off by k times its rounding
+	// (0.38 Q2.62 units), up to 0.49 ulp of Q48.16 at |radians| near 2^47 (fixed_math.h).
+	fixInt128 x = fixInt128ShiftLeft( fixInt128FromI64( radians ), 46 );
+	fixInt128 halfPi = fixInt128FromI64( FIX_Q62_HALF_PI );
+
+	// Nearest quadrant k = round( x / (pi/2) ), ties away from zero; |k| < 2^47
+	fixInt128 bias = fixInt128FromI64( FIX_Q62_HALF_PI / 2 );
+	fixInt128 numerator = fixInt128IsNegative( x ) ? fixInt128Sub( x, bias ) : fixInt128Add( x, bias );
+	fixInt128 k = fixInt128Div( numerator, halfPi );
+
+	// Remainder |r| <= pi/4 in Q2.62 (fits 64 bits), rounded to Q32.32
+	int64_t r62 = fixInt128ToI64( fixInt128Sub( x, fixInt128Mul( k, halfPi ) ) );
+	int64_t r = ( r62 + ( (int64_t)1 << 29 ) ) >> 30;
+	int64_t r2 = fixQ32Mul( r, r );
+
+	// Taylor coefficients 1/n! in Q32.32. Truncation error below 1e-11 for |r| <= pi/4.
+	int64_t s = 108;                         // 1/11!
+	s = 11836 - fixQ32Mul( r2, s );          // 1/9!
+	s = 852176 - fixQ32Mul( r2, s );         // 1/7!
+	s = 35791394 - fixQ32Mul( r2, s );       // 1/5!
+	s = 715827883 - fixQ32Mul( r2, s );      // 1/3!
+	s = ( (int64_t)1 << 32 ) - fixQ32Mul( r2, s );
+	s = fixQ32Mul( r, s );
+
+	int64_t c = 9;                           // 1/12!
+	c = 1184 - fixQ32Mul( r2, c );           // 1/10!
+	c = 106522 - fixQ32Mul( r2, c );         // 1/8!
+	c = 5965232 - fixQ32Mul( r2, c );        // 1/6!
+	c = 178956971 - fixQ32Mul( r2, c );      // 1/4!
+	c = 2147483648LL - fixQ32Mul( r2, c );   // 1/2!
+	c = ( (int64_t)1 << 32 ) - fixQ32Mul( r2, c );
+
+	fixed_t sr = fixQ32ToFix( s ), cr = fixQ32ToFix( c );
+	int quadrant = (int)( fixInt128ToI64( k ) & 3 ); // two's complement: k mod 4 for negative k too
+	fixCosSin out;
+	switch ( quadrant )
+	{
+		case 0:
+			out.cosine = cr;
+			out.sine = sr;
+			break;
+		case 1:
+			out.cosine = -sr;
+			out.sine = cr;
+			break;
+		case 2:
+			out.cosine = -cr;
+			out.sine = -sr;
+			break;
+		default:
+			out.cosine = sr;
+			out.sine = -cr;
+			break;
+	}
+	return out;
+}
+
 fixed_t fixAtan2( fixed_t y, fixed_t x )
 {
 	// Added check for (0,0) to match atan2f and avoid a zero divide
@@ -339,6 +401,16 @@ fixed_t fixSmoothCriticallyDamped( fixed_t current, fixed_t target, fixed_t* vel
 	}
 
 	fixed_t omega = fixDiv( 2 * FIX_PI, smoothTime );
+#if defined( FIX_SATURATE )
+	fixed_t onePlus = fixAddSaturate( FIX_ONE, fixMul( omega, deltaTime ) );
+	fixed_t denominator = fixMul( onePlus, onePlus );
+
+	fixed_t spring = fixMul( fixMul( fixMul( omega, omega ), deltaTime ), fixSubSaturate( current, target ) );
+
+	*velocity = fixDiv( fixSubSaturate( *velocity, spring ), denominator );
+
+	return fixAddSaturate( current, fixMul( *velocity, deltaTime ) );
+#else
 	fixed_t onePlus = FIX_ONE + fixMul( omega, deltaTime );
 	fixed_t denominator = fixMul( onePlus, onePlus );
 
@@ -347,6 +419,7 @@ fixed_t fixSmoothCriticallyDamped( fixed_t current, fixed_t target, fixed_t* vel
 	*velocity = fixDiv( *velocity - spring, denominator );
 
 	return current + fixMul( *velocity, deltaTime );
+#endif
 }
 
 fixed_t fixSmoothCriticallyDampedUpDown( fixed_t current, fixed_t target, fixed_t* velocity, fixed_t smoothTimeUp,

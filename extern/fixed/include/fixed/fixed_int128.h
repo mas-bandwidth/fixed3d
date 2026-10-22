@@ -67,7 +67,7 @@
 // supplied base.h's macros gets FIX_FORCE_INLINE, which it may have overridden; a
 // consumer including this header on its own gets the compiler's spelling directly.
 #ifndef FIX_INLINE
-	#if defined( _MSC_VER )
+	#if defined( _MSC_VER ) && !defined( __clang__ )
 		#define FIX_ALWAYS_INLINE static __forceinline
 	#elif defined( __GNUC__ ) || defined( __clang__ )
 		#define FIX_ALWAYS_INLINE static inline __attribute__( ( always_inline ) )
