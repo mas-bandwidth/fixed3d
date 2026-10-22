@@ -11,6 +11,7 @@ set(BOX3D_TEST_FILES
 	test_container.c
     test_determinism.c
     test_fixed_abi.c
+    test_fixed_saturate.c
     test_distance.c
     test_hash.c
     test_height_field.c
@@ -37,6 +38,10 @@ set_target_properties(test PROPERTIES
     C_STANDARD_REQUIRED YES
     C_EXTENSIONS NO
 )
+
+# One file of the suite is built with the saturating policy, to hold that
+# BOX3D_FIXED_SATURATE reaches the library's inlines (test_fixed_saturate.c says why).
+set_source_files_properties(test_fixed_saturate.c PROPERTIES COMPILE_DEFINITIONS BOX3D_FIXED_SATURATE)
 
 # Special access to Fixed3D internals for testing
 target_include_directories(test PRIVATE ${CMAKE_SOURCE_DIR}/src)
