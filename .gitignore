@@ -32,3 +32,4 @@ tending/
 # Upstream ignores its agent instructions file; ours is CLAUDE.md and is tracked on purpose
 # (it carries the port cursor), so only upstream's name is ignored here.
 AGENTS.md
+/bin/
