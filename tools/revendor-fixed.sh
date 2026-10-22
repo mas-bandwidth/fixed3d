@@ -18,10 +18,10 @@
 set -euo pipefail
 
 FIXED_REPO="https://github.com/mas-bandwidth/fixed.git"
-# Tested numerical repairs and exact-math optimizations from fixed PR #28.
+# fixed main after #59-#62: FIX_SATURATE reaches every add, subtract and reduction.
 # This is an unreleased snapshot, pinned by immutable commit rather than a branch.
-FIXED_PIN="2f1ed913374ab047c061c66f5be737715f7d87b5"
-FIXED_VERSION="unreleased-2f1ed91"
+FIXED_PIN="4a70c64eaedf58cb6363ad7a3a48387d2ff15502"
+FIXED_VERSION="unreleased-4a70c64"
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DEST="$ROOT/extern/fixed"

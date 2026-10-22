@@ -4,14 +4,16 @@ This directory is a **generated copy** of [mas-bandwidth/fixed](https://github.c
 the deterministic fixed-point math library that Fixed3D's own fixed-point core was
 extracted into.
 
-    Pinned at: unreleased-2f1ed91  (2f1ed913374ab047c061c66f5be737715f7d87b5)
+    Pinned at: unreleased-4a70c64  (4a70c64eaedf58cb6363ad7a3a48387d2ff15502)
 
-This tested snapshot contains the numerical repairs and exact square-root
-optimizations in [fixed #28](https://github.com/mas-bandwidth/fixed/pull/28).
-It fixes transformed-bound containment, normalization precision/range,
-small-angle extraction, validators, midpoint arithmetic and boundary conversions.
-The square-root optimization preserves exact result bits. This pin is a commit,
-not a published release tag; consumer determinism checks cover integration.
+fixed main after [#59](https://github.com/mas-bandwidth/fixed/pull/59)-[#62](https://github.com/mas-bandwidth/fixed/pull/62):
+under `FIX_SATURATE` (box3d's `BOX3D_FIXED_SATURATE`) every add, subtract and 128-bit
+reduction saturates with the sign of the exact result instead of wrapping -- `fixDot`,
+`fixVecAdd`/`fixVecSub`, `fixCross`, the quaternion products, `fixMulAdd` and the rotations,
+the lerps, `fixMulMV` and the rest. The default build's code is unchanged from the previous
+pin (2f1ed91, fixed #28) apart from new functions and clang-cl taking the GNU always_inline
+attribute. This pin is a commit, not a published release tag; consumer determinism checks
+cover integration.
 
 ## Do not edit anything in this directory
 
