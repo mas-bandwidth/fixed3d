@@ -356,9 +356,9 @@ FIX_INLINE fixed_t fixNormalizeByLength( fixed_t component, uint64_t length )
 // Specialize away the optional output on the normalize-only hot path.
 FIX_FORCE_INLINE fixVec3 fixNormalizeWithLength( fixVec3 a, fixed_t* originalLength )
 {
-	uint64_t ux = a.x < 0 ? -(uint64_t)a.x : (uint64_t)a.x;
-	uint64_t uy = a.y < 0 ? -(uint64_t)a.y : (uint64_t)a.y;
-	uint64_t uz = a.z < 0 ? -(uint64_t)a.z : (uint64_t)a.z;
+	uint64_t ux = a.x < 0 ? (uint64_t)0 - (uint64_t)a.x : (uint64_t)a.x;
+	uint64_t uy = a.y < 0 ? (uint64_t)0 - (uint64_t)a.y : (uint64_t)a.y;
+	uint64_t uz = a.z < 0 ? (uint64_t)0 - (uint64_t)a.z : (uint64_t)a.z;
 	if ( ( ux | uy | uz ) == 0 )
 	{
 		if ( originalLength != NULL ) *originalLength = 0;
@@ -807,10 +807,10 @@ FIX_INLINE fixQuat fixNormalizeQuat( fixQuat q )
 		return FIX_LITERAL( fixQuat ){ { fixNormalizeByLength( q.v.x, length ), fixNormalizeByLength( q.v.y, length ),
 			fixNormalizeByLength( q.v.z, length ) }, fixNormalizeByLength( q.s, length ) };
 	}
-	uint64_t ux = q.v.x < 0 ? -(uint64_t)q.v.x : (uint64_t)q.v.x;
-	uint64_t uy = q.v.y < 0 ? -(uint64_t)q.v.y : (uint64_t)q.v.y;
-	uint64_t uz = q.v.z < 0 ? -(uint64_t)q.v.z : (uint64_t)q.v.z;
-	uint64_t us = q.s < 0 ? -(uint64_t)q.s : (uint64_t)q.s;
+	uint64_t ux = q.v.x < 0 ? (uint64_t)0 - (uint64_t)q.v.x : (uint64_t)q.v.x;
+	uint64_t uy = q.v.y < 0 ? (uint64_t)0 - (uint64_t)q.v.y : (uint64_t)q.v.y;
+	uint64_t uz = q.v.z < 0 ? (uint64_t)0 - (uint64_t)q.v.z : (uint64_t)q.v.z;
+	uint64_t us = q.s < 0 ? (uint64_t)0 - (uint64_t)q.s : (uint64_t)q.s;
 	if ( ( ux | uy | uz | us ) == 0 ) return fixQuat_identity;
 	int lift = fixNormalizationLift( ux | uy | uz | us );
 	q.v.x = fixShiftLeft( q.v.x, lift );

@@ -4,9 +4,16 @@ This directory is a **generated copy** of [mas-bandwidth/fixed](https://github.c
 the deterministic fixed-point math library that Fixed3D's own fixed-point core was
 extracted into.
 
-    Pinned at: unreleased-4a70c64  (4a70c64eaedf58cb6363ad7a3a48387d2ff15502)
+    Pinned at: unreleased-8dda4fc  (8dda4fcdae38a7fde0a63bd9ba8edc3f2f75ad1c)
 
-fixed main after [#59](https://github.com/mas-bandwidth/fixed/pull/59)-[#62](https://github.com/mas-bandwidth/fixed/pull/62):
+fixed main after [#66](https://github.com/mas-bandwidth/fixed/pull/66): every unary minus
+on an unsigned value is spelled `(T)0 - x` (MSVC C4146 at /W4), which is bit-identical, and
+the portable `fixInt128Div` path (the Windows one) negates its quotient as `0 - q`, so
+`INT128_MIN / 1` no longer overflows a signed negation. Nothing else in the vendored files
+moved from the previous pin (4a70c64), whose notes follow; the determinism goldens hold.
+moo's `extern/fixed` moves to the same commit, as `tools/moo-fixed3d-compare.sh` requires.
+
+Previous pin, 4a70c64 -- fixed main after [#59](https://github.com/mas-bandwidth/fixed/pull/59)-[#62](https://github.com/mas-bandwidth/fixed/pull/62):
 under `FIX_SATURATE` (box3d's `BOX3D_FIXED_SATURATE`) every add, subtract and 128-bit
 reduction saturates with the sign of the exact result instead of wrapping -- `fixDot`,
 `fixVecAdd`/`fixVecSub`, `fixCross`, the quaternion products, `fixMulAdd` and the rotations,

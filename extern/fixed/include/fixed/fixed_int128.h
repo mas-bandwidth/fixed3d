@@ -616,7 +616,7 @@ FIX_ALWAYS_INLINE fixUInt128 fixUInt128Add( fixUInt128 a, fixUInt128 b ) { retur
 FIX_ALWAYS_INLINE fixUInt128 fixUInt128Sub( fixUInt128 a, fixUInt128 b ) { return a - b; }
 FIX_ALWAYS_INLINE fixUInt128 fixUInt128Mul( fixUInt128 a, fixUInt128 b ) { return a * b; }
 FIX_ALWAYS_INLINE fixUInt128 fixUInt128MulU64( uint64_t a, uint64_t b ) { return (fixUInt128)a * b; }
-FIX_ALWAYS_INLINE fixUInt128 fixUInt128Neg( fixUInt128 a ) { return -a; }
+FIX_ALWAYS_INLINE fixUInt128 fixUInt128Neg( fixUInt128 a ) { return (fixUInt128)0 - a; }
 
 /// Divide a 128-bit value by a 64-bit divisor, returning the quotient and, through the
 /// pointer, the remainder.
@@ -712,7 +712,7 @@ FIX_ALWAYS_INLINE fixInt128 fixInt128Mul( fixInt128 a, fixInt128 b )
 }
 // The widening multiply cannot overflow: the largest product of two int64 values is 2^126.
 FIX_ALWAYS_INLINE fixInt128 fixInt128MulI64( int64_t a, int64_t b ) { return (fixInt128)a * b; }
-FIX_ALWAYS_INLINE fixInt128 fixInt128Neg( fixInt128 a ) { return (fixInt128)( -(fixUInt128)a ); }
+FIX_ALWAYS_INLINE fixInt128 fixInt128Neg( fixInt128 a ) { return (fixInt128)( (fixUInt128)0 - (fixUInt128)a ); }
 FIX_ALWAYS_INLINE fixInt128 fixInt128Shr( fixInt128 a, int shift ) { return a >> shift; }
 FIX_ALWAYS_INLINE bool fixInt128Eq( fixInt128 a, fixInt128 b ) { return a == b; }
 FIX_ALWAYS_INLINE bool fixInt128Lt( fixInt128 a, fixInt128 b ) { return a < b; }
