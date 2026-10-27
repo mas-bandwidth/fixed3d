@@ -365,8 +365,9 @@ int32_t fixNormalizeComponent30( int64_t raw, uint64_t length )
 	FIX_ASSERT( length != 0 );
 
 	// Unsigned negation rather than -raw: the magnitude is identical for every input and
-	// stays defined at INT64_MIN, where negating the signed value is not.
-	uint64_t magnitude = raw < 0 ? -(uint64_t)raw : (uint64_t)raw;
+	// stays defined at INT64_MIN, where negating the signed value is not. Spelled 0 - x, not -x,
+	// because MSVC warns C4146 on unary minus of an unsigned value.
+	uint64_t magnitude = raw < 0 ? (uint64_t)0 - (uint64_t)raw : (uint64_t)raw;
 	fixUInt128 numerator = fixUInt128Add( fixUInt128Shl( fixUInt128FromU64( magnitude ), FIX30_FRACTION_BITS ),
 										  fixUInt128FromU64( length >> 1 ) );
 
