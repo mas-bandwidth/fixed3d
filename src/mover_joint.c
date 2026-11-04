@@ -134,6 +134,46 @@ void b3WarmStartMoverJoint( b3JointSim* base, b3StepContext* context )
 	}
 }
 
+// Clamp the accumulated planar impulse to the disc of radius maxImpulse, exactly. All of it is
+// integer arithmetic on raw values at 128 bits: the squared length is the exact sum of the raw
+// squares, the compare is exact, the length is the CEILING of its square root, and each
+// component is scaled as |x| * maxImpulse / length truncated toward zero. So the result never
+// leaves the disc and the next compare agrees that it is inside. tla/MoverJoints.tla checks this
+// spelling at reduced width.
+//
+// The joint.h spelling (b3ImpulseOverCap2, then b3Length2) rounds each square to Q48.16 before
+// comparing, as the motor and parallel joints must to keep their goldens. For a small cap that
+// rounding is the whole value: at h = 1/240 a 0.5 N mover has a raw cap of 137, whose square
+// rounds to zero, so impulses up to 181 raw pass uncapped (32% over) and a clamped impulse can
+// come back still over its cap. The model finds the reduced-width case (MoverJointsRounded.cfg).
+// It also removes the B3_FIXED_MAX sentinel wrap: nothing here is squared in 64 bits.
+static b3Vec2 b3ClampToDisc( b3Vec2 v, b3Fixed maxImpulse )
+{
+	B3_ASSERT( maxImpulse >= 0 );
+	uint64_t ax = v.x < 0 ? (uint64_t)0 - (uint64_t)v.x : (uint64_t)v.x;
+	uint64_t ay = v.y < 0 ? (uint64_t)0 - (uint64_t)v.y : (uint64_t)v.y;
+	uint64_t m = (uint64_t)maxImpulse;
+
+	fixUInt128 lengthSquared = fixUInt128Add( fixUInt128MulU64( ax, ax ), fixUInt128MulU64( ay, ay ) );
+	if ( fixUInt128Le( lengthSquared, fixUInt128MulU64( m, m ) ) )
+	{
+		return v;
+	}
+
+	uint64_t length = fixISqrt128High( fixUInt128Hi( lengthSquared ), fixUInt128Lo( lengthSquared ) );
+	if ( fixUInt128Lt( fixUInt128MulU64( length, length ), lengthSquared ) )
+	{
+		length += 1;
+	}
+
+	// length >= max( ax, ay ) and length > m, so each quotient is at most m and fits
+	uint64_t remainder;
+	uint64_t qx = fixUInt128DivRemBy64( fixUInt128MulU64( ax, m ), length, &remainder );
+	uint64_t qy = fixUInt128DivRemBy64( fixUInt128MulU64( ay, m ), length, &remainder );
+	b3Vec2 out = { v.x < 0 ? -(b3Fixed)qx : (b3Fixed)qx, v.y < 0 ? -(b3Fixed)qy : (b3Fixed)qy };
+	return out;
+}
+
 void b3SolveMoverJoint( b3JointSim* base, b3StepContext* context )
 {
 	B3_ASSERT( base->type == b3_moverJoint );
@@ -160,18 +200,8 @@ void b3SolveMoverJoint( b3JointSim* base, b3StepContext* context )
 		oldImpulse.y + deltaImpulse.y,
 	};
 
-	// The circular clamp compares at 128 bits (joint.h): h * maxForce is safe to form, but its
-	// square wraps for a large force limit, and a wrapped compare would rescale the impulse up.
-	// The rescale divides last. A saturated mover's unclamped impulse is often thousands of times
-	// its cap, so upstream's maxImpulse / length quantizes to a handful of ULP and loses ~10% of
-	// the force; each component is instead formed as x * maxImpulse / length with one truncation
-	// toward zero, which also keeps the result inside the cap.
 	b3Fixed maxImpulse = b3FixMul( context->h, joint->maxForce );
-	if ( b3ImpulseOverCap2( newImpulse, maxImpulse ) )
-	{
-		b3Fixed length = b3Length2( newImpulse );
-		newImpulse = (b3Vec2){ fixMulDiv( newImpulse.x, maxImpulse, length ), fixMulDiv( newImpulse.y, maxImpulse, length ) };
-	}
+	newImpulse = b3ClampToDisc( newImpulse, maxImpulse );
 
 	deltaImpulse = b3Sub2( newImpulse, oldImpulse );
 	joint->impulse = newImpulse;
