@@ -63,7 +63,7 @@ upstream golden in both precisions; the `contact_solver_wide.inl` hunk has no an
 `port/efca0c1-gyro-tolerance` (roadmap item `port-efca0c1-gyro-tolerance`); its samples hunk is held
 under the #20 / #47 class. `f36d061` CMake improvements (#201) and `3362633` Dynamic Mover (#202)
 (2026-10-20 and 2026-10-27): `f36d061` is not yet triaged here; `3362633` (Glenn's priority,
-2026-11-04) is PORTED, engine half, and CARRIED AHEAD OF THE CURSOR (next paragraph).
+2026-11-04) is PORTED, engine half, and CARRIED AHEAD OF THE CURSOR (the bold `3362633` paragraph near the top of this section).
 
 *(~~THIS LINE ADVANCES WITH THE MERGE OF `port/47d7f7c-clockwise-mover`, NOT BEFORE~~ —
 **DISCHARGED 2026-09-03, verified rather than assumed: `port/47d7f7c-clockwise-mover`
@@ -171,14 +171,23 @@ The PORT RECORDs below run newest first and are the detail for each step.
   clears impulse and speed), `TestPogoJointSleepKeepsImpulse`, `TestSpringDamper` (double reference, 8 ULP). `test_recording.c`
   `AllOps` — upstream's mover/pogo block (every setter, the pogo rebuilt each frame warm started).
   `test_determinism.c` — `MoverPogoTest`: 300 steps of a rotation locked capsule on hull ground,
-  target velocity changes, the force budget lowered below the carried impulse, the pogo rebuilt
+  target velocity changes, the force budget lowered to 40 N with a target that saturates it from
+  step 150 (the carried force at step 149 measures 0.137 N, so this is saturation, not a re-clamp;
+  re-clamping a carried impulse above a lowered budget is `TestMoverJointForceBudget`), the pogo rebuilt
   warm started every 10 steps and its rest length and hertz changed; per-step hash of body state
   and both joints' carried state, identical for workers 1-5, golden `MOVER_POGO_HASH` per build
   (narrow `0xd120d881cacd2605`, identical in RelWithDebInfo, Debug+ASan and NEON; ludicrous
   `0xdcdc7aaef38eab3d`; harvested by the printed-value procedure, then confirmed with goldens on).
-  `MoverPogoForkTest`: a recording started at step 120 snapshots the live world; a player
-  restored from it continues bit-identically for the remaining 180 steps at one and four workers
-  (pogo ids tracked through the rebuilds), and the forked live run equals an unforked one.
+  `MoverPogoForkTest`: a recording started at step 160 snapshots the live world while the mover is
+  saturated (carried force 39.997 N, required > 39 N in the test; at step 120 it was 0.137 N); the
+  restored world holds the mover's carried force and the pogo's impulse and speed exactly before
+  any step, a player restored from it continues bit-identically for the remaining 140 steps at one
+  and four workers (pogo ids tracked through the rebuilds), and the forked live run equals an
+  unforked one. Negative control: recreating the mover joint on the restored side (impulse zero)
+  fails the restore-time check. The continuation alone does NOT see a dropped mover impulse: a
+  saturated mover re-clamps to its cap in the first solve pass whatever it was warm started with,
+  and with the impulse dropped all 140 replayed steps stayed bit-identical (measured 2026-11-04),
+  which is why the carried state is compared directly.
   **GOLDENS: NONE MOVED** — every existing golden passed unchanged in all four configs (no existing
   scene has a mover or pogo joint; the `forceScale` default and the wheel arc are draw-only).
   **STUDIO (2026-11-04):** RelWithDebInfo + VALIDATE, ludicrous, Debug + ASan/UBSan and NEON, all
