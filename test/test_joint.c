@@ -334,6 +334,261 @@ static int TestMotorJoint( void )
 	return FinishJoint( jointId, f.worldId );
 }
 
+static int TestMoverJoint( void )
+{
+	JointFixture f = CreateJointFixture();
+
+	b3MoverJointDef def = b3DefaultMoverJointDef();
+	SetCommonFrames( &def.base, &f );
+	b3JointId jointId = b3CreateMoverJoint( f.worldId, &def );
+
+	if ( ExerciseJointBase( jointId, f.worldId, f.groundId, f.bodyId, b3_moverJoint ) != 0 )
+	{
+		return 1;
+	}
+
+	b3Vec3 velocity = { B3_FIX( 1.0f ), B3_FIX( 2.0f ), -B3_FIX( 3.0f ) };
+	b3MoverJoint_SetLinearVelocity( jointId, velocity );
+	b3Vec3 gotVelocity = b3MoverJoint_GetLinearVelocity( jointId );
+	ENSURE( gotVelocity.x == B3_FIX( 1.0f ) && gotVelocity.y == B3_FIX( 2.0f ) && gotVelocity.z == -B3_FIX( 3.0f ) );
+
+	// The y axis has no force budget, so it must stay at rest while x and z reach the target
+	b3Fixed maxForce = B3_FIX( 1000.0f );
+	b3MoverJoint_SetMaxVelocityForce( jointId, maxForce );
+	ENSURE( b3MoverJoint_GetMaxVelocityForce( jointId ) == B3_FIX( 1000.0f ) );
+
+	for ( int i = 0; i < 30; ++i )
+	{
+		b3World_Step( f.worldId, b3FixDiv( B3_FIX( 1.0f ), B3_FIX( 60.0f ) ), 4 );
+	}
+
+	b3Vec3 v = b3Body_GetLinearVelocity( f.bodyId );
+	ENSURE_SMALL( v.x - B3_FIX( 1.0f ), B3_FIX( 1.0e-4f ) );
+	ENSURE_SMALL( v.y, B3_FIX( 1.0e-4f ) );
+	ENSURE_SMALL( v.z + B3_FIX( 3.0f ), B3_FIX( 1.0e-4f ) );
+
+	b3Vec3 w = b3Body_GetAngularVelocity( f.bodyId );
+	ENSURE( w.x == B3_FIX( 0.0f ) && w.y == B3_FIX( 0.0f ) && w.z == B3_FIX( 0.0f ) );
+
+	return FinishJoint( jointId, f.worldId );
+}
+
+// The mover's circular clamp squares h * maxForce. With the B3_FIXED_MAX "unlimited" sentinel that
+// square wraps int64 (to exactly zero at h = 1/240), so a 64-bit compare would fire on the first
+// nonzero impulse and rescale it UP to h * B3_FIXED_MAX. The 128-bit compare must leave an
+// unlimited mover reaching its target like any other.
+static int TestMoverJointSentinelForce( void )
+{
+	JointFixture f = CreateJointFixture();
+
+	// A mass whose inverse is not a power of two. With unit mass the wrapped impulses telescope
+	// exactly in modular arithmetic and the velocity lands on the target anyway (measured).
+	b3MassData massData = b3Body_GetMassData( f.bodyId );
+	massData.mass = B3_FIX( 3.0f );
+	b3Body_SetMassData( f.bodyId, massData );
+
+	b3MoverJointDef def = b3DefaultMoverJointDef();
+	SetCommonFrames( &def.base, &f );
+	def.linearVelocity = (b3Vec3){ B3_FIX( 2.0f ), B3_FIX( 0.0f ), B3_FIX( 1.0f ) };
+	def.maxForce = B3_FIXED_MAX;
+	b3JointId jointId = b3CreateMoverJoint( f.worldId, &def );
+
+	// Unlimited force reaches the target within the first step and holds it. Checked every step:
+	// the wrapped compare blows the impulse up to h * B3_FIXED_MAX and back, and can land near the
+	// target again by the end, so a final-state check alone misses it (measured).
+	for ( int i = 0; i < 10; ++i )
+	{
+		b3World_Step( f.worldId, b3FixDiv( B3_FIX( 1.0f ), B3_FIX( 60.0f ) ), 4 );
+
+		b3Vec3 v = b3Body_GetLinearVelocity( f.bodyId );
+		ENSURE_SMALL( v.x - B3_FIX( 2.0f ), B3_FIX( 1.0e-4f ) );
+		ENSURE_SMALL( v.y, B3_FIX( 1.0e-4f ) );
+		ENSURE_SMALL( v.z - B3_FIX( 1.0f ), B3_FIX( 1.0e-4f ) );
+
+		// Holding a constant velocity takes no force after the first step
+		b3Fixed force = b3Length( b3Joint_GetConstraintForce( jointId ) );
+		ENSURE( force < B3_FIX( 1000.0f ) );
+	}
+
+	return FinishJoint( jointId, f.worldId );
+}
+
+// A small force budget saturates: the body accelerates at maxForce / mass, and the reported force
+// never exceeds the budget. Lowering the budget between steps re-clamps the warm-started impulse.
+// The cap is h * maxForce rounded once to the impulse grid and the force reads back as
+// impulse * inv_h, so one impulse ULP shows up as inv_h ULP (240 at 60 Hz x 4) of force: the
+// slack below is that, not solver error.
+static int TestMoverJointForceBudget( void )
+{
+	JointFixture f = CreateJointFixture();
+	b3Fixed mass = b3Body_GetMass( f.bodyId );
+
+	b3MoverJointDef def = b3DefaultMoverJointDef();
+	SetCommonFrames( &def.base, &f );
+	def.linearVelocity = (b3Vec3){ B3_FIX( 100.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
+	def.maxForce = B3_FIX( 2.0f );
+	b3JointId jointId = b3CreateMoverJoint( f.worldId, &def );
+
+	b3Fixed timeStep = b3FixDiv( B3_FIX( 1.0f ), B3_FIX( 60.0f ) );
+	for ( int i = 0; i < 60; ++i )
+	{
+		b3World_Step( f.worldId, timeStep, 4 );
+		b3Fixed force = b3Length( b3Joint_GetConstraintForce( jointId ) );
+		ENSURE( force <= def.maxForce + B3_FIX( 0.005f ) );
+	}
+
+	// One second at 2 N on the measured mass
+	b3Vec3 v = b3Body_GetLinearVelocity( f.bodyId );
+	ENSURE_SMALL( v.x - b3FixDiv( def.maxForce, mass ), B3_FIX( 0.002f ) );
+
+	b3MoverJoint_SetMaxVelocityForce( jointId, B3_FIX( 0.5f ) );
+	b3World_Step( f.worldId, timeStep, 4 );
+	ENSURE( b3Length( b3Joint_GetConstraintForce( jointId ) ) <= B3_FIX( 0.5f ) + B3_FIX( 0.005f ) );
+
+	return FinishJoint( jointId, f.worldId );
+}
+
+// A box held up by a pogo spring under gravity should settle at the rest length
+static int TestPogoJoint( void )
+{
+	JointFixture f = CreateJointFixture();
+	b3World_SetGravity( f.worldId, (b3Vec3){ B3_FIX( 0.0f ), -B3_FIX( 10.0f ), B3_FIX( 0.0f ) } );
+
+	b3Fixed restLength = B3_FIX( 2.0f );
+	b3Fixed mass = b3Body_GetMass( f.bodyId );
+	b3Fixed weight = b3FixMul( B3_FIX( 10.0f ), mass );
+
+	b3PogoJointDef def = b3DefaultPogoJointDef();
+	def.base.bodyIdA = f.groundId;
+	def.base.bodyIdB = f.bodyId;
+	def.base.localFrameA.p = (b3Vec3){ B3_FIX( 0.0f ), B3_FIX( 1.0f ), B3_FIX( 0.0f ) };
+	def.base.localFrameB.p = (b3Vec3){ B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
+	def.normal = b3Vec3_axisY;
+	def.restLength = restLength;
+	def.hertz = B3_FIX( 2.0f );
+	def.dampingRatio = B3_FIX( 1.0f );
+	def.maxCompressionForce = b3FixMul( B3_FIX( 100.0f ), weight );
+	def.maxTensionForce = b3FixMul( B3_FIX( 100.0f ), weight );
+	b3JointId jointId = b3CreatePogoJoint( f.worldId, &def );
+
+	if ( ExerciseJointBase( jointId, f.worldId, f.groundId, f.bodyId, b3_pogoJoint ) != 0 )
+	{
+		return 1;
+	}
+
+	b3PogoJoint_SetRestLength( jointId, restLength );
+	ENSURE( b3PogoJoint_GetRestLength( jointId ) == restLength );
+
+	b3PogoJoint_SetSpringHertz( jointId, B3_FIX( 3.0f ) );
+	ENSURE( b3PogoJoint_GetSpringHertz( jointId ) == B3_FIX( 3.0f ) );
+
+	b3PogoJoint_SetSpringDampingRatio( jointId, B3_FIX( 0.9f ) );
+	ENSURE( b3PogoJoint_GetSpringDampingRatio( jointId ) == B3_FIX( 0.9f ) );
+
+	b3Fixed maxTension = b3FixMul( B3_FIX( 50.0f ), weight );
+	b3PogoJoint_SetMaxTensionForce( jointId, maxTension );
+	ENSURE( b3PogoJoint_GetMaxTensionForce( jointId ) == maxTension );
+
+	b3Fixed maxCompression = b3FixMul( B3_FIX( 60.0f ), weight );
+	b3PogoJoint_SetMaxCompressionForce( jointId, maxCompression );
+	ENSURE( b3PogoJoint_GetMaxCompressionForce( jointId ) == maxCompression );
+
+	b3Vec3 normal = b3Normalize( (b3Vec3){ B3_FIX( 0.2f ), B3_FIX( 1.0f ), B3_FIX( 0.0f ) } );
+	b3PogoJoint_SetNormal( jointId, normal );
+	b3Vec3 gotNormal = b3PogoJoint_GetNormal( jointId );
+	ENSURE( gotNormal.x == normal.x && gotNormal.y == normal.y && gotNormal.z == normal.z );
+	b3PogoJoint_SetNormal( jointId, b3Vec3_axisY );
+
+	// Starts stretched by one meter. Positions are exact here, so the length is too.
+	ENSURE( b3PogoJoint_GetCurrentLength( jointId ) == B3_FIX( 3.0f ) );
+
+	for ( int i = 0; i < 300; ++i )
+	{
+		b3World_Step( f.worldId, b3FixDiv( B3_FIX( 1.0f ), B3_FIX( 60.0f ) ), 4 );
+	}
+
+	ENSURE_SMALL( b3PogoJoint_GetCurrentLength( jointId ) - restLength, B3_FIX( 0.01f ) );
+	ENSURE_SMALL( b3Body_GetLinearVelocity( f.bodyId ).y, B3_FIX( 0.01f ) );
+
+	// Holding the weight takes an impulse of m * g * h each sub-step
+	ENSURE_SMALL( b3PogoJoint_GetImpulse( jointId ) - b3FixDiv( weight, B3_FIX( 240.0f ) ), b3FixMul( B3_FIX( 0.001f ), mass ) );
+
+	b3Vec3 force = b3Joint_GetConstraintForce( jointId );
+	ENSURE_SMALL( force.y - weight, b3FixMul( B3_FIX( 0.1f ), mass ) );
+
+	return FinishJoint( jointId, f.worldId );
+}
+
+// The pogo clamp is linear, [-h * maxTension, h * maxCompression]. A zero tension budget means the
+// spring can only push: stretched far beyond its rest length it must not pull the body down.
+static int TestPogoJointTensionClamp( void )
+{
+	JointFixture f = CreateJointFixture();
+	b3Fixed mass = b3Body_GetMass( f.bodyId );
+
+	b3PogoJointDef def = b3DefaultPogoJointDef();
+	def.base.bodyIdA = f.groundId;
+	def.base.bodyIdB = f.bodyId;
+	def.base.localFrameA.p = (b3Vec3){ B3_FIX( 0.0f ), B3_FIX( 1.0f ), B3_FIX( 0.0f ) };
+	def.restLength = B3_FIX( 1.0f );
+	def.hertz = B3_FIX( 5.0f );
+	def.dampingRatio = B3_FIX( 0.7f );
+	def.maxCompressionForce = b3FixMul( B3_FIX( 1000.0f ), mass );
+	def.maxTensionForce = B3_FIX( 0.0f );
+	b3JointId jointId = b3CreatePogoJoint( f.worldId, &def );
+
+	for ( int i = 0; i < 30; ++i )
+	{
+		b3World_Step( f.worldId, b3FixDiv( B3_FIX( 1.0f ), B3_FIX( 60.0f ) ), 4 );
+		ENSURE( b3PogoJoint_GetImpulse( jointId ) >= B3_FIX( 0.0f ) );
+	}
+
+	// Gravity is off in the fixture, so nothing moved the body
+	ENSURE( b3Body_GetLinearVelocity( f.bodyId ).y == B3_FIX( 0.0f ) );
+
+	// Zero hertz disables the spring and clears its state
+	b3PogoJoint_SetSpringHertz( jointId, B3_FIX( 0.0f ) );
+	b3World_Step( f.worldId, b3FixDiv( B3_FIX( 1.0f ), B3_FIX( 60.0f ) ), 4 );
+	ENSURE( b3PogoJoint_GetImpulse( jointId ) == B3_FIX( 0.0f ) );
+	ENSURE( b3PogoJoint_GetCurrentSpeed( jointId ) == B3_FIX( 0.0f ) );
+
+	return FinishJoint( jointId, f.worldId );
+}
+
+// b3SpringDamper against a double-precision reference on the same quantized inputs. The tolerance
+// is a few ULP: one rounding in omega, one in the stiffness product and one in the divide.
+static int TestSpringDamper( void )
+{
+	b3Fixed h = b3FixDiv( b3FixDiv( B3_FIX( 1.0f ), B3_FIX( 60.0f ) ), B3_FIX( 4.0f ) );
+	const float hertzValues[] = { 0.5f, 3.0f, 10.0f };
+	const float positions[] = { -1.0f, 0.1f, 0.003f };
+	const float velocities[] = { 0.0f, -2.0f };
+	for ( int i = 0; i < 3; ++i )
+	{
+		for ( int j = 0; j < 3; ++j )
+		{
+			for ( int k = 0; k < 2; ++k )
+			{
+				b3Fixed hertz = b3FixFromDouble( hertzValues[i] );
+				b3Fixed zeta = B3_FIX( 0.8f );
+				b3Fixed x = b3FixFromDouble( positions[j] );
+				b3Fixed v = b3FixFromDouble( velocities[k] );
+				b3Fixed got = b3SpringDamper( hertz, zeta, x, v, h );
+
+				double omega = 2.0 * 3.14159265358979323846 * b3FixToDouble( hertz );
+				double oh = omega * b3FixToDouble( h );
+				double ref = ( b3FixToDouble( v ) - omega * oh * b3FixToDouble( x ) ) /
+							 ( 1.0 + 2.0 * b3FixToDouble( zeta ) * oh + oh * oh );
+				ENSURE_SMALL( got - b3FixFromDouble( ref ), 8 * B3_FIXED_EPSILON );
+			}
+		}
+	}
+
+	// Zero position and velocity stay at rest exactly
+	ENSURE( b3SpringDamper( B3_FIX( 3.0f ), B3_FIX( 1.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ), h ) == B3_FIX( 0.0f ) );
+	return 0;
+}
+
 static int TestPrismaticJoint( void )
 {
 	JointFixture f = CreateJointFixture();
@@ -1119,6 +1374,12 @@ int JointTest( void )
 	RUN_SUBTEST( TestDistanceJoint );
 	RUN_SUBTEST( TestFilterJoint );
 	RUN_SUBTEST( TestMotorJoint );
+	RUN_SUBTEST( TestMoverJoint );
+	RUN_SUBTEST( TestMoverJointSentinelForce );
+	RUN_SUBTEST( TestMoverJointForceBudget );
+	RUN_SUBTEST( TestPogoJoint );
+	RUN_SUBTEST( TestPogoJointTensionClamp );
+	RUN_SUBTEST( TestSpringDamper );
 	RUN_SUBTEST( TestPrismaticJoint );
 	RUN_SUBTEST( TestRevoluteJoint );
 	RUN_SUBTEST( TestSphericalJoint );
