@@ -162,11 +162,15 @@ void b3SolveMoverJoint( b3JointSim* base, b3StepContext* context )
 
 	// The circular clamp compares at 128 bits (joint.h): h * maxForce is safe to form, but its
 	// square wraps for a large force limit, and a wrapped compare would rescale the impulse up.
+	// The rescale divides last. A saturated mover's unclamped impulse is often thousands of times
+	// its cap, so upstream's maxImpulse / length quantizes to a handful of ULP and loses ~10% of
+	// the force; each component is instead formed as x * maxImpulse / length with one truncation
+	// toward zero, which also keeps the result inside the cap.
 	b3Fixed maxImpulse = b3FixMul( context->h, joint->maxForce );
 	if ( b3ImpulseOverCap2( newImpulse, maxImpulse ) )
 	{
-		b3Fixed scale = b3FixDiv( maxImpulse, b3Length2( newImpulse ) );
-		newImpulse = (b3Vec2){ b3FixMul( scale, newImpulse.x ), b3FixMul( scale, newImpulse.y ) };
+		b3Fixed length = b3Length2( newImpulse );
+		newImpulse = (b3Vec2){ fixMulDiv( newImpulse.x, maxImpulse, length ), fixMulDiv( newImpulse.y, maxImpulse, length ) };
 	}
 
 	deltaImpulse = b3Sub2( newImpulse, oldImpulse );
