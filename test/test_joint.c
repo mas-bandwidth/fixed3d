@@ -413,6 +413,29 @@ static int TestMoverJointSentinelForce( void )
 	return FinishJoint( jointId, f.worldId );
 }
 
+// A zero force budget means no force at all, however small the velocity error. The rounded
+// squared compare of joint.h reads any impulse under 182 raw as inside a zero cap, so a mover
+// asked for 0.002 m/s on unit mass (131 raw of impulse) used to reach it (measured red).
+static int TestMoverJointZeroForce( void )
+{
+	JointFixture f = CreateJointFixture();
+
+	b3MoverJointDef def = b3DefaultMoverJointDef();
+	SetCommonFrames( &def.base, &f );
+	def.linearVelocity = (b3Vec3){ B3_FIX( 0.002f ), B3_FIX( 0.0f ), -B3_FIX( 0.002f ) };
+	def.maxForce = B3_FIX( 0.0f );
+	b3JointId jointId = b3CreateMoverJoint( f.worldId, &def );
+
+	for ( int i = 0; i < 10; ++i )
+	{
+		b3World_Step( f.worldId, b3FixDiv( B3_FIX( 1.0f ), B3_FIX( 60.0f ) ), 4 );
+		b3Vec3 v = b3Body_GetLinearVelocity( f.bodyId );
+		ENSURE( v.x == B3_FIX( 0.0f ) && v.y == B3_FIX( 0.0f ) && v.z == B3_FIX( 0.0f ) );
+	}
+
+	return FinishJoint( jointId, f.worldId );
+}
+
 // A small force budget saturates: the body accelerates at maxForce / mass, and the reported force
 // never exceeds the budget. Lowering the budget between steps re-clamps the warm-started impulse.
 // The cap is h * maxForce rounded once to the impulse grid and the force reads back as
@@ -1377,6 +1400,7 @@ int JointTest( void )
 	RUN_SUBTEST( TestMoverJoint );
 	RUN_SUBTEST( TestMoverJointSentinelForce );
 	RUN_SUBTEST( TestMoverJointForceBudget );
+	RUN_SUBTEST( TestMoverJointZeroForce );
 	RUN_SUBTEST( TestPogoJoint );
 	RUN_SUBTEST( TestPogoJointTensionClamp );
 	RUN_SUBTEST( TestSpringDamper );
