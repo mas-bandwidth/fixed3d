@@ -47,6 +47,7 @@ set(BOX3D_SOURCE_FILES
 	mesh.c
 	mesh_contact.c
 	motor_joint.c
+	mover_joint.c
 	mover.c
 	name_cache.c
 	name_cache.h
@@ -56,6 +57,7 @@ set(BOX3D_SOURCE_FILES
 	physics_world.c
 	physics_world.h
 	platform.h
+	pogo_joint.c
 	prismatic_joint.c
 	qsort.h
 	rapidhash.h
