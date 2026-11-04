@@ -81,6 +81,12 @@
    :date "2026-10-14"
    :origin "mas-bandwidth/fixed3d issue #51, opened 2026-09-01 by rowan-claude; moved here 2026-10-14"
    :kept (:github-issue "51" :labels ""))
+  (item "fixed3d-orientation-integration-deadband" :group "export-fixed3d-box3d-ports" :area "fixed3d"
+   :title "Sub-quantum rotation increments round away in b3IntegrateRotation, so a resting stack slides"
+   :text "One-substep rotation increments (about 1.3 quaternion quanta at 0.01 rad/s) round away in b3IntegrateRotation, so box tilt below about 4e-4 rad never levels; the tilted face normals then push the 10-box RestingTest stack along frictionless ground. Peak speed 0.025 m/s since the f555ee4 port (0.046 to 0.061 before it) against upstream float's 0.00002, and it depends on substep count (1: 0.024, 2: 0.013, 4: 0.061, 8: 0.078). The repair needs a persistent sub-quantum rotation residual in b3BodyState (body.h). RestingTest in test/test_restitution.c is a RUN_MEASUREMENT that passes its 0.05 bound by the contact order the sorted pair keys give, not because the bug is fixed; this item is its tracker."
+   :why "Filed 2026-11-04 when the f555ee4 port (PR #99) turned RestingTest from XFAIL to a measurement: a cold read found no live tracker for the bug the XFAIL named."
+   :date "2026-11-04"
+   :origin "CLAUDE.md restitution record (the RestingTest cause), and the cold read of fixed3d PR #99")
   (item "issue-53" :group "github-issues" :area "fixed3d"
    :title "Height field cull spells triangle 2 as two different cyclic rotations across its two sites"
    :text "The height field spells the second cell triangle two different ways. The shape-cast cull uses b3SignedVolume of point21, point22, point12, and the mover cull uses b3SignedVolume of point22, point12, point21."

@@ -7,7 +7,7 @@ Planned work for fixed3d. Each item below was an open sprint card, moved out of 
 ## Contents
 
 - [Moved from GitHub issues on 2026-10-14](#moved-from-github-issues-on-2026-10-14) (10)
-- [Moved out of the sprint on 2026-10-14: fixed3d-box3d-ports](#moved-out-of-the-sprint-on-2026-10-14-fixed3d-box3d-ports) (6)
+- [Moved out of the sprint on 2026-10-14: fixed3d-box3d-ports](#moved-out-of-the-sprint-on-2026-10-14-fixed3d-box3d-ports) (7)
 - [Moved out of the sprint on 2026-10-14: fixed3d-perf](#moved-out-of-the-sprint-on-2026-10-14-fixed3d-perf) (1)
 - [Moved out of the sprint on 2026-10-15: fixed3d-arch-opt](#moved-out-of-the-sprint-on-2026-10-15-fixed3d-arch-opt) (22)
 - [Upstream box3d past the 2026-10-09 plan: 5d83df8..efca0c1, triaged 2026-10-16](#upstream-box3d-past-the-2026-10-09-plan-5d83df8efca0c1-triaged-2026-10-16) (2)
@@ -81,6 +81,14 @@ From: mas-bandwidth/fixed3d issue #53, opened 2026-09-01 by rowan-claude; moved 
 ## Moved out of the sprint on 2026-10-14: fixed3d-box3d-ports
 
 The open cards of sprint stream fixed3d-box3d-ports, moved out of the stopped sprint on 2026-10-14, one item per card. Landed cards of the stream are in git and are not listed. Each item names its card, its tier, its base branch and any pushed work to resume from.
+
+### Sub-quantum rotation increments round away in b3IntegrateRotation, so a resting stack slides
+
+One-substep rotation increments (about 1.3 quaternion quanta at 0.01 rad/s) round away in b3IntegrateRotation, so box tilt below about 4e-4 rad never levels; the tilted face normals then push the 10-box RestingTest stack along frictionless ground. Peak speed 0.025 m/s since the f555ee4 port (0.046 to 0.061 before it) against upstream float's 0.00002, and it depends on substep count (1: 0.024, 2: 0.013, 4: 0.061, 8: 0.078). The repair needs a persistent sub-quantum rotation residual in b3BodyState (body.h). RestingTest in test/test_restitution.c is a RUN_MEASUREMENT that passes its 0.05 bound by the contact order the sorted pair keys give, not because the bug is fixed; this item is its tracker.
+
+Why it waits: Filed 2026-11-04 when the f555ee4 port (PR #99) turned RestingTest from XFAIL to a measurement: a cold read found no live tracker for the bug the XFAIL named.
+
+From: CLAUDE.md restitution record (the RestingTest cause), and the cold read of fixed3d PR #99
 
 ### TLA+ model of the broad-phase tree's moved bit and sorted pair keys, before the code
 

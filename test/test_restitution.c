@@ -1027,7 +1027,7 @@ int RestitutionTest( void )
 	// Passes since the f555ee4 broad-phase port: sorted pair keys make the lower shape index
 	// shape A, which changes the contact order of the stack, and the peak speed fell from 0.061
 	// to 0.025 m/s, under the 0.05 bound. The deadband itself is not fixed: upstream reads
-	// 0.00002 m/s here. Card fixed3d-orientation-integration-deadband stays open.
+	// 0.00002 m/s here. Tracked by docs/roadmap.sexp item fixed3d-orientation-integration-deadband.
 	RUN_MEASUREMENT( RestingTest );
 	RUN_MEASUREMENT( NormalVelocityTest );
 	RUN_MEASUREMENT( OvershootTest );
