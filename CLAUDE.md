@@ -4,8 +4,23 @@ Box3D converted from float to Q48.16 fixed point (internal and external API).
 
 ## THE PORT CURSOR — read this before any Box3D -> Fixed3D pass
 
-**Everything in erincatto/box3d up to and including `47d7f7c` is carried across.**
-`git log 47d7f7c..upstream/main` is the remaining work.
+**Everything in erincatto/box3d up to and including `954cf87` is carried across.**
+`git log 954cf87..upstream/main` is the remaining work, less the commits carried ahead of the cursor
+listed in the next paragraph.
+
+**CARRIED AHEAD OF THE CURSOR, on `main` since fixed3d#94 (merged 2026-11-04 as `29948ea`), each
+with its PORT RECORD below:** `9e5a4cd` + `79fc559` (body-sim locator, fat AABB split, CCD gravity,
+four of the five bug fixes, allocator widening, restitution stage); `adec25b` + `9f998c8` (the
+portable pieces); `5643cd8`; `f8c4fe8` (engine half); `003a3f7` + `3d9db79`; `5d83df8` (harvested as
+the pointer-free compound); `a2e4816` (engine half). Only the `f8c4fe8` record carries the words
+CARRIED AHEAD OF THE CURSOR; the others are carried ahead all the same, by their place in upstream
+order. **`efca0c1` is carried IN PART:** its first card (the local inertia moves onto `b3BodySim`,
+`adbe7ec` / `95d34ab`, and the unused `compound.h` include, `398be05`) is on `main` with no PORT
+RECORD of its own; the gating, the tolerance API and the record are on `port/efca0c1-gyro-tolerance`,
+not yet merged. Skipped by plan #65, named: `8fda30e` (samples UI), the float AVX2 kernels of
+`e77352c` (its detection plumbing is owed as roadmap item `fixed3d-isa-dispatch-interface`), the SAT half of `51f056e`; and the skipped bulk of `adec25b`, `9f998c8` and `3d9db79`, per their records. Still owed between
+the cursor and upstream: `f555ee4` (PR #99, which also carries the fifth `9e5a4cd` / `79fc559` fix, H-H), `51f056e`'s world byte count, `16f7f4c`, and the commits
+past `5d83df8` below.
 
 **THE PLAN FOR THAT RANGE IS `fixed3d#65`** (2026-10-09): fifteen upstream commits, `47d7f7c..5d83df8`,
 with the order the cursor takes, the holds and the carries, and the decision behind each. The four
@@ -13,25 +28,22 @@ read-only triage reports it was written from, and the plan body, are in `porting
 Steps are landed one branch at a time; a cursor clause of the form *advances with the merge of* is
 struck by the run that merges it, per the `fixed3d#21` / `fixed3d#46` discipline below.
 **`fixed3d#65` was CLOSED by Glenn on 2026-10-15 ("Plan executed in part"):** steps 1, 3+4, 7, 12,
-13+14 and the harvest of 15 are on this branch, each with its PORT RECORD below; the still-open
+13+14 and the harvest of 15 are on `main`, each with its PORT RECORD below; the still-open
 steps (`f555ee4` in two parts after its TLA+ model, merged here as `5bfa76c` on 2026-10-16;
-`51f056e`'s world byte count; `16f7f4c` in two steps) are items of `docs/roadmap.sexp` on `main`,
+`51f056e`'s world byte count; `16f7f4c` in two steps) are items of `docs/roadmap.sexp`,
 where planned work lives since 2026-10-14. Read the roadmap, not the closed issue, for what is owed.
 
-**THE CURSOR ADVANCES TO `954cf87` WITH THE MERGE OF `sprint/fixed3d-box3d-ports` INTO `main`
-(fixed3d#94), NOT BEFORE** *(~~WITH THE MERGE OF `port/954cf87-fixes`~~ — that branch merged into
-THIS branch on 2026-10-15 as `b79953a`, card `port-954cf87-fixes-land-the-branch`, and this branch
-is not `main`; rewritten 2026-10-16 by the daily pass, which opened #94)*. Said in the `fixed3d#21`
-/ `fixed3d#46` form recorded underneath: a cursor line written on a branch says *advances with*,
-and the run that merges the branch comes back and strikes this clause. Until then the true cursor
-is `47d7f7c` and the line above states a fact. **With that merge the cursor also passes every
-commit this branch carries ahead of `954cf87`** — each is named CARRIED AHEAD OF THE CURSOR in its
-own PORT RECORD, and the merging run writes the cursor line that results.
+*(~~THE CURSOR ADVANCES TO `954cf87` WITH THE MERGE OF `sprint/fixed3d-box3d-ports` INTO `main`
+(fixed3d#94), NOT BEFORE~~ — **DISCHARGED 2026-11-04, verified rather than assumed: fixed3d#94
+merged as `29948ea` after `main` was merged into the branch (`f523344`) and the head ran green in four
+configs on a fresh clone and in CI, so the cursor above states a fact.** The clause also said every
+carried commit was named CARRIED AHEAD in its record; a cold read found that true of `f8c4fe8`
+only, so the list above names them instead.)*
 
-**PAST `5d83df8` UPSTREAM HAS FOUR MORE COMMITS (box3d 2026-10-12 to 2026-10-15), triaged by the
-daily pass on 2026-10-16; the dispositions live in `docs/roadmap.sexp` on `main` (group
+**PAST `5d83df8` UPSTREAM HAS SIX MORE COMMITS (box3d 2026-10-12 to 2026-10-27). The first four
+were triaged by the daily pass on 2026-10-16; the dispositions live in `docs/roadmap.sexp` on `main` (group
 `upstream-past-5d83df8`) and are repeated here so the next pass does not re-triage.** Oldest first:
-`a2e4816` Fixes for #175 (#187) — PORTED, engine half, on this branch (card
+`a2e4816` Fixes for #175 (#187) — PORTED, engine half, on `main` (card
 `fixed3d-box3d-ports-manifold-block`, PR #75; its record is the "954cf87 hull2d manifold reduction +
 a2e4816 speculative margin and recycle fixes" PORT RECORD below; the `docs/faq.md` hunk is skipped
 as docs). `8128d74` Discussion template (#185) — SKIPPED: a `.github` discussion template, upstream
@@ -41,9 +53,10 @@ ALREADY SATISFIED here by `b3SkewSandwich` + `b3Solve3AcrossScales`, verify term
 claiming; the revolute and spherical merge of spring, motor and limit solves against one running
 `cdot` is a reassociation (hard-won rule below: reassociations are not free) that moved every
 upstream golden in both precisions; the `contact_solver_wide.inl` hunk has no analogue here.
-`efca0c1` Gyro tolerance (#191) — PORT, engine half, in progress on `port/efca0c1-gyro-tolerance`
-against this branch (roadmap item `port-efca0c1-gyro-tolerance`), CARRIED AHEAD OF THE CURSOR when
-it merges here; its samples hunk is held under the #20 / #47 class.
+`efca0c1` Gyro tolerance (#191) — PORT, engine half, carried in part (above); the rest is on
+`port/efca0c1-gyro-tolerance` (roadmap item `port-efca0c1-gyro-tolerance`); its samples hunk is held
+under the #20 / #47 class. `f36d061` CMake improvements (#201) and `3362633` Dynamic Mover (#202)
+(2026-10-20 and 2026-10-27) are not yet triaged here; `3362633` is Glenn's priority (2026-11-04).
 
 *(~~THIS LINE ADVANCES WITH THE MERGE OF `port/47d7f7c-clockwise-mover`, NOT BEFORE~~ —
 **DISCHARGED 2026-09-03, verified rather than assumed: `port/47d7f7c-clockwise-mover`
@@ -736,7 +749,7 @@ The PORT RECORDs below run newest first and are the detail for each step.
   bundles five of its own issues (#148, #149, #153, #155, and `b3BodyDef::safetyFactor`
   for CCD tuning) into one commit, so this record is organized by HUNK GROUP rather than by
   upstream issue, and every group in the diff appears below with a disposition. Port plan:
-  **fixed3d#65**. The cursor does not move until this branch merges; see the clause above.
+  **fixed3d#65**. The cursor moved to it with the merge of fixed3d#94 (`29948ea`).
 
   **LANDED 2026-10-15 on `sprint/fixed3d-box3d-ports` (card port-954cf87-fixes-land-the-branch).**
   The branch merged onto the sprint tip (which already carries the fixed3d#67 re-rig), so the
