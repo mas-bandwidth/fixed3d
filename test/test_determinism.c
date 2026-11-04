@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 #include "box3d/box3d.h"
+#include "box3d/collision.h"
 #include "box3d/constants.h"
 #include "determinism.h"
 #include "stability.h"
@@ -642,6 +643,269 @@ static int RagdollHumanTest( void )
 	return 0;
 }
 
+// Dynamic mover scene (upstream 3362633): a rotation locked capsule driven over hull ground by a
+// mover joint and held up by a pogo joint. Mid-run it changes target velocity, lowers the force
+// budget below the warm-started impulse, and rebuilds the pogo warm started from the old one, so
+// the accumulated-impulse paths of tla/MoverJoints.tla all run. The hash covers the body state
+// and both joints' carried state every step.
+#define MOVER_POGO_STEPS 300
+#define MOVER_POGO_FORK_STEP 120
+// Harvested 2026-11-04 by the printed-value procedure on Apple clang arm64: the narrow value is
+// identical in RelWithDebInfo, Debug+ASan and NEON builds and across workers 1-5.
+#if defined( BOX3D_LUDICROUS_MODE )
+#define MOVER_POGO_HASH UINT64_C( 0xeabfb38ad9a1ccfa )
+#else
+#define MOVER_POGO_HASH UINT64_C( 0x47ab7b0762f65e2b )
+#endif
+
+typedef struct MoverPogoScene
+{
+	b3WorldId worldId;
+	b3BodyId groundId;
+	b3BodyId moverId;
+	b3JointId moverJointId;
+	b3JointId pogoJointId;
+	b3PogoJointDef pogoDef;
+} MoverPogoScene;
+
+static MoverPogoScene CreateMoverPogoScene( int workerCount )
+{
+	MoverPogoScene scene;
+
+	b3WorldDef worldDef = b3DefaultWorldDef();
+	worldDef.workerCount = workerCount;
+	scene.worldId = b3CreateWorld( &worldDef );
+
+	b3BodyDef groundDef = b3DefaultBodyDef();
+	scene.groundId = b3CreateBody( scene.worldId, &groundDef );
+	b3BoxHull groundBox = b3MakeBoxHull( B3_FIX( 20.0f ), B3_FIX( 1.0f ), B3_FIX( 20.0f ) );
+	b3ShapeDef groundShape = b3DefaultShapeDef();
+	b3CreateHullShape( scene.groundId, &groundShape, &groundBox.base );
+
+	b3BodyDef moverDef = b3DefaultBodyDef();
+	moverDef.type = b3_dynamicBody;
+	moverDef.position = (b3Pos){ B3_FIX( 0.0f ), B3_FIX( 3.0f ), B3_FIX( 0.0f ) };
+	moverDef.motionLocks = (b3MotionLocks){ .angularX = true, .angularY = true, .angularZ = true };
+	scene.moverId = b3CreateBody( scene.worldId, &moverDef );
+	b3ShapeDef capsuleShape = b3DefaultShapeDef();
+	capsuleShape.density = B3_FIX( 200.0f );
+	capsuleShape.baseMaterial.friction = B3_FIX( 0.0f );
+	b3Capsule capsule = { { B3_FIX( 0.0f ), -B3_FIX( 0.5f ), B3_FIX( 0.0f ) }, { B3_FIX( 0.0f ), B3_FIX( 0.5f ), B3_FIX( 0.0f ) }, B3_FIX( 0.3f ) };
+	b3CreateCapsuleShape( scene.moverId, &capsuleShape, &capsule );
+
+	b3MoverJointDef jointDef = b3DefaultMoverJointDef();
+	jointDef.base.bodyIdA = scene.groundId;
+	jointDef.base.bodyIdB = scene.moverId;
+	jointDef.base.collideConnected = true;
+	jointDef.linearVelocity = (b3Vec3){ B3_FIX( 2.0f ), B3_FIX( 0.0f ), B3_FIX( 1.0f ) };
+	jointDef.maxForce = B3_FIX( 6000.0f );
+	scene.moverJointId = b3CreateMoverJoint( scene.worldId, &jointDef );
+
+	b3Fixed weight = b3FixMul( B3_FIX( 10.0f ), b3Body_GetMass( scene.moverId ) );
+	scene.pogoDef = b3DefaultPogoJointDef();
+	scene.pogoDef.base.bodyIdA = scene.groundId;
+	scene.pogoDef.base.bodyIdB = scene.moverId;
+	scene.pogoDef.base.localFrameA.p = (b3Vec3){ B3_FIX( 0.0f ), B3_FIX( 1.0f ), B3_FIX( 0.0f ) };
+	scene.pogoDef.base.localFrameB.p = capsule.center1;
+	scene.pogoDef.base.collideConnected = true;
+	scene.pogoDef.restLength = B3_FIX( 0.9f );
+	scene.pogoDef.hertz = B3_FIX( 3.0f );
+	scene.pogoDef.dampingRatio = B3_FIX( 0.8f );
+	scene.pogoDef.maxCompressionForce = b3FixMul( B3_FIX( 100.0f ), weight );
+	scene.pogoDef.maxTensionForce = b3FixMul( B3_FIX( 100.0f ), weight );
+	scene.pogoJointId = b3CreatePogoJoint( scene.worldId, &scene.pogoDef );
+
+	return scene;
+}
+
+// The scripted controller for step i, applied before the step.
+static void DriveMoverPogoScene( MoverPogoScene* scene, int i )
+{
+	if ( i == 80 )
+	{
+		b3MoverJoint_SetLinearVelocity( scene->moverJointId, (b3Vec3){ -B3_FIX( 1.0f ), B3_FIX( 0.0f ), B3_FIX( 2.0f ) } );
+	}
+
+	if ( i == 150 )
+	{
+		// Below the impulse the joint is carrying, so the next solve must re-clamp
+		b3MoverJoint_SetMaxVelocityForce( scene->moverJointId, B3_FIX( 40.0f ) );
+		b3MoverJoint_SetLinearVelocity( scene->moverJointId, (b3Vec3){ B3_FIX( 3.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) } );
+	}
+
+	if ( i >= 200 && i % 10 == 0 )
+	{
+		// Rebuild the pogo under the mover, warm started from the old one
+		scene->pogoDef.impulse = b3PogoJoint_GetImpulse( scene->pogoJointId );
+		scene->pogoDef.velocity = b3PogoJoint_GetCurrentSpeed( scene->pogoJointId );
+		b3Vec3 local = b3Body_GetLocalPoint( scene->groundId, b3Body_GetPosition( scene->moverId ) );
+		scene->pogoDef.base.localFrameA.p = (b3Vec3){ local.x, B3_FIX( 1.0f ), local.z };
+		b3DestroyJoint( scene->pogoJointId, false );
+		scene->pogoJointId = b3CreatePogoJoint( scene->worldId, &scene->pogoDef );
+	}
+
+	if ( i == 250 )
+	{
+		// Shorten and stiffen the live pogo; later rebuilds take the new values from the def
+		b3PogoJoint_SetRestLength( scene->pogoJointId, B3_FIX( 0.6f ) );
+		b3PogoJoint_SetSpringHertz( scene->pogoJointId, B3_FIX( 5.0f ) );
+		scene->pogoDef.restLength = B3_FIX( 0.6f );
+		scene->pogoDef.hertz = B3_FIX( 5.0f );
+	}
+}
+
+// Ids in a replay world carry the same index and generation, only the world differs.
+static b3BodyId MoverPogoBodyIn( b3BodyId id, b3WorldId worldId )
+{
+	id.world0 = (uint16_t)( worldId.index1 - 1 );
+	return id;
+}
+
+static b3JointId MoverPogoJointIn( b3JointId id, b3WorldId worldId )
+{
+	id.world0 = (uint16_t)( worldId.index1 - 1 );
+	return id;
+}
+
+static uint64_t HashMoverPogoState( b3BodyId moverId, b3JointId moverJointId, b3JointId pogoJointId )
+{
+	uint64_t hash = UINT64_C( 14695981039346656037 );
+	b3WorldTransform t = b3Body_GetTransform( moverId );
+	hash = SphericalHashValue( SphericalHashValue( SphericalHashValue( hash, (uint64_t)t.p.x ), (uint64_t)t.p.y ), (uint64_t)t.p.z );
+#if defined( BOX3D_LUDICROUS_MODE )
+	hash = SphericalHashValue( hash, (uint64_t)( (b3UInt128)t.p.x >> 64 ) );
+	hash = SphericalHashValue( hash, (uint64_t)( (b3UInt128)t.p.y >> 64 ) );
+	hash = SphericalHashValue( hash, (uint64_t)( (b3UInt128)t.p.z >> 64 ) );
+#endif
+	hash = SphericalHashVector( hash, t.q.v );
+	hash = SphericalHashValue( hash, (uint64_t)t.q.s );
+	hash = SphericalHashVector( hash, b3Body_GetLinearVelocity( moverId ) );
+	hash = SphericalHashVector( hash, b3Body_GetAngularVelocity( moverId ) );
+	hash = SphericalHashValue( hash, b3Body_IsAwake( moverId ) );
+	hash = SphericalHashVector( hash, b3Joint_GetConstraintForce( moverJointId ) );
+	hash = SphericalHashValue( hash, (uint64_t)b3PogoJoint_GetImpulse( pogoJointId ) );
+	hash = SphericalHashValue( hash, (uint64_t)b3PogoJoint_GetCurrentSpeed( pogoJointId ) );
+	return hash;
+}
+
+static int RunMoverPogo( int workerCount, uint64_t* hashes )
+{
+	MoverPogoScene scene = CreateMoverPogoScene( workerCount );
+	b3Fixed timeStep = b3FixDiv( B3_FIX( 1.0f ), B3_FIX( 60.0f ) );
+	for ( int i = 0; i < MOVER_POGO_STEPS; ++i )
+	{
+		DriveMoverPogoScene( &scene, i );
+		b3World_Step( scene.worldId, timeStep, 4 );
+		hashes[i] = HashMoverPogoState( scene.moverId, scene.moverJointId, scene.pogoJointId );
+	}
+
+	// The pogo carried the mover the whole way: it stands near its rest length above the ground
+	b3Fixed length = b3PogoJoint_GetCurrentLength( scene.pogoJointId );
+	b3DestroyWorld( scene.worldId );
+	ENSURE_SMALL( length - B3_FIX( 0.6f ), B3_FIX( 0.05f ) );
+	return 0;
+}
+
+static int MoverPogoTest( void )
+{
+	uint64_t reference[MOVER_POGO_STEPS];
+	ENSURE( RunMoverPogo( 1, reference ) == 0 );
+	uint64_t hash = UINT64_C( 14695981039346656037 );
+	for ( int i = 0; i < MOVER_POGO_STEPS; ++i )
+	{
+		hash = SphericalHashValue( hash, reference[i] );
+	}
+	if ( hash != MOVER_POGO_HASH )
+	{
+		printf( "  mover-pogo hash=0x%016" PRIx64 "\n", hash );
+	}
+	ENSURE_GOLDEN( hash == MOVER_POGO_HASH );
+
+	for ( int workerCount = 2; workerCount < 6; ++workerCount )
+	{
+		uint64_t actual[MOVER_POGO_STEPS];
+		ENSURE( RunMoverPogo( workerCount, actual ) == 0 );
+		for ( int i = 0; i < MOVER_POGO_STEPS; ++i )
+		{
+			if ( actual[i] != reference[i] )
+			{
+				printf( "  mover-pogo workers=%d step=%d\n", workerCount, i );
+			}
+			ENSURE( actual[i] == reference[i] );
+		}
+	}
+	return 0;
+}
+
+// Fork the mover scene through a snapshot mid-run: starting a recording on the live world seeds it
+// with a snapshot that carries the joints' accumulated impulses and pogo velocity, and a player
+// restored from it must continue bit-identically, setters and pogo rebuilds included, at any
+// worker count.
+static int MoverPogoForkTest( void )
+{
+	uint64_t live[MOVER_POGO_STEPS];
+	b3JointId pogoIds[MOVER_POGO_STEPS];
+	b3Recording* rec = b3CreateRecording( 0 );
+	ENSURE( rec != NULL );
+
+	MoverPogoScene scene = CreateMoverPogoScene( 1 );
+	b3Fixed timeStep = b3FixDiv( B3_FIX( 1.0f ), B3_FIX( 60.0f ) );
+	for ( int i = 0; i < MOVER_POGO_STEPS; ++i )
+	{
+		if ( i == MOVER_POGO_FORK_STEP )
+		{
+			b3World_StartRecording( scene.worldId, rec );
+		}
+		DriveMoverPogoScene( &scene, i );
+		b3World_Step( scene.worldId, timeStep, 4 );
+		live[i] = HashMoverPogoState( scene.moverId, scene.moverJointId, scene.pogoJointId );
+		pogoIds[i] = scene.pogoJointId;
+	}
+	b3World_StopRecording( scene.worldId );
+	b3DestroyWorld( scene.worldId );
+
+	// The fork must also agree with an unforked run of the same scene
+	uint64_t straight[MOVER_POGO_STEPS];
+	ENSURE( RunMoverPogo( 1, straight ) == 0 );
+	for ( int i = 0; i < MOVER_POGO_STEPS; ++i )
+	{
+		ENSURE( live[i] == straight[i] );
+	}
+
+	const int forkFrames = MOVER_POGO_STEPS - MOVER_POGO_FORK_STEP;
+	for ( int workerCount = 1; workerCount <= 4; workerCount += 3 )
+	{
+		b3RecPlayer* player = b3CreatePlayer( b3Recording_GetData( rec ), b3Recording_GetSize( rec ), workerCount );
+		ENSURE( player != NULL );
+		ENSURE( b3RecPlayer_GetFrameCount( player ) == forkFrames );
+
+		// The player replays the recorded joint ops too, so each rebuilt pogo comes back under the
+		// id the live run gave it.
+		int frames = 0;
+		while ( b3RecPlayer_StepFrame( player ) )
+		{
+			int step = MOVER_POGO_FORK_STEP + frames;
+			frames += 1;
+			ENSURE( step < MOVER_POGO_STEPS );
+			b3WorldId replayWorld = b3RecPlayer_GetWorldId( player );
+			uint64_t replayed = HashMoverPogoState( MoverPogoBodyIn( scene.moverId, replayWorld ),
+													MoverPogoJointIn( scene.moverJointId, replayWorld ),
+													MoverPogoJointIn( pogoIds[step], replayWorld ) );
+			if ( replayed != live[step] )
+			{
+				printf( "  mover-pogo fork workers=%d step=%d\n", workerCount, step );
+			}
+			ENSURE( replayed == live[step] );
+			ENSURE( b3RecPlayer_HasDiverged( player ) == false );
+		}
+		ENSURE( frames == forkFrames );
+		b3DestroyPlayer( player );
+	}
+
+	b3DestroyRecording( rec );
+	return 0;
+}
+
 int DeterminismTest( void )
 {
 	RUN_SUBTEST( RagdollHumanTest );
@@ -651,6 +915,8 @@ int DeterminismTest( void )
 	RUN_SUBTEST( QuerySpawnTest );
 	RUN_SUBTEST( MeshDropTest );
 	RUN_SUBTEST( SphericalGeometryTest );
+	RUN_SUBTEST( MoverPogoTest );
+	RUN_SUBTEST( MoverPogoForkTest );
 
 	return 0;
 }
