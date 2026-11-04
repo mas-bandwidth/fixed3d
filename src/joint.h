@@ -149,6 +149,41 @@ typedef struct b3MotorJoint
 	b3Matrix3 angularMass;
 } b3MotorJoint;
 
+// Accumulated-impulse state machine (warm start, clamp per substep, kept through sleep, wake and
+// snapshot) is modelled in tla/MoverJoints.tla.
+typedef struct b3MoverJoint
+{
+	b3Vec3 linearVelocity;
+	b3Fixed maxForce;
+
+	b3Vec3 axisX;
+	b3Vec3 axisZ;
+	b3Vec2 impulse;
+
+	int indexA;
+	int indexB;
+	b3Fixed linearMass;
+} b3MoverJoint;
+
+typedef struct b3PogoJoint
+{
+	b3Vec3 normal;
+	b3Fixed restLength;
+	b3Fixed hertz;
+	b3Fixed dampingRatio;
+	b3Fixed maxTensionForce;
+	b3Fixed maxCompressionForce;
+
+	b3Fixed impulse;
+	int indexA;
+	int indexB;
+	b3Transform frameA;
+	b3Transform frameB;
+	b3Vec3 deltaCenter;
+	b3Fixed linearMass;
+	b3Fixed velocity;
+} b3PogoJoint;
+
 typedef struct b3ParallelJoint
 {
 	b3Fixed hertz;
@@ -370,7 +405,9 @@ typedef struct b3JointSim
 	{
 		b3DistanceJoint distanceJoint;
 		b3MotorJoint motorJoint;
+		b3MoverJoint moverJoint;
 		b3ParallelJoint parallelJoint;
+		b3PogoJoint pogoJoint;
 		b3RevoluteJoint revoluteJoint;
 		b3SphericalJoint sphericalJoint;
 		b3PrismaticJoint prismaticJoint;
@@ -399,6 +436,8 @@ void b3DrawJoint( b3DebugDraw* draw, b3World* world, b3Joint* joint );
 
 b3Vec3 b3GetDistanceJointForce( b3World* world, b3JointSim* base );
 b3Vec3 b3GetMotorJointForce( b3World* world, b3JointSim* base );
+b3Vec3 b3GetMoverJointForce( b3World* world, b3JointSim* base );
+b3Vec3 b3GetPogoJointForce( b3World* world, b3JointSim* base );
 b3Vec3 b3GetPrismaticJointForce( b3World* world, b3JointSim* base );
 b3Vec3 b3GetRevoluteJointForce( b3World* world, b3JointSim* base );
 b3Vec3 b3GetSphericalJointForce( b3World* world, b3JointSim* base );
@@ -415,6 +454,8 @@ b3Vec3 b3GetWheelJointTorque( b3World* world, b3JointSim* base );
 
 void b3PrepareDistanceJoint( b3JointSim* base, b3StepContext* context );
 void b3PrepareMotorJoint( b3JointSim* base, b3StepContext* context );
+void b3PrepareMoverJoint( b3JointSim* base, b3StepContext* context );
+void b3PreparePogoJoint( b3JointSim* base, b3StepContext* context );
 void b3PrepareParallelJoint( b3JointSim* base, b3StepContext* context );
 void b3PreparePrismaticJoint( b3JointSim* base, b3StepContext* context );
 void b3PrepareRevoluteJoint( b3JointSim* base, b3StepContext* context );
@@ -424,6 +465,8 @@ void b3PrepareWheelJoint( b3JointSim* base, b3StepContext* context );
 
 void b3WarmStartDistanceJoint( b3JointSim* base, b3StepContext* context );
 void b3WarmStartMotorJoint( b3JointSim* base, b3StepContext* context );
+void b3WarmStartMoverJoint( b3JointSim* base, b3StepContext* context );
+void b3WarmStartPogoJoint( b3JointSim* base, b3StepContext* context );
 void b3WarmStartParallelJoint( b3JointSim* base, b3StepContext* context );
 void b3WarmStartPrismaticJoint( b3JointSim* base, b3StepContext* context );
 void b3WarmStartRevoluteJoint( b3JointSim* base, b3StepContext* context );
@@ -433,6 +476,8 @@ void b3WarmStartWheelJoint( b3JointSim* base, b3StepContext* context );
 
 void b3SolveDistanceJoint( b3JointSim* base, b3StepContext* context, bool useBias );
 void b3SolveMotorJoint( b3JointSim* base, b3StepContext* context );
+void b3SolveMoverJoint( b3JointSim* base, b3StepContext* context );
+void b3SolvePogoJoint( b3JointSim* base, b3StepContext* context, bool useBias );
 void b3SolveParallelJoint( b3JointSim* base, b3StepContext* context );
 void b3SolvePrismaticJoint( b3JointSim* base, b3StepContext* context, bool useBias );
 void b3SolveRevoluteJoint( b3JointSim* base, b3StepContext* context, bool useBias );
@@ -441,6 +486,10 @@ void b3SolveWeldJoint( b3JointSim* base, b3StepContext* context, bool useBias );
 void b3SolveWheelJoint( b3JointSim* base, b3StepContext* context, bool useBias );
 
 void b3DrawDistanceJoint( b3DebugDraw* draw, b3JointSim* base, b3WorldTransform transformA, b3WorldTransform transformB );
+void b3DrawMoverJoint( b3DebugDraw* draw, b3World* world, b3JointSim* base, b3WorldTransform transformA,
+					   b3WorldTransform transformB );
+void b3DrawPogoJoint( b3DebugDraw* draw, b3World* world, b3JointSim* base, b3WorldTransform transformA,
+					  b3WorldTransform transformB, b3Fixed scale );
 void b3DrawParallelJoint( b3DebugDraw* draw, b3JointSim* base, b3WorldTransform transformA, b3WorldTransform transformB, b3Fixed scale );
 void b3DrawPrismaticJoint( b3DebugDraw* draw, b3JointSim* base, b3WorldTransform transformA, b3WorldTransform transformB, b3Fixed scale );
 void b3DrawRevoluteJoint( b3DebugDraw* draw, b3JointSim* base, b3WorldTransform transformA, b3WorldTransform transformB, b3Fixed scale );

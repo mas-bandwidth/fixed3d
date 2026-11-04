@@ -151,7 +151,7 @@ b3DebugDraw b3DefaultDebugDraw( void )
 	};
 
 	draw.jointScale = B3_FIX( 1.0f );
-	draw.forceScale = B3_FIX( 1.0f );
+	draw.forceScale = B3_FIX( 0.001f );
 
 	return draw;
 }

@@ -1383,6 +1383,95 @@ B3_API b3Fixed b3MotorJoint_GetMaxSpringTorque( b3JointId jointId );
 /**@}*/ // motor_joint
 
 /**
+ * @defgroup mover_joint Mover Joint
+ * @brief Functions for the mover joint.
+ *
+ * The mover joint is designed for a dynamic character mover.
+ *
+ * @warning Experimental. The mover joint may change in future versions.
+ * @{
+ */
+
+/// Create a mover joint.
+/// @see b3MoverJointDef for details
+B3_API b3JointId b3CreateMoverJoint( b3WorldId worldId, const b3MoverJointDef* def );
+
+/// Set the desired relative linear velocity, usually in meters per second.
+B3_API void b3MoverJoint_SetLinearVelocity( b3JointId jointId, b3Vec3 velocity );
+
+/// Get the desired relative linear velocity, usually in meters per second.
+B3_API b3Vec3 b3MoverJoint_GetLinearVelocity( b3JointId jointId );
+
+/// Set the joint maximum force, usually in newtons.
+B3_API void b3MoverJoint_SetMaxVelocityForce( b3JointId jointId, b3Fixed maxForce );
+
+/// Get the joint maximum force, usually in newtons.
+B3_API b3Fixed b3MoverJoint_GetMaxVelocityForce( b3JointId jointId );
+
+/**@}*/ // mover_joint
+
+/**
+ * @defgroup pogo_joint Pogo Joint
+ * @brief Functions for the pogo joint. Used for dynamic character movers.
+ *
+ * @warning Experimental. The pogo joint may change in future versions.
+ * @{
+ */
+
+/// Create a pogo joint
+/// @see b3PogoJointDef for details
+B3_API b3JointId b3CreatePogoJoint( b3WorldId worldId, const b3PogoJointDef* def );
+
+/// Set the rest length of a pogo joint
+/// @param jointId The id for a pogo joint
+/// @param length The new pogo joint length
+B3_API void b3PogoJoint_SetRestLength( b3JointId jointId, b3Fixed length );
+
+/// Get the rest length of a pogo joint
+B3_API b3Fixed b3PogoJoint_GetRestLength( b3JointId jointId );
+
+/// Set the spring stiffness in Hertz
+B3_API void b3PogoJoint_SetSpringHertz( b3JointId jointId, b3Fixed hertz );
+
+/// Get the spring Hertz
+B3_API b3Fixed b3PogoJoint_GetSpringHertz( b3JointId jointId );
+
+/// Set the spring damping ratio, non-dimensional
+B3_API void b3PogoJoint_SetSpringDampingRatio( b3JointId jointId, b3Fixed dampingRatio );
+
+/// Get the spring damping ratio
+B3_API b3Fixed b3PogoJoint_GetSpringDampingRatio( b3JointId jointId );
+
+/// Set the max tension force, usually in Newtons.
+B3_API void b3PogoJoint_SetMaxTensionForce( b3JointId jointId, b3Fixed force );
+
+/// Get the max tension force, usually in Newtons.
+B3_API b3Fixed b3PogoJoint_GetMaxTensionForce( b3JointId jointId );
+
+/// Set the max compression force, usually in Newtons.
+B3_API void b3PogoJoint_SetMaxCompressionForce( b3JointId jointId, b3Fixed force );
+
+/// Get the max compression force, usually in Newtons.
+B3_API b3Fixed b3PogoJoint_GetMaxCompressionForce( b3JointId jointId );
+
+/// Set the unit ground normal.
+B3_API void b3PogoJoint_SetNormal( b3JointId jointId, b3Vec3 normal );
+
+/// Get the unit ground normal.
+B3_API b3Vec3 b3PogoJoint_GetNormal( b3JointId jointId );
+
+/// Get the current length of the pogo.
+B3_API b3Fixed b3PogoJoint_GetCurrentLength( b3JointId jointId );
+
+/// Get the internal pogo velocity.
+B3_API b3Fixed b3PogoJoint_GetCurrentSpeed( b3JointId jointId );
+
+/// Get the internal pogo impulse.
+B3_API b3Fixed b3PogoJoint_GetImpulse( b3JointId jointId );
+
+/**@}*/ // pogo_joint
+
+/**
  * @defgroup filter_joint Filter Joint
  * @brief Functions for the filter joint.
  *
