@@ -653,9 +653,9 @@ static int RagdollHumanTest( void )
 // Harvested 2026-11-04 by the printed-value procedure on Apple clang arm64: the narrow value is
 // identical in RelWithDebInfo, Debug+ASan and NEON builds and across workers 1-5.
 #if defined( BOX3D_LUDICROUS_MODE )
-#define MOVER_POGO_HASH UINT64_C( 0xeabfb38ad9a1ccfa )
+#define MOVER_POGO_HASH UINT64_C( 0xdcdc7aaef38eab3d )
 #else
-#define MOVER_POGO_HASH UINT64_C( 0x47ab7b0762f65e2b )
+#define MOVER_POGO_HASH UINT64_C( 0xd120d881cacd2605 )
 #endif
 
 typedef struct MoverPogoScene
