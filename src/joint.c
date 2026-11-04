@@ -1895,13 +1895,13 @@ void b3DrawJoint( b3DebugDraw* draw, b3World* world, b3Joint* joint )
 		}
 	}
 
-	if ( draw->drawJointExtras )
+	if ( draw->drawJointExtras && joint->type != b3_moverJoint && joint->type != b3_pogoJoint )
 	{
 		b3Vec3 force = b3GetJointConstraintForce( world, joint );
 		b3Vec3 torque = b3GetJointConstraintTorque( world, joint );
 		b3Pos p = b3LerpPosition( pA, pB, B3_FIX( 0.5f ) );
 
-		draw->DrawSegmentFcn( p, b3OffsetPos( p, b3MulSV( B3_FIX( 0.001f ), force ) ), b3_colorAzure, draw->context );
+		draw->DrawSegmentFcn( p, b3OffsetPos( p, b3MulSV( draw->forceScale, force ) ), b3_colorAzure, draw->context );
 
 		char buffer[64];
 		snprintf( buffer, 64, "f = %g, t = %g", b3FixToDouble( b3Length( force ) ), b3FixToDouble( b3Length( torque ) ) );
