@@ -578,6 +578,51 @@ static int TestPogoJointTensionClamp( void )
 	return FinishJoint( jointId, f.worldId );
 }
 
+// The pogo's carried impulse survives sleep and wake unchanged (the joint sim is copied between
+// solver sets), so a woken body is held at once instead of dropping for a step.
+static int TestPogoJointSleepKeepsImpulse( void )
+{
+	JointFixture f = CreateJointFixture();
+	b3World_SetGravity( f.worldId, (b3Vec3){ B3_FIX( 0.0f ), -B3_FIX( 10.0f ), B3_FIX( 0.0f ) } );
+	b3Fixed weight = b3FixMul( B3_FIX( 10.0f ), b3Body_GetMass( f.bodyId ) );
+
+	b3PogoJointDef def = b3DefaultPogoJointDef();
+	def.base.bodyIdA = f.groundId;
+	def.base.bodyIdB = f.bodyId;
+	def.base.localFrameA.p = (b3Vec3){ B3_FIX( 0.0f ), B3_FIX( 1.0f ), B3_FIX( 0.0f ) };
+	def.restLength = B3_FIX( 3.0f );
+	def.hertz = B3_FIX( 3.0f );
+	def.dampingRatio = B3_FIX( 1.0f );
+	def.maxCompressionForce = b3FixMul( B3_FIX( 100.0f ), weight );
+	def.maxTensionForce = b3FixMul( B3_FIX( 100.0f ), weight );
+	b3JointId jointId = b3CreatePogoJoint( f.worldId, &def );
+
+	b3Fixed timeStep = b3FixDiv( B3_FIX( 1.0f ), B3_FIX( 60.0f ) );
+	b3Fixed held = B3_FIX( 0.0f );
+	int step = 0;
+	for ( ; step < 600 && b3Body_IsAwake( f.bodyId ); ++step )
+	{
+		held = b3PogoJoint_GetImpulse( jointId );
+		b3World_Step( f.worldId, timeStep, 4 );
+	}
+	ENSURE( b3Body_IsAwake( f.bodyId ) == false );
+	ENSURE( b3Joint_IsAwake( jointId ) == false );
+
+	// Asleep, the joint reports the impulse of its last awake step
+	b3Fixed asleep = b3PogoJoint_GetImpulse( jointId );
+	ENSURE( asleep != B3_FIX( 0.0f ) );
+	ENSURE_SMALL( asleep - held, B3_FIX( 0.001f ) );
+	b3World_Step( f.worldId, timeStep, 4 );
+	ENSURE( b3PogoJoint_GetImpulse( jointId ) == asleep );
+
+	b3Body_SetAwake( f.bodyId, true );
+	ENSURE( b3PogoJoint_GetImpulse( jointId ) == asleep );
+	b3World_Step( f.worldId, timeStep, 4 );
+	ENSURE_SMALL( b3Body_GetLinearVelocity( f.bodyId ).y, B3_FIX( 0.001f ) );
+
+	return FinishJoint( jointId, f.worldId );
+}
+
 // b3SpringDamper against a double-precision reference on the same quantized inputs. The tolerance
 // is a few ULP: one rounding in omega, one in the stiffness product and one in the divide.
 static int TestSpringDamper( void )
@@ -1403,6 +1448,7 @@ int JointTest( void )
 	RUN_SUBTEST( TestMoverJointZeroForce );
 	RUN_SUBTEST( TestPogoJoint );
 	RUN_SUBTEST( TestPogoJointTensionClamp );
+	RUN_SUBTEST( TestPogoJointSleepKeepsImpulse );
 	RUN_SUBTEST( TestSpringDamper );
 	RUN_SUBTEST( TestPrismaticJoint );
 	RUN_SUBTEST( TestRevoluteJoint );
