@@ -18,8 +18,8 @@ order. **`efca0c1` is carried IN PART:** its first card (the local inertia moves
 `adbe7ec` / `95d34ab`, and the unused `compound.h` include, `398be05`) is on `main` with no PORT
 RECORD of its own; the gating, the tolerance API and the record are on `port/efca0c1-gyro-tolerance`,
 not yet merged. Skipped by plan #65, named: `8fda30e` (samples UI), the float AVX2 kernels of
-`e77352c` (detection plumbing harvested toward #64), the SAT half of `51f056e`. Still owed between
-the cursor and upstream: `f555ee4` (PR #99), `51f056e`'s world byte count, `16f7f4c`, and the commits
+`e77352c` (its detection plumbing is owed as roadmap item `fixed3d-isa-dispatch-interface`), the SAT half of `51f056e`; and the skipped bulk of `adec25b`, `9f998c8` and `3d9db79`, per their records. Still owed between
+the cursor and upstream: `f555ee4` (PR #99, which also carries the fifth `9e5a4cd` / `79fc559` fix, H-H), `51f056e`'s world byte count, `16f7f4c`, and the commits
 past `5d83df8` below.
 
 **THE PLAN FOR THAT RANGE IS `fixed3d#65`** (2026-10-09): fifteen upstream commits, `47d7f7c..5d83df8`,
@@ -43,7 +43,7 @@ only, so the list above names them instead.)*
 **PAST `5d83df8` UPSTREAM HAS SIX MORE COMMITS (box3d 2026-10-12 to 2026-10-27). The first four
 were triaged by the daily pass on 2026-10-16; the dispositions live in `docs/roadmap.sexp` on `main` (group
 `upstream-past-5d83df8`) and are repeated here so the next pass does not re-triage.** Oldest first:
-`a2e4816` Fixes for #175 (#187) — PORTED, engine half, on this branch (card
+`a2e4816` Fixes for #175 (#187) — PORTED, engine half, on `main` (card
 `fixed3d-box3d-ports-manifold-block`, PR #75; its record is the "954cf87 hull2d manifold reduction +
 a2e4816 speculative margin and recycle fixes" PORT RECORD below; the `docs/faq.md` hunk is skipped
 as docs). `8128d74` Discussion template (#185) — SKIPPED: a `.github` discussion template, upstream
@@ -749,7 +749,7 @@ The PORT RECORDs below run newest first and are the detail for each step.
   bundles five of its own issues (#148, #149, #153, #155, and `b3BodyDef::safetyFactor`
   for CCD tuning) into one commit, so this record is organized by HUNK GROUP rather than by
   upstream issue, and every group in the diff appears below with a disposition. Port plan:
-  **fixed3d#65**. The cursor does not move until this branch merges; see the clause above.
+  **fixed3d#65**. The cursor moved to it with the merge of fixed3d#94 (`29948ea`).
 
   **LANDED 2026-10-15 on `sprint/fixed3d-box3d-ports` (card port-954cf87-fixes-land-the-branch).**
   The branch merged onto the sprint tip (which already carries the fixed3d#67 re-rig), so the
