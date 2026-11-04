@@ -645,11 +645,14 @@ static int RagdollHumanTest( void )
 
 // Dynamic mover scene (upstream 3362633): a rotation locked capsule driven over hull ground by a
 // mover joint and held up by a pogo joint. Mid-run it changes target velocity, lowers the force
-// budget below the warm-started impulse, and rebuilds the pogo warm started from the old one, so
-// the accumulated-impulse paths of tla/MoverJoints.tla all run. The hash covers the body state
+// budget and asks for a speed that saturates it, and rebuilds the pogo warm started from the old
+// one. The hash covers the body state
 // and both joints' carried state every step.
 #define MOVER_POGO_STEPS 300
-#define MOVER_POGO_FORK_STEP 120
+// The fork lands while the mover is saturated at its 40 N budget (from step 150), so the snapshot
+// carries a mover impulse at its cap as well as the pogo's weight-holding impulse. Measured
+// 2026-11-04: the mover force after step 159 is 39.997 N; at step 120 it was 0.137 N.
+#define MOVER_POGO_FORK_STEP 160
 // Harvested 2026-11-04 by the printed-value procedure on Apple clang arm64: the narrow value is
 // identical in RelWithDebInfo, Debug+ASan and NEON builds and across workers 1-5.
 #if defined( BOX3D_LUDICROUS_MODE )
@@ -728,7 +731,9 @@ static void DriveMoverPogoScene( MoverPogoScene* scene, int i )
 
 	if ( i == 150 )
 	{
-		// Below the impulse the joint is carrying, so the next solve must re-clamp
+		// The carried force here is 0.137 N (measured), well under the new 40 N budget; the new
+		// target saturates the mover from this step on. Re-clamping a carried impulse above a
+		// lowered budget is TestMoverJointForceBudget's case.
 		b3MoverJoint_SetMaxVelocityForce( scene->moverJointId, B3_FIX( 40.0f ) );
 		b3MoverJoint_SetLinearVelocity( scene->moverJointId, (b3Vec3){ B3_FIX( 3.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) } );
 	}
@@ -788,6 +793,16 @@ static uint64_t HashMoverPogoState( b3BodyId moverId, b3JointId moverJointId, b3
 	return hash;
 }
 
+// The joints' carried state, read through the API: the mover's accumulated impulse as a force and
+// the pogo's impulse and spring speed.
+static bool MoverPogoCarriedEquals( b3JointId moverJointId, b3JointId pogoJointId, b3Vec3 moverForce, b3Fixed pogoImpulse,
+									b3Fixed pogoSpeed )
+{
+	b3Vec3 f = b3Joint_GetConstraintForce( moverJointId );
+	return f.x == moverForce.x && f.y == moverForce.y && f.z == moverForce.z &&
+		   b3PogoJoint_GetImpulse( pogoJointId ) == pogoImpulse && b3PogoJoint_GetCurrentSpeed( pogoJointId ) == pogoSpeed;
+}
+
 static int RunMoverPogo( int workerCount, uint64_t* hashes )
 {
 	MoverPogoScene scene = CreateMoverPogoScene( workerCount );
@@ -838,13 +853,16 @@ static int MoverPogoTest( void )
 }
 
 // Fork the mover scene through a snapshot mid-run: starting a recording on the live world seeds it
-// with a snapshot that carries the joints' accumulated impulses and pogo velocity, and a player
-// restored from it must continue bit-identically, setters and pogo rebuilds included, at any
-// worker count.
+// with a snapshot that carries the joints' accumulated impulses and pogo velocity. The restored
+// world must hold that carried state exactly, and a player restored from it must continue
+// bit-identically, setters and pogo rebuilds included, at any worker count.
 static int MoverPogoForkTest( void )
 {
 	uint64_t live[MOVER_POGO_STEPS];
 	b3JointId pogoIds[MOVER_POGO_STEPS];
+	b3Vec3 forkMoverForce = b3Vec3_zero;
+	b3Fixed forkPogoImpulse = B3_FIX( 0.0f );
+	b3Fixed forkPogoSpeed = B3_FIX( 0.0f );
 	b3Recording* rec = b3CreateRecording( 0 );
 	ENSURE( rec != NULL );
 
@@ -855,6 +873,14 @@ static int MoverPogoForkTest( void )
 		if ( i == MOVER_POGO_FORK_STEP )
 		{
 			b3World_StartRecording( scene.worldId, rec );
+		}
+		if ( i == MOVER_POGO_FORK_STEP )
+		{
+			// The snapshot must carry a real mover impulse, or a restore that dropped it would pass
+			forkMoverForce = b3Joint_GetConstraintForce( scene.moverJointId );
+			forkPogoImpulse = b3PogoJoint_GetImpulse( scene.pogoJointId );
+			forkPogoSpeed = b3PogoJoint_GetCurrentSpeed( scene.pogoJointId );
+			ENSURE( b3Length( forkMoverForce ) > B3_FIX( 39.0f ) );
 		}
 		DriveMoverPogoScene( &scene, i );
 		b3World_Step( scene.worldId, timeStep, 4 );
@@ -879,6 +905,12 @@ static int MoverPogoForkTest( void )
 		ENSURE( player != NULL );
 		ENSURE( b3RecPlayer_GetFrameCount( player ) == forkFrames );
 
+		// The restored world holds the carried joint state exactly, before any step
+		b3WorldId restored = b3RecPlayer_GetWorldId( player );
+		ENSURE( MoverPogoCarriedEquals( MoverPogoJointIn( scene.moverJointId, restored ),
+										MoverPogoJointIn( pogoIds[MOVER_POGO_FORK_STEP - 1], restored ), forkMoverForce,
+										forkPogoImpulse, forkPogoSpeed ) );
+
 		// The player replays the recorded joint ops too, so each rebuilt pogo comes back under the
 		// id the live run gave it.
 		int frames = 0;
@@ -899,6 +931,28 @@ static int MoverPogoForkTest( void )
 			ENSURE( b3RecPlayer_HasDiverged( player ) == false );
 		}
 		ENSURE( frames == forkFrames );
+		b3DestroyPlayer( player );
+	}
+
+	// Negative control: drop the carried mover impulse on the restored side by recreating the joint
+	// with the same def (a new joint starts at zero impulse). The restore check must see it. The
+	// continuation alone would not: a saturated mover re-clamps to its cap in the first solve pass
+	// whatever it was warm started with, and with the dropped impulse the 140 replayed steps stay
+	// bit-identical to the live run (measured 2026-11-04), so the carried state is checked directly.
+	{
+		b3RecPlayer* player = b3CreatePlayer( b3Recording_GetData( rec ), b3Recording_GetSize( rec ), 1 );
+		ENSURE( player != NULL );
+		b3WorldId replayWorld = b3RecPlayer_GetWorldId( player );
+		b3MoverJointDef def = b3DefaultMoverJointDef();
+		def.base.bodyIdA = MoverPogoBodyIn( scene.groundId, replayWorld );
+		def.base.bodyIdB = MoverPogoBodyIn( scene.moverId, replayWorld );
+		def.base.collideConnected = true;
+		def.linearVelocity = (b3Vec3){ B3_FIX( 3.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
+		def.maxForce = B3_FIX( 40.0f );
+		b3DestroyJoint( MoverPogoJointIn( scene.moverJointId, replayWorld ), false );
+		b3JointId fresh = b3CreateMoverJoint( replayWorld, &def );
+		ENSURE( MoverPogoCarriedEquals( fresh, MoverPogoJointIn( pogoIds[MOVER_POGO_FORK_STEP - 1], replayWorld ), forkMoverForce,
+										forkPogoImpulse, forkPogoSpeed ) == false );
 		b3DestroyPlayer( player );
 	}
 
