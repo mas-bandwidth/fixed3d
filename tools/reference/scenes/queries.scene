@@ -1,0 +1,24 @@
+# Static scene of box, sphere, capsule and hull shapes, probed by ray, overlap
+# and shape-cast queries. No simulation: a single step establishes the broadphase.
+expect pos 0.0002 rot 0.001 vel 0.01 horizon 1 counts exact
+world gravity 0 0 0 dt 1 60 substeps 1 steps 1
+body static position -3 1 0 rotation 0 0 0 1 linvel 0 0 0 angvel 0 0 0
+body static position -1 1 0 rotation 0 0 0 1 linvel 0 0 0 angvel 0 0 0
+body static position 1 1 0 rotation 0 0 0 1 linvel 0 0 0 angvel 0 0 0
+body static position 3 1 0 rotation 0 0 0 1 linvel 0 0 0 angvel 0 0 0
+shape 0 box 0.5 0.5 0.5 density 1 friction 0.5 restitution 0
+shape 1 sphere 0.5 density 1 friction 0.5 restitution 0
+shape 2 capsule 0.25 0.5 axis 0 1 0 density 1 friction 0.5 restitution 0
+shape 3 hull points 4 0.5 0 0.5 -0.5 0 0.5 -0.5 0 -0.5 0.5 0 -0.5 density 1 friction 0.5 restitution 0
+query raycast origin -3 1 5 translation 0 0 -10
+query raycast origin -1 1 5 translation 0 0 -10
+query raycast origin 1 1 5 translation 0 0 -10
+query raycast origin 3 1 5 translation 0 0 -10
+query overlap_aabb lower -3.5 0.5 -0.5 upper -2.5 1.5 0.5
+query overlap_aabb lower -1.5 0.5 -0.5 upper -0.5 1.5 0.5
+query overlap_shape origin -3 1 5 box 0.2 0.2 0.2
+query overlap_shape origin -1 1 5 sphere 0.3
+query shape_cast origin 1 1 5 translation 0 0 -10 sphere 0.25
+query shape_cast origin 3 1 5 translation 0 0 -10 box 0.2 0.2 0.2
+query closest_points 0 1
+query mover origin 0 3 5 0.25 0.25 translation 0 0 -10

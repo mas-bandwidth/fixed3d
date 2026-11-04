@@ -1,0 +1,18 @@
+# ref-954cf87-manifold-points
+# A box dropped onto a flat ground box settles into a face contact. The face
+# contact keeps the whole clipped polygon when the manifold has room for it, so
+# the manifold point reduction (box3d 954cf87) is what produces the resting
+# contact. At the default B3_MAX_MANIFOLD_POINTS (4) both engines use the fast
+# approximate hull; the scene pins that the fixed3d port's reduction matches
+# vanilla float box3d at 954cf87.
+# Reference: vanilla float box3d at upstream commit 954cf87.
+# Observable: the resting box position and exact contact count. Sleep is
+# disabled because the engines cross the sleep threshold on different steps.
+# Measured maxima: pos 0.000265062, rot 0.0000491843, vel 0.00077439,
+# angular velocity 0.00145346. The limits below are about twice each maximum.
+expect pos 0.00054 rot 0.0001 vel 0.003 horizon 120 counts exact
+world gravity 0 -10 0 dt 1 60 substeps 4 steps 120
+body static position 0 -0.5 0 rotation 0 0 0 1 linvel 0 0 0 angvel 0 0 0
+shape 0 box 10 0.5 10 density 1 friction 0.5 restitution 0
+body dynamic position 0 1 0 rotation 0 0 0 1 linvel 0 0 0 angvel 0 0 0 flags nosleep
+shape 1 box 0.5 0.5 0.5 density 1 friction 0.5 restitution 0

@@ -34,33 +34,114 @@
 // 2f1ed91's corrected normalization, small angles and conservative bounds.
 // Independent captures agree across workers 1-5, Debug/optimized and narrow/wide
 // builds. Query-spawn and mesh-drop retain the preceding repaired references.
-#define RAGDOLL_SLEEP_STEP 404
+//
+// Ragdoll and wave pile were re-captured for upstream 954cf87, which stops a body on
+// the continuous (fast) path from recycling a cached manifold at all, mesh or not.
+// Query-spawn has no fast bodies and mesh-drop's fast contacts are all mesh contacts,
+// which the old condition already excluded, so both HELD. The ragdoll golden here is
+// the re-rig (fixed3d#67) AND group A together: the re-rig alone moved it to 325, and
+// group A lands on the re-rigged scene to move it again to 354.
+// The 9e5a4cd CCD time-loss gravity fix (G3) lands on top of group A on this merge and
+// moves the ragdoll again: 354 -> 408 (narrow 0xD8C71580 -> 0x69572D49, ludicrous
+// 0xD13E51C0 -> 0x7D29E209). Re-harvested on this bench by the printed-value procedure,
+// identical across workers 1-5 and across two generation runs.
+// 2026-10-17 f3d2-gjk-progress-unshifted-distance-sq: GJK progress on the unshifted squared distance moves the
+// ragdoll hash, sleep step unchanged at 408 (narrow 0x69572D49 -> 0x19EBA929 in gcc and
+// clang, ludicrous 0x7D29E209 -> 0x830FA1E9).
+#define RAGDOLL_SLEEP_STEP 408
 #if defined( BOX3D_LUDICROUS_MODE )
-#define RAGDOLL_HASH 0x1DA55033
+#define RAGDOLL_HASH 0x830FA1E9
 #else
-#define RAGDOLL_HASH 0xF97922B3
+#define RAGDOLL_HASH 0x19EBA929
 #endif
 
 // Goldens for the wave pile, query spawn and mesh drop scenarios. Fixed-point goldens
 // hold across platforms and worker counts by construction. The sleep steps are shared
 // between builds; the hashes cover absolute transform bytes, so the ludicrous build
 // (128-bit positions, 80-byte b3WorldTransform) carries its own values.
-#define WAVE_PILE_SLEEP_STEP 275
+// The speculative sphere/capsule margin and contact-recycle flag change the
+// contact history in wave pile and query spawn. Harvested on Linux after the
+// a2e4816 port: workers 1-5 match each other in two independent runs of each
+// numeric mode. The 9e5a4cd CCD time-loss gravity fix (G3) moves mesh drop
+// 210 -> 284 (narrow 0x491E324B -> 0x784AD80A, ludicrous 0xDB1DA8B9 ->
+// 0xE44E6A0E); wave pile and query spawn do not trigger CCD and are unchanged.
+// The face-plane refinement in the shallow branch of b3CollideHullAndSphere (exact face
+// normal and point where Q48.16 GJK stopped on an adjacent edge) moves wave pile
+// 335 -> 285 (narrow 0x64609ED9 -> 0x3FFAE5C7, ludicrous 0x22E6F859 -> 0xC247A287).
+// It also moves the query spawn hash (sleep step 243, hits and query hash unchanged):
+// narrow 0x250D3BFA -> 0x0E4B940B, ludicrous 0xC3538B7A -> 0xBE2E5C8B.
+// 2026-10-17 f3d2-gjk-progress-unshifted-distance-sq: GJK progress on the unshifted
+// squared distance moves wave pile 285 -> 254 (narrow 0x3FFAE5C7 -> 0x73C1E14F,
+// ludicrous 0xC247A287 -> 0x4826048F) and mesh drop 284 -> 243 (narrow 0x784AD80A ->
+// 0x1B648591, ludicrous 0xE44E6A0E -> 0x671B4A99).
+#define WAVE_PILE_SLEEP_STEP 254
 #define QUERY_SPAWN_SLEEP_STEP 243
 #define QUERY_SPAWN_HIT_COUNT 59
 #define QUERY_SPAWN_QUERY_HASH 0xE583B246
-#define MESH_DROP_SLEEP_STEP 210
+#define MESH_DROP_SLEEP_STEP 243
 #if defined( BOX3D_LUDICROUS_MODE )
-#define WAVE_PILE_HASH 0x253BEF8E
-#define QUERY_SPAWN_HASH 0x7C6B3268
-#define MESH_DROP_HASH 0xDB1DA8B9
+#define WAVE_PILE_HASH 0x4826048F
+#define QUERY_SPAWN_HASH 0xBE2E5C8B
+#define MESH_DROP_HASH 0x671B4A99
 #else
-#define WAVE_PILE_HASH 0x22BF35CE
-#define QUERY_SPAWN_HASH 0x49ECDEA8
-#define MESH_DROP_HASH 0x491E324B
+#define WAVE_PILE_HASH 0x73C1E14F
+#define QUERY_SPAWN_HASH 0x0E4B940B
+#define MESH_DROP_HASH 0x1B648591
 #endif
 
-static int SingleMultithreadingTest( int workerCount )
+// Re-rigged single ragdoll (box3d 954cf87) dropped on a ground box. Harvested
+// on this bench: sleep 331 both builds, hash narrow 0xCD6AC1EB / ludicrous
+// 0xCD75B56B, identical for workers 1-5 and across two generation runs. The
+// re-rig alone moved it to 228; group A lands on the re-rigged scene to move it again.
+// The 9e5a4cd CCD time-loss gravity fix (G3) lands on top of group A on this merge and
+// moves it again: 331 -> 219 (narrow 0xCD6AC1EB -> 0xD945B8B3, ludicrous
+// 0xCD75B56B -> 0x407D12F3). Re-harvested on this bench, identical across workers 1-5
+// and across two generation runs.
+#define RAGDOLL_HUMAN_SLEEP_STEP 219
+#if defined( BOX3D_LUDICROUS_MODE )
+#define RAGDOLL_HUMAN_HASH 0x407D12F3
+#else
+#define RAGDOLL_HUMAN_HASH 0xD945B8B3
+#endif
+
+// The goldens above pin exact values for the default four point manifold. A build that
+// overrides B3_MAX_MANIFOLD_POINTS produces a different contact set, so those checks drop
+// out and only the run to run agreement below applies.
+#if B3_MAX_MANIFOLD_POINTS == 4
+#define ENSURE_GOLDEN( condition ) ENSURE( condition )
+#else
+#define ENSURE_GOLDEN( condition ) ( (void)0 )
+#endif
+
+typedef struct DeterminismResult
+{
+	int sleepStep;
+	uint32_t hash;
+	int queryHitCount;
+	uint32_t queryHash;
+	bool seeded;
+} DeterminismResult;
+
+// Every worker count has to reproduce the first run exactly. Scenarios without queries leave
+// the query fields zero in both the reference and the result.
+static int EnsureRepeatable( DeterminismResult* reference, DeterminismResult result )
+{
+	if ( reference->seeded == false )
+	{
+		result.seeded = true;
+		*reference = result;
+		return 0;
+	}
+
+	ENSURE( result.sleepStep == reference->sleepStep );
+	ENSURE( result.hash == reference->hash );
+	ENSURE( result.queryHitCount == reference->queryHitCount );
+	ENSURE( result.queryHash == reference->queryHash );
+
+	return 0;
+}
+
+static int SingleMultithreadingTest( int workerCount, DeterminismResult* reference )
 {
 	b3WorldDef worldDef = b3DefaultWorldDef();
 	worldDef.workerCount = workerCount;
@@ -92,8 +173,9 @@ static int SingleMultithreadingTest( int workerCount )
 		printf( "  workers=%d sleepStep=%d hash=0x%08X\n", workerCount, data.sleepStep, data.hash );
 	}
 
-	ENSURE( data.sleepStep == RAGDOLL_SLEEP_STEP );
-	ENSURE( data.hash == RAGDOLL_HASH );
+	ENSURE_GOLDEN( data.sleepStep == RAGDOLL_SLEEP_STEP );
+	ENSURE_GOLDEN( data.hash == RAGDOLL_HASH );
+	ENSURE( EnsureRepeatable( reference, (DeterminismResult){ .sleepStep = data.sleepStep, .hash = data.hash } ) == 0 );
 
 	DestroyFallingRagdolls( &data );
 
@@ -103,9 +185,10 @@ static int SingleMultithreadingTest( int workerCount )
 // Test multithreaded determinism.
 static int MultithreadingTest( void )
 {
+	DeterminismResult reference = { 0 };
 	for ( int workerCount = 1; workerCount < 6; ++workerCount )
 	{
-		int result = SingleMultithreadingTest( workerCount );
+		int result = SingleMultithreadingTest( workerCount, &reference );
 		ENSURE( result == 0 );
 	}
 
@@ -137,8 +220,8 @@ static int CrossPlatformTest( void )
 		printf( "  cross-platform sleepStep=%d hash=0x%08X\n", data.sleepStep, data.hash );
 	}
 
-	ENSURE( data.sleepStep == RAGDOLL_SLEEP_STEP );
-	ENSURE( data.hash == RAGDOLL_HASH );
+	ENSURE_GOLDEN( data.sleepStep == RAGDOLL_SLEEP_STEP );
+	ENSURE_GOLDEN( data.hash == RAGDOLL_HASH );
 
 	DestroyFallingRagdolls( &data );
 
@@ -147,7 +230,7 @@ static int CrossPlatformTest( void )
 	return 0;
 }
 
-static int SingleWavePileTest( int workerCount )
+static int SingleWavePileTest( int workerCount, DeterminismResult* reference )
 {
 	b3WorldDef worldDef = b3DefaultWorldDef();
 	worldDef.workerCount = workerCount;
@@ -177,8 +260,9 @@ static int SingleWavePileTest( int workerCount )
 	}
 
 	ENSURE( done == true );
-	ENSURE( data.sleepStep == WAVE_PILE_SLEEP_STEP );
-	ENSURE( data.hash == WAVE_PILE_HASH );
+	ENSURE_GOLDEN( data.sleepStep == WAVE_PILE_SLEEP_STEP );
+	ENSURE_GOLDEN( data.hash == WAVE_PILE_HASH );
+	ENSURE( EnsureRepeatable( reference, (DeterminismResult){ .sleepStep = data.sleepStep, .hash = data.hash } ) == 0 );
 
 	DestroyWavePile( &data );
 
@@ -188,16 +272,17 @@ static int SingleWavePileTest( int workerCount )
 // Test multithreaded determinism of a mixed convex pile on a wave height field.
 static int WavePileTest( void )
 {
-	for ( int workerCount = 1; workerCount <= 4; ++workerCount )
+	DeterminismResult reference = { 0 };
+	for ( int workerCount = 1; workerCount <= 5; ++workerCount )
 	{
-		int result = SingleWavePileTest( workerCount );
+		int result = SingleWavePileTest( workerCount, &reference );
 		ENSURE( result == 0 );
 	}
 
 	return 0;
 }
 
-static int SingleQuerySpawnTest( int workerCount )
+static int SingleQuerySpawnTest( int workerCount, DeterminismResult* reference )
 {
 	b3WorldDef worldDef = b3DefaultWorldDef();
 	worldDef.workerCount = workerCount;
@@ -229,10 +314,14 @@ static int SingleQuerySpawnTest( int workerCount )
 
 	ENSURE( done == true );
 	ENSURE( data.spawnCount == QUERY_SPAWN_COUNT );
-	ENSURE( data.sleepStep == QUERY_SPAWN_SLEEP_STEP );
-	ENSURE( data.hash == QUERY_SPAWN_HASH );
-	ENSURE( data.queryHitCount == QUERY_SPAWN_HIT_COUNT );
-	ENSURE( data.queryHash == QUERY_SPAWN_QUERY_HASH );
+	ENSURE_GOLDEN( data.sleepStep == QUERY_SPAWN_SLEEP_STEP );
+	ENSURE_GOLDEN( data.hash == QUERY_SPAWN_HASH );
+	ENSURE_GOLDEN( data.queryHitCount == QUERY_SPAWN_HIT_COUNT );
+	ENSURE_GOLDEN( data.queryHash == QUERY_SPAWN_QUERY_HASH );
+	ENSURE( EnsureRepeatable( reference, (DeterminismResult){ .sleepStep = data.sleepStep,
+													  .hash = data.hash,
+													  .queryHitCount = data.queryHitCount,
+													  .queryHash = data.queryHash } ) == 0 );
 
 	DestroyQuerySpawn( &data );
 
@@ -242,16 +331,17 @@ static int SingleQuerySpawnTest( int workerCount )
 // Test determinism of world queries by feeding their results back into the simulation.
 static int QuerySpawnTest( void )
 {
-	for ( int workerCount = 1; workerCount <= 4; ++workerCount )
+	DeterminismResult reference = { 0 };
+	for ( int workerCount = 1; workerCount <= 5; ++workerCount )
 	{
-		int result = SingleQuerySpawnTest( workerCount );
+		int result = SingleQuerySpawnTest( workerCount, &reference );
 		ENSURE( result == 0 );
 	}
 
 	return 0;
 }
 
-static int SingleMeshDropTest( int workerCount )
+static int SingleMeshDropTest( int workerCount, DeterminismResult* reference )
 {
 	b3WorldDef worldDef = b3DefaultWorldDef();
 	worldDef.workerCount = workerCount;
@@ -280,8 +370,9 @@ static int SingleMeshDropTest( int workerCount )
 	}
 
 	ENSURE( done == true );
-	ENSURE( data.sleepStep == MESH_DROP_SLEEP_STEP );
-	ENSURE( data.hash == MESH_DROP_HASH );
+	ENSURE_GOLDEN( data.sleepStep == MESH_DROP_SLEEP_STEP );
+	ENSURE_GOLDEN( data.hash == MESH_DROP_HASH );
+	ENSURE( EnsureRepeatable( reference, (DeterminismResult){ .sleepStep = data.sleepStep, .hash = data.hash } ) == 0 );
 
 	DestroyMeshDrop( &data );
 
@@ -292,10 +383,11 @@ static int SingleMeshDropTest( int workerCount )
 // The scene is large, so only the single threaded and widest schedules run.
 static int MeshDropTest( void )
 {
+	DeterminismResult reference = { 0 };
 	int workerCounts[2] = { 1, 4 };
 	for ( int i = 0; i < 2; ++i )
 	{
-		int result = SingleMeshDropTest( workerCounts[i] );
+		int result = SingleMeshDropTest( workerCounts[i], &reference );
 		ENSURE( result == 0 );
 	}
 
@@ -508,8 +600,51 @@ static int SphericalGeometryTest( void )
 	return 0;
 }
 
+static int SingleRagdollHumanTest( int workerCount )
+{
+	b3WorldDef worldDef = b3DefaultWorldDef();
+	worldDef.workerCount = workerCount;
+	b3WorldId worldId = b3CreateWorld( &worldDef );
+
+	RagdollHumanData data = CreateRagdollHuman( worldId );
+	b3Fixed timeStep = b3FixDiv( B3_FIX( 1.0f ), B3_FIX( 60.0f ) );
+
+	int stepLimit = 800;
+	for ( int i = 0; i < stepLimit; ++i )
+	{
+		b3World_Step( worldId, timeStep, 4 );
+		if ( UpdateRagdollHuman( worldId, &data ) )
+		{
+			break;
+		}
+	}
+
+	b3DestroyWorld( worldId );
+
+	if ( data.sleepStep != RAGDOLL_HUMAN_SLEEP_STEP || data.hash != RAGDOLL_HUMAN_HASH )
+	{
+		printf( "  ragdoll-human workers=%d sleepStep=%d hash=0x%08X\n", workerCount, data.sleepStep, data.hash );
+	}
+
+	ENSURE_GOLDEN( data.sleepStep == RAGDOLL_HUMAN_SLEEP_STEP );
+	ENSURE_GOLDEN( data.hash == RAGDOLL_HUMAN_HASH );
+	DestroyRagdollHuman( &data );
+	return 0;
+}
+
+static int RagdollHumanTest( void )
+{
+	for ( int workerCount = 1; workerCount < 6; ++workerCount )
+	{
+		int result = SingleRagdollHumanTest( workerCount );
+		ENSURE( result == 0 );
+	}
+	return 0;
+}
+
 int DeterminismTest( void )
 {
+	RUN_SUBTEST( RagdollHumanTest );
 	RUN_SUBTEST( MultithreadingTest );
 	RUN_SUBTEST( CrossPlatformTest );
 	RUN_SUBTEST( WavePileTest );

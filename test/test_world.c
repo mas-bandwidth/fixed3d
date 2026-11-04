@@ -3,6 +3,8 @@
 
 #include "benchmarks.h"
 #include "overflow_color.h"
+#include "body.h"
+#include "contact.h"
 #include "physics_world.h"
 #include "test_macros.h"
 
@@ -1167,6 +1169,211 @@ static int EnableContactRecyclingTest( void )
 	return 0;
 }
 
+// A slow sphere closes on a static round shape from just outside contact. The step is too short
+// to make the sphere fast, so the pair is eligible for recycling. A routine without a speculative
+// margin left the pair empty and recycling then let the sphere sink without a contact. Discussion #175.
+static int RunRecycledApproach( bool capsuleTarget )
+{
+	b3WorldDef worldDef = b3DefaultWorldDef();
+	worldDef.gravity = b3Vec3_zero;
+	b3WorldId worldId = b3CreateWorld( &worldDef );
+
+	b3BodyDef bodyDef = b3DefaultBodyDef();
+	bodyDef.type = b3_staticBody;
+	b3BodyId targetId = b3CreateBody( worldId, &bodyDef );
+
+	b3ShapeDef shapeDef = b3DefaultShapeDef();
+	b3Fixed targetRadius = B3_FIX( 0.5f );
+	if ( capsuleTarget )
+	{
+		b3Capsule capsule = { { -B3_FIX( 1.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) },
+							  { B3_FIX( 1.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, targetRadius };
+		b3CreateCapsuleShape( targetId, &shapeDef, &capsule );
+	}
+	else
+	{
+		b3Sphere sphere = { b3Vec3_zero, targetRadius };
+		b3CreateSphereShape( targetId, &shapeDef, &sphere );
+	}
+
+	b3Fixed radius = B3_FIX( 0.25f );
+	b3Fixed totalRadius = targetRadius + radius;
+	b3Fixed timeStep = b3FixDiv( B3_FIX( 1.0f ) , B3_FIX( 60.0f ) );
+
+	// Half the speculative distance per step
+	b3Fixed speed = b3FixDiv( b3FixMul( B3_FIX( 0.5f ) , B3_SPECULATIVE_DISTANCE ), timeStep );
+
+	bodyDef = b3DefaultBodyDef();
+	bodyDef.type = b3_dynamicBody;
+	bodyDef.position = (b3Pos){ B3_FIX( 0.0f ), totalRadius + b3FixMul( B3_FIX( 0.25f ) , B3_SPECULATIVE_DISTANCE ), B3_FIX( 0.0f ) };
+	bodyDef.linearVelocity = (b3Vec3){ B3_FIX( 0.0f ), -speed, B3_FIX( 0.0f ) };
+	b3BodyId bodyId = b3CreateBody( worldId, &bodyDef );
+
+	b3Sphere sphere = { b3Vec3_zero, radius };
+	b3CreateSphereShape( bodyId, &shapeDef, &sphere );
+
+	b3Fixed minSeparation = B3_FIXED_MAX;
+	for ( int i = 0; i < 20; ++i )
+	{
+		b3World_Step( worldId, timeStep, 4 );
+
+		b3Pos p = b3Body_GetPosition( bodyId );
+		minSeparation = b3FixMin( minSeparation, p.y - totalRadius );
+	}
+
+	b3DestroyWorld( worldId );
+
+	ENSURE( minSeparation > -B3_LINEAR_SLOP );
+
+	return 0;
+}
+
+static int RecycledSphereApproachTest( void )
+{
+	ENSURE( RunRecycledApproach( false ) == 0 );
+	ENSURE( RunRecycledApproach( true ) == 0 );
+	return 0;
+}
+
+static bool PreSolveReject( b3ShapeId shapeIdA, b3ShapeId shapeIdB, b3Pos point, b3Vec3 normal, void* context )
+{
+	(void)shapeIdA;
+	(void)shapeIdB;
+	(void)point;
+	(void)normal;
+	bool* reject = context;
+	return *reject == false;
+}
+
+// A rejected pre-solve frees the manifold while the shapes may already touch. The next step must
+// rebuild the contact and ask again instead of recycling the empty pair.
+static int PreSolveRejectRecycleTest( void )
+{
+	b3WorldDef worldDef = b3DefaultWorldDef();
+	worldDef.enableSleep = false;
+	b3WorldId worldId = b3CreateWorld( &worldDef );
+
+	bool reject = true;
+	b3World_SetPreSolveCallback( worldId, PreSolveReject, &reject );
+
+	b3BodyDef bodyDef = b3DefaultBodyDef();
+	bodyDef.type = b3_staticBody;
+	bodyDef.position = (b3Pos){ B3_FIX( 0.0f ), -B3_FIX( 0.5f ), B3_FIX( 0.0f ) };
+	b3BodyId groundId = b3CreateBody( worldId, &bodyDef );
+	b3BoxHull groundBox = b3MakeBoxHull( B3_FIX( 10.0f ), B3_FIX( 0.5f ), B3_FIX( 10.0f ) );
+	b3ShapeDef shapeDef = b3DefaultShapeDef();
+	b3CreateHullShape( groundId, &shapeDef, &groundBox.base );
+
+	b3Fixed radius = B3_FIX( 0.25f );
+	bodyDef = b3DefaultBodyDef();
+	bodyDef.type = b3_dynamicBody;
+	bodyDef.position = (b3Pos){ B3_FIX( 0.0f ), radius, B3_FIX( 0.0f ) };
+	b3BodyId bodyId = b3CreateBody( worldId, &bodyDef );
+
+	shapeDef.enablePreSolveEvents = true;
+	b3Sphere sphere = { b3Vec3_zero, radius };
+	b3CreateSphereShape( bodyId, &shapeDef, &sphere );
+
+	b3World_Step( worldId, b3FixDiv( B3_FIX( 1.0f ) , B3_FIX( 60.0f ) ), 4 );
+
+	reject = false;
+
+	b3Fixed minSeparation = B3_FIXED_MAX;
+	for ( int i = 0; i < 30; ++i )
+	{
+		b3World_Step( worldId, b3FixDiv( B3_FIX( 1.0f ) , B3_FIX( 60.0f ) ), 4 );
+
+		b3Pos p = b3Body_GetPosition( bodyId );
+		minSeparation = b3FixMin( minSeparation, p.y - radius );
+	}
+
+	b3DestroyWorld( worldId );
+
+	ENSURE( minSeparation > -B3_LINEAR_SLOP );
+
+	return 0;
+}
+
+static int CountRecycledResting( bool enableSpeculative )
+{
+	b3WorldDef worldDef = b3DefaultWorldDef();
+	worldDef.enableSleep = false;
+	b3WorldId worldId = b3CreateWorld( &worldDef );
+
+	b3BodyDef bodyDef = b3DefaultBodyDef();
+	bodyDef.type = b3_staticBody;
+	bodyDef.position = (b3Pos){ B3_FIX( 0.0f ), -B3_FIX( 0.5f ), B3_FIX( 0.0f ) };
+	b3BodyId groundId = b3CreateBody( worldId, &bodyDef );
+	b3BoxHull groundBox = b3MakeBoxHull( B3_FIX( 10.0f ), B3_FIX( 0.5f ), B3_FIX( 10.0f ) );
+	b3ShapeDef shapeDef = b3DefaultShapeDef();
+	b3CreateHullShape( groundId, &shapeDef, &groundBox.base );
+
+	bodyDef = b3DefaultBodyDef();
+	bodyDef.type = b3_dynamicBody;
+	bodyDef.position = (b3Pos){ B3_FIX( 0.0f ), B3_FIX( 0.5f ), B3_FIX( 0.0f ) };
+	b3BodyId bodyId = b3CreateBody( worldId, &bodyDef );
+
+	shapeDef.enableSpeculativeContact = enableSpeculative;
+	b3BoxHull box = b3MakeBoxHull( B3_FIX( 0.5f ), B3_FIX( 0.5f ), B3_FIX( 0.5f ) );
+	b3CreateHullShape( bodyId, &shapeDef, &box.base );
+
+	int recycledCount = 0;
+	for ( int i = 0; i < 60; ++i )
+	{
+		b3World_Step( worldId, b3FixDiv( B3_FIX( 1.0f ) , B3_FIX( 60.0f ) ), 4 );
+		recycledCount += b3World_GetCounters( worldId ).recycledContactCount;
+	}
+
+	b3DestroyWorld( worldId );
+
+	return recycledCount;
+}
+
+// Without speculative points an empty pair may be closer than the speculative distance, so these
+// contacts must never recycle
+static int SpeculativeOffRecycleTest( void )
+{
+	ENSURE( CountRecycledResting( true ) > 0 );
+	ENSURE( CountRecycledResting( false ) == 0 );
+	return 0;
+}
+
+// A zero time step still discovers an overlapping pair and emits its begin
+// event, while leaving the dynamic body at its exact prior state.
+static int ZeroTimeStepCollisionTest( void )
+{
+	b3WorldDef worldDef = b3DefaultWorldDef();
+	worldDef.gravity = b3Vec3_zero;
+	b3WorldId worldId = b3CreateWorld( &worldDef );
+	b3BodyDef bodyDef = b3DefaultBodyDef();
+	bodyDef.type = b3_staticBody;
+	b3BodyId staticId = b3CreateBody( worldId, &bodyDef );
+	b3ShapeDef shapeDef = b3DefaultShapeDef();
+	shapeDef.enableContactEvents = true;
+	b3Sphere sphere = { b3Vec3_zero, B3_FIX( 0.5f ) };
+	b3CreateSphereShape( staticId, &shapeDef, &sphere );
+
+	bodyDef = b3DefaultBodyDef();
+	bodyDef.type = b3_dynamicBody;
+	bodyDef.position = (b3Pos){ 0, B3_FIX( 0.75f ), 0 };
+	bodyDef.linearVelocity = (b3Vec3){ 0, -B3_FIX( 1.0f ), 0 };
+	b3BodyId dynamicId = b3CreateBody( worldId, &bodyDef );
+	shapeDef.density = B3_FIX( 1.0f );
+	b3CreateSphereShape( dynamicId, &shapeDef, &sphere );
+	b3Pos before = b3Body_GetPosition( dynamicId );
+	b3Vec3 velocityBefore = b3Body_GetLinearVelocity( dynamicId );
+
+	b3World_Step( worldId, 0, 4 );
+	b3ContactEvents events = b3World_GetContactEvents( worldId );
+	b3Pos after = b3Body_GetPosition( dynamicId );
+	b3Vec3 velocityAfter = b3Body_GetLinearVelocity( dynamicId );
+	ENSURE( events.beginCount == 1 );
+	ENSURE( before.x == after.x && before.y == after.y && before.z == after.z );
+	ENSURE( velocityBefore.x == velocityAfter.x && velocityBefore.y == velocityAfter.y && velocityBefore.z == velocityAfter.z );
+	b3DestroyWorld( worldId );
+	return 0;
+}
+
 // Identical hull data is shared through a reference counted world database.
 static int TestHullDatabase( void )
 {
@@ -1430,8 +1637,154 @@ static int SleepingWorldTreeJoinTest( void )
 	return 0;
 }
 
+// Count the contacts of a body whose cached relative transform is still marked valid, i.e.
+// the contacts the recycling optimization is allowed to reuse a manifold for.
+static int CountRecyclableContacts( b3World* world, b3BodyId bodyId )
+{
+	b3Body* body = b3GetBodyFullId( world, bodyId );
+	int count = 0;
+	int edgeKey = body->headContactKey;
+	while ( edgeKey != B3_NULL_INDEX )
+	{
+		int contactId = edgeKey >> 1;
+		int edgeIndex = edgeKey & 1;
+
+		b3Contact* contact = b3Array_Get( world->contacts, contactId );
+		if ( ( contact->flags & b3_relativeTransformValid ) != 0 )
+		{
+			count += 1;
+		}
+
+		edgeKey = contact->edges[edgeIndex].nextKey;
+	}
+
+	return count;
+}
+
+// The recycled manifold is cached in the frame of the two bodies' centers of mass, so moving
+// a center of mass makes every cached manifold on that body stale. Both mass-data entry points
+// must drop the cache; otherwise the next step reuses contact anchors measured from the old
+// center. Part of upstream box3d "Fixes (#157)".
+static int TestMassDataInvalidatesContactCache( void )
+{
+	b3WorldDef worldDef = b3DefaultWorldDef();
+	worldDef.gravity = b3Vec3_zero;
+	b3WorldId worldId = b3CreateWorld( &worldDef );
+	b3World* world = b3GetWorldFromId( worldId );
+
+	b3BodyDef bodyDef = b3DefaultBodyDef();
+	bodyDef.type = b3_dynamicBody;
+	bodyDef.enableContactRecycling = true;
+
+	bodyDef.position = (b3Pos){ B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
+	b3BodyId bodyIdA = b3CreateBody( worldId, &bodyDef );
+
+	// Overlapping so a touching contact forms and caches its relative transform
+	bodyDef.position = (b3Pos){ B3_FIX( 0.9f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
+	b3BodyId bodyIdB = b3CreateBody( worldId, &bodyDef );
+
+	b3ShapeDef shapeDef = b3DefaultShapeDef();
+	shapeDef.density = B3_FIX( 1.0f );
+	b3BoxHull box = b3MakeBoxHull( B3_FIX( 0.5f ), B3_FIX( 0.5f ), B3_FIX( 0.5f ) );
+	b3CreateHullShape( bodyIdA, &shapeDef, &box.base );
+	b3CreateHullShape( bodyIdB, &shapeDef, &box.base );
+
+	b3Fixed timeStep = b3FixDiv( B3_FIXED_ONE, b3FixFromInt( 60 ) );
+
+	// Two steps: the first creates the contact, the second caches its relative transform
+	b3World_Step( worldId, timeStep, 4 );
+	b3World_Step( worldId, timeStep, 4 );
+	ENSURE( CountRecyclableContacts( world, bodyIdA ) > 0 );
+
+	// b3Body_SetMassData moves the center of mass well off the old one
+	b3MassData massData = b3Body_GetMassData( bodyIdA );
+	massData.center = (b3Vec3){ B3_FIX( 0.25f ), B3_FIX( 0.25f ), B3_FIX( 0.0f ) };
+	b3Body_SetMassData( bodyIdA, massData );
+	ENSURE( CountRecyclableContacts( world, bodyIdA ) == 0 );
+
+	// b3UpdateBodyMassData is the other entry point; adding a shape off center runs it
+	b3World_Step( worldId, timeStep, 4 );
+	b3World_Step( worldId, timeStep, 4 );
+	ENSURE( CountRecyclableContacts( world, bodyIdA ) > 0 );
+
+	b3Sphere offCenter = { { B3_FIX( 0.0f ), B3_FIX( 0.4f ), B3_FIX( 0.0f ) }, B3_FIX( 0.1f ) };
+	b3CreateSphereShape( bodyIdA, &shapeDef, &offCenter );
+	ENSURE( CountRecyclableContacts( world, bodyIdA ) == 0 );
+
+	b3DestroyWorld( worldId );
+	return 0;
+}
+
+static int CountEnlargedNodes( const b3DynamicTree* tree )
+{
+	int count = 0;
+	for ( int i = 0; i < tree->nodeCapacity; ++i )
+	{
+		const b3TreeNode* node = tree->nodes + i;
+		if ( ( node->flags & b3_allocatedNode ) != 0 && ( node->flags & b3_enlargedNode ) != 0 )
+		{
+			count += 1;
+		}
+	}
+
+	return count;
+}
+
+// A proxy can be enlarged in one step and destroyed before the next, emptying the move buffer.
+// The trees must still be rebuilt or the enlarged nodes survive into the next step. Upstream
+// box3d issue #149.
+static int TestEnlargedProxyDestroyed( void )
+{
+	b3WorldDef worldDef = b3DefaultWorldDef();
+	worldDef.gravity = b3Vec3_zero;
+	b3WorldId worldId = b3CreateWorld( &worldDef );
+
+	b3World* world = b3GetWorldFromId( worldId );
+	const b3DynamicTree* tree = world->broadPhase.trees + b3_dynamicBody;
+
+	b3BodyDef bodyDef = b3DefaultBodyDef();
+	bodyDef.type = b3_dynamicBody;
+
+	b3ShapeDef shapeDef = b3DefaultShapeDef();
+	b3Sphere sphere = { b3Vec3_zero, B3_FIX( 0.25f ) };
+
+	// Resting bodies keep the tree deep enough that the mover has an ancestor that outlives it
+	for ( int i = 0; i < 8; ++i )
+	{
+		bodyDef.position = (b3Pos){ b3FixFromInt( 2 * i ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
+		b3BodyId restingId = b3CreateBody( worldId, &bodyDef );
+		b3CreateSphereShape( restingId, &shapeDef, &sphere );
+	}
+
+	// This body outruns its AABB margin every step
+	bodyDef.position = (b3Pos){ B3_FIX( 7.0f ), B3_FIX( 1.0f ), B3_FIX( 0.0f ) };
+	bodyDef.linearVelocity = (b3Vec3){ B3_FIX( 6.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
+	b3BodyId moverId = b3CreateBody( worldId, &bodyDef );
+	b3CreateSphereShape( moverId, &shapeDef, &sphere );
+
+	b3Fixed timeStep = b3FixDiv( B3_FIXED_ONE, b3FixFromInt( 60 ) );
+	b3World_Step( worldId, timeStep, 4 );
+
+	ENSURE( CountEnlargedNodes( tree ) > 0 );
+
+	b3DestroyBody( moverId );
+
+	// The mover was the only proxy in the move buffer
+	ENSURE( world->broadPhase.moveArray.count == 0 );
+	ENSURE( CountEnlargedNodes( tree ) > 0 );
+
+	b3World_Step( worldId, timeStep, 4 );
+
+	ENSURE( CountEnlargedNodes( tree ) == 0 );
+
+	b3DestroyWorld( worldId );
+	return 0;
+}
+
 int WorldTest( void )
 {
+	RUN_SUBTEST( TestEnlargedProxyDestroyed );
+	RUN_SUBTEST( TestMassDataInvalidatesContactCache );
 	RUN_SUBTEST( HelloWorld );
 	RUN_SUBTEST( EmptyWorld );
 	RUN_SUBTEST( SleepingWorldTreeJoinTest );
@@ -1453,6 +1806,10 @@ int WorldTest( void )
 	RUN_SUBTEST( EnableSleepFlagSyncTest );
 	RUN_SUBTEST( EnableSleepNoopUnlockTest );
 	RUN_SUBTEST( EnableContactRecyclingTest );
+	RUN_SUBTEST( RecycledSphereApproachTest );
+	RUN_SUBTEST( PreSolveRejectRecycleTest );
+	RUN_SUBTEST( SpeculativeOffRecycleTest );
+	RUN_SUBTEST( ZeroTimeStepCollisionTest );
 	RUN_SUBTEST( TestSetWorkerCount );
 	RUN_SUBTEST( TestHullDatabase );
 

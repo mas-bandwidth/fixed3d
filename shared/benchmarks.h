@@ -43,6 +43,16 @@ void CreateWasher( b3WorldId worldId );
 void CreateConvexPile( b3WorldId worldId );
 void GetConvexPileCapacity( b3Capacity* capacity );
 
+// 200 ragdolls from the determinism corpus (CreateHuman), dropped to settle.
+void GetRagdollPileCapacity( b3Capacity* capacity );
+void CreateRagdollPile( b3WorldId worldId );
+void DestroyRagdollPile( void );
+
+// 20,000 mixed bodies (sphere, capsule, box) settling. The pyramid scenes are
+// the pyramid case; this is the many-bodies case.
+void GetBodies20kCapacity( b3Capacity* capacity );
+void CreateBodies20k( b3WorldId worldId );
+
 // void CreateSpinner( b3WorldId worldId );
 // b3Fixed StepSpinner( b3WorldId worldId, int stepCount );
 // void CreateSmash( b3WorldId worldId );

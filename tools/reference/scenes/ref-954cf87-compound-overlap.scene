@@ -1,0 +1,22 @@
+# ref-954cf87-compound-overlap
+# Upstream box3d issue #153: b3OverlapCompound must query the compound tree in the
+# COMPOUND frame. A baked compound of two spheres at local (+-3, 0, 0) (radius 0.5)
+# sits on a static body posed at (10, 20, 30) rotated 90 degrees about +Z, so the
+# children land at world (10, 23, 30) and (10, 17, 30) and the origin between them is
+# empty. Reference: vanilla float box3d at 954cf87; fixed: fixed3d on this branch (the
+# port of step 6, b3OverlapCompound in src/compound.c).
+# Observable: the overlap count of two sphere queries. A 0.1 m sphere at the first
+#   child's world position must hit exactly 1 shape; a 0.25 m sphere at the gap between
+#   the children must hit 0. Before the fix the world-space proxy was handed to the
+#   compound-frame tree, so the hit set was wrong on a non-identity pose.
+# Tolerance: the body is static, so the transform trace is exact; the hit count is an
+#   integer that must be identical. Twice the measured maximum divergence on this bench
+#   against float box3d at 954cf87 (pos 0, rot 7.15e-7, vel 0, angvel 0, query 0).
+#   Values below 8*B3_FIXED_EPSILON are floored to it.
+expect pos 0.0002 rot 0.0002 vel 0.0002 horizon 1 counts exact
+world gravity 0 -10 0 dt 1 60 substeps 4 steps 1
+body static position 10 20 30 rotation 0 0 0.70710678 0.70710678 linvel 0 0 0 angvel 0 0 0
+compound 0 sphere 3 0 0 0.5
+compound 0 sphere -3 0 0 0.5
+query overlap_shape origin 10 23 30 sphere 0.1
+query overlap_shape origin 10 20 30 sphere 0.25

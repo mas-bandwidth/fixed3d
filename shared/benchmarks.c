@@ -1012,3 +1012,128 @@ void CreateConvexPile( b3WorldId worldId )
 
 	b3DestroyHull( convex );
 }
+
+#define RAGDOLL_PILE_COUNT 200
+#define BODIES_20K_COUNT 20000
+
+static Human* g_ragdollPile = NULL;
+
+void GetRagdollPileCapacity( b3Capacity* capacity )
+{
+	int count = BENCHMARK_DEBUG ? 4 : RAGDOLL_PILE_COUNT;
+	capacity->staticBodyCount = 1;
+	capacity->staticShapeCount = 1;
+	capacity->dynamicBodyCount = count * bone_count;
+	capacity->dynamicShapeCount = count * bone_count;
+	capacity->contactCount = count * 48;
+}
+
+void CreateRagdollPile( b3WorldId worldId )
+{
+	int count = BENCHMARK_DEBUG ? 4 : RAGDOLL_PILE_COUNT;
+	b3BodyDef groundDef = b3DefaultBodyDef();
+	groundDef.position = b3OffsetPos( GetSceneOrigin(), (b3Vec3){ 0, -b3FixFromInt( 1 ), 0 } );
+	b3BodyId groundId = b3CreateBody( worldId, &groundDef );
+	b3ShapeDef groundShapeDef = b3DefaultShapeDef();
+	b3BoxHull groundBox = b3MakeBoxHull( b3FixFromInt( 40 ), b3FixFromInt( 1 ), b3FixFromInt( 24 ) );
+	g_groundShapeId = b3CreateHullShape( groundId, &groundShapeDef, &groundBox.base );
+
+	g_ragdollPile = calloc( (size_t)count, sizeof( Human ) );
+	assert( g_ragdollPile != NULL );
+
+	int cols = 20;
+	b3Fixed frictionTorque = B3_FIX( 5.0f );
+	b3Fixed hertz = B3_FIX( 1.0f );
+	b3Fixed dampingRatio = B3_FIX( 0.7f );
+	for ( int i = 0; i < count; ++i )
+	{
+		int col = i % cols;
+		int row = i / cols;
+		b3Vec3 local;
+		local.x = b3FixFromInt( ( col - 10 ) * 2 );
+		local.y = b3FixFromInt( 8 );
+		local.z = b3FixFromInt( ( row - 5 ) * 2 );
+		CreateHuman( g_ragdollPile + i, worldId, b3OffsetPos( GetSceneOrigin(), local ), frictionTorque, hertz, dampingRatio, i + 1, NULL,
+					 false );
+	}
+}
+
+void DestroyRagdollPile( void )
+{
+	if ( g_ragdollPile == NULL )
+	{
+		return;
+	}
+	int count = BENCHMARK_DEBUG ? 4 : RAGDOLL_PILE_COUNT;
+	for ( int i = 0; i < count; ++i )
+	{
+		if ( g_ragdollPile[i].isSpawned )
+		{
+			DestroyHuman( g_ragdollPile + i );
+		}
+	}
+	free( g_ragdollPile );
+	g_ragdollPile = NULL;
+}
+
+void GetBodies20kCapacity( b3Capacity* capacity )
+{
+	int count = BENCHMARK_DEBUG ? 64 : BODIES_20K_COUNT;
+	capacity->staticBodyCount = 1;
+	capacity->staticShapeCount = 1;
+	capacity->dynamicBodyCount = count;
+	capacity->dynamicShapeCount = count;
+	capacity->contactCount = count * 4;
+}
+
+void CreateBodies20k( b3WorldId worldId )
+{
+	int count = BENCHMARK_DEBUG ? 64 : BODIES_20K_COUNT;
+	b3BodyDef groundDef = b3DefaultBodyDef();
+	groundDef.position = b3OffsetPos( GetSceneOrigin(), (b3Vec3){ 0, -b3FixFromInt( 1 ), 0 } );
+	b3BodyId groundId = b3CreateBody( worldId, &groundDef );
+	b3ShapeDef groundShapeDef = b3DefaultShapeDef();
+	b3BoxHull groundBox = b3MakeBoxHull( b3FixFromInt( 80 ), b3FixFromInt( 1 ), b3FixFromInt( 120 ) );
+	g_groundShapeId = b3CreateHullShape( groundId, &groundShapeDef, &groundBox.base );
+
+	b3BodyDef bodyDef = b3DefaultBodyDef();
+	bodyDef.type = b3_dynamicBody;
+	b3ShapeDef shapeDef = b3DefaultShapeDef();
+	b3BoxHull box = b3MakeBoxHull( B3_FIX( 0.5f ), B3_FIX( 0.5f ), B3_FIX( 0.5f ) );
+	b3Sphere sphere = { { 0, 0, 0 }, B3_FIX( 0.5f ) };
+	b3Capsule capsule = { { 0, -B3_FIX( 0.5f ), 0 }, { 0, B3_FIX( 0.5f ), 0 }, B3_FIX( 0.25f ) };
+
+	int nx = 25;
+	int ny = 20;
+	int nz = 40;
+	int n = 0;
+	for ( int y = 0; y < ny && n < count; ++y )
+	{
+		for ( int z = 0; z < nz && n < count; ++z )
+		{
+			for ( int x = 0; x < nx && n < count; ++x )
+			{
+				b3Vec3 local;
+				local.x = b3FixFromInt( ( x - 12 ) * 2 );
+				local.y = b3FixFromInt( 3 + y * 2 );
+				local.z = b3FixFromInt( ( z - 20 ) * 2 );
+				bodyDef.position = b3OffsetPos( GetSceneOrigin(), local );
+				b3BodyId bodyId = b3CreateBody( worldId, &bodyDef );
+				int kind = ( x + 3 * z + 5 * y ) % 3;
+				if ( kind == 0 )
+				{
+					b3CreateSphereShape( bodyId, &shapeDef, &sphere );
+				}
+				else if ( kind == 1 )
+				{
+					b3CreateCapsuleShape( bodyId, &shapeDef, &capsule );
+				}
+				else
+				{
+					b3CreateHullShape( bodyId, &shapeDef, &box.base );
+				}
+				n += 1;
+			}
+		}
+	}
+}

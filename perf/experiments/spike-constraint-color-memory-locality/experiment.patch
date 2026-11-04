@@ -1,0 +1,282 @@
+diff --git a/src/contact_solver.c b/src/contact_solver.c
+index 7bec2a9..e8c4ff3 100644
+--- a/src/contact_solver.c
++++ b/src/contact_solver.c
+@@ -16,6 +16,37 @@
+ #include "shape.h"
+ #endif
+ 
++// A read-only hint for the next contact's scattered awake-body state. Solver
++// indices are stable from prepare through the color barriers; zero/NULL bodies
++// are represented by the identity state and have nothing to prefetch.
++static inline void b3PrefetchBodyState( const b3BodyState* states, int zeroBasedIndex )
++{
++#if defined( __GNUC__ ) || defined( __clang__ )
++	if ( zeroBasedIndex >= 0 )
++	{
++		const b3BodyState* state = states + zeroBasedIndex;
++		__builtin_prefetch( state, 0, 1 );
++		__builtin_prefetch( &state->deltaPosition, 0, 1 );
++	}
++#else
++	(void)states;
++	(void)zeroBasedIndex;
++#endif
++}
++
++static inline void b3PrefetchMeshContact( const b3ContactConstraint* next, const b3BodyState* states )
++{
++#if defined( __GNUC__ ) || defined( __clang__ )
++	__builtin_prefetch( next, 0, 1 );
++	if ( next->manifoldCount > 0 )
++	{
++		__builtin_prefetch( next->constraints, 0, 1 );
++	}
++#endif
++	b3PrefetchBodyState( states, next->indexA );
++	b3PrefetchBodyState( states, next->indexB );
++}
++
+ // contact separation for sub-stepping
+ // s = s0 + dot(cB + rB - cA - rA, normal)
+ // normal is held constant
+@@ -291,6 +322,10 @@ void b3WarmStartContacts_Mesh( b3SolverBlock block, b3StepContext* context )
+ 
+ 	for ( int constraintIndex = startIndex; constraintIndex < endIndex; ++constraintIndex )
+ 	{
++		if ( constraintIndex + 1 < endIndex )
++		{
++			b3PrefetchMeshContact( constraints + constraintIndex + 1, states );
++		}
+ 		const b3ContactConstraint* contactConstraint = constraints + constraintIndex;
+ 		int indexA = contactConstraint->indexA;
+ 		int indexB = contactConstraint->indexB;
+@@ -609,6 +644,10 @@ void b3SolveContacts_Mesh( b3SolverBlock block, b3StepContext* context, bool use
+ 
+ 	for ( int i = startIndex; i < endIndex; ++i )
+ 	{
++		if ( i + 1 < endIndex )
++		{
++			b3PrefetchMeshContact( contactConstraints + i + 1, states );
++		}
+ 		b3ContactConstraint* contactConstraint = contactConstraints + i;
+ 		int manifoldCount = contactConstraint->manifoldCount;
+ 
+@@ -2038,6 +2077,20 @@ typedef struct b3ContactConstraintWide
+ 
+ } b3ContactConstraintWide;
+ 
++// Wide solver indices are base one, unlike the scalar mesh indices. The
++// next constraint is already prepared and belongs to the same solver block.
++static inline void b3PrefetchWideContact( const b3ContactConstraintWide* next, const b3BodyState* states )
++{
++#if defined( __GNUC__ ) || defined( __clang__ )
++	__builtin_prefetch( next, 0, 1 );
++#endif
++	for ( int lane = 0; lane < B3_SIMD_WIDTH; ++lane )
++	{
++		b3PrefetchBodyState( states, next->indexA[lane] - 1 );
++		b3PrefetchBodyState( states, next->indexB[lane] - 1 );
++	}
++}
++
+ int b3GetWideContactConstraintByteCount( void )
+ {
+ 	return sizeof( b3ContactConstraintWide );
+@@ -2124,6 +2177,22 @@ typedef struct b3ContactConstraintMeshWide
+ 	int maxManifoldCount;
+ } b3ContactConstraintMeshWide;
+ 
++static inline void b3PrefetchMeshWideContact( const b3ContactConstraintMeshWide* next, const b3BodyState* states )
++{
++#if defined( __GNUC__ ) || defined( __clang__ )
++	__builtin_prefetch( next, 0, 1 );
++	if ( next->maxManifoldCount > 0 )
++	{
++		__builtin_prefetch( next->manifoldConstraints, 0, 1 );
++	}
++#endif
++	for ( int lane = 0; lane < B3_SIMD_WIDTH; ++lane )
++	{
++		b3PrefetchBodyState( states, next->indexA[lane] - 1 );
++		b3PrefetchBodyState( states, next->indexB[lane] - 1 );
++	}
++}
++
+ int b3GetMeshWideContactConstraintByteCount( void )
+ {
+ 	return sizeof( b3ContactConstraintMeshWide );
+@@ -3294,6 +3363,10 @@ void b3WarmStartContacts_Convex( b3SolverBlock block, b3StepContext* context )
+ 
+ 	for ( int i = block.startIndex; i < block.startIndex + block.count; ++i )
+ 	{
++		if ( i + 1 < block.startIndex + block.count )
++		{
++			b3PrefetchWideContact( constraints + i + 1, states );
++		}
+ 		b3ContactConstraintWide* c = constraints + i;
+ 		b3BodyStateW bA = b3GatherBodies( states, c->indexA );
+ 		b3BodyStateW bB = b3GatherBodies( states, c->indexB );
+@@ -3361,6 +3434,10 @@ void b3SolveContacts_Convex( b3SolverBlock block, b3StepContext* context, bool u
+ 
+ 	for ( int wideIndex = block.startIndex; wideIndex < block.startIndex + block.count; ++wideIndex )
+ 	{
++		if ( wideIndex + 1 < block.startIndex + block.count )
++		{
++			b3PrefetchWideContact( constraints + wideIndex + 1, states );
++		}
+ 		b3ContactConstraintWide* c = constraints + wideIndex;
+ 
+ 		b3BodyStateW bA = b3GatherBodies( states, c->indexA );
+@@ -4124,6 +4201,10 @@ void b3WarmStartContacts_MeshWide( b3SolverBlock block, b3StepContext* context )
+ 
+ 	for ( int i = block.startIndex; i < block.startIndex + block.count; ++i )
+ 	{
++		if ( i + 1 < block.startIndex + block.count )
++		{
++			b3PrefetchMeshWideContact( constraints + i + 1, states );
++		}
+ 		b3ContactConstraintMeshWide* c = constraints + i;
+ 		b3BodyStateW bA = b3GatherBodies( states, c->indexA );
+ 		b3BodyStateW bB = b3GatherBodies( states, c->indexB );
+@@ -4195,6 +4276,10 @@ void b3SolveContacts_MeshWide( b3SolverBlock block, b3StepContext* context, bool
+ 
+ 	for ( int wideIndex = block.startIndex; wideIndex < block.startIndex + block.count; ++wideIndex )
+ 	{
++		if ( wideIndex + 1 < block.startIndex + block.count )
++		{
++			b3PrefetchMeshWideContact( constraints + wideIndex + 1, states );
++		}
+ 		b3ContactConstraintMeshWide* c = constraints + wideIndex;
+ 
+ 		b3BodyStateW bA = b3GatherBodies( states, c->indexA );
+diff --git a/test/CMakeLists.txt b/test/CMakeLists.txt
+index ac1679c..4f72188 100644
+--- a/test/CMakeLists.txt
++++ b/test/CMakeLists.txt
+@@ -169,4 +169,8 @@ add_test(
+ 	COMMAND ${CMAKE_COMMAND} -P "${_rapidhash_guard_script}"
+ )
+ 
++# The determinism suite includes ConstraintLayoutBitIdenticalTest, which pins
++# the per-color contact ID stream and ragdoll result at worker counts 1..5.
++add_test(NAME ConstraintLayoutBitIdenticalTest COMMAND $<TARGET_FILE:box3d_test> DeterminismTest)
++
+ file(GENERATE OUTPUT "${CMAKE_BINARY_DIR}/CTestTestfile.cmake" CONTENT "subdirs(\"test\")\n")
+diff --git a/test/test_determinism.c b/test/test_determinism.c
+index 73ac1bf..44c72d2 100644
+--- a/test/test_determinism.c
++++ b/test/test_determinism.c
+@@ -6,6 +6,8 @@
+ #include "determinism.h"
+ #include "stability.h"
+ #include "test_macros.h"
++#include "physics_world.h"
++#include "constraint_graph.h"
+ 
+ #include <stdio.h>
+ #include <inttypes.h>
+@@ -630,8 +632,103 @@ static int RagdollHumanTest( void )
+ 	return 0;
+ }
+ 
++// Record the exact per-color contact ID stream over a settling ragdoll run.
++// Both the convex and mesh contact arrays contribute in their solve order.
++static uint64_t LayoutMix( uint64_t hash, uint32_t value )
++{
++	hash = ( hash ^ value ) * UINT64_C( 1099511628211 );
++	return hash;
++}
++
++static int ConstraintLayoutBitIdenticalTest( void )
++{
++	static const uint64_t expected[B3_GRAPH_COLOR_COUNT] = {
++		UINT64_C( 0x5c42b6777239f719 ), // color 0
++		UINT64_C( 0xe10e4244728aca29 ), // color 1
++		UINT64_C( 0x6b3570a0a3a4e957 ), // color 2
++		UINT64_C( 0x958bbadaafccfb7e ), // color 3
++		UINT64_C( 0xa4fd8dee060fbd57 ), // color 4
++		UINT64_C( 0x8f8e33f77b295006 ), // color 5
++		UINT64_C( 0xd519f191fa180102 ), // color 6
++		UINT64_C( 0xbe73e5836a513513 ), // color 7
++		UINT64_C( 0x5c42b6777239f719 ), // color 8
++		UINT64_C( 0x5c42b6777239f719 ), // color 9
++		UINT64_C( 0x5c42b6777239f719 ), // color 10
++		UINT64_C( 0x5c42b6777239f719 ), // color 11
++		UINT64_C( 0x5c42b6777239f719 ), // color 12
++		UINT64_C( 0x5c42b6777239f719 ), // color 13
++		UINT64_C( 0x5c42b6777239f719 ), // color 14
++		UINT64_C( 0x5c42b6777239f719 ), // color 15
++		UINT64_C( 0x5c42b6777239f719 ), // color 16
++		UINT64_C( 0x5c42b6777239f719 ), // color 17
++		UINT64_C( 0x5c42b6777239f719 ), // color 18
++		UINT64_C( 0x5c42b6777239f719 ), // color 19
++		UINT64_C( 0x5c42b6777239f719 ), // color 20
++		UINT64_C( 0x02c78a60760093e9 ), // color 21
++		UINT64_C( 0x2b0eb9c8873d78b8 ), // color 22
++		UINT64_C( 0x5c42b6777239f719 ), // color 23
++	}; // captured from unchanged base, one worker
++	for ( int workerCount = 1; workerCount <= 5; ++workerCount )
++	{
++		b3WorldDef worldDef = b3DefaultWorldDef();
++		worldDef.workerCount = workerCount;
++		b3WorldId worldId = b3CreateWorld( &worldDef );
++		b3World* world = b3GetWorldFromId( worldId );
++		RagdollHumanData data = CreateRagdollHuman( worldId );
++		uint64_t order[B3_GRAPH_COLOR_COUNT];
++		for ( int colorIndex = 0; colorIndex < B3_GRAPH_COLOR_COUNT; ++colorIndex )
++		{
++			order[colorIndex] = UINT64_C( 14695981039346656037 );
++		}
++
++		b3Fixed timeStep = b3FixDiv( B3_FIX( 1.0f ), B3_FIX( 60.0f ) );
++		for ( int step = 0; step < 800; ++step )
++		{
++			b3World_Step( worldId, timeStep, 4 );
++			for ( int colorIndex = 0; colorIndex < B3_GRAPH_COLOR_COUNT; ++colorIndex )
++			{
++				b3GraphColor* color = world->constraintGraph.colors + colorIndex;
++				uint64_t hash = LayoutMix( order[colorIndex], (uint32_t)step );
++				hash = LayoutMix( hash, (uint32_t)color->convexContacts.count );
++				for ( int i = 0; i < color->convexContacts.count; ++i )
++				{
++					hash = LayoutMix( hash, (uint32_t)color->convexContacts.data[i] );
++				}
++				hash = LayoutMix( hash, (uint32_t)color->contacts.count );
++				for ( int i = 0; i < color->contacts.count; ++i )
++				{
++					hash = LayoutMix( hash, (uint32_t)color->contacts.data[i].contactId );
++				}
++				order[colorIndex] = hash;
++			}
++			if ( UpdateRagdollHuman( worldId, &data ) )
++			{
++				break;
++			}
++		}
++
++		if ( workerCount == 1 )
++		{
++			for ( int colorIndex = 0; colorIndex < B3_GRAPH_COLOR_COUNT; ++colorIndex )
++			{
++				printf( "  color=%d order=%016" PRIx64 "\n", colorIndex, order[colorIndex] );
++			}
++		}
++		for ( int colorIndex = 0; colorIndex < B3_GRAPH_COLOR_COUNT; ++colorIndex )
++		{
++			ENSURE( order[colorIndex] == expected[colorIndex] );
++		}
++		ENSURE_GOLDEN( data.sleepStep == RAGDOLL_HUMAN_SLEEP_STEP );
++		ENSURE_GOLDEN( data.hash == RAGDOLL_HUMAN_HASH );
++		DestroyRagdollHuman( &data );
++		b3DestroyWorld( worldId );
++	}
++	return 0;
++}
++
+ int DeterminismTest( void )
+ {
++	RUN_SUBTEST( ConstraintLayoutBitIdenticalTest );
+ 	RUN_SUBTEST( RagdollHumanTest );
+ 	RUN_SUBTEST( MultithreadingTest );
+ 	RUN_SUBTEST( CrossPlatformTest );

@@ -22,3 +22,9 @@ bool b3CompareHullData( const b3HullData* hull1, const b3HullData* hull2 );
 
 // Total map allocation in bytes, excluding the stored hull data
 size_t b3HullMapByteCount( b3HullMap* map );
+
+// Random 32-point hull on a sphere (box3d 9f998c8, b3CreateComplexHull). The
+// public form uses upstream's fixed seed 42; the seeded form is for tests and
+// the reference harness, which can drive the generator with a chosen seed.
+b3HullData* b3CreateComplexHull( b3Fixed radius );
+b3HullData* b3CreateComplexHullSeeded( b3Fixed radius, uint32_t seed );

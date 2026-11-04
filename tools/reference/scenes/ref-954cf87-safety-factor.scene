@@ -1,0 +1,25 @@
+# ref-954cf87-safety-factor
+# The per-body CCD tuning knob b3BodyDef::safetyFactor (upstream "Fixes (#157)"). Two
+# identical fast thin boxes fly at a thin static wall at 20 m/s with gravity zero: at
+# dt=1/60 the motion per step (0.333 m) dwarfs the box's 0.05 m half-extent, so both
+# bodies are "fast" and only continuous collision stops them from tunneling the 0.1 m
+# wall. One box carries safetyFactor 0.1, the other the default 0.5: both must stop at
+# the wall. Reference: vanilla float box3d at 954cf87; fixed: fixed3d on this branch
+# (the port of step 5, b3BodyDef::safetyFactor).
+# Observable: the per-step contact counter (0 until each box reaches the wall, then 2
+#   at the same step in both engines: the impact step agrees) and the box positions
+#   (each stops at the wall face). The horizon covers the flight and the impact step;
+#   the post-impact rebound of a thin box is chaotic and diverges in any number system.
+# Tolerance: twice the measured maximum divergence over the horizon on this bench
+#   against float box3d at 954cf87 (pos 8.96e-4, rot 8.20e-5, vel 3.91e-3,
+#   angvel 7.21e-3; contact count exact). The counter comparison allows a delta of 2:
+#   the contract states the impact step may shift by one, which moves the two contact
+#   counts together.
+expect pos 0.002 rot 0.0002 vel 0.015 horizon 13 counts 2
+world gravity 0 0 0 dt 1 60 substeps 4 steps 60
+body static position 2 0 0 rotation 0 0 0 1 linvel 0 0 0 angvel 0 0 0
+body dynamic position -2 0 0 rotation 0 0 0 1 linvel 20 0 0 angvel 0 0 0 flags safetyFactor 0.1
+body dynamic position -2 1.5 0 rotation 0 0 0 1 linvel 20 0 0 angvel 0 0 0 flags safetyFactor 0.5
+shape 0 box 0.05 3 3 density 1 friction 0.8 restitution 0
+shape 1 box 0.05 0.5 0.5 density 1 friction 0.8 restitution 0
+shape 2 box 0.05 0.5 0.5 density 1 friction 0.8 restitution 0

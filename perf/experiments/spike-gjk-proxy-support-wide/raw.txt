@@ -1,0 +1,512 @@
+SPIKE GJK PROXY SUPPORT WIDE — RAW EVIDENCE
+Exact base: 59eff1c450f7c6d308f73d8a88c633f42e160ecb
+Linux root: /home/nova/stella-gjk-wide-e21 on nova@hetzner2
+No Mac builds or tests. nice 10, CMake --parallel 2, private TMPDIR.
+Both A and B: GCC 13.3.0, RelWithDebInfo, default LTO ON, BOX3D_SAMPLES=OFF, BOX3D_VALIDATE=ON, CMAKE_COMPILE_WARNING_AS_ERROR=ON, BOX3D_BENCHMARKS=ON, BOX3D_AVX512=ON. Ludicrous adds BOX3D_LUDICROUS_MODE=ON. AVX-512F/DQ/VL compile flags supplied by src/CMakeLists.txt.
+Base source src/distance.c unchanged at 59eff1c; both trees carry the test-only test/test_distance.c for baseline equivalence. Candidate has experimental src/distance.c.
+Baseline focused test at unchanged support scan: ProxySupportWideEquivalenceTest PASS. Red-first allowance uses the A/A baseline table below, not a failing correctness test; scalar behavior is already correct. Candidate focused test PASS in narrow and ludicrous.
+A/B effective worker check: benchmark -b=rain -w=4 -r=1 --hash --steps=1 printed thread count: 4 and HASH rain workers=4 2f59b0a75d64f260. ab.sh passes no -t=1; max threads default to GetNumberOfCores().
+
+===== CPU / LOAD BEFORE =====
+Thu Oct 15 07:52:20 UTC 2026
+== CPU model ==
+model name	: AMD Ryzen 9 7950X3D 16-Core Processor
+== ISA flags ==
+avx2
+avx512dq
+avx512f
+avx512ifma
+avx512vl
+== cores ==
+32
+== CPU pinning ==
+pid 1570110's current affinity list: 0-31
+== Load average ==
+1.07 1.29 1.67 1/778 1570117
+== Compiler ==
+cc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0
+c++ (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0
+== cmake ==
+cmake version 3.28.3
+== cmake flags ==
+configured by the build dir; paste the cmake -B ... line used
+BASE_HEAD
+59eff1c450f7c6d308f73d8a88c633f42e160ecb
+CANDIDATE_HEAD
+59eff1c450f7c6d308f73d8a88c633f42e160ecb
+CANDIDATE_SOURCE_SHA
+27db871dd83d8da5b3402cfb382ee220738a9990879002a97e1212791de9cfe4  candidate/src/distance.c
+12cd6fa2ab6af73b7b3b2439be844782cf1bec2b7c1c3a5add780ea682438cf1  candidate/test/test_distance.c
+BEFORE_LOAD
+1.07 1.29 1.67 1/777 1570128
+BENCHMARK_PROCESSES
+1570108 bash -c cd /home/nova/stella-gjk-wide-e21 && { date -u; candidate/tools/perf/cpu_info.sh; echo BASE_HEAD; git -C base rev-parse HEAD; echo CANDIDATE_HEAD; git -C candidate rev-parse HEAD; echo CANDIDATE_SOURCE_SHA; sha256sum candidate/src/distance.c candidate/test/test_distance.c; echo BEFORE_LOAD; cat /proc/loadavg; echo BENCHMARK_PROCESSES; pgrep -af benchmark || true; } > cpu-before.txt && cat cpu-before.txt
+
+===== A/A BASELINE RAIN =====
+scene workers phase A_min A_med A_spread B_min B_med B_spread speedup
+rain 1 applyRestitution 238 241 391 231 240 22 1.004167
+rain 1 bullets 0 0 0 0 0 0 0.000000
+rain 1 collide 202420 203552 106240 204031 204092 2455 0.997354
+rain 1 constraints 4682733 4690041 1582233 4671686 4692734 114087 0.999426
+rain 1 integratePositions 139703 141976 37447 140411 140739 3061 1.008789
+rain 1 integrateVelocities 366631 366777 167301 365859 366700 6074 1.000210
+rain 1 pairs 269324 270595 170106 269045 270238 6968 1.001321
+rain 1 prepareConstraints 342592 343461 139812 342645 342673 6366 1.002300
+rain 1 refit 30883 31664 57091 31117 31304 1557 1.011500
+rain 1 relaxImpulses 1843386 1847076 579195 1840848 1850260 46157 0.998279
+rain 1 sleepIslands 51 54 163 51 54 19 1.000000
+rain 1 solve 5026415 5035249 1755826 5014309 5036501 121417 0.999751
+rain 1 solveImpulses 1756002 1758527 563067 1749411 1758547 48198 0.999989
+rain 1 solverSetup 968 1066 2340 990 993 201 1.073515
+rain 1 step 5500779 5507226 2030395 5488851 5509790 129590 0.999535
+rain 1 storeImpulses 996 1031 5795 1057 1149 112 0.897302
+rain 1 transforms 310685 312866 114109 310153 311107 5523 1.005654
+rain 1 warmStart 231775 231927 89237 230859 232331 4231 0.998261
+geomean_speedup 0.999535
+interleaved A/B done
+
+===== FIRST COMPLETE INTERLEAVED AVX-512 A/B: 7 REPEATS, ALL TARGETS / WORKERS / PHASES =====
+scene workers phase A_min A_med A_spread B_min B_med B_spread speedup
+rain 1 applyRestitution 209 221 26 200 214 27 1.032710
+rain 1 bullets 0 0 0 0 0 0 0.000000
+rain 1 collide 188077 192463 15727 189765 193797 6054 0.993117
+rain 1 constraints 4373925 4463832 311303 4389680 4491594 152005 0.993819
+rain 1 integratePositions 131884 134213 8232 131820 134373 6652 0.998809
+rain 1 integrateVelocities 341953 348484 24871 344098 351694 12290 0.990873
+rain 1 pairs 247461 252297 17586 250593 254695 8559 0.990585
+rain 1 prepareConstraints 320449 325258 22685 321731 328226 11289 0.990957
+rain 1 refit 27936 28175 2440 27851 28212 1327 0.998689
+rain 1 relaxImpulses 1722277 1761174 122043 1727564 1775298 63807 0.992044
+rain 1 sleepIslands 42 46 8 41 46 9 1.000000
+rain 1 solve 4693949 4803186 335917 4710728 4817172 162631 0.997097
+rain 1 solveImpulses 1639026 1672948 119422 1646002 1691014 56668 0.989316
+rain 1 solverSetup 788 815 336 783 790 120 1.031646
+rain 1 step 5129643 5253650 369247 5151238 5262553 176530 0.998308
+rain 1 storeImpulses 786 823 179 814 853 83 0.964830
+rain 1 transforms 290748 298846 22277 292079 299042 9881 0.999345
+rain 1 warmStart 217157 220531 13845 217227 221227 7201 0.996854
+rain 2 applyRestitution 589 622 223 540 678 164 0.917404
+rain 2 bullets 0 0 0 0 0 0 0.000000
+rain 2 collide 126134 127719 19901 125298 132806 12159 0.961696
+rain 2 constraints 2376663 2394722 113135 2365287 2429894 91519 0.985525
+rain 2 integratePositions 70933 71611 10030 71419 75025 5579 0.954495
+rain 2 integrateVelocities 181049 182508 8593 180773 185438 7015 0.984200
+rain 2 pairs 133063 134197 10072 132280 137468 6598 0.976205
+rain 2 prepareConstraints 187290 188947 18138 186351 196115 11456 0.963450
+rain 2 refit 28132 28852 12297 28416 31122 3573 0.927061
+rain 2 relaxImpulses 928998 935034 28000 924523 942323 27584 0.992265
+rain 2 sleepIslands 51 52 12 52 59 12 0.881356
+rain 2 solve 2568193 2588978 147763 2556721 2633643 108378 0.983041
+rain 2 solveImpulses 879922 885860 36239 875868 896121 30985 0.988550
+rain 2 solverSetup 1041 1117 734 1072 1403 463 0.796151
+rain 2 step 2827552 2851060 177755 2814458 2904617 127158 0.981561
+rain 2 storeImpulses 697 794 760 742 1082 400 0.733826
+rain 2 transforms 161925 163890 21576 161566 170306 12770 0.962327
+rain 2 warmStart 123543 125403 12192 122813 130093 8508 0.963949
+rain 4 applyRestitution 1892 2285 737 1506 2129 1352 1.073274
+rain 4 bullets 0 0 0 0 0 0 0.000000
+rain 4 collide 75482 84462 11287 72963 80287 22428 1.052001
+rain 4 constraints 1331445 1400603 86924 1303255 1363041 179603 1.027557
+rain 4 integratePositions 40437 46348 7502 37863 43859 16050 1.056750
+rain 4 integrateVelocities 97330 102996 7217 94940 100192 13701 1.027986
+rain 4 pairs 84181 89419 6539 82009 86929 14197 1.028644
+rain 4 prepareConstraints 110303 117826 9596 107414 115407 20887 1.020961
+rain 4 refit 30889 37092 9796 28420 34258 17599 1.082725
+rain 4 relaxImpulses 511455 528461 23025 504614 517867 47156 1.020457
+rain 4 sleepIslands 74 89 24 61 84 49 1.059524
+rain 4 solve 1456129 1542813 108924 1420944 1496734 224850 1.030786
+rain 4 solveImpulses 482630 505076 28806 474933 492372 57673 1.025802
+rain 4 solverSetup 1548 2082 717 1227 1890 1344 1.101587
+rain 4 step 1615967 1718500 126773 1576088 1664147 261536 1.032661
+rain 4 storeImpulses 893 1127 260 682 1090 764 1.033945
+rain 4 transforms 91745 101167 12977 87585 96735 26096 1.045816
+rain 4 warmStart 82806 90026 9554 77815 86864 21295 1.036402
+junkyard 1 applyRestitution 65 69 34 66 71 25 0.971831
+junkyard 1 bullets 0 0 0 0 0 0 0.000000
+junkyard 1 collide 54776 55650 4949 54950 55797 5371 0.997365
+junkyard 1 constraints 5519296 5541443 78203 5569216 5596310 73901 0.990196
+junkyard 1 integratePositions 1501863 1508692 20364 1502038 1512252 25080 0.997646
+junkyard 1 integrateVelocities 3976693 4000880 60543 4022497 4048672 62699 0.988196
+junkyard 1 pairs 1457602 1470217 31058 1476914 1487903 40549 0.988113
+junkyard 1 prepareConstraints 5099 5170 1040 5127 5229 786 0.988717
+junkyard 1 refit 173151 175669 41660 171794 175924 58796 0.998551
+junkyard 1 relaxImpulses 13199 13387 307 13261 13348 360 1.002922
+junkyard 1 sleepIslands 4193 4217 98 4210 4245 114 0.993404
+junkyard 1 solve 7450853 7492058 151820 7509774 7562807 182216 0.990645
+junkyard 1 solveImpulses 7386 7415 246 7350 7469 304 0.992770
+junkyard 1 solverSetup 371 386 366 376 443 251 0.871332
+junkyard 1 step 8963939 9018789 187520 9043502 9112181 226580 0.989751
+junkyard 1 storeImpulses 233 283 188 234 268 293 1.055970
+junkyard 1 transforms 1750981 1766073 33956 1757876 1774328 55086 0.995348
+junkyard 1 warmStart 9633 9704 269 9698 9742 246 0.996099
+junkyard 2 applyRestitution 65 70 177 68 72 421 0.972222
+junkyard 2 bullets 0 0 0 0 0 0 0.000000
+junkyard 2 collide 55326 55954 58716 55718 56506 71732 0.990231
+junkyard 2 constraints 2951760 2962111 1051867 2986188 2996446 2683907 0.988541
+junkyard 2 integratePositions 759413 767309 168741 764727 769791 463892 0.996776
+junkyard 2 integrateVelocities 2155113 2162308 862892 2183117 2191690 2156237 0.986594
+junkyard 2 pairs 653239 657764 176394 663023 673171 316537 0.977113
+junkyard 2 prepareConstraints 5061 5190 7231 5111 5380 13171 0.964684
+junkyard 2 refit 173141 174379 451626 171960 175725 604977 0.992340
+junkyard 2 relaxImpulses 13055 13233 3907 13073 13248 8232 0.998868
+junkyard 2 sleepIslands 4274 4342 1374 4317 4369 1559 0.993820
+junkyard 2 solve 4032538 4058217 1801645 4072765 4114701 3978368 0.986273
+junkyard 2 solveImpulses 7382 7473 2541 7390 7532 5310 0.992167
+junkyard 2 solverSetup 397 431 1508 380 444 3008 0.970721
+junkyard 2 step 4744915 4771527 2033677 4792240 4837460 4366906 0.986370
+junkyard 2 storeImpulses 264 316 1079 254 282 1813 1.120567
+junkyard 2 transforms 899268 917380 298045 904735 939006 688722 0.976969
+junkyard 2 warmStart 9675 9833 4126 9743 9909 9193 0.992330
+junkyard 4 applyRestitution 66 67 4 66 68 8 0.985294
+junkyard 4 bullets 0 0 0 0 0 0 0.000000
+junkyard 4 collide 37460 37916 1867 37365 37844 855 1.001903
+junkyard 4 constraints 1579704 1610756 59891 1583136 1598062 62227 1.007943
+junkyard 4 integratePositions 401409 411800 24260 397912 403578 24444 1.020373
+junkyard 4 integrateVelocities 1139870 1160485 35132 1145697 1156406 38199 1.003527
+junkyard 4 pairs 371345 374148 15058 372200 373959 14494 1.000505
+junkyard 4 prepareConstraints 4073 4181 214 4036 4146 311 1.008442
+junkyard 4 refit 175908 189490 46882 175380 181184 38724 1.045843
+junkyard 4 relaxImpulses 13046 13136 236 13081 13213 336 0.994172
+junkyard 4 sleepIslands 4453 4478 96 4438 4504 153 0.994227
+junkyard 4 solve 2243118 2303597 189221 2245926 2270102 179615 1.014755
+junkyard 4 solveImpulses 7479 7516 101 7459 7613 250 0.987259
+junkyard 4 solverSetup 563 611 397 527 549 191 1.112933
+junkyard 4 step 2653979 2716113 202414 2656512 2681593 194006 1.012873
+junkyard 4 storeImpulses 268 284 49 270 276 29 1.028986
+junkyard 4 transforms 481984 506662 83739 482029 488223 78314 1.037768
+junkyard 4 warmStart 9722 9779 238 9779 9856 146 0.992188
+trees50 1 applyRestitution 64 65 33 62 64 4 1.015625
+trees50 1 bullets 0 0 0 0 0 0 0.000000
+trees50 1 collide 302014 304223 12749 301624 302768 2616 1.004806
+trees50 1 constraints 145613 146357 8392 145837 146854 2456 0.996616
+trees50 1 integratePositions 7224 7309 448 7275 7344 146 0.995234
+trees50 1 integrateVelocities 19616 19788 1249 19642 19787 371 1.000051
+trees50 1 pairs 172804 174302 10282 174184 174639 1963 0.998070
+trees50 1 prepareConstraints 21242 21373 1004 21197 21407 263 0.998412
+trees50 1 refit 24923 25234 2217 25020 25287 872 0.997904
+trees50 1 relaxImpulses 41831 41948 2528 41895 42094 454 0.996532
+trees50 1 sleepIslands 46 48 8 47 49 4 0.979592
+trees50 1 solve 422608 424758 20810 423197 424500 5045 1.000608
+trees50 1 solveImpulses 26867 26999 2044 26995 27150 327 0.994438
+trees50 1 solverSetup 387 416 95 375 414 51 1.004831
+trees50 1 step 899782 902575 41639 899709 901565 7746 1.001120
+trees50 1 storeImpulses 500 511 110 499 503 25 1.015905
+trees50 1 transforms 250883 252086 10617 251268 251772 2234 1.001247
+trees50 1 warmStart 28003 28185 1101 28017 28190 1838 0.999823
+trees50 2 applyRestitution 86 110 94 84 106 93 1.037736
+trees50 2 bullets 0 0 0 0 0 0 0.000000
+trees50 2 collide 181916 198200 41938 179596 193365 41177 1.025005
+trees50 2 constraints 98757 104700 18526 98526 104346 18198 1.003393
+trees50 2 integratePositions 5510 6568 3141 5430 6204 3056 1.058672
+trees50 2 integrateVelocities 14372 15345 2099 14371 15110 1908 1.015553
+trees50 2 pairs 80997 91020 19258 82029 89250 17308 1.019832
+trees50 2 prepareConstraints 14695 15675 3252 14600 15354 3160 1.020907
+trees50 2 refit 26579 48513 49964 26342 46144 46147 1.051339
+trees50 2 relaxImpulses 26387 27481 3320 26530 27663 3293 0.993421
+trees50 2 sleepIslands 56 75 44 50 61 20 1.229508
+trees50 2 solve 285013 329697 95968 284552 324420 89994 1.016266
+trees50 2 solveImpulses 17352 18120 2860 17323 18191 2917 0.996097
+trees50 2 solverSetup 434 558 423 388 478 353 1.167364
+trees50 2 step 548074 619094 154698 546330 607198 148560 1.019592
+trees50 2 storeImpulses 562 922 1135 529 762 1096 1.209974
+trees50 2 transforms 158875 175493 26873 158946 173060 32509 1.014059
+trees50 2 warmStart 18033 18629 2055 17883 18630 2112 0.999946
+trees50 4 applyRestitution 142 263 145 148 265 157 0.992453
+trees50 4 bullets 0 0 0 0 0 0 0.000000
+trees50 4 collide 137557 155907 20017 139372 150303 22204 1.037285
+trees50 4 constraints 73364 94783 23176 75572 90045 20539 1.052618
+trees50 4 integratePositions 5267 8640 4388 5710 7947 4094 1.087203
+trees50 4 integrateVelocities 13586 16499 3597 14106 15968 2470 1.033254
+trees50 4 pairs 48330 58065 11741 52333 58494 7596 0.992666
+trees50 4 prepareConstraints 9338 12670 3540 9666 12660 3216 1.000790
+trees50 4 refit 27767 53397 41802 38234 53662 31275 0.995062
+trees50 4 relaxImpulses 17684 20547 3569 17990 20145 3015 1.019955
+trees50 4 sleepIslands 73 129 63 70 103 51 1.252427
+trees50 4 solve 193789 268245 91716 216308 260937 71622 1.028007
+trees50 4 solveImpulses 11455 14239 3415 11595 13928 3113 1.022329
+trees50 4 solverSetup 471 853 418 434 756 404 1.128307
+trees50 4 step 379825 485423 122956 408198 469945 101467 1.032936
+trees50 4 storeImpulses 528 1532 1105 575 1329 1030 1.152746
+trees50 4 transforms 91782 118594 28269 99396 115912 22121 1.023138
+trees50 4 warmStart 12262 14648 2666 12421 14086 2401 1.039898
+geomean_speedup 1.00597
+interleaved A/B done
+
+===== DIRECT SIMD PAIR MATRIX: TARGETS =====
+PAIR PASS FROZEN STALE narrow rain workers=1 base=f96c9e008d59a375 candidate=f96c9e008d59a375 frozen=d3e59885dbca43e1
+PAIR PASS FROZEN STALE narrow rain workers=2 base=f96c9e008d59a375 candidate=f96c9e008d59a375 frozen=d3e59885dbca43e1
+PAIR PASS FROZEN STALE narrow rain workers=4 base=f96c9e008d59a375 candidate=f96c9e008d59a375 frozen=d3e59885dbca43e1
+PAIR PASS FROZEN PASS narrow junkyard workers=1 base=9d648b065fa43a76 candidate=9d648b065fa43a76 frozen=9d648b065fa43a76
+PAIR PASS FROZEN PASS narrow junkyard workers=2 base=9d648b065fa43a76 candidate=9d648b065fa43a76 frozen=9d648b065fa43a76
+PAIR PASS FROZEN PASS narrow junkyard workers=4 base=9d648b065fa43a76 candidate=9d648b065fa43a76 frozen=9d648b065fa43a76
+PAIR PASS FROZEN PASS narrow trees50 workers=1 base=0784ab5eef8835ae candidate=0784ab5eef8835ae frozen=0784ab5eef8835ae
+PAIR PASS FROZEN PASS narrow trees50 workers=2 base=0784ab5eef8835ae candidate=0784ab5eef8835ae frozen=0784ab5eef8835ae
+PAIR PASS FROZEN PASS narrow trees50 workers=4 base=0784ab5eef8835ae candidate=0784ab5eef8835ae frozen=0784ab5eef8835ae
+PAIR PASS FROZEN STALE ludicrous rain workers=1 base=f96c9e008d59a375 candidate=f96c9e008d59a375 frozen=d3e59885dbca43e1
+PAIR PASS FROZEN STALE ludicrous rain workers=2 base=f96c9e008d59a375 candidate=f96c9e008d59a375 frozen=d3e59885dbca43e1
+PAIR PASS FROZEN STALE ludicrous rain workers=4 base=f96c9e008d59a375 candidate=f96c9e008d59a375 frozen=d3e59885dbca43e1
+PAIR PASS FROZEN PASS ludicrous junkyard workers=1 base=9d648b065fa43a76 candidate=9d648b065fa43a76 frozen=9d648b065fa43a76
+PAIR PASS FROZEN PASS ludicrous junkyard workers=2 base=9d648b065fa43a76 candidate=9d648b065fa43a76 frozen=9d648b065fa43a76
+PAIR PASS FROZEN PASS ludicrous junkyard workers=4 base=9d648b065fa43a76 candidate=9d648b065fa43a76 frozen=9d648b065fa43a76
+PAIR PASS FROZEN PASS ludicrous trees50 workers=1 base=0784ab5eef8835ae candidate=0784ab5eef8835ae frozen=0784ab5eef8835ae
+PAIR PASS FROZEN PASS ludicrous trees50 workers=2 base=0784ab5eef8835ae candidate=0784ab5eef8835ae frozen=0784ab5eef8835ae
+PAIR PASS FROZEN PASS ludicrous trees50 workers=4 base=0784ab5eef8835ae candidate=0784ab5eef8835ae frozen=0784ab5eef8835ae
+
+===== DIRECT SIMD PAIR MATRIX: OTHER GROUP 1 =====
+PAIR PASS FROZEN PASS narrow convex_pile workers=1 base=bd565a23dc405289 candidate=bd565a23dc405289 frozen=bd565a23dc405289
+PAIR PASS FROZEN PASS narrow convex_pile workers=2 base=bd565a23dc405289 candidate=bd565a23dc405289 frozen=bd565a23dc405289
+PAIR PASS FROZEN PASS narrow convex_pile workers=4 base=bd565a23dc405289 candidate=bd565a23dc405289 frozen=bd565a23dc405289
+PAIR PASS FROZEN PASS narrow joint_grid workers=1 base=321bf6a01ccc5cdd candidate=321bf6a01ccc5cdd frozen=321bf6a01ccc5cdd
+PAIR PASS FROZEN PASS narrow joint_grid workers=2 base=321bf6a01ccc5cdd candidate=321bf6a01ccc5cdd frozen=321bf6a01ccc5cdd
+PAIR PASS FROZEN PASS narrow joint_grid workers=4 base=321bf6a01ccc5cdd candidate=321bf6a01ccc5cdd frozen=321bf6a01ccc5cdd
+PAIR PASS FROZEN PASS narrow large_pyramid workers=1 base=72331624b02f2508 candidate=72331624b02f2508 frozen=72331624b02f2508
+PAIR PASS FROZEN PASS narrow large_pyramid workers=2 base=72331624b02f2508 candidate=72331624b02f2508 frozen=72331624b02f2508
+PAIR PASS FROZEN PASS narrow large_pyramid workers=4 base=72331624b02f2508 candidate=72331624b02f2508 frozen=72331624b02f2508
+PAIR PASS FROZEN PASS ludicrous convex_pile workers=1 base=bd565a23dc405289 candidate=bd565a23dc405289 frozen=bd565a23dc405289
+PAIR PASS FROZEN PASS ludicrous convex_pile workers=2 base=bd565a23dc405289 candidate=bd565a23dc405289 frozen=bd565a23dc405289
+PAIR PASS FROZEN PASS ludicrous convex_pile workers=4 base=bd565a23dc405289 candidate=bd565a23dc405289 frozen=bd565a23dc405289
+PAIR PASS FROZEN PASS ludicrous joint_grid workers=1 base=321bf6a01ccc5cdd candidate=321bf6a01ccc5cdd frozen=321bf6a01ccc5cdd
+PAIR PASS FROZEN PASS ludicrous joint_grid workers=2 base=321bf6a01ccc5cdd candidate=321bf6a01ccc5cdd frozen=321bf6a01ccc5cdd
+PAIR PASS FROZEN PASS ludicrous joint_grid workers=4 base=321bf6a01ccc5cdd candidate=321bf6a01ccc5cdd frozen=321bf6a01ccc5cdd
+PAIR PASS FROZEN PASS ludicrous large_pyramid workers=1 base=72331624b02f2508 candidate=72331624b02f2508 frozen=72331624b02f2508
+PAIR PASS FROZEN PASS ludicrous large_pyramid workers=2 base=72331624b02f2508 candidate=72331624b02f2508 frozen=72331624b02f2508
+PAIR PASS FROZEN PASS ludicrous large_pyramid workers=4 base=72331624b02f2508 candidate=72331624b02f2508 frozen=72331624b02f2508
+
+===== DIRECT SIMD PAIR MATRIX: OTHER GROUP 2 =====
+PAIR PASS FROZEN PASS narrow large_world workers=1 base=f870777f07e0fc8d candidate=f870777f07e0fc8d frozen=f870777f07e0fc8d
+PAIR PASS FROZEN PASS narrow large_world workers=2 base=f870777f07e0fc8d candidate=f870777f07e0fc8d frozen=f870777f07e0fc8d
+PAIR PASS FROZEN PASS narrow large_world workers=4 base=f870777f07e0fc8d candidate=f870777f07e0fc8d frozen=f870777f07e0fc8d
+PAIR PASS FROZEN PASS narrow many_pyramids workers=1 base=a44faad65bd17db3 candidate=a44faad65bd17db3 frozen=a44faad65bd17db3
+PAIR PASS FROZEN PASS narrow many_pyramids workers=2 base=a44faad65bd17db3 candidate=a44faad65bd17db3 frozen=a44faad65bd17db3
+PAIR PASS FROZEN PASS narrow many_pyramids workers=4 base=a44faad65bd17db3 candidate=a44faad65bd17db3 frozen=a44faad65bd17db3
+PAIR PASS FROZEN PASS ludicrous large_world workers=1 base=f870777f07e0fc8d candidate=f870777f07e0fc8d frozen=f870777f07e0fc8d
+PAIR PASS FROZEN PASS ludicrous large_world workers=2 base=f870777f07e0fc8d candidate=f870777f07e0fc8d frozen=f870777f07e0fc8d
+PAIR PASS FROZEN PASS ludicrous large_world workers=4 base=f870777f07e0fc8d candidate=f870777f07e0fc8d frozen=f870777f07e0fc8d
+PAIR PASS FROZEN PASS ludicrous many_pyramids workers=1 base=a44faad65bd17db3 candidate=a44faad65bd17db3 frozen=a44faad65bd17db3
+PAIR PASS FROZEN PASS ludicrous many_pyramids workers=2 base=a44faad65bd17db3 candidate=a44faad65bd17db3 frozen=a44faad65bd17db3
+PAIR PASS FROZEN PASS ludicrous many_pyramids workers=4 base=a44faad65bd17db3 candidate=a44faad65bd17db3 frozen=a44faad65bd17db3
+
+===== DIRECT SIMD PAIR MATRIX: OTHER GROUP 3 =====
+PAIR PASS FROZEN PASS narrow trees100 workers=1 base=637a0532ce5d1583 candidate=637a0532ce5d1583 frozen=637a0532ce5d1583
+PAIR PASS FROZEN PASS narrow trees100 workers=2 base=637a0532ce5d1583 candidate=637a0532ce5d1583 frozen=637a0532ce5d1583
+PAIR PASS FROZEN PASS narrow trees100 workers=4 base=637a0532ce5d1583 candidate=637a0532ce5d1583 frozen=637a0532ce5d1583
+PAIR PASS FROZEN PASS narrow trees25 workers=1 base=aab50c7a021e993d candidate=aab50c7a021e993d frozen=aab50c7a021e993d
+PAIR PASS FROZEN PASS narrow trees25 workers=2 base=aab50c7a021e993d candidate=aab50c7a021e993d frozen=aab50c7a021e993d
+PAIR PASS FROZEN PASS narrow trees25 workers=4 base=aab50c7a021e993d candidate=aab50c7a021e993d frozen=aab50c7a021e993d
+PAIR PASS FROZEN PASS narrow washer workers=1 base=aa2172b77d7d304a candidate=aa2172b77d7d304a frozen=aa2172b77d7d304a
+PAIR PASS FROZEN PASS narrow washer workers=2 base=aa2172b77d7d304a candidate=aa2172b77d7d304a frozen=aa2172b77d7d304a
+PAIR PASS FROZEN PASS narrow washer workers=4 base=aa2172b77d7d304a candidate=aa2172b77d7d304a frozen=aa2172b77d7d304a
+PAIR PASS FROZEN PASS ludicrous trees100 workers=1 base=637a0532ce5d1583 candidate=637a0532ce5d1583 frozen=637a0532ce5d1583
+PAIR PASS FROZEN PASS ludicrous trees100 workers=2 base=637a0532ce5d1583 candidate=637a0532ce5d1583 frozen=637a0532ce5d1583
+PAIR PASS FROZEN PASS ludicrous trees100 workers=4 base=637a0532ce5d1583 candidate=637a0532ce5d1583 frozen=637a0532ce5d1583
+PAIR PASS FROZEN PASS ludicrous trees25 workers=1 base=aab50c7a021e993d candidate=aab50c7a021e993d frozen=aab50c7a021e993d
+PAIR PASS FROZEN PASS ludicrous trees25 workers=2 base=aab50c7a021e993d candidate=aab50c7a021e993d frozen=aab50c7a021e993d
+PAIR PASS FROZEN PASS ludicrous trees25 workers=4 base=aab50c7a021e993d candidate=aab50c7a021e993d frozen=aab50c7a021e993d
+PAIR PASS FROZEN PASS ludicrous washer workers=1 base=aa2172b77d7d304a candidate=aa2172b77d7d304a frozen=aa2172b77d7d304a
+PAIR PASS FROZEN PASS ludicrous washer workers=2 base=aa2172b77d7d304a candidate=aa2172b77d7d304a frozen=aa2172b77d7d304a
+PAIR PASS FROZEN PASS ludicrous washer workers=4 base=aa2172b77d7d304a candidate=aa2172b77d7d304a frozen=aa2172b77d7d304a
+
+===== DIRECT SIMD PAIR MATRIX: OTHER GROUP 4 =====
+PAIR PASS FROZEN STALE narrow ragdoll_pile workers=1 base=42fa9c6438e3527f candidate=42fa9c6438e3527f frozen=4ac74cd9f1805daf
+PAIR PASS FROZEN STALE narrow ragdoll_pile workers=2 base=42fa9c6438e3527f candidate=42fa9c6438e3527f frozen=4ac74cd9f1805daf
+PAIR PASS FROZEN STALE narrow ragdoll_pile workers=4 base=42fa9c6438e3527f candidate=42fa9c6438e3527f frozen=4ac74cd9f1805daf
+PAIR PASS FROZEN STALE narrow bodies_20k workers=1 base=ed59e6aff81bcd26 candidate=ed59e6aff81bcd26 frozen=3e7cbde301a4f6c2
+PAIR PASS FROZEN STALE narrow bodies_20k workers=2 base=ed59e6aff81bcd26 candidate=ed59e6aff81bcd26 frozen=3e7cbde301a4f6c2
+PAIR PASS FROZEN STALE narrow bodies_20k workers=4 base=ed59e6aff81bcd26 candidate=ed59e6aff81bcd26 frozen=3e7cbde301a4f6c2
+PAIR PASS FROZEN STALE ludicrous ragdoll_pile workers=1 base=42fa9c6438e3527f candidate=42fa9c6438e3527f frozen=4ac74cd9f1805daf
+PAIR PASS FROZEN STALE ludicrous ragdoll_pile workers=2 base=42fa9c6438e3527f candidate=42fa9c6438e3527f frozen=4ac74cd9f1805daf
+PAIR PASS FROZEN STALE ludicrous ragdoll_pile workers=4 base=42fa9c6438e3527f candidate=42fa9c6438e3527f frozen=4ac74cd9f1805daf
+PAIR PASS FROZEN STALE ludicrous bodies_20k workers=1 base=ed59e6aff81bcd26 candidate=ed59e6aff81bcd26 frozen=3e7cbde301a4f6c2
+PAIR PASS FROZEN STALE ludicrous bodies_20k workers=2 base=ed59e6aff81bcd26 candidate=ed59e6aff81bcd26 frozen=3e7cbde301a4f6c2
+PAIR PASS FROZEN STALE ludicrous bodies_20k workers=4 base=ed59e6aff81bcd26 candidate=ed59e6aff81bcd26 frozen=3e7cbde301a4f6c2
+
+===== FULL NARROW TEST BASE =====
+  subtest passed: ParseDirectivesTest
+  subtest passed: GoldenCompareInsideTest
+  subtest passed: GoldenCompareOutsideTest
+  subtest passed: GeneratorSceneTest
+  subtest passed: PredicateCompareTest
+test passed: ReferenceSceneParseTest
+Starting Fixed3D unit tests
+======================================
+  subtest passed: TestBlockAllocate
+  subtest passed: TestBlockClear
+  subtest passed: TestBlockAlignment
+condition false: !g_alloc.badAlignment
+  subtest failed: AllocatorWidenedSignatureTest
+test failed: AllocatorTest
+
+===== FULL NARROW TEST CANDIDATE =====
+  subtest passed: ParseDirectivesTest
+  subtest passed: GoldenCompareInsideTest
+  subtest passed: GoldenCompareOutsideTest
+  subtest passed: GeneratorSceneTest
+  subtest passed: PredicateCompareTest
+test passed: ReferenceSceneParseTest
+Starting Fixed3D unit tests
+======================================
+  subtest passed: TestBlockAllocate
+  subtest passed: TestBlockClear
+  subtest passed: TestBlockAlignment
+condition false: !g_alloc.badAlignment
+  subtest failed: AllocatorWidenedSignatureTest
+test failed: AllocatorTest
+
+===== FULL LUDICROUS TEST BASE =====
+  subtest passed: ParseDirectivesTest
+  subtest passed: GoldenCompareInsideTest
+  subtest passed: GoldenCompareOutsideTest
+  subtest passed: GeneratorSceneTest
+  subtest passed: PredicateCompareTest
+test passed: ReferenceSceneParseTest
+Starting Fixed3D unit tests
+======================================
+  subtest passed: TestBlockAllocate
+  subtest passed: TestBlockClear
+  subtest passed: TestBlockAlignment
+condition false: !g_alloc.badAlignment
+  subtest failed: AllocatorWidenedSignatureTest
+test failed: AllocatorTest
+
+===== FULL LUDICROUS TEST CANDIDATE =====
+  subtest passed: ParseDirectivesTest
+  subtest passed: GoldenCompareInsideTest
+  subtest passed: GoldenCompareOutsideTest
+  subtest passed: GeneratorSceneTest
+  subtest passed: PredicateCompareTest
+test passed: ReferenceSceneParseTest
+Starting Fixed3D unit tests
+======================================
+  subtest passed: TestBlockAllocate
+  subtest passed: TestBlockClear
+  subtest passed: TestBlockAlignment
+condition false: !g_alloc.badAlignment
+  subtest failed: AllocatorWidenedSignatureTest
+test failed: AllocatorTest
+
+===== REMAINING NARROW SUITES A =====
+SUITE PASS build-avx512 BitTest
+SUITE PASS build-avx512 BodyTest
+SUITE PASS build-avx512 BodyQueryTest
+SUITE PASS build-avx512 CollisionTest
+SUITE PASS build-avx512 CompoundTest
+SUITE PASS build-avx512 ContainerTest
+SUITE PASS build-avx512 DeterminismTest
+SUITE PASS build-avx512 DistanceTest
+
+===== REMAINING NARROW SUITES B =====
+SUITE PASS build-avx512 HashTest
+SUITE PASS build-avx512 HeightFieldTest
+SUITE PASS build-avx512 HullTest
+SUITE PASS build-avx512 IdTest
+SUITE PASS build-avx512 JointTest
+SUITE PASS build-avx512 LargeWorldTest
+SUITE PASS build-avx512 ManifoldTest
+SUITE PASS build-avx512 MeshTest
+
+===== REMAINING NARROW SUITES C =====
+SUITE PASS build-avx512 MathTest
+SUITE PASS build-avx512 MoverTest
+SUITE PASS build-avx512 NameCacheTest
+SUITE PASS build-avx512 PerfStateHashGoldenTest
+SUITE PASS build-avx512 RecordingTest
+SUITE PASS build-avx512 ShapeTest
+SUITE PASS build-avx512 TableTest
+SUITE PASS build-avx512 WorldTest
+
+===== REMAINING LUDICROUS SUITES =====
+SUITE PASS build-ludicrous-avx512 BitTest
+SUITE PASS build-ludicrous-avx512 BodyTest
+SUITE PASS build-ludicrous-avx512 BodyQueryTest
+SUITE PASS build-ludicrous-avx512 CollisionTest
+SUITE PASS build-ludicrous-avx512 CompoundTest
+SUITE PASS build-ludicrous-avx512 ContainerTest
+SUITE PASS build-ludicrous-avx512 DeterminismTest
+SUITE PASS build-ludicrous-avx512 DistanceTest
+SUITE PASS build-ludicrous-avx512 HashTest
+SUITE PASS build-ludicrous-avx512 HeightFieldTest
+SUITE PASS build-ludicrous-avx512 HullTest
+SUITE PASS build-ludicrous-avx512 IdTest
+SUITE PASS build-ludicrous-avx512 JointTest
+SUITE PASS build-ludicrous-avx512 LargeWorldTest
+SUITE PASS build-ludicrous-avx512 ManifoldTest
+SUITE PASS build-ludicrous-avx512 MeshTest
+SUITE PASS build-ludicrous-avx512 MathTest
+SUITE PASS build-ludicrous-avx512 MoverTest
+SUITE PASS build-ludicrous-avx512 NameCacheTest
+SUITE PASS build-ludicrous-avx512 PerfStateHashGoldenTest
+SUITE PASS build-ludicrous-avx512 RecordingTest
+SUITE PASS build-ludicrous-avx512 ShapeTest
+SUITE PASS build-ludicrous-avx512 TableTest
+SUITE PASS build-ludicrous-avx512 WorldTest
+
+===== CPU / LOAD AFTER AND SOURCE HASHES =====
+Thu Oct 15 08:04:45 UTC 2026
+== CPU model ==
+model name	: AMD Ryzen 9 7950X3D 16-Core Processor
+== ISA flags ==
+avx2
+avx512dq
+avx512f
+avx512ifma
+avx512vl
+== cores ==
+32
+== CPU pinning ==
+pid 1599028's current affinity list: 0-31
+== Load average ==
+1.81 1.48 1.57 1/677 1599035
+== Compiler ==
+cc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0
+c++ (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0
+== cmake ==
+cmake version 3.28.3
+== cmake flags ==
+configured by the build dir; paste the cmake -B ... line used
+AFTER_LOAD
+1.81 1.48 1.57 2/676 1599043
+BENCHMARK_PROCESSES
+1599026 bash -c cd /home/nova/stella-gjk-wide-e21 && { date -u; candidate/tools/perf/cpu_info.sh; echo AFTER_LOAD; cat /proc/loadavg; echo BENCHMARK_PROCESSES; pgrep -af benchmark || true; echo SOURCE_SHA; sha256sum candidate/src/distance.c candidate/test/test_distance.c base/src/distance.c base/test/test_distance.c; } > cpu-after.txt && tail -20 cpu-after.txt
+SOURCE_SHA
+27db871dd83d8da5b3402cfb382ee220738a9990879002a97e1212791de9cfe4  candidate/src/distance.c
+12cd6fa2ab6af73b7b3b2439be844782cf1bec2b7c1c3a5add780ea682438cf1  candidate/test/test_distance.c
+d8e6e80a8ab3e7c0c082313115ac98afaed568842d8427856382da491a4b90cd  base/src/distance.c
+12cd6fa2ab6af73b7b3b2439be844782cf1bec2b7c1c3a5add780ea682438cf1  base/test/test_distance.c
+
+===== BASE SCALAR ORACLE_CHECK --scenes=rain (tail from ORACLE MISMATCH) =====
+ORACLE MISMATCH
+--- /dev/fd/63	2026-10-15 10:04:03.304529216 +0200
++++ /dev/fd/62	2026-10-15 10:04:03.305529211 +0200
+@@ -1,6 +1,6 @@
+-HASH rain workers=1 ludicrous d3e59885dbca43e1
+-HASH rain workers=1 narrow d3e59885dbca43e1
+-HASH rain workers=2 ludicrous d3e59885dbca43e1
+-HASH rain workers=2 narrow d3e59885dbca43e1
+-HASH rain workers=4 ludicrous d3e59885dbca43e1
+-HASH rain workers=4 narrow d3e59885dbca43e1
++HASH rain workers=1 ludicrous f96c9e008d59a375
++HASH rain workers=1 narrow f96c9e008d59a375
++HASH rain workers=2 ludicrous f96c9e008d59a375
++HASH rain workers=2 narrow f96c9e008d59a375
++HASH rain workers=4 ludicrous f96c9e008d59a375
++HASH rain workers=4 narrow f96c9e008d59a375
+
+===== CANDIDATE SCALAR ORACLE_CHECK --scenes=rain (tail from ORACLE MISMATCH) =====
+ORACLE MISMATCH
+--- /dev/fd/63	2026-10-15 10:04:29.204394367 +0200
++++ /dev/fd/62	2026-10-15 10:04:29.204394367 +0200
+@@ -1,6 +1,6 @@
+-HASH rain workers=1 ludicrous d3e59885dbca43e1
+-HASH rain workers=1 narrow d3e59885dbca43e1
+-HASH rain workers=2 ludicrous d3e59885dbca43e1
+-HASH rain workers=2 narrow d3e59885dbca43e1
+-HASH rain workers=4 ludicrous d3e59885dbca43e1
+-HASH rain workers=4 narrow d3e59885dbca43e1
++HASH rain workers=1 ludicrous f96c9e008d59a375
++HASH rain workers=1 narrow f96c9e008d59a375
++HASH rain workers=2 ludicrous f96c9e008d59a375
++HASH rain workers=2 narrow f96c9e008d59a375
++HASH rain workers=4 ludicrous f96c9e008d59a375
++HASH rain workers=4 narrow f96c9e008d59a375
+
+NEON measurement and oracle gate: NOT RUN; no allocated aarch64 Linux bench with CMake. Therefore cross-ISA acceptance and full ./bin/test green are NOT CLAIMED. Frozen scalar oracle was not regenerated.

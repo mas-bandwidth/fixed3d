@@ -194,7 +194,8 @@ B3_API b3HullData* b3CreateCone( b3Fixed height, b3Fixed radius1, b3Fixed radius
 /// Create a rock shaped hull.
 B3_API b3HullData* b3CreateRock( b3Fixed radius );
 
-/// Create a generic convex hull.
+/// Create a generic convex hull. This can fail if B3_MAX_HULL_VERTICES, B3_MAX_HULL_FACES,
+/// or B3_MAX_HULL_EDGES is exceeded.
 B3_API b3HullData* b3CreateHull( const b3Vec3* points, int pointCount, int maxVertexCount );
 
 /// Deep clone a hull.
@@ -426,15 +427,8 @@ B3_API b3CompoundData* b3CreateCompound( const b3CompoundDef* def );
 /// Destroy a compound shape.
 B3_API void b3DestroyCompound( b3CompoundData* compound );
 
-/// If bytes is null then this returns the number of required bytes. This clones all the
-/// data into the bytes buffer. This is expected to run offline or asynchronously.
-/// This mutates the compound to nullify pointers, leaving the compound in an unusable state.
-B3_API uint8_t* b3ConvertCompoundToBytes( b3CompoundData* compound );
-
-/// Convert bytes to compound. This does not clone. The bytes must remain in scope while the
-/// compound is used. This is done to improve run-time performance and allow for instancing.
-/// The bytes are mutated to fixup pointers.
-B3_API b3CompoundData* b3ConvertBytesToCompound( uint8_t* bytes, int byteCount );
+/// Validate a pointer-free baked compound without modifying its bytes.
+B3_API const b3CompoundData* b3ValidateCompound( const uint8_t* bytes, int byteCount );
 
 /**@}*/ // compound
 

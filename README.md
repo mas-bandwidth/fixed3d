@@ -166,6 +166,9 @@ triggered **Extended checks** workflow; see [CI instructions](CONTRIBUTING.md#fa
 Issues specific to Fixed3D are welcome [here](https://github.com/mas-bandwidth/fixed3d/issues). 
 For issues with Box3D in general, please use the [Box3D repository](https://github.com/erincatto/box3d).
 
+The perf lab (fixed scenes, per-phase ns/step, state hashes, scalar oracle) is
+`tools/perf/`. Read `tools/perf/README.md` before an A/B.
+
 ## License
 
 MIT, same as Box3D.

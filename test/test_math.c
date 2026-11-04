@@ -490,6 +490,230 @@ static int VendoredFixedTest( void )
 	return 0;
 }
 
+// ProxySupportOracleTest: oracle for b3GetProxySupport against a double argmax.
+// Inputs are raw Q48.16 integers drawn from a seeded xorshift64. The oracle
+// reads them back with b3FixToDouble, so fixed3d and the oracle see the same
+// numbers and only the algorithm differs. All names here use the PSO prefix so
+// they never collide with a sibling card's subtests.
+#define PSO_TOLERANCE ( 4.0 / 65536.0 ) // 4 * B3_FIXED_EPSILON, in double
+#define PSO_GOLDEN_HASH 0x4c95c48c555a9369ULL
+
+static b3Fixed PSORandomRaw( uint64_t* state, int64_t lower, int64_t upper )
+{
+	uint64_t x = *state;
+	x ^= x << 13;
+	x ^= x >> 7;
+	x ^= x << 17;
+	*state = x;
+	return (b3Fixed)( (int64_t)( x % (uint64_t)( upper - lower + 1 ) ) + lower );
+}
+
+static void PSOFillPoints( b3Vec3* points, int count, uint64_t* state )
+{
+	// Each component raw in [-4.0, 4.0] m.
+	for ( int i = 0; i < count; ++i )
+	{
+		points[i].x = PSORandomRaw( state, -262144, 262144 );
+		points[i].y = PSORandomRaw( state, -262144, 262144 );
+		points[i].z = PSORandomRaw( state, -262144, 262144 );
+	}
+}
+
+// FNV-1a 64-bit hash. The running state is carried across calls, so the whole
+// case sequence is one pass over the raw int64 index bytes in order.
+static uint64_t PSOFNV1a( uint64_t hash, const uint8_t* data, size_t len )
+{
+	for ( size_t i = 0; i < len; ++i )
+	{
+		hash ^= data[i];
+		hash *= 0x100000001b3ULL;
+	}
+	return hash;
+}
+
+typedef struct PSOFailure
+{
+	b3Vec3 points[32];
+	b3Vec3 axis;
+	int caseIndex;
+	int count;
+	int fixedIndex;
+	int oracleIndex;
+	double error;
+} PSOFailure;
+
+// Keep the three worst failures for the report.
+static void PSORecordFailure( PSOFailure* worst, int* worstCount, const PSOFailure* failure )
+{
+	if ( *worstCount < 3 )
+	{
+		worst[*worstCount] = *failure;
+		( *worstCount )++;
+		return;
+	}
+
+	int minSlot = 0;
+	for ( int i = 1; i < 3; ++i )
+	{
+		if ( worst[i].error < worst[minSlot].error )
+			minSlot = i;
+	}
+
+	if ( failure->error > worst[minSlot].error )
+		worst[minSlot] = *failure;
+}
+
+static int ProxySupportOracleTest( void )
+{
+	uint64_t state = 0x5EED0001ULL;
+	uint64_t finalHash = 0xcbf29ce484222325ULL;
+	int64_t strictCount = 0;
+	int64_t closeCount = 0;
+	int64_t failCount = 0;
+	int maxIndexError = 0;
+	double maxDotError = 0.0;
+	PSOFailure worst[3];
+	int worstCount = 0;
+
+	for ( int trial = 0; trial < 1000; ++trial )
+	{
+		// count in [1, 32]
+		int count = 1 + (int)( state % 32 );
+
+		b3Vec3 points[32];
+		PSOFillPoints( points, count, &state );
+
+		// axis components raw in [-1.0, 1.0]
+		b3Fixed ax = PSORandomRaw( &state, -65536, 65536 );
+		b3Fixed ay = PSORandomRaw( &state, -65536, 65536 );
+		b3Fixed az = PSORandomRaw( &state, -65536, 65536 );
+
+		// skip when all three are 0 raw
+		if ( ax == 0 && ay == 0 && az == 0 )
+			continue;
+
+		b3Vec3 axis = { ax, ay, az };
+		b3ShapeProxy proxy = { points, count, 0 };
+		int fixedIdx = b3GetProxySupport( &proxy, axis );
+
+		// Oracle: every dot in double, first maximum wins a tie.
+		double bestDot = b3FixToDouble( points[0].x ) * b3FixToDouble( ax ) +
+						 b3FixToDouble( points[0].y ) * b3FixToDouble( ay ) +
+						 b3FixToDouble( points[0].z ) * b3FixToDouble( az );
+		int oracleIdx = 0;
+		for ( int i = 1; i < count; ++i )
+		{
+			double dot = b3FixToDouble( points[i].x ) * b3FixToDouble( ax ) +
+						 b3FixToDouble( points[i].y ) * b3FixToDouble( ay ) +
+						 b3FixToDouble( points[i].z ) * b3FixToDouble( az );
+			if ( dot > bestDot )
+			{
+				bestDot = dot;
+				oracleIdx = i;
+			}
+		}
+
+		// Runner-up dot: the largest dot among the points that are not the oracle.
+		double runnerUpDot = -1e300;
+		for ( int i = 0; i < count; ++i )
+		{
+			if ( i == oracleIdx )
+				continue;
+			double dot = b3FixToDouble( points[i].x ) * b3FixToDouble( ax ) +
+						 b3FixToDouble( points[i].y ) * b3FixToDouble( ay ) +
+						 b3FixToDouble( points[i].z ) * b3FixToDouble( az );
+			if ( dot > runnerUpDot )
+				runnerUpDot = dot;
+		}
+
+		double fixedDot = b3FixToDouble( points[fixedIdx].x ) * b3FixToDouble( ax ) +
+						  b3FixToDouble( points[fixedIdx].y ) * b3FixToDouble( ay ) +
+						  b3FixToDouble( points[fixedIdx].z ) * b3FixToDouble( az );
+
+		double dotError = bestDot - fixedDot;
+		if ( dotError > maxDotError )
+			maxDotError = dotError;
+
+		int indexError = fixedIdx > oracleIdx ? fixedIdx - oracleIdx : oracleIdx - fixedIdx;
+		if ( indexError > maxIndexError )
+			maxIndexError = indexError;
+
+		bool failed = false;
+		if ( bestDot - runnerUpDot > PSO_TOLERANCE )
+		{
+			// Clear winner: fixed3d must return the same index.
+			strictCount++;
+			if ( fixedIdx != oracleIdx )
+				failed = true;
+		}
+		else
+		{
+			// Near tie: the returned index's dot must stay within tolerance.
+			closeCount++;
+			if ( dotError > PSO_TOLERANCE )
+				failed = true;
+		}
+
+		if ( failed )
+		{
+			failCount++;
+			PSOFailure failure;
+			for ( int i = 0; i < count; ++i )
+				failure.points[i] = points[i];
+			failure.axis = axis;
+			failure.caseIndex = trial;
+			failure.count = count;
+			failure.fixedIndex = fixedIdx;
+			failure.oracleIndex = oracleIdx;
+			failure.error = dotError;
+			PSORecordFailure( worst, &worstCount, &failure );
+		}
+
+		// Hash field: the returned index as int64.
+		int64_t idx64 = (int64_t)fixedIdx;
+		finalHash = PSOFNV1a( finalHash, (const uint8_t*)&idx64, sizeof( idx64 ) );
+	}
+
+	printf( "  ProxySupportOracleTest strict=%lld close=%lld maxIndexError=%d maxDotError=%.9g\n",
+			(long long)strictCount, (long long)closeCount, maxIndexError, maxDotError );
+	printf( "  ProxySupportOracleTest hash=0x%016llx\n", (unsigned long long)finalHash );
+
+	if ( finalHash != PSO_GOLDEN_HASH )
+	{
+		printf( "  ProxySupportOracleTest hash mismatch: expected=0x%016llx got=0x%016llx\n",
+				(unsigned long long)PSO_GOLDEN_HASH, (unsigned long long)finalHash );
+		return 1;
+	}
+
+	if ( strictCount < 900 )
+	{
+		printf( "  ProxySupportOracleTest strict cases below 900: %lld\n", (long long)strictCount );
+		return 1;
+	}
+
+	if ( failCount != 0 )
+	{
+		printf( "  ProxySupportOracleTest failures=%lld\n", (long long)failCount );
+		for ( int i = 0; i < worstCount; ++i )
+		{
+			const PSOFailure* f = &worst[i];
+			printf( "    case %d (trial %d): count=%d axis=(%lld,%lld,%lld) fixed=%d oracle=%d error=%.9g\n", i,
+					f->caseIndex, f->count, (long long)f->axis.x, (long long)f->axis.y, (long long)f->axis.z,
+					f->fixedIndex, f->oracleIndex, f->error );
+			printf( "      points:" );
+			for ( int j = 0; j < f->count; ++j )
+			{
+				printf( " (%lld,%lld,%lld)", (long long)f->points[j].x, (long long)f->points[j].y,
+						(long long)f->points[j].z );
+			}
+			printf( "\n" );
+		}
+		return 1;
+	}
+
+	return 0;
+}
+
 int MathTest( void )
 {
 	RUN_SUBTEST( Solve2InverseScaleTest );
@@ -829,6 +1053,7 @@ int MathTest( void )
 	RUN_SUBTEST( Quat30Test );
 	RUN_SUBTEST( SmoothingTest );
 	RUN_SUBTEST( RandomQuatTest );
+	RUN_SUBTEST( ProxySupportOracleTest );
 
 	return 0;
 }

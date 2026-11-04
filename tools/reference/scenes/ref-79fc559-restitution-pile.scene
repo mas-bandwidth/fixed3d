@@ -1,0 +1,46 @@
+# Twelve spheres in three four-ball layers fall onto a hull ground. All use 0.6
+# restitution. This exercises repeated sphere-sphere and sphere-ground contacts
+# in the post-solve stage over 100 steps; the trace records first-bounce apexes
+# and the per-body awake state at the final step.
+# Reference: float box3d at 79fc559. Both engines use two restitution stage iterations.
+# Fixed3D keeps speculative sphere contacts through radius + 0.02 m while float
+# creates them only at radius (owner ruling 2026-10-15: fixed3d may diverge
+# slightly from box3d; it must be deterministic itself). The contact may start one
+# step apart, so compare the first top-sphere bounce apex and the exact final
+# per-body awake set.
+# Linux b1 at float 79fc559 measured apex heights 2.66017151 fixed and
+# 2.66044569 float (difference 0.00027418 m); the bound is twice that difference.
+# Sleep is enabled on every body, so the awake set is an outcome, not a setup:
+# the whole pile goes to sleep at step 76 fixed and step 80 float (measured on b1
+# with steps 600; awake count 12 until then, 0 after), so at step 100 both final
+# sets are 0x0 with a 20-step margin. A pile that keeps bouncing or fails to
+# settle leaves bits set and fails: keeping body 12 awake in the fixed run alone
+# gives 0x1110 vs 0x0 (FAIL); the old all-nosleep scene gives 0x1ffe vs 0x0 (FAIL).
+expect firstBounceApex body 9 tolerance 0.00054836 finalAwake exact
+world gravity 0 -10 0 dt 1 60 substeps 4 steps 100 restitutionIterations 2
+body static position 0 -0.5 0 rotation 0 0 0 1 linvel 0 0 0 angvel 0 0 0
+shape 0 box 10 0.5 10 density 1 friction 0.5 restitution 0
+body dynamic position -1.575 0.8 0 rotation 0 0 0 1 linvel 0 0 0 angvel 0 0 0
+body dynamic position -0.525 0.8 0 rotation 0 0 0 1 linvel 0 0 0 angvel 0 0 0
+body dynamic position 0.525 0.8 0 rotation 0 0 0 1 linvel 0 0 0 angvel 0 0 0
+body dynamic position 1.575 0.8 0 rotation 0 0 0 1 linvel 0 0 0 angvel 0 0 0
+body dynamic position -1.575 1.85 0 rotation 0 0 0 1 linvel 0 0 0 angvel 0 0 0
+body dynamic position -0.525 1.85 0 rotation 0 0 0 1 linvel 0 0 0 angvel 0 0 0
+body dynamic position 0.525 1.85 0 rotation 0 0 0 1 linvel 0 0 0 angvel 0 0 0
+body dynamic position 1.575 1.85 0 rotation 0 0 0 1 linvel 0 0 0 angvel 0 0 0
+body dynamic position -1.575 2.9 0 rotation 0 0 0 1 linvel 0 0 0 angvel 0 0 0
+body dynamic position -0.525 2.9 0 rotation 0 0 0 1 linvel 0 0 0 angvel 0 0 0
+body dynamic position 0.525 2.9 0 rotation 0 0 0 1 linvel 0 0 0 angvel 0 0 0
+body dynamic position 1.575 2.9 0 rotation 0 0 0 1 linvel 0 0 0 angvel 0 0 0
+shape 1 sphere 0.5 density 1 friction 0.2 restitution 0.6
+shape 2 sphere 0.5 density 1 friction 0.2 restitution 0.6
+shape 3 sphere 0.5 density 1 friction 0.2 restitution 0.6
+shape 4 sphere 0.5 density 1 friction 0.2 restitution 0.6
+shape 5 sphere 0.5 density 1 friction 0.2 restitution 0.6
+shape 6 sphere 0.5 density 1 friction 0.2 restitution 0.6
+shape 7 sphere 0.5 density 1 friction 0.2 restitution 0.6
+shape 8 sphere 0.5 density 1 friction 0.2 restitution 0.6
+shape 9 sphere 0.5 density 1 friction 0.2 restitution 0.6
+shape 10 sphere 0.5 density 1 friction 0.2 restitution 0.6
+shape 11 sphere 0.5 density 1 friction 0.2 restitution 0.6
+shape 12 sphere 0.5 density 1 friction 0.2 restitution 0.6

@@ -1,0 +1,311 @@
+diff --git a/include/box3d/types.h b/include/box3d/types.h
+index 53f673e..8f298ae 100644
+--- a/include/box3d/types.h
++++ b/include/box3d/types.h
+@@ -1982,7 +1982,7 @@ typedef struct b3HullFace
+ } b3HullFace;
+ 
+ /// 64-bit hull version. Useful for validating serialized data.
+-#define B3_HULL_VERSION 0x5C0B7E41A9D3F218ull
++#define B3_HULL_VERSION 0x5C0B7E41A9D3F219ull
+ 
+ /// A convex hull.
+ /// @note This data structure has data hanging off the end and cannot be directly copied.
+@@ -2036,14 +2036,15 @@ typedef struct b3HullData
+ 	/// Offset of the face plane array in bytes from the struct address.
+ 	int32_t planeOffset;
+ 
+-	/// The total number of bytes for this hull.
++/// The total number of bytes for this hull.
+ 	int32_t byteCount;
+ 
+-	/// Explicit padding. Hull identity is a content hash and memcmp over raw bytes,
+-	/// so there must be no unnamed padding for struct copies to scramble. With 8 byte
+-	/// fixed-point scalars the struct rounds up to a multiple of 8, so one int32 of
+-	/// tail padding is required here where upstream needs none.
+-	int32_t padding;
++	/// Offset of the baked int32 SoA vertex arrays (vx[], vy[], vz[], each padded to
++	/// 4 lanes) in bytes from the struct address, or 0 when the hull's local AABB does
++	/// not fit int32 and no SoA is baked. Hull identity is a content hash and memcmp
++	/// over raw bytes, so there must be no unnamed padding for struct copies to
++	/// scramble; this int32 fills the tail slot that upstream leaves as padding.
++	int32_t soaOffset;
+ } b3HullData;
+ 
+ /// Efficient box hull
+diff --git a/src/hull.c b/src/hull.c
+index e97ccbe..2483d52 100644
+--- a/src/hull.c
++++ b/src/hull.c
+@@ -1824,6 +1824,76 @@ static int b3FindSupportVertexWide( const b3Vec3* points, int count, b3Vec3 dire
+ 	return bestIndex;
+ }
+ 
++// Argmax of dot(direction, points[i]) over the baked int32 SoA vertex arrays.
++// The SoA is only baked when the hull's local AABB fits int32, so each int32
++// lane is the exact raw Q48.16 value (lossless truncation) and the widened
++// int64 products are bit-identical to the AoS gather path. Straight loads
++// replace the permutex2var gather of the AoS variant.
++static int b3FindSupportVertexSoaWide( const int32_t* vx, const int32_t* vy, const int32_t* vz, int count, b3Vec3 direction )
++{
++	__m256i dirX = _mm256_set1_epi64x( direction.x );
++	__m256i dirY = _mm256_set1_epi64x( direction.y );
++	__m256i dirZ = _mm256_set1_epi64x( direction.z );
++
++	__m256i bestVal = _mm256_setzero_si256();
++	__m256i bestIdx = _mm256_setzero_si256();
++	__m256i curIdx = _mm256_setr_epi64x( 0, 1, 2, 3 );
++	const __m256i four = _mm256_set1_epi64x( 4 );
++
++	int groupCount = count / 4;
++	for ( int group = 0; group < groupCount; ++group )
++	{
++		__m256i px = _mm256_cvtepi32_epi64( _mm_loadu_si128( (const __m128i*)( vx + 4 * group ) ) );
++		__m256i py = _mm256_cvtepi32_epi64( _mm_loadu_si128( (const __m128i*)( vy + 4 * group ) ) );
++		__m256i pz = _mm256_cvtepi32_epi64( _mm_loadu_si128( (const __m128i*)( vz + 4 * group ) ) );
++
++		__m256i dot = _mm256_add_epi64( _mm256_add_epi64( _mm256_mullo_epi64( dirX, px ), _mm256_mullo_epi64( dirY, py ) ),
++										_mm256_mullo_epi64( dirZ, pz ) );
++
++		if ( group == 0 )
++		{
++			bestVal = dot;
++			bestIdx = curIdx;
++		}
++		else
++		{
++			__mmask8 greater = _mm256_cmpgt_epi64_mask( dot, bestVal );
++			bestVal = _mm256_mask_blend_epi64( greater, bestVal, dot );
++			bestIdx = _mm256_mask_blend_epi64( greater, bestIdx, curIdx );
++		}
++		curIdx = _mm256_add_epi64( curIdx, four );
++	}
++
++	int64_t vals[4], idxs[4];
++	_mm256_storeu_si256( (__m256i*)vals, bestVal );
++	_mm256_storeu_si256( (__m256i*)idxs, bestIdx );
++	int bestIndex = (int)idxs[0];
++	b3Int128 bestDot = vals[0];
++	for ( int lane = 1; lane < 4; ++lane )
++	{
++		if ( vals[lane] > bestDot || ( vals[lane] == bestDot && idxs[lane] < bestIndex ) )
++		{
++			bestDot = vals[lane];
++			bestIndex = (int)idxs[lane];
++		}
++	}
++
++	// Tail on the exact 128-bit compare; the int32 lanes are lossless, so
++	// reconstructing the point from the SoA equals the AoS value.
++	for ( int index = 4 * groupCount; index < count; ++index )
++	{
++		b3Vec3 p = { vx[index], vy[index], vz[index] };
++		b3Int128 dot = b3DotRaw( direction, p );
++		if ( dot > bestDot )
++		{
++			bestDot = dot;
++			bestIndex = index;
++		}
++	}
++
++	return bestIndex;
++}
++
+ // Argmax of dot(direction, planes[i].normal) over the 4-field (32 byte)
+ // plane stride: a straight 4x4 transpose per group
+ static int b3FindSupportFaceWide( const b3Plane* planes, int count, b3Vec3 direction )
+@@ -2126,8 +2196,18 @@ int b3FindHullSupportVertex( const b3HullData* hull, b3Vec3 direction )
+ 		{
+ 			bound = candidates[i] > bound ? candidates[i] : bound;
+ 		}
+-		if ( b3WideScanAdmissible( direction, bound ) )
++if ( b3WideScanAdmissible( direction, bound ) )
+ 		{
++#if defined( B3_SIMD_AVX512 )
++			if ( hull->soaOffset != 0 )
++			{
++				const int32_t* vx = (const int32_t*)( (intptr_t)hull + hull->soaOffset );
++				int paddedCount = ( vertexCount + 3 ) & ~3;
++				int bestIndex = b3FindSupportVertexSoaWide( vx, vx + paddedCount, vx + 2 * paddedCount, vertexCount, direction );
++				B3_ASSERT( bestIndex >= 0 );
++				return bestIndex;
++			}
++#endif
+ 			int bestIndex = b3FindSupportVertexWide( points, vertexCount, direction );
+ 			B3_ASSERT( bestIndex >= 0 );
+ 			return bestIndex;
+@@ -2639,6 +2719,21 @@ static bool b3UpdateHullBulkProperties( b3HullData* hull )
+ 	return true;
+ }
+ 
++// True when every final vertex position fits in int32 raw Q48.16, i.e. the
++// hull's local AABB fits int32 and the SoA bake is lossless.
++static bool b3HullPointsFitInt32( const b3QHVertex* const* tempVertices, int vertexCount )
++{
++	for ( int i = 0; i < vertexCount; ++i )
++	{
++		b3Vec3 p = tempVertices[i]->position;
++		if ( p.x < INT32_MIN || p.x > INT32_MAX || p.y < INT32_MIN || p.y > INT32_MAX || p.z < INT32_MIN || p.z > INT32_MAX )
++		{
++			return false;
++		}
++	}
++	return true;
++}
++
+ b3HullData* b3CreateHull( const b3Vec3* points, int pointCount, int maxVertexCount )
+ {
+ 	if ( pointCount < 4 )
+@@ -2737,6 +2832,13 @@ b3HullData* b3CreateHull( const b3Vec3* points, int pointCount, int maxVertexCou
+ 	byteCount += b3AlignUp8( vertexCount * (int)sizeof( b3HullVertex ) );
+ 	int pointOffset = (int)byteCount;
+ 	byteCount += b3AlignUp8( vertexCount * (int)sizeof( b3Vec3 ) );
++	int soaOffset = 0;
++	int paddedVertexCount = ( vertexCount + 3 ) & ~3;
++	if ( b3HullPointsFitInt32( tempVertices, vertexCount ) )
++	{
++		soaOffset = (int)byteCount;
++		byteCount += b3AlignUp8( 3 * paddedVertexCount * (int)sizeof( int32_t ) );
++	}
+ 	int edgeOffset = (int)byteCount;
+ 	byteCount += b3AlignUp8( edgeCount * (int)sizeof( b3HullHalfEdge ) );
+ 	int faceOffset = (int)byteCount;
+@@ -2750,6 +2852,7 @@ b3HullData* b3CreateHull( const b3Vec3* points, int pointCount, int maxVertexCou
+ 	hull->version = B3_HULL_VERSION;
+ 	hull->vertexOffset = vertexOffset;
+ 	hull->pointOffset = pointOffset;
++	hull->soaOffset = soaOffset;
+ 	hull->edgeOffset = edgeOffset;
+ 	hull->faceOffset = faceOffset;
+ 	hull->planeOffset = planeOffset;
+@@ -2772,6 +2875,19 @@ b3HullData* b3CreateHull( const b3Vec3* points, int pointCount, int maxVertexCou
+ 		finalPoints[index] = tempVertices[index]->position;
+ 	}
+ 
++	if ( soaOffset != 0 )
++	{
++		int32_t* vx = (int32_t*)( (intptr_t)hull + soaOffset );
++		int32_t* vy = vx + paddedVertexCount;
++		int32_t* vz = vy + paddedVertexCount;
++		for ( int index = 0; index < vertexCount; ++index )
++		{
++			vx[index] = (int32_t)finalPoints[index].x;
++			vy[index] = (int32_t)finalPoints[index].y;
++			vz[index] = (int32_t)finalPoints[index].z;
++		}
++	}
++
+ 	for ( int index = 0; index < edgeCount; ++index )
+ 	{
+ 		const b3QHHalfEdge* edge = tempEdges[index];
+@@ -2971,6 +3087,41 @@ b3HullData* b3CloneAndTransformHull( const b3HullData* original, b3Transform tra
+ 		points[i] = b3Add( b3MulMV( matrix, b3Mul( safeScale, points[i] ) ), transform.p );
+ 	}
+ 
++	// The clone inherited the original's SoA space (if any). The transformed
++	// points may no longer fit int32, so recompute the SoA or clear it; the
++	// bytes are hashed raw, so a cleared SoA must be zeroed, not left stale.
++	if ( hull->soaOffset != 0 )
++	{
++		int paddedVertexCount = ( vertexCount + 3 ) & ~3;
++		bool fits = true;
++		for ( int i = 0; i < vertexCount; ++i )
++		{
++			b3Vec3 p = points[i];
++			if ( p.x < INT32_MIN || p.x > INT32_MAX || p.y < INT32_MIN || p.y > INT32_MAX || p.z < INT32_MIN || p.z > INT32_MAX )
++			{
++				fits = false;
++				break;
++			}
++		}
++		if ( fits )
++		{
++			int32_t* vx = (int32_t*)( (intptr_t)hull + hull->soaOffset );
++			int32_t* vy = vx + paddedVertexCount;
++			int32_t* vz = vy + paddedVertexCount;
++			for ( int i = 0; i < vertexCount; ++i )
++			{
++				vx[i] = (int32_t)points[i].x;
++				vy[i] = (int32_t)points[i].y;
++				vz[i] = (int32_t)points[i].z;
++			}
++		}
++		else
++		{
++			memset( (int32_t*)( (intptr_t)hull + hull->soaOffset ), 0, 3 * paddedVertexCount * (int)sizeof( int32_t ) );
++			hull->soaOffset = 0;
++		}
++	}
++
+ 	b3Plane* planes = b3GetHullPlanesWrite( hull );
+ 
+ 	for ( int i = 0; i < faceCount; ++i )
+diff --git a/test/test_hull.c b/test/test_hull.c
+index 5422bf6..8627a74 100644
+--- a/test/test_hull.c
++++ b/test/test_hull.c
+@@ -706,6 +706,56 @@ static int CloneHullSmallReflectedScaleTest( void )
+ 	return 0;
+ }
+ 
++
++static int HullBlobSoaMatchesAosTest( void )
++{
++	// A hull whose local AABB fits int32: the cube corners are +-1, well within
++	// int32 raw Q48.16, so the SoA bake is lossless.
++	b3HullData* hull = b3CreateHull( s_cubeCorners, 8, 8 );
++	ENSURE( hull != NULL );
++	ENSURE( hull->soaOffset != 0 );
++
++	int vertexCount = hull->vertexCount;
++	int paddedCount = ( vertexCount + 3 ) & ~3;
++	const b3Vec3* points = b3GetHullPoints( hull );
++	const int32_t* vx = (const int32_t*)( (intptr_t)hull + hull->soaOffset );
++	const int32_t* vy = vx + paddedCount;
++	const int32_t* vz = vy + paddedCount;
++
++	for ( int i = 0; i < vertexCount; ++i )
++	{
++		ENSURE( vx[i] == (int32_t)points[i].x );
++		ENSURE( vy[i] == (int32_t)points[i].y );
++		ENSURE( vz[i] == (int32_t)points[i].z );
++	}
++	for ( int i = vertexCount; i < paddedCount; ++i )
++	{
++		ENSURE( vx[i] == 0 && vy[i] == 0 && vz[i] == 0 );
++	}
++
++	// Two builds of the same hull hash equal (the SoA bytes are hashed raw).
++	b3HullData* hull2 = b3CreateHull( s_cubeCorners, 8, 8 );
++	ENSURE( hull2 != NULL );
++	ENSURE( hull->hash == hull2->hash );
++	b3DestroyHull( hull2 );
++	b3DestroyHull( hull );
++
++	// A hull whose AABB exceeds int32 bakes nothing. The quickhull builder
++	// hangs on large coordinates (pre-existing), so push the local AABB past
++	// int32 with a clone-and-transform translation instead.
++	b3HullData* base = b3CreateHull( s_cubeCorners, 8, 8 );
++	ENSURE( base != NULL );
++	b3Transform bigXf = { .p = { B3_FIX( 40000.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, .q = b3Quat_identity };
++	b3Vec3 one = { B3_FIX( 1.0f ), B3_FIX( 1.0f ), B3_FIX( 1.0f ) };
++	b3HullData* bigHull = b3CloneAndTransformHull( base, bigXf, one );
++	ENSURE( bigHull != NULL );
++	ENSURE( bigHull->soaOffset == 0 );
++	b3DestroyHull( bigHull );
++	b3DestroyHull( base );
++
++	return 0;
++}
++
+ int HullTest( void )
+ {
+ 	RUN_SUBTEST( CreateHullCubeTest );
+@@ -724,6 +774,7 @@ int HullTest( void )
+ 	RUN_SUBTEST( CreateComplexHullTest );
+ 	RUN_SUBTEST( CreateComplexHullTerminatesTest );
+ 	RUN_SUBTEST( CloneHullSmallReflectedScaleTest );
++	RUN_SUBTEST( HullBlobSoaMatchesAosTest );
+ 
+ 	return 0;
+ }

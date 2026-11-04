@@ -415,6 +415,60 @@ bool UpdateQuerySpawn( b3WorldId worldId, QuerySpawnData* data )
 	return data->hash != 0;
 }
 
+// Ground top at local y = 0 (box center -1, half-height 1). Human authored at
+// local (0, 3, 0). Both are integers, so the drop is the same scene in float.
+RagdollHumanData CreateRagdollHuman( b3WorldId worldId )
+{
+	RagdollHumanData data = { 0 };
+
+	b3BodyDef groundDef = b3DefaultBodyDef();
+	b3Vec3 groundLocal = { B3_FIX( 0.0f ), -B3_FIX( 1.0f ), B3_FIX( 0.0f ) };
+	groundDef.position = b3OffsetPos( GetSceneOrigin(), groundLocal );
+	b3BodyId groundId = b3CreateBody( worldId, &groundDef );
+
+	b3BoxHull groundBox = b3MakeBoxHull( b3FixFromInt( 4 ), b3FixFromInt( 1 ), b3FixFromInt( 4 ) );
+	b3ShapeDef groundShape = b3DefaultShapeDef();
+	groundShape.baseMaterial.friction = B3_FIX( 0.5f );
+	b3CreateHullShape( groundId, &groundShape, &groundBox.base );
+
+	b3Vec3 spawn = { B3_FIX( 0.0f ), b3FixFromInt( 3 ), B3_FIX( 0.0f ) };
+	CreateHuman( &data.human, worldId, b3OffsetPos( GetSceneOrigin(), spawn ), B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ), 0,
+				 NULL, false );
+
+	return data;
+}
+
+bool UpdateRagdollHuman( b3WorldId worldId, RagdollHumanData* data )
+{
+	if ( data->hash == 0 )
+	{
+		b3BodyEvents bodyEvents = b3World_GetBodyEvents( worldId );
+		if ( bodyEvents.moveCount == 0 )
+		{
+			int awakeCount = b3World_GetAwakeBodyCount( worldId );
+			assert( awakeCount == 0 );
+			(void)awakeCount;
+
+			data->hash = B3_HASH_INIT;
+			for ( int b = 0; b < bone_count; ++b )
+			{
+				b3BodyId bodyId = data->human.bones[b].bodyId;
+				b3WorldTransform xf = b3Body_GetTransform( bodyId );
+				data->hash = b3Hash( data->hash, (uint8_t*)( &xf ), sizeof( b3WorldTransform ) );
+			}
+			data->sleepStep = data->stepCount;
+		}
+	}
+
+	data->stepCount += 1;
+	return data->hash != 0;
+}
+
+void DestroyRagdollHuman( RagdollHumanData* data )
+{
+	(void)data;
+}
+
 void DestroyQuerySpawn( QuerySpawnData* data )
 {
 	(void)data;

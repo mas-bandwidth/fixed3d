@@ -1,0 +1,5 @@
+cfg	exit	outcome	generated	distinct	depth	wall_seconds	tlc_version	java	jar_sha256	bench	date_utc
+BroadPhaseTree.cfg	0	no error	380083	192274	54	11.09	2.19 (5a47802)	Temurin 21.0.12.1+1	936a262061c914694dfd669a543be24573c45d5aa0ff20a8b96b23d01e050e88	hetzner2	2026-10-15T05:55:25Z
+BroadPhaseTreeLudicrous.cfg	0	no error	380083	192274	54	11.45	2.19 (5a47802)	Temurin 21.0.12.1+1	936a262061c914694dfd669a543be24573c45d5aa0ff20a8b96b23d01e050e88	hetzner2	2026-10-15T05:55:37Z
+BroadPhaseTreeStep.cfg	0	no error	48757	30228	41	2.30	2.19 (5a47802)	Temurin 21.0.12.1+1	936a262061c914694dfd669a543be24573c45d5aa0ff20a8b96b23d01e050e88	hetzner2	2026-10-15T05:55:23Z
+BroadPhaseTreeMutant.cfg	12	MovedClearedAfterUpdate	1852	454	6	0.82	2.19 (5a47802)	Temurin 21.0.12.1+1	936a262061c914694dfd669a543be24573c45d5aa0ff20a8b96b23d01e050e88	hetzner2	2026-10-15T05:55:48Z

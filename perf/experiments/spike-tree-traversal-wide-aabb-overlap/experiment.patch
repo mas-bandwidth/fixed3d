@@ -1,0 +1,236 @@
+diff --git a/src/dynamic_tree.c b/src/dynamic_tree.c
+index d16e280..c208926 100644
+--- a/src/dynamic_tree.c
++++ b/src/dynamic_tree.c
+@@ -1090,6 +1090,52 @@ int b3DynamicTree_GetByteCount( const b3DynamicTree* tree )
+ 	return (int)size;
+ }
+ 
++// Wide overlap test for two child AABBs against a query AABB, in one SIMD compare.
++// The overlap predicate is six exact integer comparisons per child (three axes, two
++// directions each), so it needs no multiply and is bit-identical to the scalar
++// b3AABB_Overlaps. Four int64 lanes hold the two children's two separations per axis.
++// Returns a 2-bit mask: bit 0 = child1 overlaps, bit 1 = child2 overlaps.
++//
++// Ludicrous mode is excluded: bounds are int128 there and packed int64 loads would
++// scramble bytes (the CLAUDE.md bound bug class). The narrow build's b3AABB is six
++// contiguous int64, so the loads are exact.
++#if defined( B3_SIMD_AVX512 ) && !defined( BOX3D_LUDICROUS_MODE )
++#include <immintrin.h>
++
++static inline int b3WideOverlap2( b3AABB a1, b3AABB a2, b3AABB b )
++{
++	// Per axis, lane layout (child1 separations, then child2 separations):
++	//   lane0 = a1.lower - b.upper   (a1 separated if > 0)
++	//   lane1 = b.lower - a1.upper   (a1 separated if > 0)
++	//   lane2 = a2.lower - b.upper   (a2 separated if > 0)
++	//   lane3 = b.lower - a2.upper   (a2 separated if > 0)
++	__m256i ax = _mm256_set_epi64x( b.lowerBound.x, a2.lowerBound.x, b.lowerBound.x, a1.lowerBound.x );
++	__m256i bx = _mm256_set_epi64x( a2.upperBound.x, b.upperBound.x, a1.upperBound.x, b.upperBound.x );
++	__m256i sx = _mm256_sub_epi64( ax, bx );
++
++	__m256i ay = _mm256_set_epi64x( b.lowerBound.y, a2.lowerBound.y, b.lowerBound.y, a1.lowerBound.y );
++	__m256i by = _mm256_set_epi64x( a2.upperBound.y, b.upperBound.y, a1.upperBound.y, b.upperBound.y );
++	__m256i sy = _mm256_sub_epi64( ay, by );
++
++	__m256i az = _mm256_set_epi64x( b.lowerBound.z, a2.lowerBound.z, b.lowerBound.z, a1.lowerBound.z );
++	__m256i bz = _mm256_set_epi64x( a2.upperBound.z, b.upperBound.z, a1.upperBound.z, b.upperBound.z );
++	__m256i sz = _mm256_sub_epi64( az, bz );
++
++	__m256i zero = _mm256_setzero_si256();
++	__m256i gt = _mm256_or_si256( _mm256_or_si256( _mm256_cmpgt_epi64( sx, zero ), _mm256_cmpgt_epi64( sy, zero ) ),
++								  _mm256_cmpgt_epi64( sz, zero ) );
++
++	// Each separated lane is all-ones (8 bytes), so movemask gives 8 bits per lane:
++	// child1 = lanes 0,1 -> bits 0..15; child2 = lanes 2,3 -> bits 16..31.
++	int mask = _mm256_movemask_epi8( gt );
++
++	int overlap1 = ( mask & 0x0000FFFF ) == 0;
++	int overlap2 = ( mask & 0xFFFF0000 ) == 0;
++
++	return overlap1 | ( overlap2 << 1 );
++}
++#endif
++
+ b3TreeStats b3DynamicTree_Query( const b3DynamicTree* tree, b3AABB aabb, uint64_t maskBits, bool requireAllBits,
+ 								 b3TreeQueryCallbackFcn* callback, void* context )
+ {
+@@ -1138,8 +1184,25 @@ b3TreeStats b3DynamicTree_Query( const b3DynamicTree* tree, b3AABB aabb, uint64_
+ 				B3_ASSERT( stackCount < B3_TREE_STACK_SIZE - 1 );
+ 				if ( stackCount < B3_TREE_STACK_SIZE - 1 )
+ 				{
+-					stack[stackCount++] = node->children.child1;
+-					stack[stackCount++] = node->children.child2;
++					int child1 = node->children.child1;
++					int child2 = node->children.child2;
++#if defined( B3_SIMD_AVX512 ) && !defined( BOX3D_LUDICROUS_MODE )
++					// Test both children's fat AABBs in one wide compare. Push only the
++					// overlapping children, in child1-then-child2 order so child2 pops first
++					// and the DFS visit order (and thus the callback sequence) is unchanged.
++					int overlap = b3WideOverlap2( tree->nodes[child1].aabb, tree->nodes[child2].aabb, aabb );
++					if ( overlap & 1 )
++					{
++						stack[stackCount++] = child1;
++					}
++					if ( overlap & 2 )
++					{
++						stack[stackCount++] = child2;
++					}
++#else
++					stack[stackCount++] = child1;
++					stack[stackCount++] = child2;
++#endif
+ 				}
+ 			}
+ 		}
+diff --git a/test/test_shape.c b/test/test_shape.c
+index 876f23c..17d3d2d 100644
+--- a/test/test_shape.c
++++ b/test/test_shape.c
+@@ -13,6 +13,7 @@
+ 
+ #include <math.h>
+ #include <stdint.h>
++#include <stdlib.h>
+ #include <string.h>
+ 
+ static b3Capsule capsule = { { -B3_FIX( 1.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, { B3_FIX( 1.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, B3_FIX( 1.0f ) };
+@@ -1069,6 +1070,130 @@ static int ShapeMaterialStagingTest( void )
+ 	return 0;
+ }
+ 
++// Seeded LCG (the b3CreateComplexHullSeeded constants) for deterministic boxes.
++static uint32_t s_treeRng;
++static uint32_t TreeRngNext( void )
++{
++	s_treeRng = s_treeRng * 2147001325u + 715136305u;
++	return s_treeRng;
++}
++
++// Scalar reference traversal: a copy of the pre-wide b3DynamicTree_Query visit order
++// (push child1 then child2, pop child2 first, scalar b3AABB_Overlaps per node).
++static int ScalarQueryReference( const b3DynamicTree* tree, b3AABB aabb, uint64_t maskBits, bool requireAllBits, int* outIds,
++								 int maxOut )
++{
++	int stack[1024];
++	int stackCount = 0;
++	stack[stackCount++] = tree->root;
++	int count = 0;
++	while ( stackCount > 0 )
++	{
++		int nodeId = stack[--stackCount];
++		const b3TreeNode* node = tree->nodes + nodeId;
++		uint64_t bitMatch = requireAllBits ? ( node->categoryBits & maskBits ) == maskBits : ( node->categoryBits & maskBits );
++		if ( bitMatch && b3AABB_Overlaps( node->aabb, aabb ) )
++		{
++			if ( node->flags & b3_leafNode )
++			{
++				if ( count < maxOut )
++				{
++					outIds[count++] = nodeId;
++				}
++			}
++			else
++			{
++				stack[stackCount++] = node->children.child1;
++				stack[stackCount++] = node->children.child2;
++			}
++		}
++	}
++	return count;
++}
++
++typedef struct TreeQueryCollect
++{
++	int* ids;
++	int count;
++	int capacity;
++} TreeQueryCollect;
++
++static bool TreeQueryCollectCallback( int proxyId, uint64_t userData, void* context )
++{
++	B3_UNUSED( userData );
++	TreeQueryCollect* c = (TreeQueryCollect*)context;
++	if ( c->count < c->capacity )
++	{
++		c->ids[c->count++] = proxyId;
++	}
++	return true;
++}
++
++// The wide tree query must return the same SEQUENCE of proxy ids as the scalar
++// traversal (not just the same set): the broad phase pair finder depends on the
++// visit order for deterministic contact creation.
++static int TreeQueryWideEquivalenceTest( void )
++{
++	enum
++	{
++		BOX_COUNT = 20000,
++		QUERY_COUNT = 1000
++	};
++
++	b3DynamicTree tree = b3DynamicTree_Create( BOX_COUNT );
++
++	s_treeRng = 42;
++
++	for ( int i = 0; i < BOX_COUNT; ++i )
++	{
++		b3Fixed cx = (b3Fixed)( (int64_t)( TreeRngNext() % 2000001u ) - 1000000 );
++		b3Fixed cy = (b3Fixed)( (int64_t)( TreeRngNext() % 2000001u ) - 1000000 );
++		b3Fixed cz = (b3Fixed)( (int64_t)( TreeRngNext() % 2000001u ) - 1000000 );
++		b3Fixed hx = (b3Fixed)( (int64_t)( TreeRngNext() % 100000u ) + 1 );
++		b3Fixed hy = (b3Fixed)( (int64_t)( TreeRngNext() % 100000u ) + 1 );
++		b3Fixed hz = (b3Fixed)( (int64_t)( TreeRngNext() % 100000u ) + 1 );
++		b3AABB aabb = {
++			.lowerBound = { cx - hx, cy - hy, cz - hz },
++			.upperBound = { cx + hx, cy + hy, cz + hz },
++		};
++		b3DynamicTree_CreateProxy( &tree, aabb, B3_DEFAULT_CATEGORY_BITS, (uint64_t)i );
++	}
++
++	int* wideIds = (int*)malloc( BOX_COUNT * sizeof( int ) );
++	int* scalarIds = (int*)malloc( BOX_COUNT * sizeof( int ) );
++
++	for ( int q = 0; q < QUERY_COUNT; ++q )
++	{
++		b3Fixed cx = (b3Fixed)( (int64_t)( TreeRngNext() % 2000001u ) - 1000000 );
++		b3Fixed cy = (b3Fixed)( (int64_t)( TreeRngNext() % 2000001u ) - 1000000 );
++		b3Fixed cz = (b3Fixed)( (int64_t)( TreeRngNext() % 2000001u ) - 1000000 );
++		b3Fixed hx = (b3Fixed)( (int64_t)( TreeRngNext() % 200000u ) + 1 );
++		b3Fixed hy = (b3Fixed)( (int64_t)( TreeRngNext() % 200000u ) + 1 );
++		b3Fixed hz = (b3Fixed)( (int64_t)( TreeRngNext() % 200000u ) + 1 );
++		b3AABB query = {
++			.lowerBound = { cx - hx, cy - hy, cz - hz },
++			.upperBound = { cx + hx, cy + hy, cz + hz },
++		};
++
++		TreeQueryCollect collect = { wideIds, 0, BOX_COUNT };
++		b3DynamicTree_Query( &tree, query, B3_DEFAULT_MASK_BITS, false, TreeQueryCollectCallback, &collect );
++
++		int scalarCount = ScalarQueryReference( &tree, query, B3_DEFAULT_MASK_BITS, false, scalarIds, BOX_COUNT );
++
++		ENSURE( collect.count == scalarCount );
++		for ( int i = 0; i < collect.count; ++i )
++		{
++			ENSURE( wideIds[i] == scalarIds[i] );
++		}
++	}
++
++	free( wideIds );
++	free( scalarIds );
++	b3DynamicTree_Destroy( &tree );
++
++	return 0;
++}
++
+ int ShapeTest( void )
+ {
+ 	box = b3MakeBoxHull( B3_FIX( 1.0f ), B3_FIX( 1.0f ), B3_FIX( 1.0f ) );
+@@ -1099,5 +1224,7 @@ int ShapeTest( void )
+ 	RUN_SUBTEST( RayCastOverlapConventionTest );
+ 	RUN_SUBTEST( RayCastFarOriginTest );
+ 
++	RUN_SUBTEST( TreeQueryWideEquivalenceTest );
++
+ 	return 0;
+ }

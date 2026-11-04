@@ -1,0 +1,69 @@
+raw measurement output — spike-invmul-fits-64-arm.w2 (fixed3d stream fixed3d-perf)
+
+The DEPENDS-ON card fixed3d-perf-harness IS present in this checkout (tools/perf/
+with ab.sh, cpu_info.sh, oracle_check.sh, scalar-oracle.txt). The harness was run
+to its letter; the one deviation is documented below (shared-box contamination).
+
+cpu_info (tools/perf/cpu_info.sh):
+  model name: AMD Ryzen 9 7950X3D 16-Core Processor
+  ISA flags: avx2 avx512dq avx512f avx512ifma avx512vl
+  cores (nproc): 32
+  taskset -cp $$: pid ... current affinity list: 0-31
+  compiler: cc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0
+  cmake: 3.28.3
+  cmake flags: -DCMAKE_BUILD_TYPE=RelWithDebInfo -DBOX3D_SAMPLES=OFF
+    -DBOX3D_VALIDATE=ON -DCMAKE_COMPILE_WARNING_AS_ERROR=ON -DBOX3D_BENCHMARKS=ON
+    -DBOX3D_AVX512=OFF -DBOX3D_NEON=OFF  (LTO on by default: -flto=auto)
+  load average (before): 0.96, 1.08, 0.90
+  load average (during ab.sh): rose to 3.2-4.8 — a concurrent benchmark from the
+    sibling card spike-hull-int32-soa-baked-in-the-blob.w1 was running on the box
+    (pgrep -af benchmark showed ./bin/benchmark -b=junkyard -w=4 -r=7, then
+    convex_pile/junkyard at -w=4). The ab.sh numbers below are CONTAMINATED and
+    must not be read as a clean before/after.
+
+oracle_check lines (tools/perf/oracle_check.sh, candidate = patched source):
+  The candidate build reproduces the frozen scalar oracle for every scene except
+  bodies_20k, which diverges:
+    want (oracle): HASH bodies_20k workers=1 narrow 3e7cbde301a4f6c2
+    got  (candidate): HASH bodies_20k workers=1 narrow adf418f3227d393e
+  This is PRE-EXISTING and NOT caused by the patch: the unpatched baseline build
+  (build-base) also prints adf418f3227d393e for bodies_20k on this machine. The
+  oracle was regenerated on an AMD Ryzen 7 PRO 8700GE (Zen 4); this box is a
+  Ryzen 9 7950X3D, and the README notes "Cross-ISA verification of this exact
+  base remains a separate gate". bodies_20k is the only scene that differs; all
+  other 12 scenes x workers {1,2,4} x {narrow,ludicrous} match the oracle, and
+  the candidate matches the baseline bit-for-bit on bodies_20k too (both
+  adf418f3227d393e), so the patch itself is bit-exact.
+
+  oracle_check.sh exit: 1 (ORACLE MISMATCH on bodies_20k only, pre-existing).
+
+ab.sh tables (tools/perf/ab.sh build-base build, -w=1 -r=7 --steps=120,
+CONTAMINATED by the concurrent sibling benchmark; do not trust the magnitudes):
+
+  geomean_speedup 0.907937  (candidate ~9% slower — but the box was shared)
+
+  per-scene step-phase (A=baseline, B=candidate, ns, median):
+    large_pyramid  step  A_med 42390085  B_med 56134810  speedup 0.755
+    many_pyramids  step  A_med 116282453 B_med 142540598 speedup 0.816
+    joint_grid     step  A_med 34837561  B_med 32216253  speedup 1.081
+    rain           step  A_med 5158138   B_med 5400326   speedup 0.955
+    (convex_pile truncated in the captured tail; the geomean covers all five)
+
+  The per-scene signs are inconsistent (joint_grid faster, the convex scenes
+  slower), which is the signature of the concurrent benchmark, not a real effect.
+  A clean re-run was not possible within the wall: the sibling card kept a
+  benchmark on the box for the remainder of the run.
+
+  HASH check inside ab.sh: no HASH MISMATCH for any of the five scenes — the
+  candidate and baseline produce identical state hashes (bit-exactness held even
+  under the concurrent load).
+
+./bin/test (candidate, patched):
+  build/bin/test (narrow): "All Fixed3D tests passed!", exit 0 (3.08 s)
+  build-ludicrous/bin/test (ludicrous): "All Fixed3D tests passed!", exit 0 (3.01 s)
+  MathTest: "subtest passed: InvMulFits64EquivalenceTest" (the 10M-pair + boundary
+  equivalence test is green).
+
+arm64: no arm64 bench is available in this checkout (uname -m = x86_64). The
+arm64 measurement — where the 128-bit multiply is software-emulated and the
+64-bit arm is the entire point of the card — remains not-done.
