@@ -22,6 +22,7 @@ typedef struct
 } CountAllocator;
 
 static CountAllocator g_alloc = { 0, 0, 0, 0, 0, false };
+static int32_t g_allocAlignment = 0;
 
 // The MSVC C runtime provides no aligned_alloc. Its pair is _aligned_malloc, whose
 // arguments are reversed from C11's, and that memory may only be released by
@@ -50,12 +51,13 @@ static void* CountingAlloc( size_t size, int32_t alignment )
 	g_alloc.allocCount += 1;
 	g_alloc.totalAllocated += (int64_t)size;
 
-	if ( ( size & ( B3_ALIGNMENT - 1 ) ) != 0 )
+	if ( g_allocAlignment == 0 )
 	{
-		g_alloc.badAlignment = true;
+		g_allocAlignment = alignment;
 	}
 
-	if ( alignment != B3_ALIGNMENT )
+	if ( alignment < 16 || ( alignment & ( alignment - 1 ) ) != 0 || alignment != g_allocAlignment ||
+		 ( size % (size_t)alignment ) != 0 )
 	{
 		g_alloc.badAlignment = true;
 	}
@@ -73,7 +75,7 @@ static void CountingFree( void* mem, size_t size )
 	g_alloc.freeCount += 1;
 	g_alloc.totalFreed += (int64_t)size;
 
-	if ( ( size & ( B3_ALIGNMENT - 1 ) ) != 0 )
+	if ( g_allocAlignment == 0 || ( size % (size_t)g_allocAlignment ) != 0 )
 	{
 		g_alloc.badAlignment = true;
 	}
@@ -88,6 +90,7 @@ static void CountingFree( void* mem, size_t size )
 static int AllocatorWidenedSignatureTest( void )
 {
 	g_alloc = (CountAllocator){ 0, 0, 0, 0, 0, false };
+	g_allocAlignment = 0;
 
 	b3SetAllocator( CountingAlloc, CountingFree );
 

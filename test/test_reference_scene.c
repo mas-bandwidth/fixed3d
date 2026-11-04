@@ -31,7 +31,9 @@ static const char* kScene =
 
 static int ParseDirectivesTest( void )
 {
-	b3RefScene scene;
+	// A b3RefScene is about 1.4 MB; Windows' main-thread stack is 1 MiB, so
+	// these must live in static storage rather than on the stack.
+	static b3RefScene scene;
 	char error[256];
 	ENSURE( b3RefParseScene( kScene, &scene, error, sizeof( error ) ) );
 
@@ -92,7 +94,7 @@ static int ParseDirectivesTest( void )
 
 static int GoldenCompareInsideTest( void )
 {
-	b3RefScene scene;
+	static b3RefScene scene;
 	char error[256];
 	ENSURE( b3RefParseScene( kScene, &scene, error, sizeof( error ) ) );
 
@@ -123,7 +125,7 @@ static int GoldenCompareInsideTest( void )
 
 static int GoldenCompareOutsideTest( void )
 {
-	b3RefScene scene;
+	static b3RefScene scene;
 	char error[256];
 	ENSURE( b3RefParseScene( kScene, &scene, error, sizeof( error ) ) );
 
@@ -157,7 +159,7 @@ static int FirstBounceApexCompareTest( void )
 	const char* sceneText = "expect firstBounceApex body 0 tolerance 0.02 finalAwake exact\n"
 		"world gravity 0 -10 0 dt 1 60 substeps 4 steps 5\n"
 		"body dynamic position 0 2 0 rotation 0 0 0 1 linvel 0 0 0 angvel 0 0 0\n";
-	b3RefScene scene;
+	static b3RefScene scene;
 	char error[256];
 	ENSURE( b3RefParseScene( sceneText, &scene, error, sizeof( error ) ) );
 	ENSURE( scene.expect.firstBounceApex && scene.expect.apexBody == 0 && scene.expect.apexTolerance == 0.02 );
@@ -212,7 +214,7 @@ static const char* kGeneratorScene = "# complex hull drop\n"
 
 static int GeneratorSceneTest( void )
 {
-	b3RefScene scene;
+	static b3RefScene scene;
 	char error[256];
 	ENSURE( b3RefParseScene( kGeneratorScene, &scene, error, sizeof( error ) ) );
 
@@ -263,7 +265,7 @@ static int GeneratorSceneTest( void )
 	}
 
 	// the generator is deterministic: the same seed parses to the same points
-	b3RefScene again;
+	static b3RefScene again;
 	ENSURE( b3RefParseScene( kGeneratorScene, &again, error, sizeof( error ) ) );
 	ENSURE( memcmp( again.shapes[0].hullPoints, scene.shapes[0].hullPoints, sizeof( scene.shapes[0].hullPoints ) ) == 0 );
 
@@ -276,7 +278,7 @@ static int GeneratorSceneTest( void )
 
 static int PredicateCompareTest( void )
 {
-	b3RefScene scene;
+	static b3RefScene scene;
 	char error[256];
 	ENSURE( b3RefParseScene( kGeneratorScene, &scene, error, sizeof( error ) ) );
 
@@ -345,7 +347,7 @@ static int ReferenceSceneCompoundMeshSnapshotParseTest( void )
 		"snapshot save at 30\n"
 		"snapshot restore at 60\n"
 		"trace contacts\n";
-	b3RefScene scene;
+	static b3RefScene scene;
 	char error[256];
 	bool ok = b3RefParseScene( text, &scene, error, sizeof( error ) );
 	if ( !ok )
@@ -383,7 +385,7 @@ static int ReferenceSceneGeometryValidationTest( void )
 		"capsule 0.2 0.4 position 2 0 0 rotation 0 0 0.7071 0.7071 density 2 friction 0.5 restitution 0.2 "
 		"hull points 4 0 0 0 1 0 0 0 1 0 0 0 1 position -2 0 0 rotation 0 0 0 1 density 2 friction 0.7 restitution 0.3\n";
 	char text[4096], error[256];
-	b3RefScene scene;
+	static b3RefScene scene;
 	snprintf( text, sizeof( text ), "%s%s", prefix, valid );
 	ENSURE( b3RefParseScene( text, &scene, error, sizeof( error ) ) );
 	ENSURE( scene.children[0].kind == b3_refBox && scene.children[0].halfExtents[2] == 3 );

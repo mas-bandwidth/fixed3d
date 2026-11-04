@@ -45,6 +45,9 @@
 // moves the ragdoll again: 354 -> 408 (narrow 0xD8C71580 -> 0x69572D49, ludicrous
 // 0xD13E51C0 -> 0x7D29E209). Re-harvested on this bench by the printed-value procedure,
 // identical across workers 1-5 and across two generation runs.
+// 2026-10-17 f3d2-gjk-progress-unshifted-distance-sq: GJK progress on the unshifted squared distance moves the
+// ragdoll hash, sleep step unchanged at 408 (narrow 0x69572D49 -> 0x19EBA929 in gcc and
+// clang, ludicrous 0x7D29E209 -> 0x830FA1E9).
 // The box3d f555ee4 broad-phase moves it again: 408 -> 507 (narrow 0x69572D49 -> 0x8E415BC4,
 // ludicrous 0x7D29E209 -> 0x1C07D904). New contacts now take the lower shape index as shape A
 // and are created in sorted pair key order, so every contact made mid fall has its normal and
@@ -52,11 +55,15 @@
 // printed-value procedure: workers 1-5 identical, gcc 13 and clang 18, Debug and
 // RelWithDebInfo, narrow and ludicrous. The multithreading run's step limit moved 500 -> 600
 // with it, since 507 is past the old limit.
+// Both moves meet in the merge of main into the f555ee4 port (2026-11-04): with the GJK
+// progress fix and the broad-phase together the ragdoll sleeps on step 507 (narrow
+// 0x99075A9E, ludicrous 0x8328395E). Harvested with the golden checks off by the printed-value
+// procedure on studio (Apple clang, RelWithDebInfo, Debug+ASan, NEON): workers 1-5 identical.
 #define RAGDOLL_SLEEP_STEP 507
 #if defined( BOX3D_LUDICROUS_MODE )
-#define RAGDOLL_HASH 0x1C07D904
+#define RAGDOLL_HASH 0x8328395E
 #else
-#define RAGDOLL_HASH 0x8E415BC4
+#define RAGDOLL_HASH 0x99075A9E
 #endif
 
 // Goldens for the wave pile, query spawn and mesh drop scenarios. Fixed-point goldens
@@ -69,6 +76,15 @@
 // numeric mode. The 9e5a4cd CCD time-loss gravity fix (G3) moves mesh drop
 // 210 -> 284 (narrow 0x491E324B -> 0x784AD80A, ludicrous 0xDB1DA8B9 ->
 // 0xE44E6A0E); wave pile and query spawn do not trigger CCD and are unchanged.
+// The face-plane refinement in the shallow branch of b3CollideHullAndSphere (exact face
+// normal and point where Q48.16 GJK stopped on an adjacent edge) moves wave pile
+// 335 -> 285 (narrow 0x64609ED9 -> 0x3FFAE5C7, ludicrous 0x22E6F859 -> 0xC247A287).
+// It also moves the query spawn hash (sleep step 243, hits and query hash unchanged):
+// narrow 0x250D3BFA -> 0x0E4B940B, ludicrous 0xC3538B7A -> 0xBE2E5C8B.
+// 2026-10-17 f3d2-gjk-progress-unshifted-distance-sq: GJK progress on the unshifted
+// squared distance moves wave pile 285 -> 254 (narrow 0x3FFAE5C7 -> 0x73C1E14F,
+// ludicrous 0xC247A287 -> 0x4826048F) and mesh drop 284 -> 243 (narrow 0x784AD80A ->
+// 0x1B648591, ludicrous 0xE44E6A0E -> 0x671B4A99).
 // The box3d f555ee4 broad-phase (shape A is the lower shape index, contacts in sorted key
 // order) moves wave pile 335 -> 367 (narrow 0x64609ED9 -> 0x5FD4454A, ludicrous 0x22E6F859 ->
 // 0xD9834F8A) and the query spawn query hash 0xE583B246 -> 0x1837EB46: its bodies sleep on the
@@ -76,19 +92,23 @@
 // tree (the query hash already moved at the tree step, before the pair traversal), so the hits
 // come back in a new order. Mesh drop is unchanged in both builds, measured, not argued. Same
 // harvest as the ragdoll above.
-#define WAVE_PILE_SLEEP_STEP 367
+// Merged with main (2026-11-04), the face-plane and GJK progress fixes and the broad-phase
+// together: wave pile sleeps on step 366 (narrow 0xAA9D6209, ludicrous 0x1D1EEA09); the query
+// spawn keeps main's transform hashes and takes the broad-phase query hash 0x1837EB46; mesh drop
+// keeps main's values, so the broad-phase still does not move it. Same harvest as the ragdoll.
+#define WAVE_PILE_SLEEP_STEP 366
 #define QUERY_SPAWN_SLEEP_STEP 243
 #define QUERY_SPAWN_HIT_COUNT 59
 #define QUERY_SPAWN_QUERY_HASH 0x1837EB46
-#define MESH_DROP_SLEEP_STEP 284
+#define MESH_DROP_SLEEP_STEP 243
 #if defined( BOX3D_LUDICROUS_MODE )
-#define WAVE_PILE_HASH 0xD9834F8A
-#define QUERY_SPAWN_HASH 0xC3538B7A
-#define MESH_DROP_HASH 0xE44E6A0E
+#define WAVE_PILE_HASH 0x1D1EEA09
+#define QUERY_SPAWN_HASH 0xBE2E5C8B
+#define MESH_DROP_HASH 0x671B4A99
 #else
-#define WAVE_PILE_HASH 0x5FD4454A
-#define QUERY_SPAWN_HASH 0x250D3BFA
-#define MESH_DROP_HASH 0x784AD80A
+#define WAVE_PILE_HASH 0xAA9D6209
+#define QUERY_SPAWN_HASH 0x0E4B940B
+#define MESH_DROP_HASH 0x1B648591
 #endif
 
 // Re-rigged single ragdoll (box3d 954cf87) dropped on a ground box. Harvested

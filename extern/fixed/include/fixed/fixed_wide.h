@@ -314,7 +314,11 @@ FIX_ALWAYS_INLINE fixed_t fixAABBWide_Area( fixAABBWide a )
 	fixed_t dx = fixWideSubToFixed( a.upperBound.x, a.lowerBound.x );
 	fixed_t dy = fixWideSubToFixed( a.upperBound.y, a.lowerBound.y );
 	fixed_t dz = fixWideSubToFixed( a.upperBound.z, a.lowerBound.z );
+#if defined( FIX_SATURATE )
+	return fixMul( FIX( 2.0f ) , fixSum3Saturate( fixMul( dx , dy ), fixMul( dy , dz ), fixMul( dz , dx ) ) );
+#else
 	return fixMul( FIX( 2.0f ) , ( fixMul( dx , dy ) + fixMul( dy , dz ) + fixMul( dz , dx ) ) );
+#endif
 }
 
 /// Center, in local space, rounded half up. Average at full width before

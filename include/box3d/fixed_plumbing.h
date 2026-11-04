@@ -52,3 +52,9 @@
 #ifndef FIX_VALIDATE
 	#define FIX_VALIDATE B3_VALIDATE
 #endif
+
+// And the overflow policy, for the same reason: these sources never see fixed_compat.h, so
+// a BOX3D_FIXED_SATURATE build would otherwise compile them wrapping.
+#if defined( BOX3D_FIXED_SATURATE ) && !defined( FIX_SATURATE )
+	#define FIX_SATURATE
+#endif

@@ -683,7 +683,9 @@ static int MeshTriangleSmallReflectedScaleTest( void )
 
 // Identical in narrow gcc/clang and in BOX3D_LUDICROUS_MODE: the outputs are b3Fixed/b3Vec3,
 // which the wide build does not widen, so no per-configuration pin is needed.
-#define GCC_HASH_GOLDEN 0xda0032296d699dc5ULL
+// 2026-10-17 f3d2-gjk-progress-unshifted-distance-sq: GJK progress on the unshifted squared distance,
+// 0xda0032296d699dc5 -> 0x772f2ce5bb02c4a8 (gcc, clang, ludicrous).
+#define GCC_HASH_GOLDEN 0x772f2ce5bb02c4a8ULL
 
 static uint64_t GccRngState;
 

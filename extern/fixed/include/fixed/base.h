@@ -27,7 +27,9 @@
 		#define FIX_INLINE inline
 	#endif
 	#ifndef FIX_FORCE_INLINE
-		#if defined( _MSC_VER )
+		// clang-cl defines _MSC_VER but takes the GNU attribute; under -Wpedantic it reports __forceinline as a
+		// language extension, so it gets the attribute like every other clang
+		#if defined( _MSC_VER ) && !defined( __clang__ )
 			#define FIX_FORCE_INLINE __forceinline
 		#elif defined( __GNUC__ ) || defined( __clang__ )
 			#define FIX_FORCE_INLINE inline __attribute__((always_inline))
@@ -49,7 +51,7 @@
 		#define FIX_INLINE static inline
 	#endif
 	#ifndef FIX_FORCE_INLINE
-		#if defined( _MSC_VER )
+		#if defined( _MSC_VER ) && !defined( __clang__ )
 			#define FIX_FORCE_INLINE static __forceinline
 		#elif defined( __GNUC__ ) || defined( __clang__ )
 			#define FIX_FORCE_INLINE static inline __attribute__((always_inline))

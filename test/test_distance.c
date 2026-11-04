@@ -512,6 +512,34 @@ static int GjkSphereBoxOracleTest( void )
 	return 0;
 }
 
+static int GjkProgressFaceTest( void )
+{
+	// Sphere centre off the -x face of a box (w5 worst case 0, raw Q48.16). The closest
+	// point is inside the face in y and z: pointA = (-hx, c.y, c.z), normal (-1, 0, 0).
+	b3BoxHull hull = b3MakeBoxHull( 50405, 13881, 82776 );
+	b3Vec3 center = { -56397, -13760, 81479 };
+	b3DistanceInput input;
+	input.proxyA = (b3ShapeProxy){ b3GetHullPoints( &hull.base ), hull.base.vertexCount, 0 };
+	input.proxyB = (b3ShapeProxy){ &center, 1, 0 };
+	input.transform = b3Transform_identity;
+	input.useRadii = false;
+	b3SimplexCache cache = { 0 };
+	b3DistanceOutput output = b3ShapeDistance( &input, &cache, NULL, 0 );
+	printf( "  GjkProgressFaceTest pointA=(%lld,%lld,%lld) normal=(%lld,%lld,%lld) distance=%lld count=%d\n",
+			(long long)output.pointA.x, (long long)output.pointA.y, (long long)output.pointA.z,
+			(long long)output.normal.x, (long long)output.normal.y, (long long)output.normal.z,
+			(long long)output.distance, (int)cache.count );
+	// 2e-4 m on the point (13 raw), 1e-3 on the normal (66 raw)
+	ENSURE_SMALL( output.pointA.x - ( -50405 ), 13 );
+	ENSURE_SMALL( output.pointA.y - ( -13760 ), 13 );
+	ENSURE_SMALL( output.pointA.z - 81479, 13 );
+	ENSURE_SMALL( output.normal.x + B3_FIX( 1.0f ), 66 );
+	ENSURE_SMALL( output.normal.y, 66 );
+	ENSURE_SMALL( output.normal.z, 66 );
+	ENSURE_SMALL( output.distance - 5992, 13 );
+	return 0;
+}
+
 int DistanceTest( void )
 {
 	RUN_SUBTEST( LongEdgeDistanceTest );
@@ -529,6 +557,7 @@ int DistanceTest( void )
 	RUN_SUBTEST( ShapeCastEncroachOddSlopRetainedTest );
 	RUN_SUBTEST( TimeOfImpactTest );
 	RUN_SUBTEST( GjkSphereBoxOracleTest );
+	RUN_SUBTEST( GjkProgressFaceTest );
 
 	return 0;
 }

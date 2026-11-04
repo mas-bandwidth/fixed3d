@@ -1377,6 +1377,42 @@ void b3CollideHullAndSphere( b3LocalManifold* manifold, int capacity, const b3Hu
 
 		// cA is the projection of the sphere center onto to the hull (pointA if radiusA == 0).
 		b3Vec3 cA = b3MulAdd( center, radiusA - b3Dot( b3Sub( center, distanceOutput.pointA ), normal ), normal );
+		b3Fixed separation = distanceOutput.distance - radius;
+
+		// Face region: the projection of the center onto its most separating face lies on that face,
+		// so the face plane gives the exact normal. GJK in Q48.16 can stop on an adjacent edge (its
+		// squared-distance progress test cannot see a gain under one raw unit of m^2) and its witness
+		// weights blur the point by a few ulps, which tilts the normal by ulp / distance.
+		{
+			const b3Plane* planes = b3GetHullPlanes( hullA );
+			int bestIndex = -1;
+			b3Fixed bestDistance = -B3_FIXED_MAX;
+			for ( int index = 0; index < hullA->faceCount; ++index )
+			{
+				b3Fixed s = b3PlaneSeparation( planes[index], center );
+				if ( s > bestDistance )
+				{
+					bestIndex = index;
+					bestDistance = s;
+				}
+			}
+			b3Vec3 projected = b3MulSub( center, bestDistance, planes[bestIndex].normal );
+			bool onFace = true;
+			for ( int index = 0; index < hullA->faceCount; ++index )
+			{
+				if ( index != bestIndex && b3PlaneSeparation( planes[index], projected ) > 2 * B3_FIXED_EPSILON )
+				{
+					onFace = false;
+					break;
+				}
+			}
+			if ( onFace )
+			{
+				normal = planes[bestIndex].normal;
+				cA = projected;
+				separation = bestDistance - radius;
+			}
+		}
 
 		// cB is the deepest point on the sphere with respect to the reference f
 		b3Vec3 cB = b3MulSub( center, radiusB, normal );
@@ -1389,7 +1425,7 @@ void b3CollideHullAndSphere( b3LocalManifold* manifold, int capacity, const b3Hu
 
 		b3LocalManifoldPoint* pt = manifold->points + 0;
 		pt->point = point;
-		pt->separation = distanceOutput.distance - radius;
+		pt->separation = separation;
 		pt->pair = b3FeaturePair_single;
 	}
 	else
