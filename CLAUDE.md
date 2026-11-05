@@ -22,11 +22,12 @@ not yet merged. Skipped by plan #65, named: `8fda30e` (samples UI), the float AV
 the cursor and upstream: `f555ee4` (PR #99, which also carries the fifth `9e5a4cd` / `79fc559` fix, H-H), `51f056e`'s world byte count, `16f7f4c`, and the commits
 past `5d83df8` below.
 
-**`3362633` Dynamic Mover (#202) IS CARRIED AHEAD OF THE CURSOR WITH THE MERGE OF
-`port/3362633-dynamic-mover`, NOT BEFORE** (engine half: mover joint, pogo joint, `b3SpringDamper`,
-their recording ops, debug draw; samples held under #20 / #47; PORT RECORD below). It does not
-depend on `f555ee4` or on anything else still owed; the cursor line above does not move for it.
-The run that merges the branch strikes *with the merge of* here, per the `fixed3d#21` discipline.
+**`3362633` Dynamic Mover (#202) IS CARRIED AHEAD OF THE CURSOR** (engine half: mover joint, pogo
+joint, `b3SpringDamper`, their recording ops, debug draw; samples held under #20 / #47; PORT RECORD
+below). It does not depend on `f555ee4` or on anything else still owed; the cursor line above does
+not move for it. *(~~WITH THE MERGE OF `port/3362633-dynamic-mover`, NOT BEFORE~~ — **DISCHARGED
+2026-11-04, verified rather than assumed: fixed3d#113 merged as `21f3670` with all seven checks
+green, per the `fixed3d#21` discipline.**)*
 
 **THE PLAN FOR THAT RANGE IS `fixed3d#65`** (2026-10-09): fifteen upstream commits, `47d7f7c..5d83df8`,
 with the order the cursor takes, the holds and the carries, and the decision behind each. The four
