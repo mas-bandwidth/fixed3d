@@ -208,6 +208,201 @@ static int TestParallelJointSentinelTorqueCap( void )
 	return FinishJoint( jointId, f.worldId );
 }
 
+// The motor and parallel joints clamp a vector impulse to a ball or disc of radius h * cap. A small
+// raw cap is the hard case for a rounded squared compare: in Q48.16 the square of a raw cap of 137
+// rounds to zero, so impulses to 181 raw read as inside it. Each case runs one substep per step,
+// so the accumulated impulse the joint reports is the one it applied that step, and the demanded
+// impulse is swept across the cap so some cases land between the cap and 181 raw. The slack is
+// the impulse grid read back through inv_h (60 at one substep of 1/60 s): one raw unit of
+// rounding in the cap and one in the reported length.
+#define CAP_SWEEP_COUNT 64
+#define CAP_STEP_COUNT 3
+
+static const b3Fixed capSlack = 2 * 60 + 8;
+
+static int RunMotorCapCase( b3Fixed maxForce, b3Fixed maxTorque, b3Vec3 linearVelocity, b3Vec3 angularVelocity )
+{
+	JointFixture f = CreateJointFixture();
+
+	b3MotorJointDef def = b3DefaultMotorJointDef();
+	SetCommonFrames( &def.base, &f );
+	def.linearVelocity = linearVelocity;
+	def.angularVelocity = angularVelocity;
+	def.maxVelocityForce = maxForce;
+	def.maxVelocityTorque = maxTorque;
+	b3JointId jointId = b3CreateMotorJoint( f.worldId, &def );
+
+	b3Fixed timeStep = b3FixDiv( B3_FIX( 1.0f ), B3_FIX( 60.0f ) );
+	for ( int i = 0; i < CAP_STEP_COUNT; ++i )
+	{
+		b3World_Step( f.worldId, timeStep, 1 );
+		b3Fixed force = b3Length( b3Joint_GetConstraintForce( jointId ) );
+		b3Fixed torque = b3Length( b3Joint_GetConstraintTorque( jointId ) );
+		if ( force > maxForce + capSlack || torque > maxTorque + capSlack )
+		{
+			printf( "  motor step %d: force %lld raw (cap %lld), torque %lld raw (cap %lld)\n", i, (long long)force,
+					(long long)maxForce, (long long)torque, (long long)maxTorque );
+		}
+		ENSURE( force <= maxForce + capSlack );
+		ENSURE( torque <= maxTorque + capSlack );
+	}
+
+	return FinishJoint( jointId, f.worldId );
+}
+
+// A motor whose velocity budgets are small honors them every step. 0.125 N and 0.125 N*m at
+// h = 1/60 are raw caps of 137. The sweep demands linear impulses of 5..320 raw on unit mass and
+// angular impulses of the same size on the cube's inertia of 1/6.
+static int TestMotorJointSmallCap( void )
+{
+	b3Fixed cap = B3_FIX( 0.125f );
+	for ( int j = 1; j <= CAP_SWEEP_COUNT; ++j )
+	{
+		b3Vec3 v = { 3 * j, 0, -4 * j };
+		if ( RunMotorCapCase( cap, 0, v, b3Vec3_zero ) != 0 )
+		{
+			printf( "  linear demand %d raw\n", 5 * j );
+			return 1;
+		}
+
+		b3Vec3 w = { 18 * j, -24 * j, 0 };
+		if ( RunMotorCapCase( 0, cap, b3Vec3_zero, w ) != 0 )
+		{
+			printf( "  angular demand %d raw\n", 5 * j );
+			return 1;
+		}
+	}
+	return 0;
+}
+
+// A motor whose budget rounds to a zero impulse applies none. A cap of exactly zero switches the
+// motor's velocity rows off before they solve, so the zero cap here is the smallest positive force
+// and torque, one raw unit, whose h * cap rounds to zero. The rounded compare let any impulse under
+// 182 raw through it.
+static int TestMotorJointZeroCap( void )
+{
+	for ( int j = 1; j <= CAP_SWEEP_COUNT; ++j )
+	{
+		JointFixture f = CreateJointFixture();
+
+		b3MotorJointDef def = b3DefaultMotorJointDef();
+		SetCommonFrames( &def.base, &f );
+		def.linearVelocity = (b3Vec3){ 3 * j, 0, -4 * j };
+		def.angularVelocity = (b3Vec3){ 18 * j, -24 * j, 0 };
+		def.maxVelocityForce = 1;
+		def.maxVelocityTorque = 1;
+		b3JointId jointId = b3CreateMotorJoint( f.worldId, &def );
+
+		b3Fixed timeStep = b3FixDiv( B3_FIX( 1.0f ), B3_FIX( 60.0f ) );
+		for ( int i = 0; i < CAP_STEP_COUNT; ++i )
+		{
+			b3World_Step( f.worldId, timeStep, 1 );
+			b3Vec3 v = b3Body_GetLinearVelocity( f.bodyId );
+			b3Vec3 w = b3Body_GetAngularVelocity( f.bodyId );
+			if ( v.x != 0 || v.y != 0 || v.z != 0 || w.x != 0 || w.y != 0 || w.z != 0 )
+			{
+				printf( "  motor demand %d raw, step %d: v = (%lld, %lld, %lld) w = (%lld, %lld, %lld) raw\n", 5 * j, i,
+						(long long)v.x, (long long)v.y, (long long)v.z, (long long)w.x, (long long)w.y, (long long)w.z );
+			}
+			ENSURE( v.x == 0 && v.y == 0 && v.z == 0 );
+			ENSURE( w.x == 0 && w.y == 0 && w.z == 0 );
+		}
+
+		if ( FinishJoint( jointId, f.worldId ) != 0 )
+		{
+			return 1;
+		}
+	}
+	return 0;
+}
+
+static int RunParallelCapCase( b3Fixed maxTorque, b3Vec3 angularVelocity )
+{
+	JointFixture f = CreateJointFixture();
+
+	b3ParallelJointDef def = b3DefaultParallelJointDef();
+	SetCommonFrames( &def.base, &f );
+	def.hertz = B3_FIX( 60.0f );
+	def.dampingRatio = B3_FIX( 1.0f );
+	def.maxTorque = maxTorque;
+	b3JointId jointId = b3CreateParallelJoint( f.worldId, &def );
+	b3Body_SetAngularVelocity( f.bodyId, angularVelocity );
+
+	b3Fixed timeStep = b3FixDiv( B3_FIX( 1.0f ), B3_FIX( 60.0f ) );
+	for ( int i = 0; i < CAP_STEP_COUNT; ++i )
+	{
+		b3World_Step( f.worldId, timeStep, 1 );
+		b3Fixed torque = b3Length( b3Joint_GetConstraintTorque( jointId ) );
+		if ( torque > maxTorque + capSlack )
+		{
+			printf( "  parallel step %d: torque %lld raw (cap %lld)\n", i, (long long)torque, (long long)maxTorque );
+		}
+		ENSURE( torque <= maxTorque + capSlack );
+	}
+
+	return FinishJoint( jointId, f.worldId );
+}
+
+// A parallel joint with a small torque budget honors it every step. 0.125 N*m at h = 1/60 is a raw
+// cap of 137; spinning the cube about an axis across the joint axis demands perpendicular impulses
+// of about 5..320 raw (the perpendicular axes are half length, so the effective mass is 1/3 of the
+// angular velocity's raw value at this stiffness).
+static int TestParallelJointSmallCap( void )
+{
+	for ( int j = 1; j <= CAP_SWEEP_COUNT; ++j )
+	{
+		b3Vec3 w = { 9 * j, 12 * j, 0 };
+		if ( RunParallelCapCase( B3_FIX( 0.125f ), w ) != 0 )
+		{
+			printf( "  parallel demand about %d raw\n", 5 * j );
+			return 1;
+		}
+	}
+	return 0;
+}
+
+// A parallel joint whose budget rounds to a zero impulse applies none: the cube keeps the spin it
+// was given. As for the motor, a maxTorque of exactly zero switches the row off, so the zero cap is
+// one raw unit of torque.
+static int TestParallelJointZeroCap( void )
+{
+	for ( int j = 1; j <= CAP_SWEEP_COUNT; ++j )
+	{
+		JointFixture f = CreateJointFixture();
+
+		b3ParallelJointDef def = b3DefaultParallelJointDef();
+		SetCommonFrames( &def.base, &f );
+		def.hertz = B3_FIX( 60.0f );
+		def.dampingRatio = B3_FIX( 1.0f );
+		def.maxTorque = 1;
+		b3JointId jointId = b3CreateParallelJoint( f.worldId, &def );
+		b3Vec3 w0 = { 9 * j, 12 * j, 0 };
+		b3Body_SetAngularVelocity( f.bodyId, w0 );
+
+		b3Fixed timeStep = b3FixDiv( B3_FIX( 1.0f ), B3_FIX( 60.0f ) );
+		for ( int i = 0; i < CAP_STEP_COUNT; ++i )
+		{
+			b3World_Step( f.worldId, timeStep, 1 );
+			b3Fixed torque = b3Length( b3Joint_GetConstraintTorque( jointId ) );
+			b3Vec3 w = b3Body_GetAngularVelocity( f.bodyId );
+			if ( torque != 0 || w.x != w0.x || w.y != w0.y || w.z != w0.z )
+			{
+				printf( "  parallel demand about %d raw, step %d: torque %lld raw, w = (%lld, %lld, %lld) raw, given (%lld, %lld, 0)\n",
+						5 * j, i, (long long)torque, (long long)w.x, (long long)w.y, (long long)w.z, (long long)w0.x,
+						(long long)w0.y );
+			}
+			ENSURE( torque == 0 );
+			ENSURE( w.x == w0.x && w.y == w0.y && w.z == w0.z );
+		}
+
+		if ( FinishJoint( jointId, f.worldId ) != 0 )
+		{
+			return 1;
+		}
+	}
+	return 0;
+}
+
 static int TestDistanceJoint( void )
 {
 	JointFixture f = CreateJointFixture();
@@ -1439,9 +1634,13 @@ int JointTest( void )
 	RUN_SUBTEST( TestJointInverseScaleCorrection );
 	RUN_SUBTEST( TestParallelJoint );
 	RUN_SUBTEST( TestParallelJointSentinelTorqueCap );
+	RUN_SUBTEST( TestParallelJointSmallCap );
+	RUN_SUBTEST( TestParallelJointZeroCap );
 	RUN_SUBTEST( TestDistanceJoint );
 	RUN_SUBTEST( TestFilterJoint );
 	RUN_SUBTEST( TestMotorJoint );
+	RUN_SUBTEST( TestMotorJointSmallCap );
+	RUN_SUBTEST( TestMotorJointZeroCap );
 	RUN_SUBTEST( TestMoverJoint );
 	RUN_SUBTEST( TestMoverJointSentinelForce );
 	RUN_SUBTEST( TestMoverJointForceBudget );
