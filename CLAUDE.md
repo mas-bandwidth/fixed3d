@@ -6,7 +6,7 @@ Box3D converted from float to Q48.16 fixed point (internal and external API).
 
 **Everything in erincatto/box3d up to and including `954cf87` is carried across.**
 `git log 954cf87..upstream/main` is the remaining work, less the commits carried ahead of the cursor
-listed in the next paragraph.
+listed in the next paragraph and `3362633`, in its own bold paragraph after that.
 
 **CARRIED AHEAD OF THE CURSOR, on `main` since fixed3d#94 (merged 2026-11-04 as `29948ea`), each
 with its PORT RECORD below:** `9e5a4cd` + `79fc559` (body-sim locator, fat AABB split, CCD gravity,
@@ -160,8 +160,8 @@ The PORT RECORDs below run newest first and are the detail for each step.
   upstream's number; **9 stays reserved for `efca0c1`'s `WorldSetIsotropicInertiaTolerance` (op
   `0x70`)**, written so on `recording.h`. Op codes do not overlap, and a minor mismatch still loads
   (the dispatcher skips unknown ops), so the two land in either order without reinterpretation.
-  If `efca0c1` lands SECOND it keeps the define at 10 and turns the reserved line into an *added*
-  line; if it lands first this branch rebases onto 9 and still says 10. Def sizes pinned at 216 /
+  `efca0c1` lands after this, so it keeps the define at 10 and turns the reserved line into an
+  *added* line. Def sizes pinned at 216 /
   264 bytes on 64-bit (`_Static_assert`s in `recording.c`). Snapshot: `b3JointSim` does not grow
   (the prismatic and wheel members stay largest), so the snapshot layout hash and
   `B3_SNAP_VERSION` are unchanged; the joints' carried state rides the POD copy.
