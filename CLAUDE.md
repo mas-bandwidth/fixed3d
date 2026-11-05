@@ -6,7 +6,7 @@ Box3D converted from float to Q48.16 fixed point (internal and external API).
 
 **Everything in erincatto/box3d up to and including `954cf87` is carried across.**
 `git log 954cf87..upstream/main` is the remaining work, less the commits carried ahead of the cursor
-listed in the next paragraph.
+listed in the next paragraph and `3362633`, in its own bold paragraph after that.
 
 **CARRIED AHEAD OF THE CURSOR, on `main` since fixed3d#94 (merged 2026-11-04 as `29948ea`), each
 with its PORT RECORD below:** `9e5a4cd` + `79fc559` (body-sim locator, fat AABB split, CCD gravity,
@@ -22,11 +22,12 @@ not yet merged. Skipped by plan #65, named: `8fda30e` (samples UI), the float AV
 the cursor and upstream: `f555ee4` (PR #99, which also carries the fifth `9e5a4cd` / `79fc559` fix, H-H), `51f056e`'s world byte count, `16f7f4c`, and the commits
 past `5d83df8` below.
 
-**`3362633` Dynamic Mover (#202) IS CARRIED AHEAD OF THE CURSOR WITH THE MERGE OF
-`port/3362633-dynamic-mover`, NOT BEFORE** (engine half: mover joint, pogo joint, `b3SpringDamper`,
-their recording ops, debug draw; samples held under #20 / #47; PORT RECORD below). It does not
-depend on `f555ee4` or on anything else still owed; the cursor line above does not move for it.
-The run that merges the branch strikes *with the merge of* here, per the `fixed3d#21` discipline.
+**`3362633` Dynamic Mover (#202) IS CARRIED AHEAD OF THE CURSOR** (engine half: mover joint, pogo
+joint, `b3SpringDamper`, their recording ops, debug draw; samples held under #20 / #47; PORT RECORD
+below). It does not depend on `f555ee4` or on anything else still owed; the cursor line above does
+not move for it. *(~~WITH THE MERGE OF `port/3362633-dynamic-mover`, NOT BEFORE~~ — **DISCHARGED
+2026-11-04, verified rather than assumed: fixed3d#113 merged as `21f3670` with all seven checks
+green, per the `fixed3d#21` discipline.**)*
 
 **THE PLAN FOR THAT RANGE IS `fixed3d#65`** (2026-10-09): fifteen upstream commits, `47d7f7c..5d83df8`,
 with the order the cursor takes, the holds and the carries, and the decision behind each. The four
@@ -159,8 +160,8 @@ The PORT RECORDs below run newest first and are the detail for each step.
   upstream's number; **9 stays reserved for `efca0c1`'s `WorldSetIsotropicInertiaTolerance` (op
   `0x70`)**, written so on `recording.h`. Op codes do not overlap, and a minor mismatch still loads
   (the dispatcher skips unknown ops), so the two land in either order without reinterpretation.
-  If `efca0c1` lands SECOND it keeps the define at 10 and turns the reserved line into an *added*
-  line; if it lands first this branch rebases onto 9 and still says 10. Def sizes pinned at 216 /
+  `efca0c1` lands after this, so it keeps the define at 10 and turns the reserved line into an
+  *added* line. Def sizes pinned at 216 /
   264 bytes on 64-bit (`_Static_assert`s in `recording.c`). Snapshot: `b3JointSim` does not grow
   (the prismatic and wheel members stay largest), so the snapshot layout hash and
   `B3_SNAP_VERSION` are unchanged; the joints' carried state rides the POD copy.
