@@ -1,0 +1,1 @@
+planted: ran on hetzner2 as nova@hulk in /home/nova/x on studio.local
