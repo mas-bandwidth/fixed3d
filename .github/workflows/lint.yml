@@ -1,0 +1,21 @@
+# Public-repository hygiene: no internal host names or home-directory paths in tracked
+# files (tools/lint-bench-names/main.go says what it refuses and why).
+name: lint
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  bench-names:
+    name: no internal host names or home paths
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
+      - name: Check tracked files
+        run: go run tools/lint-bench-names/main.go
