@@ -5,7 +5,9 @@
 // every tracked text file outside extern/ and fails on:
 //   - a path under a user's home directory: /Users/<name>/ or /home/<name>/
 //   - an mDNS host name: <name>.local
-//   - a user@host login with no domain (an email address has a dot after the @ and passes)
+//   - a user@host login with no domain (an email address has a dot after the @ and passes;
+//     an action pin such as checkout@v4 and the neutral user@bench-... form pass)
+// The placeholders /Users/USER/ and /home/USER/ pass.
 //   - any token whose SHA-256 is listed in denied.sha256 (names kept hashed so the list
 //     does not publish them)
 //
@@ -25,9 +27,10 @@ import (
 )
 
 var (
-	homePath = regexp.MustCompile(`(/Users|/home)/[A-Za-z_][A-Za-z0-9._-]*/`)
+	homePath = regexp.MustCompile(`(/Users|/home)/([A-Za-z_][A-Za-z0-9._-]*)/`)
 	mdnsHost = regexp.MustCompile(`\b[A-Za-z][A-Za-z0-9-]*\.local\b`)
-	login    = regexp.MustCompile(`\b[a-z_][a-z0-9_-]*@[a-z][a-z0-9-]*([.a-z0-9-]?)`)
+	login    = regexp.MustCompile(`\b[a-z_][a-z0-9_-]*@([a-z][a-z0-9-]*)(\.?)`)
+	version  = regexp.MustCompile(`^v[0-9]+$`)
 	token    = regexp.MustCompile(`[A-Za-z0-9-]+`)
 )
 
@@ -69,16 +72,19 @@ func checkFile(path string, data []byte, denied map[string]bool) int {
 			fmt.Printf("%s:%d: %s\n", path, n, what)
 			failures++
 		}
-		if homePath.MatchString(line) {
-			report("home-directory path")
+		for _, m := range homePath.FindAllStringSubmatch(line, -1) {
+			if m[2] != "USER" {
+				report("home-directory path")
+			}
 		}
 		if mdnsHost.MatchString(line) {
 			report("mDNS host name")
 		}
 		for _, m := range login.FindAllStringSubmatch(line, -1) {
-			if m[1] != "." {
-				report("user@host login")
+			if m[2] == "." || version.MatchString(m[1]) || strings.HasPrefix(m[1], "bench-") {
+				continue
 			}
+			report("user@host login")
 		}
 		for _, t := range token.FindAllString(line, -1) {
 			sum := sha256.Sum256([]byte(strings.ToLower(t)))

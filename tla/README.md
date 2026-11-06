@@ -84,7 +84,7 @@ Run on a serialized Linux bench, never the working Mac:
 ```
 
 Repeat for `BroadPhaseTreeLudicrous.cfg`, `BroadPhaseTreeStep.cfg`, and
-`BroadPhaseTreeMutant.cfg`. Measured results on Hetzner2, 2026-10-15 UTC:
+`BroadPhaseTreeMutant.cfg`. Measured results on bench-linux-b, 2026-10-15 UTC:
 
 | Configuration | Exit | Outcome | Generated | Distinct | Depth | Wall seconds |
 |---|---:|---|---:|---:|---:|---:|
