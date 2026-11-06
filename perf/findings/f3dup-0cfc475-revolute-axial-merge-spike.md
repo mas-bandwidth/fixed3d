@@ -1,6 +1,6 @@
 VERDICT: ADOPTABLE (bit-identical across gcc and clang, narrow and ludicrous, workers 1-5 and two runs; JointTest green in all four builds; only the falling-ragdoll golden moves)
 
-Spike f3dup-0cfc475-revolute-axial-merge-spike, attempt 3, 2026-10-17, on amd-3 (gcc 15.2.0 /
+Spike f3dup-0cfc475-revolute-axial-merge-spike, attempt 3, 2026-10-17, on bench-linux-c (gcc 15.2.0 /
 clang 21.1.8, RelWithDebInfo + VALIDATE + Werror), BASE sprint/fixed3d-box3d-ports at adbe7ec.
 This card ports ONLY upstream 0cfc475's merged axial solve in `b3SolveRevoluteJoint` and lands
 no engine change: the port is experiment.patch (`git apply --check` clean on BASE), the

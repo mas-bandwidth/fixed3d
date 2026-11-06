@@ -1,6 +1,6 @@
 Apple M5 Pro SME micro, epoch 21, source base 59eff1c450f7c6d308f73d8a88c633f42e160ecb
 
-Host alias mini-m5-1 (same host as mini-m5); identity Glenns-Mac-Mini.local.
+Host alias bench-mac-m5-1 (same host as bench-mac-m5); identity Glenns-Mac-Mini.local.
 Read-only survey:
       Model Name: Mac mini
       Chip: Apple M5 Pro
