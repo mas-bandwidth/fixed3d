@@ -191,8 +191,8 @@ The PORT RECORDs below run newest first and are the detail for each step.
   which is why the carried state is compared directly.
   **GOLDENS: NONE MOVED** — every existing golden passed unchanged in all four configs (no existing
   scene has a mover or pogo joint; the `forceScale` default and the wheel arc are draw-only).
-  **STUDIO (2026-11-04):** RelWithDebInfo + VALIDATE, ludicrous, Debug + ASan/UBSan and NEON, all
-  with -Werror, all green with goldens on (`remote-tree-bench.sh`); `-DBOX3D_SAMPLES=ON` builds.
+  **BENCH (bench-mac-a, 2026-11-04):** RelWithDebInfo + VALIDATE, ludicrous, Debug + ASan/UBSan and NEON, all
+  with -Werror, all green with goldens on ; `-DBOX3D_SAMPLES=ON` builds.
   **TLA+:** `tla/MoverJoints.tla` models both joints' carried impulse (warm start, the clamp on
   every solve pass, setters between steps, the pogo rebuilt from def seeds, sleep and wake,
   snapshot and restore) with the mover clamp in the code's own integer arithmetic at reduced width

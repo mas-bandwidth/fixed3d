@@ -1,6 +1,7 @@
 # SHA-256 of host names that must not appear in this public repository, one per line.
-# Stored hashed so the list does not publish the names. Add one with:
-#   printf '%s' name | shasum -a 256
+# Stored hashed to keep the names out of plain text (not secret: short names can be guessed).
+# Add one, LOWERCASED first, with:
+#   printf "%s" name | shasum -a 256
 49241a00245d710a974a62fb167ecdcdeed8be35dbb9355e95df7085393c77e7
 eab709856c74f3c427ab205f82cb551658c984ddc6e4ad22cec94c68695df235
 8d6e662943ff800eb3b1549626ba7e72fe61e3a563fefc50f511fdf7566cd0e6
