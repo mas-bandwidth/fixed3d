@@ -127,7 +127,7 @@ The PORT RECORDs below run newest first and are the detail for each step.
   `sample_replay.cpp`'s two joint names, `sample.cpp/.h`, `main.cpp`, `gfx/debug_adapter.*`,
   `gfx/keycodes.h`, `host/camera.cpp`, `samples/CMakeLists.txt`) under the standing samples hold
   (fixed3d#20, #47). The samples tree still BUILDS against the new API (`-DBOX3D_SAMPLES=ON` on
-  studio, clean). **N/A:** the `b3SymClampW4` removals from the float SIMD headers (fixed3d's
+  bench-mac-a, clean). **N/A:** the `b3SymClampW4` removals from the float SIMD headers (fixed3d's
   wide headers never had it; its `b3SymClampW` in `contact_solver.c` is used and stays). **NOT
   CARRIED:** the one-line `physics_world.c` comment that `isFast` "is really just needed for mesh
   collision" — false here, where `isFast` gates manifold recycling for every shape pair (954cf87).
@@ -191,12 +191,12 @@ The PORT RECORDs below run newest first and are the detail for each step.
   which is why the carried state is compared directly.
   **GOLDENS: NONE MOVED** — every existing golden passed unchanged in all four configs (no existing
   scene has a mover or pogo joint; the `forceScale` default and the wheel arc are draw-only).
-  **STUDIO (2026-11-04):** RelWithDebInfo + VALIDATE, ludicrous, Debug + ASan/UBSan and NEON, all
-  with -Werror, all green with goldens on (`remote-tree-bench.sh`); `-DBOX3D_SAMPLES=ON` builds.
+  **BENCH (bench-mac-a, 2026-11-04):** RelWithDebInfo + VALIDATE, ludicrous, Debug + ASan/UBSan and NEON, all
+  with -Werror, all green with goldens on ; `-DBOX3D_SAMPLES=ON` builds.
   **TLA+:** `tla/MoverJoints.tla` models both joints' carried impulse (warm start, the clamp on
   every solve pass, setters between steps, the pogo rebuilt from def seeds, sleep and wake,
   snapshot and restore) with the mover clamp in the code's own integer arithmetic at reduced width
-  (layout, not only contract). TLC 2.19 on studio, 2026-11-04 (`tla/RUNS.tsv`):
+  (layout, not only contract). TLC 2.19 on bench-mac-a, 2026-11-04 (`tla/RUNS.tsv`):
   `MoverJoints.cfg` (F = 2, raw -4..4, caps 0..3) no error, 396,608 distinct states, depth 8;
   `MoverJointsSnapshot.cfg` (F = 1, -1..1, caps 0..1, snapshot on) no error, 7,130,800 distinct,
   depth 19. Reversed witnesses, each verified against the C by hand: `MoverJointsRounded.cfg`
@@ -2264,17 +2264,17 @@ The PORT RECORDs below run newest first and are the detail for each step.
 
 ## Repository and remotes (IMPORTANT)
 
-- This checkout (`/Users/glenn/fixed3d`) maps to **github.com/mas-bandwidth/fixed3d**
+- This checkout (`<checkout>`) maps to **github.com/mas-bandwidth/fixed3d**
   (`origin`, push target; main tracks it). `upstream` is erincatto/box3d,
   fetch-only, with its push URL set to the invalid `DO-NOT-PUSH-TO-UPSTREAM` as a
   guard. NEVER push to Erin's repo. Glenn sometimes edits the README in the GitHub
   web UI — pull/merge before pushing if the remote is ahead.
-- **TWO TREES WARNING**: `/Users/glenn/box3d` is a separate stale clone (its
+- **TWO TREES WARNING**: `<old-box3d-clone>` is a separate stale clone (its
   history was fetched into this repo long ago). `build-fixed/` and `build-ast/`
   dirs here were copied from it and their build.ninja files hold ABSOLUTE paths
-  into /Users/glenn/box3d — building them compiles the WRONG tree. Use
+  into <old-box3d-clone> — building them compiles the WRONG tree. Use
   `build-fixed2/` (fresh configure). If a build behaves impossibly, check
-  `grep -m1 /Users/glenn build*/build.ninja` FIRST.
+  `grep -m1 <old-box3d-clone> build*/build.ninja` FIRST.
 
 Session-3 performance work (all on top of 98b9889's fixed.h fast paths):
 
@@ -2809,7 +2809,7 @@ new sample code — keep them clean.
 - **b3Log** now has the printf format attribute — mismatches used to be
   invisible to -Wformat (rule 9). All call sites were already correct; now the
   compiler enforces it.
-- **ast_audit.py** had a hardcoded /Users/glenn/box3d root, so every earlier
+- **ast_audit.py** had a hardcoded <old-box3d-clone> root, so every earlier
   "clean" audit ran against the WRONG tree's compile database. Root is now
   derived from the script path; the first honest audit of this tree is clean.
 - Checked clean: height-field grid indexing (floor-then-trunc matches float),

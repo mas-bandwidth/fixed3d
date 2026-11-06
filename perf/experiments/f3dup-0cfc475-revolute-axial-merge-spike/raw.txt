@@ -1,5 +1,5 @@
 Spike f3dup-0cfc475-revolute-axial-merge-spike (attempt 3) raw test output
-Date: 2026-10-17T15:01Z, bench amd-3 (b3), gcc (Ubuntu 15.2.0-16ubuntu1) 15.2.0 / Ubuntu clang version 21.1.8 (6ubuntu1)
+Date: 2026-10-17T15:01Z, bench bench-linux-c (b3), gcc (Ubuntu 15.2.0-16ubuntu1) 15.2.0 / Ubuntu clang version 21.1.8 (6ubuntu1)
 BASE: adbe7ecffb057fc51a3a400b6e7af0a2627ef192 (sprint/fixed3d-box3d-ports)
 Config: RelWithDebInfo, BOX3D_SAMPLES=OFF, BOX3D_VALIDATE=ON, CMAKE_COMPILE_WARNING_AS_ERROR=ON; ludicrous adds BOX3D_LUDICROUS_MODE=ON
 Tree: BASE + experiment.patch (src/revolute_joint.c only).

@@ -1,0 +1,15 @@
+# SHA-256 of host names that must not appear in this public repository, one per line.
+# Stored hashed to keep the names out of plain text (not secret: short names can be guessed).
+# Add one, LOWERCASED first, with:
+#   printf "%s" name | shasum -a 256
+49241a00245d710a974a62fb167ecdcdeed8be35dbb9355e95df7085393c77e7
+eab709856c74f3c427ab205f82cb551658c984ddc6e4ad22cec94c68695df235
+8d6e662943ff800eb3b1549626ba7e72fe61e3a563fefc50f511fdf7566cd0e6
+58ea81a24f98be2c4b0b7282159ce6df12b7bced1afc8c16ff7f3127697e1b7d
+ab70ca70ea1f4396fd59d888063143500b63e1442e63ddbe5b1d161178f3b9ea
+4323722b36950eacdb9ccd4133ba47c2acc2a308ebe9bf79872afdb677cd6aeb
+23ed5884ee3cf06baa76a0c28cd7d722237ee5ba0b239e4b5ce2118422833413
+b847904ca772202e0ef642eca0384a3c2d6ceffdab7a0c15a976fbc59d6573b6
+c00050686b547437d05d9ab78b5527380b029be800bbcd2b21820b3805de541d
+01c019e593b01e896bc58a0f885318d928e58452b82079d1cfb0a9bcf2adf334
+1532e76dbe9d43d0dea98c331ca5ae8a65c5e8e8b99d3e2a42ae989356f6242a

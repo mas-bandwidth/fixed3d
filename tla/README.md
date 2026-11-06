@@ -79,12 +79,12 @@ Run on a serialized Linux bench, never the working Mac:
 
 ```sh
 /usr/bin/time -f 'wall_seconds=%e maxrss_kb=%M exit=%x' timeout 600 nice -n 10 \
-  /home/nova/sdk/bin/java -Xmx4g -XX:+UseParallelGC -jar /opt/tla/tla2tools.jar \
+  java -Xmx4g -XX:+UseParallelGC -jar /opt/tla/tla2tools.jar \
   -workers 4 -seed 1 -config BroadPhaseTree.cfg BroadPhaseTree
 ```
 
 Repeat for `BroadPhaseTreeLudicrous.cfg`, `BroadPhaseTreeStep.cfg`, and
-`BroadPhaseTreeMutant.cfg`. Measured results on Hetzner2, 2026-10-15 UTC:
+`BroadPhaseTreeMutant.cfg`. Measured results on bench-linux-b, 2026-10-15 UTC:
 
 | Configuration | Exit | Outcome | Generated | Distinct | Depth | Wall seconds |
 |---|---:|---|---:|---:|---:|---:|
@@ -176,7 +176,7 @@ Reversed witnesses, each a separate configuration that TLC must fail:
 - `MoverJointsSnapshotMutant.cfg` (`restoreDropsImpulse`) — restore zeroes the impulses. Fails
   `RestoreExact` at depth 3 (a def-seeded pogo impulse is lost). `MoverPogoForkTest` covers the C.
 
-Run on studio (`studio.local`, Apple M-series, 32 cores) with the same jar as the rows above:
+Run on bench-mac-a (Apple M-series, 32 cores) with the same jar as the rows above:
 
 ```sh
 nice -n 10 java -Xmx12g -XX:+UseParallelGC -jar tla2tools.jar -workers 8 -seed 1 -cleanup \

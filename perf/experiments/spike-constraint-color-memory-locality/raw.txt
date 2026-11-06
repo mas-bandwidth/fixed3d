@@ -1,7 +1,7 @@
 ===== BASE AND BUILD =====
 base=59eff1c450f7c6d308f73d8a88c633f42e160ecb
 branch=sprint/spike-constraint-color-memory-locality.w1.g1.e21
-host=hetzner1
+host=bench-linux-a
 cmake -B build -DCMAKE_BUILD_TYPE=RelWithDebInfo -DBOX3D_SAMPLES=OFF -DBOX3D_VALIDATE=ON -DCMAKE_COMPILE_WARNING_AS_ERROR=ON -DBOX3D_BENCHMARKS=ON
 cmake --build build --parallel 2
 Both A and B configured identically; compile log shows -O2 -g -DNDEBUG -flto=auto -ffp-contract=off -Werror. Candidate only differs by experiment.patch.
@@ -115,7 +115,7 @@ c++ (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0
 cmake version 3.28.3
 == cmake flags ==
 configured by the build dir; paste the cmake -B ... line used
-2593942 bash -c cd /home/nova/stella-locality-e21/base && tools/perf/cpu_info.sh; pgrep -af benchmark || true; cat /proc/loadavg; nice -n 10 ./build/bin/benchmark -b=rain -w=1 -r=7 --steps=120 --hash --phases-json=/home/nova/stella-locality-e21/rain-baseline.json; nice -n 10 ./build/bin/benchmark -b=large_pyramid -w=1 -r=7 --steps=120 --hash --phases-json=/home/nova/stella-locality-e21/large-pyramid-baseline.json; cat /proc/loadavg
+2593942 bash -c cd /work/stella-locality-e21/base && tools/perf/cpu_info.sh; pgrep -af benchmark || true; cat /proc/loadavg; nice -n 10 ./build/bin/benchmark -b=rain -w=1 -r=7 --steps=120 --hash --phases-json=/work/stella-locality-e21/rain-baseline.json; nice -n 10 ./build/bin/benchmark -b=large_pyramid -w=1 -r=7 --steps=120 --hash --phases-json=/work/stella-locality-e21/large-pyramid-baseline.json; cat /proc/loadavg
 1.84 1.58 1.52 1/495 2593959
 Starting benchmarks
 ======================================
@@ -217,7 +217,7 @@ c++ (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0
 cmake version 3.28.3
 == cmake flags ==
 configured by the build dir; paste the cmake -B ... line used
-2617581 bash -c cd /home/nova/stella-locality-e21/base && tools/perf/cpu_info.sh && pgrep -af benchmark || true; cat /proc/loadavg; nice -n 10 tools/perf/ab.sh /home/nova/stella-locality-e21/base/build /home/nova/stella-locality-e21/candidate/build -b=rain -b=many_pyramids -b=large_pyramid -b=washer -b=bodies_20k -w=1,2,4 -r=7 --steps=120; cat /proc/loadavg
+2617581 bash -c cd /work/stella-locality-e21/base && tools/perf/cpu_info.sh && pgrep -af benchmark || true; cat /proc/loadavg; nice -n 10 tools/perf/ab.sh /work/stella-locality-e21/base/build /work/stella-locality-e21/candidate/build -b=rain -b=many_pyramids -b=large_pyramid -b=washer -b=bodies_20k -w=1,2,4 -r=7 --steps=120; cat /proc/loadavg
 5.31 5.43 3.37 1/490 2617598
 scene workers phase A_min A_med A_spread B_min B_med B_spread speedup
 rain 1 applyRestitution 312 321 21 299 321 34 1.000000
@@ -497,7 +497,7 @@ interleaved A/B done
 ===== WORKER COUNT PROOF =====
 thread count: 4
 HASH rain workers=4 915d36aa711691b0
-2631970 bash -c cd /home/nova/stella-locality-e21/candidate && nice -n 10 ./build/bin/benchmark -b=rain -w=4 -r=1 --steps=2 --hash | grep -E "^(thread count:|HASH )"; pgrep -af /bin/benchmark || true; cat /proc/loadavg
+2631970 bash -c cd /work/stella-locality-e21/candidate && nice -n 10 ./build/bin/benchmark -b=rain -w=4 -r=1 --steps=2 --hash | grep -E "^(thread count:|HASH )"; pgrep -af /bin/benchmark || true; cat /proc/loadavg
 1.33 2.12 2.51 1/487 2631978
 
 ===== ORACLE zen4-oracle-1 =====
