@@ -8,7 +8,7 @@
 //     (the placeholder USER passes)
 //   - an mDNS host name: <name>.local, any case
 //   - a user@host login whose host has no domain, or is an IPv4 address (an email address
-//     passes; so do an action pin such as checkout@v4 and the neutral user@bench-... form)
+//     passes; so do an action pin such as checkout@v4, a ref@sha such as float@9e5a4cd, and the neutral user@bench-... form)
 //   - a Tailscale (100.64.0.0/10) or private LAN (192.168.0.0/16, 10.0.0.0/8) IPv4 address
 //   - any token, or any hyphen-separated prefix of a token, whose SHA-256 (of the
 //     lowercased text) is listed in denied.sha256
@@ -41,7 +41,7 @@ var (
 	mdnsHost = regexp.MustCompile(`(?i)\b[a-z][a-z0-9-]*\.local\b`)
 	login    = regexp.MustCompile(`(?i)\b[a-z_][a-z0-9_-]*@([a-z0-9][a-z0-9-]*)((?:\.[a-z0-9-]+)*)`)
 	ipv4     = regexp.MustCompile(`\b(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})\b`)
-	version  = regexp.MustCompile(`^v[0-9]+$`)
+	version  = regexp.MustCompile(`^(v[0-9]+|[0-9a-f]{7,40})$`)
 	digits   = regexp.MustCompile(`^[0-9]+$`)
 	token    = regexp.MustCompile(`[A-Za-z0-9-]+`)
 )
@@ -109,6 +109,7 @@ func selfTest(denied map[string]bool) int {
 		"Path: /Users/USER/*/benchmark",
 		"ran on user@bench-linux-b in /work/x",
 		"version 1.2.3.4 of the spec",
+		"measured against float@9e5a4cd",
 	}
 	failed := 0
 	for name, line := range mustFire {
