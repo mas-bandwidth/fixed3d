@@ -4,20 +4,68 @@ Box3D converted from float to Q48.16 fixed point (internal and external API).
 
 ## THE PORT CURSOR — read this before any Box3D -> Fixed3D pass
 
-**Everything in erincatto/box3d up to and including `47d7f7c` is carried across.**
-`git log 47d7f7c..upstream/main` is the remaining work.
+**Everything in erincatto/box3d up to and including `954cf87` is carried across.**
+`git log 954cf87..upstream/main` is the remaining work, less the commits carried ahead of the cursor
+listed in the next paragraph and `3362633`, in its own bold paragraph after that.
+
+**CARRIED AHEAD OF THE CURSOR, on `main` since fixed3d#94 (merged 2026-11-04 as `29948ea`), each
+with its PORT RECORD below:** `9e5a4cd` + `79fc559` (body-sim locator, fat AABB split, CCD gravity,
+four of the five bug fixes, allocator widening, restitution stage); `adec25b` + `9f998c8` (the
+portable pieces); `5643cd8`; `f8c4fe8` (engine half); `003a3f7` + `3d9db79`; `5d83df8` (harvested as
+the pointer-free compound); `a2e4816` (engine half). Only the `f8c4fe8` record carries the words
+CARRIED AHEAD OF THE CURSOR; the others are carried ahead all the same, by their place in upstream
+order. **`efca0c1` is carried IN PART:** its first card (the local inertia moves onto `b3BodySim`,
+`adbe7ec` / `95d34ab`, and the unused `compound.h` include, `398be05`) is on `main` with no PORT
+RECORD of its own; the gating, the tolerance API and the record are on `port/efca0c1-gyro-tolerance`,
+not yet merged. Skipped by plan #65, named: `8fda30e` (samples UI), the float AVX2 kernels of
+`e77352c` (its detection plumbing is owed as roadmap item `fixed3d-isa-dispatch-interface`), the SAT half of `51f056e`; and the skipped bulk of `adec25b`, `9f998c8` and `3d9db79`, per their records. Still owed between
+the cursor and upstream: `f555ee4` (PR #99, which also carries the fifth `9e5a4cd` / `79fc559` fix, H-H), `51f056e`'s world byte count, `16f7f4c`, and the commits
+past `5d83df8` below.
+
+**`3362633` Dynamic Mover (#202) IS CARRIED AHEAD OF THE CURSOR** (engine half: mover joint, pogo
+joint, `b3SpringDamper`, their recording ops, debug draw; samples held under #20 / #47; PORT RECORD
+below). It does not depend on `f555ee4` or on anything else still owed; the cursor line above does
+not move for it. *(~~WITH THE MERGE OF `port/3362633-dynamic-mover`, NOT BEFORE~~ — **DISCHARGED
+2026-11-04, verified rather than assumed: fixed3d#113 merged as `21f3670` with all seven checks
+green, per the `fixed3d#21` discipline.**)*
 
 **THE PLAN FOR THAT RANGE IS `fixed3d#65`** (2026-10-09): fifteen upstream commits, `47d7f7c..5d83df8`,
 with the order the cursor takes, the holds and the carries, and the decision behind each. The four
 read-only triage reports it was written from, and the plan body, are in `porting/triage-2026-10-09/`.
 Steps are landed one branch at a time; a cursor clause of the form *advances with the merge of* is
 struck by the run that merges it, per the `fixed3d#21` / `fixed3d#46` discipline below.
+**`fixed3d#65` was CLOSED by Glenn on 2026-10-15 ("Plan executed in part"):** steps 1, 3+4, 7, 12,
+13+14 and the harvest of 15 are on `main`, each with its PORT RECORD below; the still-open
+steps (`f555ee4` in two parts after its TLA+ model, merged here as `5bfa76c` on 2026-10-16,
+now ported, see its PORT RECORD below;
+`51f056e`'s world byte count; `16f7f4c` in two steps) are items of `docs/roadmap.sexp`,
+where planned work lives since 2026-10-14. Read the roadmap, not the closed issue, for what is owed.
 
-**THE CURSOR ADVANCES TO `954cf87` WITH THE MERGE OF `port/954cf87-fixes`, NOT BEFORE.**
-The branch's record is the newest PORT RECORD below. Said in the `fixed3d#21` / `fixed3d#46`
-form recorded underneath: a cursor line written on a branch says *advances with*, and the run
-that merges the branch comes back and strikes this clause. Until then the true cursor is
-`47d7f7c` and the line above states a fact. Port plan: **fixed3d#65**.
+*(~~THE CURSOR ADVANCES TO `954cf87` WITH THE MERGE OF `sprint/fixed3d-box3d-ports` INTO `main`
+(fixed3d#94), NOT BEFORE~~ — **DISCHARGED 2026-11-04, verified rather than assumed: fixed3d#94
+merged as `29948ea` after `main` was merged into the branch (`f523344`) and the head ran green in four
+configs on a fresh clone and in CI, so the cursor above states a fact.** The clause also said every
+carried commit was named CARRIED AHEAD in its record; a cold read found that true of `f8c4fe8`
+only, so the list above names them instead.)*
+
+**PAST `5d83df8` UPSTREAM HAS SIX MORE COMMITS (box3d 2026-10-12 to 2026-10-27). The first four
+were triaged by the daily pass on 2026-10-16; the dispositions live in `docs/roadmap.sexp` on `main` (group
+`upstream-past-5d83df8`) and are repeated here so the next pass does not re-triage.** Oldest first:
+`a2e4816` Fixes for #175 (#187) — PORTED, engine half, on `main` (card
+`fixed3d-box3d-ports-manifold-block`, PR #75; its record is the "954cf87 hull2d manifold reduction +
+a2e4816 speculative margin and recycle fixes" PORT RECORD below; the `docs/faq.md` hunk is skipped
+as docs). `8128d74` Discussion template (#185) — SKIPPED: a `.github` discussion template, upstream
+repository configuration, no simulation content. `0cfc475` Solver stuff (#189) — HELD for a
+design-first step (roadmap item `port-0cfc475-axial-solve-merge`): its `b3SolvePointConstraint` is
+ALREADY SATISFIED here by `b3SkewSandwich` + `b3Solve3AcrossScales`, verify term by term before
+claiming; the revolute and spherical merge of spring, motor and limit solves against one running
+`cdot` is a reassociation (hard-won rule below: reassociations are not free) that moved every
+upstream golden in both precisions; the `contact_solver_wide.inl` hunk has no analogue here.
+`efca0c1` Gyro tolerance (#191) — PORT, engine half, carried in part (above); the rest is on
+`port/efca0c1-gyro-tolerance` (roadmap item `port-efca0c1-gyro-tolerance`); its samples hunk is held
+under the #20 / #47 class. `f36d061` CMake improvements (#201) and `3362633` Dynamic Mover (#202)
+(2026-10-20 and 2026-10-27): `f36d061` is not yet triaged here; `3362633` (Glenn's priority,
+2026-11-04) is PORTED, engine half, and CARRIED AHEAD OF THE CURSOR (the bold `3362633` paragraph near the top of this section).
 
 *(~~THIS LINE ADVANCES WITH THE MERGE OF `port/47d7f7c-clockwise-mover`, NOT BEFORE~~ —
 **DISCHARGED 2026-09-03, verified rather than assumed: `port/47d7f7c-clockwise-mover`
@@ -60,6 +108,160 @@ and says *closed*. Record below.)*
 
 The PORT RECORDs below run newest first and are the detail for each step.
 
+- **PORT RECORD f555ee4 "Optimize Broad-Phase (#159)" (2026-10-17) — PORTED, engine half, on
+  `port/f555ee4-broadphase` against this branch; CARRIED AHEAD OF THE CURSOR when it merges here.**
+  The plan, the fixed-point replacements and the commit order are in
+  `porting/f555ee4-broadphase.md`; the model is `tla/BroadPhaseTree.tla` (#70). **(1) Tree:**
+  paired nodes `{ aabb, flagIndex, height|shapeIndex }` (leaf bit 31, moved bit 30), root 0,
+  empty sentinel 1, parents and `b3TreeProxy` split out, pair and proxy free lists, DFS rebuild
+  into a spare, sweep refit, atomic `MarkProxyMoved`. No float: costs are `b3Fixed`, the box
+  helpers are the scalar integer form on `b3AABB_Overlaps` / `b3AABB_Union` (the Neon and SSE2
+  float kernels are not taken), the empty node is the inverted extreme of the bound type (128-bit
+  in ludicrous mode) and is only compared and unioned, the `B3_HUGE` size checks compare half
+  extents, and a node is 56 bytes narrow / 112 ludicrous with an explicit zero `padding[2]`.
+  **(2) Broad-phase:** the move buffer is gone; pairs come from the moved sibling pairs of the
+  dynamic tree and breadth-first cross seeds against the static and kinematic trees, each
+  candidate ordered `shapeIdA = min( ids )`, culled and filtered in batches of 32, collected per
+  worker and SORTED before contacts are created. **This is the A/B swap** the reference survey
+  found: shape A of a new contact is now the lower shape index. **(3) Solver:** finalize and
+  continuous mark only grown fat boxes (into `world->fatAABBs`, the fork's split array), the tree
+  task joins before finalize, kinematic and dynamic trees refit, bullets enlarge after.
+  **(4) Compound blob:** dense baked tree (`nodeCount == 2 * childCount`) and a proxy array at
+  `proxyOffset`, which replaces `root`; the validator checks the pair layout (empty node 1 only,
+  no move marks, proxy back pointers, child pairs above the parent so no cycle, heights);
+  `B3_COMPOUND_VERSION` changes. The blob stays pointer free, so the 003a3f7 crash recorded below
+  is still unreachable. **(5) Snapshot** 6 -> 7 (tree format, `b3TreeProxy` in the layout hash,
+  compound census, move buffer dropped); recording counters unchanged (no op changed).
+  **(6) H-H from 79fc559 LANDS WITH IT, as the 9e5a4cd record below requires:** a full rebuild
+  keeps move marks, so `b3World_RebuildStaticTree` keeps pending static pairs;
+  `test_broad_phase.c` brings `StaticRebuildKeepsMarks` and the brute-force pair set stress test
+  (one seed, 120 steps, three configurations; `BROAD_PHASE_STRESS_FULL` runs upstream's sweep).
+  **SKIPPED:** benchmark csv/main, `shared/benchmarks.*`, `sample_benchmark.cpp`, samples
+  CMake (no simulation content); `sample_tree.cpp` IS ported (it must build). **GOLDENS** (own
+  commit, gcc and clang, Debug and RelWithDebInfo, narrow and ludicrous, workers 1-5 identical):
+  ragdoll 408 -> 507 (MultithreadingTest step limit 500 -> 600), wave pile 335 -> 367, ragdoll
+  human 219 -> 189, query spawn query hash only, PerfStateHashGolden; mesh drop unchanged.
+  `RestingTest` XPASSed (peak 0.061 -> 0.025 m/s, bound 0.05) and is a plain measurement now;
+  the deadband card stays open (upstream reads 0.00002). **REFERENCE:** `ctest -L reference`
+  34/34 at `BOX3D_REFERENCE_REV=a2e4816` (base: 31/34, box_stack, pendulum_chain and
+  ref-954cf87-collide-connected-false failing); at `f555ee4` the three pass and the four scenes
+  that measure later upstream features (79fc559, 9e5a4cd, a2e4816, f8c4fe8) fail exactly as base
+  fails them at `954cf87`. The float driver needs its `restitutionIterations` line removed to
+  build against revisions before 79fc559 (measurement copy only, not committed).
+- **PORT RECORD 3362633 "Dynamic Mover (#202)" (upstream 2026-10-27) — PORTED, engine half,
+  2026-11-04, on `port/3362633-dynamic-mover`. CARRIED AHEAD OF THE CURSOR** (cursor stays
+  `954cf87`; the mover and pogo joints touch the joint layer, recording and debug draw only, so
+  nothing in `f555ee4` or the other owed commits is in front of them).
+  **PORTED:** `src/mover_joint.c`, `src/pogo_joint.c` (new); `b3MoverJointDef` /
+  `b3PogoJointDef`, their defaults, `b3_moverJoint` / `b3_pogoJoint`, create functions, setters
+  and getters (`include/box3d/types.h`, `include/box3d/box3d.h`, `src/joint.c`); `joint.h`
+  structs and the union members; `joint.c` dispatch for prepare, warm start, solve, draw,
+  reaction, constraint force and torque, and both separations; `b3SpringDamper`
+  (`include/box3d/math_functions.h`); the recording ops, def writers and readers and dispatchers
+  (`src/recording_ops.inl`, `src/recording.c/.h`, `src/recording_replay.c/.h`, upstream's
+  `replay.c` is `recording_replay.c` here); debug draw content: `forceScale` defaults to 0.001
+  and the joint force segment uses it, the mover and pogo joints draw their own extras, and the
+  wheel joint's steering arc advances by a rotation recurrence. Upstream's 100-column
+  clang-format reflow of `box3d.h`, `types.h`, `joint.c` and the tests is NOT ported (content
+  only). **HELD:** every samples hunk (`dynamic_mover.*`, `geometric_mover.*`, the removal of
+  `samples/mover.*`, `sample_character.cpp`, `sample_compound.cpp`, `sample_manifold.cpp`,
+  `sample_replay.cpp`'s two joint names, `sample.cpp/.h`, `main.cpp`, `gfx/debug_adapter.*`,
+  `gfx/keycodes.h`, `host/camera.cpp`, `samples/CMakeLists.txt`) under the standing samples hold
+  (fixed3d#20, #47). The samples tree still BUILDS against the new API (`-DBOX3D_SAMPLES=ON` on
+  bench-mac-a, clean). **N/A:** the `b3SymClampW4` removals from the float SIMD headers (fixed3d's
+  wide headers never had it; its `b3SymClampW` in `contact_solver.c` is used and stays). **NOT
+  CARRIED:** the one-line `physics_world.c` comment that `isFast` "is really just needed for mesh
+  collision" — false here, where `isFast` gates manifold recycling for every shape pair (954cf87).
+  **FIXED-POINT DECISIONS.** (1) `b3SpringDamper` spells the stiffness term
+  `( omega * omega * h ) * x`, so the one small factor meets omega squared before anything
+  rounds; measured against double on the quantized inputs it is within 1 ULP at 0.25-10 Hz for
+  positions to 0.1, where upstream's order (`omega * omegaH` first) is off by up to 14 ULP at 5 Hz
+  and a one-unit position. (2) Inverse masses stay in the inverse scale (`inverse.h`): effective
+  masses through `b3InvReciprocal`, velocity changes through `b3InvMulSV` / `b3InvMulMV`. (3) THE
+  MOVER CLAMP IS EXACT, NOT THE `joint.h` SPELLING. `b3ClampToDisc` sums the raw squares at 128
+  bits, compares exactly, takes the CEILING square root, and scales each component as
+  `|x| * cap / length` truncated, so the clamped impulse never leaves the disc. The motor and
+  parallel joints' spelling (`b3ImpulseOverCap2` rounding each square to Q48.16, then
+  `b3Length2`) was tried first and fails twice, both measured: rescaling as `cap / length` first
+  lost ~10% of a saturated mover's force (1.814 m/s instead of 2.0 after one second at 2 N on unit
+  mass); and at small caps the rounded squares are the whole value — at h = 1/240 a 0.5 N mover has
+  a raw cap of 137 whose square rounds to zero, so impulses to 181 raw pass uncapped and a
+  zero-force mover still pushes (`TestMoverJointZeroForce`, red with that spelling). Nothing is
+  squared in 64 bits, so the `B3_FIXED_MAX` sentinel cannot wrap (`TestMoverJointSentinelForce`,
+  red with a 64-bit compare — on a mass of 3, because on unit mass the wrapped impulses telescope
+  back to the target exactly and a final-state check passes). (4) The pogo clamp is linear,
+  `[-h * maxTension, h * maxCompression]`; `h * B3_FIXED_MAX` is safe to form (h < 1) and nothing
+  is squared. (5) Debug draw only: the mover ring color lerps per channel in integers; the arrow's
+  length ratio is `fixMulDiv( impulse, inv_h, maxForce )` with one rounding; upstream's
+  `shaftLen < 1e-6f` guard quantizes to zero raw and is spelled `== 0`; the ring and the wheel
+  arc use the rotation recurrence in `b3FixMul`.
+  **RECORDING:** ops `0x81`-`0x8A` at upstream's codes (`CreateMoverJoint`,
+  `MoverJointSetLinearVelocity`, `MoverJointSetMaxVelocityForce`, `CreatePogoJoint` and the six pogo
+  setters), the new `0x81-0x8F` range named in the manifest. `B3_REC_VERSION_MINOR` 8 -> **10**,
+  upstream's number; **9 stays reserved for `efca0c1`'s `WorldSetIsotropicInertiaTolerance` (op
+  `0x70`)**, written so on `recording.h`. Op codes do not overlap, and a minor mismatch still loads
+  (the dispatcher skips unknown ops), so the two land in either order without reinterpretation.
+  `efca0c1` lands after this, so it keeps the define at 10 and turns the reserved line into an
+  *added* line. Def sizes pinned at 216 /
+  264 bytes on 64-bit (`_Static_assert`s in `recording.c`). Snapshot: `b3JointSim` does not grow
+  (the prismatic and wheel members stay largest), so the snapshot layout hash and
+  `B3_SNAP_VERSION` are unchanged; the joints' carried state rides the POD copy.
+  **TESTS:** `test_joint.c` — upstream's `TestMoverJoint` and `TestPogoJoint` in Q48.16, plus
+  `TestMoverJointSentinelForce`, `TestMoverJointForceBudget` (saturation and a setter lowering the
+  budget below the carried impulse; the slack is one impulse ULP read back through `inv_h`),
+  `TestMoverJointZeroForce`, `TestPogoJointTensionClamp` (zero tension never pulls; zero hertz
+  clears impulse and speed), `TestPogoJointSleepKeepsImpulse`, `TestSpringDamper` (double reference, 8 ULP). `test_recording.c`
+  `AllOps` — upstream's mover/pogo block (every setter, the pogo rebuilt each frame warm started).
+  `test_determinism.c` — `MoverPogoTest`: 300 steps of a rotation locked capsule on hull ground,
+  target velocity changes, the force budget lowered to 40 N with a target that saturates it from
+  step 150 (the carried force at step 149 measures 0.137 N, so this is saturation, not a re-clamp;
+  re-clamping a carried impulse above a lowered budget is `TestMoverJointForceBudget`), the pogo rebuilt
+  warm started every 10 steps and its rest length and hertz changed; per-step hash of body state
+  and both joints' carried state, identical for workers 1-5, golden `MOVER_POGO_HASH` per build
+  (narrow `0xd120d881cacd2605`, identical in RelWithDebInfo, Debug+ASan and NEON; ludicrous
+  `0xdcdc7aaef38eab3d`; harvested by the printed-value procedure, then confirmed with goldens on).
+  `MoverPogoForkTest`: a recording started at step 160 snapshots the live world while the mover is
+  saturated (carried force 39.997 N, required > 39 N in the test; at step 120 it was 0.137 N); the
+  restored world holds the mover's carried force and the pogo's impulse and speed exactly before
+  any step, a player restored from it continues bit-identically for the remaining 140 steps at one
+  and four workers (pogo ids tracked through the rebuilds), and the forked live run equals an
+  unforked one. Negative control: recreating the mover joint on the restored side (impulse zero)
+  fails the restore-time check. The continuation alone does NOT see a dropped mover impulse: a
+  saturated mover re-clamps to its cap in the first solve pass whatever it was warm started with,
+  and with the impulse dropped all 140 replayed steps stayed bit-identical (measured 2026-11-04),
+  which is why the carried state is compared directly.
+  **GOLDENS: NONE MOVED** — every existing golden passed unchanged in all four configs (no existing
+  scene has a mover or pogo joint; the `forceScale` default and the wheel arc are draw-only).
+  **BENCH (bench-mac-a, 2026-11-04):** RelWithDebInfo + VALIDATE, ludicrous, Debug + ASan/UBSan and NEON, all
+  with -Werror, all green with goldens on ; `-DBOX3D_SAMPLES=ON` builds.
+  **TLA+:** `tla/MoverJoints.tla` models both joints' carried impulse (warm start, the clamp on
+  every solve pass, setters between steps, the pogo rebuilt from def seeds, sleep and wake,
+  snapshot and restore) with the mover clamp in the code's own integer arithmetic at reduced width
+  (layout, not only contract). TLC 2.19 on bench-mac-a, 2026-11-04 (`tla/RUNS.tsv`):
+  `MoverJoints.cfg` (F = 2, raw -4..4, caps 0..3) no error, 396,608 distinct states, depth 8;
+  `MoverJointsSnapshot.cfg` (F = 1, -1..1, caps 0..1, snapshot on) no error, 7,130,800 distinct,
+  depth 19. Reversed witnesses, each verified against the C by hand: `MoverJointsRounded.cfg`
+  (the `joint.h` spelling) fails `ImpulseWithinBoundAfterSolve` at depth 3 — cap 0, impulse
+  `<<-1, -1>>` whose squares round to zero, the reduced-width image of the 181-raw window above;
+  `MoverJointsMutant.cfg` (clamp only an impulse that grew) fails it at depth 8 — `<<0, -1>>` under
+  cap 1, then `SetMoverMaxForce(0)`, then the same unclamped impulse passes (the C clamp never
+  looks at the old impulse); `MoverJointsSnapshotMutant.cfg` (restore drops the impulses) fails
+  `RestoreExact` at depth 3. `tla/README.md` names the limits.
+  Cited from `src/mover_joint.c`, `src/pogo_joint.c` and `src/joint.h`.
+
+- **PORT RECORD reference harness compound/mesh/snapshot/contact vocabulary (2026-10-15).**
+  `ref-harness-compound-mesh-vocabulary`, `ref-harness-snapshot-restore`,
+  `ref-5d83df8-compound-roundtrip`, and `ref-954cf87-manifold-points-exact` exercise
+  genuine static baked compounds (box/sphere/capsule/hull children), material-indexed
+  static meshes, public snapshot-seed restore in both engines, and exact nonzero
+  contact point-set cardinalities with position/separation tolerance and bijective
+  matching. Baked compounds require static bodies and equal child densities; the
+  parser refuses unsupported cases. Narrow/ludicrous full suites and all four new
+  refs pass at float `79fc559`; all 25 older scene traces remain byte-identical to
+  base `59eff1c`, including its five mixed-pin failures named in the harness README.
+  No engine edits or golden changes. The two historical six-material-mesh-child
+  and identical-build scene names remain deferred; see README for scope and evidence.
+
 - **PORT RECORD 9e5a4cd + 79fc559 "CCD time-loss gravity + five bug fixes" (2026-10-15) —
   PORTED, engine half (card port-9e5a4cd-ccd-gravity-loss-and-five-bug-fixes).** This is
   sub-task 2 of the fixed3d#65 3+4 step (T2's G3 and the five bug fixes H-F/H-G/H-H/H-L).
@@ -88,7 +290,8 @@ The PORT RECORDs below run newest first and are the detail for each step.
   fixed3d's `b3DynamicTree` still uses the pre-f555ee4 `b3_enlargedNode` flag and has no moved
   bit, no `b3DynamicTree_ValidateNoMoved`, and no `test_broad_phase.c`
   (`StaticRebuildKeepsMarks`). When f555ee4 is ported (card fixed3d-box3d-ports-f555ee4-block),
-  H-H must land in the same step or the move-mark bug arrives with it.
+  H-H must land in the same step or the move-mark bug arrives with it. **It does: it is part of
+  the f555ee4 port (see that PORT RECORD), with `StaticRebuildKeepsMarks`.**
   **REFERENCE: `tools/reference/scenes/ref-9e5a4cd-ccd-gravity.scene` and
   `ref-9e5a4cd-joint-enable.scene`** (globbed by the harness). `ctest -L reference` run at
   `BOX3D_REFERENCE_REV=79fc559` (the descendant that reverts G4, matching fixed3d's no-G4
@@ -446,59 +649,121 @@ The PORT RECORDs below run newest first and are the detail for each step.
   the harness resume above~~ — the harness landed and MEASURED the scene: `ctest -L reference` runs it green, resting-height delta 2.1e-5 against the stated 0.05, final
   contact count 1 in both engines.)*
 - **PORT RECORD f8c4fe8 "Shape cast support for box movers (#180)" (upstream
-  2026-10-02) — PORTED, engine half, 2026-10-09. CARRIED AHEAD OF THE CURSOR.**
+  2026-10-06) — PORTED, engine half, 2026-10-09. CARRIED AHEAD OF THE CURSOR.**
+
+  **COLD-READ REPAIRS CARRIED 2026-10-16 (`port/cold-read-repairs-2026-10-09`).**
+  Both independent cold reads of 2026-10-09 (Opus 5 and Fable 5.1) returned
+  MERGE-WITH-FIXES, and the fixes were written in a scratch clone that was never
+  committed, so the branch merged WITHOUT them. The code repair they both asked
+  for — the retained rest separation — is carried now with a subtest that sees
+  the old spelling fail, and the record corrections are folded into the text
+  below rather than appended. The upstream date above was 2026-10-02 and is one
+  of those corrections; this clone has no `upstream` remote, so it is carried on
+  the readers' authority rather than re-verified here.
 
   **THIS IS OUT OF ORDER ON PURPOSE AND THE CURSOR DOES NOT MOVE FOR IT.**
   `f8c4fe8` is the TWELFTH commit past the cursor at `47d7f7c` (verified, not
   assumed: `git log --oneline --reverse 47d7f7c..upstream/main` lists it at
   position 12 of 15). It was carried early because it is an independent bug fix
   in `b3ShapeCast` with no dependency on the eleven commits in front of it —
-  those are broadphase, SAT and recording work. The port plan is **fixed3d#65**;
+  those are `954cf87` "Fixes", broadphase, two optimization passes, a UI
+  update, SAT (optimizations, samples, benchmark), the compound mesh child
+  material limit, AVX2 with runtime feature detection, and tree perf. **The
+  recording work is BEHIND this commit, not ahead of it:** `003a3f7`, `3d9db79`
+  and `5d83df8` are positions 13, 14 and 15, so they are not among the eleven
+  owed before it — the earlier "broadphase, SAT and recording work" was wrong
+  on the recording third. The port plan is **fixed3d#65**;
   the eleven commits before this one are still owed and the PORT CURSOR line at
   the top of this file still reads `47d7f7c`, which is a fact. **Do not read
   this record as the cursor having advanced.** A later pass that carries
   `16f7f4c` and the rest will find this one already across and should skip the
   `b3ShapeCast` hunk rather than re-apply it.
 
-  **THE REAL BUG, named plainly.** On the pre-fix tree `b3ShapeCast`'s
+  **WHAT THIS IS: BOX-MOVER SUPPORT on a pre-image identical to upstream's, NOT
+  a live bug in this engine** (corrected 2026-10-09 by both cold reads; the
+  record said "THE REAL BUG, named plainly"). On the pre-fix tree `b3ShapeCast`'s
   iteration-0 handling had only two arms: encroach-and-retarget when
   `canEncroach && distance > 2 * linearSlop`, else the "Initial overlap" arm
-  reporting a hit at fraction 0. So a shape starting in the band
-  **`0 < distance <= 2 * linearSlop` reported a hit WHATEVER DIRECTION IT
-  SWEPT** — receding, purely tangential and grazing sweeps all came back as
-  hits at fraction 0. Reachable by box movers (`canEncroach`), which is what
-  upstream's commit title names; capsule movers and plain shape casts do not
-  set the flag. The new third arm advances by first order while retaining a rest
-  separation, so a sweep that cannot consume the free gap misses.
+  reporting a hit at fraction 0. So a caller landing in the new arm's **GATE** —
+  `0 < distance <= 2 * linearSlop`, which is the GATE and not the reachable
+  domain — got a hit **WHATEVER DIRECTION IT SWEPT**: receding, purely
+  tangential and grazing sweeps all came back as hits at fraction 0.
+  **The engine's own mover path does not produce it.** `src/physics_world.c`
+  (line 3322 on the sprint head 2026-10-16; the repair text said 3278) sets
+  `canEncroach` only for capsule movers with `radius > 0`, and the cast target
+  is core-to-core `target = max( linearSlop, totalRadius - linearSlop )`, so for
+  a capsule mover the gate would require the core within `2 * linearSlop` of the
+  surface — a penetration of very nearly the whole radius, which the mover path
+  does not hand to `b3ShapeCast`. It is reachable in practice only by a direct
+  public `b3ShapeCast` call with zero radius and `canEncroach` true, which is
+  exactly what the eight new subtests do.
+  **And the reachable domain is narrower than the gate, re-measured on this tree
+  2026-10-16** (probe linked against `build-port`: slop raw 328, tolerance raw
+  82, gate `2 * slop` raw 656). Iteration 0 is entered only under
+  `distance < target + tolerance`, which for a zero-radius cast is raw **410**
+  (1.25 slop) at default units, not raw 656; the full `2 * linearSlop` width of
+  the gate becomes reachable only once `totalRadius > 902` raw. The new third arm
+  advances by first order while retaining a rest separation, so a sweep that
+  cannot consume the free gap misses.
 
   **FIVE FIXED-POINT DECISIONS, and two inherited code comments were WRONG and
   are corrected in the same commit.** Every one was checked by quoting the
   primitive out of `extern/fixed`, and the two corrections were found by
-  measuring rather than by re-reading.
+  measuring rather than by re-reading. **Three of the five — (1), (3) and (5) —
+  were corrected AGAIN after the two cold reads, and (1) moved the CODE, not
+  just its comment;** each entry below says which part of the first account
+  survived.
 
-  **(1) THE RETAINED SEPARATION IS AN EXACT INTEGER HALVING, and the comment
-  that justified it stated a number that is not there.** Upstream is
-  `0.5f * linearSlop`; here it is `linearSlop / 2`, not
-  `b3FixMul( B3_FIX( 0.5f ), slop )`. The inherited comment said `b3FixMul`
-  would give raw 165 against the halving's 164 at the default slop. **MEASURED,
-  that is false:** the default slop is raw 328, which is EVEN, so the product is
-  exact and **both spellings give 164**. They diverge only on an ODD slop raw,
-  which `b3SetLengthUnitsPerMeter` can produce — at `B3_FIX( 0.1f )` units the
-  slop raw is 33 and the halving gives 16 where `b3FixMul` gives 17, because
-  `fixMul` is "Round half up, then shift out the fraction bits". The halving is
-  kept, but for EXACTNESS and not for the direction: it carries no rounding
-  policy, so it cannot move if the rounding rule ever does. The one raw unit of
-  difference leans the other way from the rest of this arm (marginally LATE, not
-  early) and the comment now says so at the site.
+  **(1) THE RETAINED SEPARATION IS `b3FixMul( B3_FIX( 0.5f ), linearSlop )`,
+  NOT an integer halving — CORRECTED 2026-10-09, carried 2026-10-16.** Upstream
+  is `0.5f * linearSlop`. This first landed as `linearSlop / 2` on an exactness
+  argument, and the exactness argument is wrong in the one direction that
+  matters: for an ODD slop raw the exact half is a half-integer, so BOTH fixed
+  spellings sit half a raw unit from it, in opposite directions. `b3FixMul`
+  rounds half UP (`fixMul`: "Round half up, then shift out the fraction bits"),
+  so it retains one raw unit MORE separation than the halving and **never less
+  than upstream** — the safe direction for a rest separation. The halving
+  retained **NOTHING AT ALL** at the bottom of the legal range: every
+  `b3SetLengthUnitsPerMeter` value from raw 100 to raw 299 gives slop raw 1,
+  where `linearSlop / 2` is 0 and `b3FixMul` is 1 (re-measured on this tree
+  2026-10-16, those exact bounds). `B3_FIX( 0.5f )` is also the house spelling
+  in this file — **seven other uses in `src/distance.c`, counted today at lines
+  762, 1205, 1833, 1848, 1865, 1980 and 2049** (the cold reads said eight, which
+  is the count including this new one). At the DEFAULT slop (raw 328, EVEN) both
+  spellings give **164**, so **no golden can move** either way — which is also
+  why the earlier record's claim that `b3FixMul` would give 165 at the default
+  slop was false, and that much of the original correction stands.
+  **THE DISCRIMINATING SUBTEST IS NEW AND IS THE REASON THIS IS NOT JUST AN
+  ARGUMENT:** `ShapeCastEncroachOddSlopRetainedTest` in `test/test_distance.c`
+  sets `b3SetLengthUnitsPerMeter( 512 )`, where slop is raw **3** (halving 1,
+  `b3FixMul` 2), and casts a raw 2 closing sweep across a raw 3 core gap: the
+  halving gives `needed` 2 against `approach` 2, so `approach <= needed` and the
+  sweep MISSES, while `b3FixMul` gives `needed` 1 and a HIT at fraction 0.5 —
+  and upstream's float retains 0.5 raw and hits at fraction 0.75, so the
+  `b3FixMul` spelling keeps upstream's hit where the halving turns it into a
+  miss. Committed RED (`condition false: closing.hit`, exit 1) and then green.
+  **The slop raw 1 bound the readers quoted is NOT itself testable at the public
+  API for a zero-radius cast:** tolerance quantizes to 0 and target is raw 1, so
+  iteration 0 is entered only at distance 0, which is the initial-overlap arm.
+  Raw 3 is the smallest odd slop the new arm can actually be driven at, and the
+  subtest restores `B3_FIX( 1.0f )` before it asserts so a failure cannot change
+  the length scale under the tests that follow.
 
   **(2) THE UNARY MINUS STAYS OUTSIDE `b3Dot`.** `b3Dot` is
   `fixFromDotRaw( fixDotRaw( ) )` — "Exact dot product accumulated at 128 bits
   ... No per-component rounding", then "a single round-half-up step (divide
   last)". Round-half-up is not odd-symmetric, so negating `delta2` before the
-  dot would be a reassociation and not a rewrite. **MEASURED:** `-b3Dot( a, n )`
-  differs from `b3Dot( -a, n )` in **6 of 200000** sampled raw triples, first at
-  -1824575 against -1824574. Same class as the `SubDot3W`/`RotDiagW` note in the
-  AVX-512 section; do not "simplify" it.
+  dot would be a reassociation and not a rewrite. **The claim is the PROPERTY,
+  not a sample count** (an earlier version of this record said "6 of 200000
+  sampled raw triples, first at -1824575 against -1824574", which nobody can
+  reproduce without the sampler that produced it): rounding half up is not
+  odd-symmetric, so `-b3Dot( a, n )` and `b3Dot( -a, n )` DO diverge — exactly
+  when the exact 128-bit dot lands on a half — and the divergence is bounded at
+  **one raw unit**. Same class as the `SubDot3W`/`RotDiagW` note in the
+  AVX-512 section; do not "simplify" it. **The code comment at the site still
+  carries the old sample count**: the cold reads asked for three comment
+  corrections and this was not one of them, so the 2026-10-16 carriage left the
+  scope where they put it and names the inconsistency here instead.
 
   **(3) THE `<=` IS LOAD BEARING, but not for the reason the comment gave.** The
   inherited comment said a strict `<` would let `approach == 0` through and
@@ -506,12 +771,22 @@ The PORT RECORDs below run newest first and are the detail for each step.
   zero divisor ("Division by zero saturates with the sign of the numerator;
   0/0 == 0"), but **that mechanism is unreachable**: `approach == 0` only falls
   through the gate when `needed <= 0`, and the `needed > 0` guard then returns
-  zero without dividing. **MEASURED: a strict `<` reaches `b3FixDiv` with
-  `approach == 0` in 0 of 801 `needed` values.** What the `<=` actually buys is
-  the exact boundary — a sweep whose approach exactly equals the free gap, and a
-  purely tangential `approach == 0` once the gap is spent, are MISSES, where a
-  strict `<` would report a hit at fraction 1.0 and at fraction 0 respectively.
-  The upstream spelling is kept; only the comment changed.
+  zero without dividing. **That is a TAUTOLOGY of the guard, not a
+  measurement** — an earlier version of this record reported it as "0 of 801
+  `needed` values", a denominator nobody can reproduce without the harness that
+  produced it; the honest denominator for the gate band at default units is
+  **656** raw values, and the count is 0 of 656 because the guard makes it 0 by
+  construction. **What the `<=` actually buys is the TANGENTIAL case** — a
+  purely tangential `approach == 0` once the gap is spent is a MISS, where a
+  strict `<` would fall through and report a hit at fraction 0. The other
+  boundary — an approach exactly equal to the free gap — is a **MISS EITHER
+  WAY** at the documented typical `maxFraction` of 1.0, so the earlier claim
+  that a strict `<` would "report a hit at fraction 1.0" there was false:
+  `b3FixDiv` of equal operands is exactly `B3_FIX( 1.0f )` (re-measured
+  2026-10-16: `b3FixDiv( 12345, 12345 )` is raw 65536), and the next guard
+  `fraction >= input->maxFraction` turns it into a miss. The two spellings
+  differ on that boundary only when `maxFraction > 1`. The upstream spelling is
+  kept; only the comment changed.
 
   **(4) `b3FixDiv` TRUNCATES TOWARD ZERO, which is the safe direction here.**
   The fraction rounds down, so the hit lands marginally EARLY and leaves
@@ -519,8 +794,11 @@ The PORT RECORDs below run newest first and are the detail for each step.
 
   **(5) THE FREE-GAP TEST IS A BARE COMPARE, NEVER A SQUARED TOLERANCE.**
   `needed > B3_FIX( 0.0f )`, per hard-won rule 7 — `b3FixMul( d, d )` is zero
-  for d below ~0.004, so a squared guard would collapse exactly in the band this
-  arm exists to handle.
+  for every d at or below **raw 181 (about 0.0028)**, the largest raw whose
+  square rounds to zero under round-half-up (re-measured on this tree
+  2026-10-16: `b3FixMul( 181, 181 )` is 0 and `b3FixMul( 182, 182 )` is 1; the
+  "~0.004" in rule 7 is the rough form), so a squared guard would collapse
+  exactly in the band this arm exists to handle.
 
   **GOLDENS: NONE MOVED, and that is MEASURED rather than argued.** A temporary
   atomic counter on the new arm (tested on every evaluation of the gate, fired
@@ -528,12 +806,36 @@ The PORT RECORDs below run newest first and are the detail for each step.
   same binary: **DistanceTest alone accounts for all of it (9 tested, 7 fired),
   while MoverTest and DeterminismTest each read 0 tested, 0 fired.** So no
   golden scene evaluates this arm even once — the null-golden claim rests on a
-  count and not on the goldens happening to hold — and the six new encroach
-  subtests plus the `canEncroach == false` control are exactly what fires it.
-  The counter was removed before the commit.
+  count and not on the goldens happening to hold — and `RecordingTest` is in
+  that zero too, by subtraction from the whole-suite 9. **The SIX ENCROACH
+  SUBTESTS are what fires it** (`MaxFraction` casts twice, so the six subtests
+  are 7 of the 9 gate evaluations and all 7 fires); **the two CONTROLS are the
+  other 2 evaluations and NEVER fire** — `ShapeCastStartTouchingDefault` has
+  `canEncroach` false, so an earlier version of this record naming it as part of
+  what fires the arm was wrong, and `ShapeCastEncroachOverlap` starts at
+  distance 0. The counter was removed before the commit. **The 2026-10-16
+  carriage adds a ninth subtest** (`ShapeCastEncroachOddSlopRetainedTest`, entry
+  (1) above) which also fires the arm, at a non-default length scale it restores
+  before it returns; the counter was not re-run for it, and the golden argument
+  does not need it to be — the subtest changes no default-scale value and the
+  full suite including `DeterminismTest` is green with every pin unchanged.
 
-  **TESTS: eight subtests in `test/test_distance.c`, committed RED first**
-  (`f464907`, red by design; the fix is `8d93714`). Six are evidence —
+  **GOLDENS, SECOND CHANNEL: recording REPLAY.** `src/recording_replay.c`
+  re-runs `b3World_CastMover` on replay and compares the returned fraction
+  (`b3RecDispatch_QueryCastMover`, `rdr->diverged` on a differing fraction), so a
+  recording captured on the pre-fix tree whose mover cast landed in this arm's
+  gate would replay as DIVERGED on this tree. Checked rather than assumed: there
+  are **no checked-in recordings** (`git ls-files | grep -icE '\.(b3rec|rec)$'`
+  is 0, re-run 2026-10-16) and `RecordingTest` evaluates the gate 0 times, so
+  nothing in this repo can diverge through that channel.
+
+  **TESTS: eight subtests in `test/test_distance.c`, committed RED first** (the
+  `RED:` commit is red by design and the `GREEN:` commit is the fix — read them
+  off the branch log rather than from a SHA here; the pair this record first
+  named, `f464907` / `8d93714`, does not resolve in a fresh clone of this repo
+  any more — the rebase onto `8f51d2d` replaced them with `973b9c5` "RED: shape
+  cast encroach band tests" / `d587d8b` "GREEN: shape cast encroach band fix",
+  checked 2026-10-16). Six are evidence —
   `ShapeCastEncroachRecede`, `Slide`, `Closing`, `Graded`, `MaxFraction`,
   `Graze` — and **two are CONTROLS and are NOT evidence of the fix**:
   `ShapeCastStartTouchingDefault` (canEncroach false keeps the old
@@ -541,12 +843,24 @@ The PORT RECORDs below run newest first and are the detail for each step.
   overlapped start still reports initial overlap, because the new arm is gated
   on a strictly positive distance). Both controls are green before and after.
   The red-then-green pair was re-run on this tree rather than inherited:
-  stashing `src/distance.c` gives exit 1 at `ShapeCastEncroachRecedeTest`,
-  restoring it gives exit 0. **The suite is `./build-port/bin/test`, NOT ctest**
-  — ctest registers nothing here and exits 0, which is a false green.
+  reverting the arm in `src/distance.c` gives exit 1 at
+  `ShapeCastEncroachRecedeTest`, restoring it gives exit 0.
+  **A NINTH SUBTEST since 2026-10-16**, `ShapeCastEncroachOddSlopRetainedTest`,
+  is the one that discriminates the two half-slop spellings; see entry (1).
+  **The suite is `./build-port/bin/test`, NOT ctest** — and the false green has
+  changed shape since the reference harness landed, measured on the sprint head
+  2026-10-16: `ctest --test-dir build-port` now runs exactly ONE registered test
+  (`RapidhashFlagGuardTest`) and prints "100% tests passed out of 1" at exit 0,
+  running none of the 352 subtests. It no longer says "No tests were found!!!",
+  which makes it a sharper false green than the record described.
 
-  **VERIFIED:** all four configs built (build-port, build-ludicrous, build-debug
-  = Debug+VALIDATE+ASan, build-samples) and all three suites run, exit 0 each;
+  **VERIFIED:** all four configs built and all three suites run, exit 0 each —
+  **build-port is `CMAKE_BUILD_TYPE=Release` + VALIDATE** (see
+  `build-port/CMakeCache.txt`; the `GREEN:` commit message calls it
+  "RelWithDebInfo + VALIDATE", which is wrong, and a commit message cannot be
+  edited after the fact — this line is the correction), build-ludicrous is
+  Release + VALIDATE + LUDICROUS_MODE, build-debug is Debug + VALIDATE + ASan,
+  build-samples is Release + VALIDATE with samples on and tests off;
   `conversion_audit.py` **clean** over all 103 TUs.
 
   **HELD, named rather than buried:**
@@ -581,12 +895,12 @@ The PORT RECORDs below run newest first and are the detail for each step.
   is float-side drift of the seed scene against the new pin, a recalibration
   follow-up.
 
-- **PORT RECORD 954cf87 "Fixes (#157)" (upstream 2026-09-16) — PORTED in ten steps on
+- **PORT RECORD 954cf87 "Fixes (#157)" (upstream 2026-09-16) — PORTED in eleven steps on
   `port/954cf87-fixes`, 2026-10-09.** 1,944 upstream insertions across 46 files. Upstream
   bundles five of its own issues (#148, #149, #153, #155, and `b3BodyDef::safetyFactor`
   for CCD tuning) into one commit, so this record is organized by HUNK GROUP rather than by
   upstream issue, and every group in the diff appears below with a disposition. Port plan:
-  **fixed3d#65**. The cursor does not move until this branch merges; see the clause above.
+  **fixed3d#65**. The cursor moved to it with the merge of fixed3d#94 (`29948ea`).
 
   **LANDED 2026-10-15 on `sprint/fixed3d-box3d-ports` (card port-954cf87-fixes-land-the-branch).**
   The branch merged onto the sprint tip (which already carries the fixed3d#67 re-rig), so the
@@ -617,11 +931,32 @@ The PORT RECORDs below run newest first and are the detail for each step.
   `ref-954cf87-*` scenes all passing and the only red `ref-f8c4fe8-shape-cast-encroach-band`
   pre-existing (float 954cf87 predates the f8c4fe8 fix), named and left out of scope.
 
-  **THE SHAPE OF THE SPLIT: six engine steps, two test steps, one compile-only step, one
-  record.** Each step built `build-port`, `build-ludicrous`, `build-debug`
+  **COLD-READ REPAIRS CARRIED 2026-10-16 (`port/cold-read-repairs-2026-10-09`).** The two
+  independent cold reads of 2026-10-09 (Opus 5 and Fable 5.1) asked for repairs that were
+  written in two scratch clones and never committed, so the branch merged WITHOUT them. They
+  are carried now, and the record corrections they asked for are folded into the text below
+  rather than appended: the step count, the tripwire gap in group 1, the corrected mechanism
+  and the refused deletion in group 2, the comment at group 6's refused site, and group 8's
+  `isMeshContact` line numbers. Opus's BLOCK finding (the `platform.h` clang-cl prefetch
+  guard, group 9) is carried as a code change with a syntax-only red; see that group. One
+  cosmetic repair with no red and no record of its own: `ReplaySafetyFactor` in
+  `test/test_recording.c` moves down beside its one caller (`AllOps`), out from between
+  `EmptyWorldRoundTrip`'s explanatory comment and `EmptyWorldRoundTrip` itself. **And one
+  claim in the 2026-10-09 repair text did NOT survive this carriage:** it said the group 1
+  tripwire's assert message named `fixed3d#66`; the message is quoted from git below and
+  does not.
+
+  **THE SHAPE OF THE SPLIT: eleven commits — seven engine steps (1-6 and 8), two test steps
+  (7 and 10), one compile-only step (9), one record (11).** Each step built `build-port`,
+  `build-ludicrous`, `build-debug`
   (Debug + VALIDATE + ASan + UBSan) and `build-samples`, and ran the three test binaries
-  reading exit codes, before the next began. The suite is `<build>/bin/test`, never ctest —
-  ctest finds no tests here and exits 0, which is a false green.
+  reading exit codes, before the next began. The suite is `<build>/bin/test`, never ctest.
+  **THE CTEST FALSE GREEN HAS A NEW SHAPE SINCE THE REFERENCE HARNESS LANDED, measured on the
+  sprint head 2026-10-16:** `ctest --test-dir build-port` no longer prints "No tests were
+  found!!!" — it now runs exactly ONE registered test (`RapidhashFlagGuardTest`) and prints
+  "100% tests passed out of 1" with exit 0, while running none of the 352 subtests in
+  `bin/test`. A bare `ctest` inside the build dir does the same. That is a sharper false
+  green than the old one, not a weaker one.
 
   **PORTED, by group:**
 
@@ -635,9 +970,49 @@ The PORT RECORDs below run newest first and are the detail for each step.
      (group E below), so core.c carries `_Static_assert( B3_MAX_MANIFOLD_POINTS == 4 )`
      naming the hold: an override fails to compile rather than silently producing a
      four-point manifold anyway. A `#ifndef` that lies at runtime is worse than no `#ifndef`.
+     The assert message NAMED the hold in prose but NOT by issue number —
+     `"B3_MAX_MANIFOLD_POINTS > 4 needs the 2D hull reduction path, which fixed3d has not
+     ported"`, read out of `git show dd189e0 -- src/core.c` rather than recalled; the
+     2026-10-09 repair text said the message carried `fixed3d#66` "so a build that trips it
+     gets the issue number and not a search", and that is the one claim in the repair this
+     carriage had to correct rather than copy. **THE TRIPWIRE HAS A GAP, said
+     here rather than discovered later** (the 2026-10-09 cold read asked for it):
+     `cmake -DB3_MAX_MANIFOLD_POINTS=8` is an UNUSED CLI
+     variable — this CMakeLists does not forward it to the compile line, exactly as upstream's
+     does not — so that spelling silently builds at 4 and the assert never saw it. The assert
+     fired only for `-DCMAKE_C_FLAGS=-DB3_MAX_MANIFOLD_POINTS=8`. CMakeLists is deliberately
+     NOT changed: forwarding it would be a fork divergence in a file the next upstream pass
+     has to merge. **PAST TENSE ON PURPOSE, measured on the sprint head 2026-10-16: the
+     `== 4` tripwire IS GONE.** The hull2d card lifted fixed3d#66 and left
+     `_Static_assert( B3_MAX_MANIFOLD_POINTS >= 4 )` at `src/core.c:51`, which is correct now
+     that the `> 4` reduction path exists. The CMake half of the gap SURVIVES the lift and is
+     still true today (`grep -n MAX_MANIFOLD CMakeLists.txt src/CMakeLists.txt` is empty), so
+     a `cmake -DB3_MAX_MANIFOLD_POINTS=8` still builds at 4 and says nothing.
   2. **Stale trees are rebuilt when the move buffer empties** (`c9ff442`, upstream #149),
      `src/broad_phase.c` plus `b3ValidateNoEnlarged( &world->broadPhase )` after the user
-     tree task in `b3World_Step`.
+     tree task in `b3World_Step`. **THE GOLDENS HELD, AND THE MECHANISM `c9ff442`'s COMMIT
+     MESSAGE GAVE FOR IT IS WRONG; corrected here after the 2026-10-09 cold read.** That
+     message said a rebuild "changes query performance and nothing else; pair creation still
+     runs in `moveArray` order". It does not: within one moved proxy, contacts are created in
+     PAIR-LIST order, which is tree-traversal order, and QuerySpawn hashes overlap-callback
+     order, so a reordered tree IS observable in principle. The reason the goldens held, as
+     the reader measured it with an instrumented build on the port branch (attributed rather
+     than re-measured here), is that the new branch never runs in a state where it can reorder
+     anything: the empty-move branch is reached on every empty-move step but NEVER with an
+     enlarged node present (counters — ragdoll 61 empty-move steps / 0 enlarged, wave pile
+     85 / 0, query spawn 112 / 0, mesh drop 55 / 0, spherical 18 / 0; control WorldTest 1),
+     and with no enlarged root `b3DynamicTree_Rebuild` collects the root as its single leaf
+     and `b3BuildTree( tree, 1 )` returns it — a structural no-op.
+     **REFUSED DELETION, recorded so the next pass does not meet an unported hunk with no
+     reason:** upstream also DELETES the `b3ValidateNoEnlarged` call in `b3Solve`'s
+     no-awake-bodies early return; this branch KEEPS it. Upstream deletes because THEIRS ran
+     before the tree task was joined, so Debug success depended on which thread won. This tree
+     fixed that separately and the site already joins the task first — the comment there says
+     so — which makes ours a strictly earlier, strictly stronger validation-only check on a
+     tree that has been rebuilt. The new `b3World_Step` site is added BESIDE it, not instead
+     of it. Measured on the sprint head 2026-10-16: all three calls stand,
+     `src/physics_world.c:1156` (the new site) and `src/solver.c:1531` and `:2263` (the kept
+     ones; the record said "around line 1506" before the sprint branch moved them).
   3. **A joint born with `collideConnected` false clears existing contacts** (`d06d28f`,
      upstream #117), `src/joint.c`.
   4. **Moving a center of mass invalidates the cached contact manifolds** (`92fdd41`,
@@ -657,7 +1032,10 @@ The PORT RECORDs below run newest first and are the detail for each step.
      `b3CompoundShapeCastCallback`. Both helpers are on this tree's deliberately-NOT-fused
      list, so they round differently in Q48.16 and the shape cast fraction can differ by a
      quantum. Value-identical in exact arithmetic, not value-identical here, so the site is
-     left alone. Test: `OverlapCompoundRotatedBody` in BodyQueryTest.
+     left alone — and since the 2026-10-16 carriage, after the cold read asked for it, the
+     site CARRIES A COMMENT saying so (`src/compound.c`, `b3CompoundShapeCastCallback`), so
+     the refusal is legible from the code and not only from here. Test:
+     `OverlapCompoundRotatedBody` in BodyQueryTest.
   7. **GROUP C — `test/test_determinism.c` grows a run-to-run reference** (`a850a93`).
      `DeterminismResult`, `EnsureRepeatable( reference, result )`, and `ENSURE_GOLDEN`
      (a plain `ENSURE` at `B3_MAX_MANIFOLD_POINTS == 4`, a no-op otherwise), with a
@@ -675,7 +1053,8 @@ The PORT RECORDs below run newest first and are the detail for each step.
      `src/physics_world.c`). One hunk:
      `( isFast == false || isMeshContact == false )` becomes `isFast == false` in
      `b3CollideTask`, and the orphaned `isMeshContact` local goes with it (`git grep`
-     confirmed line 628 was its only reader in that function; the one near line 1026 feeding
+     confirmed its only reader in that function was old line 666, the recycling condition
+     itself; old line 628 was its DECLARATION, and the `isMeshContact` near line 1026 feeding
      `b3RemoveContactFromGraph` is a different function and stays). Meaning: a body on the
      continuous path never recycles a manifold cached before a sweep, mesh or not. FIXED-POINT
      DECISION: **none, and that is a statement rather than an omission** — the hunk is a
@@ -690,7 +1069,33 @@ The PORT RECORDs below run newest first and are the detail for each step.
      repo's windows CI legs. Two things recorded rather than tidied: clang-cl now takes the
      MSVC arm (it defines both `__clang__` and `_MSC_VER`, and the new spelling tests
      `_MSC_VER` first), which is upstream's choice and the first suspect for a windows CI
-     failure; and `B3_CPU_X86_X64`, `B3_COMPILER_CLANG` and `B3_COMPILER_GCC` are now
+     failure — **AND IT WAS THE DEFECT; REPAIRED 2026-10-16, Opus 5's BLOCK finding of
+     2026-10-09 carried onto the sprint branch.** clang-cl is this repo's ONLY Windows
+     toolchain, so "upstream's choice" was not a defensible one here: it took the MSVC arm,
+     included `<intrin0.h>`, and then expanded `b3Prefetch` to
+     `_mm_prefetch( ..., _MM_HINT_T0 )`, which that header does not provide. All three MSVC
+     arms now read `#if defined( _MSC_VER ) && !defined( __clang__ )`, the spelling
+     `src/core.h`, `src/ctz.h`, `extern/fixed/include/fixed/fixed.h` and
+     `extern/fixed/include/fixed/fixed_int128.h` already used, and clang-cl keeps
+     `__builtin_prefetch`. **A RED DOES RUN ON THIS BENCH, which is the part the original
+     commit got wrong:** a syntax-only control at the clang-cl target discriminates —
+     `clang --target=x86_64-pc-windows-msvc -fsyntax-only -Iinclude -Iextern/fixed/include
+     -Isrc -isystem <dir with an empty assert.h>` over a TU that includes `platform.h` and
+     expands `b3Prefetch` gives `error: use of undeclared identifier '_MM_HINT_T0'` before
+     the fix and exits 0 after it. The empty `assert.h` stub is needed because the MSVC
+     target has no libc on a Mac; `<intrin0.h>` resolves to clang's own resource-dir copy,
+     so the red is the missing `_MM_HINT_T0` rather than the "file not found" a Windows box
+     gives. **AND A FOURTH DEFECT OF THE SAME FAMILY, found by CI and not by a reader
+     (landing PR #94, leg windows-relwithdebinfo, run 38866007030): `src/core.h`'s
+     `b3AtomicFetchAddI64` called `_InterlockedExchangeAdd64` under a bare
+     `#if defined( _MSC_VER )` with no `<intrin.h>` in that header.** It is not from this
+     upstream commit at all — it arrived on the sprint branch in `3b2344c` (the perf
+     harness, `b3AtomicI64`), which is why main is green on Windows — and it is repaired
+     in the same carriage with the same guard the neighboring `b3AtomicLoadI64` already
+     used, red-first off the same control
+     (`error: call to undeclared library function '_InterlockedExchangeAdd64'`). The lesson
+     for the next pass is the family, not the line: on this fork `_MSC_VER` alone is never
+     the right guard for an MSVC intrinsic. Also: `B3_CPU_X86_X64`, `B3_COMPILER_CLANG` and `B3_COMPILER_GCC` are now
      defined and never read (`B3_COMPILER_MSVC` survives in `src/core.c:4`). Upstream leaves
      all three standing in core.h and so does this port — they are the library's documented
      platform vocabulary and deleting them would be a fork divergence in a file the next
@@ -807,7 +1212,7 @@ The PORT RECORDs below run newest first and are the detail for each step.
     no simulation content, so it does not gate the cursor. No new issue is filed, by that
     practice.
 
-  **VERIFIED:** four configs green after every one of the ten commits, exit codes read from
+  **VERIFIED:** four configs green after every one of the eleven commits, exit codes read from
   the test binary and not from ctest. On the branch head: `build-port` build 0 / test 0,
   `build-ludicrous` build 0 / test 0 (278 subtests, seven more than before group D),
   `build-debug` build 0 / test 0 at ~75 s, `build-samples` build 0.
@@ -1901,17 +2306,17 @@ The PORT RECORDs below run newest first and are the detail for each step.
 
 ## Repository and remotes (IMPORTANT)
 
-- This checkout (`/Users/glenn/fixed3d`) maps to **github.com/mas-bandwidth/fixed3d**
+- This checkout (`<checkout>`) maps to **github.com/mas-bandwidth/fixed3d**
   (`origin`, push target; main tracks it). `upstream` is erincatto/box3d,
   fetch-only, with its push URL set to the invalid `DO-NOT-PUSH-TO-UPSTREAM` as a
   guard. NEVER push to Erin's repo. Glenn sometimes edits the README in the GitHub
   web UI — pull/merge before pushing if the remote is ahead.
-- **TWO TREES WARNING**: `/Users/glenn/box3d` is a separate stale clone (its
+- **TWO TREES WARNING**: `<old-box3d-clone>` is a separate stale clone (its
   history was fetched into this repo long ago). `build-fixed/` and `build-ast/`
   dirs here were copied from it and their build.ninja files hold ABSOLUTE paths
-  into /Users/glenn/box3d — building them compiles the WRONG tree. Use
+  into <old-box3d-clone> — building them compiles the WRONG tree. Use
   `build-fixed2/` (fresh configure). If a build behaves impossibly, check
-  `grep -m1 /Users/glenn build*/build.ninja` FIRST.
+  `grep -m1 <old-box3d-clone> build*/build.ninja` FIRST.
 
 Session-3 performance work (all on top of 98b9889's fixed.h fast paths):
 
@@ -2446,7 +2851,7 @@ new sample code — keep them clean.
 - **b3Log** now has the printf format attribute — mismatches used to be
   invisible to -Wformat (rule 9). All call sites were already correct; now the
   compiler enforces it.
-- **ast_audit.py** had a hardcoded /Users/glenn/box3d root, so every earlier
+- **ast_audit.py** had a hardcoded <old-box3d-clone> root, so every earlier
   "clean" audit ran against the WRONG tree's compile database. Root is now
   derived from the script path; the first honest audit of this tree is clean.
 - Checked clean: height-field grid indexing (floor-then-trunc matches float),
@@ -2454,6 +2859,60 @@ new sample code — keep them clean.
   Debug+VALIDATE+sanitizers (10-step smoke, NDEBUG gates full step counts).
 
 ## Known leftovers / follow-ups
+
+- **79fc559 restitution port (2026-10-15):** The world definition now owns
+  `restitutionIterations`; its default is 2, matching upstream 79fc559. The
+  restored post-solve stage uses raw-128 normal-speed products and a gated
+  kinetic cap, with scalar and wide lanes sharing the same fixed-point rules.
+  Snapshot wire version 5 preserves the version-3 `safetyFactor` and version-4
+  compound layouts and adds the restitution setting; recording minor 8 follows
+  the broad-phase card's reserved minor 7. Version-3 and version-4 snapshots
+  are refused by the existing exact-version policy. The 79fc559 bounce and pile
+  reference scenes pin two sweeps in both engines. Glenn retained fixed3d's
+  speculative sphere contacts through radius plus 0.02 m; upstream 79fc559
+  creates them only at radius. At step 38 the center gap is 1.018494 m fixed
+  versus 1.019231 m float. At step 39 fixed3d has a sphere manifold with
+  separation +0.018494 and a bounce, while float has no contact yet. The
+  pile reference therefore compares the first bounce apex of the top sphere
+  and the exact final per-body awake set, preserving the distinct contact
+  phase. Its Linux-measured apex difference is 0.00027418 m, so its bound is
+  twice that difference; the bounce reference keeps its per-step trace gate.
+  The pile bodies have sleep enabled so the awake set is an outcome: the pile
+  sleeps at step 76 fixed and step 80 float, both final sets are 0x0 at step
+  100, and keeping one sphere awake in the fixed run alone fails the gate
+  (0x1110 vs 0x0). An all-nosleep pile would make the set fixed by setup.
+  The restitution stage now rebuilds inverse inertia in the body's orientation
+  after position substeps, including scalar and wide mesh paths. A spinning
+  thin-box contact pins the prior one-step normalized energy rise of 1.16145
+  to 1.57017 against the corrected rise of 1.10727 to 1.15106.
+  Six upstream restitution-battery subtests already
+  fail on clean fixed3d BASE. After the restored stage (and the current-frame
+  inertia fix) two of them -- DropTest and SingleBoxTest, both e=1 elastic
+  energy-conservation measurements -- now pass and are regular RUN_MEASUREMENT
+  subtests; the four that still fail (Resting, Overshoot, Energy, Impulse) were
+  XFAIL individually. A hard
+  default-elastic-energy comparison against BASE remains in the suite so the
+  configured default cannot silently regress while that floor is repaired.
+
+- **`fixed3d-energy-floor-matches-upstream` (2026-10-15): three of the four marks were one
+  accounting bug, not an energy floor.** The merged `b3SolveContacts_*` runs twice per substep
+  (soft push with `useBias`, then relax); both passes added the applied impulse to
+  `totalNormalImpulse`, while upstream 79fc559 accumulates it only in the no-bias solve (its
+  `b3PushContacts` does not). The step's reported impulse was doubled (resting ball 0.178 vs
+  weight 0.087; drop impact 5.94 vs 2.44) and the restitution stage's compression budget
+  `totalNormalImpulse - restitutionImpulse` was twice too loose, so e=1 gained speed. All three
+  paths (scalar mesh, wide convex, wide mesh) now accumulate only when `useBias == false`.
+  Measured before -> after: ImpulseTest worst step error 3.5-15.5 -> 1.5e-5; OvershootTest
+  discrete speed ratio 1.0003 -> 0.9843 (upstream 0.9825) and 1 -> 2 bounces; e=1 EnergyTest
+  peaks tall-flat-friction 1.01465 and narrow-flat-frictionless 1.01386 -> 1.00000. The e=0 peaks
+  the card quoted (1.01412, 1.02509) were already 1.00000 at BASE `adfd29a`, repaired by the
+  restitution card's current-frame inertia. Determinism goldens unchanged. RestingTest is NOT this
+  bug: it stays XFAIL, now naming `fixed3d-orientation-integration-deadband`. Its cause is that
+  one-substep rotation increments (about 1.3 quaternion quanta at 0.01 rad/s) round away in
+  `b3IntegrateRotation`, so box tilt below about 4e-4 rad never levels; tilted face normals then
+  push the 10-box stack along the frictionless ground (mixed friction is 0) at 0.046-0.061 m/s
+  against upstream's 0.00002. Fewer substeps shrinks it (1: 0.024, 2: 0.013, 4: 0.061, 8: 0.078).
+  The repair needs a persistent sub-quantum rotation residual in `b3BodyState` (`body.h`).
 
 - ~~Quickhull iteration guard~~ DONE (bug-hunt pass): the builder has a
   `failed` flag, bounded ring walks in ConnectFaces/merge loops, release-safe

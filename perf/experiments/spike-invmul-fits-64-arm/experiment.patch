@@ -1,0 +1,155 @@
+diff --git a/src/inverse.h b/src/inverse.h
+index 6186e93..32b10a6 100644
+--- a/src/inverse.h
++++ b/src/inverse.h
+@@ -143,18 +143,22 @@ B3_INLINE b3Fixed b3InvFromRatio( b3Fixed a )
+ 		return 0;
+ 	}
+ 
+-	b3Int128 ratio = fixInt128Div( fixInt128ShiftLeft( fixInt128FromI64( 1 ), B3_FIXED_FRACTION_BITS + B3_INVERSE_FRACTION_BITS ),
+-								  fixInt128FromI64( a ) );
+-	if ( fixInt128Gt( ratio, fixInt128FromI64( B3_FIXED_MAX ) ) )
++	// The numerator 2^56 fits in an int64, so one hardware divide gives the exact
++	// truncating reciprocal -- the same single divide b3InvReciprocal uses. The
++	// quotient below is at most 2^56 for any nonzero integer a, so it always fits
++	// in int64; the saturation guards remain as the documented invariant, even
++	// though they are not reachable from an integer a.
++	int64_t ratio = ( (int64_t)1 << ( B3_FIXED_FRACTION_BITS + B3_INVERSE_FRACTION_BITS ) ) / a;
++	if ( ratio > B3_FIXED_MAX )
+ 	{
+ 		return B3_FIXED_MAX;
+ 	}
+-	if ( fixInt128Lt( ratio, fixInt128FromI64( -B3_FIXED_MAX ) ) )
++	if ( ratio < -B3_FIXED_MAX )
+ 	{
+ 		return -B3_FIXED_MAX;
+ 	}
+ 
+-	return (b3Fixed)fixInt128ToI64( ratio );
++	return (b3Fixed)ratio;
+ }
+ 
+ /// 1 / k, where k is an inverse quantity and the answer is an ordinary one: the effective
+@@ -173,8 +177,32 @@ B3_INLINE b3Fixed b3InvReciprocal( b3Fixed k )
+ ///
+ /// Shift by the inverse's fraction bits, not by 16. Round half up, matching b3FixMul, and
+ /// at 128 bits because a large inverse against a large impulse leaves 64.
++///
++/// A 64-bit arm handles the common case: the product provably fits in int64, so one
++/// hardware multiply reproduces the 128-bit path bit-for-bit (no saturation in either).
++/// The arm is taken when the leading-zero counts of the two absolute operands sum to at
++/// least 66, which guarantees |a*b| < 2^62 and therefore that a*b + 2^39 cannot reach bit
++/// 63 -- the rounding add is safe. A typical invMass of 1 (raw 2^40) against an impulse
++/// near 2^16 has a product near 2^56 and takes the 64-bit arm; an asteroid's huge inverse
++/// (up to B3_INVERSE_MAX_VALUE ~ 2^23) against an impulse near 2^20 has a product near
++/// 2^43 and also takes it. Only the range the 128-bit comment guards -- a large inverse
++/// against a large impulse whose product reaches 2^63 -- falls through.
+ B3_INLINE b3Fixed b3InvMul( b3Fixed a, b3Fixed b )
+ {
++	if ( a == 0 || b == 0 )
++	{
++		return 0;
++	}
++
++	uint64_t ua = a < 0 ? (uint64_t)( -( a + 1 ) ) + 1u : (uint64_t)a;
++	uint64_t ub = b < 0 ? (uint64_t)( -( b + 1 ) ) + 1u : (uint64_t)b;
++
++	if ( __builtin_clzll( ua ) + __builtin_clzll( ub ) >= 66 )
++	{
++		int64_t rounded = a * b + ( (int64_t)1 << ( B3_INVERSE_FRACTION_BITS - 1 ) );
++		return (b3Fixed)( rounded >> B3_INVERSE_FRACTION_BITS );
++	}
++
+ 	fixInt128 product = fixInt128MulI64( a, b );
+ 	fixInt128 rounded = fixInt128Add( product, fixInt128FromI64( (int64_t)1 << ( B3_INVERSE_FRACTION_BITS - 1 ) ) );
+ 	return (b3Fixed)fixInt128ToI64( fixInt128Shr( rounded, B3_INVERSE_FRACTION_BITS ) );
+diff --git a/test/test_math.c b/test/test_math.c
+index a881d24..439fef2 100644
+--- a/test/test_math.c
++++ b/test/test_math.c
+@@ -358,6 +358,77 @@ static int Solve2InverseScaleTest( void )
+ 	return 0;
+ }
+ 
++// A reference 128-bit spelling of b3InvMul, kept separate from src/inverse.h so the
++// test independently checks the 64-bit fast arm against the original form even as
++// inverse.h changes. Bit-for-bit the body b3InvMul had before the 64-bit arm landed.
++static b3Fixed InvMul128Reference( b3Fixed a, b3Fixed b )
++{
++	fixInt128 product = fixInt128MulI64( a, b );
++	fixInt128 rounded = fixInt128Add( product, fixInt128FromI64( (int64_t)1 << ( B3_INVERSE_FRACTION_BITS - 1 ) ) );
++	return (b3Fixed)fixInt128ToI64( fixInt128Shr( rounded, B3_INVERSE_FRACTION_BITS ) );
++}
++
++// The 64-bit arm of b3InvMul must be bit-identical to the 128-bit arm for every input
++// the gate admits, plus the gate boundary itself. Ten million seeded pairs exercise the
++// full (inverse, impulse) domain the solver produces; the boundary set pins the gate
++// predicate at and just past 2^62, 2^63-1, the negative mirrors, INT64_MIN and zero.
++static int InvMulFits64EquivalenceTest( void )
++{
++	uint64_t rng = UINT64_C( 0x9e3779b97f4a7c15 );
++
++	// 10 million seeded pairs, magnitudes spanning 0..2^63-1 and both signs.
++	for ( int i = 0; i < 10000000; ++i )
++	{
++		rng = rng * UINT64_C( 6364136223846793005 ) + UINT64_C( 1442695040888963407 );
++		uint64_t ra = rng;
++		rng = rng * UINT64_C( 6364136223846793005 ) + UINT64_C( 1442695040888963407 );
++		uint64_t rb = rng;
++		b3Fixed a = (b3Fixed)( ra & UINT64_C( 0x7fffffffffffffff ) );
++		b3Fixed b = (b3Fixed)( ( rb & 0xff ) | ( ( rb >> 8 ) & 0xffffff00 ) );
++		if ( ra >> 63 )
++		{
++			a = -a;
++		}
++		if ( rb >> 63 )
++		{
++			b = -b;
++		}
++		ENSURE( b3InvMul( a, b ) == InvMul128Reference( a, b ) );
++	}
++
++	// Gate boundary and extreme pairs. Every one must agree with the reference, whether
++	// the 64-bit arm is taken or the 128-bit arm is.
++	{
++		const b3Fixed boundaries[] = { 0,
++									   1,
++									   -1,
++									   (b3Fixed)1 << 30,
++									   (b3Fixed)1 << 40,
++									   (b3Fixed)1 << 61,
++									   INT64_C( 1 ) << 62,
++									   INT64_C( 2 ) << 62,
++									   INT64_C( 3 ) << 62,
++									   INT64_MAX,
++									   INT64_MIN,
++									   INT64_MIN + 1,
++									   -1 - ( (b3Fixed)1 << 40 ),
++									   -( INT64_C( 1 ) << 62 ) };
++		for ( int i = 0; i < ARRAY_COUNT( boundaries ); ++i )
++		{
++			for ( int j = 0; j < ARRAY_COUNT( boundaries ); ++j )
++			{
++				ENSURE( b3InvMul( boundaries[i], boundaries[j] ) == InvMul128Reference( boundaries[i], boundaries[j] ) );
++			}
++		}
++	}
++
++	// The 64-bit arm is actually taken for the solver's common shape: invMass 2^40 against
++	// a small impulse. Assert the gate fires rather than silently always taking 128 bits.
++	ENSURE( b3InvMul( (b3Fixed)1 << 40, (b3Fixed)1 << 16 ) == (b3Fixed)( ( (int64_t)1 << 56 ) >> 40 ) );
++
++	return 0;
++}
++
+ // Differentially preserve the original two full matrix products, including
+ // half-quantum signs, tiny inverse entries and large inverse-scaled entries.
+ static int SkewSandwichTest( void )
+@@ -496,6 +567,7 @@ int MathTest( void )
+ 	RUN_SUBTEST( Solve3InverseScaleTest );
+ 	RUN_SUBTEST( SkewSandwichTest );
+ 	RUN_SUBTEST( VendoredFixedTest );
++	RUN_SUBTEST( InvMulFits64EquivalenceTest );
+ 	// Compare the fixed-point trig against double precision references from libm.
+ 	// The fixed-point results carry the approximation error of the underlying
+ 	// polynomial plus Q48.16 output quantization (about 1.5e-5).

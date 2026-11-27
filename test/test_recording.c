@@ -969,22 +969,6 @@ static int TaggedQuery( void )
 // Empty world: recording starts with no bodies and none are ever created. The empty world is still
 // seed-serialized like any other, so replay validates and Restart restores in place with a stable
 // world id rather than tearing down and rebuilding the world.
-// Safety factor of the named body in a replay world, or -1 if the body is not in the list
-static b3Fixed ReplaySafetyFactor( b3RecPlayer* player, const char* name )
-{
-	int count = b3RecPlayer_GetBodyCount( player );
-	for ( int i = 0; i < count; ++i )
-	{
-		b3BodyId bodyId = b3RecPlayer_GetBodyId( player, i );
-		if ( b3Body_IsValid( bodyId ) && strcmp( b3Body_GetName( bodyId ), name ) == 0 )
-		{
-			return b3Body_GetSafetyFactor( bodyId );
-		}
-	}
-
-	return -B3_FIX( 1.0f );
-}
-
 static int EmptyWorldRoundTrip( void )
 {
 	b3Recording* rec = b3CreateRecording( 0 );
@@ -1047,6 +1031,59 @@ static int EmptyWorldRoundTrip( void )
 	b3DestroyPlayer( player );
 	b3DestroyRecording( rec );
 	return 0;
+}
+
+// Snapshot v3 has the safety-factor layout, v4 adds pointer-free compound geometry,
+// v5 adds the restitution settings and v6 the local inertia on the body sim. None has the
+// paired broad-phase tree (box3d f555ee4). Exact-version refusal prevents any older layout
+// from being read as v7.
+static int PreviousSnapshotVersionRefused( void )
+{
+	b3Recording* rec = b3CreateRecording( 0 );
+	ENSURE( rec != NULL );
+	b3WorldDef worldDef = b3DefaultWorldDef();
+	b3WorldId worldId = b3CreateWorld( &worldDef );
+	b3World_StartRecording( worldId, rec );
+	b3World_StopRecording( worldId );
+	b3DestroyWorld( worldId );
+
+	const uint8_t* data = b3Recording_GetData( rec );
+	int size = b3Recording_GetSize( rec );
+	ENSURE( size >= (int)sizeof( b3RecHeader ) + 8 );
+	uint32_t version = 0;
+	memcpy( &version, data + sizeof( b3RecHeader ) + 4, sizeof( version ) );
+	ENSURE( version == 7u );
+
+	b3RecPlayer* current = b3CreatePlayer( data, size, 1 );
+	ENSURE( current != NULL );
+	b3DestroyPlayer( current );
+
+	uint8_t* old = (uint8_t*)b3Alloc( (size_t)size );
+	memcpy( old, data, (size_t)size );
+	for ( version = 3u; version <= 6u; ++version )
+	{
+		memcpy( old + sizeof( b3RecHeader ) + 4, &version, sizeof( version ) );
+		ENSURE( b3CreatePlayer( old, size, 1 ) == NULL );
+	}
+	b3Free( old, (size_t)size );
+	b3DestroyRecording( rec );
+	return 0;
+}
+
+// Safety factor of the named body in a replay world, or -1 if the body is not in the list
+static b3Fixed ReplaySafetyFactor( b3RecPlayer* player, const char* name )
+{
+	int count = b3RecPlayer_GetBodyCount( player );
+	for ( int i = 0; i < count; ++i )
+	{
+		b3BodyId bodyId = b3RecPlayer_GetBodyId( player, i );
+		if ( b3Body_IsValid( bodyId ) && strcmp( b3Body_GetName( bodyId ), name ) == 0 )
+		{
+			return b3Body_GetSafetyFactor( bodyId );
+		}
+	}
+
+	return -B3_FIX( 1.0f );
 }
 
 // Exercise every recorded op in a single session, then validate replay at two worker
@@ -1459,6 +1496,45 @@ static int AllOps( void )
 	b3ParallelJoint_SetSpringDampingRatio( parallelId, B3_FIX( 0.5f ) );
 	b3ParallelJoint_SetMaxTorque( parallelId, B3_FIX( 20.0f ) );
 
+	// Dynamic mover: a rotation locked capsule driven by a mover joint and held up by a pogo joint
+	b3BodyDef moverBodyDef = b3DefaultBodyDef();
+	moverBodyDef.type = b3_dynamicBody;
+	moverBodyDef.position = (b3Pos){ -B3_FIX( 20.0f ), B3_FIX( 3.0f ), B3_FIX( 0.0f ) };
+	moverBodyDef.motionLocks = (b3MotionLocks){ .angularX = true, .angularY = true, .angularZ = true };
+	b3BodyId moverBodyId = b3CreateBody( worldId, &moverBodyDef );
+	b3ShapeDef moverShapeDef = b3DefaultShapeDef();
+	moverShapeDef.density = B3_FIX( 1.0f );
+	moverShapeDef.baseMaterial.friction = B3_FIX( 0.0f );
+	b3Capsule moverCapsule = { { B3_FIX( 0.0f ), -B3_FIX( 0.5f ), B3_FIX( 0.0f ) }, { B3_FIX( 0.0f ), B3_FIX( 0.5f ), B3_FIX( 0.0f ) }, B3_FIX( 0.3f ) };
+	b3CreateCapsuleShape( moverBodyId, &moverShapeDef, &moverCapsule );
+
+	b3MoverJointDef moverDef = b3DefaultMoverJointDef();
+	moverDef.base.bodyIdA = groundId;
+	moverDef.base.bodyIdB = moverBodyId;
+	moverDef.base.collideConnected = true;
+	moverDef.linearVelocity = (b3Vec3){ B3_FIX( 1.0f ), B3_FIX( 0.0f ), B3_FIX( 0.5f ) };
+	moverDef.maxForce = B3_FIX( 0.5f );
+	b3JointId moverJointId = b3CreateMoverJoint( worldId, &moverDef );
+
+	b3PogoJointDef pogoDef = b3DefaultPogoJointDef();
+	pogoDef.base.bodyIdA = groundId;
+	pogoDef.base.bodyIdB = moverBodyId;
+	pogoDef.base.localFrameA.p = (b3Vec3){ -B3_FIX( 20.0f ), B3_FIX( 1.0f ), B3_FIX( 0.0f ) };
+	pogoDef.base.localFrameB.p = moverCapsule.center1;
+	pogoDef.base.collideConnected = true;
+	pogoDef.restLength = B3_FIX( 1.0f );
+	pogoDef.hertz = B3_FIX( 5.0f );
+	pogoDef.dampingRatio = B3_FIX( 0.8f );
+	pogoDef.maxCompressionForce = B3_FIX( 1000.0f );
+	pogoDef.maxTensionForce = B3_FIX( 1000.0f );
+	b3JointId pogoJointId = b3CreatePogoJoint( worldId, &pogoDef );
+	b3PogoJoint_SetRestLength( pogoJointId, B3_FIX( 0.9f ) );
+	b3PogoJoint_SetSpringHertz( pogoJointId, B3_FIX( 4.0f ) );
+	b3PogoJoint_SetSpringDampingRatio( pogoJointId, B3_FIX( 0.7f ) );
+	b3PogoJoint_SetNormal( pogoJointId, b3Normalize( (b3Vec3){ B3_FIX( 0.2f ), B3_FIX( 1.0f ), B3_FIX( 0.0f ) } ) );
+	b3PogoJoint_SetMaxTensionForce( pogoJointId, B3_FIX( 800.0f ) );
+	b3PogoJoint_SetMaxCompressionForce( pogoJointId, B3_FIX( 900.0f ) );
+
 	// World config mutators
 	b3World_SetGravity( worldId, (b3Vec3){ B3_FIX( 0.0f ), -B3_FIX( 9.8f ), B3_FIX( 0.0f ) } );
 	b3World_EnableSleeping( worldId, true );
@@ -1505,6 +1581,19 @@ static int AllOps( void )
 			b3Body_ApplyLinearImpulseToCenter( capsuleBodyId, (b3Vec3){ B3_FIX( 2.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, true );
 			b3Body_SetGravityScale( bodyId, B3_FIX( 1.0f ) );
 			b3Body_SetSafetyFactor( fastId, B3_FIX( 0.4f ) );
+			b3MoverJoint_SetMaxVelocityForce( moverJointId, B3_FIX( 60.0f ) );
+		}
+
+		// The dynamic mover rebuilds its pogo every step, warm started from the old one
+		if ( i >= 6 )
+		{
+			pogoDef.impulse = b3PogoJoint_GetImpulse( pogoJointId );
+			pogoDef.velocity = b3PogoJoint_GetCurrentSpeed( pogoJointId );
+			pogoDef.base.localFrameA.p = b3Body_GetLocalPoint( groundId, b3Body_GetPosition( moverBodyId ) );
+			pogoDef.base.localFrameA.p.y = B3_FIX( 1.0f );
+			b3DestroyJoint( pogoJointId, false );
+			pogoJointId = b3CreatePogoJoint( worldId, &pogoDef );
+			b3MoverJoint_SetLinearVelocity( moverJointId, (b3Vec3){ -B3_FIX( 0.5f ), B3_FIX( 0.0f ), B3_FIX( 1.0f ) } );
 		}
 
 		// Issue queries mid-loop to exercise recording across steps
@@ -2503,6 +2592,7 @@ int RecordingTest( void )
 	RUN_SUBTEST( HullMeshSwapReplay );
 	RUN_SUBTEST( SphereRoundTrip );
 	RUN_SUBTEST( EmptyWorldRoundTrip );
+	RUN_SUBTEST( PreviousSnapshotVersionRefused );
 	RUN_SUBTEST( HullDedup );
 	RUN_SUBTEST( MidStreamNoContacts );
 	RUN_SUBTEST( MidStreamContacts );

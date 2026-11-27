@@ -1,0 +1,32 @@
+# raw measurement output — spike-hull-support-query-local-staging
+
+## cpu_info (the perf harness tools/perf/ is absent at BASE; re-derived here)
+arch: x86_64
+cpu model: AMD EPYC 9124 16-Core Processor (Zen 4)
+ISA flags (gcc -march=native -dM -E): __AVX2__ __AVX512DQ__ __AVX512F__ __AVX512VL__ __SSE2__
+taskset -cp $$: pid 197164's current affinity list: 0-31
+compilers: gcc (Ubuntu 15.2.0-16ubuntu1) 15.2.0; clang Ubuntu 21.1.8
+cmake 4.2.3; no 'perf' binary on this box
+
+## load average (before/after)
+before:  07:22:37 up 28 days, 7:46, load average: 1.19, 1.69, 1.75
+after :  07:23:19 up 28 days, 7:47, load average: 1.81, 1.80, 1.79
+pgrep -af benchmark: no other benchmark binary running (only this session's harness)
+
+
+## ab.sh tables (BOX3D_AVX512, 4 workers, -t=4, -r=2, min of 2; RelWithDebInfo+LTO)
+# NOTE: not interleaved and only 2 repeats (harness absent, 40-min wall). NEON
+# (Apple silicon) could not be measured on this Linux box.
+convex_pile   before: 13461.9 / 13533.8  ->  after: 13087.9 / 13039.4   (after -3.1% on min)
+junkyard      before: 19379.3 / 19378.1  ->  after: 19174.8 / 19245.9   (after -1.0% on min)
+large_pyramid before:  4322.79 / 4334.12 ->  after:  4416.55 / 4362.11  (after +0.9% on min)
+
+## oracle_check equivalent (tools/perf/oracle_check.sh absent at BASE)
+# ./bin/test is green (scalar build AND AVX512 build); DeterminismTest goldens
+# hold bit-identical. The AVX512 build has ONE pre-existing failure unrelated to
+# this card (AllocatorWidenedSignatureTest, B3_ALIGNMENT=32 vs test's alignment
+# check; reproduced identically at BASE a6dbe4c).
+scalar ./bin/test: exit 0, "All Fixed3D tests passed!", 4.63 s
+avx512 ./bin/test HullTest: "All Fixed3D tests passed!"  (staged==existing, incl. exact ties)
+avx512 ./bin/test DeterminismTest: "All Fixed3D tests passed!"  (goldens bit-identical)
+avx512 ./bin/test AllocatorTest: pre-existing FAIL at BASE and HEAD (badAlignment)

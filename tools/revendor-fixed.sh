@@ -18,10 +18,11 @@
 set -euo pipefail
 
 FIXED_REPO="https://github.com/mas-bandwidth/fixed.git"
-# Tested numerical repairs and exact-math optimizations from fixed PR #28.
+# fixed main after #66: unsigned negation spelled 0 - x (bit-identical) and the Windows
+# fixInt128Div quotient negated as 0 - q; FIX_SATURATE (#59-#62) as before.
 # This is an unreleased snapshot, pinned by immutable commit rather than a branch.
-FIXED_PIN="2f1ed913374ab047c061c66f5be737715f7d87b5"
-FIXED_VERSION="unreleased-2f1ed91"
+FIXED_PIN="8dda4fcdae38a7fde0a63bd9ba8edc3f2f75ad1c"
+FIXED_VERSION="unreleased-8dda4fc"
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DEST="$ROOT/extern/fixed"

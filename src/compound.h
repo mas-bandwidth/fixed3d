@@ -5,15 +5,22 @@
 
 #include "box3d/types.h"
 
-// The baked blob stores only offsets. A stack tree view supplies the legacy traversal API.
+// The baked blob stores only offsets. A stack tree view supplies the traversal API. The view is
+// read only: a baked tree is never inserted into, so it has no parent array.
 static inline b3DynamicTree b3MakeCompoundTree( const b3CompoundData* compound )
 {
+	int childCount = compound->capsuleCount + compound->hullCount + compound->meshCount + compound->sphereCount;
 	b3DynamicTree tree = { 0 };
 	tree.version = B3_DYNAMIC_TREE_VERSION;
 	tree.nodes = (b3TreeNode*)( (uintptr_t)compound + (uintptr_t)compound->nodeOffset );
-	tree.root = compound->root;
-	tree.nodeCount = compound->nodeCount;
+	tree.proxies = (b3TreeProxy*)( (uintptr_t)compound + (uintptr_t)compound->proxyOffset );
+	tree.nodeEnd = compound->nodeCount;
 	tree.nodeCapacity = compound->nodeCount;
+	tree.pairFreeList = B3_NULL_INDEX;
+	tree.proxyCount = childCount;
+	tree.proxyCapacity = childCount;
+	tree.proxyFreeList = B3_NULL_INDEX;
+	tree.dfsOrdered = true;
 	return tree;
 }
 

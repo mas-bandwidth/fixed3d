@@ -174,11 +174,11 @@ static void b3CreateWorkerContexts( b3World* world )
 	{
 		world->taskContexts.data[i].arena = b3CreateArena( 128 * 1024 );
 		b3Array_Reserve( world->taskContexts.data[i].sensorHits, 8 );
+		b3Array_Reserve( world->taskContexts.data[i].pairKeys, 64 );
 		world->taskContexts.data[i].contactStateBitSet = b3CreateBitSet( 1024 );
 		world->taskContexts.data[i].hitEventBitSet = b3CreateBitSet( 1024 );
 		world->taskContexts.data[i].hasHitEvents = false;
 		world->taskContexts.data[i].jointStateBitSet = b3CreateBitSet( 1024 );
-		world->taskContexts.data[i].enlargedSimBitSet = b3CreateBitSet( 256 );
 		world->taskContexts.data[i].awakeIslandBitSet = b3CreateBitSet( 256 );
 		world->taskContexts.data[i].splitIslandId = B3_NULL_INDEX;
 
@@ -192,10 +192,10 @@ static void b3DestroyWorkerContexts( b3World* world )
 	{
 		b3DestroyArena( &world->taskContexts.data[i].arena );
 		b3Array_Destroy( world->taskContexts.data[i].sensorHits );
+		b3Array_Destroy( world->taskContexts.data[i].pairKeys );
 		b3DestroyBitSet( &world->taskContexts.data[i].contactStateBitSet );
 		b3DestroyBitSet( &world->taskContexts.data[i].hitEventBitSet );
 		b3DestroyBitSet( &world->taskContexts.data[i].jointStateBitSet );
-		b3DestroyBitSet( &world->taskContexts.data[i].enlargedSimBitSet );
 		b3DestroyBitSet( &world->taskContexts.data[i].awakeIslandBitSet );
 
 		b3DestroyBitSet( &world->sensorTaskContexts.data[i].eventBits );
@@ -334,6 +334,8 @@ b3WorldId b3CreateWorld( const b3WorldDef* def )
 	world->gravity = def->gravity;
 	world->hitEventThreshold = def->hitEventThreshold;
 	world->restitutionThreshold = def->restitutionThreshold;
+	world->restitutionIterations = b3ClampInt( def->restitutionIterations, 0, B3_MAX_RESTITUTION_ITERATIONS );
+	world->enableRestitutionPropagation = def->enableRestitutionPropagation;
 	world->maxLinearSpeed = def->maximumLinearSpeed;
 	world->contactSpeed = def->contactSpeed;
 	world->contactHertz = def->contactHertz;
@@ -1127,7 +1129,6 @@ void b3World_Step( b3WorldId worldId, b3Fixed timeStep, int subStepCount )
 	context.contactSoftness = b3MakeSoft( contactHertz, world->contactDampingRatio, context.h );
 	context.staticSoftness = b3MakeSoft( b3FixMul( B3_FIX( 2.0f ) , contactHertz ), b3FixMul( B3_FIX( 0.5f ) , world->contactDampingRatio ), context.h );
 
-	context.restitutionThreshold = world->restitutionThreshold;
 	context.maxLinearVelocity = world->maxLinearSpeed;
 	context.enableWarmStarting = world->enableWarmStarting;
 
@@ -1152,7 +1153,7 @@ void b3World_Step( b3WorldId worldId, b3Fixed timeStep, int subStepCount )
 		world->finishTaskFcn( world->userTreeTask, world->userTaskContext );
 		world->userTreeTask = NULL;
 		world->activeTaskCount -= 1;
-		b3ValidateNoEnlarged( &world->broadPhase );
+		b3ValidateNoMoved( &world->broadPhase );
 	}
 
 	// Update sensors
@@ -2084,6 +2085,55 @@ b3Fixed b3World_GetRestitutionThreshold( b3WorldId worldId )
 	return world->restitutionThreshold;
 }
 
+void b3World_SetRestitutionIterations( b3WorldId worldId, int iterations )
+{
+	b3World* world = b3GetUnlockedWorldFromId( worldId );
+	if ( world == NULL )
+	{
+		return;
+	}
+
+	iterations = b3ClampInt( iterations, 0, B3_MAX_RESTITUTION_ITERATIONS );
+	if ( iterations == world->restitutionIterations )
+	{
+		return;
+	}
+
+	B3_REC( world, WorldSetRestitutionIterations, worldId, iterations );
+
+	world->restitutionIterations = iterations;
+}
+
+int b3World_GetRestitutionIterations( b3WorldId worldId )
+{
+	b3World* world = b3GetWorldFromId( worldId );
+	return world->restitutionIterations;
+}
+
+void b3World_EnableRestitutionPropagation( b3WorldId worldId, bool flag )
+{
+	b3World* world = b3GetUnlockedWorldFromId( worldId );
+	if ( world == NULL )
+	{
+		return;
+	}
+
+	if ( flag == world->enableRestitutionPropagation )
+	{
+		return;
+	}
+
+	B3_REC( world, WorldEnableRestitutionPropagation, worldId, flag );
+
+	world->enableRestitutionPropagation = flag;
+}
+
+bool b3World_IsRestitutionPropagationEnabled( b3WorldId worldId )
+{
+	b3World* world = b3GetWorldFromId( worldId );
+	return world->enableRestitutionPropagation;
+}
+
 void b3World_SetHitEventThreshold( b3WorldId worldId, b3Fixed value )
 {
 	b3World* world = b3GetUnlockedWorldFromId( worldId );
@@ -2424,22 +2474,14 @@ void b3World_DumpMemoryStats( b3WorldId worldId )
 	int staticTreeBytes = b3DynamicTree_GetByteCount( world->broadPhase.trees + b3_staticBody );
 	int kinematicTreeBytes = b3DynamicTree_GetByteCount( world->broadPhase.trees + b3_kinematicBody );
 	int dynamicTreeBytes = b3DynamicTree_GetByteCount( world->broadPhase.trees + b3_dynamicBody );
-	int movedBytes = 0;
-	for ( int i = 0; i < b3_bodyTypeCount; ++i )
-	{
-		movedBytes += b3GetBitSetBytes( &world->broadPhase.movedProxies[i] );
-	}
-	int moveArrayBytes = b3Array_ByteCount( world->broadPhase.moveArray );
 	b3HashSet* pairSet = &world->broadPhase.pairSet;
 	int pairSetBytes = b3GetHashSetBytes( pairSet );
-	total += (uint64_t)staticTreeBytes + kinematicTreeBytes + dynamicTreeBytes + movedBytes + moveArrayBytes + pairSetBytes;
+	total += (uint64_t)staticTreeBytes + kinematicTreeBytes + dynamicTreeBytes + pairSetBytes;
 
 	b3Log( "broad-phase" );
 	b3Log( "static tree: %d", staticTreeBytes );
 	b3Log( "kinematic tree: %d", kinematicTreeBytes );
 	b3Log( "dynamic tree: %d", dynamicTreeBytes );
-	b3Log( "movedProxies: %d", movedBytes );
-	b3Log( "moveArray: %d", moveArrayBytes );
 	b3Log( "pairSet: %d (%d, %d)", pairSetBytes, pairSet->count, pairSet->capacity );
 
 	// Manifold block allocators, one per manifold point count
@@ -2517,10 +2559,10 @@ void b3World_DumpMemoryStats( b3WorldId worldId )
 	{
 		b3TaskContext* taskContext = world->taskContexts.data + i;
 		taskContextBytes += b3Array_ByteCount( taskContext->sensorHits );
+		taskContextBytes += b3Array_ByteCount( taskContext->pairKeys );
 		taskContextBytes += b3GetBitSetBytes( &taskContext->contactStateBitSet );
 		taskContextBytes += b3GetBitSetBytes( &taskContext->jointStateBitSet );
 		taskContextBytes += b3GetBitSetBytes( &taskContext->hitEventBitSet );
-		taskContextBytes += b3GetBitSetBytes( &taskContext->enlargedSimBitSet );
 		taskContextBytes += b3GetBitSetBytes( &taskContext->awakeIslandBitSet );
 	}
 

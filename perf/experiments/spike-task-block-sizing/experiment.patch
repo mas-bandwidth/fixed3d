@@ -1,0 +1,92 @@
+diff --git a/src/solver.c b/src/solver.c
+index b95b130..04e2739 100644
+--- a/src/solver.c
++++ b/src/solver.c
+@@ -26,6 +26,27 @@
+ 
+ _Static_assert( B3_RESTITUTION_ITERATIONS >= 1, "must be 1 or more" );
+ 
++// Task block sizing tunables. These are compile-time (#ifndef) so a spike can
++// sweep them with -D overrides without touching source. Block size must not
++// change any result: constraint order and stage synchronization are
++// deterministic by construction (coloring fixes the order), so these only
++// trade steal rate against cache reuse, never correctness.
++#ifndef B3_MIN_CONTACTS_PER_BLOCK
++#define B3_MIN_CONTACTS_PER_BLOCK 4
++#endif
++
++#ifndef B3_MIN_JOINTS_PER_BLOCK
++#define B3_MIN_JOINTS_PER_BLOCK 4
++#endif
++
++#ifndef B3_MIN_BODIES_PER_BLOCK
++#define B3_MIN_BODIES_PER_BLOCK 32
++#endif
++
++#ifndef B3_MAX_BLOCK_COUNT_MULTIPLIER
++#define B3_MAX_BLOCK_COUNT_MULTIPLIER 4
++#endif
++
+ // these are useful for solver testing
+ #define ITERATIONS 1
+ #define RELAX_ITERATIONS 1
+@@ -1538,15 +1559,15 @@ void b3Solve( b3World* world, b3StepContext* stepContext )
+ 
+ 		int workerCount = world->workerCount;
+ 
+-		// Target 4 blocks per worker to allow work stealing
+-		const int maxBlockCount = 4 * workerCount;
++		// Target B3_MAX_BLOCK_COUNT_MULTIPLIER blocks per worker to allow work stealing
++		const int maxBlockCount = B3_MAX_BLOCK_COUNT_MULTIPLIER * workerCount;
+ 
+ 		// Body blocks are for parallel iteration over bodies directly (integration, update transforms)
+-		int minBodiesPerBlock = 32;
++		int minBodiesPerBlock = B3_MIN_BODIES_PER_BLOCK;
+ 		b3BlockDim bodyDim = b3ComputeBlockCount( awakeBodyCount, minBodiesPerBlock, maxBlockCount );
+ 
+-		const int minContactsPerBlock = 4;
+-		const int minJointsPerBlock = 4;
++		const int minContactsPerBlock = B3_MIN_CONTACTS_PER_BLOCK;
++		const int minJointsPerBlock = B3_MIN_JOINTS_PER_BLOCK;
+ 
+ 		// Configure blocks for tasks parallel-for each active graph color
+ 		// The blocks are a mix of convex contact, mesh contact, and joint blocks
+diff --git a/test/test_determinism.c b/test/test_determinism.c
+index 7797abb..4dff266 100644
+--- a/test/test_determinism.c
++++ b/test/test_determinism.c
+@@ -173,6 +173,26 @@ static int MultithreadingTest( void )
+ 	return 0;
+ }
+ 
++// Block sizing must not change any result. The solver block minimums and the
++// block-count multiplier (B3_MIN_CONTACTS_PER_BLOCK, B3_MIN_JOINTS_PER_BLOCK,
++// B3_MIN_BODIES_PER_BLOCK, B3_MAX_BLOCK_COUNT_MULTIPLIER) are compile-time
++// tunables swept by the spike; constraint order and stage synchronization are
++// deterministic by construction (coloring fixes the order), so every grid cell
++// must reproduce the ragdoll hash bit-identically. This subtest is run once per
++// grid cell (each cell is a separate build with -D overrides); every cell must
++// land on RAGDOLL_HASH at workers 1-5.
++static int BlockSizingBitIdenticalTest( void )
++{
++	DeterminismResult reference = { 0 };
++	for ( int workerCount = 1; workerCount < 6; ++workerCount )
++	{
++		int result = SingleMultithreadingTest( workerCount, &reference );
++		ENSURE( result == 0 );
++	}
++
++	return 0;
++}
++
+ // Test cross platform determinism.
+ static int CrossPlatformTest( void )
+ {
+@@ -624,6 +644,7 @@ int DeterminismTest( void )
+ {
+ 	RUN_SUBTEST( RagdollHumanTest );
+ 	RUN_SUBTEST( MultithreadingTest );
++	RUN_SUBTEST( BlockSizingBitIdenticalTest );
+ 	RUN_SUBTEST( CrossPlatformTest );
+ 	RUN_SUBTEST( WavePileTest );
+ 	RUN_SUBTEST( QuerySpawnTest );

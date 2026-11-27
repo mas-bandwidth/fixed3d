@@ -22,11 +22,11 @@ jobs:
             os: ubuntu-latest
             test: ./bin/test
           - name: ubuntu-clang
-            os: ubuntu-latest
+            os: ubuntu-24.04 # clang-18 ships on the 24.04 image; ubuntu-latest moved past it
             args: '-DCMAKE_CXX_COMPILER=clang++-18 -DCMAKE_C_COMPILER=clang-18 -DCMAKE_C_FLAGS="-fsanitize=thread -fno-omit-frame-pointer" -DCMAKE_CXX_FLAGS="-fsanitize=thread -fno-omit-frame-pointer" -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=thread"'
             test: ./bin/test
           - name: ubuntu-clang-msan
-            os: ubuntu-latest
+            os: ubuntu-24.04 # clang-18 ships on the 24.04 image; ubuntu-latest moved past it
             # THE LIMIT THAT MATTERS IS THE ONE ON THE TEST COMMAND, not timeout-minutes.
             # A job killed by timeout-minutes finishes CANCELLED, and cancelled is not
             # failure: the run goes grey, `conclusion` reads "cancelled", and an entire
@@ -94,7 +94,7 @@ jobs:
           # trailing -D wins over the env BUILD_TYPE) also exercises the LTO
           # default on clang.
           - name: ubuntu-clang-avx512
-            os: ubuntu-latest
+            os: ubuntu-24.04 # clang-18 ships on the 24.04 image; ubuntu-latest moved past it
             args: '-DCMAKE_CXX_COMPILER=clang++-18 -DCMAKE_C_COMPILER=clang-18 -DBOX3D_AVX512=ON -DCMAKE_BUILD_TYPE=RelWithDebInfo'
             test: 'sh -c "if grep -q avx512dq /proc/cpuinfo; then ./bin/test; else echo runner lacks AVX-512, compile-only; fi"'
           # 128-bit world positions: build the wide b3Pos path under Debug+VALIDATE
@@ -102,7 +102,7 @@ jobs:
           # exercised here) so it cannot silently regress as upstream ports land.
           # Carries its own determinism golden; OFF coverage is every other job.
           - name: ubuntu-wide-positions
-            os: ubuntu-latest
+            os: ubuntu-24.04 # clang-18 ships on the 24.04 image; ubuntu-latest moved past it
             timeout: 10
             args: '-DCMAKE_CXX_COMPILER=clang++-18 -DCMAKE_C_COMPILER=clang-18 -DBOX3D_LUDICROUS_MODE=ON -DCMAKE_C_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer" -DCMAKE_CXX_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer" -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address,undefined"'
             test: ./bin/test

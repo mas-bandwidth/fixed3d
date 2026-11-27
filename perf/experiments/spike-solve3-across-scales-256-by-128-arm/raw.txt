@@ -1,0 +1,68 @@
+=== tools/perf/cpu_info.sh (attempt 3, Ryzen 7 255) ===
+== CPU model ==
+model name	: AMD Ryzen 7 255 w/ Radeon 780M Graphics
+== ISA flags ==
+avx2
+avx512dq
+avx512f
+avx512ifma
+avx512vl
+== cores ==
+16
+== CPU pinning ==
+pid 1747420's current affinity list: 0-15
+== Load average ==
+0.50 0.41 0.34 (before) ; 1.86 1.48 1.09 (after)
+== Compiler ==
+cc (Ubuntu 15.2.0-16ubuntu1) 15.2.0
+c++ (Ubuntu 15.2.0-16ubuntu1) 15.2.0
+== cmake ==
+cmake version 4.2.3
+== cmake flags ==
+cmake -B build -DCMAKE_BUILD_TYPE=RelWithDebInfo -DBOX3D_SAMPLES=OFF -DBOX3D_VALIDATE=ON -DCMAKE_COMPILE_WARNING_AS_ERROR=ON -DBOX3D_BENCHMARKS=ON -DBOX3D_AVX512=OFF -DBOX3D_NEON=OFF
+(build-ludicrous adds -DBOX3D_LUDICROUS_MODE=ON)
+
+=== ./bin/test (candidate, narrow) ===
+All Fixed3D tests passed!
+Test duration = 7.47 s
+
+=== ./bin/test JointTest (subtest Solve3AcrossScalesMiddleArmTest) ===
+All Fixed3D tests passed!
+Test duration = 4.83 s
+
+=== oracle_check.sh (candidate) ===
+EXIT=1 ORACLE MISMATCH — oracle is STALE for this base. Baseline (no middle arm) and
+candidate (middle arm) produce IDENTICAL hashes on the mismatching scenes, so the middle
+arm is bit-exact; the divergence is baseline-vs-oracle, not baseline-vs-candidate.
+
+baseline vs candidate vs oracle (workers=1, narrow, --steps=120):
+  bodies_20k : baseline ed59e6aff81bcd26  candidate ed59e6aff81bcd26  oracle 3e7cbde301a4f6c2
+  ragdoll_pile: baseline 42fa9c6438e3527f candidate 42fa9c6438e3527f oracle 4ac74cd9f1805daf
+  rain       : baseline f96c9e008d59a375  candidate f96c9e008d59a375  oracle d3e59885dbca43e1
+
+=== ab.sh build-base build (joint_grid ragdoll_pile trees25 large_world, -w=1,2,4 -r=7 --steps=120) ===
+Run 1 (joint_grid + ragdoll_pile w1/w2, cut by wall before ragdoll_pile w4):
+scene workers phase A_min A_med A_spread B_min B_med B_spread speedup
+joint_grid 1 step 35152832 35213206 495245 35260351 35355154 359124 0.995985
+joint_grid 2 step 17979301 18008421 178375 18045055 18081729 144949 0.995946
+joint_grid 4 step 9963259 9986458 260499 9987647 10023019 182247 0.996352
+ragdoll_pile 1 step 11993052 12080057 158665 11875763 11969596 121474 1.009228
+ragdoll_pile 2 step 6185939 6234510 67746 6147475 6170349 78823 1.010398
+
+Run 2 (trees25 + large_world, complete, EXIT=0):
+scene workers phase A_min A_med A_spread B_min B_med B_spread speedup
+trees25 1 step 1585350 1591429 49821 1585288 1591771 27029 0.999785
+trees25 2 step 957601 968996 25047 961029 969753 22915 0.999219
+trees25 4 step 668814 688716 32430 681359 695171 67266 0.990715
+large_world 1 step 37607 37985 472 37558 37898 463 1.002296
+large_world 2 step 44049 44188 1678 43747 44279 3468 0.997945
+large_world 4 step 45875 47790 5644 46279 48156 10404 0.992400
+geomean_speedup 0.997051
+interleaved A/B done
+
+Key solve-phase rows (where the division lives):
+joint_grid 1 solveImpulses 9149599 9163451 105830 9334306 9368254 90271 0.978139
+joint_grid 2 solveImpulses 4653528 4663905 45519 4744088 4757595 37829 0.980307
+joint_grid 4 solveImpulses 2408444 2420098 83305 2462918 2472648 37029 0.978747
+ragdoll_pile 1 solveImpulses 3786374 3803067 66704 3725200 3739493 30407 1.017001
+ragdoll_pile 2 solveImpulses 1903316 1914473 27075 1878349 1885486 18773 1.015374
