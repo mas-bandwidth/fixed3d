@@ -3,6 +3,7 @@
 
 #include "compound.h"
 
+#include "dynamic_tree.h"
 #include "hull.h"
 #include "math_internal.h"
 #include "shape.h"
@@ -68,6 +69,16 @@ static inline b3TreeNode* b3GetCompoundNodes( b3CompoundData* compound )
 	}
 
 	return (b3TreeNode*)( (intptr_t)compound + compound->nodeOffset );
+}
+
+static inline b3TreeProxy* b3GetCompoundProxies( b3CompoundData* compound )
+{
+	if ( compound->proxyOffset == 0 )
+	{
+		return NULL;
+	}
+
+	return (b3TreeProxy*)( (intptr_t)compound + compound->proxyOffset );
 }
 
 const b3SurfaceMaterial* b3GetCompoundMaterials( const b3CompoundData* compound )
@@ -302,13 +313,13 @@ b3CompoundData* b3CreateCompound( const b3CompoundDef* def )
 
 	// Instances
 	int capsuleCount = def->capsuleCount;
-	b3CompoundCapsule* capsuleInstances = b3AllocZeroed( capsuleCount * sizeof( b3CompoundCapsule ) );
+	b3CompoundCapsule* capsuleInstances = b3AllocZero( capsuleCount * sizeof( b3CompoundCapsule ) );
 	int hullCount = def->hullCount;
-	b3HullInstance* hullInstances = b3AllocZeroed( hullCount * sizeof( b3HullInstance ) );
+	b3HullInstance* hullInstances = b3AllocZero( hullCount * sizeof( b3HullInstance ) );
 	int meshCount = def->meshCount;
-	b3MeshInstance* meshInstances = b3AllocZeroed( meshCount * sizeof( b3MeshInstance ) );
+	b3MeshInstance* meshInstances = b3AllocZero( meshCount * sizeof( b3MeshInstance ) );
 	int sphereCount = def->sphereCount;
-	b3CompoundSphere* sphereInstances = b3AllocZeroed( sphereCount * sizeof( b3CompoundSphere ) );
+	b3CompoundSphere* sphereInstances = b3AllocZero( sphereCount * sizeof( b3CompoundSphere ) );
 
 	// Determine material capacity
 	int materialCapacity = convexCount;
@@ -322,11 +333,11 @@ b3CompoundData* b3CreateCompound( const b3CompoundDef* def )
 	b3MaterialMap materialMap;
 	b3MaterialMap_init( &materialMap );
 	b3MaterialMap_reserve( &materialMap, materialCapacity );
-	b3SurfaceMaterial* materials = b3AllocZeroed( materialCapacity * sizeof( b3SurfaceMaterial ) );
+	b3SurfaceMaterial* materials = b3AllocZero( materialCapacity * sizeof( b3SurfaceMaterial ) );
 	int materialCount = 0;
 
 	int meshMaterialTotal = materialCapacity - convexCount;
-	uint16_t* meshMaterialStaging = b3AllocZeroed( meshMaterialTotal * sizeof( uint16_t ) );
+	uint16_t* meshMaterialStaging = b3AllocZero( meshMaterialTotal * sizeof( uint16_t ) );
 	int meshMaterialCursor = 0;
 
 	for ( int i = 0; i < def->capsuleCount; ++i )
@@ -356,7 +367,7 @@ b3CompoundData* b3CreateCompound( const b3CompoundDef* def )
 	}
 
 	// Hulls
-	b3SharedHull* sharedHulls = b3AllocZeroed( hullCount * sizeof( b3SharedHull ) );
+	b3SharedHull* sharedHulls = b3AllocZero( hullCount * sizeof( b3SharedHull ) );
 	int sharedHullCount = 0;
 
 	if ( hullCount > 0 )
@@ -413,7 +424,7 @@ b3CompoundData* b3CreateCompound( const b3CompoundDef* def )
 	}
 
 	// Meshes
-	b3SharedMesh* sharedMeshes = b3AllocZeroed( meshCount * sizeof( b3SharedMesh ) );
+	b3SharedMesh* sharedMeshes = b3AllocZero( meshCount * sizeof( b3SharedMesh ) );
 	int sharedMeshCount = 0;
 
 	if ( meshCount > 0 )
@@ -512,7 +523,7 @@ b3CompoundData* b3CreateCompound( const b3CompoundDef* def )
 
 	B3_ASSERT( materialCount <= materialCapacity );
 	B3_ASSERT( materialCount <= UINT16_MAX );
-	B3_ASSERT( tree.nodeCount > 0 );
+	B3_ASSERT( tree.proxyCount > 0 );
 
 	b3DynamicTree_Rebuild( &tree, true );
 
@@ -524,9 +535,13 @@ b3CompoundData* b3CreateCompound( const b3CompoundDef* def )
 	// hash stays deterministic.
 	int byteCount = sizeof( b3CompoundData );
 
-	// Tree nodes - todo 64 byte alignment
+	// Tree nodes and proxies. The rebuild is dense, so only the live nodes travel. The tree has
+	// one proxy per child and no proxy was destroyed, so the live proxies are the first ones.
 	int nodeOffset = (int)b3AlignUp( (size_t)byteCount, _Alignof( b3TreeNode ) );
-	byteCount = nodeOffset + tree.nodeCapacity * (int)sizeof( b3TreeNode );
+	byteCount = nodeOffset + tree.nodeEnd * (int)sizeof( b3TreeNode );
+
+	int proxyOffset = (int)b3AlignUp( (size_t)byteCount, _Alignof( b3TreeProxy ) );
+	byteCount = proxyOffset + tree.proxyCount * (int)sizeof( b3TreeProxy );
 
 	int materialOffset = (int)b3AlignUp( (size_t)byteCount, _Alignof( b3SurfaceMaterial ) );
 	byteCount = materialOffset + materialCount * (int)sizeof( b3SurfaceMaterial );
@@ -581,8 +596,8 @@ b3CompoundData* b3CreateCompound( const b3CompoundDef* def )
 
 	compound->bounds = b3DynamicTree_GetRootBounds( &tree );
 	compound->treeHeight = b3DynamicTree_GetHeight( &tree );
-	compound->nodeCount = tree.nodeCapacity;
-	compound->root = tree.root;
+	compound->nodeCount = tree.nodeEnd;
+	compound->proxyOffset = proxyOffset;
 
 	compound->materialOffset = materialOffset;
 	compound->materialCount = materialCount;
@@ -595,9 +610,12 @@ b3CompoundData* b3CreateCompound( const b3CompoundDef* def )
 	compound->sphereOffset = sphereOffset;
 	compound->sphereCount = sphereCount;
 
-	// Tree nodes
+	// Tree nodes and proxies
 	b3TreeNode* nodes = b3GetCompoundNodes( compound );
-	memcpy( nodes, tree.nodes, tree.nodeCapacity * sizeof( b3TreeNode ) );
+	memcpy( nodes, tree.nodes, tree.nodeEnd * sizeof( b3TreeNode ) );
+
+	b3TreeProxy* proxies = b3GetCompoundProxies( compound );
+	memcpy( proxies, tree.proxies, tree.proxyCount * sizeof( b3TreeProxy ) );
 
 	// Materials
 	B3_ASSERT( materialCount > 0 );
@@ -870,13 +888,24 @@ const b3CompoundData* b3ValidateCompound( const uint8_t* bytes, int byteCount )
 	}
 	const b3CompoundData* compound = (const b3CompoundData*)bytes;
 	if ( compound->version != B3_COMPOUND_VERSION || compound->byteCount != byteCount || compound->padding != 0 || compound->nodeCount < 2 ||
-		 compound->root < 0 || compound->root >= compound->nodeCount || compound->materialCount <= 0 )
+		 compound->materialCount <= 0 || compound->capsuleCount < 0 || compound->hullCount < 0 || compound->meshCount < 0 ||
+		 compound->sphereCount < 0 )
+	{
+		return NULL;
+	}
+
+	// The baked tree is a dense rebuild: one leaf per child, rooted at node zero with the empty
+	// node beside it, so it holds exactly two nodes per child and one proxy per child.
+	int64_t childCount = (int64_t)compound->capsuleCount + compound->hullCount + compound->meshCount + compound->sphereCount;
+	if ( childCount <= 0 || childCount > B3_NODE_INDEX_MASK || compound->nodeCount != 2 * childCount )
 	{
 		return NULL;
 	}
 	int64_t end = sizeof( b3CompoundData );
 	if ( !b3CompoundRegion( compound->nodeOffset, compound->nodeCount, sizeof( b3TreeNode ), _Alignof( b3TreeNode ), end,
 						 byteCount, &end ) ||
+		 !b3CompoundRegion( compound->proxyOffset, (int)childCount, sizeof( b3TreeProxy ), _Alignof( b3TreeProxy ), end,
+							 byteCount, &end ) ||
 		 !b3CompoundRegion( compound->materialOffset, compound->materialCount, sizeof( b3SurfaceMaterial ),
 							 _Alignof( b3SurfaceMaterial ), end, byteCount, &end ) ||
 		 !b3CompoundRegion( compound->capsuleOffset, compound->capsuleCount, sizeof( b3CompoundCapsule ),
@@ -886,33 +915,52 @@ const b3CompoundData* b3ValidateCompound( const uint8_t* bytes, int byteCount )
 	{
 		return NULL;
 	}
-	int64_t childCount = (int64_t)compound->capsuleCount + compound->hullCount + compound->meshCount + compound->sphereCount;
 	const b3TreeNode* nodes = (const b3TreeNode*)( bytes + compound->nodeOffset );
-	if ( childCount <= 0 || ( nodes[compound->root].flags & b3_allocatedNode ) == 0 )
+	const b3TreeProxy* proxies = (const b3TreeProxy*)( bytes + compound->proxyOffset );
+	if ( b3IsEmptyNode( nodes + B3_ROOT_NODE + 1 ) == false )
 	{
 		return NULL;
 	}
 	for ( int i = 0; i < compound->nodeCount; ++i )
 	{
-		const b3TreeNode* node = nodes + i;
-		if ( ( node->flags & b3_allocatedNode ) == 0 )
+		if ( i == B3_ROOT_NODE + 1 )
 		{
 			continue;
 		}
-		if ( node->flags & b3_leafNode )
+
+		// No other node is empty, and a baked tree carries no move marks.
+		const b3TreeNode* node = nodes + i;
+		if ( b3IsEmptyNode( node ) || b3IsNodeMoved( node ) )
 		{
-			if ( node->userData >= (uint64_t)childCount )
+			return NULL;
+		}
+
+		if ( b3IsLeaf( node ) )
+		{
+			int proxyId = b3GetProxyId( node );
+			if ( proxyId >= childCount || proxies[proxyId].node != i || proxies[proxyId].userData >= (uint64_t)childCount ||
+				 node->shapeIndex != (int32_t)proxies[proxyId].userData )
 			{
 				return NULL;
 			}
+			continue;
 		}
-		else if ( node->children.child1 < 0 || node->children.child1 >= compound->nodeCount || node->children.child2 < 0 ||
-				  node->children.child2 >= compound->nodeCount || node->children.child1 == node->children.child2 ||
-				  ( nodes[node->children.child1].flags & b3_allocatedNode ) == 0 ||
-				  ( nodes[node->children.child2].flags & b3_allocatedNode ) == 0 ||
-				  nodes[node->children.child1].height >= node->height || nodes[node->children.child2].height >= node->height )
+
+		// Children sit in an even pair above their parent, so every descent moves to a higher index
+		// and a traversal cannot cycle.
+		int pair = b3GetLeftChild( node );
+		if ( ( pair & 1 ) != 0 || pair <= i || pair + 1 >= compound->nodeCount || node->height < 1 )
 		{
 			return NULL;
+		}
+
+		for ( int j = 0; j < 2; ++j )
+		{
+			const b3TreeNode* child = nodes + pair + j;
+			if ( b3IsLeaf( child ) == false && child->height >= node->height )
+			{
+				return NULL;
+			}
 		}
 	}
 	const b3CompoundCapsule* capsules = (const b3CompoundCapsule*)( bytes + compound->capsuleOffset );

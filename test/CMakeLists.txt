@@ -8,6 +8,7 @@ set(BOX3D_TEST_FILES
 	test_body_query.c
 	test_collision.c
 	test_compound.c
+	test_broad_phase.c
 	test_container.c
     test_core_math.c
     core_math_harness.h
@@ -15,6 +16,7 @@ set(BOX3D_TEST_FILES
     test_fixed_abi.c
     test_fixed_saturate.c
     test_distance.c
+    test_dynamic_tree.c
     test_hash.c
     test_height_field.c
     test_hull.c

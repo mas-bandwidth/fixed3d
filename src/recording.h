@@ -97,7 +97,9 @@ typedef struct b3World b3World;
 // Minor version 4 added ShapeSetMeshMaterial.
 // Minor version 5 added ShapeSetHull and ShapeSetMesh.
 // Minor version 6 added BodyAllowFastRotation.
-// Minor version 7 is reserved for the broad-phase card.
+// Minor version 7 was reserved for the broad-phase card (box3d f555ee4). That port adds no op
+// and changes no op payload, so 7 stays unused. Its compound blob change is refused through the
+// compound version, not through this counter.
 // Minor version 8 added WorldSetRestitutionIterations and WorldEnableRestitutionPropagation.
 // Minor version 9 is reserved for WorldSetIsotropicInertiaTolerance (upstream efca0c1, op 0x70).
 // Minor version 10 added the mover and pogo joints (upstream 3362633, ops 0x81-0x8A).

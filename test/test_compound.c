@@ -5,6 +5,7 @@
 
 // b3CollideMoverAndCompound, b3GetCompoundChild, b3QueryCompound are internal
 #include "compound.h"
+#include "dynamic_tree.h"
 
 #include "box3d/collision.h"
 #include "box3d/math_functions.h"
@@ -77,7 +78,8 @@ static int CompoundCreateMixed( void )
 	ENSURE( compound->sharedMeshCount == 1 );
 
 	ENSURE( compound->nodeCount >= 2 );
-	ENSURE( compound->root >= 0 && compound->root < compound->nodeCount );
+	ENSURE( compound->nodeOffset > 0 );
+	ENSURE( compound->proxyOffset > compound->nodeOffset );
 
 	b3DestroyCompound( compound );
 	b3DestroyMesh( meshData );
@@ -1316,10 +1318,31 @@ static int CompoundBlobInvariants( void )
 	blob->padding = 1;
 	ENSURE( b3ValidateCompound( bytes, byteCount ) == NULL );
 	memcpy( bytes, a, (size_t)byteCount );
+	// The paired tree (box3d f555ee4): the root is node zero and internal here. A child pair past
+	// the node end, an odd or backward pair, a stray move mark, a leaf whose proxy points elsewhere,
+	// and a missing empty node beside the root are each refused.
 	b3TreeNode* nodes = (b3TreeNode*)( bytes + blob->nodeOffset );
-	ENSURE( ( nodes[blob->root].flags & b3_leafNode ) == 0 );
-	nodes[blob->root].children.child1 = blob->nodeCount;
+	ENSURE( b3IsLeaf( nodes + B3_ROOT_NODE ) == false );
+	nodes[B3_ROOT_NODE].flagIndex = ( nodes[B3_ROOT_NODE].flagIndex & ~B3_NODE_INDEX_MASK ) | (uint32_t)blob->nodeCount;
 	ENSURE( b3ValidateCompound( bytes, byteCount ) == NULL );
+	memcpy( bytes, a, (size_t)byteCount );
+	nodes[B3_ROOT_NODE].flagIndex = ( nodes[B3_ROOT_NODE].flagIndex & ~B3_NODE_INDEX_MASK ) | 3u;
+	ENSURE( b3ValidateCompound( bytes, byteCount ) == NULL );
+	memcpy( bytes, a, (size_t)byteCount );
+	nodes[B3_ROOT_NODE].flagIndex |= B3_MOVED_NODE;
+	ENSURE( b3ValidateCompound( bytes, byteCount ) == NULL );
+	memcpy( bytes, a, (size_t)byteCount );
+	nodes[B3_ROOT_NODE + 1] = nodes[B3_ROOT_NODE];
+	ENSURE( b3ValidateCompound( bytes, byteCount ) == NULL );
+	memcpy( bytes, a, (size_t)byteCount );
+	{
+		b3TreeProxy* proxies = (b3TreeProxy*)( bytes + blob->proxyOffset );
+		proxies[0].node = B3_ROOT_NODE + 1;
+		ENSURE( b3ValidateCompound( bytes, byteCount ) == NULL );
+		memcpy( bytes, a, (size_t)byteCount );
+		blob->proxyOffset = byteCount + 8;
+		ENSURE( b3ValidateCompound( bytes, byteCount ) == NULL );
+	}
 	memcpy( bytes, a, (size_t)byteCount );
 	b3HullData* hull = (b3HullData*)b3GetCompoundHull( blob, 0 ).hull;
 	hull->pointOffset = hull->byteCount + 8;

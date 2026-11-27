@@ -25,7 +25,12 @@
 
 // Captured on the scalar RelWithDebInfo+VALIDATE build, 2026-10-15. Workers 1 and 4
 // printed the same value before this constant was pinned (red line: hashOne == 0).
-#define PERF_STATE_HASH_GOLDEN UINT64_C( 0xc4f45e4c6b5534e6 )
+// Re-captured for the box3d f555ee4 broad-phase (2026-10-17): 0xc4f45e4c6b5534e6 ->
+// 0x4ab4b9a835e5034d. The boxes land on the ground and on each other, and those contacts now
+// take the lower shape index as shape A and are created in sorted pair key order. Workers 1
+// and 4 agree; gcc 13 and clang 18, Debug and RelWithDebInfo, narrow and ludicrous print the
+// same value.
+#define PERF_STATE_HASH_GOLDEN UINT64_C( 0x4ab4b9a835e5034d )
 
 static uint64_t PerfHashValue( uint64_t hash, int64_t value )
 {

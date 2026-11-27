@@ -49,11 +49,22 @@
 // 2026-10-17 f3d2-gjk-progress-unshifted-distance-sq: GJK progress on the unshifted squared distance moves the
 // ragdoll hash, sleep step unchanged at 408 (narrow 0x69572D49 -> 0x19EBA929 in gcc and
 // clang, ludicrous 0x7D29E209 -> 0x830FA1E9).
-#define RAGDOLL_SLEEP_STEP 408
+// The box3d f555ee4 broad-phase moves it again: 408 -> 507 (narrow 0x69572D49 -> 0x8E415BC4,
+// ludicrous 0x7D29E209 -> 0x1C07D904). New contacts now take the lower shape index as shape A
+// and are created in sorted pair key order, so every contact made mid fall has its normal and
+// its place in the solver order changed. Re-harvested with the golden checks off by the
+// printed-value procedure: workers 1-5 identical, gcc 13 and clang 18, Debug and
+// RelWithDebInfo, narrow and ludicrous. The multithreading run's step limit moved 500 -> 600
+// with it, since 507 is past the old limit.
+// Both moves meet in the merge of main into the f555ee4 port (2026-11-04): with the GJK
+// progress fix and the broad-phase together the ragdoll sleeps on step 507 (narrow
+// 0x99075A9E, ludicrous 0x8328395E). Harvested with the golden checks off by the printed-value
+// procedure on studio (Apple clang, RelWithDebInfo, Debug+ASan, NEON): workers 1-5 identical.
+#define RAGDOLL_SLEEP_STEP 507
 #if defined( BOX3D_LUDICROUS_MODE )
-#define RAGDOLL_HASH 0x830FA1E9
+#define RAGDOLL_HASH 0x8328395E
 #else
-#define RAGDOLL_HASH 0x19EBA929
+#define RAGDOLL_HASH 0x99075A9E
 #endif
 
 // Goldens for the wave pile, query spawn and mesh drop scenarios. Fixed-point goldens
@@ -75,17 +86,28 @@
 // squared distance moves wave pile 285 -> 254 (narrow 0x3FFAE5C7 -> 0x73C1E14F,
 // ludicrous 0xC247A287 -> 0x4826048F) and mesh drop 284 -> 243 (narrow 0x784AD80A ->
 // 0x1B648591, ludicrous 0xE44E6A0E -> 0x671B4A99).
-#define WAVE_PILE_SLEEP_STEP 254
+// The box3d f555ee4 broad-phase (shape A is the lower shape index, contacts in sorted key
+// order) moves wave pile 335 -> 367 (narrow 0x64609ED9 -> 0x5FD4454A, ludicrous 0x22E6F859 ->
+// 0xD9834F8A) and the query spawn query hash 0xE583B246 -> 0x1837EB46: its bodies sleep on the
+// same step with the same transform hash, but the tree the queries walk is the new paired
+// tree (the query hash already moved at the tree step, before the pair traversal), so the hits
+// come back in a new order. Mesh drop is unchanged in both builds, measured, not argued. Same
+// harvest as the ragdoll above.
+// Merged with main (2026-11-04), the face-plane and GJK progress fixes and the broad-phase
+// together: wave pile sleeps on step 366 (narrow 0xAA9D6209, ludicrous 0x1D1EEA09); the query
+// spawn keeps main's transform hashes and takes the broad-phase query hash 0x1837EB46; mesh drop
+// keeps main's values, so the broad-phase still does not move it. Same harvest as the ragdoll.
+#define WAVE_PILE_SLEEP_STEP 366
 #define QUERY_SPAWN_SLEEP_STEP 243
 #define QUERY_SPAWN_HIT_COUNT 59
-#define QUERY_SPAWN_QUERY_HASH 0xE583B246
+#define QUERY_SPAWN_QUERY_HASH 0x1837EB46
 #define MESH_DROP_SLEEP_STEP 243
 #if defined( BOX3D_LUDICROUS_MODE )
-#define WAVE_PILE_HASH 0x4826048F
+#define WAVE_PILE_HASH 0x1D1EEA09
 #define QUERY_SPAWN_HASH 0xBE2E5C8B
 #define MESH_DROP_HASH 0x671B4A99
 #else
-#define WAVE_PILE_HASH 0x73C1E14F
+#define WAVE_PILE_HASH 0xAA9D6209
 #define QUERY_SPAWN_HASH 0x0E4B940B
 #define MESH_DROP_HASH 0x1B648591
 #endif
@@ -98,11 +120,15 @@
 // moves it again: 331 -> 219 (narrow 0xCD6AC1EB -> 0xD945B8B3, ludicrous
 // 0xCD75B56B -> 0x407D12F3). Re-harvested on this bench, identical across workers 1-5
 // and across two generation runs.
-#define RAGDOLL_HUMAN_SLEEP_STEP 219
+// The box3d f555ee4 broad-phase moves it 219 -> 189 (narrow 0xD945B8B3 -> 0x019CA9BF,
+// ludicrous 0x407D12F3 -> 0x7315B5BF): its contacts are created with the lower shape index as
+// shape A and in sorted key order. It did not move at the tree step, only with the pair
+// traversal. Same harvest as the falling ragdolls.
+#define RAGDOLL_HUMAN_SLEEP_STEP 189
 #if defined( BOX3D_LUDICROUS_MODE )
-#define RAGDOLL_HUMAN_HASH 0x407D12F3
+#define RAGDOLL_HUMAN_HASH 0x7315B5BF
 #else
-#define RAGDOLL_HUMAN_HASH 0xD945B8B3
+#define RAGDOLL_HUMAN_HASH 0x019CA9BF
 #endif
 
 // The goldens above pin exact values for the default four point manifold. A build that
@@ -153,7 +179,9 @@ static int SingleMultithreadingTest( int workerCount, DeterminismResult* referen
 
 	b3Fixed timeStep = b3FixDiv( B3_FIX( 1.0f ) , B3_FIX( 60.0f ) );
 
-	int stepLimit = 500;
+	// The f555ee4 broad-phase moved the ragdoll sleep step to 507, past the old 500 step limit,
+	// where this run reported the never-settled zero. The limit leaves headroom above it.
+	int stepLimit = 600;
 	for ( int i = 0; i < stepLimit; ++i )
 	{
 		int subStepCount = 4;
