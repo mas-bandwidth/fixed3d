@@ -1,6 +1,6 @@
 SPIKE GJK PROXY SUPPORT WIDE — RAW EVIDENCE
 Exact base: 59eff1c450f7c6d308f73d8a88c633f42e160ecb
-Linux root: /home/nova/stella-gjk-wide-e21 on nova@hetzner2
+Linux root: /work/stella-gjk-wide-e21 on user@bench-linux-b
 No Mac builds or tests. nice 10, CMake --parallel 2, private TMPDIR.
 Both A and B: GCC 13.3.0, RelWithDebInfo, default LTO ON, BOX3D_SAMPLES=OFF, BOX3D_VALIDATE=ON, CMAKE_COMPILE_WARNING_AS_ERROR=ON, BOX3D_BENCHMARKS=ON, BOX3D_AVX512=ON. Ludicrous adds BOX3D_LUDICROUS_MODE=ON. AVX-512F/DQ/VL compile flags supplied by src/CMakeLists.txt.
 Base source src/distance.c unchanged at 59eff1c; both trees carry the test-only test/test_distance.c for baseline equivalence. Candidate has experimental src/distance.c.
@@ -40,7 +40,7 @@ CANDIDATE_SOURCE_SHA
 BEFORE_LOAD
 1.07 1.29 1.67 1/777 1570128
 BENCHMARK_PROCESSES
-1570108 bash -c cd /home/nova/stella-gjk-wide-e21 && { date -u; candidate/tools/perf/cpu_info.sh; echo BASE_HEAD; git -C base rev-parse HEAD; echo CANDIDATE_HEAD; git -C candidate rev-parse HEAD; echo CANDIDATE_SOURCE_SHA; sha256sum candidate/src/distance.c candidate/test/test_distance.c; echo BEFORE_LOAD; cat /proc/loadavg; echo BENCHMARK_PROCESSES; pgrep -af benchmark || true; } > cpu-before.txt && cat cpu-before.txt
+1570108 bash -c cd /work/stella-gjk-wide-e21 && { date -u; candidate/tools/perf/cpu_info.sh; echo BASE_HEAD; git -C base rev-parse HEAD; echo CANDIDATE_HEAD; git -C candidate rev-parse HEAD; echo CANDIDATE_SOURCE_SHA; sha256sum candidate/src/distance.c candidate/test/test_distance.c; echo BEFORE_LOAD; cat /proc/loadavg; echo BENCHMARK_PROCESSES; pgrep -af benchmark || true; } > cpu-before.txt && cat cpu-before.txt
 
 ===== A/A BASELINE RAIN =====
 scene workers phase A_min A_med A_spread B_min B_med B_spread speedup
@@ -466,7 +466,7 @@ configured by the build dir; paste the cmake -B ... line used
 AFTER_LOAD
 1.81 1.48 1.57 2/676 1599043
 BENCHMARK_PROCESSES
-1599026 bash -c cd /home/nova/stella-gjk-wide-e21 && { date -u; candidate/tools/perf/cpu_info.sh; echo AFTER_LOAD; cat /proc/loadavg; echo BENCHMARK_PROCESSES; pgrep -af benchmark || true; echo SOURCE_SHA; sha256sum candidate/src/distance.c candidate/test/test_distance.c base/src/distance.c base/test/test_distance.c; } > cpu-after.txt && tail -20 cpu-after.txt
+1599026 bash -c cd /work/stella-gjk-wide-e21 && { date -u; candidate/tools/perf/cpu_info.sh; echo AFTER_LOAD; cat /proc/loadavg; echo BENCHMARK_PROCESSES; pgrep -af benchmark || true; echo SOURCE_SHA; sha256sum candidate/src/distance.c candidate/test/test_distance.c base/src/distance.c base/test/test_distance.c; } > cpu-after.txt && tail -20 cpu-after.txt
 SOURCE_SHA
 27db871dd83d8da5b3402cfb382ee220738a9990879002a97e1212791de9cfe4  candidate/src/distance.c
 12cd6fa2ab6af73b7b3b2439be844782cf1bec2b7c1c3a5add780ea682438cf1  candidate/test/test_distance.c

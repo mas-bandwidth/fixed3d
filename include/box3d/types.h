@@ -622,6 +622,8 @@ typedef enum b3JointType
 	b3_sphericalJoint,
 	b3_weldJoint,
 	b3_wheelJoint,
+	b3_moverJoint,
+	b3_pogoJoint,
 } b3JointType;
 
 /// Base joint definition used by all joint types. The local frames are measured from the
@@ -760,6 +762,64 @@ typedef struct b3MotorJointDef
 /// Use this to initialize your joint definition
 /// @ingroup motor_joint
 B3_API b3MotorJointDef b3DefaultMotorJointDef( void );
+
+/// A mover joint is used to move a dynamic character mover through velocity commands. Force is only
+/// applied in the xz plane of joint frame B. Does not affect rotation.
+/// @ingroup mover_joint
+typedef struct b3MoverJointDef
+{
+	/// Base joint definition
+	b3JointDef base;
+
+	/// The desired linear velocity
+	b3Vec3 linearVelocity;
+
+	/// The maximum motor force in newtons.
+	b3Fixed maxForce;
+} b3MoverJointDef;
+
+/// Use this to initialize your joint definition
+/// @ingroup mover_joint
+B3_API b3MoverJointDef b3DefaultMoverJointDef( void );
+
+/// The pogo joint is used for the dynamic character mover. The pogo axis is along the frame B
+/// y-axis.
+/// @ingroup pogo_joint
+typedef struct b3PogoJointDef
+{
+	/// Base joint definition
+	b3JointDef base;
+
+	/// Normal vector at the contact
+	b3Vec3 normal;
+
+	/// The spring stiffness Hertz, cycles per second
+	b3Fixed hertz;
+
+	/// The spring damping ratio, non-dimensional
+	b3Fixed dampingRatio;
+
+	/// Spring length.
+	b3Fixed restLength;
+
+	/// Maximum tension force. Controls how sticky the mover is to ground.
+	b3Fixed maxTensionForce;
+
+	/// Maximum compression force. How hard the pogo pushes the mover up from the ground.
+	b3Fixed maxCompressionForce;
+
+	/// The initial pogo internal impulse. The pogo is typically recreated every frame. This gives a
+	/// way to move the internal state forward for smoother spring behavior.
+	b3Fixed impulse;
+
+	/// The initial pogo internal velocity. The pogo is typically recreated every frame. This gives
+	/// a way to move the internal state forward for smoother spring behavior.
+	b3Fixed velocity;
+} b3PogoJointDef;
+
+/// Use this to initialize your joint definition
+/// @ingroup pogo_joint
+B3_API b3PogoJointDef b3DefaultPogoJointDef( void );
 
 /// A filter joint is used to disable collision between two specific bodies.
 /// @ingroup filter_joint

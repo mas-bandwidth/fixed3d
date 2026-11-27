@@ -1,6 +1,6 @@
 # A sphere rolling on a box slows by rolling resistance, measured against float Box3D.
 # Sphere A has rolling resistance 0.1; sphere B is the control with none.
-# Measured 2026-10-17 on hetzner2 at a2e4816 over all 180 steps:
+# Measured 2026-10-17 on bench-linux-b at a2e4816 over all 180 steps:
 #   pos 0.00641584, rot 0.013188124, vel 0.0435116775, angvel 0.06831265,
 #   awake delta 0. Tolerances are twice the measured maximum; angvel shares vel.
 expect pos 0.01283168 rot 0.026376248 vel 0.1366253 horizon 180 counts exact

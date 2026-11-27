@@ -4,8 +4,30 @@ Box3D converted from float to Q48.16 fixed point (internal and external API).
 
 ## THE PORT CURSOR — read this before any Box3D -> Fixed3D pass
 
-**Everything in erincatto/box3d up to and including `47d7f7c` is carried across.**
-`git log 47d7f7c..upstream/main` is the remaining work.
+**Everything in erincatto/box3d up to and including `954cf87` is carried across.**
+`git log 954cf87..upstream/main` is the remaining work, less the commits carried ahead of the cursor
+listed in the next paragraph and `3362633`, in its own bold paragraph after that.
+
+**CARRIED AHEAD OF THE CURSOR, on `main` since fixed3d#94 (merged 2026-11-04 as `29948ea`), each
+with its PORT RECORD below:** `9e5a4cd` + `79fc559` (body-sim locator, fat AABB split, CCD gravity,
+four of the five bug fixes, allocator widening, restitution stage); `adec25b` + `9f998c8` (the
+portable pieces); `5643cd8`; `f8c4fe8` (engine half); `003a3f7` + `3d9db79`; `5d83df8` (harvested as
+the pointer-free compound); `a2e4816` (engine half). Only the `f8c4fe8` record carries the words
+CARRIED AHEAD OF THE CURSOR; the others are carried ahead all the same, by their place in upstream
+order. **`efca0c1` is carried IN PART:** its first card (the local inertia moves onto `b3BodySim`,
+`adbe7ec` / `95d34ab`, and the unused `compound.h` include, `398be05`) is on `main` with no PORT
+RECORD of its own; the gating, the tolerance API and the record are on `port/efca0c1-gyro-tolerance`,
+not yet merged. Skipped by plan #65, named: `8fda30e` (samples UI), the float AVX2 kernels of
+`e77352c` (its detection plumbing is owed as roadmap item `fixed3d-isa-dispatch-interface`), the SAT half of `51f056e`; and the skipped bulk of `adec25b`, `9f998c8` and `3d9db79`, per their records. Still owed between
+the cursor and upstream: `f555ee4` (PR #99, which also carries the fifth `9e5a4cd` / `79fc559` fix, H-H), `51f056e`'s world byte count, `16f7f4c`, and the commits
+past `5d83df8` below.
+
+**`3362633` Dynamic Mover (#202) IS CARRIED AHEAD OF THE CURSOR** (engine half: mover joint, pogo
+joint, `b3SpringDamper`, their recording ops, debug draw; samples held under #20 / #47; PORT RECORD
+below). It does not depend on `f555ee4` or on anything else still owed; the cursor line above does
+not move for it. *(~~WITH THE MERGE OF `port/3362633-dynamic-mover`, NOT BEFORE~~ — **DISCHARGED
+2026-11-04, verified rather than assumed: fixed3d#113 merged as `21f3670` with all seven checks
+green, per the `fixed3d#21` discipline.**)*
 
 **THE PLAN FOR THAT RANGE IS `fixed3d#65`** (2026-10-09): fifteen upstream commits, `47d7f7c..5d83df8`,
 with the order the cursor takes, the holds and the carries, and the decision behind each. The four
@@ -13,26 +35,23 @@ read-only triage reports it was written from, and the plan body, are in `porting
 Steps are landed one branch at a time; a cursor clause of the form *advances with the merge of* is
 struck by the run that merges it, per the `fixed3d#21` / `fixed3d#46` discipline below.
 **`fixed3d#65` was CLOSED by Glenn on 2026-10-15 ("Plan executed in part"):** steps 1, 3+4, 7, 12,
-13+14 and the harvest of 15 are on this branch, each with its PORT RECORD below; the still-open
+13+14 and the harvest of 15 are on `main`, each with its PORT RECORD below; the still-open
 steps (`f555ee4` in two parts after its TLA+ model, merged here as `5bfa76c` on 2026-10-16,
-now ported on `port/f555ee4-broadphase`, see its PORT RECORD below;
-`51f056e`'s world byte count; `16f7f4c` in two steps) are items of `docs/roadmap.sexp` on `main`,
+now ported, see its PORT RECORD below;
+`51f056e`'s world byte count; `16f7f4c` in two steps) are items of `docs/roadmap.sexp`,
 where planned work lives since 2026-10-14. Read the roadmap, not the closed issue, for what is owed.
 
-**THE CURSOR ADVANCES TO `954cf87` WITH THE MERGE OF `sprint/fixed3d-box3d-ports` INTO `main`
-(fixed3d#94), NOT BEFORE** *(~~WITH THE MERGE OF `port/954cf87-fixes`~~ — that branch merged into
-THIS branch on 2026-10-15 as `b79953a`, card `port-954cf87-fixes-land-the-branch`, and this branch
-is not `main`; rewritten 2026-10-16 by the daily pass, which opened #94)*. Said in the `fixed3d#21`
-/ `fixed3d#46` form recorded underneath: a cursor line written on a branch says *advances with*,
-and the run that merges the branch comes back and strikes this clause. Until then the true cursor
-is `47d7f7c` and the line above states a fact. **With that merge the cursor also passes every
-commit this branch carries ahead of `954cf87`** — each is named CARRIED AHEAD OF THE CURSOR in its
-own PORT RECORD, and the merging run writes the cursor line that results.
+*(~~THE CURSOR ADVANCES TO `954cf87` WITH THE MERGE OF `sprint/fixed3d-box3d-ports` INTO `main`
+(fixed3d#94), NOT BEFORE~~ — **DISCHARGED 2026-11-04, verified rather than assumed: fixed3d#94
+merged as `29948ea` after `main` was merged into the branch (`f523344`) and the head ran green in four
+configs on a fresh clone and in CI, so the cursor above states a fact.** The clause also said every
+carried commit was named CARRIED AHEAD in its record; a cold read found that true of `f8c4fe8`
+only, so the list above names them instead.)*
 
-**PAST `5d83df8` UPSTREAM HAS FOUR MORE COMMITS (box3d 2026-10-12 to 2026-10-15), triaged by the
-daily pass on 2026-10-16; the dispositions live in `docs/roadmap.sexp` on `main` (group
+**PAST `5d83df8` UPSTREAM HAS SIX MORE COMMITS (box3d 2026-10-12 to 2026-10-27). The first four
+were triaged by the daily pass on 2026-10-16; the dispositions live in `docs/roadmap.sexp` on `main` (group
 `upstream-past-5d83df8`) and are repeated here so the next pass does not re-triage.** Oldest first:
-`a2e4816` Fixes for #175 (#187) — PORTED, engine half, on this branch (card
+`a2e4816` Fixes for #175 (#187) — PORTED, engine half, on `main` (card
 `fixed3d-box3d-ports-manifold-block`, PR #75; its record is the "954cf87 hull2d manifold reduction +
 a2e4816 speculative margin and recycle fixes" PORT RECORD below; the `docs/faq.md` hunk is skipped
 as docs). `8128d74` Discussion template (#185) — SKIPPED: a `.github` discussion template, upstream
@@ -42,9 +61,11 @@ ALREADY SATISFIED here by `b3SkewSandwich` + `b3Solve3AcrossScales`, verify term
 claiming; the revolute and spherical merge of spring, motor and limit solves against one running
 `cdot` is a reassociation (hard-won rule below: reassociations are not free) that moved every
 upstream golden in both precisions; the `contact_solver_wide.inl` hunk has no analogue here.
-`efca0c1` Gyro tolerance (#191) — PORT, engine half, in progress on `port/efca0c1-gyro-tolerance`
-against this branch (roadmap item `port-efca0c1-gyro-tolerance`), CARRIED AHEAD OF THE CURSOR when
-it merges here; its samples hunk is held under the #20 / #47 class.
+`efca0c1` Gyro tolerance (#191) — PORT, engine half, carried in part (above); the rest is on
+`port/efca0c1-gyro-tolerance` (roadmap item `port-efca0c1-gyro-tolerance`); its samples hunk is held
+under the #20 / #47 class. `f36d061` CMake improvements (#201) and `3362633` Dynamic Mover (#202)
+(2026-10-20 and 2026-10-27): `f36d061` is not yet triaged here; `3362633` (Glenn's priority,
+2026-11-04) is PORTED, engine half, and CARRIED AHEAD OF THE CURSOR (the bold `3362633` paragraph near the top of this section).
 
 *(~~THIS LINE ADVANCES WITH THE MERGE OF `port/47d7f7c-clockwise-mover`, NOT BEFORE~~ —
 **DISCHARGED 2026-09-03, verified rather than assumed: `port/47d7f7c-clockwise-mover`
@@ -127,6 +148,106 @@ The PORT RECORDs below run newest first and are the detail for each step.
   that measure later upstream features (79fc559, 9e5a4cd, a2e4816, f8c4fe8) fail exactly as base
   fails them at `954cf87`. The float driver needs its `restitutionIterations` line removed to
   build against revisions before 79fc559 (measurement copy only, not committed).
+- **PORT RECORD 3362633 "Dynamic Mover (#202)" (upstream 2026-10-27) — PORTED, engine half,
+  2026-11-04, on `port/3362633-dynamic-mover`. CARRIED AHEAD OF THE CURSOR** (cursor stays
+  `954cf87`; the mover and pogo joints touch the joint layer, recording and debug draw only, so
+  nothing in `f555ee4` or the other owed commits is in front of them).
+  **PORTED:** `src/mover_joint.c`, `src/pogo_joint.c` (new); `b3MoverJointDef` /
+  `b3PogoJointDef`, their defaults, `b3_moverJoint` / `b3_pogoJoint`, create functions, setters
+  and getters (`include/box3d/types.h`, `include/box3d/box3d.h`, `src/joint.c`); `joint.h`
+  structs and the union members; `joint.c` dispatch for prepare, warm start, solve, draw,
+  reaction, constraint force and torque, and both separations; `b3SpringDamper`
+  (`include/box3d/math_functions.h`); the recording ops, def writers and readers and dispatchers
+  (`src/recording_ops.inl`, `src/recording.c/.h`, `src/recording_replay.c/.h`, upstream's
+  `replay.c` is `recording_replay.c` here); debug draw content: `forceScale` defaults to 0.001
+  and the joint force segment uses it, the mover and pogo joints draw their own extras, and the
+  wheel joint's steering arc advances by a rotation recurrence. Upstream's 100-column
+  clang-format reflow of `box3d.h`, `types.h`, `joint.c` and the tests is NOT ported (content
+  only). **HELD:** every samples hunk (`dynamic_mover.*`, `geometric_mover.*`, the removal of
+  `samples/mover.*`, `sample_character.cpp`, `sample_compound.cpp`, `sample_manifold.cpp`,
+  `sample_replay.cpp`'s two joint names, `sample.cpp/.h`, `main.cpp`, `gfx/debug_adapter.*`,
+  `gfx/keycodes.h`, `host/camera.cpp`, `samples/CMakeLists.txt`) under the standing samples hold
+  (fixed3d#20, #47). The samples tree still BUILDS against the new API (`-DBOX3D_SAMPLES=ON` on
+  bench-mac-a, clean). **N/A:** the `b3SymClampW4` removals from the float SIMD headers (fixed3d's
+  wide headers never had it; its `b3SymClampW` in `contact_solver.c` is used and stays). **NOT
+  CARRIED:** the one-line `physics_world.c` comment that `isFast` "is really just needed for mesh
+  collision" — false here, where `isFast` gates manifold recycling for every shape pair (954cf87).
+  **FIXED-POINT DECISIONS.** (1) `b3SpringDamper` spells the stiffness term
+  `( omega * omega * h ) * x`, so the one small factor meets omega squared before anything
+  rounds; measured against double on the quantized inputs it is within 1 ULP at 0.25-10 Hz for
+  positions to 0.1, where upstream's order (`omega * omegaH` first) is off by up to 14 ULP at 5 Hz
+  and a one-unit position. (2) Inverse masses stay in the inverse scale (`inverse.h`): effective
+  masses through `b3InvReciprocal`, velocity changes through `b3InvMulSV` / `b3InvMulMV`. (3) THE
+  MOVER CLAMP IS EXACT, NOT THE `joint.h` SPELLING. `b3ClampToDisc` sums the raw squares at 128
+  bits, compares exactly, takes the CEILING square root, and scales each component as
+  `|x| * cap / length` truncated, so the clamped impulse never leaves the disc. The motor and
+  parallel joints' spelling (`b3ImpulseOverCap2` rounding each square to Q48.16, then
+  `b3Length2`) was tried first and fails twice, both measured: rescaling as `cap / length` first
+  lost ~10% of a saturated mover's force (1.814 m/s instead of 2.0 after one second at 2 N on unit
+  mass); and at small caps the rounded squares are the whole value — at h = 1/240 a 0.5 N mover has
+  a raw cap of 137 whose square rounds to zero, so impulses to 181 raw pass uncapped and a
+  zero-force mover still pushes (`TestMoverJointZeroForce`, red with that spelling). Nothing is
+  squared in 64 bits, so the `B3_FIXED_MAX` sentinel cannot wrap (`TestMoverJointSentinelForce`,
+  red with a 64-bit compare — on a mass of 3, because on unit mass the wrapped impulses telescope
+  back to the target exactly and a final-state check passes). (4) The pogo clamp is linear,
+  `[-h * maxTension, h * maxCompression]`; `h * B3_FIXED_MAX` is safe to form (h < 1) and nothing
+  is squared. (5) Debug draw only: the mover ring color lerps per channel in integers; the arrow's
+  length ratio is `fixMulDiv( impulse, inv_h, maxForce )` with one rounding; upstream's
+  `shaftLen < 1e-6f` guard quantizes to zero raw and is spelled `== 0`; the ring and the wheel
+  arc use the rotation recurrence in `b3FixMul`.
+  **RECORDING:** ops `0x81`-`0x8A` at upstream's codes (`CreateMoverJoint`,
+  `MoverJointSetLinearVelocity`, `MoverJointSetMaxVelocityForce`, `CreatePogoJoint` and the six pogo
+  setters), the new `0x81-0x8F` range named in the manifest. `B3_REC_VERSION_MINOR` 8 -> **10**,
+  upstream's number; **9 stays reserved for `efca0c1`'s `WorldSetIsotropicInertiaTolerance` (op
+  `0x70`)**, written so on `recording.h`. Op codes do not overlap, and a minor mismatch still loads
+  (the dispatcher skips unknown ops), so the two land in either order without reinterpretation.
+  `efca0c1` lands after this, so it keeps the define at 10 and turns the reserved line into an
+  *added* line. Def sizes pinned at 216 /
+  264 bytes on 64-bit (`_Static_assert`s in `recording.c`). Snapshot: `b3JointSim` does not grow
+  (the prismatic and wheel members stay largest), so the snapshot layout hash and
+  `B3_SNAP_VERSION` are unchanged; the joints' carried state rides the POD copy.
+  **TESTS:** `test_joint.c` — upstream's `TestMoverJoint` and `TestPogoJoint` in Q48.16, plus
+  `TestMoverJointSentinelForce`, `TestMoverJointForceBudget` (saturation and a setter lowering the
+  budget below the carried impulse; the slack is one impulse ULP read back through `inv_h`),
+  `TestMoverJointZeroForce`, `TestPogoJointTensionClamp` (zero tension never pulls; zero hertz
+  clears impulse and speed), `TestPogoJointSleepKeepsImpulse`, `TestSpringDamper` (double reference, 8 ULP). `test_recording.c`
+  `AllOps` — upstream's mover/pogo block (every setter, the pogo rebuilt each frame warm started).
+  `test_determinism.c` — `MoverPogoTest`: 300 steps of a rotation locked capsule on hull ground,
+  target velocity changes, the force budget lowered to 40 N with a target that saturates it from
+  step 150 (the carried force at step 149 measures 0.137 N, so this is saturation, not a re-clamp;
+  re-clamping a carried impulse above a lowered budget is `TestMoverJointForceBudget`), the pogo rebuilt
+  warm started every 10 steps and its rest length and hertz changed; per-step hash of body state
+  and both joints' carried state, identical for workers 1-5, golden `MOVER_POGO_HASH` per build
+  (narrow `0xd120d881cacd2605`, identical in RelWithDebInfo, Debug+ASan and NEON; ludicrous
+  `0xdcdc7aaef38eab3d`; harvested by the printed-value procedure, then confirmed with goldens on).
+  `MoverPogoForkTest`: a recording started at step 160 snapshots the live world while the mover is
+  saturated (carried force 39.997 N, required > 39 N in the test; at step 120 it was 0.137 N); the
+  restored world holds the mover's carried force and the pogo's impulse and speed exactly before
+  any step, a player restored from it continues bit-identically for the remaining 140 steps at one
+  and four workers (pogo ids tracked through the rebuilds), and the forked live run equals an
+  unforked one. Negative control: recreating the mover joint on the restored side (impulse zero)
+  fails the restore-time check. The continuation alone does NOT see a dropped mover impulse: a
+  saturated mover re-clamps to its cap in the first solve pass whatever it was warm started with,
+  and with the impulse dropped all 140 replayed steps stayed bit-identical (measured 2026-11-04),
+  which is why the carried state is compared directly.
+  **GOLDENS: NONE MOVED** — every existing golden passed unchanged in all four configs (no existing
+  scene has a mover or pogo joint; the `forceScale` default and the wheel arc are draw-only).
+  **BENCH (bench-mac-a, 2026-11-04):** RelWithDebInfo + VALIDATE, ludicrous, Debug + ASan/UBSan and NEON, all
+  with -Werror, all green with goldens on ; `-DBOX3D_SAMPLES=ON` builds.
+  **TLA+:** `tla/MoverJoints.tla` models both joints' carried impulse (warm start, the clamp on
+  every solve pass, setters between steps, the pogo rebuilt from def seeds, sleep and wake,
+  snapshot and restore) with the mover clamp in the code's own integer arithmetic at reduced width
+  (layout, not only contract). TLC 2.19 on bench-mac-a, 2026-11-04 (`tla/RUNS.tsv`):
+  `MoverJoints.cfg` (F = 2, raw -4..4, caps 0..3) no error, 396,608 distinct states, depth 8;
+  `MoverJointsSnapshot.cfg` (F = 1, -1..1, caps 0..1, snapshot on) no error, 7,130,800 distinct,
+  depth 19. Reversed witnesses, each verified against the C by hand: `MoverJointsRounded.cfg`
+  (the `joint.h` spelling) fails `ImpulseWithinBoundAfterSolve` at depth 3 — cap 0, impulse
+  `<<-1, -1>>` whose squares round to zero, the reduced-width image of the 181-raw window above;
+  `MoverJointsMutant.cfg` (clamp only an impulse that grew) fails it at depth 8 — `<<0, -1>>` under
+  cap 1, then `SetMoverMaxForce(0)`, then the same unclamped impulse passes (the C clamp never
+  looks at the old impulse); `MoverJointsSnapshotMutant.cfg` (restore drops the impulses) fails
+  `RestoreExact` at depth 3. `tla/README.md` names the limits.
+  Cited from `src/mover_joint.c`, `src/pogo_joint.c` and `src/joint.h`.
 
 - **PORT RECORD reference harness compound/mesh/snapshot/contact vocabulary (2026-10-15).**
   `ref-harness-compound-mesh-vocabulary`, `ref-harness-snapshot-restore`,
@@ -779,7 +900,7 @@ The PORT RECORDs below run newest first and are the detail for each step.
   bundles five of its own issues (#148, #149, #153, #155, and `b3BodyDef::safetyFactor`
   for CCD tuning) into one commit, so this record is organized by HUNK GROUP rather than by
   upstream issue, and every group in the diff appears below with a disposition. Port plan:
-  **fixed3d#65**. The cursor does not move until this branch merges; see the clause above.
+  **fixed3d#65**. The cursor moved to it with the merge of fixed3d#94 (`29948ea`).
 
   **LANDED 2026-10-15 on `sprint/fixed3d-box3d-ports` (card port-954cf87-fixes-land-the-branch).**
   The branch merged onto the sprint tip (which already carries the fixed3d#67 re-rig), so the
@@ -2185,17 +2306,17 @@ The PORT RECORDs below run newest first and are the detail for each step.
 
 ## Repository and remotes (IMPORTANT)
 
-- This checkout (`/Users/glenn/fixed3d`) maps to **github.com/mas-bandwidth/fixed3d**
+- This checkout (`<checkout>`) maps to **github.com/mas-bandwidth/fixed3d**
   (`origin`, push target; main tracks it). `upstream` is erincatto/box3d,
   fetch-only, with its push URL set to the invalid `DO-NOT-PUSH-TO-UPSTREAM` as a
   guard. NEVER push to Erin's repo. Glenn sometimes edits the README in the GitHub
   web UI — pull/merge before pushing if the remote is ahead.
-- **TWO TREES WARNING**: `/Users/glenn/box3d` is a separate stale clone (its
+- **TWO TREES WARNING**: `<old-box3d-clone>` is a separate stale clone (its
   history was fetched into this repo long ago). `build-fixed/` and `build-ast/`
   dirs here were copied from it and their build.ninja files hold ABSOLUTE paths
-  into /Users/glenn/box3d — building them compiles the WRONG tree. Use
+  into <old-box3d-clone> — building them compiles the WRONG tree. Use
   `build-fixed2/` (fresh configure). If a build behaves impossibly, check
-  `grep -m1 /Users/glenn build*/build.ninja` FIRST.
+  `grep -m1 <old-box3d-clone> build*/build.ninja` FIRST.
 
 Session-3 performance work (all on top of 98b9889's fixed.h fast paths):
 
@@ -2730,7 +2851,7 @@ new sample code — keep them clean.
 - **b3Log** now has the printf format attribute — mismatches used to be
   invisible to -Wformat (rule 9). All call sites were already correct; now the
   compiler enforces it.
-- **ast_audit.py** had a hardcoded /Users/glenn/box3d root, so every earlier
+- **ast_audit.py** had a hardcoded <old-box3d-clone> root, so every earlier
   "clean" audit ran against the WRONG tree's compile database. Root is now
   derived from the script path; the first honest audit of this tree is clean.
 - Checked clean: height-field grid indexing (floor-then-trunc matches float),

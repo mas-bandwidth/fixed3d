@@ -24,8 +24,8 @@ cmake version 4.2.3
 configured by the build dir; paste the cmake -B ... line used
 
 ## ab.log (taskset, load, red-first)
-/home/ubuntu/rowan-jobs/integrate-wide-w5/base-red/test/test_body.c:1233:17: error: implicit declaration of function ‘b3IntegrateVelocitiesRange’ [-Wimplicit-function-declaration]
-/home/ubuntu/rowan-jobs/integrate-wide-w5/base-red/test/test_body.c:1235:17: error: implicit declaration of function ‘b3IntegratePositionsRange’ [-Wimplicit-function-declaration]
+/work/integrate-wide-w5/base-red/test/test_body.c:1233:17: error: implicit declaration of function ‘b3IntegrateVelocitiesRange’ [-Wimplicit-function-declaration]
+/work/integrate-wide-w5/base-red/test/test_body.c:1235:17: error: implicit declaration of function ‘b3IntegratePositionsRange’ [-Wimplicit-function-declaration]
 RED-DONE
 taskset: pid 610945's current affinity list: 0-31
 pgrep benchmark:
@@ -133,8 +133,8 @@ test failed: AllocatorTest
 base lud build exit=0
 cand-avx vs base-avx: rows=78 diff-lines=0
 base-avx vs scalar oracle: diff-lines=36 scenes: bodies_20k ragdoll_pile rain
-CMake Error: The current CMakeCache.txt directory /home/ubuntu/rowan-jobs/integrate-wide-w5/base-red/build-avx/CMakeCache.txt is different than the directory /home/ubuntu/rowan-jobs/integrate-wide-w5/base/build-avx where CMakeCache.txt was created. This may result in binaries being created in the wrong place. If you are not sure, reedit the CMakeCache.txt
-CMake Error: The source "/home/ubuntu/rowan-jobs/integrate-wide-w5/base-red/CMakeLists.txt" does not match the source "/home/ubuntu/rowan-jobs/integrate-wide-w5/base/CMakeLists.txt" used to generate cache.  Re-run cmake with a different source directory.
+CMake Error: The current CMakeCache.txt directory /work/integrate-wide-w5/base-red/build-avx/CMakeCache.txt is different than the directory /work/integrate-wide-w5/base/build-avx where CMakeCache.txt was created. This may result in binaries being created in the wrong place. If you are not sure, reedit the CMakeCache.txt
+CMake Error: The source "/work/integrate-wide-w5/base-red/CMakeLists.txt" does not match the source "/work/integrate-wide-w5/base/CMakeLists.txt" used to generate cache.  Re-run cmake with a different source directory.
 == cand scalar oracle_check (BOX3D_AVX512=OFF)
 oracle_check exit=1
 +HASH rain workers=1 narrow f96c9e008d59a375

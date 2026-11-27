@@ -3,9 +3,9 @@ name: build_test
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, 'sprint/*' ]
+  # every pull request, whatever its base: sprint landings target sprint/<stream> branches, not main
   pull_request:
-    branches: [ main ]
   workflow_dispatch:
 
 concurrency:

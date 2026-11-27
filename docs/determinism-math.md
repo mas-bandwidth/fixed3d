@@ -83,7 +83,7 @@ it lands the suite prints `core-math row=<stem> pending: cm-fixed3d-<stem>`.
 
 ## Measured at BASE 53f1352
 
-Measured on hetzner1 (gcc 13.3) before this policy landed, reference as above (the double
+Measured on bench-linux-a (gcc 13.3) before this policy landed, reference as above (the double
 result times 65536, rounded by llrint in round-to-nearest-even); errors in Q48.16 ulps.
 
 - **fixSqrt** vs exact integer round-to-nearest of sqrt(raw * 2^16): maxulp=1 (fixSqrt
