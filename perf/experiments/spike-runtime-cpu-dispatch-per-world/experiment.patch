@@ -1,0 +1,190 @@
+diff --git a/include/box3d/base.h b/include/box3d/base.h
+index 690388c..17b750e 100644
+--- a/include/box3d/base.h
++++ b/include/box3d/base.h
+@@ -188,6 +188,12 @@ B3_API b3Version b3GetVersion( void );
+ /// an ABI test.
+ B3_API int b3GetMaxManifoldPoints( void );
+ 
++/// @return true when the CPU and OS expose the AVX-512 state the wide solver path needs
++/// (AVX512F/DQ/VL plus the XCR0 opmask/ZMM bits). Pure integer CPUID/XGETBV; safe to call
++/// before any world is created. A binary built with the wide path compiled in still runs on
++/// a machine without AVX-512 by falling back to the scalar path.
++B3_API bool b3IsAVX512Available( void );
++
+ /**@}*/
+ 
+ //! @cond
+diff --git a/src/physics_world.c b/src/physics_world.c
+index b90140c..b5f5b83 100644
+--- a/src/physics_world.c
++++ b/src/physics_world.c
+@@ -327,6 +327,7 @@ b3WorldId b3CreateWorld( const b3WorldDef* def )
+ 	world->endEventArrayIndex = 0;
+ 
+ 	world->stepIndex = 0;
++	world->simdWidth = B3_SIMD_WIDTH;
+ 	world->splitIslandId = B3_NULL_INDEX;
+ 	world->activeTaskCount = 0;
+ 	world->taskCount = 0;
+diff --git a/src/physics_world.h b/src/physics_world.h
+index cc13e4c..e595f87 100644
+--- a/src/physics_world.h
++++ b/src/physics_world.h
+@@ -216,6 +216,12 @@ typedef struct b3World
+ 	// Id that is incremented every time step
+ 	uint64_t stepIndex;
+ 
++	// SIMD width chosen for this world at creation time. Fixed at 4 today (the
++	// wide path is compile-time selected); the runtime-dispatch spike records
++	// this as the per-world field the dispatch would read, so the width is
++	// never a process-global and never changes during a step.
++	int simdWidth;
++
+ 	// Identify islands for splitting as follows:
+ 	// - I want to split islands so smaller islands can sleep
+ 	// - when a body comes to rest and its sleep timer trips, I can look at the island and flag it for splitting
+diff --git a/src/simd.c b/src/simd.c
+index da42f9e..dd92dd7 100644
+--- a/src/simd.c
++++ b/src/simd.c
+@@ -5,6 +5,75 @@
+ 
+ #include "simd.h"
+ 
++// Runtime CPU feature detection (pure integer CPUID/XGETBV). Harvested from
++// upstream box3d e77352c (PR #174, Ethan Rutherford) and re-expressed for the
++// AVX-512 fixed-point path: the feature bits are AVX512F/DQ/VL (leaf 7 EBX bits
++// 16/17/31) plus the XCR0 opmask/ZMM state bits, not leaf 7 EBX bit 5 (AVX2,
++// which has no 64x64 lane multiply and cannot express Q48.16). This is the
++// mechanism that lets one binary serve a Zen 5 box and a baseline x86-64 box:
++// the wide path is compiled in, and the scalar path is the fallback.
++
++#if defined( B3_CPU_X86_X64 )
++
++static void b3CpuId( int leaf, int subleaf, int* eax, int* ebx, int* ecx, int* edx )
++{
++	__asm__ __volatile__( "cpuid"
++						  : "=a"( *eax ), "=b"( *ebx ), "=c"( *ecx ), "=d"( *edx )
++						  : "a"( leaf ), "c"( subleaf ) );
++}
++
++static uint64_t b3GetExtendedControlRegister( void )
++{
++	uint32_t eax, edx;
++	__asm__ __volatile__( "xgetbv" : "=a"( eax ), "=d"( edx ) : "c"( 0 ) );
++	return ( (uint64_t)edx << 32 ) | eax;
++}
++
++bool b3HasAVX512( void )
++{
++	int eax, ebx, ecx, edx;
++
++	// Leaf 1: ECX bit 27 = OSXSAVE, bit 28 = AVX. Without OSXSAVE the OS does
++	// not save the AVX-512 state across context switches, so the wide path must
++	// not run.
++	b3CpuId( 1, 0, &eax, &ebx, &ecx, &edx );
++	if ( ( ecx & ( 1u << 27 ) ) == 0 || ( ecx & ( 1u << 28 ) ) == 0 )
++	{
++		return false;
++	}
++
++	// XCR0 must enable the AVX-512 state: opmask (bit 5), ZMM_hi256 (bit 6),
++	// Hi16_ZMM (bit 7).
++	uint64_t xcr0 = b3GetExtendedControlRegister();
++	if ( ( xcr0 & 0xE0 ) != 0xE0 )
++	{
++		return false;
++	}
++
++	// Leaf 7 subleaf 0: EBX bit 16 = AVX512F, bit 17 = AVX512DQ, bit 31 = AVX512VL.
++	b3CpuId( 7, 0, &eax, &ebx, &ecx, &edx );
++	if ( ( ebx & ( 1u << 16 ) ) == 0 || ( ebx & ( 1u << 17 ) ) == 0 || ( ebx & ( 1u << 31 ) ) == 0 )
++	{
++		return false;
++	}
++
++	return true;
++}
++
++#else
++
++bool b3HasAVX512( void )
++{
++	return false;
++}
++
++#endif
++
++bool b3IsAVX512Available( void )
++{
++	return b3HasAVX512();
++}
++
+ // The float SSE2 variant of these helpers was removed with the rest of the
+ // float SIMD: simd.h only defines the scalar fixed-point b3V32 now, so the
+ // intrinsic branch could never compile again.
+diff --git a/src/simd.h b/src/simd.h
+index 68a32cf..a499eaa 100644
+--- a/src/simd.h
++++ b/src/simd.h
+@@ -199,3 +199,11 @@ static inline bool b3TestBoundsRayOverlap( b3V32 nodeMin, b3V32 nodeMax, b3V32 r
+ 
+ bool b3TestBoundsTriangleOverlap( b3V32 nodeCenter, b3V32 nodeExtent, b3V32 vertex1, b3V32 vertex2, b3V32 vertex3 );
+ b3Fixed b3IntersectRayTriangle( b3V32 rayStart, b3V32 rayDelta, b3V32 vertex1, b3V32 vertex2, b3V32 vertex3 );
++
++// Runtime CPU feature detection (pure integer CPUID/XGETBV). Harvested from
++// upstream box3d e77352c (PR #174, Ethan Rutherford) and re-expressed for the
++// AVX-512 fixed-point path: the feature bits are AVX512F/DQ/VL (leaf 7 EBX bits
++// 16/17/31) plus the XCR0 opmask/ZMM state bits, not leaf 7 EBX bit 5 (AVX2,
++// which has no 64x64 lane multiply and cannot express Q48.16). Returns false on
++// non-x86 targets.
++bool b3HasAVX512( void );
+diff --git a/test/test_determinism.c b/test/test_determinism.c
+index 7797abb..37ec985 100644
+--- a/test/test_determinism.c
++++ b/test/test_determinism.c
+@@ -620,6 +620,35 @@ static int RagdollHumanTest( void )
+ 	return 0;
+ }
+ 
++// Runtime CPU dispatch bit-identity probe. The wide path is compile-time today
++// (B3_SIMD_WIDTH is 4 in every configuration), so there is exactly one width to
++// run: this test asserts the detection plumbing reports the machine's AVX-512
++// capability correctly and that the ragdoll scenario produces the golden hash
++// on that width. When the runtime dispatch lands (scalar and AVX-512 paths in
++// one binary), this is the test that runs the scenario once per available width
++// and asserts the hashes are identical.
++static int SimdDispatchBitIdenticalTest( void )
++{
++	bool avx512 = b3IsAVX512Available();
++	printf( "  avx512 available: %s\n", avx512 ? "yes" : "no" );
++
++	// The detection is a pure hardware query and must be stable across calls.
++	ENSURE( b3IsAVX512Available() == avx512 );
++
++	// Run the ragdoll scenario once on the single available width and require the
++	// golden hash. This is the bit-identity control: whatever width the world
++	// runs, the state hash must match the scalar oracle. When the runtime
++	// dispatch lands (scalar and AVX-512 paths in one binary), this is the test
++	// that runs the scenario once per available width and asserts the hashes are
++	// identical.
++	DeterminismResult reference = { 0 };
++	ENSURE( SingleMultithreadingTest( 1, &reference ) == 0 );
++	ENSURE( reference.sleepStep == RAGDOLL_SLEEP_STEP );
++	ENSURE( reference.hash == RAGDOLL_HASH );
++
++	return 0;
++}
++
+ int DeterminismTest( void )
+ {
+ 	RUN_SUBTEST( RagdollHumanTest );
+@@ -629,6 +658,7 @@ int DeterminismTest( void )
+ 	RUN_SUBTEST( QuerySpawnTest );
+ 	RUN_SUBTEST( MeshDropTest );
+ 	RUN_SUBTEST( SphericalGeometryTest );
++	RUN_SUBTEST( SimdDispatchBitIdenticalTest );
+ 
+ 	return 0;
+ }

@@ -3,11 +3,18 @@
 
 #include "test_macros.h"
 
+#include "manifold.h"
+
 #include "box3d/collision.h"
 #include "box3d/constants.h"
 #include "box3d/math_functions.h"
 
 #include <math.h>
+
+// A face contact keeps the whole clipped polygon when the manifold has room for it, so a build
+// with a larger B3_MAX_MANIFOLD_POINTS legitimately reports more than four points. At the default
+// this is still an exact count.
+#define ENSURE_FACE_POINTS( count ) ENSURE( 4 <= ( count ) && ( count ) <= B3_MAX_MANIFOLD_POINTS )
 
 static const b3Fixed kRoot2 = B3_FIX( 1.41421356f );
 static const b3Fixed kHalfRoot2 = B3_FIX( 0.70710678f );
@@ -45,6 +52,11 @@ static void MakeCrossedEdgeHulls( b3BoxHull* hullA, b3BoxHull* hullB, b3Fixed ha
 static b3Transform SlideX( b3Fixed x )
 {
 	return (b3Transform){ { x, B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, b3Quat_identity };
+}
+
+static b3Transform SlideY( b3Fixed y )
+{
+	return (b3Transform){ { B3_FIX( 0.0f ), y, B3_FIX( 0.0f ) }, b3Quat_identity };
 }
 
 static b3Fixed MinSeparation( const b3LocalManifold* manifold )
@@ -295,7 +307,7 @@ static int ParallelEdgeTest( void )
 			b3SATCache cache = { 0 };
 			b3CollideHulls( &manifold, 8, &hullA.base, &hullB.base, transform, &cache );
 
-			ENSURE( manifold.pointCount == 4 );
+			ENSURE_FACE_POINTS( manifold.pointCount );
 			ENSURE( cache.type == b3_faceAxisA || cache.type == b3_faceAxisB );
 			ENSURE( b3Dot( manifold.normal, kAxisY ) > B3_FIX( 0.998f ) );
 
@@ -513,7 +525,7 @@ static int TriangleParallelEdgeTest( void )
 			b3SATCache cache = { 0 };
 			b3CollideTriangleAndHull( &manifold, 8, v1, v2, v3, 0, &hull.base, &cache, true );
 
-			ENSURE( manifold.pointCount == 4 );
+			ENSURE_FACE_POINTS( manifold.pointCount );
 			ENSURE( cache.type == b3_faceAxisA );
 			ENSURE( b3Dot( manifold.normal, kAxisY ) > B3_FIX( 0.99f ) );
 
@@ -530,7 +542,7 @@ static int TriangleParallelEdgeTest( void )
 // separation can be no deeper than root2 times the vertical overlap.
 static int CheckRoofFaceContact( const b3LocalManifold* manifold, const b3SATCache* cache, b3Fixed overlap )
 {
-	ENSURE( manifold->pointCount == 4 );
+	ENSURE_FACE_POINTS( manifold->pointCount );
 	ENSURE( cache->type == b3_faceAxisA || cache->type == b3_faceAxisB );
 
 	// A roof face of one hull, so 45 degrees off the vertical
@@ -1383,8 +1395,896 @@ static int CapsuleTriangleEdgeWalkTest( void )
 	return 0;
 }
 
+// A capsule core laid across a box corner so a clip plane (a side plane of the reference
+// face) is straddled by a few quanta. b3ClipSegment decides the crossing with the product
+// b3FixMul(distance1, distance2) < 0, and a product of two separations under ~0.004 quantizes
+// to zero, so a shallow crossing is dropped and the face contact loses the crossing point.
+// The sign comparison keeps it. A large crossing (where the product cannot quantize) is the
+// control that pins the expected two point face contact.
+static int ClipSegmentSmallCrossingTest( void )
+{
+	b3BoxHull hull = b3MakeBoxHull( B3_FIX( 0.5f ), B3_FIX( 0.5f ), B3_FIX( 0.5f ) );
+	b3Fixed radius = B3_FIX( 0.05f );
+
+	// dx1/dx2 are the two endpoint offsets from x = 0.5 in raw ulps; the core is long in z and
+	// pinned just under the top face (y = 0.5 minus a couple of quanta) so the top face is the
+	// reference face and x = +0.5 is one of its side planes.
+	int offsets[2][2] = {
+		{ -5, 3 },		 // crossing by a few quanta: the old product reads zero
+		{ -500, 300 }, // the same crossing, large enough that the product cannot quantize
+	};
+
+	for ( int i = 0; i < 2; ++i )
+	{
+		b3Capsule capsule;
+		capsule.radius = radius;
+		capsule.center1 = ( b3Vec3 ){ B3_FIX( 0.5f ) + offsets[i][0] * B3_FIXED_EPSILON,
+									   B3_FIX( 0.5f ) - 2 * B3_FIXED_EPSILON, -B3_FIX( 0.3f ) };
+		capsule.center2 = ( b3Vec3 ){ B3_FIX( 0.5f ) + offsets[i][1] * B3_FIXED_EPSILON,
+									   B3_FIX( 0.5f ) - 3 * B3_FIXED_EPSILON, B3_FIX( 0.3f ) };
+
+		b3LocalManifoldPoint points[8];
+		b3LocalManifold manifold = { 0 };
+		manifold.points = points;
+		b3SimplexCache cache = { 0 };
+		b3CollideHullAndCapsule( &manifold, 8, &hull.base, &capsule, b3Transform_identity, &cache );
+
+		ENSURE( manifold.pointCount == 2 );
+	}
+
+	return 0;
+}
+
+static int CheckSpeculativePoints( const b3LocalManifold* manifold, b3Fixed gap )
+{
+	ENSURE( manifold->pointCount > 0 );
+	ENSURE_SMALL( MinSeparation( manifold ) - gap, 8 * B3_FIXED_EPSILON );
+	return 0;
+}
+
+// Contact recycling treats a pair without points as separated by at least the speculative distance.
+// Every manifold routine must report a pair inside that distance or recycling can skip real overlap.
+// Discussion #175.
+static int SpeculativeMarginTest( void )
+{
+	b3Fixed gaps[] = { B3_FIX( 0.0f ), b3FixMul( B3_FIX( 0.25f ) , B3_SPECULATIVE_DISTANCE ),
+						b3FixMul( B3_FIX( 0.75f ) , B3_SPECULATIVE_DISTANCE ) };
+	int gapCount = sizeof( gaps ) / sizeof( gaps[0] );
+
+	b3Sphere sphere = { b3Vec3_zero, B3_FIX( 0.25f ) };
+	b3Sphere bigSphere = { b3Vec3_zero, B3_FIX( 0.5f ) };
+	b3Capsule capsuleX = { { -B3_FIX( 0.5f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) },
+						   { B3_FIX( 0.5f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, B3_FIX( 0.25f ) };
+	b3Capsule capsuleZ = { { B3_FIX( 0.0f ), B3_FIX( 0.0f ), -B3_FIX( 0.5f ) },
+						   { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.5f ) }, B3_FIX( 0.25f ) };
+	b3BoxHull box = b3MakeBoxHull( B3_FIX( 0.5f ), B3_FIX( 0.5f ), B3_FIX( 0.5f ) );
+
+	// Normal is +y
+	b3Vec3 triangle[3] = { { -B3_FIX( 2.0f ), B3_FIX( 0.0f ), -B3_FIX( 2.0f ) },
+						   { B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 2.0f ) },
+						   { B3_FIX( 2.0f ), B3_FIX( 0.0f ), -B3_FIX( 2.0f ) } };
+
+	b3LocalManifoldPoint points[B3_MAX_MANIFOLD_POINTS];
+	b3LocalManifold manifold = { 0 };
+	manifold.points = points;
+
+	for ( int i = 0; i < gapCount; ++i )
+	{
+		b3Fixed gap = gaps[i];
+
+		manifold.pointCount = 0;
+		b3CollideSpheres( &manifold, B3_MAX_MANIFOLD_POINTS, &bigSphere, &sphere, SlideY( B3_FIX( 0.75f ) + gap ) );
+		ENSURE( CheckSpeculativePoints( &manifold, gap ) == 0 );
+
+		manifold.pointCount = 0;
+		b3CollideCapsuleAndSphere( &manifold, B3_MAX_MANIFOLD_POINTS, &capsuleX, &sphere, SlideY( B3_FIX( 0.5f ) + gap ) );
+		ENSURE( CheckSpeculativePoints( &manifold, gap ) == 0 );
+
+		manifold.pointCount = 0;
+		b3CollideCapsules( &manifold, B3_MAX_MANIFOLD_POINTS, &capsuleX, &capsuleZ, SlideY( B3_FIX( 0.5f ) + gap ) );
+		ENSURE( CheckSpeculativePoints( &manifold, gap ) == 0 );
+
+		{
+			manifold.pointCount = 0;
+			b3SimplexCache cache = { 0 };
+			b3CollideHullAndSphere( &manifold, B3_MAX_MANIFOLD_POINTS, &box.base, &sphere, SlideY( B3_FIX( 0.75f ) + gap ), &cache );
+			ENSURE( CheckSpeculativePoints( &manifold, gap ) == 0 );
+		}
+
+		{
+			manifold.pointCount = 0;
+			b3SimplexCache cache = { 0 };
+			b3CollideHullAndCapsule( &manifold, B3_MAX_MANIFOLD_POINTS, &box.base, &capsuleX, SlideY( B3_FIX( 0.75f ) + gap ), &cache );
+			ENSURE( CheckSpeculativePoints( &manifold, gap ) == 0 );
+		}
+
+		{
+			manifold.pointCount = 0;
+			b3SATCache cache = { 0 };
+			b3CollideHulls( &manifold, B3_MAX_MANIFOLD_POINTS, &box.base, &box.base, SlideY( B3_FIX( 1.0f ) + gap ), &cache );
+			ENSURE( CheckSpeculativePoints( &manifold, gap ) == 0 );
+		}
+
+		{
+			manifold.pointCount = 0;
+			b3Sphere raised = { { B3_FIX( 0.0f ), B3_FIX( 0.25f ) + gap, B3_FIX( 0.0f ) }, B3_FIX( 0.25f ) };
+			b3CollideTriangleAndSphere( &manifold, B3_MAX_MANIFOLD_POINTS, triangle, &raised );
+			ENSURE( CheckSpeculativePoints( &manifold, gap ) == 0 );
+		}
+
+		{
+			manifold.pointCount = 0;
+			b3Capsule raised = capsuleX;
+			raised.center1.y = B3_FIX( 0.25f ) + gap;
+			raised.center2.y = B3_FIX( 0.25f ) + gap;
+			b3SimplexCache cache = { 0 };
+			b3CollideTriangleAndCapsule( &manifold, B3_MAX_MANIFOLD_POINTS, triangle, &raised, &cache );
+			ENSURE( CheckSpeculativePoints( &manifold, gap ) == 0 );
+		}
+
+		{
+			manifold.pointCount = 0;
+			b3BoxHull raised = b3MakeTransformedBoxHull( B3_FIX( 0.5f ), B3_FIX( 0.5f ), B3_FIX( 0.5f ), SlideY( B3_FIX( 0.5f ) + gap ) );
+			b3SATCache cache = { 0 };
+			b3CollideTriangleAndHull( &manifold, B3_MAX_MANIFOLD_POINTS, triangle[0], triangle[1], triangle[2], 0, &raised.base,
+									  &cache, true );
+			ENSURE( CheckSpeculativePoints( &manifold, gap ) == 0 );
+		}
+	}
+
+	// Beyond the speculative distance the closed form routines report nothing
+	b3Fixed farGap = b3FixMul( B3_FIX( 1.5f ) , B3_SPECULATIVE_DISTANCE );
+
+	manifold.pointCount = 0;
+	b3CollideSpheres( &manifold, B3_MAX_MANIFOLD_POINTS, &bigSphere, &sphere, SlideY( B3_FIX( 0.75f ) + farGap ) );
+	ENSURE( manifold.pointCount == 0 );
+
+	manifold.pointCount = 0;
+	b3CollideCapsuleAndSphere( &manifold, B3_MAX_MANIFOLD_POINTS, &capsuleX, &sphere, SlideY( B3_FIX( 0.5f ) + farGap ) );
+	ENSURE( manifold.pointCount == 0 );
+
+	return 0;
+}
+
+static void FillPoints2D( b3HullPoint2D* pts, const b3Vec2* input, int count )
+{
+	for ( int i = 0; i < count; ++i )
+	{
+		pts[i].p = input[i];
+		pts[i].separation = B3_FIX( 0.0f );
+		pts[i].originalIndex = i;
+	}
+}
+
+static b3Fixed Hull2DArea( const b3HullPoint2D* hull, int count )
+{
+	b3Fixed sum = B3_FIX( 0.0f );
+	for ( int i = 0; i < count; ++i )
+	{
+		int next = ( i + 1 ) % count;
+		sum += b3FixMul( hull[i].p.x , hull[next].p.y ) - b3FixMul( hull[i].p.y , hull[next].p.x );
+	}
+
+	return sum / 2;
+}
+
+// The 2D hull reduction (box3d 954cf87) builds a convex hull of the candidate manifold points
+// and simplifies it to the target by dropping the vertices that contribute the least area. It is
+// only wired into b3ReduceManifoldPoints when B3_MAX_MANIFOLD_POINTS > 4, but the hull and
+// simplify routines are always compiled so they can be exercised directly here.
+static int Hull2DReductionTest( void )
+{
+	// Interior points contribute no area, so they must not survive the hull.
+	{
+		b3Vec2 input[8] = {
+			{ B3_FIX( -1.0f ), B3_FIX( -1.0f ) }, { B3_FIX( 1.0f ), B3_FIX( -1.0f ) },
+			{ B3_FIX( 1.0f ), B3_FIX( 1.0f ) },	  { B3_FIX( -1.0f ), B3_FIX( 1.0f ) },
+			{ B3_FIX( 0.0f ), B3_FIX( 0.0f ) },	  { B3_FIX( 0.5f ), B3_FIX( 0.25f ) },
+			{ B3_FIX( -0.3f ), B3_FIX( 0.6f ) },  { B3_FIX( 0.1f ), B3_FIX( -0.4f ) },
+		};
+
+		b3HullPoint2D pts[8];
+		b3HullPoint2D hull[16];
+		FillPoints2D( pts, input, 8 );
+
+		int count = b3Hull2D( pts, 8, hull );
+		ENSURE( count == 4 );
+
+		// The reduction code assumes counter clockwise winding
+		ENSURE( Hull2DArea( hull, count ) > B3_FIX( 0.0f ) );
+
+		bool onHull[8] = { false };
+		for ( int i = 0; i < count; ++i )
+		{
+			ENSURE( 0 <= hull[i].originalIndex && hull[i].originalIndex < 8 );
+			onHull[hull[i].originalIndex] = true;
+		}
+
+		for ( int i = 0; i < 4; ++i )
+		{
+			ENSURE( onHull[i] == true );
+		}
+
+		for ( int i = 4; i < 8; ++i )
+		{
+			ENSURE( onHull[i] == false );
+		}
+	}
+
+	// Collinear points collapse to a segment.
+	{
+		b3Vec2 input[5] = {
+			{ B3_FIX( 0.0f ), B3_FIX( 0.0f ) }, { B3_FIX( 1.0f ), B3_FIX( 0.0f ) },
+			{ B3_FIX( 2.0f ), B3_FIX( 0.0f ) }, { B3_FIX( 3.0f ), B3_FIX( 0.0f ) },
+			{ B3_FIX( 4.0f ), B3_FIX( 0.0f ) },
+		};
+
+		b3HullPoint2D pts[5];
+		b3HullPoint2D hull[10];
+		FillPoints2D( pts, input, 5 );
+
+		ENSURE( b3Hull2D( pts, 5, hull ) == 2 );
+	}
+
+	// Coincident points weld and the lower input index wins, so a sort order change cannot
+	// swap which of the two survives.
+	{
+		b3Fixed offset = b3FixMul( B3_FIX( 0.1f ) , B3_LINEAR_SLOP );
+
+		b3Vec2 input[5] = {
+			{ B3_FIX( -1.0f ), B3_FIX( -1.0f ) },
+			{ B3_FIX( 1.0f ), B3_FIX( -1.0f ) },
+			{ B3_FIX( 1.0f ), B3_FIX( 1.0f ) },
+			{ B3_FIX( -1.0f ), B3_FIX( 1.0f ) },
+			{ B3_FIX( -1.0f ) + offset, B3_FIX( -1.0f ) + offset },
+		};
+
+		b3HullPoint2D pts[5];
+		b3HullPoint2D hull[10];
+		FillPoints2D( pts, input, 5 );
+
+		int count = b3Hull2D( pts, 5, hull );
+		ENSURE( count == 4 );
+
+		for ( int i = 0; i < count; ++i )
+		{
+			ENSURE( hull[i].originalIndex != 4 );
+		}
+	}
+
+	// The surviving point set must not depend on the order the points arrive in.
+	{
+		b3Vec2 input[8] = {
+			{ B3_FIX( -2.0f ), B3_FIX( -1.0f ) }, { B3_FIX( 0.0f ), B3_FIX( -1.5f ) },
+			{ B3_FIX( 2.0f ), B3_FIX( -1.0f ) },	 { B3_FIX( 2.5f ), B3_FIX( 0.5f ) },
+			{ B3_FIX( 1.0f ), B3_FIX( 2.0f ) },	 { B3_FIX( -1.0f ), B3_FIX( 1.8f ) },
+			{ B3_FIX( -2.5f ), B3_FIX( 0.4f ) },	 { B3_FIX( 0.2f ), B3_FIX( 0.1f ) },
+		};
+
+		int permutation[8] = { 5, 2, 7, 0, 4, 6, 1, 3 };
+
+		b3HullPoint2D pts[8];
+		b3HullPoint2D hull[16];
+		FillPoints2D( pts, input, 8 );
+
+		int count1 = b3Hull2D( pts, 8, hull );
+		ENSURE( count1 == 7 );
+
+		bool onHull1[8] = { false };
+		for ( int i = 0; i < count1; ++i )
+		{
+			onHull1[hull[i].originalIndex] = true;
+		}
+
+		b3HullPoint2D shuffled[8];
+		b3HullPoint2D shuffledHull[16];
+		for ( int i = 0; i < 8; ++i )
+		{
+			shuffled[i].p = input[permutation[i]];
+			shuffled[i].separation = B3_FIX( 0.0f );
+			shuffled[i].originalIndex = i;
+		}
+
+		int count2 = b3Hull2D( shuffled, 8, shuffledHull );
+		ENSURE( count2 == count1 );
+
+		bool onHull2[8] = { false };
+		for ( int i = 0; i < count2; ++i )
+		{
+			onHull2[permutation[shuffledHull[i].originalIndex]] = true;
+		}
+
+		for ( int i = 0; i < 8; ++i )
+		{
+			ENSURE( onHull1[i] == onHull2[i] );
+		}
+	}
+
+	return 0;
+}
+
+static int Hull2DDegenerateTest( void )
+{
+	const b3Fixed tolerance = B3_LINEAR_SLOP / 4;
+	const b3Vec2 zero = { 0, 0 };
+	b3HullPoint2D points[8];
+	b3HullPoint2D hull[16];
+
+	// Sorted neighbours closer than the weld radius collapse; those farther
+	// apart remain distinct. Squaring this tolerance at Q48.16 loses the radius.
+	const b3Vec2 nearPair[2] = { zero, { tolerance / 2, 0 } };
+	FillPoints2D( points, nearPair, 2 );
+	ENSURE( b3Hull2D( points, 2, hull ) == 1 );
+
+	const b3Vec2 farPair[2] = { zero, { tolerance + 8 * B3_FIXED_EPSILON, 0 } };
+	FillPoints2D( points, farPair, 2 );
+	ENSURE( b3Hull2D( points, 2, hull ) == 2 );
+
+	const b3Vec2 coincident[4] = { zero, zero, zero, zero };
+	FillPoints2D( points, coincident, 4 );
+	ENSURE( b3Hull2D( points, 4, hull ) == 1 );
+
+	const b3Vec2 collinear[5] = { { 0, 0 }, { B3_FIX( 1.0f ), 0 }, { B3_FIX( 2.0f ), 0 },
+		{ B3_FIX( 3.0f ), 0 }, { B3_FIX( 4.0f ), 0 } };
+	FillPoints2D( points, collinear, 5 );
+	ENSURE( b3Hull2D( points, 5, hull ) == 2 );
+
+	const b3Vec2 ulpPair[2] = { zero, { B3_FIXED_EPSILON, B3_FIXED_EPSILON } };
+	FillPoints2D( points, ulpPair, 2 );
+	ENSURE( b3Hull2D( points, 2, hull ) == 1 );
+	return 0;
+}
+
+#if B3_MAX_MANIFOLD_POINTS >= 8
+static int Hull2DBoxFaceClipTest( void )
+{
+	// Equal square faces, one yawed by 45 degrees, clip to an octagon.
+	b3BoxHull box = b3MakeBoxHull( B3_FIX( 1.0f ), B3_FIX( 1.0f ), B3_FIX( 1.0f ) );
+	b3LocalManifoldPoint points[B3_MAX_MANIFOLD_POINTS];
+	b3LocalManifold manifold = { 0 };
+	manifold.points = points;
+	b3SATCache cache = { 0 };
+	b3Transform transform = { { 0, B3_FIX( 1.99f ), 0 }, ExactQuat( kAxisY, B3_PI / 4 ) };
+	b3CollideHulls( &manifold, B3_MAX_MANIFOLD_POINTS, &box.base, &box.base, transform, &cache );
+	ENSURE( manifold.pointCount == 8 );
+	b3Fixed minX = B3_FIXED_MAX, maxX = B3_FIXED_MIN;
+	b3Fixed minZ = B3_FIXED_MAX, maxZ = B3_FIXED_MIN;
+	for ( int i = 0; i < manifold.pointCount; ++i )
+	{
+		minX = b3FixMin( minX, points[i].point.x );
+		maxX = b3FixMax( maxX, points[i].point.x );
+		minZ = b3FixMin( minZ, points[i].point.z );
+		maxZ = b3FixMax( maxZ, points[i].point.z );
+	}
+	ENSURE_SMALL( minX + B3_FIX( 1.0f ), B3_FIX( 0.001f ) );
+	ENSURE_SMALL( maxX - B3_FIX( 1.0f ), B3_FIX( 0.001f ) );
+	ENSURE_SMALL( minZ + B3_FIX( 1.0f ), B3_FIX( 0.001f ) );
+	ENSURE_SMALL( maxZ - B3_FIX( 1.0f ), B3_FIX( 0.001f ) );
+	return 0;
+}
+
+// Eight perimeter vertices fill the cap. The ninth point is interior but has
+// the deepest separation; keeping it must not evict any cardinal extreme.
+static int Hull2DDeepestExtremeTest( void )
+{
+	const b3Vec2 ring[8] = {
+		{ -B3_FIX( 3.0f ), 0 }, { -B3_FIX( 2.0f ), -B3_FIX( 2.0f ) },
+		{ 0, -B3_FIX( 3.0f ) }, { B3_FIX( 2.0f ), -B3_FIX( 2.0f ) },
+		{ B3_FIX( 3.0f ), 0 }, { B3_FIX( 2.0f ), B3_FIX( 2.0f ) },
+		{ 0, B3_FIX( 3.0f ) }, { -B3_FIX( 2.0f ), B3_FIX( 2.0f ) },
+	};
+	b3HullPoint2D hull[9];
+	for ( int i = 0; i < 8; ++i )
+	{
+		hull[i] = (b3HullPoint2D){ .p = ring[i], .separation = 0, .originalIndex = i };
+	}
+	b3HullPoint2D deepest = { .p = { 0, 0 }, .separation = -B3_FIX( 1.0f ), .originalIndex = 8 };
+	int count = b3IncludeDeepestHull2D( hull, 8, 8, deepest );
+	ENSURE( count == 8 );
+	bool seen[9] = { false };
+	for ( int i = 0; i < count; ++i )
+	{
+		ENSURE( 0 <= hull[i].originalIndex && hull[i].originalIndex < 9 );
+		seen[hull[i].originalIndex] = true;
+	}
+	ENSURE( seen[8] );
+	ENSURE( seen[0] && seen[2] && seen[4] && seen[6] );
+	return 0;
+}
+
+// A unique extreme can contribute little area when its adjacent facets are
+// nearly collinear. Simplifying ten vertices to eight must retain it.
+static int Hull2DExtremaSimplifyTest( void )
+{
+	const b3Vec2 ring[10] = {
+		{ -B3_FIX( 3.0f ), 0 }, { -B3_FIX( 2.9f ), -B3_FIX( 1.0f ) },
+		{ -B3_FIX( 2.0f ), -B3_FIX( 2.0f ) }, { 0, -B3_FIX( 3.0f ) },
+		{ B3_FIX( 2.0f ), -B3_FIX( 2.0f ) }, { B3_FIX( 3.0f ), 0 },
+		{ B3_FIX( 2.0f ), B3_FIX( 2.0f ) }, { 0, B3_FIX( 3.0f ) },
+		{ -B3_FIX( 2.0f ), B3_FIX( 2.0f ) }, { -B3_FIX( 2.9f ), B3_FIX( 1.0f ) },
+	};
+	b3HullPoint2D hull[10];
+	for ( int i = 0; i < 10; ++i )
+	{
+		hull[i] = (b3HullPoint2D){ .p = ring[i], .separation = 0, .originalIndex = i };
+	}
+	int count = b3SimplifyHull2D( hull, 10, 8 );
+	ENSURE( count == 8 );
+	bool seen[10] = { false };
+	for ( int i = 0; i < count; ++i )
+	{
+		seen[hull[i].originalIndex] = true;
+	}
+	ENSURE( seen[0] && seen[3] && seen[5] && seen[7] );
+	return 0;
+}
+#endif
+
+// The default four-point path must remain byte-for-byte stable across this port.
+#if B3_MAX_MANIFOLD_POINTS == 4
+static int Hull2DDefaultHashTest( void )
+{
+	b3BoxHull box = b3MakeBoxHull( B3_FIX( 1.0f ), B3_FIX( 1.0f ), B3_FIX( 1.0f ) );
+	uint32_t seed = 0x954CF87u;
+	uint32_t hash = 2166136261u;
+	for ( int contact = 0; contact < 50; ++contact )
+	{
+		seed = seed * 1664525u + 1013904223u;
+		b3Fixed x = (b3Fixed)( (int32_t)( ( seed >> 16 ) & 0x3fff ) - 0x2000 );
+		seed = seed * 1664525u + 1013904223u;
+		b3Fixed z = (b3Fixed)( (int32_t)( ( seed >> 16 ) & 0x3fff ) - 0x2000 );
+		b3Transform transform = { { x, B3_FIX( 1.9f ), z }, b3Quat_identity };
+		b3LocalManifoldPoint points[4];
+		b3LocalManifold manifold = { .points = points };
+		b3SATCache cache = { 0 };
+		b3CollideHulls( &manifold, 4, &box.base, &box.base, transform, &cache );
+		ENSURE( manifold.pointCount == 4 );
+		for ( int i = -1; i < manifold.pointCount; ++i )
+		{
+			b3Fixed values[4] = { 0, 0, 0, 0 };
+			if ( i < 0 )
+			{
+				values[0] = (b3Fixed)manifold.pointCount; // intentional raw integer tag
+			}
+			else
+			{
+				values[0] = points[i].point.x;
+				values[1] = points[i].point.y;
+				values[2] = points[i].point.z;
+				values[3] = points[i].separation;
+			}
+			for ( int j = 0; j < 4; ++j )
+			{
+				uint64_t bits = (uint64_t)values[j];
+				for ( int k = 0; k < 8; ++k )
+				{
+					hash = ( hash ^ (uint8_t)bits ) * 16777619u;
+					bits >>= 8;
+				}
+			}
+		}
+	}
+	// The unchanged base and this branch both produce 0x59A27095 for all 50 contacts.
+	ENSURE( hash == 0x59A27095u );
+	return 0;
+}
+#endif
+
+static int SimplifyHull2DTest( void )
+{
+	// A 20-gon simplifies to the requested target.
+	{
+		b3HullPoint2D pts[20];
+		b3HullPoint2D hull[40];
+
+		for ( int i = 0; i < 20; ++i )
+		{
+            double angle = 2.0 * b3FixToDouble( B3_PI ) * (double)i / 20.0;
+			pts[i].p = (b3Vec2){ b3FixFromDouble( cos( angle ) ), b3FixFromDouble( sin( angle ) ) };
+			pts[i].separation = B3_FIX( 0.0f );
+			pts[i].originalIndex = i;
+		}
+
+		int hullCount = b3Hull2D( pts, 20, hull );
+		ENSURE( hullCount == 20 );
+
+		int count = b3SimplifyHull2D( hull, hullCount, 6 );
+		ENSURE( count == 6 );
+		ENSURE( Hull2DArea( hull, count ) > B3_FIX( 0.0f ) );
+	}
+
+	// A square is already at or below the target, so simplification is a no-op.
+	{
+		b3Vec2 input[4] = {
+			{ B3_FIX( -1.0f ), B3_FIX( -1.0f ) },
+			{ B3_FIX( 1.0f ), B3_FIX( -1.0f ) },
+			{ B3_FIX( 1.0f ), B3_FIX( 1.0f ) },
+			{ B3_FIX( -1.0f ), B3_FIX( 1.0f ) },
+		};
+
+		b3HullPoint2D pts[4];
+		b3HullPoint2D hull[8];
+		FillPoints2D( pts, input, 4 );
+
+		int hullCount = b3Hull2D( pts, 4, hull );
+		ENSURE( hullCount == 4 );
+
+		ENSURE( b3SimplifyHull2D( hull, hullCount, 8 ) == 4 );
+		ENSURE( b3SimplifyHull2D( hull, hullCount, 4 ) == 4 );
+	}
+
+	return 0;
+}
+
+// ---- Oracle: b3CollideHullAndSphere on a box against the closed-form contact. ----
+// Box3D's contract (upstream erincatto/box3d src/convex_manifold.c at a2e4816): no
+// point when the core distance exceeds r + B3_SPECULATIVE_DISTANCE. Shallow (center
+// outside the hull): one point, normal = (c - q)/|c - q| with q the closest hull point,
+// separation = |c - q| - r, point = midpoint(q, c - r*n). Deep (center inside): the face
+// of largest plane separation s gives the normal and separation = s - r.
+static uint64_t SBMNextXorShift64( uint64_t* s )
+{
+	uint64_t x = *s;
+	x ^= x << 13;
+	x ^= x >> 7;
+	x ^= x << 17;
+	*s = x;
+	return x;
+}
+
+static b3Fixed SBMRange( uint64_t* s, int64_t lo, int64_t hi )
+{
+	uint64_t span = (uint64_t)( hi - lo );
+	uint64_t x = SBMNextXorShift64( s );
+	return (b3Fixed)( lo + (int64_t)( x % ( span + 1 ) ) );
+}
+
+static uint64_t SBMPutU64( uint64_t hash, uint64_t v )
+{
+	for ( int i = 0; i < 8; ++i )
+	{
+		hash ^= (uint8_t)( v & 0xff );
+		hash *= 0x100000001b3ULL;
+		v >>= 8;
+	}
+	return hash;
+}
+
+static int SphereBoxManifoldOracleTest( void )
+{
+	const b3Fixed kHalfExtLo = (b3Fixed)13107;
+	const b3Fixed kHalfExtHi = (b3Fixed)98304;
+	const b3Fixed kRadiusLo = (b3Fixed)3276;
+	const b3Fixed kRadiusHi = (b3Fixed)32768;
+	const b3Fixed kPad = (b3Fixed)1310;
+	const double kSpec = b3FixToDouble( B3_SPECULATIVE_DISTANCE );
+
+	uint64_t hash = 0xcbf29ce484222325ULL;
+
+	int faceRegions = 0, edgeRegions = 0, vertexRegions = 0;
+	double maxSepErr = 0.0, maxPointErr = 0.0, maxNormalErr = 0.0;
+	int oracleViolations = 0;
+
+	// Family O (outside): shallow contract, one point on the closest hull feature.
+	{
+		uint64_t seed = 0x5EED0008ULL;
+		int accepted = 0;
+		int guard = 0;
+		int pointCountViolations = 0;
+		int sepViolations = 0;
+		int pointViolations = 0;
+		int normalViolations = 0;
+
+		struct SBMWorstCase
+		{
+			int64_t raw[7];
+			int enginePointCount;
+			double engineNormal[3];
+			double enginePoint[3];
+			double engineSep;
+			double oracleNormal[3];
+			double oraclePoint[3];
+			double oracleSep;
+			double sepErr;
+			double pointErr;
+			double normalErr;
+			double rank;
+		};
+
+		struct SBMWorstCase worst[3];
+		for ( int i = 0; i < 3; ++i )
+		{
+			worst[i].rank = -1.0;
+		}
+
+		while ( accepted < 256 && guard++ < 400000 )
+		{
+			b3Fixed hx = SBMRange( &seed, kHalfExtLo, kHalfExtHi );
+			b3Fixed hy = SBMRange( &seed, kHalfExtLo, kHalfExtHi );
+			b3Fixed hz = SBMRange( &seed, kHalfExtLo, kHalfExtHi );
+			b3Fixed radius = SBMRange( &seed, kRadiusLo, kRadiusHi );
+
+			double hx_d = b3FixToDouble( hx );
+			double hy_d = b3FixToDouble( hy );
+			double hz_d = b3FixToDouble( hz );
+			double r_d = b3FixToDouble( radius );
+
+			int64_t bx = hx + radius + kPad;
+			int64_t by = hy + radius + kPad;
+			int64_t bz = hz + radius + kPad;
+			b3Fixed cx = SBMRange( &seed, -bx, bx );
+			b3Fixed cy = SBMRange( &seed, -by, by );
+			b3Fixed cz = SBMRange( &seed, -bz, bz );
+
+			double c[3] = { b3FixToDouble( cx ), b3FixToDouble( cy ), b3FixToDouble( cz ) };
+			double h[3] = { hx_d, hy_d, hz_d };
+
+			double q[3];
+			int nClamped = 0;
+			double distSq = 0.0;
+			for ( int ax = 0; ax < 3; ++ax )
+			{
+				q[ax] = c[ax];
+				if ( q[ax] > h[ax] ) { q[ax] = h[ax]; nClamped++; }
+				else if ( q[ax] < -h[ax] ) { q[ax] = -h[ax]; nClamped++; }
+				double d = c[ax] - q[ax];
+				distSq += d * d;
+			}
+
+			// The card's Family O acceptance range, verbatim: exactly one shallow point
+			// is expected from 1 mm off the hull up to the speculative margin.
+			double upperDist = r_d + kSpec - 0.001;
+			if ( !( 0.001 * 0.001 < distSq && distSq < upperDist * upperDist ) )
+			{
+				continue;
+			}
+
+			double dist = sqrt( distSq );
+			double n[3], pt[3];
+			for ( int ax = 0; ax < 3; ++ax )
+			{
+				n[ax] = ( c[ax] - q[ax] ) / dist;
+				pt[ax] = 0.5 * ( q[ax] + c[ax] - r_d * n[ax] );
+			}
+			double sep = dist - r_d;
+
+			b3BoxHull hull = b3MakeBoxHull( hx, hy, hz );
+			b3Sphere sphere = { { cx, cy, cz }, radius };
+			b3LocalManifoldPoint points[8] = { 0 };
+			b3LocalManifold manifold = { 0 };
+			manifold.points = points;
+			b3SimplexCache cache = { 0 };
+			b3CollideHullAndSphere( &manifold, 8, &hull.base, &sphere, b3Transform_identity, &cache );
+
+			double sepEng = b3FixToDouble( points[0].separation );
+			double nEng[3] = { b3FixToDouble( manifold.normal.x ), b3FixToDouble( manifold.normal.y ), b3FixToDouble( manifold.normal.z ) };
+			double pEng[3] = { b3FixToDouble( points[0].point.x ), b3FixToDouble( points[0].point.y ), b3FixToDouble( points[0].point.z ) };
+
+			double sepErr = fabs( sepEng - sep );
+			double pointErr = 0.0;
+			double normalErr = 0.0;
+			for ( int ax = 0; ax < 3; ++ax )
+			{
+				double pe = fabs( pEng[ax] - pt[ax] );
+				if ( pe > pointErr ) pointErr = pe;
+				double ne = fabs( nEng[ax] - n[ax] );
+				if ( ne > normalErr ) normalErr = ne;
+			}
+			if ( sepErr > maxSepErr ) maxSepErr = sepErr;
+			if ( pointErr > maxPointErr ) maxPointErr = pointErr;
+			if ( normalErr > maxNormalErr ) maxNormalErr = normalErr;
+
+			if ( manifold.pointCount != 1 ) pointCountViolations++;
+			if ( sepErr > 2e-4 ) sepViolations++;
+			if ( pointErr > 2e-4 ) pointViolations++;
+			if ( normalErr > 1e-3 ) normalViolations++;
+
+			struct SBMWorstCase rec;
+			rec.raw[0] = hx;
+			rec.raw[1] = hy;
+			rec.raw[2] = hz;
+			rec.raw[3] = radius;
+			rec.raw[4] = cx;
+			rec.raw[5] = cy;
+			rec.raw[6] = cz;
+			rec.enginePointCount = manifold.pointCount;
+			rec.engineSep = sepEng;
+			rec.oracleSep = sep;
+			rec.sepErr = sepErr;
+			rec.pointErr = pointErr;
+			rec.normalErr = normalErr;
+			rec.rank = sepErr;
+			if ( pointErr > rec.rank ) rec.rank = pointErr;
+			if ( normalErr > rec.rank ) rec.rank = normalErr;
+			for ( int ax = 0; ax < 3; ++ax )
+			{
+				rec.engineNormal[ax] = nEng[ax];
+				rec.enginePoint[ax] = pEng[ax];
+				rec.oracleNormal[ax] = n[ax];
+				rec.oraclePoint[ax] = pt[ax];
+			}
+			for ( int i = 0; i < 3; ++i )
+			{
+				if ( rec.rank > worst[i].rank )
+				{
+					for ( int j = 2; j > i; --j )
+					{
+						worst[j] = worst[j - 1];
+					}
+					worst[i] = rec;
+					break;
+				}
+			}
+
+			if ( nClamped == 1 ) faceRegions++;
+			else if ( nClamped == 2 ) edgeRegions++;
+			else vertexRegions++;
+
+			hash = SBMPutU64( hash, (uint64_t)manifold.pointCount );
+			hash = SBMPutU64( hash, (uint64_t)manifold.normal.x );
+			hash = SBMPutU64( hash, (uint64_t)manifold.normal.y );
+			hash = SBMPutU64( hash, (uint64_t)manifold.normal.z );
+			hash = SBMPutU64( hash, (uint64_t)points[0].point.x );
+			hash = SBMPutU64( hash, (uint64_t)points[0].point.y );
+			hash = SBMPutU64( hash, (uint64_t)points[0].point.z );
+			hash = SBMPutU64( hash, (uint64_t)points[0].separation );
+
+			accepted++;
+		}
+		printf( "  SphereBoxManifoldOracleTest familyO pointCount=%d sep=%d point=%d normal=%d\n",
+				pointCountViolations, sepViolations, pointViolations, normalViolations );
+		for ( int i = 0; i < 3; ++i )
+		{
+			if ( worst[i].rank < 0.0 ) continue;
+			printf( "  SphereBoxManifoldOracleTest worst%d raw=(%lld,%lld,%lld,%lld,%lld,%lld,%lld) count=%d engineN=(%g,%g,%g) oracleN=(%g,%g,%g) engineP=(%g,%g,%g) oracleP=(%g,%g,%g) engineSep=%g oracleSep=%g sepErr=%g pointErr=%g normalErr=%g\n",
+					i, (long long)worst[i].raw[0], (long long)worst[i].raw[1], (long long)worst[i].raw[2], (long long)worst[i].raw[3],
+					(long long)worst[i].raw[4], (long long)worst[i].raw[5], (long long)worst[i].raw[6], worst[i].enginePointCount,
+					worst[i].engineNormal[0], worst[i].engineNormal[1], worst[i].engineNormal[2],
+					worst[i].oracleNormal[0], worst[i].oracleNormal[1], worst[i].oracleNormal[2],
+					worst[i].enginePoint[0], worst[i].enginePoint[1], worst[i].enginePoint[2],
+					worst[i].oraclePoint[0], worst[i].oraclePoint[1], worst[i].oraclePoint[2],
+					worst[i].engineSep, worst[i].oracleSep, worst[i].sepErr, worst[i].pointErr, worst[i].normalErr );
+		}
+		ENSURE( accepted == 256 );
+		ENSURE( faceRegions > 0 && edgeRegions > 0 && vertexRegions > 0 );
+		// The disagreements are the finding: they are reported above and fail the subtest
+		// after the hash and the measured maxima have been printed, never hidden by a filter.
+		oracleViolations += pointCountViolations + sepViolations + pointViolations + normalViolations;
+	}
+
+	// Family I (inside): deep contract, one point on the face of largest plane separation.
+	{
+		uint64_t seed = 0x5EED0009ULL;
+		int accepted = 0;
+		int guard = 0;
+		while ( accepted < 128 && guard++ < 400000 )
+		{
+			b3Fixed hx = SBMRange( &seed, kHalfExtLo, kHalfExtHi );
+			b3Fixed hy = SBMRange( &seed, kHalfExtLo, kHalfExtHi );
+			b3Fixed hz = SBMRange( &seed, kHalfExtLo, kHalfExtHi );
+			b3Fixed radius = SBMRange( &seed, kRadiusLo, kRadiusHi );
+
+			double hx_d = b3FixToDouble( hx );
+			double hy_d = b3FixToDouble( hy );
+			double hz_d = b3FixToDouble( hz );
+			double r_d = b3FixToDouble( radius );
+
+			int64_t bx = hx - (int64_t)655;
+			int64_t by = hy - (int64_t)655;
+			int64_t bz = hz - (int64_t)655;
+			b3Fixed cx = SBMRange( &seed, -bx, bx );
+			b3Fixed cy = SBMRange( &seed, -by, by );
+			b3Fixed cz = SBMRange( &seed, -bz, bz );
+
+			double c[3] = { b3FixToDouble( cx ), b3FixToDouble( cy ), b3FixToDouble( cz ) };
+			double h[3] = { hx_d, hy_d, hz_d };
+
+			double s[6];
+			s[0] = c[0] - h[0];
+			s[1] = -c[0] - h[0];
+			s[2] = c[1] - h[1];
+			s[3] = -c[1] - h[1];
+			s[4] = c[2] - h[2];
+			s[5] = -c[2] - h[2];
+
+			int best = 0;
+			for ( int i = 1; i < 6; ++i ) if ( s[i] > s[best] ) best = i;
+			int second = ( best == 0 ) ? 1 : 0;
+			for ( int i = 0; i < 6; ++i ) if ( i != best && s[i] > s[second] ) second = i;
+			if ( s[best] - s[second] < 0.01 )
+			{
+				continue;
+			}
+
+			double n[3] = { 0.0, 0.0, 0.0 };
+			n[best / 2] = ( best % 2 == 0 ) ? 1.0 : -1.0;
+			double sep = s[best] - r_d;
+
+			b3BoxHull hull = b3MakeBoxHull( hx, hy, hz );
+			b3Sphere sphere = { { cx, cy, cz }, radius };
+			b3LocalManifoldPoint points[8] = { 0 };
+			b3LocalManifold manifold = { 0 };
+			manifold.points = points;
+			b3SimplexCache cache = { 0 };
+			b3CollideHullAndSphere( &manifold, 8, &hull.base, &sphere, b3Transform_identity, &cache );
+
+			ENSURE( manifold.pointCount == 1 );
+
+			double sepEng = b3FixToDouble( points[0].separation );
+			double sepErr = fabs( sepEng - sep );
+			if ( sepErr > maxSepErr ) maxSepErr = sepErr;
+			ENSURE( sepErr <= 2e-4 );
+
+			double nEng[3] = { b3FixToDouble( manifold.normal.x ), b3FixToDouble( manifold.normal.y ), b3FixToDouble( manifold.normal.z ) };
+			for ( int ax = 0; ax < 3; ++ax )
+			{
+				double ne = fabs( nEng[ax] - n[ax] );
+				if ( ne > maxNormalErr ) maxNormalErr = ne;
+				ENSURE( ne <= 1e-3 );
+			}
+
+			hash = SBMPutU64( hash, (uint64_t)manifold.pointCount );
+			hash = SBMPutU64( hash, (uint64_t)manifold.normal.x );
+			hash = SBMPutU64( hash, (uint64_t)manifold.normal.y );
+			hash = SBMPutU64( hash, (uint64_t)manifold.normal.z );
+			hash = SBMPutU64( hash, (uint64_t)points[0].point.x );
+			hash = SBMPutU64( hash, (uint64_t)points[0].point.y );
+			hash = SBMPutU64( hash, (uint64_t)points[0].point.z );
+			hash = SBMPutU64( hash, (uint64_t)points[0].separation );
+
+			accepted++;
+		}
+		ENSURE( accepted == 128 );
+	}
+
+	printf( "  SphereBoxManifoldOracleTest hash=0x%016llx\n", (unsigned long long)hash );
+	printf( "  SphereBoxManifoldOracleTest maxSepErr=%g maxPointErr=%g maxNormalErr=%g face=%d edge=%d vertex=%d\n",
+			maxSepErr, maxPointErr, maxNormalErr, faceRegions, edgeRegions, vertexRegions );
+	// GOLDEN harvested from build-gcc; identical in build-clang and build-ludicrous.
+	// Re-harvested 2026-10-17 after the face-plane refinement in the shallow branch of
+	// b3CollideHullAndSphere: 0x9a3fb8b692f63667 -> 0x199dcfdb1c30e814.
+	ENSURE( hash == 0x199dcfdb1c30e814ULL );
+
+	// The exact Family O range the card specifies (1 mm to r + speculative - 1 mm, no
+	// near-boundary exclusion). Before the face-plane refinement, fixed3d's GJK-derived shallow
+	// contact left 11 point and 18 normal cases of 256 outside tolerance (maxPointErr 2.62e-3,
+	// maxNormalErr 2.02e-2), all in face regions: in Q48.16 the GJK progress test cannot see a
+	// squared-distance gain under one raw unit and stops on an adjacent edge, and the witness
+	// weights blur the point by a few ulps, tilting the normal by ulp / distance. The shallow
+	// branch now takes the face plane when the center projects onto its most separating face.
+	// After it (gcc, clang, ludicrous): 0 violations, maxSepErr=3.41278e-05,
+	// maxPointErr=6.10352e-05, maxNormalErr=4.27246e-04; the remaining worst cases are edge
+	// regions. The oracle is the closed-form contract read from upstream erincatto/box3d
+	// src/convex_manifold.c b3CollideHullAndSphere (a2e4816).
+	ENSURE( oracleViolations == 0 );
+
+	return 0;
+}
+
+// The library reports the point count it was built with. A mismatch against the manifold
+// this translation unit sees means the app and the library disagree on b3Manifold.
+static int MaxPointCountTest( void )
+{
+	b3Manifold manifold;
+	ENSURE( b3GetMaxManifoldPoints() == (int)( sizeof( manifold.points ) / sizeof( manifold.points[0] ) ) );
+
+	return 0;
+}
+
 int ManifoldTest( void )
 {
+	RUN_SUBTEST( MaxPointCountTest );
+	RUN_SUBTEST( Hull2DReductionTest );
+	RUN_SUBTEST( Hull2DDegenerateTest );
+#if B3_MAX_MANIFOLD_POINTS == 4
+	RUN_SUBTEST( Hull2DDefaultHashTest );
+#endif
+#if B3_MAX_MANIFOLD_POINTS >= 8
+	RUN_SUBTEST( Hull2DBoxFaceClipTest );
+	RUN_SUBTEST( Hull2DDeepestExtremeTest );
+	RUN_SUBTEST( Hull2DExtremaSimplifyTest );
+#endif
+	RUN_SUBTEST( SimplifyHull2DTest );
 	RUN_SUBTEST( CrossedEdgeTest );
 	RUN_SUBTEST( EdgeAxisScaleTest );
 	RUN_SUBTEST( EdgeAxisLargeScaleTest );
@@ -1404,8 +2304,11 @@ int ManifoldTest( void )
 	RUN_SUBTEST( CapsuleTriangleEdgeWalkTest );
 	RUN_SUBTEST( SphereHullSeamTest );
 	RUN_SUBTEST( CapsuleHullSeamTest );
+	RUN_SUBTEST( ClipSegmentSmallCrossingTest );
 	RUN_SUBTEST( CapsuleTriangleFaceDeepTest );
 	RUN_SUBTEST( HullCapsuleFaceDeepTest );
+	RUN_SUBTEST( SpeculativeMarginTest );
+	RUN_SUBTEST( SphereBoxManifoldOracleTest );
 
 	return 0;
 }

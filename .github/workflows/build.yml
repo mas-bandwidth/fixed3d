@@ -3,9 +3,9 @@ name: build_test
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, 'sprint/*' ]
+  # every pull request, whatever its base: sprint landings target sprint/<stream> branches, not main
   pull_request:
-    branches: [ main ]
   workflow_dispatch:
 
 concurrency:
@@ -30,14 +30,16 @@ jobs:
           # Keep compiler coverage here; ThreadSanitizer exceeds the fast
           # budget on variable runner loads and remains in Extended checks.
           - name: ubuntu-clang
-            os: ubuntu-latest
+            # clang-18 ships on the 24.04 image; ubuntu-latest moved past it
+            os: ubuntu-24.04
             config: Debug
             args: '-DCMAKE_CXX_COMPILER=clang++-18 -DCMAKE_C_COMPILER=clang-18'
             test: ./bin/test
           # Keep wide-position goldens on every PR. The slower ASan+UBSan
           # version remains in Extended checks.
           - name: ubuntu-wide-positions
-            os: ubuntu-latest
+            # clang-18 ships on the 24.04 image; ubuntu-latest moved past it
+            os: ubuntu-24.04
             config: Debug
             args: '-DCMAKE_CXX_COMPILER=clang++-18 -DCMAKE_C_COMPILER=clang-18 -DBOX3D_LUDICROUS_MODE=ON'
             test: ./bin/test

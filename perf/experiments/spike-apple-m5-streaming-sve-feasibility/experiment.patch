@@ -1,0 +1,380 @@
+diff --git a/test/CMakeLists.txt b/test/CMakeLists.txt
+index ac1679c..7d7bae7 100644
+--- a/test/CMakeLists.txt
++++ b/test/CMakeLists.txt
+@@ -28,6 +28,7 @@ set(BOX3D_TEST_FILES
+     test_recording.c
+ 	test_reference_scene.c
+     test_shape.c
++    test_sme_lane.c
+     test_table.c
+     test_world.c
+ )
+@@ -46,11 +47,24 @@ string(REPLACE
+     "MAYBE_RUN_TEST( NameCacheTest );"
+     "MAYBE_RUN_TEST( NameCacheTest );\n\tMAYBE_RUN_TEST( PerfStateHashGoldenTest );"
+     _box3d_main_src "${_box3d_main_src}")
++string(REPLACE
++    "extern int PerfStateHashGoldenTest( void );"
++    "extern int PerfStateHashGoldenTest( void );\nextern int SmeLaneMulEquivalenceTest( void );"
++    _box3d_main_src "${_box3d_main_src}")
++string(REPLACE
++    "MAYBE_RUN_TEST( PerfStateHashGoldenTest );"
++    "MAYBE_RUN_TEST( PerfStateHashGoldenTest );\n\tMAYBE_RUN_TEST( SmeLaneMulEquivalenceTest );"
++    _box3d_main_src "${_box3d_main_src}")
+ string(FIND "${_box3d_main_src}" "extern int PerfStateHashGoldenTest" _box3d_perf_extern)
+ string(FIND "${_box3d_main_src}" "MAYBE_RUN_TEST( PerfStateHashGoldenTest )" _box3d_perf_run)
+ if(_box3d_perf_extern LESS 0 OR _box3d_perf_run LESS 0)
+     message(FATAL_ERROR "perf harness: main.c no longer has the NameCacheTest anchors; the registration was not injected")
+ endif()
++string(FIND "${_box3d_main_src}" "extern int SmeLaneMulEquivalenceTest" _box3d_sme_extern)
++string(FIND "${_box3d_main_src}" "MAYBE_RUN_TEST( SmeLaneMulEquivalenceTest )" _box3d_sme_run)
++if(_box3d_sme_extern LESS 0 OR _box3d_sme_run LESS 0)
++    message(FATAL_ERROR "SME spike: SmeLaneMulEquivalenceTest registration was not injected")
++endif()
+ set(_box3d_main_gen "${CMAKE_CURRENT_BINARY_DIR}/main_with_perf.c")
+ file(WRITE "${_box3d_main_gen}" "${_box3d_main_src}")
+ # The generated file lives in the build dir. source_group(TREE) refuses a file
+@@ -91,6 +105,13 @@ if(BOX3D_DISABLE_SIMD)
+ 	target_compile_definitions(box3d_test PRIVATE BOX3D_DISABLE_SIMD)
+ endif()
+ 
++# The SME kernel has a function-local +sme2 target, so unrelated tests do not
++# acquire non-streaming SVE instructions. Normal builds keep a named SKIP.
++option(BOX3D_SME_LANE_TEST "Enable Apple SME2 lane equivalence test on an SME2 host" OFF)
++if(BOX3D_SME_LANE_TEST)
++    target_compile_definitions(box3d_test PRIVATE BOX3D_SME_LANE_TEST)
++endif()
++
+ target_link_libraries(box3d_test PRIVATE box3d shared)
+ 
+ # ReferenceSceneParseTest lives in test_reference_scene.c. test/main.c is outside
+diff --git a/test/test_sme_lane.c b/test/test_sme_lane.c
+new file mode 100644
+index 0000000..04c5314
+--- /dev/null
++++ b/test/test_sme_lane.c
+@@ -0,0 +1,141 @@
++// SPDX-FileCopyrightText: 2026 Fixed3D M5 SME feasibility spike
++// SPDX-License-Identifier: MIT
++
++#include "box3d/box3d.h"
++#include "test_macros.h"
++
++#include <inttypes.h>
++#include <stdint.h>
++#include <stdio.h>
++
++// The normal suite compiles everywhere and reports a named SKIP. On the Apple
++// SME bench, configure -DBOX3D_SME_LANE_TEST=ON. Scope SME2 to the kernel:
++// a global -march made Apple clang emit non-streaming SVE in unrelated code.
++#if defined( BOX3D_SME_LANE_TEST ) && defined( __APPLE__ ) && defined( __aarch64__ ) && defined( __clang__ ) && \
++    __clang_major__ >= 21 && !defined( BOX3D_FIXED_SATURATE )
++    #define B3_SME_LANE_TEST_COMPILED 1
++    #include <arm_sve.h>
++    #include <sys/sysctl.h>
++#endif
++
++#if defined( B3_SME_LANE_TEST_COMPILED )
++
++#define B3_SME_TEST_LANES 8
++
++// Exact default wrapping Q48.16 b3FixMul. Each term keeps the low 80 product
++// bits needed after shifting 16; the final add wraps like the scalar cast.
++__arm_locally_streaming __attribute__((noinline, target("+sme2")))
++static void SmeMulLanes( const b3Fixed* a, const b3Fixed* b, b3Fixed* out )
++{
++    for ( uint64_t i = 0; i < B3_SME_TEST_LANES; i += svcntd() )
++    {
++        svbool_t pg = svwhilelt_b64( i, (uint64_t)B3_SME_TEST_LANES );
++        svint64_t x = svld1_s64( pg, a + i );
++        svint64_t y = svld1_s64( pg, b + i );
++        svint64_t bh = svasr_n_s64_x( pg, y, 16 );
++        svint64_t bl = svand_n_s64_x( pg, y, 65535 );
++        svint64_t ahi = svasr_n_s64_x( pg, x, 32 );
++        svint64_t high = svmul_s64_x( pg, x, bh );
++        svint64_t lo0 = svmul_s64_x( pg, svand_n_s64_x( pg, x, 0xffffffffLL ), bl );
++        svint64_t lo1 = svmul_s64_x( pg, ahi, bl );
++        svint64_t rounded = svreinterpret_s64_u64( svlsr_n_u64_x( pg,
++            svreinterpret_u64_s64( svadd_n_s64_x( pg, lo0, 32768 ) ), 16 ) );
++        svint64_t result = svadd_s64_x( pg, high,
++            svadd_s64_x( pg, svlsl_n_s64_x( pg, lo1, 16 ), rounded ) );
++        svst1_s64( pg, out + i, result );
++    }
++}
++
++static uint64_t SmeNext( uint64_t* state )
++{
++    uint64_t x = *state;
++    x ^= x << 13;
++    x ^= x >> 7;
++    x ^= x << 17;
++    *state = x;
++    return x;
++}
++
++static int SmeCompareBatch( const b3Fixed* a, const b3Fixed* b )
++{
++    b3Fixed got[B3_SME_TEST_LANES];
++    SmeMulLanes( a, b, got );
++    for ( int lane = 0; lane < B3_SME_TEST_LANES; ++lane )
++    {
++        b3Fixed want = b3FixMul( a[lane], b[lane] );
++        if ( got[lane] != want )
++        {
++            printf( "  SME mismatch lane=%d a=%" PRId64 " b=%" PRId64 " got=%" PRId64 " want=%" PRId64 "\n",
++                lane, a[lane], b[lane], got[lane], want );
++            return 1;
++        }
++    }
++    return 0;
++}
++
++static int SmeLaneMulEquivalence( void )
++{
++    static const b3Fixed edges[] = {
++        INT64_MIN, INT64_MIN + 1, -B3_FIXED_ONE, -32769, -32768, -1,
++        0, 1, 32767, 32768, B3_FIXED_ONE, INT64_MAX - 1, INT64_MAX
++    };
++    b3Fixed a[B3_SME_TEST_LANES];
++    b3Fixed b[B3_SME_TEST_LANES];
++
++    // Every ordered edge pair, including opposite signs and half-ULP ties.
++    int count = 0;
++    for ( int i = 0; i < ARRAY_COUNT( edges ); ++i )
++    {
++        for ( int j = 0; j < ARRAY_COUNT( edges ); ++j )
++        {
++            int lane = count++ % B3_SME_TEST_LANES;
++            a[lane] = edges[i];
++            b[lane] = edges[j];
++            if ( lane == B3_SME_TEST_LANES - 1 )
++            {
++                ENSURE( SmeCompareBatch( a, b ) == 0 );
++            }
++        }
++    }
++    for ( int lane = count % B3_SME_TEST_LANES; lane < B3_SME_TEST_LANES; ++lane )
++    {
++        a[lane] = edges[lane];
++        b[lane] = edges[ARRAY_COUNT( edges ) - 1 - lane];
++    }
++    ENSURE( SmeCompareBatch( a, b ) == 0 );
++
++    uint64_t state = UINT64_C( 0x91e10da5c79e7b1d );
++    for ( int batch = 0; batch < 4096; ++batch )
++    {
++        for ( int lane = 0; lane < B3_SME_TEST_LANES; ++lane )
++        {
++            a[lane] = (b3Fixed)SmeNext( &state );
++            b[lane] = (b3Fixed)SmeNext( &state );
++        }
++        ENSURE( SmeCompareBatch( a, b ) == 0 );
++    }
++    return 0;
++}
++
++int SmeLaneMulEquivalenceTest( void )
++{
++    int available = 0;
++    size_t size = sizeof( available );
++    if ( sysctlbyname( "hw.optional.arm.FEAT_SME2", &available, &size, NULL, 0 ) != 0 || available != 1 )
++    {
++        puts( "SKIP SmeLaneMulEquivalenceTest: SME2 unavailable" );
++        return 0;
++    }
++    RUN_SUBTEST( SmeLaneMulEquivalence );
++    return 0;
++}
++
++#else
++
++int SmeLaneMulEquivalenceTest( void )
++{
++    puts( "SKIP SmeLaneMulEquivalenceTest: build with BOX3D_SME_LANE_TEST=ON on Apple SME2" );
++    return 0;
++}
++
++#endif
+diff --git a/tools/perf/sme_micro.c b/tools/perf/sme_micro.c
+new file mode 100644
+index 0000000..e19fbb2
+--- /dev/null
++++ b/tools/perf/sme_micro.c
+@@ -0,0 +1,176 @@
++// Exploratory Apple M5 Q48.16 lane multiply cost probe; not product code.
++#include <arm_neon.h>
++#include <arm_sve.h>
++#include <inttypes.h>
++#include <stdint.h>
++#include <stdio.h>
++#include <stdlib.h>
++#include <time.h>
++
++#define LANES 8
++#define MAX_BLOCKS 64
++
++static inline int64_t exact_mul(int64_t a, int64_t b)
++{
++    __int128 p = (__int128)a * b + 32768;
++    return (int64_t)(p >> 16);
++}
++
++__attribute__((noinline)) static void scalar_mul(int64_t *a, const int64_t *b, int blocks, int add)
++{
++#pragma clang loop vectorize(disable)
++    for (int i = 0; i < blocks * LANES; ++i) {
++        int64_t p = exact_mul(a[i], b[i]);
++        a[i] = add ? (int64_t)((uint64_t)a[i] + (uint64_t)p) : p;
++    }
++}
++
++__attribute__((noinline)) static void neon_mul(int64_t *a, const int64_t *b, int blocks, int add)
++{
++    for (int i = 0; i < blocks * LANES; i += 2) {
++        int64x2_t x = vld1q_s64(a + i);
++        int64x2_t y = vld1q_s64(b + i);
++        int64_t p0 = exact_mul(vgetq_lane_s64(x, 0), vgetq_lane_s64(y, 0));
++        int64_t p1 = exact_mul(vgetq_lane_s64(x, 1), vgetq_lane_s64(y, 1));
++        int64x2_t z = vdupq_n_s64(0);
++        z = vsetq_lane_s64(add ? (int64_t)((uint64_t)vgetq_lane_s64(x, 0) + (uint64_t)p0) : p0, z, 0);
++        z = vsetq_lane_s64(add ? (int64_t)((uint64_t)vgetq_lane_s64(x, 1) + (uint64_t)p1) : p1, z, 1);
++        vst1q_s64(a + i, z);
++    }
++}
++
++__arm_locally_streaming __attribute__((noinline, target("+sme2"))) static void sme_mul(int64_t *a, const int64_t *b, int blocks, int add)
++{
++    svbool_t pg = svptrue_b64();
++    for (int i = 0; i < blocks * LANES; i += svcntd()) {
++        svint64_t x = svld1_s64(pg, a + i);
++        svint64_t y = svld1_s64(pg, b + i);
++        svint64_t bh = svasr_n_s64_x(pg, y, 16);
++        svint64_t bl = svand_n_s64_x(pg, y, 65535);
++        svint64_t ahi = svasr_n_s64_x(pg, x, 32);
++        svint64_t t = svmul_s64_x(pg, x, bh);
++        svint64_t p1 = svmul_s64_x(pg, svand_n_s64_x(pg, x, 0xffffffffLL), bl);
++        svint64_t p2 = svmul_s64_x(pg, ahi, bl);
++        svint64_t low = svreinterpret_s64_u64(svlsr_n_u64_x(pg,
++            svreinterpret_u64_s64(svadd_n_s64_x(pg, p1, 32768)), 16));
++        svint64_t value = svadd_s64_x(pg, t,
++            svadd_s64_x(pg, svlsl_n_s64_x(pg, p2, 16), low));
++        if (add) value = svadd_s64_x(pg, x, value);
++        svst1_s64(pg, a + i, value);
++    }
++}
++
++// Same vector kernel with a fresh ZA scope to expose the extra call-region cost.
++__arm_locally_streaming __arm_new("za") __attribute__((noinline, target("+sme2")))
++static void sme_mul_za(int64_t *a, const int64_t *b, int blocks, int add)
++{
++    svbool_t pg = svptrue_b64();
++    for (int i = 0; i < blocks * LANES; i += svcntd()) {
++        svint64_t x = svld1_s64(pg, a + i);
++        svint64_t y = svld1_s64(pg, b + i);
++        svint64_t bh = svasr_n_s64_x(pg, y, 16);
++        svint64_t bl = svand_n_s64_x(pg, y, 65535);
++        svint64_t ahi = svasr_n_s64_x(pg, x, 32);
++        svint64_t t = svmul_s64_x(pg, x, bh);
++        svint64_t p1 = svmul_s64_x(pg, svand_n_s64_x(pg, x, 0xffffffffLL), bl);
++        svint64_t p2 = svmul_s64_x(pg, ahi, bl);
++        svint64_t low = svreinterpret_s64_u64(svlsr_n_u64_x(pg,
++            svreinterpret_u64_s64(svadd_n_s64_x(pg, p1, 32768)), 16));
++        svint64_t value = svadd_s64_x(pg, t,
++            svadd_s64_x(pg, svlsl_n_s64_x(pg, p2, 16), low));
++        if (add) value = svadd_s64_x(pg, x, value);
++        svst1_s64(pg, a + i, value);
++    }
++}
++
++static uint64_t clock_ns(void)
++{
++    struct timespec t;
++    clock_gettime(CLOCK_MONOTONIC_RAW, &t);
++    return (uint64_t)t.tv_sec * 1000000000u + (uint64_t)t.tv_nsec;
++}
++
++typedef void (*run_fn)(int64_t *, const int64_t *, int, int);
++
++static void fill(int64_t *a, int64_t *b, int count)
++{
++    uint64_t seed = 0x91e10da5c79e7b1dULL;
++    for (int i = 0; i < count; ++i) {
++        seed ^= seed << 13; seed ^= seed >> 7; seed ^= seed << 17;
++        a[i] = (int64_t)seed;
++        seed ^= seed << 13; seed ^= seed >> 7; seed ^= seed << 17;
++        b[i] = (int64_t)seed;
++    }
++}
++
++static int check(void)
++{
++    int64_t a[LANES * MAX_BLOCKS], b[LANES * MAX_BLOCKS], expected[LANES * MAX_BLOCKS];
++    fill(a, b, LANES * MAX_BLOCKS);
++    a[0] = INT64_MIN; b[0] = INT64_MIN;
++    a[1] = INT64_MAX; b[1] = INT64_MAX;
++    a[2] = INT64_MIN; b[2] = INT64_MAX;
++    a[3] = -1; b[3] = 32768;
++    for (int add = 0; add < 2; ++add) {
++        for (int i = 0; i < LANES * MAX_BLOCKS; ++i) expected[i] = a[i];
++        scalar_mul(expected, b, MAX_BLOCKS, add);
++        sme_mul(a, b, MAX_BLOCKS, add);
++        for (int i = 0; i < LANES * MAX_BLOCKS; ++i) {
++            if (a[i] != expected[i]) {
++                fprintf(stderr, "MISMATCH add=%d lane=%d got=%" PRId64 " expected=%" PRId64 "\n",
++                    add, i, a[i], expected[i]);
++                return 1;
++            }
++        }
++        for (int i = 0; i < LANES * MAX_BLOCKS; ++i) a[i] = expected[i];
++        // The ZA-scoped version has identical arithmetic. Reinitialize and compare.
++        fill(a, b, LANES * MAX_BLOCKS);
++        a[0] = INT64_MIN; b[0] = INT64_MIN;
++        a[1] = INT64_MAX; b[1] = INT64_MAX;
++        a[2] = INT64_MIN; b[2] = INT64_MAX;
++        a[3] = -1; b[3] = 32768;
++        sme_mul_za(a, b, MAX_BLOCKS, add);
++        for (int i = 0; i < LANES * MAX_BLOCKS; ++i) {
++            if (a[i] != expected[i]) return 2;
++        }
++        fill(a, b, LANES * MAX_BLOCKS);
++        a[0] = INT64_MIN; b[0] = INT64_MIN;
++        a[1] = INT64_MAX; b[1] = INT64_MAX;
++        a[2] = INT64_MIN; b[2] = INT64_MAX;
++        a[3] = -1; b[3] = 32768;
++    }
++    puts("EXACT 512 seeded lanes including signed extremes: SME == scalar");
++    return 0;
++}
++
++static void measure(const char *name, run_fn fn, int blocks, int add, int calls)
++{
++    int64_t a[LANES * MAX_BLOCKS], b[LANES * MAX_BLOCKS];
++    fill(a, b, LANES * MAX_BLOCKS);
++    for (int i = 0; i < LANES * MAX_BLOCKS; ++i) b[i] = 65536 + (b[i] & 7);
++    uint64_t start = clock_ns();
++    for (int n = 0; n < calls; ++n) fn(a, b, blocks, add);
++    uint64_t elapsed = clock_ns() - start;
++    uint64_t check = 0;
++    for (int i = 0; i < blocks * LANES; ++i) check ^= (uint64_t)a[i];
++    printf("RUN kind=%s blocks=%d lanes=%d add=%d calls=%d ns=%" PRIu64 " ns_per_mul=%.3f checksum=%016" PRIx64 "\n",
++        name, blocks, blocks * LANES, add, calls, elapsed,
++        (double)elapsed / (double)(calls * blocks * LANES), check);
++}
++
++int main(void)
++{
++    if (check()) return 1;
++    for (int add = 0; add < 2; ++add) {
++        for (int blocks = 1; blocks <= MAX_BLOCKS; blocks *= 4) {
++            int calls = 200000 / blocks;
++            for (int repeat = 0; repeat < 7; ++repeat) {
++                measure("scalar", scalar_mul, blocks, add, calls);
++                measure("neon", neon_mul, blocks, add, calls);
++                measure("sme", sme_mul, blocks, add, calls);
++                measure("sme_za", sme_mul_za, blocks, add, calls);
++            }
++        }
++    }
++    return 0;
++}

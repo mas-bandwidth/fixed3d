@@ -2301,7 +2301,16 @@ b3Triangle b3GetMeshTriangle( const b3Mesh* mesh, int triangleIndex )
 	result.vertices[0] = b3Mul( scale, vertices[triangle.index1] );
 	result.i1 = triangle.index1;
 
-	if ( b3FixMul( b3FixMul( scale.x , scale.y ) , scale.z ) < B3_FIX( 0.0f ) )
+	// Reflected iff the exact scale determinant sx*sy*sz is negative: an odd number of negative
+	// components and no zero component. Never form the product -- b3FixMul of three legal scales
+	// quantizes to zero (rule 7) -- and a zero component makes the exact determinant zero, which
+	// is the not-reflected side exactly as product < 0 gives it (the shape of
+	// b3IsScaleCounterClockwise above). Compare signs directly.
+	int negativeCount = ( scale.x < B3_FIX( 0.0f ) ) + ( scale.y < B3_FIX( 0.0f ) ) + ( scale.z < B3_FIX( 0.0f ) );
+	bool reflected = scale.x != B3_FIX( 0.0f ) && scale.y != B3_FIX( 0.0f ) && scale.z != B3_FIX( 0.0f ) &&
+					 ( negativeCount & 1 ) == 1;
+
+	if ( reflected )
 	{
 		result.vertices[1] = b3Mul( scale, vertices[triangle.index3] );
 		result.vertices[2] = b3Mul( scale, vertices[triangle.index2] );

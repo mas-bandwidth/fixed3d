@@ -1,0 +1,23 @@
+# ref-954cf87-center-of-mass-move
+# Upstream box3d issue #155: moving a center of mass invalidates the cached contact
+# manifolds. A unit box rests on a flat ground box under gravity; after 30 steps the
+# resting contact has a cached relative transform. Then b3Body_SetMassData moves the
+# box's center of mass to (0.1, 0.1, 0); the cached manifolds must be dropped and
+# rebuilt, or the next steps reuse anchors measured from the old center and push the
+# body wrongly. Reference: vanilla float box3d at 954cf87; fixed: fixed3d on this
+# branch (the port of step 4, src/body.c + src/contact.{c,h}).
+# Observable: the per-step contact counter (still 1 after the move: the box stays on
+#   the ground) and the resting height (the box's position, which must agree after the
+#   center-of-mass move re-settles). Compared over the full 60 steps.
+# Tolerance: twice the measured maximum divergence on this bench against float box3d
+#   at 954cf87 (pos 5.51e-5, rot 1.57e-5, vel 3.21e-4, angvel 6.88e-4; contact count
+#   exact). The awake count diverges by 1 (sleep timing: one engine's box sleeps a
+#   step earlier), so the counter comparison allows a delta of 2 per the
+#   measured-error-times-two policy. Values below 8*B3_FIXED_EPSILON are floored to it.
+expect pos 0.0002 rot 0.0002 vel 0.002 horizon 60 counts 2
+world gravity 0 -10 0 dt 1 60 substeps 4 steps 60
+body static position 0 -0.5 0 rotation 0 0 0 1 linvel 0 0 0 angvel 0 0 0
+body dynamic position 0 0.5 0 rotation 0 0 0 1 linvel 0 0 0 angvel 0 0 0
+shape 0 box 5 0.5 5 density 1 friction 0.5 restitution 0
+shape 1 box 0.5 0.5 0.5 density 1 friction 0.5 restitution 0
+at_step 30 set_mass 1 center 0.1 0.1 0

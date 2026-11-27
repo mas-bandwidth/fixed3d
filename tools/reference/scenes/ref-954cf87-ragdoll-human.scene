@@ -1,0 +1,59 @@
+# Re-rigged ragdoll drop, box3d 954cf87. Bone positions, rotations and capsule
+# sizes are the shared/human.c rig, dropped on a ground box (spawn y = 3).
+# Joints are revolute (knees, elbows) and spherical (spine, hips, shoulders,
+# neck). Anchors are the rig localFrameA positions, which meet the child origin
+# at rest (localFrameB.p is 0 in the rig).
+#
+# Harness v1 has no joint-limit, joint-frame rotation, or filter-joint fields,
+# so cone/twist limits and the non-identity joint frames are NOT in this scene.
+# That is why angular velocity diverges from step 0 (measured 3.17 rad/s, growing).
+# Position still tracks for the first 4 steps. Horizon is that window, not the
+# 40-step run. Tolerances are twice the measured maximum over steps 0-3.
+#
+# Re-measured 2026-10-15 after the 954cf87 "Fixes (#157)" merge landed: the
+# merged engine changes moved this fixed ragdoll trajectory relative to float
+# box3d 954cf87 (upstream's own goldens moved in the same commit), so position
+# now diverges faster (max 2.63e-2 m over steps 0-3, up from 7.60e-3) and the
+# first contact-count delta moves one step earlier, inside the horizon. Pos
+# tolerance doubled accordingly; rot/vel measured at 0.0949 / 1.54 now, still
+# well inside the figures below, so those are left at their prior values.
+# Counts become `2` (2x the contact delta of 1) instead of exact.
+expect pos 0.05255 rot 0.2914 vel 17.688 horizon 4 counts 2
+world gravity 0 -10 0 dt 1 60 substeps 4 steps 40
+body static position 0 -1 0 rotation 0 0 0 1 linvel 0 0 0 angvel 0 0 0
+shape 0 box 4 1 4 density 0 friction 0.5 restitution 0
+body dynamic position 0 3.996219 0 rotation 1 0 0 0 linvel 0 0 0 angvel 0 0 0
+shape 1 capsule 0.15 0.04 axis 1 0 0 density 1 friction 0.6 restitution 0
+body dynamic position 0 4.017288 0 rotation 1 0 0 0 linvel 0 0 0 angvel 0 0 0
+shape 2 capsule 0.145663 0.03 axis 1 0 0 density 1 friction 0.5 restitution 0
+body dynamic position 0 4.267766 0 rotation 1 0 0 0 linvel 0 0 0 angvel 0 0 0
+shape 3 capsule 0.165 0.064 axis 1 0 0 density 1 friction 0.5 restitution 0
+body dynamic position 0 4.498783 0.024462 rotation 0.987879 0 0 0.155228 linvel 0 0 0 angvel 0 0 0
+shape 4 capsule 0.11 0.0625 axis 0 1 0 density 1 friction 0.2 restitution 0
+body dynamic position 0.092175 3.971562 0 rotation 0.471412 0.529510 -0.499888 -0.497495 linvel 0 0 0 angvel 0 0 0
+shape 5 capsule 0.091539 0.166 axis 1 0 0 density 1 friction 0.6 restitution 0
+body dynamic position 0.118720 3.534541 0 rotation 0.521188 0.480597 -0.546380 -0.445935 linvel 0 0 0 angvel 0 0 0
+shape 6 capsule 0.08 0.225 axis 1 0 0 density 1 friction 0.1 restitution 0
+body dynamic position -0.092175 3.971562 0 rotation -0.497495 0.499888 0.529510 -0.471412 linvel 0 0 0 angvel 0 0 0
+shape 7 capsule 0.092587 0.166 axis 1 0 0 density 1 friction 0.6 restitution 0
+body dynamic position -0.118720 3.534541 0 rotation -0.445935 0.546380 0.480597 -0.521188 linvel 0 0 0 angvel 0 0 0
+shape 8 capsule 0.08 0.225 axis 1 0 0 density 1 friction 0.1 restitution 0
+body dynamic position 0.185817 4.443630 0.031306 rotation 0.560220 -0.307179 0.366233 -0.676512 linvel 0 0 0 angvel 0 0 0
+shape 9 capsule 0.065 0.156 axis 1 0 0 density 1 friction 0.6 restitution 0
+body dynamic position 0.347683 4.193455 0.029378 rotation 0.406736 -0.493012 0.089135 -0.763911 linvel 0 0 0 angvel 0 0 0
+shape 10 capsule 0.06 0.14 axis 1 0 0 density 1 friction 0.3 restitution 0
+body dynamic position -0.185817 4.443630 0.031306 rotation 0.676512 0.366233 0.307179 0.560220 linvel 0 0 0 angvel 0 0 0
+shape 11 capsule 0.065 0.156 axis 1 0 0 density 1 friction 0.6 restitution 0
+body dynamic position -0.347683 4.193455 0.029378 rotation 0.763911 0.089135 0.493012 0.406736 linvel 0 0 0 angvel 0 0 0
+shape 12 capsule 0.06 0.14 axis 1 0 0 density 1 friction 0.3 restitution 0
+joint spherical 1 2 anchor 0 -0.021069 0.001014
+joint spherical 2 3 anchor 0 -0.250478 -0.002562
+joint spherical 3 4 anchor 0 -0.231017 -0.046781
+joint spherical 1 5 anchor 0.092175 0.024656 -0.012691
+joint revolute 5 6 anchor -0.438494 0 0 axis 0 0 1
+joint spherical 1 7 anchor -0.092175 0.024656 -0.012691
+joint revolute 7 8 anchor 0.438494 0 0 axis 0 0 1
+joint spherical 3 9 anchor 0.185817 -0.175865 -0.053625
+joint revolute 9 10 anchor 0.297979 0 0 axis 0 0 1
+joint spherical 3 11 anchor -0.185817 -0.175865 -0.053625
+joint revolute 11 12 anchor -0.297979 0 0 axis 0 0 1

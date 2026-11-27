@@ -1,0 +1,22 @@
+# ref-9e5a4cd-joint-enable
+# A weld joint created directly between a static body and a kinematic body, then
+# stepped. The 79fc559 fix relaxes the over-tight joint-set asserts so a joint between
+# two non-dynamic bodies can be created, disabled and re-enabled without trapping:
+# b3Body_Disable tolerates a joint already in the static set, and b3Body_Enable picks
+# the static set by body TYPE rather than setIndex.
+# Reference: vanilla float box3d at upstream commit 79fc559 (the commit that
+#   introduced the fix).
+# Fixed: fixed3d on this branch (the non-dynamic joint enable/disable fix ported).
+# Observable: the two non-dynamic bodies stay put across the steps; the joint remains
+#   valid and the world steps without asserting. The harness vocabulary has no
+#   disable/enable directive, so the scene exercises the create-and-step path (the
+#   static+kinematic pair that the over-tight assert used to trap on).
+# Tolerance: static/kinematic bodies do not move, so the trace is exact; counts exact
+#   (2 bodies, 1 joint, 0 contacts).
+expect pos 0.001 rot 0.001 vel 0.001 horizon 4 counts 0
+world gravity 0 -10 0 dt 1 60 substeps 4 steps 4
+body static position 0 0 0 rotation 0 0 0 1 linvel 0 0 0 angvel 0 0 0
+body kinematic position 2 0 0 rotation 0 0 0 1 linvel 0 0 0 angvel 0 0 0
+shape 0 box 0.5 0.5 0.5 density 1 friction 0.5 restitution 0
+shape 1 box 0.5 0.5 0.5 density 1 friction 0.5 restitution 0
+joint weld 0 1 anchor 1 0 0

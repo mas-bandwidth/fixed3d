@@ -4,12 +4,11 @@
 ; :tested-revision is the main commit whose CI passed with that evidence.
 (:schema 1
  :root "goal"
- :page (:title "fixed3d roadmap"
-        :roadmaps ("collision" "dynamics" "fixed" "simd" "platforms" "upstream"))
+ :page (
+  :roadmaps ("collision" "dynamics" "fixed" "simd" "platforms" "upstream"))
  :nodes
  ((:id "goal" :type :work-set :children ("collision" "dynamics" "fixed" "simd" "platforms" "upstream"))
   (:id "collision" :type :roadmap :title "Shapes and collision"
-   :text "The shapes, the narrow phase, scene queries, continuous collision and the character mover."
    :rows (("sphere-capsule" "spheres and capsules")
           ("hulls" "convex hulls, built from points")
           ("meshes" "triangle meshes, with stride and winding options")
@@ -61,7 +60,7 @@
   (:id "collision/sensors" :type :task :title "sensors" :state :done :evidence ("test/test_world.c: TestSensor" "test/test_world.c: TestSensorVisitorMustBeConvex") :tested-revision "29d5544b02f660adc5bd36ddfbf92f8b91beda13")
   (:id "collision/events" :type :task :title "contact and hit events" :state :done :evidence ("test/test_world.c: TestContactEvents" "test/test_world.c: TestHitEvents" "test/test_world.c: TestCompoundHitEvents") :tested-revision "29d5544b02f660adc5bd36ddfbf92f8b91beda13")
   (:id "collision/mover" :type :task :title "character mover: plane collection and time of impact" :state :done :evidence ("test/test_mover.c: GamePlanes" "test/test_mover.c: MoverHullTouching" "test/test_body_query.c: MoverTOIHitsBox") :tested-revision "29d5544b02f660adc5bd36ddfbf92f8b91beda13")
-  (:id "collision/broad-phase" :type :task :title "optimized broad phase: paired tree and sorted pair keys (upstream f555ee4)" :state :todo
+  (:id "collision/broad-phase" :type :task :title "optimized broad phase: paired tree and sorted pair keys (upstream f555ee4)" :state :done :evidence ("test/test_broad_phase.c: StaticRebuildKeepsMarks" "test/test_broad_phase.c: BroadPhaseStressTest" "commit 196193e (PR #99)")
    :note "Three steps: a TLA+ model of the tree moved bit and sorted pair keys, then the node relayout and empty-node sentinel, then tree-against-tree pair traversal with test_broad_phase. Work in PR #99; layer list in porting/."
    :github-pr "99"
    :sprint-cards "port-f555ee4-tla-tree-moved-bit-and-pair-keys,port-f555ee4-tree-node-relayout-and-empty-node-sentinel,port-f555ee4-tree-against-tree-pairs-and-sorted-keys"
@@ -78,7 +77,6 @@
    :note "src/height_field.c spells it point21, point22, point12 in the shape-cast cull and point22, point12, point21 in the mover cull."
    :github-issue "53")
   (:id "dynamics" :type :roadmap :title "Bodies, solver and joints"
-   :text "Rigid bodies, mass, sleeping, the multithreaded solver and every joint type."
    :rows (("bodies" "rigid bodies: create, destroy and validate")
           ("mass" "mass properties from shapes, or set by hand")
           ("sleep" "sleeping and waking")
@@ -97,7 +95,8 @@
           ("parallel-joints" "joints solved in parallel blocks")
           ("axial-solve" "revolute and spherical joints solve spring, motor and limit in one block (upstream 0cfc475)")
           ("gyro-tolerance" "isotropic inertia tolerance gates gyroscopic torque (upstream efca0c1)")
-          ("world-byte-count" "b3GetWorldByteCount reports the world, not the process allocator (upstream 51f056e)"))
+          ("world-byte-count" "b3GetWorldByteCount reports the world, not the process allocator (upstream 51f056e)")
+          ("orientation-deadband" "sub-quantum rotation increments carried, so a resting stack does not slide"))
    :columns (("done" "done"))
    :cells (("bodies" "done" "dynamics/bodies")
            ("mass" "done" "dynamics/mass")
@@ -117,7 +116,8 @@
            ("parallel-joints" "done" "dynamics/parallel-joints")
            ("axial-solve" "done" "dynamics/axial-solve")
            ("gyro-tolerance" "done" "dynamics/gyro-tolerance")
-           ("world-byte-count" "done" "dynamics/world-byte-count")))
+           ("world-byte-count" "done" "dynamics/world-byte-count")
+           ("orientation-deadband" "done" "dynamics/orientation-deadband")))
   (:id "dynamics/bodies" :type :task :title "rigid bodies: create, destroy and validate" :state :done :evidence ("test/test_world.c: HelloWorld" "test/test_world.c: DestroyAllBodiesWorld" "test/test_world.c: TestIsValid") :tested-revision "29d5544b02f660adc5bd36ddfbf92f8b91beda13")
   (:id "dynamics/mass" :type :task :title "mass properties from shapes, or set by hand" :state :done :evidence ("test/test_shape.c: ShapeMassTest" "test/test_body.c: SetMassDataRoundTrip" "test/test_body.c: SetMassDataWorldInertiaRotated") :tested-revision "29d5544b02f660adc5bd36ddfbf92f8b91beda13")
   (:id "dynamics/sleep" :type :task :title "sleeping and waking" :state :done :evidence ("test/test_world.c: EnableSleepFlagSyncTest" "test/test_world.c: SleepingWorldTreeJoinTest") :tested-revision "29d5544b02f660adc5bd36ddfbf92f8b91beda13")
@@ -150,8 +150,10 @@
    :tier "pro"
    :pushed-head "0adaeb4bc98a736c99793ba796dfe4dfedc77d32"
    :pushed-branch "sprint/port-51f056e-world-byte-count-reports-the-world.emma")
+  (:id "dynamics/orientation-deadband" :type :task :title "sub-quantum rotation increments carried, so a resting stack does not slide" :state :todo
+   :note "One-substep rotation increments (about 1.3 quaternion quanta at 0.01 rad/s) round away in b3IntegrateRotation, so box tilt below about 4e-4 rad never levels and the 10-box RestingTest stack slides along frictionless ground (peak 0.025 m/s against upstream float's 0.00002). The repair needs a persistent sub-quantum rotation residual in b3BodyState (body.h). RestingTest in test/test_restitution.c is a RUN_MEASUREMENT that passes its 0.05 bound by contact order, not because the bug is fixed."
+   :origin "CLAUDE.md restitution record, and the cold read of fixed3d PR #99 (filed 2026-11-04)")
   (:id "fixed" :type :roadmap :title "Fixed point, precision and determinism"
-   :text "Q48.16 everywhere, uniform precision across a huge world, bit-exact results and replay."
    :rows (("q48-16" "Q48.16 fixed point through the whole simulation")
           ("fixed-library" "fixed-point core from the fixed library, behind Box3D names")
           ("cross-platform" "bit-exact results on every platform")
@@ -199,7 +201,6 @@
    :note "b3IntegrateVelocitiesTask (src/solver.c) damps by b3FixMul, so a component below half a quantum of decrement never changes."
    :github-issue "41")
   (:id "simd" :type :roadmap :title "SIMD and performance"
-   :text "The SIMD paths, all bit-identical to scalar, and how fast the engine runs against float Box3D."
    :rows (("scalar" "scalar path, the reference")
           ("neon" "NEON narrow phase on arm64, bit-identical")
           ("avx512" "AVX-512 wide contact solver, bit-identical")
@@ -283,12 +284,11 @@
    :pushed-head "49b6cd3df51d9e62a2e081330954b2e8da1fee2d"
    :pushed-branch "sprint/port-16f7f4c-mesh-contact-scratch-to-the-arena.w2.g1.e20")
   (:id "simd/profile-report" :type :task :title "profile report: where the time goes by scene, worker count and ISA" :state :todo
-   :note "On every ISA the fleet has. Partial Linux evidence in draft PR #83."
+   :note "On every ISA the fleet has. Partial Linux evidence (78 phase rows, 13 scenes, workers 1/4, scalar and AVX-512) in perf/PROFILE-2026-10-14.md, from PR #83; still to do: top-15 sampled symbol rankings, Apple/NEON, hardware counters, the remaining bucket attributions."
    :github-pr "83"
    :sprint-card "fixed3d-perf-profile-report"
    :sprint-stream "fixed3d-perf")
   (:id "platforms" :type :roadmap :title "Platforms"
-   :text "Where the full test suite runs on every pull request, and where it is not yet proven."
    :rows (("linux-gcc" "Linux, GCC")
           ("linux-clang" "Linux, Clang")
           ("macos" "macOS on Apple silicon")
@@ -319,7 +319,6 @@
   (:id "platforms/sanitizers" :type :task :title "clean under ASan, UBSan, TSan and MSan" :state :unknown
    :note "Sanitizer jobs are in the extended workflow only, which has no green run; the README reports local ASan+UBSan passes. A green extended run makes this done.")
   (:id "upstream" :type :roadmap :title "Box3D parity and samples"
-   :text "Keeping up with upstream Box3D, and its samples app."
    :rows (("port-47d7f7c" "engine ported up to upstream box3d 47d7f7c")
           ("port-efca0c1" "engine ported up to upstream box3d efca0c1")
           ("samples" "samples app builds against the engine")

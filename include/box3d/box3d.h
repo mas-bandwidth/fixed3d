@@ -52,6 +52,8 @@ B3_API int b3GetMaxWorldCount( void );
 B3_API bool b3World_IsValid( b3WorldId id );
 
 /// Simulate a world for one time step. This performs collision detection, integration, and constraint solution.
+/// A time step of zero runs the broad-phase and collision, but skips the solver. So you can still get contact
+/// and sensor events.
 /// @param worldId The world to simulate
 /// @param timeStep The amount of time to simulate, this should be a fixed number. Usually 1/60.
 /// @param subStepCount The number of sub-steps, increasing the sub-step count can increase accuracy. Usually 4.
@@ -152,6 +154,19 @@ B3_API void b3World_SetRestitutionThreshold( b3WorldId worldId, b3Fixed value );
 
 /// Get the restitution speed threshold. Usually in meters per second.
 B3_API b3Fixed b3World_GetRestitutionThreshold( b3WorldId worldId );
+
+/// Set the number of iterations used by the restitution solver.
+/// @see B3_MAX_RESTITUTION_ITERATIONS
+B3_API void b3World_SetRestitutionIterations( b3WorldId worldId, int iterations );
+
+/// Get the number of iterations used by the restitution solver.
+B3_API int b3World_GetRestitutionIterations( b3WorldId worldId );
+
+/// Enable restitution propagation.
+B3_API void b3World_EnableRestitutionPropagation( b3WorldId worldId, bool flag );
+
+/// Is restitution propagation enabled?
+B3_API bool b3World_IsRestitutionPropagationEnabled( b3WorldId worldId );
 
 /// Adjust the hit event threshold. This controls the collision speed needed to generate a b3ContactHitEvent.
 /// Usually in meters per second.
@@ -726,6 +741,12 @@ B3_API void b3Body_SetSleepThreshold( b3BodyId bodyId, b3Fixed sleepThreshold );
 /// Get the sleep threshold, usually in meters per second.
 B3_API b3Fixed b3Body_GetSleepThreshold( b3BodyId bodyId );
 
+/// Set the continuous collision safety factor. Smaller is safer but can lead to hitching. Recommended range [0.01, 0.5]. Non-dimensional.
+B3_API void b3Body_SetSafetyFactor( b3BodyId bodyId, b3Fixed safetyFactor );
+
+/// Get the continuous collision safety factor. Non-dimensional.
+B3_API b3Fixed b3Body_GetSafetyFactor( b3BodyId bodyId );
+
 /// Returns true if this body is enabled
 B3_API bool b3Body_IsEnabled( b3BodyId bodyId );
 
@@ -1012,6 +1033,9 @@ B3_API b3Mesh b3Shape_GetMesh( b3ShapeId shapeId );
 
 /// Get the shape's height field. Asserts the type is correct.
 B3_API const b3HeightFieldData* b3Shape_GetHeightField( b3ShapeId shapeId );
+
+/// Get the baked compound. Asserts the type is correct.
+B3_API const b3CompoundData* b3Shape_GetCompound( b3ShapeId shapeId );
 
 /// Allows you to change a shape to be a sphere or update the current sphere.
 /// This does not modify the mass properties.
@@ -1357,6 +1381,95 @@ B3_API void b3MotorJoint_SetMaxSpringTorque( b3JointId jointId, b3Fixed maxTorqu
 B3_API b3Fixed b3MotorJoint_GetMaxSpringTorque( b3JointId jointId );
 
 /**@}*/ // motor_joint
+
+/**
+ * @defgroup mover_joint Mover Joint
+ * @brief Functions for the mover joint.
+ *
+ * The mover joint is designed for a dynamic character mover.
+ *
+ * @warning Experimental. The mover joint may change in future versions.
+ * @{
+ */
+
+/// Create a mover joint.
+/// @see b3MoverJointDef for details
+B3_API b3JointId b3CreateMoverJoint( b3WorldId worldId, const b3MoverJointDef* def );
+
+/// Set the desired relative linear velocity, usually in meters per second.
+B3_API void b3MoverJoint_SetLinearVelocity( b3JointId jointId, b3Vec3 velocity );
+
+/// Get the desired relative linear velocity, usually in meters per second.
+B3_API b3Vec3 b3MoverJoint_GetLinearVelocity( b3JointId jointId );
+
+/// Set the joint maximum force, usually in newtons.
+B3_API void b3MoverJoint_SetMaxVelocityForce( b3JointId jointId, b3Fixed maxForce );
+
+/// Get the joint maximum force, usually in newtons.
+B3_API b3Fixed b3MoverJoint_GetMaxVelocityForce( b3JointId jointId );
+
+/**@}*/ // mover_joint
+
+/**
+ * @defgroup pogo_joint Pogo Joint
+ * @brief Functions for the pogo joint. Used for dynamic character movers.
+ *
+ * @warning Experimental. The pogo joint may change in future versions.
+ * @{
+ */
+
+/// Create a pogo joint
+/// @see b3PogoJointDef for details
+B3_API b3JointId b3CreatePogoJoint( b3WorldId worldId, const b3PogoJointDef* def );
+
+/// Set the rest length of a pogo joint
+/// @param jointId The id for a pogo joint
+/// @param length The new pogo joint length
+B3_API void b3PogoJoint_SetRestLength( b3JointId jointId, b3Fixed length );
+
+/// Get the rest length of a pogo joint
+B3_API b3Fixed b3PogoJoint_GetRestLength( b3JointId jointId );
+
+/// Set the spring stiffness in Hertz
+B3_API void b3PogoJoint_SetSpringHertz( b3JointId jointId, b3Fixed hertz );
+
+/// Get the spring Hertz
+B3_API b3Fixed b3PogoJoint_GetSpringHertz( b3JointId jointId );
+
+/// Set the spring damping ratio, non-dimensional
+B3_API void b3PogoJoint_SetSpringDampingRatio( b3JointId jointId, b3Fixed dampingRatio );
+
+/// Get the spring damping ratio
+B3_API b3Fixed b3PogoJoint_GetSpringDampingRatio( b3JointId jointId );
+
+/// Set the max tension force, usually in Newtons.
+B3_API void b3PogoJoint_SetMaxTensionForce( b3JointId jointId, b3Fixed force );
+
+/// Get the max tension force, usually in Newtons.
+B3_API b3Fixed b3PogoJoint_GetMaxTensionForce( b3JointId jointId );
+
+/// Set the max compression force, usually in Newtons.
+B3_API void b3PogoJoint_SetMaxCompressionForce( b3JointId jointId, b3Fixed force );
+
+/// Get the max compression force, usually in Newtons.
+B3_API b3Fixed b3PogoJoint_GetMaxCompressionForce( b3JointId jointId );
+
+/// Set the unit ground normal.
+B3_API void b3PogoJoint_SetNormal( b3JointId jointId, b3Vec3 normal );
+
+/// Get the unit ground normal.
+B3_API b3Vec3 b3PogoJoint_GetNormal( b3JointId jointId );
+
+/// Get the current length of the pogo.
+B3_API b3Fixed b3PogoJoint_GetCurrentLength( b3JointId jointId );
+
+/// Get the internal pogo velocity.
+B3_API b3Fixed b3PogoJoint_GetCurrentSpeed( b3JointId jointId );
+
+/// Get the internal pogo impulse.
+B3_API b3Fixed b3PogoJoint_GetImpulse( b3JointId jointId );
+
+/**@}*/ // pogo_joint
 
 /**
  * @defgroup filter_joint Filter Joint

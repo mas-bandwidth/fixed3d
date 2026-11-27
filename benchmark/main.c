@@ -14,6 +14,7 @@
 
 #include <assert.h>
 #include <ctype.h>
+#include <inttypes.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -120,6 +121,214 @@ static void PrintBenchmarks( const Benchmark* benchmarks, int count )
 	}
 }
 
+#define PERF_FNV_INIT UINT64_C( 14695981039346656037 )
+#define PERF_FNV_PRIME UINT64_C( 1099511628211 )
+#define PERF_PHASE_COUNT 18
+
+static const char* const kPhaseNames[PERF_PHASE_COUNT] = {
+	"pairs",
+	"collide",
+	"solve",
+	"solverSetup",
+	"constraints",
+	"prepareConstraints",
+	"integrateVelocities",
+	"warmStart",
+	"solveImpulses",
+	"integratePositions",
+	"relaxImpulses",
+	"applyRestitution",
+	"storeImpulses",
+	"transforms",
+	"refit",
+	"bullets",
+	"sleepIslands",
+	"step",
+};
+
+typedef struct PerfSample
+{
+	int64_t raw[PERF_PHASE_COUNT];
+} PerfSample;
+
+typedef struct PerfRecord
+{
+	const char* scene;
+	int workers;
+	int repeats;
+	int timedSteps;
+	PerfSample* samples;
+} PerfRecord;
+
+static uint64_t HashValue( uint64_t hash, int64_t value )
+{
+	uint64_t bits = (uint64_t)value;
+	for ( int i = 0; i < 8; ++i )
+	{
+		hash = ( hash ^ ( bits & 255 ) ) * PERF_FNV_PRIME;
+		bits >>= 8;
+	}
+	return hash;
+}
+
+static uint64_t HashVector( uint64_t hash, b3Vec3 v )
+{
+	return HashValue( HashValue( HashValue( hash, v.x ), v.y ), v.z );
+}
+
+static int64_t PosComponent( b3Pos p, int axis )
+{
+#if defined( BOX3D_LUDICROUS_MODE )
+	b3Int128 wide = axis == 0 ? p.x : ( axis == 1 ? p.y : p.z );
+	return (int64_t)wide;
+#else
+	return axis == 0 ? p.x : ( axis == 1 ? p.y : p.z );
+#endif
+}
+
+static uint64_t HashWorldState( b3WorldId worldId )
+{
+	uint64_t hash = PERF_FNV_INIT;
+	b3Counters counters = b3World_GetCounters( worldId );
+	int found = 0;
+	int limit = counters.bodyCount + 65536;
+	uint16_t world0 = (uint16_t)( worldId.index1 - 1 );
+	for ( int index1 = 1; index1 <= limit && found < counters.bodyCount; ++index1 )
+	{
+		b3BodyId id = { index1, world0, 1 };
+		bool valid = false;
+		for ( uint16_t generation = 1; generation <= 64; ++generation )
+		{
+			id.generation = generation;
+			if ( b3Body_IsValid( id ) )
+			{
+				valid = true;
+				break;
+			}
+		}
+		if ( valid == false )
+		{
+			continue;
+		}
+		found += 1;
+		b3WorldTransform t = b3Body_GetTransform( id );
+		hash = HashValue( hash, PosComponent( t.p, 0 ) );
+		hash = HashValue( hash, PosComponent( t.p, 1 ) );
+		hash = HashValue( hash, PosComponent( t.p, 2 ) );
+		hash = HashVector( hash, t.q.v );
+		hash = HashValue( hash, t.q.s );
+		hash = HashVector( hash, b3Body_GetLinearVelocity( id ) );
+		hash = HashVector( hash, b3Body_GetAngularVelocity( id ) );
+	}
+	if ( found != counters.bodyCount )
+	{
+		fprintf( stderr, "hash incomplete: found %d of %d bodies\n", found, counters.bodyCount );
+	}
+	return hash;
+}
+
+static void AccumProfile( PerfSample* sample, const b3Profile* profile )
+{
+	sample->raw[0] += profile->pairs;
+	sample->raw[1] += profile->collide;
+	sample->raw[2] += profile->solve;
+	sample->raw[3] += profile->solverSetup;
+	sample->raw[4] += profile->constraints;
+	sample->raw[5] += profile->prepareConstraints;
+	sample->raw[6] += profile->integrateVelocities;
+	sample->raw[7] += profile->warmStart;
+	sample->raw[8] += profile->solveImpulses;
+	sample->raw[9] += profile->integratePositions;
+	sample->raw[10] += profile->relaxImpulses;
+	sample->raw[11] += profile->applyRestitution;
+	sample->raw[12] += profile->storeImpulses;
+	sample->raw[13] += profile->transforms;
+	sample->raw[14] += profile->refit;
+	sample->raw[15] += profile->bullets;
+	sample->raw[16] += profile->sleepIslands;
+	sample->raw[17] += profile->step;
+}
+
+static int64_t MsRawToNsPerStep( int64_t rawSum, int steps )
+{
+	// b3Profile times are Q48.16 milliseconds. Convert exactly once, here, at output:
+	// ns = (raw / 65536) * 1000000 / steps = raw * 15625 / (1024 * steps).
+	if ( steps <= 0 )
+	{
+		return 0;
+	}
+	return ( rawSum * 15625 ) / ( 1024 * (int64_t)steps );
+}
+
+static int CompareI64( const void* a, const void* b )
+{
+	int64_t x = *(const int64_t*)a;
+	int64_t y = *(const int64_t*)b;
+	return ( x > y ) - ( x < y );
+}
+
+static int64_t MedianI64( int64_t* values, int count )
+{
+	qsort( values, (size_t)count, sizeof( int64_t ), CompareI64 );
+	if ( ( count & 1 ) == 1 )
+	{
+		return values[count / 2];
+	}
+	return values[count / 2 - 1] + ( values[count / 2] - values[count / 2 - 1] ) / 2;
+}
+
+static void WritePhasesJson( const char* path, const PerfRecord* records, int recordCount )
+{
+	FILE* file = fopen( path, "w" );
+	if ( file == NULL )
+	{
+		printf( "failed to open %s\n", path );
+		exit( 1 );
+	}
+	fprintf( file, "[\n" );
+	int first = 1;
+	for ( int r = 0; r < recordCount; ++r )
+	{
+		const PerfRecord* rec = records + r;
+		for ( int phase = 0; phase < PERF_PHASE_COUNT; ++phase )
+		{
+			int64_t* column = malloc( (size_t)rec->repeats * sizeof( int64_t ) );
+			int64_t minNs = INT64_MAX;
+			int64_t maxNs = 0;
+			for ( int i = 0; i < rec->repeats; ++i )
+			{
+				int64_t ns = MsRawToNsPerStep( rec->samples[i].raw[phase], rec->timedSteps );
+				column[i] = ns;
+				if ( ns < minNs )
+				{
+					minNs = ns;
+				}
+				if ( ns > maxNs )
+				{
+					maxNs = ns;
+				}
+			}
+			int64_t medianNs = MedianI64( column, rec->repeats );
+			free( column );
+			if ( minNs == INT64_MAX )
+			{
+				minNs = 0;
+			}
+			if ( first == 0 )
+			{
+				fprintf( file, ",\n" );
+			}
+			first = 0;
+			fprintf( file,
+					 "{\"scene\":\"%s\",\"workers\":%d,\"repeats\":%d,\"timed_steps\":%d,\"phase\":\"%s\",\"min_ns\":%" PRId64
+					 ",\"median_ns\":%" PRId64 ",\"max_ns\":%" PRId64 "}",
+					 rec->scene, rec->workers, rec->repeats, rec->timedSteps, kPhaseNames[phase], minNs, medianNs, maxNs );
+		}
+	}
+	fprintf( file, "\n]\n" );
+	fclose( file );
+}
+
 // Fixed3D benchmark application. On Windows it is important to use affinity avoid cross CCD
 // usage or efficiency cores. Also on Windows create a power plan with Processor power management
 // Min/Max of 99%. This prevents boosting and makes the benchmarks more repeatable.
@@ -161,6 +370,8 @@ int main( int argc, char** argv )
 		{ "trees50", NULL, CreateTrees50, DestroyTrees, NULL, 500 },
 		{ "trees25", NULL, CreateTrees25, DestroyTrees, NULL, 500 },
 		{ "washer", GetWasherCapacity, CreateWasher, NULL, NULL, 1000 },
+		{ "ragdoll_pile", GetRagdollPileCapacity, CreateRagdollPile, DestroyRagdollPile, NULL, 100 },
+		{ "bodies_20k", GetBodies20kCapacity, CreateBodies20k, NULL, NULL, 100 },
 		//{ "smash", CreateSmash, NULL, 300 },
 		//{ "spinner", CreateSpinner, StepSpinner, 1400 },
 		//{ "tumbler", CreateTumbler, NULL, 750 },
@@ -210,6 +421,11 @@ int main( int argc, char** argv )
 	b3Counters counters = { 0 };
 	bool enableContinuous = true;
 	bool recordStepTimes = false;
+	bool enableHash = false;
+	int hashEvery = 0;
+	const char* phasesJsonPath = NULL;
+	int hashFailed = 0;
+	int stepCap = 0;
 
 	assert( maxThreadCount <= B3_MAX_WORKERS );
 
@@ -257,6 +473,38 @@ int main( int argc, char** argv )
 		{
 			recordStepTimes = true;
 		}
+		else if ( strcmp( arg, "--hash" ) == 0 )
+		{
+			enableHash = true;
+		}
+		else if ( ( value = MatchValue( arg, "--hash-every=", "--hash-every=" ) ) != NULL )
+		{
+			hashEvery = atoi( value );
+			if ( hashEvery < 1 )
+			{
+				printf( "--hash-every requires a positive integer\n" );
+				exit( 1 );
+			}
+			enableHash = true;
+		}
+		else if ( ( value = MatchValue( arg, "--phases-json=", "--phases-json=" ) ) != NULL )
+		{
+			phasesJsonPath = value;
+			if ( phasesJsonPath[0] == 0 )
+			{
+				printf( "--phases-json requires a file path\n" );
+				exit( 1 );
+			}
+		}
+		else if ( ( value = MatchValue( arg, "--steps=", "--steps=" ) ) != NULL )
+		{
+			stepCap = atoi( value );
+			if ( stepCap < 1 )
+			{
+				printf( "--steps requires a positive integer\n" );
+				exit( 1 );
+			}
+		}
 		else if ( strcmp( arg, "-l" ) == 0 || strcmp( arg, "--list" ) == 0 )
 		{
 			PrintBenchmarks( benchmarks, benchmarkCount );
@@ -271,6 +519,10 @@ int main( int argc, char** argv )
 					"-r, --repeats=<integer>: number of repeats (default is 4)\n"
 					"-nc, --no-continuous: disable continuous collision\n"
 					"-s, --record-steps: record step times\n"
+					"--hash: print HASH <scene> workers=<n> <16 hex> after the last step\n"
+					"--hash-every=<k>: also print a running hash every k steps\n"
+					"--phases-json=<file>: min/median/max ns per step for each profile phase\n"
+					"--steps=<n>: cap the step count of every scene (default unchanged)\n"
 					"-l, --list: list the registered benchmarks\n"
 					"-h, --help: print this help\n" );
 			exit( 0 );
@@ -289,6 +541,10 @@ int main( int argc, char** argv )
 	printf( "Starting benchmarks\n" );
 	printf( "======================================\n" );
 
+	PerfRecord* records = NULL;
+	int recordCount = 0;
+	int recordCap = 0;
+
 	for ( int benchmarkIndex = 0; benchmarkIndex < benchmarkCount; ++benchmarkIndex )
 	{
 		if ( singleBenchmark != -1 && benchmarkIndex != singleBenchmark )
@@ -301,6 +557,10 @@ int main( int argc, char** argv )
 #else
 		int stepCount = 10;
 #endif
+		if ( stepCap > 0 && stepCount > stepCap )
+		{
+			stepCount = stepCap;
+		}
 
 		Benchmark* benchmark = benchmarks + benchmarkIndex;
 
@@ -318,6 +578,18 @@ int main( int argc, char** argv )
 			}
 
 			printf( "thread count: %d\n", threadCount );
+
+			PerfSample* samples = NULL;
+			uint64_t* runHashes = NULL;
+			int timedSteps = stepCount > 1 ? stepCount - 1 : stepCount;
+			if ( phasesJsonPath != NULL )
+			{
+				samples = calloc( (size_t)runCount, sizeof( PerfSample ) );
+			}
+			if ( enableHash )
+			{
+				runHashes = calloc( (size_t)runCount, sizeof( uint64_t ) );
+			}
 
 			for ( int runIndex = 0; runIndex < runCount; ++runIndex )
 			{
@@ -346,9 +618,18 @@ int main( int argc, char** argv )
 				assert( stepCount <= maxSteps );
 
 				b3World_Step( worldId, timeStep, subStepCount );
-\
+
 				b3Profile profile = b3World_GetProfile( worldId );
 				MinProfile( profiles + 0, &profile );
+				if ( samples != NULL && stepCount == 1 )
+				{
+					AccumProfile( samples + runIndex, &profile );
+				}
+				if ( enableHash && hashEvery > 0 && ( 1 % hashEvery ) == 0 )
+				{
+					uint64_t stepHash = HashWorldState( worldId );
+					printf( "HASH %s workers=%d step=%d %016" PRIx64 "\n", benchmarks[benchmarkIndex].name, threadCount, 1, stepHash );
+				}
 
 				uint64_t ticks = b3GetTicks();
 
@@ -360,13 +641,28 @@ int main( int argc, char** argv )
 					}
 
 					b3World_Step( worldId, timeStep, subStepCount );
-\
+
 					profile = b3World_GetProfile( worldId );
 					MinProfile( profiles + stepIndex, &profile );
+					if ( samples != NULL )
+					{
+						AccumProfile( samples + runIndex, &profile );
+					}
+					if ( enableHash && hashEvery > 0 && ( ( stepIndex + 1 ) % hashEvery ) == 0 )
+					{
+						uint64_t stepHash = HashWorldState( worldId );
+						printf( "HASH %s workers=%d step=%d %016" PRIx64 "\n", benchmarks[benchmarkIndex].name, threadCount, stepIndex + 1,
+								stepHash );
+					}
 				}
 
 				b3Fixed ms = b3GetMilliseconds( ticks );
 				printf( "run %d : %g (ms)\n", runIndex, b3FixToDouble( ms ) );
+
+				if ( enableHash )
+				{
+					runHashes[runIndex] = HashWorldState( worldId );
+				}
 
 				if ( runIndex == 0 )
 				{
@@ -389,6 +685,36 @@ int main( int argc, char** argv )
 				}
 
 				b3DestroyWorld( worldId );
+			}
+
+			if ( enableHash )
+			{
+				for ( int runIndex = 1; runIndex < runCount; ++runIndex )
+				{
+					if ( runHashes[runIndex] != runHashes[0] )
+					{
+						fprintf( stderr, "HASH MISMATCH %s workers=%d\n", benchmarks[benchmarkIndex].name, threadCount );
+						hashFailed = 1;
+					}
+				}
+				printf( "HASH %s workers=%d %016" PRIx64 "\n", benchmarks[benchmarkIndex].name, threadCount, runHashes[0] );
+				fflush( stdout );
+			}
+			free( runHashes );
+
+			if ( samples != NULL )
+			{
+				if ( recordCount == recordCap )
+				{
+					recordCap = recordCap == 0 ? 8 : recordCap * 2;
+					records = realloc( records, (size_t)recordCap * sizeof( PerfRecord ) );
+				}
+				records[recordCount].scene = benchmarks[benchmarkIndex].name;
+				records[recordCount].workers = threadCount;
+				records[recordCount].repeats = runCount;
+				records[recordCount].timedSteps = timedSteps;
+				records[recordCount].samples = samples;
+				recordCount += 1;
 			}
 
 			if ( recordStepTimes )
@@ -435,11 +761,20 @@ int main( int argc, char** argv )
 	printf( "======================================\n" );
 	printf( "All benchmarks complete!\n" );
 
+	if ( phasesJsonPath != NULL )
+	{
+		WritePhasesJson( phasesJsonPath, records, recordCount );
+	}
+	for ( int i = 0; i < recordCount; ++i )
+	{
+		free( records[i].samples );
+	}
+	free( records );
 	free( profiles );
 
 #ifdef TRACY_ENABLE
 	___tracy_shutdown_profiler();
 #endif
 
-	return 0;
+	return hashFailed;
 }

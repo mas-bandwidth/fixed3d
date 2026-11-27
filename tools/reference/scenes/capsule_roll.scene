@@ -1,0 +1,7 @@
+# A capsule rolling down a gentle slope, slowed by rolling resistance.
+expect pos 0.005 rot 0.005 vel 0.02 horizon 60 counts 2
+world gravity 0 -10 0 dt 1 60 substeps 4 steps 120
+body static position 0 -0.5 0 rotation 0 0 0.1 0.995 linvel 0 0 0 angvel 0 0 0
+body dynamic position 0 1.5 -0.5 rotation 0 0 0 1 linvel 0 0 0 angvel 0 0 0
+shape 0 box 10 0.5 10 density 1 friction 0.5 restitution 0
+shape 1 capsule 0.5 0.5 axis 0 0 1 density 1 friction 0.2 restitution 0 rolling 0.05

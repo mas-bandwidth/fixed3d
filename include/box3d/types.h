@@ -147,6 +147,13 @@ typedef struct b3WorldDef
 	/// speed have restitution applied (will bounce).
 	b3Fixed restitutionThreshold;
 
+	/// Number of iterations of the restitution solver. More iterations can lead to less box spinning.
+	/// @see B3_MAX_RESTITUTION_ITERATIONS
+	int restitutionIterations;
+
+	/// Enable full contact propagation in the restitution solver. Expensive.
+	bool enableRestitutionPropagation;
+
 	/// Hit event speed threshold, usually in m/s. Collisions above this
 	/// speed can generate hit events if the shape also enables hit events.
 	b3Fixed hitEventThreshold;
@@ -302,6 +309,13 @@ typedef struct b3BodyDef
 
 	/// Sleep speed threshold, default is 0.05 meters per second
 	b3Fixed sleepThreshold;
+
+	/// Continuous collision safety factor. The solver only uses continuous collision if there is a
+	/// risk of tunneling. If the body is moving fast enough to risk tunneling then it is considered a "fast body".
+	/// This improves performance and prevents movement hitches. If a body moving N meter risks tunneling, then the
+	/// body will be considered fast if it moves more than a safetyFactor times N meters over one full time step.
+	/// Non-dimensional. Recommended range [0.01, 0.5]. Default is 0.5 for high performance with low tunneling risk.
+	b3Fixed safetyFactor;
 
 	/// Optional body name for debugging.
 	const char* name;
@@ -608,6 +622,8 @@ typedef enum b3JointType
 	b3_sphericalJoint,
 	b3_weldJoint,
 	b3_wheelJoint,
+	b3_moverJoint,
+	b3_pogoJoint,
 } b3JointType;
 
 /// Base joint definition used by all joint types. The local frames are measured from the
@@ -746,6 +762,64 @@ typedef struct b3MotorJointDef
 /// Use this to initialize your joint definition
 /// @ingroup motor_joint
 B3_API b3MotorJointDef b3DefaultMotorJointDef( void );
+
+/// A mover joint is used to move a dynamic character mover through velocity commands. Force is only
+/// applied in the xz plane of joint frame B. Does not affect rotation.
+/// @ingroup mover_joint
+typedef struct b3MoverJointDef
+{
+	/// Base joint definition
+	b3JointDef base;
+
+	/// The desired linear velocity
+	b3Vec3 linearVelocity;
+
+	/// The maximum motor force in newtons.
+	b3Fixed maxForce;
+} b3MoverJointDef;
+
+/// Use this to initialize your joint definition
+/// @ingroup mover_joint
+B3_API b3MoverJointDef b3DefaultMoverJointDef( void );
+
+/// The pogo joint is used for the dynamic character mover. The pogo axis is along the frame B
+/// y-axis.
+/// @ingroup pogo_joint
+typedef struct b3PogoJointDef
+{
+	/// Base joint definition
+	b3JointDef base;
+
+	/// Normal vector at the contact
+	b3Vec3 normal;
+
+	/// The spring stiffness Hertz, cycles per second
+	b3Fixed hertz;
+
+	/// The spring damping ratio, non-dimensional
+	b3Fixed dampingRatio;
+
+	/// Spring length.
+	b3Fixed restLength;
+
+	/// Maximum tension force. Controls how sticky the mover is to ground.
+	b3Fixed maxTensionForce;
+
+	/// Maximum compression force. How hard the pogo pushes the mover up from the ground.
+	b3Fixed maxCompressionForce;
+
+	/// The initial pogo internal impulse. The pogo is typically recreated every frame. This gives a
+	/// way to move the internal state forward for smoother spring behavior.
+	b3Fixed impulse;
+
+	/// The initial pogo internal velocity. The pogo is typically recreated every frame. This gives
+	/// a way to move the internal state forward for smoother spring behavior.
+	b3Fixed velocity;
+} b3PogoJointDef;
+
+/// Use this to initialize your joint definition
+/// @ingroup pogo_joint
+B3_API b3PogoJointDef b3DefaultPogoJointDef( void );
 
 /// A filter joint is used to disable collision between two specific bodies.
 /// @ingroup filter_joint
@@ -1655,58 +1729,53 @@ typedef struct b3TOIOutput
  * @{
  */
 
-/// Flags for tree nodes. For internal usage.
-typedef enum b3TreeNodeFlags
-{
-	b3_allocatedNode = 0x0001,
-	b3_enlargedNode = 0x0002,
-	b3_leafNode = 0x0004,
-} b3TreeNodeFlags;
-
-/// Tree node child indices. For internal usage.
-typedef struct b3TreeNodeChildren
-{
-	int child1; ///< child node index 1
-	int child2; ///< child node index 2
-} b3TreeNodeChildren;
-
-/// A node in the dynamic tree. This is private data placed here for performance reasons.
-/// todo test padding to 64 bytes to avoid straddling cache lines
+/// A node in the dynamic tree. Siblings sit together at an even index. The root is at index zero
+/// and index one always empty. Upstream fits two nodes in a 64 byte cache line; here the fixed
+/// point AABB is 48 bytes (96 in ludicrous mode), so a node is 56 bytes (112 in ludicrous mode).
 typedef struct b3TreeNode
 {
 	/// The node bounding box
-	b3AABB aabb; // 24
+	b3AABB aabb; // 48, 96 in ludicrous mode
 
-	/// Category bits for collision filtering
-	uint64_t categoryBits; // 8
-
-	union
-	{
-		/// Children (internal node)
-		b3TreeNodeChildren children;
-
-		/// User data (leaf node)
-		uint64_t userData;
-	}; // 8
+	/// bit 31 : 1 for leaf node
+	/// bit 30 : 1 for moved flag
+	/// bits 0-29 : index of the sibling pair node or the proxy id for a leaf
+	uint32_t flagIndex; // 4
 
 	union
 	{
-		/// The node parent index (allocated node)
-		int parent;
+		/// The height of an internal node. A leaf has zero height.
+		int32_t height;
 
-		/// The node freelist next index (free node)
-		int next;
+		/// The shape index for a leaf. Truncated from proxy user data.
+		int32_t shapeIndex;
 	}; // 4
 
-	/// Height of the node. Leaves have a height of 0.
-	uint16_t height; // 2
-
-	/// @see b3TreeNodeFlags
-	uint16_t flags; // 2
+#if defined( BOX3D_LUDICROUS_MODE )
+	/// The 128-bit AABB aligns the node to 16 bytes. Named so no byte of a serialized node is
+	/// indeterminate. Always zero.
+	uint32_t padding[2];
+#endif
 } b3TreeNode;
 
+/// Separate storage for tree leaves.
+typedef struct b3TreeProxy
+{
+	/// User data is an index instead of void* because it is used internally as a shape index.
+	uint64_t userData;
+
+	/// Category bits for collision filtering.
+	uint64_t categoryBits;
+
+	/// The leaf node. B3_NULL_INDEX for a free proxy.
+	int32_t node;
+
+	/// Next free proxy.
+	int32_t next;
+} b3TreeProxy;
+
 /// Dynamic tree version for compatibility testing.
-#define B3_DYNAMIC_TREE_VERSION 0x93EDAF889FD30B4Aull
+#define B3_DYNAMIC_TREE_VERSION 0x1D6F4C2A73B80E91ull
 
 /// The dynamic tree structure. This should be considered private data.
 /// It is placed here for performance reasons.
@@ -1716,26 +1785,42 @@ typedef struct b3DynamicTree
 	/// if the tree is serialized.
 	uint64_t version;
 
-	/// The tree nodes
+	/// Array of nodes. The root is at index zero and index 1 is empty.
+	/// Otherwise siblings are paired at even indices. Has holes for free node pairs.
 	b3TreeNode* nodes;
 
-	/// The root index
-	int root;
+	/// Parent index per node. The free list is interweaved.
+	int32_t* parents;
 
-	/// The number of nodes
-	int nodeCount;
+	/// Proxy data split from node array as cold data.
+	b3TreeProxy* proxies;
+
+	/// Every allocated node has a lower index than this.
+	int32_t nodeEnd;
 
 	/// The allocated node space
-	int nodeCapacity;
+	int32_t nodeCapacity;
+
+	/// Free pairs below nodeEnd
+	int32_t pairFreeList;
 
 	/// Number of proxies created
-	int proxyCount;
+	int32_t proxyCount;
 
-	/// Node free list
-	int freeList;
+	/// The allocated proxy space
+	int32_t proxyCapacity;
+
+	/// Proxy free list
+	int32_t proxyFreeList;
+
+	/// Array of nodes for rebuild.
+	b3TreeNode* swapNodes;
 
 	/// Leaf indices for rebuild
-	int* leafIndices;
+	int32_t* leafIndices;
+
+	/// Leaves for the rebuild. May represent a proxy or a retained subtree.
+	b3TreeNode* leafNodes;
 
 	/// Leaf bounding boxes for rebuild
 	b3AABB* leafBoxes;
@@ -1744,10 +1829,14 @@ typedef struct b3DynamicTree
 	b3Vec3* leafCenters;
 
 	/// Bins for sorting during rebuild
-	int* binIndices;
+	int32_t* binIndices;
 
 	/// Allocated space for rebuilding
-	int rebuildCapacity;
+	int32_t rebuildCapacity;
+
+	/// Rebuild orders the nodes so the children follow parents. Cache friendly for queries
+	/// and refitting. The order can be disrupted by proxy creation.
+	bool dfsOrdered;
 } b3DynamicTree;
 
 /// These are performance results returned by dynamic tree queries.
@@ -1919,8 +2008,7 @@ typedef struct b3Sphere
  * @{
  */
 
-/// A solid capsule can be viewed as two hemispheres connected
-/// by a rectangle.
+/// A solid capsule can be viewed as two hemispheres connected by a cylinder.
 typedef struct b3Capsule
 {
 	/// Local center of the first hemisphere
@@ -2437,12 +2525,8 @@ typedef struct b3CompoundDef
 	int sphereCount;
 } b3CompoundDef;
 
-/// The baked compound version depends on the tree, mesh, and hull versions.
-#define B3_COMPOUND_VERSION ( 0x830778DB07086EB4ull ^ B3_DYNAMIC_TREE_VERSION ^ B3_MESH_VERSION ^ B3_HULL_VERSION )
-
-/// Meshes used in compounds have limited space for materials. If you have
-/// a mesh with many materials, you can use it outside of the compound.
-#define B3_MAX_COMPOUND_MESH_MATERIALS 4
+/// Fixed3D's pointer-free baked compound format depends on its mesh and hull formats.
+#define B3_COMPOUND_VERSION ( 0x5E1D3B97A2C4F60Bull ^ B3_MESH_VERSION ^ B3_HULL_VERSION )
 
 /// The data for a baked compound shape. This is a potentially large yet highly optimized
 /// data structure. It can contain thousands of child shapes, yet at runtime it populates
@@ -2458,12 +2542,25 @@ typedef struct b3CompoundData
 
 	/// The total number of bytes for this compound.
 	int byteCount;
+	/// Explicit alignment padding, always zero in serialized bytes.
+	int padding;
+
+	/// Bounds of the baked tree.
+	b3AABB bounds;
+
+	/// Height of the baked tree for diagnostics.
+	int treeHeight;
 
 	/// Offset of the tree node array in bytes from the struct address.
 	int nodeOffset;
 
-	/// Immutable dynamic tree. The tree node pointer must be fixed up using the node offset
-	b3DynamicTree tree;
+	/// Number of stored tree nodes. The baked tree is dense and rooted at node zero, so this is
+	/// the tree's node end.
+	int nodeCount;
+
+	/// Offset of the tree proxy array in bytes from the struct address. There is one proxy per
+	/// child shape, so the proxy count is the child count.
+	int proxyOffset;
 
 	/// Offset of the material array in bytes from the struct address.
 	int materialOffset;
@@ -2509,7 +2606,10 @@ typedef struct b3CompoundCapsule
 	b3Capsule capsule;
 
 	/// Index to a shared material.
-	int materialIndex;
+	uint16_t materialIndex;
+
+	/// Padding for determinism.
+	uint16_t padding;
 } b3CompoundCapsule;
 
 /// A hull that lives in a compound.
@@ -2522,7 +2622,10 @@ typedef struct b3CompoundHull
 	b3Transform transform;
 
 	/// Index to a shared material.
-	int materialIndex;
+	uint16_t materialIndex;
+
+	/// Padding for determinism.
+	uint16_t padding;
 } b3CompoundHull;
 
 /// A mesh with non-uniform scale that lives in a compound.
@@ -2538,10 +2641,12 @@ typedef struct b3CompoundMesh
 	b3Vec3 scale;
 
 	/// This is used to access the surface material from b3GetCompoundMaterials.
-	/// Requires an extra level of indirection. The triangle material index
-	/// is clamped to B3_MAX_COMPOUND_MESH_MATERIALS.
+	/// Requires an extra level of indirection.
 	/// materialIndex = materialIndices[triangle->materialIndex]
-	int materialIndices[B3_MAX_COMPOUND_MESH_MATERIALS];
+	const uint16_t* materialIndices;
+
+	/// The number of materials. 1 for convex shapes.
+	int materialCount;
 } b3CompoundMesh;
 
 /// A sphere that lives in a compound.
@@ -2551,7 +2656,10 @@ typedef struct b3CompoundSphere
 	b3Sphere sphere;
 
 	/// Index to a shared material.
-	int materialIndex;
+	uint16_t materialIndex;
+
+	/// Padding for determinism.
+	uint16_t padding;
 } b3CompoundSphere;
 
 /// Child shape of a compound
@@ -2570,8 +2678,11 @@ typedef struct b3ChildShape
 	b3Transform transform;
 
 	/// Material indices. Index 0 is used for convex shapes.
-	/// todo limit to 64K?
-	int materialIndices[B3_MAX_COMPOUND_MESH_MATERIALS];
+	const uint16_t* materialIndices;
+
+	/// The number of materials. This is one for convex shapes. For
+	/// meshes it is determined by the maximum triangle material index.
+	int materialCount;
 
 	/// The shape type (union tag).
 	b3ShapeType type;

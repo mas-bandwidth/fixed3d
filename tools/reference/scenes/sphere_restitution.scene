@@ -1,0 +1,7 @@
+# A sphere dropped with restitution, bouncing until it settles.
+expect pos 0.002 rot 0.001 vel 0.01 horizon 60 counts exact
+world gravity 0 -10 0 dt 1 60 substeps 4 steps 120
+body static position 0 -0.5 0 rotation 0 0 0 1 linvel 0 0 0 angvel 0 0 0
+body dynamic position 0 2 0 rotation 0 0 0 1 linvel 0 0 0 angvel 0 0 0
+shape 0 box 10 0.5 10 density 1 friction 0.5 restitution 0
+shape 1 sphere 0.5 density 1 friction 0.2 restitution 0.7 rolling 0.01

@@ -47,8 +47,8 @@ B3_API b3TreeStats b3DynamicTree_Query( const b3DynamicTree* tree, b3AABB aabb, 
 /// Query an AABB for the closest object. The callback function is called for each proxy that might be closest to the supplied point.
 /// @param tree the dynamic tree to query
 /// @param point the query point
-/// @param maskBits nodes are skipped if the bit-wise AND with the node category bits is zero
-/// @param requireAllBits nodes are skipped if the bit-wise AND with the node category bits does not equal the maskBits
+/// @param maskBits proxies are skipped if the bit-wise AND with the proxy category bits is zero
+/// @param requireAllBits proxies are skipped if the bit-wise AND with the proxy category bits does not equal the maskBits
 /// @param callback a user provided instance of b3TreeQueryClosestCallbackFcn
 /// @param context a user context object that is provided to the callback
 /// @param minDistanceSqr the initial and final minimum squared distance. Provide a small initial to restrict the search and
@@ -67,8 +67,8 @@ B3_API b3TreeStats b3DynamicTree_QueryClosest( const b3DynamicTree* tree, b3Vec3
 ///	However, this filtering may be approximate, so the user should still apply filtering to results.
 /// @param tree the dynamic tree to ray cast
 /// @param input the ray cast input data. The ray extends from p1 to p1 + maxFraction * (p2 - p1)
-/// @param maskBits bit mask test: `bool accept = (maskBits & node->categoryBits) != 0;`
-/// @param requireAllBits modifies bit mask test: `bool accept = (maskBits & node->categoryBits) == maskBits;`
+/// @param maskBits bit mask test: `bool accept = (maskBits & proxy->categoryBits) != 0;`
+/// @param requireAllBits modifies bit mask test: `bool accept = (maskBits & proxy->categoryBits) == maskBits;`
 /// @param callback a callback function that is called for each proxy that is hit by the ray
 /// @param context user context that is passed to the callback
 ///	@return performance data
@@ -102,8 +102,8 @@ B3_API int b3DynamicTree_GetByteCount( const b3DynamicTree* tree );
 /// Validate this tree. For testing.
 B3_API void b3DynamicTree_Validate( const b3DynamicTree* tree );
 
-/// Validate this tree has no enlarged AABBs. For testing.
-B3_API void b3DynamicTree_ValidateNoEnlarged( const b3DynamicTree* tree );
+/// Validate this tree has no moved nodes. For testing.
+B3_API void b3DynamicTree_ValidateNoMoved( const b3DynamicTree* tree );
 
 /// Save this tree to a file for debugging
 B3_API void b3DynamicTree_Save( const b3DynamicTree* tree, const char* fileName );
@@ -114,13 +114,13 @@ B3_API b3DynamicTree b3DynamicTree_Load( const char* fileName, b3Fixed scale );
 /// Get proxy user data
 B3_INLINE uint64_t b3DynamicTree_GetUserData( const b3DynamicTree* tree, int proxyId )
 {
-	return tree->nodes[proxyId].userData;
+	return tree->proxies[proxyId].userData;
 }
 
 /// Get the AABB of a proxy
 B3_INLINE b3AABB b3DynamicTree_GetAABB( const b3DynamicTree* tree, int proxyId )
 {
-	return tree->nodes[proxyId].aabb;
+	return tree->nodes[tree->proxies[proxyId].node].aabb;
 }
 
 /**@}*/ // tree
@@ -194,7 +194,8 @@ B3_API b3HullData* b3CreateCone( b3Fixed height, b3Fixed radius1, b3Fixed radius
 /// Create a rock shaped hull.
 B3_API b3HullData* b3CreateRock( b3Fixed radius );
 
-/// Create a generic convex hull.
+/// Create a generic convex hull. This can fail if B3_MAX_HULL_VERTICES, B3_MAX_HULL_FACES,
+/// or B3_MAX_HULL_EDGES is exceeded.
 B3_API b3HullData* b3CreateHull( const b3Vec3* points, int pointCount, int maxVertexCount );
 
 /// Deep clone a hull.
@@ -426,15 +427,8 @@ B3_API b3CompoundData* b3CreateCompound( const b3CompoundDef* def );
 /// Destroy a compound shape.
 B3_API void b3DestroyCompound( b3CompoundData* compound );
 
-/// If bytes is null then this returns the number of required bytes. This clones all the
-/// data into the bytes buffer. This is expected to run offline or asynchronously.
-/// This mutates the compound to nullify pointers, leaving the compound in an unusable state.
-B3_API uint8_t* b3ConvertCompoundToBytes( b3CompoundData* compound );
-
-/// Convert bytes to compound. This does not clone. The bytes must remain in scope while the
-/// compound is used. This is done to improve run-time performance and allow for instancing.
-/// The bytes are mutated to fixup pointers.
-B3_API b3CompoundData* b3ConvertBytesToCompound( uint8_t* bytes, int byteCount );
+/// Validate a pointer-free baked compound without modifying its bytes.
+B3_API const b3CompoundData* b3ValidateCompound( const uint8_t* bytes, int byteCount );
 
 /**@}*/ // compound
 

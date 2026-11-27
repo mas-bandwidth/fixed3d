@@ -806,8 +806,9 @@ b3DistanceOutput b3ShapeDistance( const b3DistanceInput* input, b3SimplexCache* 
 
 	b3DistanceOutput distanceOutput = { 0 };
 
-	// Keep track of squared distance
-	b3Fixed distanceSq = B3_FIXED_MAX;
+	// Keep track of squared distance, unshifted (Q32.32 in 128 bits) so a gain under one
+	// Q48.16 ulp still counts as progress
+	b3Int128 distanceSqRaw = (b3Int128)B3_FIXED_MAX << B3_FIXED_FRACTION_BITS;
 
 	b3Vec3 normal = b3Vec3_zero;
 
@@ -880,7 +881,7 @@ b3DistanceOutput b3ShapeDistance( const b3DistanceInput* input, b3SimplexCache* 
 		}
 
 		// Assure distance progression
-		b3Fixed oldDistanceSq = distanceSq;
+		b3Int128 oldDistanceSqRaw = distanceSqRaw;
 
 		// Compute closest point
 		b3Vec3 closestPoint = { 0 };
@@ -909,9 +910,9 @@ b3DistanceOutput b3ShapeDistance( const b3DistanceInput* input, b3SimplexCache* 
 				break;
 		}
 
-		distanceSq = b3Dot( closestPoint, closestPoint );
+		distanceSqRaw = b3DotRaw( closestPoint, closestPoint );
 
-		if ( distanceSq >= oldDistanceSq )
+		if ( distanceSqRaw >= oldDistanceSqRaw )
 		{
 			// No progress - reconstruct last simplex
 			B3_ASSERT( backup.count != 0 );
@@ -1112,6 +1113,87 @@ b3CastOutput b3ShapeCast( const b3ShapeCastPairInput* input )
 				if ( input->canEncroach && distanceOutput.distance > b3FixMul( B3_FIX( 2.0f ) , linearSlop ) )
 				{
 					target = distanceOutput.distance - linearSlop;
+				}
+				else if ( input->canEncroach && distanceOutput.distance > B3_FIX( 0.0f ) )
+				{
+					// This is for box movers and can't normally be reached by capsule
+					// movers or regular shape casts.
+
+					// Near-target start without overlap: advance by first order while
+					// retaining a rest separation. Sweeps that cannot consume the free
+					// gap (receding, tangential, grazing) miss.
+
+					// Upstream is 0.5f * linearSlop. Here that is
+					// b3FixMul( B3_FIX( 0.5f ), linearSlop ) -- the house spelling for a
+					// half in this file (seven other uses of B3_FIX( 0.5f ) here, counted)
+					// and NOT an integer halving of the raw.
+					//
+					// MEASURED, raw values. For an ODD slop raw the exact half is a
+					// half-integer, so BOTH fixed spellings sit half a raw unit away from it,
+					// in opposite directions: b3FixMul rounds half UP (fixed.h fixMul: "Round
+					// half up, then shift out the fraction bits"), so it retains one raw unit
+					// MORE separation than linearSlop / 2 does and never LESS than upstream.
+					// More retained separation is the safe direction for a rest separation.
+					// The integer halving fails outright at the bottom of the range: every
+					// b3SetLengthUnitsPerMeter value from raw 100 to raw 299 -- all legal --
+					// gives slop raw 1, where linearSlop / 2 is 0 and retains NOTHING at all
+					// while b3FixMul gives 1.
+					//
+					// At the DEFAULT slop (raw 328, even) the two spellings AGREE at 164, so
+					// no golden can move either way.
+					b3Fixed retained = b3FixMul( B3_FIX( 0.5f ), linearSlop );
+					b3Fixed needed = distanceOutput.distance - retained;
+
+					// The unary minus stays OUTSIDE the dot. b3Dot is a fused raw-128
+					// reduction with a single round-half-up at the end, and round-half-up
+					// is not odd-symmetric, so negating delta2 first would be a
+					// reassociation rather than a rewrite. MEASURED, not assumed:
+					// -b3Dot( a, n ) differs from b3Dot( -a, n ) in 6 of 200000 sampled
+					// raw triples (first at -1824575 against -1824574).
+					b3Fixed approach = -b3Dot( delta2, distanceOutput.normal );
+
+					// The <= is load bearing and is kept exactly as upstream has it -- but
+					// NOT for the divide-by-zero reason, which does not survive measurement.
+					// b3FixDiv does saturate to B3_FIXED_MAX/MIN on a zero divisor (fixed.h
+					// fixDiv: "Division by zero saturates with the sign of the numerator;
+					// 0/0 == 0"), but the needed > 0 guard below already keeps a zero
+					// divisor off the divide: MEASURED, a strict < reaches b3FixDiv with
+					// approach == 0 in 0 of 801 needed values, because approach == 0 can
+					// only fall through this gate when needed <= 0, and then the guard
+					// returns zero without dividing.
+					//
+					// What the <= buys is the TANGENTIAL case: a purely tangential
+					// approach == 0 once the gap is already spent ( needed <= 0 ) is a MISS
+					// here, where a strict < would fall through and report a hit at
+					// fraction 0. The other boundary -- an approach exactly equal to the free
+					// gap -- is a MISS EITHER WAY at the documented typical maxFraction of
+					// 1.0: b3FixDiv of equal operands is exactly B3_FIX( 1.0f ), so the
+					// fraction >= input->maxFraction guard below turns it into a miss. The
+					// two spellings differ there only when maxFraction > 1.
+					if ( approach <= b3FixMax( needed, B3_FIX( 0.0f ) ) )
+					{
+						// Moving away, no hit.
+						return output;
+					}
+
+					// A bare compare, never a squared tolerance: b3FixMul( d, d ) is zero
+					// for every d at or below raw 181 (about 0.0028), which is the largest
+					// raw whose square rounds to zero under round-half-up (rule 7).
+					// b3FixDiv truncates toward zero, so the hit lands marginally EARLY,
+					// which is the safe direction - it leaves slightly more separation than
+					// asked for, never less.
+					b3Fixed fraction = needed > B3_FIX( 0.0f ) ? b3FixDiv( needed, approach ) : B3_FIX( 0.0f );
+					if ( fraction >= input->maxFraction )
+					{
+						// Still no hit because the max fraction is small.
+						return output;
+					}
+
+					output.fraction = fraction;
+					output.point = b3MulAdd( distanceOutput.pointA, input->proxyA.radius, distanceOutput.normal );
+					output.normal = distanceOutput.normal;
+					output.hit = true;
+					return output;
 				}
 				else
 				{

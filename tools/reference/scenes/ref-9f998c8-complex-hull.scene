@@ -1,0 +1,27 @@
+# ref-9f998c8-complex-hull
+# A complex hull (32 pseudo-random points on a sphere, b3CreateComplexHull seed 42,
+# radius 0.5) dropped onto a flat ground box, 120 steps at fixed dt=1/60, 4 substeps,
+# no wall clock.
+# Reference: vanilla float box3d at upstream commit 9f998c8.
+# Fixed: fixed3d on this branch (b3CreateComplexHull ported). The generated fixed hull
+#   differs from the float hull by construction: the /65535.0f coordinate map is
+#   quantized to Q48.16, so the generator produces the same point-count class (~32
+#   vertices, same LCG seed) but not the same exact vertices.
+# Observable: the dropped hull's resting height (lowest vertex y) and its contact count
+#   after 120 steps.
+# Tolerance: resting height within 0.05 m and contact count equal, stated as twice the
+#   measured maximum divergence once the reference harness (tools/reference/, from card
+#   fixed3d-box3d-reference-harness) is present at the base; that harness is absent at
+#   BASE sprint/fixed3d-box3d-ports (8f51d2d), so this scene is added for its glob and
+#   the ctest -L reference run is reported not-done in the port record until it lands.
+# Fixed-point divergence (by design, CLAUDE.md c37cfe4 record): the engine is Q48.16
+#   fixed point with the exact-SAT structure and no float SIMD hull core, so transform
+#   traces are not bit-identical to float; the hull must still settle to the same
+#   resting configuration within the stated tolerance.
+scene ref-9f998c8-complex-hull
+hull_generator complex 42
+body hull position 0 5 0 density 1.0
+body box half 10 0.5 10 position 0 -0.5 0 static
+steps 120 dt 1/60 substeps 4
+expect contactCount >= 1
+expect restingY > -0.5

@@ -53,11 +53,26 @@
 #define FIX_ASSERT       B3_ASSERT
 #define FIX_VALIDATE     B3_VALIDATE
 
-#include "fixed/fixed.h"
-
+// BOX3D_FIXED_SATURATE is box3d's name for the library's FIX_SATURATE, and it has to be
+// handed down BEFORE fixed/fixed.h: fixMul, fixDot, fixCross and every other inline in the
+// library test FIX_SATURATE where they are defined, so a define that arrives after the
+// include reaches nothing. It used to sit below the include, and a "saturating" build
+// wrapped exactly as the default one did (found by the moo comparison, mas-bandwidth/moo
+// #37). test/test_fixed_saturate.c is built with BOX3D_FIXED_SATURATE and fails if this
+// order is ever lost again.
+//
+// The same mistake one level up: fixed/fixed.h is #pragma once, so a consumer that included
+// it before any box3d header, without FIX_SATURATE, already has the wrapping inlines and no
+// define here can reach them. FIX_FRACTION_BITS is fixed.h's own, so seeing it here means
+// that happened; fail the build rather than let it wrap.
 #if defined( BOX3D_FIXED_SATURATE ) && !defined( FIX_SATURATE )
+	#if defined( FIX_FRACTION_BITS )
+		#error "fixed/fixed.h was included before box3d without FIX_SATURATE; with BOX3D_FIXED_SATURATE, include box3d first or define FIX_SATURATE for the whole build"
+	#endif
 	#define FIX_SATURATE
 #endif
+
+#include "fixed/fixed.h"
 
 // ---- types ------------------------------------------------------------------------
 typedef fixed_t                b3Fixed;

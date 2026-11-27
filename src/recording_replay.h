@@ -247,6 +247,8 @@ b3RevoluteJointDef b3RecR_REVOLUTEJOINTDEF( b3RecReader* rdr );
 b3SphericalJointDef b3RecR_SPHERICALJOINTDEF( b3RecReader* rdr );
 b3WeldJointDef b3RecR_WELDJOINTDEF( b3RecReader* rdr );
 b3WheelJointDef b3RecR_WHEELJOINTDEF( b3RecReader* rdr );
+b3MoverJointDef b3RecR_MOVERJOINTDEF( b3RecReader* rdr );
+b3PogoJointDef b3RecR_POGOJOINTDEF( b3RecReader* rdr );
 b3QueryFilter b3RecR_QUERYFILTER( b3RecReader* rdr );
 b3ShapeProxy b3RecR_SHAPEPROXY( b3RecReader* rdr );
 b3TreeStats b3RecR_TREESTATS( b3RecReader* rdr );
@@ -256,3 +258,12 @@ b3PlaneResult b3RecR_PLANERESULT( b3RecReader* rdr );
 // Grow the reader's hit scratch to at least n entries, preserving contents. n is bounded by the
 // file size since every recorded hit consumes at least one byte.
 void b3RecEnsureHits( b3RecReader* rdr, int n );
+
+// Reconstruct the live compound object for a slot on first use. Returns NULL when the stored bytes
+// are not a valid compound (stale version, truncated, bad node offset); the caller must refuse the
+// shape rather than use a compound whose tree pointer was never fixed up.
+void* b3RecGetLiveCompound( b3RegistrySlot* slot );
+
+// Resolve a registry slot by id, refusing an out-of-range id and a slot whose kind does not match
+// the kind the op expects. Returns NULL and sets rdr->ok = false on refusal.
+b3RegistrySlot* b3RecGetSlot( b3RecReader* rdr, uint32_t id, b3GeometryKind kind );

@@ -1,0 +1,41 @@
+# ref-3d9db79-record-replay
+# A 5-box stack on a flat ground box, 60 steps at fixed dt=1/60, 4 substeps, no wall
+# clock. Reference: vanilla float box3d at upstream commit 3d9db79 (PR #182, "various
+# recording fixes"). Fixed: fixed3d on this branch (the 3d9db79/003a3f7 record-and-
+# replay hardening ported: b3ConvertBytesToCompound NULL is refused in all three arms,
+# b3RecGetSlot validates the slot kind, b3RecLoadSlots refuses a short compound blob).
+# The recording format is UNCHANGED: the port only refuses a corrupt blob, it does not
+# add or reorder a field.
+# Observable: the live scenario in both engines. Recording is internal to fixed3d, so
+#   the replay arm (a recorded run replays to the SAME trace as the live run) is pinned
+#   by the unit tier, test/test_recording.c CorruptCompound plus b3ValidateReplay, not
+#   by this cross-engine scene. This scene pins that the refusal hardening did not
+#   perturb the live simulation: the stack's configuration after 60 steps agrees with
+#   vanilla float box3d at 3d9db79 within tolerance.
+# Note on the compound: the box3d compound shape (b3CreateBakedCompoundShape /
+#   b3ConvertBytesToCompound) is not expressible in the frozen v1 scene vocabulary
+#   (tools/reference/ref_scene.c, run_fixed.c, run_float.c are outside this card's
+#   paths), so the scene carries the stack the card names; a compound-body scene needs
+#   a `shape <body> compound` vocabulary extension, proposed in the pull request. The
+#   compound recording path itself is covered red-first by CorruptCompound.
+# Divergence by design (CLAUDE.md port records): the engine is Q48.16 fixed point with
+#   the exact-SAT structure and no float SIMD hull core, so traces are not bit-identical
+#   to float; the stack must settle to the same configuration within tolerance.
+# Tolerance: twice the measured maximum divergence on this bench against float box3d
+#   at 3d9db79 (pos 0.0027932885, rot 0.000532077829, vel 0.0304918997,
+#   angvel 0.0215322822; awake delta 5, contact and joint counts exact). Twice gives the
+#   values below; measured via the reference harness (ctest -L reference -V).
+expect pos 0.005587 rot 0.001065 vel 0.060983 horizon 60 counts 10
+world gravity 0 -10 0 dt 1 60 substeps 4 steps 60
+body static position 0 -0.5 0 rotation 0 0 0 1 linvel 0 0 0 angvel 0 0 0
+body dynamic position 0 0.5 0 rotation 0 0 0 1 linvel 0 0 0 angvel 0 0 0
+body dynamic position 0 1.5 0 rotation 0 0 0 1 linvel 0 0 0 angvel 0 0 0
+body dynamic position 0 2.5 0 rotation 0 0 0 1 linvel 0 0 0 angvel 0 0 0
+body dynamic position 0 3.5 0 rotation 0 0 0 1 linvel 0 0 0 angvel 0 0 0
+body dynamic position 0 4.5 0 rotation 0 0 0 1 linvel 0 0 0 angvel 0 0 0
+shape 0 box 5 0.5 5 density 1 friction 0.5 restitution 0
+shape 1 box 0.5 0.5 0.5 density 1 friction 0.5 restitution 0
+shape 2 box 0.5 0.5 0.5 density 1 friction 0.5 restitution 0
+shape 3 box 0.5 0.5 0.5 density 1 friction 0.5 restitution 0
+shape 4 box 0.5 0.5 0.5 density 1 friction 0.5 restitution 0
+shape 5 box 0.5 0.5 0.5 density 1 friction 0.5 restitution 0
