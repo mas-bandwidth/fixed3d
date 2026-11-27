@@ -4,9 +4,16 @@ This directory is a **generated copy** of [mas-bandwidth/fixed](https://github.c
 the deterministic fixed-point math library that Fixed3D's own fixed-point core was
 extracted into.
 
-    Pinned at: unreleased-8dda4fc  (8dda4fcdae38a7fde0a63bd9ba8edc3f2f75ad1c)
+    Pinned at: v1.6.0  (d537f4e9c9ef2061734a28cd1c0aaf66900c1646)
 
-fixed main after [#66](https://github.com/mas-bandwidth/fixed/pull/66): every unary minus
+fixed v1.6.0, after [#68](https://github.com/mas-bandwidth/fixed/pull/68): the wide (Q112.16) and
+time (Q32.32) types follow `fixed_t`'s overflow rule (add, subtract, negate, offset and multiply wrap
+by default and saturate under `FIX_SATURATE`; division and narrowing always saturate), and
+`fixWideMul` / `fixWideDiv` use 256-bit intermediates. Only `fixed_wide.h`, `fixed_time.h` and
+`fixed_int256.h` moved; `fixed_t` and its vectors are bit-identical to 8dda4fc. moo's `extern/fixed`
+moves to the same commit, as `tools/moo-fixed3d-compare.sh` requires.
+
+Previous pin, 8dda4fc -- fixed main after [#66](https://github.com/mas-bandwidth/fixed/pull/66): every unary minus
 on an unsigned value is spelled `(T)0 - x` (MSVC C4146 at /W4), which is bit-identical, and
 the portable `fixInt128Div` path (the Windows one) negates its quotient as `0 - q`, so
 `INT128_MIN / 1` no longer overflows a signed negation. Nothing else in the vendored files

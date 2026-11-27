@@ -18,11 +18,12 @@
 set -euo pipefail
 
 FIXED_REPO="https://github.com/mas-bandwidth/fixed.git"
-# fixed main after #66: unsigned negation spelled 0 - x (bit-identical) and the Windows
-# fixInt128Div quotient negated as 0 - q; FIX_SATURATE (#59-#62) as before.
-# This is an unreleased snapshot, pinned by immutable commit rather than a branch.
-FIXED_PIN="8dda4fcdae38a7fde0a63bd9ba8edc3f2f75ad1c"
-FIXED_VERSION="unreleased-8dda4fc"
+# fixed v1.6.0 (#68): wide (Q112.16) and time (Q32.32) follow fixed_t's overflow rule (wrap by
+# default, saturate under FIX_SATURATE; division and narrowing always saturate), and fixWideMul /
+# fixWideDiv go through 256-bit intermediates. fixed_t and its vectors are unchanged from 8dda4fc.
+# Pinned by immutable commit (the v1.6.0 tag) rather than a branch; moo vendors the same commit.
+FIXED_PIN="d537f4e9c9ef2061734a28cd1c0aaf66900c1646"
+FIXED_VERSION="v1.6.0"
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DEST="$ROOT/extern/fixed"

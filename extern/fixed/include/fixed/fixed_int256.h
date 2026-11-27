@@ -13,9 +13,12 @@
 //
 // So the wide arm of fixInvertMatrix carries the full width instead, and this header is
 // the arithmetic it needs: unsigned 256-bit add, subtract, shift, compare, a 128x64
-// widening multiply, and a division. Nothing more. It is NOT a general big-integer
-// facility and should not grow into one -- every operation here exists because one
-// specific line of the inverse needs it.
+// widening multiply, and a division. The Q112.16 multiply and divide in fixed_wide.h are
+// the second consumer: a wide product is 256 bits before it rounds and a wide quotient's
+// numerator is 144, so they add the 128x128 widening multiply, its signed form, NOT and the
+// arithmetic right shift. Nothing more. It is NOT a general big-integer facility and should
+// not grow into one -- every operation here exists because one specific line of the inverse
+// or of the wide arithmetic needs it.
 //
 // BUILT ON THE 128-BIT SEAM, NOT ON __int128. Every operation below is expressed in the
 // fixUInt128 vocabulary from fixed_int128.h, so the 256-bit layer is native where the
@@ -84,6 +87,14 @@ FIX_ALWAYS_INLINE fixUInt256 fixUInt256Neg( fixUInt256 a )
 	zero.hi = FIX_UINT128_ZERO;
 	zero.lo = FIX_UINT128_ZERO;
 	return fixUInt256Sub( zero, a );
+}
+
+FIX_ALWAYS_INLINE fixUInt256 fixUInt256Not( fixUInt256 a )
+{
+	fixUInt256 r;
+	r.hi = fixUInt128Not( a.hi );
+	r.lo = fixUInt128Not( a.lo );
+	return r;
 }
 
 FIX_ALWAYS_INLINE bool fixUInt256Lt( fixUInt256 a, fixUInt256 b )
@@ -190,6 +201,15 @@ FIX_ALWAYS_INLINE fixUInt256 fixUInt256MulU128ByU64( fixUInt128 a, uint64_t b )
 	shifted.lo = fixUInt128Shl( highPart, 64 );
 
 	return fixUInt256Add( shifted, fixUInt256FromU128( lowPart ) );
+}
+
+/// Widening multiply of two 128-bit values. Exact: a * b = a * lo( b ) + ( a * hi( b ) ) << 64,
+/// two 192-bit products whose sum is the full 256-bit product.
+FIX_ALWAYS_INLINE fixUInt256 fixUInt256MulU128( fixUInt128 a, fixUInt128 b )
+{
+	fixUInt256 low = fixUInt256MulU128ByU64( a, fixUInt128Lo( b ) );
+	fixUInt256 high = fixUInt256MulU128ByU64( a, fixUInt128Hi( b ) );
+	return fixUInt256Add( low, fixUInt256Shl( high, 64 ) );
 }
 
 /// Number of leading zero bits, written out rather than taken from a builtin so the
@@ -454,6 +474,30 @@ FIX_ALWAYS_INLINE bool fixInt256IsNegative( fixUInt256 a )
 FIX_ALWAYS_INLINE fixUInt256 fixInt256Abs( fixUInt256 a )
 {
 	return fixInt256IsNegative( a ) ? fixUInt256Neg( a ) : a;
+}
+
+/// Arithmetic right shift of a two's complement 256-bit value by 0..255: the vacated high
+/// bits fill with the sign. For a negative value that is the complement of the logical
+/// shift of its complement, which spares this header a 256-bit OR it has no other use for.
+FIX_ALWAYS_INLINE fixUInt256 fixInt256Shr( fixUInt256 a, int shift )
+{
+	if ( fixInt256IsNegative( a ) )
+	{
+		return fixUInt256Not( fixUInt256Shr( fixUInt256Not( a ), shift ) );
+	}
+	return fixUInt256Shr( a, shift );
+}
+
+/// Widening signed multiply of two 128-bit values, result in two's complement 256-bit form.
+FIX_ALWAYS_INLINE fixUInt256 fixInt256MulI128( fixInt128 a, fixInt128 b )
+{
+	bool negative = fixInt128IsNegative( a ) != fixInt128IsNegative( b );
+
+	fixUInt128 absA = fixInt128IsNegative( a ) ? fixUInt128Neg( fixInt128ToUnsigned( a ) ) : fixInt128ToUnsigned( a );
+	fixUInt128 absB = fixInt128IsNegative( b ) ? fixUInt128Neg( fixInt128ToUnsigned( b ) ) : fixInt128ToUnsigned( b );
+
+	fixUInt256 product = fixUInt256MulU128( absA, absB );
+	return negative ? fixUInt256Neg( product ) : product;
 }
 
 /// Widening signed multiply of a 128-bit value by a 64-bit value, result in two's

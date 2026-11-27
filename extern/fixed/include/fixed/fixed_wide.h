@@ -9,6 +9,7 @@
 #pragma once
 
 #include "fixed/fixed.h"
+#include "fixed/fixed_int256.h"
 #include "fixed/fixed_vec.h"
 
 /// Wide fixed-point scalar: Q112.16 in a 128-bit integer. Same resolution as
@@ -19,6 +20,13 @@
 /// so PORTABLE CONSUMER CODE USES THE FUNCTIONS BELOW rather than `+` and `<`. Every
 /// operation this header needs has a named form for exactly that reason, comparisons
 /// included.
+///
+/// THE OVERFLOW RULE is fixed_t's, operation by operation. Add, subtract, negate, offset
+/// and multiply wrap in the default build (two's complement, through the unsigned type, so
+/// defined on every compiler where fixed_t's own `+` is not) and saturate under
+/// FIX_SATURATE, as fixVecAdd and fixMul do. Division and every narrowing to fixed_t
+/// saturate in every build, as fixDiv and fixMulDiv do. Wide saturation lands on
+/// FIX_WIDE_MIN/FIX_WIDE_MAX, narrowing on FIX_MIN/FIX_MAX: never on a reserved minimum.
 typedef fixInt128 fixedWide_t;
 
 /// Wide world position: three Q112.16 coordinates.
@@ -27,6 +35,20 @@ typedef struct fixPosWide
 	fixedWide_t x, y, z;
 } fixPosWide;
 
+/// Saturation value of the wide type, 2^127 - 1: FIX_MAX's role at this width.
+#define FIX_WIDE_MAX fixInt128Make( UINT64_C( 0x7FFFFFFFFFFFFFFF ), UINT64_MAX )
+
+/// Negative saturation value, -( 2^127 - 1 ). The 128-bit minimum is one below it and is
+/// reserved (fixIsValidWideCoord), as INT64_MIN is for fixed_t.
+#define FIX_WIDE_MIN fixInt128Make( UINT64_C( 0x8000000000000000 ), 1 )
+
+/// Is this a valid wide coordinate? Mirrors fixIsValidFixed: every value is a legal
+/// quantity except the 128-bit minimum, which is reserved so negation cannot overflow.
+FIX_ALWAYS_INLINE bool fixIsValidWideCoord( fixedWide_t x )
+{
+	return !fixInt128Eq( x, fixInt128Make( UINT64_C( 0x8000000000000000 ), 0 ) );
+}
+
 /// Widen a local Q48.16 value to Q112.16. Exact: the fraction points align.
 FIX_ALWAYS_INLINE fixedWide_t fixWideFromFixed( fixed_t a )
 {
@@ -34,30 +56,80 @@ FIX_ALWAYS_INLINE fixedWide_t fixWideFromFixed( fixed_t a )
 }
 
 /// Narrow a Q112.16 value to local Q48.16, saturating out-of-range values to
-/// INT64_MAX/INT64_MIN. Exact whenever the value fits local range.
+/// FIX_MAX/FIX_MIN. Exact whenever the value fits the local domain. The lower edge is
+/// FIX_MIN, which is -INT64_MAX: INT64_MIN is not a fixed_t quantity (fixIsValidFixed
+/// rejects it), so a value at or below -2^63 lands one above it, as fixDiv's clamp does.
 FIX_ALWAYS_INLINE fixed_t fixWideToFixed( fixedWide_t a )
 {
-	if ( fixInt128Gt( a, fixInt128FromI64( INT64_MAX ) ) )
+	if ( fixInt128Gt( a, fixInt128FromI64( FIX_MAX ) ) )
 	{
-		return INT64_MAX;
+		return FIX_MAX;
 	}
-	if ( fixInt128Lt( a, fixInt128FromI64( INT64_MIN ) ) )
+	if ( fixInt128Lt( a, fixInt128FromI64( FIX_MIN ) ) )
 	{
-		return INT64_MIN;
+		return FIX_MIN;
 	}
 	return (fixed_t)fixInt128ToI64( a );
 }
 
-/// Wide add. Exact 128-bit integer addition.
-FIX_ALWAYS_INLINE fixedWide_t fixWideAdd( fixedWide_t a, fixedWide_t b )
+/// a + b, held at [FIX_WIDE_MIN, FIX_WIDE_MAX] instead of wrapping: the wide analogue of
+/// fixAddSaturate. NOT fixInt128AddSaturate, which lands on INT128_MIN -- right for the
+/// intermediate it serves, which is narrowed one step later, and wrong for a coordinate,
+/// which fixIsValidWideCoord would refuse. A sum that lands exactly on the reserved minimum
+/// without overflowing (-( 2^127 - 1 ) + -1) is held at FIX_WIDE_MIN for the same reason.
+FIX_ALWAYS_INLINE fixedWide_t fixWideAddSaturate( fixedWide_t a, fixedWide_t b )
 {
-	return fixInt128Add( a, b );
+	fixedWide_t sum = fixInt128Add( a, b );
+	bool negative = fixInt128IsNegative( a );
+	bool overflow = negative == fixInt128IsNegative( b ) && negative != fixInt128IsNegative( sum );
+#ifdef FIX_WIDE_NEGATIVE_CONTROL
+	// The negative control plants the wrap this function exists to remove. The saturating
+	// suite built with it MUST fail: if it passes, no test reaches a wide sum past the edge.
+	overflow = false;
+#endif
+	if ( overflow )
+	{
+		return negative ? FIX_WIDE_MIN : FIX_WIDE_MAX;
+	}
+	return fixIsValidWideCoord( sum ) ? sum : FIX_WIDE_MIN;
 }
 
-/// Wide subtract. Exact 128-bit integer subtraction.
+/// a - b, held at [FIX_WIDE_MIN, FIX_WIDE_MAX] instead of wrapping.
+FIX_ALWAYS_INLINE fixedWide_t fixWideSubSaturate( fixedWide_t a, fixedWide_t b )
+{
+	fixedWide_t difference = fixInt128Sub( a, b );
+	bool negative = fixInt128IsNegative( a );
+	if ( negative != fixInt128IsNegative( b ) && negative != fixInt128IsNegative( difference ) )
+	{
+		return negative ? FIX_WIDE_MIN : FIX_WIDE_MAX;
+	}
+	return fixIsValidWideCoord( difference ) ? difference : FIX_WIDE_MIN;
+}
+
+/// -a, held at the range: the reserved minimum has no negation and reads as FIX_WIDE_MAX.
+FIX_ALWAYS_INLINE fixedWide_t fixWideNegSaturate( fixedWide_t a )
+{
+	return fixIsValidWideCoord( a ) ? fixInt128Neg( a ) : FIX_WIDE_MAX;
+}
+
+/// Wide add. Exact 128-bit integer addition; wraps by default, saturates under FIX_SATURATE.
+FIX_ALWAYS_INLINE fixedWide_t fixWideAdd( fixedWide_t a, fixedWide_t b )
+{
+#if defined( FIX_SATURATE )
+	return fixWideAddSaturate( a, b );
+#else
+	return fixInt128Add( a, b );
+#endif
+}
+
+/// Wide subtract. Exact 128-bit integer subtraction; wraps by default, saturates under FIX_SATURATE.
 FIX_ALWAYS_INLINE fixedWide_t fixWideSub( fixedWide_t a, fixedWide_t b )
 {
+#if defined( FIX_SATURATE )
+	return fixWideSubSaturate( a, b );
+#else
 	return fixInt128Sub( a, b );
+#endif
 }
 
 /// Wide comparison. These exist because `<` does not compile on the emulated
@@ -87,10 +159,14 @@ FIX_ALWAYS_INLINE bool fixWideGe( fixedWide_t a, fixedWide_t b )
 	return fixInt128Ge( a, b );
 }
 
-/// Wide negation.
+/// Wide negation. Wraps at the reserved minimum by default, saturates under FIX_SATURATE.
 FIX_ALWAYS_INLINE fixedWide_t fixWideNeg( fixedWide_t a )
 {
+#if defined( FIX_SATURATE )
+	return fixWideNegSaturate( a );
+#else
 	return fixInt128Neg( a );
+#endif
 }
 
 /// Min/max on the wide (128-bit) fixed-point type.
@@ -110,19 +186,118 @@ FIX_ALWAYS_INLINE fixedWide_t fixWideMax( fixedWide_t a, fixedWide_t b )
 }
 
 /// Offset a wide coordinate by a local delta (the once-per-step delta-fold).
-/// Exact: int128 += widened int64, fraction points aligned.
+/// Exact: int128 += widened int64, fraction points aligned. Follows fixWideAdd's rule.
 FIX_ALWAYS_INLINE fixedWide_t fixWideOffset( fixedWide_t a, fixed_t d )
 {
-	return fixInt128Add( a, fixInt128FromI64( d ) );
+	return fixWideAdd( a, fixInt128FromI64( d ) );
 }
 
 /// The boundary operation: difference two wide world coordinates into local
 /// Q48.16 space. Exact whenever the separation fits local range (any contact
-/// pair, joint, or reach-bounded query); saturates otherwise. This is the
+/// pair, joint, or reach-bounded query); saturates to FIX_MIN/FIX_MAX otherwise, with the
+/// sign of the exact difference even when that difference needs 129 bits. This is the
 /// fixed-point replacement for float's entire directed-rounding apparatus.
 FIX_ALWAYS_INLINE fixed_t fixWideSubToFixed( fixedWide_t a, fixedWide_t b )
 {
-	return fixWideToFixed( fixInt128Sub( a, b ) );
+	fixedWide_t difference = fixInt128Sub( a, b );
+	bool negative = fixInt128IsNegative( a );
+	if ( negative != fixInt128IsNegative( b ) && negative != fixInt128IsNegative( difference ) )
+	{
+		// The 128-bit difference wrapped, so the exact one is past local range by 2^63 at least.
+		return negative ? FIX_MIN : FIX_MAX;
+	}
+	return fixWideToFixed( difference );
+}
+
+// Internal: the magnitude of a wide value, at full width so the reserved minimum has one.
+FIX_ALWAYS_INLINE fixUInt128 fixWideMagnitude( fixedWide_t a )
+{
+	return fixInt128IsNegative( a ) ? fixUInt128Neg( fixInt128ToUnsigned( a ) ) : fixInt128ToUnsigned( a );
+}
+
+// Internal: a rounded 256-bit product narrowed to the wide type, fixMul's tail at this
+// width. The low 128 bits by default, which is the wrap; under FIX_SATURATE the edge with
+// the product's sign whenever the high half is not the low half's sign extension.
+FIX_ALWAYS_INLINE fixedWide_t fixWideFromInt256( fixUInt256 r )
+{
+#if defined( FIX_SATURATE )
+	bool negative = fixInt256IsNegative( r );
+	fixUInt128 extension = negative ? fixUInt128Not( FIX_UINT128_ZERO ) : FIX_UINT128_ZERO;
+	fixedWide_t low = fixInt128FromUnsigned( r.lo );
+	if ( !fixUInt128Eq( r.hi, extension ) || fixInt128IsNegative( low ) != negative )
+	{
+		return negative ? FIX_WIDE_MIN : FIX_WIDE_MAX;
+	}
+	return fixIsValidWideCoord( low ) ? low : FIX_WIDE_MIN;
+#else
+	return fixInt128FromUnsigned( r.lo );
+#endif
+}
+
+// Internal: round a two's complement 256-bit product half up at the fraction point and
+// narrow it. The rounding add cannot wrap 256 bits: the product of two wide values is
+// below 2^254 in magnitude.
+FIX_ALWAYS_INLINE fixedWide_t fixWideRoundProduct( fixUInt256 product )
+{
+	fixUInt256 rounded = fixInt256Shr( fixUInt256Add( product, fixUInt256FromU64( (uint64_t)FIX_HALF ) ), FIX_FRACTION_BITS );
+	return fixWideFromInt256( rounded );
+}
+
+/// Wide multiply with round-to-nearest (half up): fixMul at Q112.16. The exact 256-bit
+/// product is rounded once at the fraction point. By default the result is not checked for
+/// overflow and wraps (defined, through the unsigned intermediate) as fixMul does; under
+/// FIX_SATURATE it saturates to FIX_WIDE_MIN/FIX_WIDE_MAX with the sign of the exact product.
+FIX_ALWAYS_INLINE fixedWide_t fixWideMul( fixedWide_t a, fixedWide_t b )
+{
+	return fixWideRoundProduct( fixInt256MulI128( a, b ) );
+}
+
+/// Wide times local: a Q112.16 value scaled by a Q48.16 factor, the same rounding and the
+/// same rule as fixWideMul, on a 192-bit product. Bit-identical to fixWideMul( a, fixWideFromFixed( s ) ).
+FIX_ALWAYS_INLINE fixedWide_t fixWideMulFixed( fixedWide_t a, fixed_t s )
+{
+	return fixWideRoundProduct( fixInt256MulI128ByI64( a, s ) );
+}
+
+// Internal: a quotient's magnitude with its sign applied, held at the wide range. A
+// magnitude at or past 2^127 saturates to the edge with that sign in every build.
+FIX_ALWAYS_INLINE fixedWide_t fixWideFromMagnitude( fixUInt256 magnitude, bool negative )
+{
+	if ( !fixUInt128Eq( magnitude.hi, FIX_UINT128_ZERO ) || fixUInt128Gt( magnitude.lo, fixInt128ToUnsigned( FIX_WIDE_MAX ) ) )
+	{
+		return negative ? FIX_WIDE_MIN : FIX_WIDE_MAX;
+	}
+	fixedWide_t value = fixInt128FromUnsigned( magnitude.lo );
+	return negative ? fixInt128Neg( value ) : value;
+}
+
+/// Wide divide with truncation toward zero and saturation: fixDiv at Q112.16, in every
+/// build. Division by zero saturates with the sign of the numerator; 0 / 0 == 0.
+FIX_ALWAYS_INLINE fixedWide_t fixWideDiv( fixedWide_t a, fixedWide_t b )
+{
+	if ( fixInt128Eq( b, FIX_INT128_ZERO ) )
+	{
+		if ( fixInt128Eq( a, FIX_INT128_ZERO ) )
+		{
+			return FIX_INT128_ZERO;
+		}
+		return fixInt128IsNegative( a ) ? FIX_WIDE_MIN : FIX_WIDE_MAX;
+	}
+
+	// The numerator carries the fraction point up by 16 bits, so it is 144 bits wide and the
+	// division runs at 256. Magnitudes divide exactly and truncate toward zero by construction.
+	fixUInt256 numerator = fixUInt256Shl( fixUInt256FromU128( fixWideMagnitude( a ) ), FIX_FRACTION_BITS );
+	fixUInt256 denominator = fixUInt256FromU128( fixWideMagnitude( b ) );
+	fixUInt256 quotient;
+	fixUInt256 remainder;
+	fixUInt256DivMod( numerator, denominator, &quotient, &remainder );
+	return fixWideFromMagnitude( quotient, fixInt128IsNegative( a ) != fixInt128IsNegative( b ) );
+}
+
+/// Wide over local: a Q112.16 value divided by a Q48.16 divisor, fixWideDiv's rule exactly.
+FIX_ALWAYS_INLINE fixedWide_t fixWideDivFixed( fixedWide_t a, fixed_t s )
+{
+	return fixWideDiv( a, fixWideFromFixed( s ) );
 }
 
 /// Widen a local position/vector to a wide world position. Exact.
@@ -160,13 +335,6 @@ typedef struct fixWorldTransformWide
 	fixPosWide p;
 	fixQuat q;
 } fixWorldTransformWide;
-
-/// Is this a valid wide coordinate? Mirrors fixIsValidFixed: every value is a legal
-/// quantity except the 128-bit minimum, which is reserved so negation cannot overflow.
-FIX_ALWAYS_INLINE bool fixIsValidWideCoord( fixedWide_t x )
-{
-	return !fixInt128Eq( x, fixInt128Make( UINT64_C( 0x8000000000000000 ), 0 ) );
-}
 
 FIX_ALWAYS_INLINE bool fixIsValidPosWide( fixPosWide p )
 {
