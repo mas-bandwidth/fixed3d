@@ -46,12 +46,28 @@
 	#define B3_CPU_UNKNOWN
 #endif
 
+// B3_ISA_HAVE_AVX512: this build holds the AVX-512 variant (src/isa_avx512.c,
+// added by src/CMakeLists.txt on x86-64). Derived from the target here, not
+// passed by the build system, so the library and every consumer of this header
+// (the tests read B3_ALIGNMENT) agree. The wide kernels implement the wrapping
+// b3FixMul only, so a saturating build holds only the scalar variant.
+#if ( defined( __x86_64__ ) || defined( _M_X64 ) ) && !defined( __EMSCRIPTEN__ ) && !defined( BOX3D_FIXED_SATURATE )
+	#define B3_ISA_HAVE_AVX512
+#endif
+
 // Define SIMD. Fixed-point math uses 64 bit integer lanes with 128 bit
-// intermediates, which do not map onto the old float SSE2/NEON paths. The
-// opt-in AVX-512 path (BOX3D_AVX512, x86-64 with AVX512F/DQ/VL) keeps the same
-// four-lane layout and is bit-identical to the scalar path: exact product
-// decompositions, same round-half-up, same wrapping. It implements the default
-// wrapping b3FixMul only, so it is disabled under BOX3D_FIXED_SATURATE.
+// intermediates, which do not map onto the old float SSE2/NEON paths.
+//
+// The AVX-512 variant (x86-64 with AVX512F/DQ/VL) keeps the same four-lane
+// layout and is bit-identical to the scalar path: exact product
+// decompositions, same round-half-up, same wrapping. It is no longer a build
+// option: every x86-64 build compiles it in its own translation unit
+// (src/isa_avx512.c, per-file -mavx512f -mavx512dq -mavx512vl) and runtime
+// dispatch picks it when the host has the facts (src/isa.h). B3_SIMD_AVX512
+// is defined only inside that translation unit, by isa_avx512.c itself, and
+// B3_ISA_HAVE_AVX512 (above) says the variant is in the build. It
+// implements the default wrapping b3FixMul only, so it is not compiled under
+// BOX3D_FIXED_SATURATE.
 //
 // The opt-in NEON path (BOX3D_NEON, aarch64) covers only the narrow-phase
 // scans: NEON has no 64-bit lane multiply (that is SVE2/SME territory, which
@@ -60,12 +76,15 @@
 // query and hull support scans, however, run on values an exactness gate
 // proves fit in int32, where NEON's native smull/smlal 32x32->64 widening
 // multiplies apply. Bit-identical to the scalar path for all inputs; gated
-// values that do not fit fall back to the 128-bit scalar scans.
-#if defined( BOX3D_AVX512 ) && !defined( BOX3D_FIXED_SATURATE )
-	#if defined( __AVX512F__ ) && defined( __AVX512DQ__ ) && defined( __AVX512VL__ )
-		#define B3_SIMD_AVX512
-	#else
-		#error "BOX3D_AVX512 requires AVX512F/DQ/VL (-mavx512f -mavx512dq -mavx512vl or /arch:AVX512)"
+// values that do not fit fall back to the 128-bit scalar scans. It is still a
+// compile-time choice of the baseline variant (aarch64 always has ASIMD); the
+// dispatched NEON/SME2 variants are the follow-up card.
+#if defined( B3_SIMD_AVX512 )
+	#if defined( BOX3D_FIXED_SATURATE )
+		#error "the AVX-512 variant implements the wrapping b3FixMul only"
+	#endif
+	#if !defined( __AVX512F__ ) || !defined( __AVX512DQ__ ) || !defined( __AVX512VL__ )
+		#error "src/isa_avx512.c must be compiled with AVX512F/DQ/VL (-mavx512f -mavx512dq -mavx512vl or /arch:AVX512)"
 	#endif
 #elif defined( BOX3D_NEON )
 	#if defined( __aarch64__ ) || defined( _M_ARM64 )
@@ -155,10 +174,12 @@ static inline int64_t b3AtomicLoadI64( b3AtomicI64* a )
 #endif
 }
 
-// Minimum memory alignment used for all allocations. The AVX-512 solver path
-// stores wide constraint lanes as __m256i, so allocations must be 32-byte
-// aligned for its aligned vector loads and stores.
-#if defined( B3_SIMD_AVX512 )
+// Minimum memory alignment used for all allocations. The AVX-512 solver
+// variant stores wide constraint lanes as __m256i, so allocations must be
+// 32-byte aligned for its aligned vector loads and stores. Every translation
+// unit of a build that holds the variant must agree, so this keys on the
+// build (B3_ISA_HAVE_AVX512), not on the variant being compiled.
+#if defined( B3_ISA_HAVE_AVX512 )
 	#define B3_ALIGNMENT 32
 #else
 	#define B3_ALIGNMENT 16

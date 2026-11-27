@@ -2,8 +2,11 @@
 # Interleaved A/B benchmark driver for fixed3d.
 # Usage:
 #   tools/perf/ab.sh <baseline-build-dir> <candidate-build-dir> \
-#       [-b=scene ...] [-w=1,2,4] [-r=<repeats>]
-# Runs A B A B ... for N repeats (default 7). Refuses if another benchmark
+#       [-b=scene ...] [-w=1,2,4] [-r=<repeats>] [--isa-a=<variant>] [--isa-b=<variant>]
+# Runs A B A B ... for N repeats (default 7). FIXED3D_ISA passes through to both
+# sides; --isa-a / --isa-b force a variant per side, so one binary against
+# itself compares variants: tools/perf/ab.sh build build --isa-a=scalar --isa-b=avx512
+# Refuses if another benchmark
 # process is on the box or the load average is above 2 per core. Never kills
 # anything. Exits non-zero if any final HASH line differs.
 set -u
@@ -16,6 +19,8 @@ REPEATS=7
 SCENES=""
 WORKERS="1 2 4"
 STEPS=""
+ISA_A="${FIXED3D_ISA:-}"
+ISA_B="${FIXED3D_ISA:-}"
 
 while [ $# -gt 0 ]; do
 	case "$1" in
@@ -23,6 +28,8 @@ while [ $# -gt 0 ]; do
 		-w=*) WORKERS=$(printf '%s' "${1#-w=}" | tr ',' ' ') ;;
 		-r=*) REPEATS="${1#-r=}" ;;
 		--steps=*) STEPS="${1#--steps=}" ;;
+		--isa-a=*) ISA_A="${1#--isa-a=}" ;;
+		--isa-b=*) ISA_B="${1#--isa-b=}" ;;
 		*) echo "unknown option $1"; exit 2 ;;
 	esac
 	shift
@@ -59,6 +66,27 @@ fi
 [ -x "$BIN_A" ] || { echo "missing baseline binary: $BIN_A"; exit 2; }
 [ -x "$BIN_B" ] || { echo "missing candidate binary: $BIN_B"; exit 2; }
 
+# Run one side with its ISA variant: empty means detection picks (FIXED3D_ISA unset)
+run_side() {
+	local isa="$1"
+	shift
+	if [ -n "$isa" ]; then
+		FIXED3D_ISA="$isa" "$@"
+	else
+		env -u FIXED3D_ISA "$@"
+	fi
+}
+
+# A pre-dispatch binary does not know --isa and would run the whole suite, so
+# ask its help text first
+isa_name() {
+	"$2" -h 2>/dev/null | grep -q -- '--isa' || return 0
+	run_side "$1" "$2" --isa 2>/dev/null | sed -n 's/^isa = //p' | head -1
+}
+isa_a=$(isa_name "$ISA_A" "$BIN_A")
+isa_b=$(isa_name "$ISA_B" "$BIN_B")
+echo "isa A=${isa_a:-n/a (no --isa: pre-dispatch build)} B=${isa_b:-n/a (no --isa: pre-dispatch build)}"
+
 if [ -z "$SCENES" ]; then
 	SCENES="convex_pile joint_grid junkyard large_pyramid large_world many_pyramids rain trees100 trees50 trees25 washer ragdoll_pile bodies_20k"
 fi
@@ -81,8 +109,8 @@ for scene in $SCENES; do
 		for ((rep = 0; rep < REPEATS; rep++)); do
 			ja="$tmpdir/a.${scene}.${w}.${rep}.json"
 			jb="$tmpdir/b.${scene}.${w}.${rep}.json"
-			a_out=$("$BIN_A" -b="$scene" -w="$w" -r=1 --hash --phases-json="$ja" $STEPARG 2>/dev/null || true)
-			b_out=$("$BIN_B" -b="$scene" -w="$w" -r=1 --hash --phases-json="$jb" $STEPARG 2>/dev/null || true)
+			a_out=$(run_side "$ISA_A" "$BIN_A" -b="$scene" -w="$w" -r=1 --hash --phases-json="$ja" $STEPARG 2>/dev/null || true)
+			b_out=$(run_side "$ISA_B" "$BIN_B" -b="$scene" -w="$w" -r=1 --hash --phases-json="$jb" $STEPARG 2>/dev/null || true)
 			a_h=$(final_hash "$a_out")
 			b_h=$(final_hash "$b_out")
 			printf '%s\n' "$a_h" > "$tmpdir/a.${scene}.${w}.${rep}.hash"

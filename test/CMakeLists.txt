@@ -21,6 +21,7 @@ set(BOX3D_TEST_FILES
     test_height_field.c
     test_hull.c
     test_id.c
+    test_isa_dispatch.c
     test_joint.c
     test_large_world.c
     test_macros.h
@@ -52,6 +53,20 @@ string(REPLACE
     "MAYBE_RUN_TEST( NameCacheTest );"
     "MAYBE_RUN_TEST( NameCacheTest );\n\tMAYBE_RUN_TEST( PerfStateHashGoldenTest );"
     _box3d_main_src "${_box3d_main_src}")
+# The runtime ISA dispatch tests (test_isa_dispatch.c) are registered the same
+# way, as three top-level tests so CI can run IsaVariantsMatchScalarTest alone.
+string(REPLACE
+    "extern int DeterminismTest( void );"
+    "extern int DeterminismTest( void );\nextern int IsaDetectParseTest( void );\nextern int IsaOverrideRefusesTest( void );\nextern int IsaVariantsMatchScalarTest( void );"
+    _box3d_main_src "${_box3d_main_src}")
+string(REPLACE
+    "MAYBE_RUN_TEST( DeterminismTest );"
+    "MAYBE_RUN_TEST( DeterminismTest );\n\tMAYBE_RUN_TEST( IsaDetectParseTest );\n\tMAYBE_RUN_TEST( IsaOverrideRefusesTest );\n\tMAYBE_RUN_TEST( IsaVariantsMatchScalarTest );"
+    _box3d_main_src "${_box3d_main_src}")
+string(FIND "${_box3d_main_src}" "MAYBE_RUN_TEST( IsaVariantsMatchScalarTest )" _box3d_isa_run)
+if(_box3d_isa_run LESS 0)
+    message(FATAL_ERROR "isa dispatch: main.c no longer has the DeterminismTest anchors; the registration was not injected")
+endif()
 # CoreMathTest is registered the same way, after PerfStateHashGoldenTest.
 string(REPLACE
     "extern int PerfStateHashGoldenTest( void );"

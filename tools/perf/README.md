@@ -6,8 +6,11 @@ Measure a change and prove it did not change a bit. `ab.sh` measures.
 ## Build
 
 From the repo root, on the Linux bench (never the working Mac). Benchmarks are
-OFF by default, so the lab adds `-DBOX3D_BENCHMARKS=ON`. Scalar means no
-`BOX3D_AVX512` and no `BOX3D_NEON`.
+OFF by default, so the lab adds `-DBOX3D_BENCHMARKS=ON`. Every x86-64 build
+holds the scalar and AVX-512 variants and picks one at runtime (src/isa.h);
+`FIXED3D_ISA=scalar|avx512` forces one, `bin/benchmark --isa` prints the one it
+picks, and the benchmark header line says `Starting benchmarks, isa = <name>`.
+`BOX3D_AVX512` is a deprecated no-op. Scalar also means no `BOX3D_NEON`.
 
     cmake -B build -DCMAKE_BUILD_TYPE=RelWithDebInfo \
         -DBOX3D_SAMPLES=OFF -DBOX3D_VALIDATE=ON \
@@ -48,6 +51,7 @@ runs the whole 78-line matrix:
     tools/perf/oracle_check.sh --regenerate --scenes=large_pyramid,many_pyramids
     tools/perf/oracle_check.sh                               # build both, diff, exit 1 on any bit
     tools/perf/oracle_check.sh --scenes=junkyard,bodies_20k  # check a subset
+    FIXED3D_ISA=avx512 tools/perf/oracle_check.sh            # every variant must reproduce the scalar oracle
 
 A regenerate with `--scenes` merges those scenes into the oracle and keeps the
 rest, so several split invocations accumulate the full matrix. The script
@@ -66,7 +70,19 @@ The 120-step oracle was regenerated from the current port-stream base on an
 AMD Ryzen 7 PRO 8700GE (Zen 4) and verified there in both scalar modes at
 workers 1/2/4. Four scene hashes changed when the fresh base was integrated;
 do not reuse the earlier EPYC oracle for this base. Cross-ISA verification of
-this exact base remains a separate gate.
+this exact base is `FIXED3D_ISA=avx512 tools/perf/oracle_check.sh` (and `=scalar`):
+one build holds both variants and both reproduce this oracle.
+
+2026-10-15 (card fixed3d-isa-dispatch-core): the `rain`, `ragdoll_pile` and
+`bodies_20k` rows (18 lines) were stale at the base tip: the scalar build of
+`origin/sprint/fixed3d-box3d-ports` itself failed them before any dispatch code
+existed (`oracle_check.sh --scenes=rain,ragdoll_pile,bodies_20k` on the base
+tree prints the same 18 mismatches). They were regenerated with
+`FIXED3D_ISA=scalar tools/perf/oracle_check.sh --regenerate
+--scenes=rain,ragdoll_pile,bodies_20k` (two runs agree, workers 1/2/4 agree) and
+the base's scalar build, the dispatch build forced to scalar and the dispatch
+build forced to avx512 all reproduce the same 78 rows, so the check no longer
+needs a locally regenerated oracle.
 
 ## A/B
 
@@ -85,6 +101,14 @@ scene's A/A spread.
 
 `tools/perf/ab.sh build build` is A against A. Speedups should sit inside the
 spread and the script should exit 0.
+
+`FIXED3D_ISA` passes through to both sides; `--isa-a=<variant>` and
+`--isa-b=<variant>` force a variant per side, so a variant spike is ONE binary
+against itself, interleaved, and the hashes must still agree:
+
+    tools/perf/ab.sh build build --isa-a=scalar --isa-b=avx512 -w=1 -r=5 --steps=120
+
+The script prints `isa A=<name> B=<name>` before the table.
 
 ## Noise floor
 

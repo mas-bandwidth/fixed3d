@@ -107,7 +107,7 @@ elif [ "$REGEN" -ne 1 ]; then
 	echo "oracle missing: $ORACLE (run with --regenerate)" >&2; exit 1
 fi
 
-CMAKE_COMMON="-DCMAKE_BUILD_TYPE=RelWithDebInfo -DBOX3D_SAMPLES=OFF -DBOX3D_VALIDATE=ON -DCMAKE_COMPILE_WARNING_AS_ERROR=ON -DBOX3D_BENCHMARKS=ON -DBOX3D_AVX512=OFF -DBOX3D_NEON=OFF"
+CMAKE_COMMON="-DCMAKE_BUILD_TYPE=RelWithDebInfo -DBOX3D_SAMPLES=OFF -DBOX3D_VALIDATE=ON -DCMAKE_COMPILE_WARNING_AS_ERROR=ON -DBOX3D_BENCHMARKS=ON -DBOX3D_NEON=OFF"
 build_one() {
 	local dir="$1"
 	shift
@@ -169,6 +169,10 @@ fi
 
 build_one "$REPO/build"
 build_one "$REPO/build-ludicrous" -DBOX3D_LUDICROUS_MODE=ON
+
+# FIXED3D_ISA passes through to every benchmark run: the oracle is the scalar
+# oracle, and every ISA variant must reproduce it bit for bit
+echo "isa: narrow=$("$REPO/build/bin/benchmark" --isa | sed 's/^isa = //') ludicrous=$("$REPO/build-ludicrous/bin/benchmark" --isa | sed 's/^isa = //') (FIXED3D_ISA=${FIXED3D_ISA:-unset})" >&2
 
 if [ "$REGEN" -eq 1 ]; then
 	r1=$(collect "$REPO/build" narrow) || exit 1

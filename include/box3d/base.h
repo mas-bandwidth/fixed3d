@@ -188,6 +188,29 @@ B3_API b3Version b3GetVersion( void );
 /// an ABI test.
 B3_API int b3GetMaxManifoldPoints( void );
 
+/// Runtime ISA dispatch. One build holds every instruction-set variant the target can
+/// compile (scalar always; avx512 on x86-64), the host is detected once, and each world
+/// takes the widest supported variant at b3CreateWorld, fixed for its life. Every variant
+/// is bit-identical to the scalar variant, so the choice never changes a result.
+///
+/// The FIXED3D_ISA environment variable (scalar, avx2, avx512, avx512ifma, neon, sme2) is
+/// read once, at the first world creation; a variant that is not compiled or whose facts
+/// the host lacks aborts with a message naming the missing fact.
+///
+/// b3ForceIsa forces a compiled variant by the same names, before worlds are created.
+/// It returns false, and b3GetIsaRefusal names why, when the variant is unknown, not
+/// compiled in this build (avx2, avx512ifma, neon and sme2 are reserved names today),
+/// missing a host fact, or when any world is live; a refused variant is never silently
+/// replaced. NULL restores the detected (or FIXED3D_ISA) variant. Not thread-safe:
+/// call it from the thread that creates worlds.
+B3_API bool b3ForceIsa( const char* name );
+
+/// @return the name of the variant new worlds get ("scalar", "avx512", ...)
+B3_API const char* b3GetIsaName( void );
+
+/// @return why the last b3ForceIsa call was refused, or "" when it was not
+B3_API const char* b3GetIsaRefusal( void );
+
 /**@}*/
 
 //! @cond
