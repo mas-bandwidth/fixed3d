@@ -1,6 +1,6 @@
 AVX2 lane multiply feasibility — first and only micro measurement
 Base: 59eff1c450f7c6d308f73d8a88c633f42e160ecb (sprint/fixed3d-box3d-ports)
-Host: vision, AMD Ryzen Threadripper 2990WX 32-Core Processor (Zen+), 64 logical CPUs
+Host: bench-linux-tr, AMD Ryzen Threadripper 2990WX 32-Core Processor (Zen+), 64 logical CPUs
 ISA observed: avx2; avx512f/avx512dq/avx512vl absent from /proc/cpuinfo flags
 Affinity: taskset -cp $$ => 0-63 (not repinned)
 Compiler: cc (Ubuntu 15.2.0-16ubuntu1) 15.2.0

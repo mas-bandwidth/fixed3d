@@ -163,10 +163,8 @@ PR checks target 1–2 minutes and retain the full determinism suite. Slower
 sanitizer, platform and sample/audit jobs are available through the manually
 triggered **Extended checks** workflow; see [CI instructions](CONTRIBUTING.md#fast-and-extended-ci).
 
-Issues specific to Fixed3D are welcome
-[here](https://github.com/mas-bandwidth/fixed3d/issues). For issues with Box3D
-in general, please use the
-[Box3D repository](https://github.com/erincatto/box3d).
+Issues specific to Fixed3D are welcome [here](https://github.com/mas-bandwidth/fixed3d/issues). 
+For issues with Box3D in general, please use the [Box3D repository](https://github.com/erincatto/box3d).
 
 The perf lab (fixed scenes, per-phase ns/step, state hashes, scalar oracle) is
 `tools/perf/`. Read `tools/perf/README.md` before an A/B.

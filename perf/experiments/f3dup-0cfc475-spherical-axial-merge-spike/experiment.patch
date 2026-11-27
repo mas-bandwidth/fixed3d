@@ -1,0 +1,263 @@
+diff --git a/src/spherical_joint.c b/src/spherical_joint.c
+index 7db6afc..8a02cc0 100644
+--- a/src/spherical_joint.c
++++ b/src/spherical_joint.c
+@@ -482,151 +482,150 @@ void b3SolveSphericalJoint( b3JointSim* base, b3StepContext* context, bool useBi
+ 		relQ = b3InvMulQuat( quatA, quatB );
+ 	}
+ 
+-	// Solve spring
+-	if ( joint->enableSpring && fixedRotation == false )
++	// Merged rotational solve: the spring, motor and limit solves against one running
++	// cdot, with the inverse-inertia response of the axis precomputed once and the
++	// accumulated impulse applied to wA and wB once at the end.
++	if ( fixedRotation == false &&
++		 ( joint->enableSpring || joint->enableMotor || joint->enableTwistLimit || joint->enableConeLimit ) )
+ 	{
+-		// Rotation constraint error
+-		b3Vec3 deltaRotation = b3DeltaQuatToRotation( relQ, joint->targetRotation );
+-		b3Vec3 c = b3Neg( b3RotateVector( quatA, deltaRotation ) );
+-
+-		b3Vec3 bias = b3MulSV( joint->springSoftness.biasRate, c );
+-		b3Fixed massScale = joint->springSoftness.massScale;
+-		b3Fixed impulseScale = joint->springSoftness.impulseScale;
++		b3Matrix3 invInertiaSum = b3AddMM( iA, iB );
+ 		b3Vec3 cdot = b3Sub( wB, wA );
++		b3Vec3 angularImpulse = b3Vec3_zero;
+ 
+-		b3Vec3 impulse = b3MulSub( b3MulSV( -massScale, b3MulMV( joint->rotationMass, b3Add( cdot, bias ) ) ),
+-								   impulseScale, joint->springImpulse );
+-		joint->springImpulse = b3Add( joint->springImpulse, impulse );
++		if ( joint->enableSpring )
++		{
++			b3Vec3 deltaRotation = b3DeltaQuatToRotation( relQ, joint->targetRotation );
++			b3Vec3 c = b3Neg( b3RotateVector( quatA, deltaRotation ) );
+ 
+-		wA = b3Sub( wA, b3InvMulMV( iA, impulse ) );
+-		wB = b3Add( wB, b3InvMulMV( iB, impulse ) );
+-	}
++			b3Vec3 bias = b3MulSV( joint->springSoftness.biasRate, c );
++			b3Fixed massScale = joint->springSoftness.massScale;
++			b3Fixed impulseScale = joint->springSoftness.impulseScale;
+ 
+-	if ( joint->enableMotor && fixedRotation == false )
+-	{
+-		b3Vec3 cdot = b3Sub( wB, wA );
++			b3Vec3 impulse = b3MulSub( b3MulSV( -massScale, b3MulMV( joint->rotationMass, b3Add( cdot, bias ) ) ),
++							   impulseScale, joint->springImpulse );
++			joint->springImpulse = b3Add( joint->springImpulse, impulse );
+ 
+-		b3Vec3 lambda = b3Neg( b3MulMV( joint->rotationMass, b3Sub( cdot, joint->motorVelocity ) ) );
+-		b3Vec3 newImpulse = b3Add( joint->motorImpulse, lambda );
+-		b3Fixed length = b3Length( newImpulse );
+-		b3Fixed maxImpulse = b3FixMul( joint->maxMotorTorque , context->h );
+-		if ( length > maxImpulse )
+-		{
+-			newImpulse = b3MulSV( b3FixDiv( maxImpulse , length ), newImpulse );
++			cdot = b3Add( cdot, b3InvMulMV( invInertiaSum, impulse ) );
++			angularImpulse = b3Add( angularImpulse, impulse );
+ 		}
+ 
+-		lambda = b3Sub( newImpulse, joint->motorImpulse );
+-		joint->motorImpulse = newImpulse;
+-
+-		wA = b3Sub( wA, b3InvMulMV( iA, lambda ) );
+-		wB = b3Add( wB, b3InvMulMV( iB, lambda ) );
+-	}
+-
+-	if ( joint->enableTwistLimit && fixedRotation == false )
+-	{
+-		b3Fixed twistAngle = b3GetTwistAngle( relQ );
++		if ( joint->enableMotor )
++		{
++			b3Vec3 lambda = b3Neg( b3MulMV( joint->rotationMass, b3Sub( cdot, joint->motorVelocity ) ) );
++			b3Vec3 newImpulse = b3Add( joint->motorImpulse, lambda );
++			b3Fixed length = b3Length( newImpulse );
++			b3Fixed maxImpulse = b3FixMul( joint->maxMotorTorque, context->h );
++			if ( length > maxImpulse )
++			{
++				newImpulse = b3MulSV( b3FixDiv( maxImpulse, length ), newImpulse );
++			}
+ 
+-		// todo does an updated twist axis help?
++			lambda = b3Sub( newImpulse, joint->motorImpulse );
++			joint->motorImpulse = newImpulse;
+ 
+-		b3Vec3 twistJacobian = joint->twistJacobian;
++			cdot = b3Add( cdot, b3InvMulMV( invInertiaSum, lambda ) );
++			angularImpulse = b3Add( angularImpulse, lambda );
++		}
+ 
+-		// Lower limit
++		if ( joint->enableTwistLimit )
+ 		{
+-			b3Fixed c = twistAngle - joint->lowerTwistAngle;
+-			b3Fixed bias = B3_FIX( 0.0f );
+-			b3Fixed massScale = B3_FIX( 1.0f );
+-			b3Fixed impulseScale = B3_FIX( 0.0f );
+-			if ( c > B3_FIX( 0.0f ) )
++			b3Fixed twistAngle = b3GetTwistAngle( relQ );
++			b3Vec3 twistJacobian = joint->twistJacobian;
++			b3Vec3 twistResponse = b3InvMulMV( invInertiaSum, twistJacobian );
++
++			// Lower limit
+ 			{
+-				// speculation
+-				bias = b3FixMul( c , context->inv_h );
++				b3Fixed c = twistAngle - joint->lowerTwistAngle;
++				b3Fixed bias = B3_FIX( 0.0f );
++				b3Fixed massScale = B3_FIX( 1.0f );
++				b3Fixed impulseScale = B3_FIX( 0.0f );
++				if ( c > B3_FIX( 0.0f ) )
++				{
++					// speculation
++					bias = b3FixMul( c, context->inv_h );
++				}
++				else if ( useBias )
++				{
++					bias = b3FixMul( base->constraintSoftness.biasRate, c );
++					massScale = base->constraintSoftness.massScale;
++					impulseScale = base->constraintSoftness.impulseScale;
++				}
++
++				b3Fixed twistCdot = b3Dot( cdot, twistJacobian );
++				b3Fixed oldImpulse = joint->lowerTwistImpulse;
++				b3Fixed deltaImpulse =
++					b3FixMax( b3FixMul( b3FixMul( -massScale, joint->twistMass ), ( twistCdot + bias ) ) - b3FixMul( impulseScale, oldImpulse ), -oldImpulse );
++				joint->lowerTwistImpulse = oldImpulse + deltaImpulse;
++
++				cdot = b3MulAdd( cdot, deltaImpulse, twistResponse );
++				angularImpulse = b3MulAdd( angularImpulse, deltaImpulse, twistJacobian );
+ 			}
+-			else if ( useBias )
++
++			// Upper limit
+ 			{
+-				bias = b3FixMul( base->constraintSoftness.biasRate , c );
+-				massScale = base->constraintSoftness.massScale;
+-				impulseScale = base->constraintSoftness.impulseScale;
++				b3Fixed c = joint->upperTwistAngle - twistAngle;
++				b3Fixed bias = B3_FIX( 0.0f );
++				b3Fixed massScale = B3_FIX( 1.0f );
++				b3Fixed impulseScale = B3_FIX( 0.0f );
++				if ( c > B3_FIX( 0.0f ) )
++				{
++					// speculation
++					bias = b3FixMul( c, context->inv_h );
++				}
++				else if ( useBias )
++				{
++					bias = b3FixMul( base->constraintSoftness.biasRate, c );
++					massScale = base->constraintSoftness.massScale;
++					impulseScale = base->constraintSoftness.impulseScale;
++				}
++
++				// sign flipped on Cdot
++				b3Fixed twistCdot = -b3Dot( cdot, twistJacobian );
++				b3Fixed oldImpulse = joint->upperTwistImpulse;
++				b3Fixed deltaImpulse =
++					b3FixMax( b3FixMul( b3FixMul( -massScale, joint->twistMass ), ( twistCdot + bias ) ) - b3FixMul( impulseScale, oldImpulse ), -oldImpulse );
++				joint->upperTwistImpulse = oldImpulse + deltaImpulse;
++
++				// sign flipped on applied impulse
++				cdot = b3MulSub( cdot, deltaImpulse, twistResponse );
++				angularImpulse = b3MulSub( angularImpulse, deltaImpulse, twistJacobian );
+ 			}
+-
+-			b3Fixed cdot = b3Dot( b3Sub( wB, wA ), twistJacobian );
+-			b3Fixed oldImpulse = joint->lowerTwistImpulse;
+-			b3Fixed deltaImpulse = b3FixMul( b3FixMul( -massScale , joint->twistMass ) , ( cdot + bias ) ) - b3FixMul( impulseScale , oldImpulse );
+-			joint->lowerTwistImpulse = b3FixMax( oldImpulse + deltaImpulse, B3_FIX( 0.0f ) );
+-			deltaImpulse = joint->lowerTwistImpulse - oldImpulse;
+-
+-			wA = b3Sub( wA, b3InvMulSV( deltaImpulse, b3MulMV( iA, twistJacobian ) ) );
+-			wB = b3Add( wB, b3InvMulSV( deltaImpulse, b3MulMV( iB, twistJacobian ) ) );
+ 		}
+ 
+-		// Upper limit
++		if ( joint->enableConeLimit )
+ 		{
+-			b3Fixed c = joint->upperTwistAngle - twistAngle;
++			b3Fixed swingAngle = b3GetSwingAngle( relQ );
++			b3Vec3 swingAxis = joint->swingAxis;
++
++			b3Fixed c = joint->coneAngle - swingAngle;
+ 			b3Fixed bias = B3_FIX( 0.0f );
+ 			b3Fixed massScale = B3_FIX( 1.0f );
+ 			b3Fixed impulseScale = B3_FIX( 0.0f );
+ 			if ( c > B3_FIX( 0.0f ) )
+ 			{
+ 				// speculation
+-				bias = b3FixMul( c , context->inv_h );
++				bias = b3FixMul( c, context->inv_h );
+ 			}
+ 			else if ( useBias )
+ 			{
+-				bias = b3FixMul( base->constraintSoftness.biasRate , c );
++				bias = b3FixMul( base->constraintSoftness.biasRate, c );
+ 				massScale = base->constraintSoftness.massScale;
+ 				impulseScale = base->constraintSoftness.impulseScale;
+ 			}
+ 
+ 			// sign flipped on Cdot
+-			b3Fixed cdot = b3Dot( b3Sub( wA, wB ), twistJacobian );
+-			b3Fixed oldImpulse = joint->upperTwistImpulse;
+-			b3Fixed deltaImpulse = b3FixMul( b3FixMul( -massScale , joint->twistMass ) , ( cdot + bias ) ) - b3FixMul( impulseScale , oldImpulse );
+-			joint->upperTwistImpulse = b3FixMax( oldImpulse + deltaImpulse, B3_FIX( 0.0f ) );
+-			deltaImpulse = joint->upperTwistImpulse - oldImpulse;
++			b3Fixed swingCdot = -b3Dot( cdot, swingAxis );
++			b3Fixed oldImpulse = joint->swingImpulse;
++			b3Fixed deltaImpulse =
++				b3FixMax( b3FixMul( b3FixMul( -massScale, joint->swingMass ), ( swingCdot + bias ) ) - b3FixMul( impulseScale, oldImpulse ), -oldImpulse );
++			joint->swingImpulse = oldImpulse + deltaImpulse;
+ 
+ 			// sign flipped on applied impulse
+-			wA = b3Add( wA, b3InvMulSV( deltaImpulse, b3MulMV( iA, twistJacobian ) ) );
+-			wB = b3Sub( wB, b3InvMulSV( deltaImpulse, b3MulMV( iB, twistJacobian ) ) );
++			angularImpulse = b3MulSub( angularImpulse, deltaImpulse, swingAxis );
+ 		}
+-	}
+-
+-	if ( joint->enableConeLimit && fixedRotation == false )
+-	{
+-		b3Fixed swingAngle = b3GetSwingAngle( relQ );
+-
+-		// todo does an updated swing axis help?
+-		// b3Vec3 axisA = b3RotateVector( quatA, b3Vec3_axisZ );
+-		// b3Vec3 axisB = b3RotateVector( quatB, b3Vec3_axisZ );
+-		// b3Vec3 swingAxis = b3Normalize( b3Cross( axisA, axisB ) );
+-		// joint->swingAxis = swingAxis;
+-
+-		b3Vec3 swingAxis = joint->swingAxis;
+-
+-		b3Fixed c = joint->coneAngle - swingAngle;
+-		b3Fixed bias = B3_FIX( 0.0f );
+-		b3Fixed massScale = B3_FIX( 1.0f );
+-		b3Fixed impulseScale = B3_FIX( 0.0f );
+-		if ( c > B3_FIX( 0.0f ) )
+-		{
+-			// speculation
+-			bias = b3FixMul( c , context->inv_h );
+-		}
+-		else if ( useBias )
+-		{
+-			bias = b3FixMul( base->constraintSoftness.biasRate , c );
+-			massScale = base->constraintSoftness.massScale;
+-			impulseScale = base->constraintSoftness.impulseScale;
+-		}
+-
+-		// sign flipped on Cdot
+-		b3Fixed cdot = b3Dot( b3Sub( wA, wB ), swingAxis );
+-		b3Fixed oldImpulse = joint->swingImpulse;
+-		b3Fixed deltaImpulse = b3FixMul( b3FixMul( -massScale , joint->swingMass ) , ( cdot + bias ) ) - b3FixMul( impulseScale , oldImpulse );
+-		joint->swingImpulse = b3FixMax( oldImpulse + deltaImpulse, B3_FIX( 0.0f ) );
+-		deltaImpulse = joint->swingImpulse - oldImpulse;
+ 
+-		// sign flipped on applied impulse
+-		wA = b3Add( wA, b3InvMulSV( deltaImpulse, b3MulMV( iA, swingAxis ) ) );
+-		wB = b3Sub( wB, b3InvMulSV( deltaImpulse, b3MulMV( iB, swingAxis ) ) );
++		wA = b3Sub( wA, b3InvMulMV( iA, angularImpulse ) );
++		wB = b3Add( wB, b3InvMulMV( iB, angularImpulse ) );
+ 	}
+ 
+ 	// Solve point-to-point constraint

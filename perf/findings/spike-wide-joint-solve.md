@@ -1,6 +1,6 @@
 # VERDICT: DROP (bit-exact, no gain: the lane = joint shape without lane math is 0.5 percent slower overall and 0.9 to 1.7 percent slower on joint_grid)
 
-Attempt 5, 2026-10-15, on hetzner2 (AVX-512). This attempt finishes the attempt-2 work (head
+Attempt 5, 2026-10-15, on bench-linux-b (AVX-512). This attempt finishes the attempt-2 work (head
 abc98815) on the bench the card names. It is the first attempt to measure the wide entry point
 wired into the solver and to check its hashes against the scalar build.
 
@@ -152,9 +152,9 @@ A/B timing runs ran with nothing else benchmarking.
 - Attempt 1: tools/perf was absent, so nothing could be measured.
 - Attempt 2 (AMD Ryzen 7 PRO 8700GE): wrote the wide entry point shape and the first equivalence
   test, and measured an A/A noise floor. The wide entry point was not wired into the solver.
-- Attempts 3 and 4 ran on the wrong host (a Mac, then vision with avx2 only). No measurement.
+- Attempts 3 and 4 ran on the wrong host (a Mac, then bench-linux-tr with avx2 only). No measurement.
 - Attempt 5 (this one): wired the entry point into the solver, extended the test to 10,000 seeded
-  quadruples, ran the A/B and the hash gates on hetzner2, and wrote this finding.
+  quadruples, ran the A/B and the hash gates on bench-linux-b, and wrote this finding.
 
 ## Not done
 

@@ -84,22 +84,10 @@ in the extended workflow and measure PR time after changing the fast matrix.
    or edit. Please do not mass-reformat files you are not otherwise changing, because it
    buries the real change.
 
-## Contributor Assignment Agreement
+## License
 
-Before your first contribution can be merged you need to sign the
-[Contributor Assignment Agreement](https://github.com/mas-bandwidth/.github/blob/main/CAA.md).
-A bot posts the link on your first pull request. Signing is one comment, it takes a
-minute, and it covers everything you contribute to any Más Bandwidth repository after
-that.
-
-Read it before you sign. It is a copyright assignment, a stronger grant than the license a
-CLA usually asks for: you assign copyright in your contribution to Más Bandwidth LLC, and
-you get back a perpetual license to use your own work for any purpose. We ask for it so
-these libraries can be relicensed in future without tracking down every past contributor
-for permission. If your contribution includes third-party material, identify it when you
-submit; that material stays under its own license.
-
-Fixed3D is MIT, the same as Box3D, and the Box3D-derived material stays MIT.
+Fixed3D is MIT, the same as Box3D, and it stays MIT. Contributions are accepted under
+that license. There is no contributor agreement to sign.
 
 ## Credit
 

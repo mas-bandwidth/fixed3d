@@ -1,6 +1,6 @@
-# spike-wide-joint-solve raw measurement output (attempt 5, hetzner2, 2026-10-15)
+# spike-wide-joint-solve raw measurement output (attempt 5, bench-linux-b, 2026-10-15)
 
-Trees on the bench (~/rowan-jobs/wide-joint-w5): base = origin/sprint/fixed3d-box3d-ports 6183d14 (unchanged);
+Trees on the bench (/work/wide-joint-w5): base = origin/sprint/fixed3d-box3d-ports 6183d14 (unchanged);
 cand = base + experiment.patch. Build flags (every dir): -DCMAKE_BUILD_TYPE=RelWithDebInfo -DBOX3D_SAMPLES=OFF
 -DBOX3D_VALIDATE=ON -DCMAKE_COMPILE_WARNING_AS_ERROR=ON -DBOX3D_BENCHMARKS=ON (LTO default, -ffp-contract=off);
 build-avx adds -DBOX3D_AVX512=ON (-mavx512f -mavx512dq -mavx512vl); *-lud / build-ludicrous add -DBOX3D_LUDICROUS_MODE=ON.

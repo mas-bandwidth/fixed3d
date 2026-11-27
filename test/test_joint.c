@@ -6,6 +6,12 @@
 #include "box3d/box3d.h"
 #include "box3d/math_functions.h"
 
+#include "inverse.h"
+#include "math_internal.h"
+
+#include <math.h>
+#include <stdint.h>
+
 // One sub-test per joint type. Each creates the joint, exercises the shared
 // b3Joint_* API plus every type-specific accessor, then steps to make sure the
 // joint solves without tripping a validation assert.
@@ -326,6 +332,329 @@ static int TestMotorJoint( void )
 	ENSURE( b3MotorJoint_GetMaxSpringTorque( jointId ) == B3_FIX( 800.0f ) );
 
 	return FinishJoint( jointId, f.worldId );
+}
+
+static int TestMoverJoint( void )
+{
+	JointFixture f = CreateJointFixture();
+
+	b3MoverJointDef def = b3DefaultMoverJointDef();
+	SetCommonFrames( &def.base, &f );
+	b3JointId jointId = b3CreateMoverJoint( f.worldId, &def );
+
+	if ( ExerciseJointBase( jointId, f.worldId, f.groundId, f.bodyId, b3_moverJoint ) != 0 )
+	{
+		return 1;
+	}
+
+	b3Vec3 velocity = { B3_FIX( 1.0f ), B3_FIX( 2.0f ), -B3_FIX( 3.0f ) };
+	b3MoverJoint_SetLinearVelocity( jointId, velocity );
+	b3Vec3 gotVelocity = b3MoverJoint_GetLinearVelocity( jointId );
+	ENSURE( gotVelocity.x == B3_FIX( 1.0f ) && gotVelocity.y == B3_FIX( 2.0f ) && gotVelocity.z == -B3_FIX( 3.0f ) );
+
+	// The y axis has no force budget, so it must stay at rest while x and z reach the target
+	b3Fixed maxForce = B3_FIX( 1000.0f );
+	b3MoverJoint_SetMaxVelocityForce( jointId, maxForce );
+	ENSURE( b3MoverJoint_GetMaxVelocityForce( jointId ) == B3_FIX( 1000.0f ) );
+
+	for ( int i = 0; i < 30; ++i )
+	{
+		b3World_Step( f.worldId, b3FixDiv( B3_FIX( 1.0f ), B3_FIX( 60.0f ) ), 4 );
+	}
+
+	b3Vec3 v = b3Body_GetLinearVelocity( f.bodyId );
+	ENSURE_SMALL( v.x - B3_FIX( 1.0f ), B3_FIX( 1.0e-4f ) );
+	ENSURE_SMALL( v.y, B3_FIX( 1.0e-4f ) );
+	ENSURE_SMALL( v.z + B3_FIX( 3.0f ), B3_FIX( 1.0e-4f ) );
+
+	b3Vec3 w = b3Body_GetAngularVelocity( f.bodyId );
+	ENSURE( w.x == B3_FIX( 0.0f ) && w.y == B3_FIX( 0.0f ) && w.z == B3_FIX( 0.0f ) );
+
+	return FinishJoint( jointId, f.worldId );
+}
+
+// The mover's circular clamp squares h * maxForce. With the B3_FIXED_MAX "unlimited" sentinel that
+// square wraps int64 (to exactly zero at h = 1/240), so a 64-bit compare would fire on the first
+// nonzero impulse and rescale it UP to h * B3_FIXED_MAX. The 128-bit compare must leave an
+// unlimited mover reaching its target like any other.
+static int TestMoverJointSentinelForce( void )
+{
+	JointFixture f = CreateJointFixture();
+
+	// A mass whose inverse is not a power of two. With unit mass the wrapped impulses telescope
+	// exactly in modular arithmetic and the velocity lands on the target anyway (measured).
+	b3MassData massData = b3Body_GetMassData( f.bodyId );
+	massData.mass = B3_FIX( 3.0f );
+	b3Body_SetMassData( f.bodyId, massData );
+
+	b3MoverJointDef def = b3DefaultMoverJointDef();
+	SetCommonFrames( &def.base, &f );
+	def.linearVelocity = (b3Vec3){ B3_FIX( 2.0f ), B3_FIX( 0.0f ), B3_FIX( 1.0f ) };
+	def.maxForce = B3_FIXED_MAX;
+	b3JointId jointId = b3CreateMoverJoint( f.worldId, &def );
+
+	// Unlimited force reaches the target within the first step and holds it. Checked every step:
+	// the wrapped compare blows the impulse up to h * B3_FIXED_MAX and back, and can land near the
+	// target again by the end, so a final-state check alone misses it (measured).
+	for ( int i = 0; i < 10; ++i )
+	{
+		b3World_Step( f.worldId, b3FixDiv( B3_FIX( 1.0f ), B3_FIX( 60.0f ) ), 4 );
+
+		b3Vec3 v = b3Body_GetLinearVelocity( f.bodyId );
+		ENSURE_SMALL( v.x - B3_FIX( 2.0f ), B3_FIX( 1.0e-4f ) );
+		ENSURE_SMALL( v.y, B3_FIX( 1.0e-4f ) );
+		ENSURE_SMALL( v.z - B3_FIX( 1.0f ), B3_FIX( 1.0e-4f ) );
+
+		// Holding a constant velocity takes no force after the first step
+		b3Fixed force = b3Length( b3Joint_GetConstraintForce( jointId ) );
+		ENSURE( force < B3_FIX( 1000.0f ) );
+	}
+
+	return FinishJoint( jointId, f.worldId );
+}
+
+// A zero force budget means no force at all, however small the velocity error. The rounded
+// squared compare of joint.h reads any impulse under 182 raw as inside a zero cap, so a mover
+// asked for 0.002 m/s on unit mass (131 raw of impulse) used to reach it (measured red).
+static int TestMoverJointZeroForce( void )
+{
+	JointFixture f = CreateJointFixture();
+
+	b3MoverJointDef def = b3DefaultMoverJointDef();
+	SetCommonFrames( &def.base, &f );
+	def.linearVelocity = (b3Vec3){ B3_FIX( 0.002f ), B3_FIX( 0.0f ), -B3_FIX( 0.002f ) };
+	def.maxForce = B3_FIX( 0.0f );
+	b3JointId jointId = b3CreateMoverJoint( f.worldId, &def );
+
+	for ( int i = 0; i < 10; ++i )
+	{
+		b3World_Step( f.worldId, b3FixDiv( B3_FIX( 1.0f ), B3_FIX( 60.0f ) ), 4 );
+		b3Vec3 v = b3Body_GetLinearVelocity( f.bodyId );
+		ENSURE( v.x == B3_FIX( 0.0f ) && v.y == B3_FIX( 0.0f ) && v.z == B3_FIX( 0.0f ) );
+	}
+
+	return FinishJoint( jointId, f.worldId );
+}
+
+// A small force budget saturates: the body accelerates at maxForce / mass, and the reported force
+// never exceeds the budget. Lowering the budget between steps re-clamps the warm-started impulse.
+// The cap is h * maxForce rounded once to the impulse grid and the force reads back as
+// impulse * inv_h, so one impulse ULP shows up as inv_h ULP (240 at 60 Hz x 4) of force: the
+// slack below is that, not solver error.
+static int TestMoverJointForceBudget( void )
+{
+	JointFixture f = CreateJointFixture();
+	b3Fixed mass = b3Body_GetMass( f.bodyId );
+
+	b3MoverJointDef def = b3DefaultMoverJointDef();
+	SetCommonFrames( &def.base, &f );
+	def.linearVelocity = (b3Vec3){ B3_FIX( 100.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
+	def.maxForce = B3_FIX( 2.0f );
+	b3JointId jointId = b3CreateMoverJoint( f.worldId, &def );
+
+	b3Fixed timeStep = b3FixDiv( B3_FIX( 1.0f ), B3_FIX( 60.0f ) );
+	for ( int i = 0; i < 60; ++i )
+	{
+		b3World_Step( f.worldId, timeStep, 4 );
+		b3Fixed force = b3Length( b3Joint_GetConstraintForce( jointId ) );
+		ENSURE( force <= def.maxForce + B3_FIX( 0.005f ) );
+	}
+
+	// One second at 2 N on the measured mass
+	b3Vec3 v = b3Body_GetLinearVelocity( f.bodyId );
+	ENSURE_SMALL( v.x - b3FixDiv( def.maxForce, mass ), B3_FIX( 0.002f ) );
+
+	b3MoverJoint_SetMaxVelocityForce( jointId, B3_FIX( 0.5f ) );
+	b3World_Step( f.worldId, timeStep, 4 );
+	ENSURE( b3Length( b3Joint_GetConstraintForce( jointId ) ) <= B3_FIX( 0.5f ) + B3_FIX( 0.005f ) );
+
+	return FinishJoint( jointId, f.worldId );
+}
+
+// A box held up by a pogo spring under gravity should settle at the rest length
+static int TestPogoJoint( void )
+{
+	JointFixture f = CreateJointFixture();
+	b3World_SetGravity( f.worldId, (b3Vec3){ B3_FIX( 0.0f ), -B3_FIX( 10.0f ), B3_FIX( 0.0f ) } );
+
+	b3Fixed restLength = B3_FIX( 2.0f );
+	b3Fixed mass = b3Body_GetMass( f.bodyId );
+	b3Fixed weight = b3FixMul( B3_FIX( 10.0f ), mass );
+
+	b3PogoJointDef def = b3DefaultPogoJointDef();
+	def.base.bodyIdA = f.groundId;
+	def.base.bodyIdB = f.bodyId;
+	def.base.localFrameA.p = (b3Vec3){ B3_FIX( 0.0f ), B3_FIX( 1.0f ), B3_FIX( 0.0f ) };
+	def.base.localFrameB.p = (b3Vec3){ B3_FIX( 0.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ) };
+	def.normal = b3Vec3_axisY;
+	def.restLength = restLength;
+	def.hertz = B3_FIX( 2.0f );
+	def.dampingRatio = B3_FIX( 1.0f );
+	def.maxCompressionForce = b3FixMul( B3_FIX( 100.0f ), weight );
+	def.maxTensionForce = b3FixMul( B3_FIX( 100.0f ), weight );
+	b3JointId jointId = b3CreatePogoJoint( f.worldId, &def );
+
+	if ( ExerciseJointBase( jointId, f.worldId, f.groundId, f.bodyId, b3_pogoJoint ) != 0 )
+	{
+		return 1;
+	}
+
+	b3PogoJoint_SetRestLength( jointId, restLength );
+	ENSURE( b3PogoJoint_GetRestLength( jointId ) == restLength );
+
+	b3PogoJoint_SetSpringHertz( jointId, B3_FIX( 3.0f ) );
+	ENSURE( b3PogoJoint_GetSpringHertz( jointId ) == B3_FIX( 3.0f ) );
+
+	b3PogoJoint_SetSpringDampingRatio( jointId, B3_FIX( 0.9f ) );
+	ENSURE( b3PogoJoint_GetSpringDampingRatio( jointId ) == B3_FIX( 0.9f ) );
+
+	b3Fixed maxTension = b3FixMul( B3_FIX( 50.0f ), weight );
+	b3PogoJoint_SetMaxTensionForce( jointId, maxTension );
+	ENSURE( b3PogoJoint_GetMaxTensionForce( jointId ) == maxTension );
+
+	b3Fixed maxCompression = b3FixMul( B3_FIX( 60.0f ), weight );
+	b3PogoJoint_SetMaxCompressionForce( jointId, maxCompression );
+	ENSURE( b3PogoJoint_GetMaxCompressionForce( jointId ) == maxCompression );
+
+	b3Vec3 normal = b3Normalize( (b3Vec3){ B3_FIX( 0.2f ), B3_FIX( 1.0f ), B3_FIX( 0.0f ) } );
+	b3PogoJoint_SetNormal( jointId, normal );
+	b3Vec3 gotNormal = b3PogoJoint_GetNormal( jointId );
+	ENSURE( gotNormal.x == normal.x && gotNormal.y == normal.y && gotNormal.z == normal.z );
+	b3PogoJoint_SetNormal( jointId, b3Vec3_axisY );
+
+	// Starts stretched by one meter. Positions are exact here, so the length is too.
+	ENSURE( b3PogoJoint_GetCurrentLength( jointId ) == B3_FIX( 3.0f ) );
+
+	for ( int i = 0; i < 300; ++i )
+	{
+		b3World_Step( f.worldId, b3FixDiv( B3_FIX( 1.0f ), B3_FIX( 60.0f ) ), 4 );
+	}
+
+	ENSURE_SMALL( b3PogoJoint_GetCurrentLength( jointId ) - restLength, B3_FIX( 0.01f ) );
+	ENSURE_SMALL( b3Body_GetLinearVelocity( f.bodyId ).y, B3_FIX( 0.01f ) );
+
+	// Holding the weight takes an impulse of m * g * h each sub-step
+	ENSURE_SMALL( b3PogoJoint_GetImpulse( jointId ) - b3FixDiv( weight, B3_FIX( 240.0f ) ), b3FixMul( B3_FIX( 0.001f ), mass ) );
+
+	b3Vec3 force = b3Joint_GetConstraintForce( jointId );
+	ENSURE_SMALL( force.y - weight, b3FixMul( B3_FIX( 0.1f ), mass ) );
+
+	return FinishJoint( jointId, f.worldId );
+}
+
+// The pogo clamp is linear, [-h * maxTension, h * maxCompression]. A zero tension budget means the
+// spring can only push: stretched far beyond its rest length it must not pull the body down.
+static int TestPogoJointTensionClamp( void )
+{
+	JointFixture f = CreateJointFixture();
+	b3Fixed mass = b3Body_GetMass( f.bodyId );
+
+	b3PogoJointDef def = b3DefaultPogoJointDef();
+	def.base.bodyIdA = f.groundId;
+	def.base.bodyIdB = f.bodyId;
+	def.base.localFrameA.p = (b3Vec3){ B3_FIX( 0.0f ), B3_FIX( 1.0f ), B3_FIX( 0.0f ) };
+	def.restLength = B3_FIX( 1.0f );
+	def.hertz = B3_FIX( 5.0f );
+	def.dampingRatio = B3_FIX( 0.7f );
+	def.maxCompressionForce = b3FixMul( B3_FIX( 1000.0f ), mass );
+	def.maxTensionForce = B3_FIX( 0.0f );
+	b3JointId jointId = b3CreatePogoJoint( f.worldId, &def );
+
+	for ( int i = 0; i < 30; ++i )
+	{
+		b3World_Step( f.worldId, b3FixDiv( B3_FIX( 1.0f ), B3_FIX( 60.0f ) ), 4 );
+		ENSURE( b3PogoJoint_GetImpulse( jointId ) >= B3_FIX( 0.0f ) );
+	}
+
+	// Gravity is off in the fixture, so nothing moved the body
+	ENSURE( b3Body_GetLinearVelocity( f.bodyId ).y == B3_FIX( 0.0f ) );
+
+	// Zero hertz disables the spring and clears its state
+	b3PogoJoint_SetSpringHertz( jointId, B3_FIX( 0.0f ) );
+	b3World_Step( f.worldId, b3FixDiv( B3_FIX( 1.0f ), B3_FIX( 60.0f ) ), 4 );
+	ENSURE( b3PogoJoint_GetImpulse( jointId ) == B3_FIX( 0.0f ) );
+	ENSURE( b3PogoJoint_GetCurrentSpeed( jointId ) == B3_FIX( 0.0f ) );
+
+	return FinishJoint( jointId, f.worldId );
+}
+
+// The pogo's carried impulse survives sleep and wake unchanged (the joint sim is copied between
+// solver sets), so a woken body is held at once instead of dropping for a step.
+static int TestPogoJointSleepKeepsImpulse( void )
+{
+	JointFixture f = CreateJointFixture();
+	b3World_SetGravity( f.worldId, (b3Vec3){ B3_FIX( 0.0f ), -B3_FIX( 10.0f ), B3_FIX( 0.0f ) } );
+	b3Fixed weight = b3FixMul( B3_FIX( 10.0f ), b3Body_GetMass( f.bodyId ) );
+
+	b3PogoJointDef def = b3DefaultPogoJointDef();
+	def.base.bodyIdA = f.groundId;
+	def.base.bodyIdB = f.bodyId;
+	def.base.localFrameA.p = (b3Vec3){ B3_FIX( 0.0f ), B3_FIX( 1.0f ), B3_FIX( 0.0f ) };
+	def.restLength = B3_FIX( 3.0f );
+	def.hertz = B3_FIX( 3.0f );
+	def.dampingRatio = B3_FIX( 1.0f );
+	def.maxCompressionForce = b3FixMul( B3_FIX( 100.0f ), weight );
+	def.maxTensionForce = b3FixMul( B3_FIX( 100.0f ), weight );
+	b3JointId jointId = b3CreatePogoJoint( f.worldId, &def );
+
+	b3Fixed timeStep = b3FixDiv( B3_FIX( 1.0f ), B3_FIX( 60.0f ) );
+	b3Fixed held = B3_FIX( 0.0f );
+	int step = 0;
+	for ( ; step < 600 && b3Body_IsAwake( f.bodyId ); ++step )
+	{
+		held = b3PogoJoint_GetImpulse( jointId );
+		b3World_Step( f.worldId, timeStep, 4 );
+	}
+	ENSURE( b3Body_IsAwake( f.bodyId ) == false );
+	ENSURE( b3Joint_IsAwake( jointId ) == false );
+
+	// Asleep, the joint reports the impulse of its last awake step
+	b3Fixed asleep = b3PogoJoint_GetImpulse( jointId );
+	ENSURE( asleep != B3_FIX( 0.0f ) );
+	ENSURE_SMALL( asleep - held, B3_FIX( 0.001f ) );
+	b3World_Step( f.worldId, timeStep, 4 );
+	ENSURE( b3PogoJoint_GetImpulse( jointId ) == asleep );
+
+	b3Body_SetAwake( f.bodyId, true );
+	ENSURE( b3PogoJoint_GetImpulse( jointId ) == asleep );
+	b3World_Step( f.worldId, timeStep, 4 );
+	ENSURE_SMALL( b3Body_GetLinearVelocity( f.bodyId ).y, B3_FIX( 0.001f ) );
+
+	return FinishJoint( jointId, f.worldId );
+}
+
+// b3SpringDamper against a double-precision reference on the same quantized inputs. The tolerance
+// is a few ULP: one rounding in omega, one in the stiffness product and one in the divide.
+static int TestSpringDamper( void )
+{
+	b3Fixed h = b3FixDiv( b3FixDiv( B3_FIX( 1.0f ), B3_FIX( 60.0f ) ), B3_FIX( 4.0f ) );
+	const float hertzValues[] = { 0.5f, 3.0f, 10.0f };
+	const float positions[] = { -1.0f, 0.1f, 0.003f };
+	const float velocities[] = { 0.0f, -2.0f };
+	for ( int i = 0; i < 3; ++i )
+	{
+		for ( int j = 0; j < 3; ++j )
+		{
+			for ( int k = 0; k < 2; ++k )
+			{
+				b3Fixed hertz = b3FixFromDouble( hertzValues[i] );
+				b3Fixed zeta = B3_FIX( 0.8f );
+				b3Fixed x = b3FixFromDouble( positions[j] );
+				b3Fixed v = b3FixFromDouble( velocities[k] );
+				b3Fixed got = b3SpringDamper( hertz, zeta, x, v, h );
+
+				double omega = 2.0 * 3.14159265358979323846 * b3FixToDouble( hertz );
+				double oh = omega * b3FixToDouble( h );
+				double ref = ( b3FixToDouble( v ) - omega * oh * b3FixToDouble( x ) ) /
+							 ( 1.0 + 2.0 * b3FixToDouble( zeta ) * oh + oh * oh );
+				ENSURE_SMALL( got - b3FixFromDouble( ref ), 8 * B3_FIXED_EPSILON );
+			}
+		}
+	}
+
+	// Zero position and velocity stay at rest exactly
+	ENSURE( b3SpringDamper( B3_FIX( 3.0f ), B3_FIX( 1.0f ), B3_FIX( 0.0f ), B3_FIX( 0.0f ), h ) == B3_FIX( 0.0f ) );
+	return 0;
 }
 
 static int TestPrismaticJoint( void )
@@ -779,6 +1108,331 @@ static int TestNonDynamicJointDisable( void )
 	return 0;
 }
 
+static double RandUnit( uint64_t* state )
+{
+	*state = *state * 6364136223846793005ull + 1442695040888963407ull;
+	return (double)( *state >> 11 ) * ( 1.0 / 9007199254740992.0 );
+}
+
+static double RandRange( uint64_t* state, double lo, double hi )
+{
+	return lo + ( hi - lo ) * RandUnit( state );
+}
+
+static double Norm3( const double v[3] )
+{
+	return sqrt( v[0] * v[0] + v[1] * v[1] + v[2] * v[2] );
+}
+
+static void QuatToRot( const double q[4], double R[3][3] )
+{
+	double x = q[0], y = q[1], z = q[2], w = q[3];
+	R[0][0] = 1.0 - 2.0 * y * y - 2.0 * z * z;
+	R[0][1] = 2.0 * x * y - 2.0 * z * w;
+	R[0][2] = 2.0 * x * z + 2.0 * y * w;
+	R[1][0] = 2.0 * x * y + 2.0 * z * w;
+	R[1][1] = 1.0 - 2.0 * x * x - 2.0 * z * z;
+	R[1][2] = 2.0 * y * z - 2.0 * x * w;
+	R[2][0] = 2.0 * x * z - 2.0 * y * w;
+	R[2][1] = 2.0 * y * z + 2.0 * x * w;
+	R[2][2] = 1.0 - 2.0 * x * x - 2.0 * y * y;
+}
+
+static void SymPSD( uint64_t* state, double A[3][3] )
+{
+	double q[4];
+	double n = 0.0;
+	for ( int k = 0; k < 4; ++k )
+	{
+		q[k] = RandRange( state, -1.0, 1.0 );
+		n += q[k] * q[k];
+	}
+	double inv = 1.0 / sqrt( n );
+	for ( int k = 0; k < 4; ++k )
+	{
+		q[k] *= inv;
+	}
+
+	double R[3][3];
+	QuatToRot( q, R );
+
+	double d[3] = { RandRange( state, 0.0, 10.0 ), RandRange( state, 0.0, 10.0 ), RandRange( state, 0.0, 10.0 ) };
+
+	for ( int i = 0; i < 3; ++i )
+	{
+		for ( int j = 0; j < 3; ++j )
+		{
+			double s = 0.0;
+			for ( int k = 0; k < 3; ++k )
+			{
+				s += R[i][k] * d[k] * R[j][k];
+			}
+			A[i][j] = s;
+		}
+	}
+}
+
+static int Inv3( const double M[3][3], double Minv[3][3] )
+{
+	double det = M[0][0] * ( M[1][1] * M[2][2] - M[1][2] * M[2][1] )
+	           - M[0][1] * ( M[1][0] * M[2][2] - M[1][2] * M[2][0] )
+	           + M[0][2] * ( M[1][0] * M[2][1] - M[1][1] * M[2][0] );
+	if ( fabs( det ) < 1e-15 )
+	{
+		return 0;
+	}
+	double id = 1.0 / det;
+	Minv[0][0] = ( M[1][1] * M[2][2] - M[1][2] * M[2][1] ) * id;
+	Minv[0][1] = ( M[0][2] * M[2][1] - M[0][1] * M[2][2] ) * id;
+	Minv[0][2] = ( M[0][1] * M[1][2] - M[0][2] * M[1][1] ) * id;
+	Minv[1][0] = ( M[1][2] * M[2][0] - M[1][0] * M[2][2] ) * id;
+	Minv[1][1] = ( M[0][0] * M[2][2] - M[0][2] * M[2][0] ) * id;
+	Minv[1][2] = ( M[0][2] * M[1][0] - M[0][0] * M[1][2] ) * id;
+	Minv[2][0] = ( M[1][0] * M[2][1] - M[1][1] * M[2][0] ) * id;
+	Minv[2][1] = ( M[0][1] * M[2][0] - M[0][0] * M[2][1] ) * id;
+	Minv[2][2] = ( M[0][0] * M[1][1] - M[0][1] * M[1][0] ) * id;
+	return 1;
+}
+
+static double CondInf( const double M[3][3] )
+{
+	double Minv[3][3];
+	if ( !Inv3( M, Minv ) )
+	{
+		return 1e30;
+	}
+	double n1 = 0.0, n2 = 0.0;
+	for ( int i = 0; i < 3; ++i )
+	{
+		double rs = fabs( M[i][0] ) + fabs( M[i][1] ) + fabs( M[i][2] );
+		double ri = fabs( Minv[i][0] ) + fabs( Minv[i][1] ) + fabs( Minv[i][2] );
+		if ( rs > n1 )
+		{
+			n1 = rs;
+		}
+		if ( ri > n2 )
+		{
+			n2 = ri;
+		}
+	}
+	return n1 * n2;
+}
+
+static int TestPointConstraintMatchesUpstreamExpansion( void )
+{
+	const double kEps = 1.0 / 65536.0;
+	const int caseCount = 1000;
+	const uint64_t seed = 0x9E3779B97F4A7C15ull;
+
+	int skippedTotal = 0;
+	double maxKError = 0.0;
+	double maxSolveRelError = 0.0;
+	double globalKMag = 0.0;
+	uint64_t state;
+
+	for ( int pass = 0; pass < 2; ++pass )
+	{
+		state = seed;
+		int skipped = 0;
+		for ( int i = 0; i < caseCount; ++i )
+		{
+			int staticA = ( i % 11 ) == 0;
+			double mA = staticA ? 0.0 : RandRange( &state, 0.0, 10.0 );
+			double mB = RandRange( &state, 0.0, 10.0 );
+			double iA[3][3], iB[3][3];
+			SymPSD( &state, iA );
+			SymPSD( &state, iB );
+			double rA[3] = { RandRange( &state, -5.0, 5.0 ), RandRange( &state, -5.0, 5.0 ), RandRange( &state, -5.0, 5.0 ) };
+			double rB[3] = { RandRange( &state, -5.0, 5.0 ), RandRange( &state, -5.0, 5.0 ), RandRange( &state, -5.0, 5.0 ) };
+			double rhs[3] = { RandRange( &state, -10.0, 10.0 ), RandRange( &state, -10.0, 10.0 ), RandRange( &state, -10.0, 10.0 ) };
+
+			b3Fixed mA_f = b3FixFromDouble( mA );
+			b3Fixed mB_f = b3FixFromDouble( mB );
+			b3Vec3 rA_f = { b3FixFromDouble( rA[0] ), b3FixFromDouble( rA[1] ), b3FixFromDouble( rA[2] ) };
+			b3Vec3 rB_f = { b3FixFromDouble( rB[0] ), b3FixFromDouble( rB[1] ), b3FixFromDouble( rB[2] ) };
+			b3Vec3 rhs_f = { b3FixFromDouble( rhs[0] ), b3FixFromDouble( rhs[1] ), b3FixFromDouble( rhs[2] ) };
+
+			b3Matrix3 iA_f, iB_f;
+			iA_f.cx = (b3Vec3){ b3FixFromDouble( iA[0][0] ), b3FixFromDouble( iA[1][0] ), b3FixFromDouble( iA[2][0] ) };
+			iA_f.cy = (b3Vec3){ b3FixFromDouble( iA[0][1] ), b3FixFromDouble( iA[1][1] ), b3FixFromDouble( iA[2][1] ) };
+			iA_f.cz = (b3Vec3){ b3FixFromDouble( iA[0][2] ), b3FixFromDouble( iA[1][2] ), b3FixFromDouble( iA[2][2] ) };
+			iB_f.cx = (b3Vec3){ b3FixFromDouble( iB[0][0] ), b3FixFromDouble( iB[1][0] ), b3FixFromDouble( iB[2][0] ) };
+			iB_f.cy = (b3Vec3){ b3FixFromDouble( iB[0][1] ), b3FixFromDouble( iB[1][1] ), b3FixFromDouble( iB[2][1] ) };
+			iB_f.cz = (b3Vec3){ b3FixFromDouble( iB[0][2] ), b3FixFromDouble( iB[1][2] ), b3FixFromDouble( iB[2][2] ) };
+
+			b3Matrix3 kA = b3SkewSandwich( iA_f, rA_f );
+			b3Matrix3 kB = b3SkewSandwich( iB_f, rB_f );
+			b3Matrix3 k = b3NegateMat3( b3AddMM( kA, kB ) );
+			k.cx.x += mA_f + mB_f;
+			k.cy.y += mA_f + mB_f;
+			k.cz.z += mA_f + mB_f;
+			b3Vec3 x_f = b3Solve3AcrossScales( k, rhs_f );
+
+			double mA_u = b3FixToDouble( mA_f );
+			double mB_u = b3FixToDouble( mB_f );
+			double iAcx[3] = { b3FixToDouble( iA_f.cx.x ), b3FixToDouble( iA_f.cx.y ), b3FixToDouble( iA_f.cx.z ) };
+			double iAcy[3] = { b3FixToDouble( iA_f.cy.x ), b3FixToDouble( iA_f.cy.y ), b3FixToDouble( iA_f.cy.z ) };
+			double iAcz[3] = { b3FixToDouble( iA_f.cz.x ), b3FixToDouble( iA_f.cz.y ), b3FixToDouble( iA_f.cz.z ) };
+			double iBcx[3] = { b3FixToDouble( iB_f.cx.x ), b3FixToDouble( iB_f.cx.y ), b3FixToDouble( iB_f.cx.z ) };
+			double iBcy[3] = { b3FixToDouble( iB_f.cy.x ), b3FixToDouble( iB_f.cy.y ), b3FixToDouble( iB_f.cy.z ) };
+			double iBcz[3] = { b3FixToDouble( iB_f.cz.x ), b3FixToDouble( iB_f.cz.y ), b3FixToDouble( iB_f.cz.z ) };
+			double rAu[3] = { b3FixToDouble( rA_f.x ), b3FixToDouble( rA_f.y ), b3FixToDouble( rA_f.z ) };
+			double rBu[3] = { b3FixToDouble( rB_f.x ), b3FixToDouble( rB_f.y ), b3FixToDouble( rB_f.z ) };
+			double rhsu[3] = { b3FixToDouble( rhs_f.x ), b3FixToDouble( rhs_f.y ), b3FixToDouble( rhs_f.z ) };
+
+			double axy = rAu[2] * iAcy[1] - rAu[1] * iAcz[1];
+			double axz = rAu[2] * iAcy[2] - rAu[1] * iAcz[2];
+			double ayx = rAu[0] * iAcz[0] - rAu[2] * iAcx[0];
+			double ayy = rAu[0] * iAcz[1] - rAu[2] * iAcx[1];
+			double ayz = rAu[0] * iAcz[2] - rAu[2] * iAcx[2];
+			double azx = rAu[1] * iAcx[0] - rAu[0] * iAcy[0];
+			double azy = rAu[1] * iAcx[1] - rAu[0] * iAcy[1];
+			double azz = rAu[1] * iAcx[2] - rAu[0] * iAcy[2];
+
+			double bxy = rBu[2] * iBcy[1] - rBu[1] * iBcz[1];
+			double bxz = rBu[2] * iBcy[2] - rBu[1] * iBcz[2];
+			double byx = rBu[0] * iBcz[0] - rBu[2] * iBcx[0];
+			double byy = rBu[0] * iBcz[1] - rBu[2] * iBcx[1];
+			double byz = rBu[0] * iBcz[2] - rBu[2] * iBcx[2];
+			double bzx = rBu[1] * iBcx[0] - rBu[0] * iBcy[0];
+			double bzy = rBu[1] * iBcx[1] - rBu[0] * iBcy[1];
+			double bzz = rBu[1] * iBcx[2] - rBu[0] * iBcy[2];
+
+			double m = mA_u + mB_u;
+			double kupxx = ( axy * rAu[2] - axz * rAu[1] ) + ( bxy * rBu[2] - bxz * rBu[1] ) + m;
+			double kupyy = ( ayz * rAu[0] - ayx * rAu[2] ) + ( byz * rBu[0] - byx * rBu[2] ) + m;
+			double kupzz = ( azx * rAu[1] - azy * rAu[0] ) + ( bzx * rBu[1] - bzy * rBu[0] ) + m;
+			double kupxy = ( ayy * rAu[2] - ayz * rAu[1] ) + ( byy * rBu[2] - byz * rBu[1] );
+			double kupxz = ( azy * rAu[2] - azz * rAu[1] ) + ( bzy * rBu[2] - bzz * rBu[1] );
+			double kupyz = ( azz * rAu[0] - azx * rAu[2] ) + ( bzz * rBu[0] - bzx * rBu[2] );
+
+			double Ku[3][3] = {
+				{ kupxx, kupxy, kupxz },
+				{ kupxy, kupyy, kupyz },
+				{ kupxz, kupyz, kupzz }
+			};
+			double Kf[3][3] = {
+				{ b3FixToDouble( k.cx.x ), b3FixToDouble( k.cy.x ), b3FixToDouble( k.cz.x ) },
+				{ b3FixToDouble( k.cx.y ), b3FixToDouble( k.cy.y ), b3FixToDouble( k.cz.y ) },
+				{ b3FixToDouble( k.cx.z ), b3FixToDouble( k.cy.z ), b3FixToDouble( k.cz.z ) }
+			};
+
+			double mag = 0.0;
+			for ( int r = 0; r < 3; ++r )
+			{
+				for ( int c = 0; c < 3; ++c )
+				{
+					double a = fabs( Kf[r][c] ), b = fabs( Ku[r][c] );
+					if ( a > mag )
+					{
+						mag = a;
+					}
+					if ( b > mag )
+					{
+						mag = b;
+					}
+				}
+			}
+			if ( mag > globalKMag )
+			{
+				globalKMag = mag;
+			}
+
+			if ( pass == 0 )
+			{
+				for ( int r = 0; r < 3; ++r )
+				{
+					for ( int c = 0; c < 3; ++c )
+					{
+						double e = fabs( Kf[r][c] - Ku[r][c] );
+						if ( e > maxKError )
+						{
+							maxKError = e;
+						}
+					}
+				}
+			}
+			else
+			{
+				double kTol = 8.0 * kEps > 1e-6 * globalKMag ? 8.0 * kEps : 1e-6 * globalKMag;
+				for ( int r = 0; r < 3; ++r )
+				{
+					for ( int c = 0; c < 3; ++c )
+					{
+						double e = fabs( Kf[r][c] - Ku[r][c] );
+						if ( e > kTol )
+						{
+							printf( "condition false: K[%d][%d] err %g > tol %g\n", r, c, e, kTol );
+							return 1;
+						}
+					}
+				}
+			}
+
+			double ccxx = kupyy * kupzz - kupyz * kupyz;
+			double cyy = kupxx * kupzz - kupxz * kupxz;
+			double czz = kupxx * kupyy - kupxy * kupxy;
+			double cxy = kupxz * kupyz - kupxy * kupzz;
+			double cxz = kupxy * kupyz - kupyy * kupxz;
+			double cyz = kupxy * kupxz - kupxx * kupyz;
+			double det = kupxx * ccxx + kupxy * cxy + kupxz * cxz;
+
+			if ( fabs( det ) < 1e-9 )
+			{
+				skipped++;
+			}
+			else
+			{
+				double xU[3] = {
+					( ccxx * rhsu[0] + cxy * rhsu[1] + cxz * rhsu[2] ) / det,
+					( cxy * rhsu[0] + cyy * rhsu[1] + cyz * rhsu[2] ) / det,
+					( cxz * rhsu[0] + cyz * rhsu[1] + czz * rhsu[2] ) / det
+				};
+				if ( CondInf( Ku ) < 1e6 )
+				{
+					double xFM[3] = { b3FixToDouble( x_f.x ), b3FixToDouble( x_f.y ), b3FixToDouble( x_f.z ) };
+					double nU = Norm3( xU );
+					double rel;
+					if ( nU < 1e-12 )
+					{
+						rel = 0.0;
+					}
+					else
+					{
+						double d[3] = { xFM[0] - xU[0], xFM[1] - xU[1], xFM[2] - xU[2] };
+						rel = Norm3( d ) / nU;
+					}
+
+					if ( pass == 0 )
+					{
+						if ( rel > maxSolveRelError )
+						{
+							maxSolveRelError = rel;
+						}
+					}
+					else
+					{
+						double solveBound = maxSolveRelError * 2.0 > 8.0 * kEps ? maxSolveRelError * 2.0 : 8.0 * kEps;
+						if ( rel > solveBound )
+						{
+							printf( "condition false: solve rel err %g > bound %g\n", rel, solveBound );
+							return 1;
+						}
+					}
+				}
+			}
+		}
+
+		if ( pass == 0 )
+		{
+			skippedTotal = skipped;
+		}
+	}
+
+	printf( "PointConstraint cases=%d skipped=%d maxKError=%g maxSolveRelError=%g\n", caseCount, skippedTotal, maxKError, maxSolveRelError );
+	return 0;
+}
+
 int JointTest( void )
 {
 	RUN_SUBTEST( TestCreateJointClearsContacts );
@@ -788,12 +1442,21 @@ int JointTest( void )
 	RUN_SUBTEST( TestDistanceJoint );
 	RUN_SUBTEST( TestFilterJoint );
 	RUN_SUBTEST( TestMotorJoint );
+	RUN_SUBTEST( TestMoverJoint );
+	RUN_SUBTEST( TestMoverJointSentinelForce );
+	RUN_SUBTEST( TestMoverJointForceBudget );
+	RUN_SUBTEST( TestMoverJointZeroForce );
+	RUN_SUBTEST( TestPogoJoint );
+	RUN_SUBTEST( TestPogoJointTensionClamp );
+	RUN_SUBTEST( TestPogoJointSleepKeepsImpulse );
+	RUN_SUBTEST( TestSpringDamper );
 	RUN_SUBTEST( TestPrismaticJoint );
 	RUN_SUBTEST( TestRevoluteJoint );
 	RUN_SUBTEST( TestSphericalJoint );
 	RUN_SUBTEST( TestWeldJoint );
 	RUN_SUBTEST( TestWheelJoint );
 	RUN_SUBTEST( TestNonDynamicJointDisable );
+	RUN_SUBTEST( TestPointConstraintMatchesUpstreamExpansion );
 
 	return 0;
 }

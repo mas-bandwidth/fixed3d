@@ -37,19 +37,19 @@
 	}                                                                                                                            \
 	while ( false )
 
-// These exact upstream assertions are retained for the baseline contact/integration follow-up.
-// An unexpected pass is reported and fails this suite so the marker cannot silently become stale.
-#define RUN_BASELINE_XFAIL( T )                                                                                                  \
+// These exact upstream assertions are retained for a named follow-up card. An unexpected pass is
+// reported and fails this suite so the marker cannot silently become stale.
+#define RUN_BASELINE_XFAIL( T, CARD )                                                                                                  \
 	do                                                                                                                           \
 	{                                                                                                                            \
 		if ( T() == 0 )                                                                                                          \
 		{                                                                                                                        \
-			printf( "  XPASS: " #T " (fixed3d-energy-floor-matches-upstream)\n" );                                        \
+			printf( "  XPASS: " #T " (" CARD ")\n" );                                                                    \
 			failureCount += 1;                                                                                                   \
 		}                                                                                                                        \
 		else                                                                                                                     \
 		{                                                                                                                        \
-			printf( "  XFAIL: " #T " (fixed3d-energy-floor-matches-upstream)\n" );                                        \
+			printf( "  XFAIL: " #T " (" CARD ")\n" );                                                                    \
 		}                                                                                                                        \
 	}                                                                                                                            \
 	while ( false )
@@ -1024,11 +1024,15 @@ int RestitutionTest( void )
 	RUN_MEASUREMENT( DropTest );
 	RUN_MEASUREMENT( SingleBoxTest );
 	RUN_MEASUREMENT( ThresholdTest );
-	RUN_BASELINE_XFAIL( RestingTest );
+	// Passes since the f555ee4 broad-phase port: sorted pair keys make the lower shape index
+	// shape A, which changes the contact order of the stack, and the peak speed fell from 0.061
+	// to 0.025 m/s, under the 0.05 bound. The deadband itself is not fixed: upstream reads
+	// 0.00002 m/s here. Tracked by docs/roadmap.sexp item fixed3d-orientation-integration-deadband.
+	RUN_MEASUREMENT( RestingTest );
 	RUN_MEASUREMENT( NormalVelocityTest );
-	RUN_BASELINE_XFAIL( OvershootTest );
-	RUN_BASELINE_XFAIL( EnergyTest );
-	RUN_BASELINE_XFAIL( ImpulseTest );
+	RUN_MEASUREMENT( OvershootTest );
+	RUN_MEASUREMENT( EnergyTest );
+	RUN_MEASUREMENT( ImpulseTest );
 	RUN_MEASUREMENT( StageImprovementTest );
 	RUN_MEASUREMENT( RotatedInertiaContactTest );
 	RUN_MEASUREMENT( DefaultRestitutionNoRegressionTest );

@@ -6,11 +6,11 @@
   "caution": "This is a shared workstation. Only the Convex Pile gain was consistent across all grouped before/after trials. Smaller scene differences are inconclusive.",
   "binaries": {
     "before": {
-      "path": "/Users/glenn/Documents/ChatGPT/stella 2/work/fixed3d-review/_bench/benchmark-corrected",
+      "path": "/work/fixed3d-review/_bench/benchmark-corrected",
       "sha256": "e77837f4ff560df982bf9b7bd7cc621700955fba8620f79a9a82a96e24932c36"
     },
     "after": {
-      "path": "/Users/glenn/Documents/ChatGPT/stella 2/work/fixed3d-review/_bench/optimization/benchmark-final",
+      "path": "/work/fixed3d-review/_bench/optimization/benchmark-final",
       "sha256": "4a9da5c6f7f5d2bdd7a332f5ba6253aaf8ef5b8c9792d490154787da590f7c75"
     }
   },
@@ -154,11 +154,11 @@
       "method": "Before/after/after/before, four workers, default scalar RelWithDebInfo with thin LTO on Apple M3 Ultra",
       "binaries": {
         "before": {
-          "path": "/Users/glenn/Documents/ChatGPT/stella 2/work/fixed3d-review/_bench/benchmark-corrected",
+          "path": "/work/fixed3d-review/_bench/benchmark-corrected",
           "sha256": "e77837f4ff560df982bf9b7bd7cc621700955fba8620f79a9a82a96e24932c36"
         },
         "after": {
-          "path": "/Users/glenn/Documents/ChatGPT/stella 2/work/fixed3d-review/_bench/optimization/benchmark-int64",
+          "path": "/work/fixed3d-review/_bench/optimization/benchmark-int64",
           "sha256": "c51aed76142ccb068a89cbbd57c1e37c28f338f825ddb10fb9c2ebda26c96cc2"
         }
       },

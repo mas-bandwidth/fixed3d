@@ -1,0 +1,9 @@
+# A lens-shaped Go stone hull (22 mm x 9 mm at 20x scale) lands on a board,
+# rests flat on its bottom cap, and sleeps. Oracle scene: fixed3d against
+# float Box3D at a2e4816.
+expect pos 0.000111 rot 0.001722 vel 0.107 horizon 8 counts 20
+world gravity 0 -10 0 dt 1 60 substeps 4 steps 300
+body static position 0 -0.1 0 rotation 0 0 0 1 linvel 0 0 0 angvel 0 0 0
+body dynamic position 0 0.3 0 rotation 0.025 0 0 0.9997 linvel 0 0 0 angvel 0 1 0 flags sleep
+shape 0 box 2 0.1 2 density 1 friction 0.5 restitution 0
+shape 1 hull points 28 0.220000 0.000000 0 0.190526 0.110000 0 0.110000 0.190526 0 0.000000 0.220000 0 -0.110000 0.190526 0 -0.190526 0.110000 0 -0.220000 0.000000 0 -0.190526 -0.110000 0 -0.110000 -0.190526 0 0.000000 -0.220000 0 0.110000 -0.190526 0 0.190526 -0.110000 0 0.130000 0.000000 0.07 0.091924 0.091924 0.07 0.000000 0.130000 0.07 -0.091924 0.091924 0.07 -0.130000 0.000000 0.07 -0.091924 -0.091924 0.07 0.000000 -0.130000 0.07 0.091924 -0.091924 0.07 0.130000 0.000000 -0.07 0.091924 0.091924 -0.07 0.000000 0.130000 -0.07 -0.091924 0.091924 -0.07 -0.130000 0.000000 -0.07 -0.091924 -0.091924 -0.07 0.000000 -0.130000 -0.07 0.091924 -0.091924 -0.07 density 1 friction 0.5 restitution 0
